@@ -6,7 +6,7 @@ import pytest
 
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.codec.trellis import pack_trellis
-from mlxl3.kernels.qmv import qmm_exl3, qmv_exl3
+from mlxl3.kernels.qmv import _split_count, qmm_exl3, qmv_exl3
 from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 
 
@@ -60,3 +60,21 @@ def test_qmm_supports_vectorized_code_widths(k: int) -> None:
     actual = qmm_exl3(x, trellis, suh, svh, k, CodebookMode.DEFAULT)
     mx.eval(expected, actual)
     np.testing.assert_allclose(np.asarray(actual), np.asarray(expected), atol=0.035, rtol=0.005)
+
+
+@pytest.mark.parametrize(
+    ("input_tiles", "output_tiles", "expected"),
+    (
+        (64, 384, 1),
+        (128, 128, 1),
+        (224, 64, 2),
+        (256, 8, 8),
+        (512, 128, 4),
+        (1024, 256, 4),
+        (128, 8000, 1),
+    ),
+)
+def test_split_count_balances_width_and_input_work(
+    input_tiles: int, output_tiles: int, expected: int
+) -> None:
+    assert _split_count(input_tiles, output_tiles) == expected

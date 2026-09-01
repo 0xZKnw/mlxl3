@@ -76,3 +76,10 @@ QMV path on the 10-core M5 are:
 | 1024 → 4096 / 16 | 0.813 ms | 0.309 ms | 2.63× |
 | 2048 → 2048 / 32 | 1.354 ms | 0.408 ms | 3.32× |
 | 1024 → 4096 / 64 | 2.526 ms | 0.654 ms | 3.86× |
+
+Split-K is selected from both input work and available output parallelism.
+Wide projections now avoid redundant partial-output buffers and reductions;
+tall/narrow matrices retain split-K. Focused same-process QMV comparisons show
+1–3% lower latency, while mapped MoE projections improve by 2–7%. On the full
+LFM fixture, the same 128-token benchmark moved from 61.47 to 63.14 tok/s
+(+2.7%) with unchanged 4.02 GB peak memory and deterministic text.

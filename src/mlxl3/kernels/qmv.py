@@ -376,8 +376,13 @@ def _hadamard_right(x: mx.array) -> mx.array:
 
 
 def _split_count(input_tiles: int, output_tiles: int) -> int:
+    # A wide projection already exposes enough independent output tiles to
+    # occupy the GPU. Splitting it further only adds a partial-output buffer
+    # and a reduction. Tall/narrow projections still need split-K to create
+    # enough threadgroups, with shorter chunks for fewer output tiles.
+    target_input_tiles = min(max(output_tiles, 32), 256)
     splits = 1
-    while output_tiles * splits < 8192 and input_tiles // (splits * 2) >= 32:
+    while input_tiles // (splits * 2) >= target_input_tiles:
         splits *= 2
     return splits
 
