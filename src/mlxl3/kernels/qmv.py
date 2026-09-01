@@ -226,7 +226,7 @@ def _qmv_mapped_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_v1"
+            f"_nt{tiles_per_group}_v2"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
@@ -273,6 +273,16 @@ def _qmv_mapped_tile_kernel(
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
             for (uint tile_k = tile_begin + simd; tile_k < tile_end; tile_k += 4u) {
+                // Output rows are 128-aligned, so both tiles in a pair use
+                // the same transformed activation row.
+                uint sub = tile_sub[local_tile];
+                float x_lane = float(
+                    xhat[sub * uint(INPUT_DIMS) + tile_k * 16u + (lane & 15u)]
+                );
+                float x_values[8];
+                for (uint j = 0u; j < 8u; ++j) {
+                    x_values[j] = simd_shuffle(x_lane, ushort(rows[j]));
+                }
                 for (
                     uint output_tile = 0u;
                     output_tile < MLXL3_QMV_NT;
@@ -280,12 +290,8 @@ def _qmv_mapped_tile_kernel(
                 ) {
                     uint tile_offset = local_tile + output_tile;
                     uint tile_n = IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
-                    uint sub = tile_sub[tile_offset];
                     const device uint* words = trellis +
                         (tile_k * uint(TILES_N) + tile_n) * uint(PACKED_U32);
-                    float x_lane = float(
-                        xhat[sub * uint(INPUT_DIMS) + tile_k * 16u + (lane & 15u)]
-                    );
                     for (uint group = 0u; group < 2u; ++group) {
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
@@ -296,22 +302,22 @@ def _qmv_mapped_tile_kernel(
                         uint cw0 = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
                         uint j = group * 4u;
                         acc[output_tile][j] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j])),
+                            x_values[j],
                             float(mlxl3_decode_codeword(cw0, CB)),
                             acc[output_tile][j]
                         );
                         acc[output_tile][j + 1u] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j + 1u])),
+                            x_values[j + 1u],
                             float(mlxl3_decode_codeword(cw1, CB)),
                             acc[output_tile][j + 1u]
                         );
                         acc[output_tile][j + 2u] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j + 2u])),
+                            x_values[j + 2u],
                             float(mlxl3_decode_codeword(cw2, CB)),
                             acc[output_tile][j + 2u]
                         );
                         acc[output_tile][j + 3u] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j + 3u])),
+                            x_values[j + 3u],
                             float(mlxl3_decode_codeword(cw3, CB)),
                             acc[output_tile][j + 3u]
                         );
