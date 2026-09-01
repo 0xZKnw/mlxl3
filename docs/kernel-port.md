@@ -13,7 +13,7 @@ compatibility and performance checks.
 | `quant/signs.*` | FP16 signs/scales | working; packed legacy signs still queued |
 | `quant/reconstruct.*` | exact matrix reconstruction | working CPU + Metal/MLX |
 | `quant/exl3_gemv*` | tiled low-bit `m = 1` QMV | working K 1–6/8; K7 scalar fallback |
-| `quant/exl3_gemm*` | batched dense GEMM | vector QMM for M<48; 64x64 simdgroup-matrix QMM for M≥48 |
+| `quant/exl3_gemm*` | batched dense GEMM | vector M<24; 32x64 matrix M=24–47; 64x64 matrix M≥48 |
 | `quant/exl3_gemv_int8*` | int8-activation QMV | queued |
 | `quant/exl3_moe*` | mapped gate/up/down expert QMV | working correctness-first path |
 | `quant/quantize_tiles*` | Metal Viterbi trellis search | temporary Pony implementation |
@@ -84,17 +84,23 @@ tall/narrow matrices retain split-K. Focused same-process QMV comparisons show
 LFM fixture, the same 128-token benchmark moved from 61.47 to 63.14 tok/s
 (+2.7%) with unchanged 4.02 GB peak memory and deterministic text.
 
-For longer prefills, a 64x64 QMM decodes a 32x64 weight stage once into
-threadgroup memory and uses Metal simdgroup matrix instructions for the token
-rows. It is dispatched only from 48 rows upward, after the crossover measured
-against vector QMM:
+For longer prefills, 32x64 and 64x64 QMM kernels decode a 32x64 weight stage
+once into threadgroup memory and use Metal simdgroup matrix instructions for
+the token rows. The 32-row tile crosses over at M=24; the 64-row tile takes
+over at M=48:
 
 | Shape / rows | vector QMM | matrix QMM | speedup |
 | --- | ---: | ---: | ---: |
+| 1024 → 4096 / 24 | 0.358 ms | 0.298 ms | 1.20× |
+| 2048 → 6144 / 26 | 0.814 ms | 0.507 ms | 1.60× |
+| 2048 → 2048 / 32 | 0.413 ms | 0.344 ms | 1.20× |
+| 2048 → 6144 / 32 | 0.823 ms | 0.508 ms | 1.62× |
 | 2048 → 2048 / 48 | 0.522 ms | 0.447 ms | 1.17× |
 | 2048 → 6144 / 48 | 1.127 ms | 0.781 ms | 1.44× |
 | 1024 → 4096 / 64 | 0.649 ms | 0.411 ms | 1.58× |
 | 2048 → 6144 / 64 | 1.412 ms | 0.773 ms | 1.83× |
 
-On the full LFM model with a 51-token prompt, median prefill improves from
-109.53 to 113.89 tok/s (+4.0%); decode stays statistically unchanged.
+On the full LFM model with a 51-token prompt, the 64-row kernel improves median
+prefill from 109.53 to 113.89 tok/s (+4.0%); decode stays statistically
+unchanged. Model-wide measurements made while running on battery are noisier
+than the alternating same-process kernel A/B figures above.

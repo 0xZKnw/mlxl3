@@ -372,12 +372,30 @@ def _qmm_tile_kernel(k: int, mode: int, input_dims: int, output_dims: int, mt: i
 
 
 @cache
-def _qmm_matrix_kernel(k: int, mode: int, input_dims: int, output_dims: int):
-    """64x64 EXL3 GEMM tile using Metal simdgroup matrix instructions."""
+def _qmm_matrix_kernel(
+    k: int,
+    mode: int,
+    input_dims: int,
+    output_dims: int,
+    block_rows: int,
+):
+    """32/64x64 EXL3 GEMM tile using Metal simdgroup matrix instructions."""
 
-    matrix_header = "#include <metal_simdgroup_matrix>\n"
+    if block_rows not in (32, 64):
+        raise ValueError(f"unsupported matrix QMM row block {block_rows}")
+    row_fragments = block_rows // 16
+    simd_rows = block_rows // 2
+    matrix_header = (
+        "#include <metal_simdgroup_matrix>\n"
+        f"#define MLXL3_BM {block_rows}u\n"
+        f"#define MLXL3_ROW_FRAGMENTS {row_fragments}u\n"
+        f"#define MLXL3_SIMD_ROWS {simd_rows}u\n"
+    )
     return mx.fast.metal_kernel(
-        name=f"mlxl3_qmm_matrix_k{k}_cb{mode}_{input_dims}x{output_dims}_v1",
+        name=(
+            f"mlxl3_qmm_matrix_k{k}_cb{mode}_{input_dims}x{output_dims}"
+            f"_m{block_rows}_v2"
+        ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
         header=(
@@ -386,7 +404,7 @@ def _qmm_matrix_kernel(k: int, mode: int, input_dims: int, output_dims: int):
             + permutation_header()
         ),
         source=r"""
-            #define BM 64u
+            #define BM MLXL3_BM
             #define BN 64u
             #define WS 72u
 
@@ -419,8 +437,8 @@ def _qmm_matrix_kernel(k: int, mode: int, input_dims: int, output_dims: int):
 
             threadgroup half weights[32u * WS];
             threadgroup float scratch[4u * 64u];
-            simdgroup_float8x8 accum[4][4];
-            for (uint row = 0u; row < 4u; ++row) {
+            simdgroup_float8x8 accum[MLXL3_ROW_FRAGMENTS][4];
+            for (uint row = 0u; row < MLXL3_ROW_FRAGMENTS; ++row) {
                 for (uint col = 0u; col < 4u; ++col) {
                     accum[row][col] =
                         make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
@@ -428,7 +446,8 @@ def _qmm_matrix_kernel(k: int, mode: int, input_dims: int, output_dims: int):
             }
 
             const device half* x_block =
-                xhat + (row_block * BM + simd_row * 32u) * uint(INPUT_DIMS);
+                xhat + (row_block * BM + simd_row * MLXL3_SIMD_ROWS)
+                    * uint(INPUT_DIMS);
             for (uint input_stage = 0u; input_stage < uint(TILES_K) / 2u; ++input_stage) {
                 threadgroup_barrier(mem_flags::mem_threadgroup);
                 for (uint input_half = 0u; input_half < 2u; ++input_half) {
@@ -461,7 +480,7 @@ def _qmm_matrix_kernel(k: int, mode: int, input_dims: int, output_dims: int):
                     simdgroup_load(weight1, weight_row + 8u, WS);
                     simdgroup_load(weight2, weight_row + 16u, WS);
                     simdgroup_load(weight3, weight_row + 24u, WS);
-                    for (uint row = 0u; row < 4u; ++row) {
+                    for (uint row = 0u; row < MLXL3_ROW_FRAGMENTS; ++row) {
                         simdgroup_half8x8 activation;
                         simdgroup_load(
                             activation,
@@ -486,8 +505,8 @@ def _qmm_matrix_kernel(k: int, mode: int, input_dims: int, output_dims: int):
             }
 
             uint output_col = col_block * BN + simd_col * 32u;
-            uint output_row = row_block * BM + simd_row * 32u;
-            for (uint row = 0u; row < 4u; ++row) {
+            uint output_row = row_block * BM + simd_row * MLXL3_SIMD_ROWS;
+            for (uint row = 0u; row < MLXL3_ROW_FRAGMENTS; ++row) {
                 for (uint col = 0u; col < 4u; ++col) {
                     simdgroup_store(accum[row][col], &scratch[simd * 64u], 8u);
                     simdgroup_barrier(mem_flags::mem_threadgroup);
@@ -696,12 +715,13 @@ def qmm_exl3(
     cb = CodebookMode(mode)
     if trellis.dtype == mx.int16:
         trellis = trellis.view(mx.uint16)
-    if rows >= 48:
-        padded_rows = ((rows + 63) // 64) * 64
+    if rows >= 24:
+        block_rows = 64 if rows >= 48 else 32
+        padded_rows = ((rows + block_rows - 1) // block_rows) * block_rows
         xhat = _hadamard_right(flat.astype(mx.float32) * suh)
         if rows < padded_rows:
             xhat = mx.pad(xhat, [(0, padded_rows - rows), (0, 0)])
-        yhat = _qmm_matrix_kernel(k, int(cb), input_dims, output_dims)(
+        yhat = _qmm_matrix_kernel(k, int(cb), input_dims, output_dims, block_rows)(
             inputs=[mx.contiguous(xhat), trellis.reshape(-1).view(mx.uint32)],
             template=[
                 ("K", k),
@@ -712,7 +732,7 @@ def qmm_exl3(
                 ("TILES_K", trellis.shape[0]),
                 ("TILES_N", trellis.shape[1]),
             ],
-            grid=((output_dims // 64) * 128, padded_rows // 64, 1),
+            grid=((output_dims // 64) * 128, padded_rows // block_rows, 1),
             threadgroup=(128, 1, 1),
             output_shapes=[(padded_rows, output_dims)],
             output_dtypes=[mx.float16],

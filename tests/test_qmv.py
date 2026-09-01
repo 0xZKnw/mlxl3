@@ -45,7 +45,7 @@ def test_qmm_matches_individual_qmv(rows: int) -> None:
     np.testing.assert_allclose(np.asarray(actual), np.asarray(expected), atol=0.035, rtol=0.005)
 
 
-@pytest.mark.parametrize("rows", (5, 64))
+@pytest.mark.parametrize("rows", (5, 32, 64))
 @pytest.mark.parametrize("k", (1, 2, 3, 4, 5, 6, 8))
 def test_qmm_supports_code_widths(rows: int, k: int) -> None:
     rng = np.random.default_rng(46000 + 100 * rows + k)
