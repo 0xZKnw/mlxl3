@@ -79,21 +79,37 @@ def _qmv_inner_kernel(k: int, mode: int, input_dims: int, output_dims: int):
 
 
 @cache
-def _qmv_tile_kernel(k: int, mode: int, input_dims: int, output_dims: int):
-    """Four-simdgroup CUDA-style 16-column tile kernel."""
+def _qmv_tile_kernel(
+    k: int,
+    mode: int,
+    input_dims: int,
+    output_dims: int,
+    tiles_per_group: int = 1,
+):
+    """Four-simdgroup CUDA-style kernel over adjacent output tiles."""
+
+    if tiles_per_group not in (1, 2):
+        raise ValueError(f"unsupported QMV output tile group {tiles_per_group}")
 
     return mx.fast.metal_kernel(
-        name=f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}_v1",
+        name=(
+            f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}"
+            f"_nt{tiles_per_group}_v1"
+        ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
-        header=specialized_codebook_header(mode) + forward_permutation_header(),
+        header=(
+            f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
+            + specialized_codebook_header(mode)
+            + forward_permutation_header()
+        ),
         source=r"""
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
-            uint tile_n = threadgroup_position_in_grid.x;
+            uint tile_n = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
-            threadgroup float partials[4][256];
+            threadgroup float partials[4][MLXL3_QMV_NT * 256u];
 
             uint positions[8];
             uint rows[8];
@@ -114,56 +130,80 @@ def _qmv_tile_kernel(k: int, mode: int, input_dims: int, output_dims: int):
                 shifts[group] = uint((last_word + 1) * 32 - end);
             }
 
-            float acc[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+            float acc[MLXL3_QMV_NT][8];
+            for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+                for (uint j = 0u; j < 8u; ++j) {
+                    acc[output_tile][j] = 0.0f;
+                }
+            }
             uint tiles_per_split =
                 (uint(TILES_K) + uint(N_SPLITS) - 1u) / uint(N_SPLITS);
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
             for (uint tile_k = tile_begin + simd; tile_k < tile_end; tile_k += 4u) {
-                const device uint* words =
-                    trellis + (tile_k * uint(TILES_N) + tile_n) * uint(PACKED_U32);
                 float x_lane = float(xhat[tile_k * 16u + (lane & 15u)]);
-                for (uint group = 0u; group < 2u; ++group) {
-                    ulong merged = (ulong(words[word0[group]]) << 32) |
-                                   ulong(words[word1[group]]);
-                    uint shift = shifts[group];
-                    uint cw3 = uint(merged >> shift) & 0xffffu;
-                    uint cw2 = uint(merged >> (shift + uint(K))) & 0xffffu;
-                    uint cw1 = uint(merged >> (shift + 2u * uint(K))) & 0xffffu;
-                    uint cw0 = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
-                    uint j = group * 4u;
-                    acc[j] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j])),
-                        float(mlxl3_decode_codeword(cw0, CB)), acc[j]
-                    );
-                    acc[j + 1u] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j + 1u])),
-                        float(mlxl3_decode_codeword(cw1, CB)), acc[j + 1u]
-                    );
-                    acc[j + 2u] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j + 2u])),
-                        float(mlxl3_decode_codeword(cw2, CB)), acc[j + 2u]
-                    );
-                    acc[j + 3u] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j + 3u])),
-                        float(mlxl3_decode_codeword(cw3, CB)), acc[j + 3u]
-                    );
+                for (
+                    uint output_tile = 0u;
+                    output_tile < MLXL3_QMV_NT;
+                    ++output_tile
+                ) {
+                    const device uint* words = trellis +
+                        (tile_k * uint(TILES_N) + tile_n + output_tile)
+                        * uint(PACKED_U32);
+                    for (uint group = 0u; group < 2u; ++group) {
+                        ulong merged = (ulong(words[word0[group]]) << 32) |
+                                       ulong(words[word1[group]]);
+                        uint shift = shifts[group];
+                        uint cw3 = uint(merged >> shift) & 0xffffu;
+                        uint cw2 = uint(merged >> (shift + uint(K))) & 0xffffu;
+                        uint cw1 = uint(merged >> (shift + 2u * uint(K))) & 0xffffu;
+                        uint cw0 = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
+                        uint j = group * 4u;
+                        acc[output_tile][j] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j])),
+                            float(mlxl3_decode_codeword(cw0, CB)),
+                            acc[output_tile][j]
+                        );
+                        acc[output_tile][j + 1u] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j + 1u])),
+                            float(mlxl3_decode_codeword(cw1, CB)),
+                            acc[output_tile][j + 1u]
+                        );
+                        acc[output_tile][j + 2u] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j + 2u])),
+                            float(mlxl3_decode_codeword(cw2, CB)),
+                            acc[output_tile][j + 2u]
+                        );
+                        acc[output_tile][j + 3u] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j + 3u])),
+                            float(mlxl3_decode_codeword(cw3, CB)),
+                            acc[output_tile][j + 3u]
+                        );
+                    }
                 }
             }
 
-            for (uint j = 0u; j < 8u; ++j) {
-                partials[simd][positions[j]] = acc[j];
+            for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+                for (uint j = 0u; j < 8u; ++j) {
+                    partials[simd][output_tile * 256u + positions[j]] =
+                        acc[output_tile][j];
+                }
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
-            if (tid < 16u) {
+            if (tid < 16u * MLXL3_QMV_NT) {
+                uint output_tile = tid >> 4u;
+                uint column = tid & 15u;
                 float sum = 0.0f;
                 for (uint row = 0u; row < 16u; ++row) {
-                    uint position = row * 16u + tid;
+                    uint position = output_tile * 256u + row * 16u + column;
                     for (uint group = 0u; group < 4u; ++group) {
                         sum += partials[group][position];
                     }
                 }
-                yhat[split * uint(OUTPUT_DIMS) + tile_n * 16u + tid] = sum;
+                yhat[
+                    split * uint(OUTPUT_DIMS)
+                    + (tile_n + output_tile) * 16u + column
+                ] = sum;
             }
         """,
         compile_options={"math_mode": "safe"},
@@ -171,23 +211,37 @@ def _qmv_tile_kernel(k: int, mode: int, input_dims: int, output_dims: int):
 
 
 @cache
-def _qmv_mapped_tile_kernel(k: int, mode: int, input_dims: int, source_tiles: int):
+def _qmv_mapped_tile_kernel(
+    k: int,
+    mode: int,
+    input_dims: int,
+    source_tiles: int,
+    tiles_per_group: int = 1,
+):
     """Tile-cooperative QMV over an indirect list of expert output tiles."""
 
+    if tiles_per_group not in (1, 2):
+        raise ValueError(f"unsupported mapped QMV output tile group {tiles_per_group}")
+
     return mx.fast.metal_kernel(
-        name=f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}_v1",
+        name=(
+            f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
+            f"_nt{tiles_per_group}_v1"
+        ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
-        header=specialized_codebook_header(mode) + forward_permutation_header(),
+        header=(
+            f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
+            + specialized_codebook_header(mode)
+            + forward_permutation_header()
+        ),
         source=r"""
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
-            uint local_tile = threadgroup_position_in_grid.x;
-            uint tile_n = IDENTITY_MAP ? local_tile : tile_map[local_tile];
-            uint sub = tile_sub[local_tile];
+            uint local_tile = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
-            threadgroup float partials[4][256];
+            threadgroup float partials[4][MLXL3_QMV_NT * 256u];
 
             uint positions[8];
             uint rows[8];
@@ -208,58 +262,84 @@ def _qmv_mapped_tile_kernel(k: int, mode: int, input_dims: int, source_tiles: in
                 shifts[group] = uint((last_word + 1) * 32 - end);
             }
 
-            float acc[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+            float acc[MLXL3_QMV_NT][8];
+            for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+                for (uint j = 0u; j < 8u; ++j) {
+                    acc[output_tile][j] = 0.0f;
+                }
+            }
             uint tiles_per_split =
                 (uint(TILES_K) + uint(N_SPLITS) - 1u) / uint(N_SPLITS);
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
             for (uint tile_k = tile_begin + simd; tile_k < tile_end; tile_k += 4u) {
-                const device uint* words =
-                    trellis + (tile_k * uint(TILES_N) + tile_n) * uint(PACKED_U32);
-                float x_lane = float(
-                    xhat[sub * uint(INPUT_DIMS) + tile_k * 16u + (lane & 15u)]
-                );
-                for (uint group = 0u; group < 2u; ++group) {
-                    ulong merged = (ulong(words[word0[group]]) << 32) |
-                                   ulong(words[word1[group]]);
-                    uint shift = shifts[group];
-                    uint cw3 = uint(merged >> shift) & 0xffffu;
-                    uint cw2 = uint(merged >> (shift + uint(K))) & 0xffffu;
-                    uint cw1 = uint(merged >> (shift + 2u * uint(K))) & 0xffffu;
-                    uint cw0 = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
-                    uint j = group * 4u;
-                    acc[j] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j])),
-                        float(mlxl3_decode_codeword(cw0, CB)), acc[j]
+                for (
+                    uint output_tile = 0u;
+                    output_tile < MLXL3_QMV_NT;
+                    ++output_tile
+                ) {
+                    uint tile_offset = local_tile + output_tile;
+                    uint tile_n = IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
+                    uint sub = tile_sub[tile_offset];
+                    const device uint* words = trellis +
+                        (tile_k * uint(TILES_N) + tile_n) * uint(PACKED_U32);
+                    float x_lane = float(
+                        xhat[sub * uint(INPUT_DIMS) + tile_k * 16u + (lane & 15u)]
                     );
-                    acc[j + 1u] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j + 1u])),
-                        float(mlxl3_decode_codeword(cw1, CB)), acc[j + 1u]
-                    );
-                    acc[j + 2u] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j + 2u])),
-                        float(mlxl3_decode_codeword(cw2, CB)), acc[j + 2u]
-                    );
-                    acc[j + 3u] = fma(
-                        simd_shuffle(x_lane, ushort(rows[j + 3u])),
-                        float(mlxl3_decode_codeword(cw3, CB)), acc[j + 3u]
-                    );
+                    for (uint group = 0u; group < 2u; ++group) {
+                        ulong merged = (ulong(words[word0[group]]) << 32) |
+                                       ulong(words[word1[group]]);
+                        uint shift = shifts[group];
+                        uint cw3 = uint(merged >> shift) & 0xffffu;
+                        uint cw2 = uint(merged >> (shift + uint(K))) & 0xffffu;
+                        uint cw1 = uint(merged >> (shift + 2u * uint(K))) & 0xffffu;
+                        uint cw0 = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
+                        uint j = group * 4u;
+                        acc[output_tile][j] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j])),
+                            float(mlxl3_decode_codeword(cw0, CB)),
+                            acc[output_tile][j]
+                        );
+                        acc[output_tile][j + 1u] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j + 1u])),
+                            float(mlxl3_decode_codeword(cw1, CB)),
+                            acc[output_tile][j + 1u]
+                        );
+                        acc[output_tile][j + 2u] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j + 2u])),
+                            float(mlxl3_decode_codeword(cw2, CB)),
+                            acc[output_tile][j + 2u]
+                        );
+                        acc[output_tile][j + 3u] = fma(
+                            simd_shuffle(x_lane, ushort(rows[j + 3u])),
+                            float(mlxl3_decode_codeword(cw3, CB)),
+                            acc[output_tile][j + 3u]
+                        );
+                    }
                 }
             }
 
-            for (uint j = 0u; j < 8u; ++j) {
-                partials[simd][positions[j]] = acc[j];
+            for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+                for (uint j = 0u; j < 8u; ++j) {
+                    partials[simd][output_tile * 256u + positions[j]] =
+                        acc[output_tile][j];
+                }
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
-            if (tid < 16u) {
+            if (tid < 16u * MLXL3_QMV_NT) {
+                uint output_tile = tid >> 4u;
+                uint column = tid & 15u;
                 float sum = 0.0f;
                 for (uint row = 0u; row < 16u; ++row) {
-                    uint position = row * 16u + tid;
+                    uint position = output_tile * 256u + row * 16u + column;
                     for (uint group = 0u; group < 4u; ++group) {
                         sum += partials[group][position];
                     }
                 }
-                yhat[split * uint(LOCAL_OUTPUT_DIMS) + local_tile * 16u + tid] = sum;
+                yhat[
+                    split * uint(LOCAL_OUTPUT_DIMS)
+                    + (local_tile + output_tile) * 16u + column
+                ] = sum;
             }
         """,
         compile_options={"math_mode": "safe"},
@@ -546,6 +626,18 @@ def _split_count(input_tiles: int, output_tiles: int) -> int:
     return splits
 
 
+def _qmv_tiles_per_group(
+    input_tiles: int,
+    output_tiles: int,
+    k: int,
+    mode: CodebookMode,
+) -> int:
+    """Reuse each activation slice across two adjacent output tiles."""
+
+    del input_tiles, k, mode
+    return 2 if output_tiles % 2 == 0 else 1
+
+
 def qmv_exl3(
     x: mx.array,
     trellis: mx.array,
@@ -589,7 +681,14 @@ def qmv_exl3(
         )[0]
     else:
         splits = _split_count(trellis.shape[0], trellis.shape[1])
-        partials = _qmv_tile_kernel(k, int(cb), input_dims, output_dims)(
+        tiles_per_group = _qmv_tiles_per_group(
+            trellis.shape[0], trellis.shape[1], k, cb
+        )
+        if trellis.shape[1] % tiles_per_group:
+            tiles_per_group = 1
+        partials = _qmv_tile_kernel(
+            k, int(cb), input_dims, output_dims, tiles_per_group
+        )(
             inputs=[xhat, trellis.reshape(-1).view(mx.uint32)],
             template=[
                 ("K", k),
@@ -600,7 +699,7 @@ def qmv_exl3(
                 ("N_SPLITS", splits),
                 ("OUTPUT_DIMS", output_dims),
             ],
-            grid=(trellis.shape[1] * 128, 1, splits),
+            grid=((trellis.shape[1] // tiles_per_group) * 128, 1, splits),
             threadgroup=(128, 1, 1),
             output_shapes=[(splits, output_dims)],
             output_dtypes=[mx.float32],
@@ -657,7 +756,14 @@ def qmv_exl3_mapped(
     xhat = _hadamard_right(x.astype(mx.float32) * suh)
     tile_sub = mx.repeat(mx.arange(rows, dtype=mx.uint32), output_tiles)
     splits = _split_count(trellis.shape[0], tile_map.size)
-    partials = _qmv_mapped_tile_kernel(k, int(cb), input_dims, trellis.shape[1])(
+    tiles_per_group = _qmv_tiles_per_group(
+        trellis.shape[0], tile_map.size, k, cb
+    )
+    if tile_map.size % tiles_per_group:
+        tiles_per_group = 1
+    partials = _qmv_mapped_tile_kernel(
+        k, int(cb), input_dims, trellis.shape[1], tiles_per_group
+    )(
         inputs=[
             xhat.reshape(-1),
             trellis.reshape(-1).view(mx.uint32),
@@ -675,7 +781,7 @@ def qmv_exl3_mapped(
             ("LOCAL_OUTPUT_DIMS", tile_map.size * 16),
             ("IDENTITY_MAP", 0),
         ],
-        grid=(tile_map.size * 128, 1, splits),
+        grid=((tile_map.size // tiles_per_group) * 128, 1, splits),
         threadgroup=(128, 1, 1),
         output_shapes=[(splits, rows, output_dims)],
         output_dtypes=[mx.float32],
@@ -731,7 +837,14 @@ def qmv_exl3_grouped(
     total_tiles = trellis.shape[1]
     identity_map = mx.zeros((1,), dtype=mx.uint32)
     splits = _split_count(trellis.shape[0], total_tiles)
-    partials = _qmv_mapped_tile_kernel(k, int(cb), input_dims, total_tiles)(
+    tiles_per_group = _qmv_tiles_per_group(
+        trellis.shape[0], total_tiles, k, cb
+    )
+    if total_tiles % tiles_per_group:
+        tiles_per_group = 1
+    partials = _qmv_mapped_tile_kernel(
+        k, int(cb), input_dims, total_tiles, tiles_per_group
+    )(
         inputs=[
             xhat.reshape(-1),
             trellis.reshape(-1).view(mx.uint32),
@@ -749,7 +862,7 @@ def qmv_exl3_grouped(
             ("LOCAL_OUTPUT_DIMS", total_output_dims),
             ("IDENTITY_MAP", 1),
         ],
-        grid=(total_tiles * 128, 1, splits),
+        grid=((total_tiles // tiles_per_group) * 128, 1, splits),
         threadgroup=(128, 1, 1),
         output_shapes=[(splits, total_output_dims)],
         output_dtypes=[mx.float32],
