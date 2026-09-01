@@ -1,4 +1,8 @@
-"""Correctness-first EXL3 Metal QMV for autoregressive decoding."""
+"""EXL3 Metal QMV/QMM kernels.
+
+Kernel algorithms incorporate adaptations of ExLlamaV3 and PonyExl3. See the
+repository's ``THIRD_PARTY_NOTICES.md`` for attribution and license details.
+"""
 
 from __future__ import annotations
 
@@ -367,6 +371,142 @@ def _qmm_tile_kernel(k: int, mode: int, input_dims: int, output_dims: int, mt: i
     )
 
 
+@cache
+def _qmm_matrix_kernel(k: int, mode: int, input_dims: int, output_dims: int):
+    """64x64 EXL3 GEMM tile using Metal simdgroup matrix instructions."""
+
+    matrix_header = "#include <metal_simdgroup_matrix>\n"
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_qmm_matrix_k{k}_cb{mode}_{input_dims}x{output_dims}_v1",
+        input_names=["xhat", "trellis"],
+        output_names=["yhat"],
+        header=(
+            matrix_header
+            + specialized_codebook_header(mode)
+            + permutation_header()
+        ),
+        source=r"""
+            #define BM 64u
+            #define BN 64u
+            #define WS 72u
+
+            uint col_block = threadgroup_position_in_grid.x;
+            uint row_block = threadgroup_position_in_grid.y;
+            uint tid = thread_position_in_threadgroup.x;
+            uint lane = thread_index_in_simdgroup;
+            uint simd = simdgroup_index_in_threadgroup;
+            uint simd_row = simd >> 1u;
+            uint simd_col = simd & 1u;
+
+            uint decoded_col = tid >> 3u;
+            uint row_pair = tid & 7u;
+            uint word0[2];
+            uint word1[2];
+            uint shifts[2];
+            for (uint j = 0u; j < 2u; ++j) {
+                uint source = uint(
+                    mlxl3_perm_inv[(2u * row_pair + j) * 16u + decoded_col]
+                );
+                uint pair = source >> 1u;
+                int bit0 = int(pair * 2u * uint(K) + uint(K))
+                         - 16 + 256 * K;
+                int bit2 = bit0 + K + 16;
+                word0[j] = uint(bit0 / 32) % uint(PACKED_U32);
+                word1[j] = uint((bit2 - 1) / 32) % uint(PACKED_U32);
+                shifts[j] = uint(((bit2 - 1) / 32 + 1) * 32 - bit2)
+                          + ((source & 1u) ? 0u : uint(K));
+            }
+
+            threadgroup half weights[32u * WS];
+            threadgroup float scratch[4u * 64u];
+            simdgroup_float8x8 accum[4][4];
+            for (uint row = 0u; row < 4u; ++row) {
+                for (uint col = 0u; col < 4u; ++col) {
+                    accum[row][col] =
+                        make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
+                }
+            }
+
+            const device half* x_block =
+                xhat + (row_block * BM + simd_row * 32u) * uint(INPUT_DIMS);
+            for (uint input_stage = 0u; input_stage < uint(TILES_K) / 2u; ++input_stage) {
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                for (uint input_half = 0u; input_half < 2u; ++input_half) {
+                    uint tile_k = input_stage * 2u + input_half;
+                    for (uint output_tile = 0u; output_tile < 4u; ++output_tile) {
+                        uint tile_n = col_block * 4u + output_tile;
+                        const device uint* words = trellis +
+                            (tile_k * uint(TILES_N) + tile_n) * uint(PACKED_U32);
+                        for (uint j = 0u; j < 2u; ++j) {
+                            ulong merged =
+                                (ulong(words[word0[j]]) << 32) | ulong(words[word1[j]]);
+                            uint codeword = uint(merged >> shifts[j]) & 0xffffu;
+                            weights[
+                                (input_half * 16u + 2u * row_pair + j) * WS
+                                + output_tile * 16u + decoded_col
+                            ] = half(mlxl3_decode_codeword(codeword, CB));
+                        }
+                    }
+                }
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+
+                for (uint depth = 0u; depth < 4u; ++depth) {
+                    simdgroup_half8x8 weight0;
+                    simdgroup_half8x8 weight1;
+                    simdgroup_half8x8 weight2;
+                    simdgroup_half8x8 weight3;
+                    const threadgroup half* weight_row =
+                        &weights[depth * 8u * WS + simd_col * 32u];
+                    simdgroup_load(weight0, weight_row, WS);
+                    simdgroup_load(weight1, weight_row + 8u, WS);
+                    simdgroup_load(weight2, weight_row + 16u, WS);
+                    simdgroup_load(weight3, weight_row + 24u, WS);
+                    for (uint row = 0u; row < 4u; ++row) {
+                        simdgroup_half8x8 activation;
+                        simdgroup_load(
+                            activation,
+                            x_block + row * 8u * uint(INPUT_DIMS)
+                                + input_stage * 32u + depth * 8u,
+                            uint(INPUT_DIMS)
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][0], activation, weight0, accum[row][0]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][1], activation, weight1, accum[row][1]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][2], activation, weight2, accum[row][2]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][3], activation, weight3, accum[row][3]
+                        );
+                    }
+                }
+            }
+
+            uint output_col = col_block * BN + simd_col * 32u;
+            uint output_row = row_block * BM + simd_row * 32u;
+            for (uint row = 0u; row < 4u; ++row) {
+                for (uint col = 0u; col < 4u; ++col) {
+                    simdgroup_store(accum[row][col], &scratch[simd * 64u], 8u);
+                    simdgroup_barrier(mem_flags::mem_threadgroup);
+                    for (uint index = lane; index < 64u; index += 32u) {
+                        uint local_row = index >> 3u;
+                        uint local_col = index & 7u;
+                        yhat[
+                            (output_row + row * 8u + local_row) * uint(OUTPUT_DIMS)
+                            + output_col + col * 8u + local_col
+                        ] = half(scratch[simd * 64u + index]);
+                    }
+                    simdgroup_barrier(mem_flags::mem_threadgroup);
+                }
+            }
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
 def _hadamard_right(x: mx.array) -> mx.array:
     if x.shape[-1] % 128:
         raise ValueError(f"Hadamard dimension must be divisible by 128, got {x.shape[-1]}")
@@ -556,6 +696,30 @@ def qmm_exl3(
     cb = CodebookMode(mode)
     if trellis.dtype == mx.int16:
         trellis = trellis.view(mx.uint16)
+    if rows >= 48:
+        padded_rows = ((rows + 63) // 64) * 64
+        xhat = _hadamard_right(flat.astype(mx.float32) * suh)
+        if rows < padded_rows:
+            xhat = mx.pad(xhat, [(0, padded_rows - rows), (0, 0)])
+        yhat = _qmm_matrix_kernel(k, int(cb), input_dims, output_dims)(
+            inputs=[mx.contiguous(xhat), trellis.reshape(-1).view(mx.uint32)],
+            template=[
+                ("K", k),
+                ("CB", int(cb)),
+                ("PACKED_U32", k * 8),
+                ("INPUT_DIMS", input_dims),
+                ("OUTPUT_DIMS", output_dims),
+                ("TILES_K", trellis.shape[0]),
+                ("TILES_N", trellis.shape[1]),
+            ],
+            grid=((output_dims // 64) * 128, padded_rows // 64, 1),
+            threadgroup=(128, 1, 1),
+            output_shapes=[(padded_rows, output_dims)],
+            output_dtypes=[mx.float16],
+        )[0][:rows]
+        output = (_hadamard_right(yhat) * svh).astype(x.dtype)
+        return output.reshape(*x.shape[:-1], output_dims)
+
     mt = 2 if rows <= 2 else (4 if rows <= 4 else 8)
     row_groups = (rows + mt - 1) // mt
     padded_rows = row_groups * mt

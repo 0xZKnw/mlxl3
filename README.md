@@ -12,7 +12,7 @@ The working runtime now contains:
 - JIT-compiled Metal pack and fused unpack/decode kernels;
 - a CUDA-style 128-thread tiled QMV kernel for autoregressive decode;
 - a mapped two-launch `SwitchGLU` path for selected MoE experts;
-- a vectorized 2/4/8-row Metal QMM that keeps weights serialized and amortizes decode;
+- vector and 64x64 simdgroup-matrix QMM kernels that keep weights serialized;
 - a standard EXL3 safetensors loader on top of MLX-LM architectures;
 - CPU-vs-Metal conformance tests for every bit width from 1 through 8.
 
@@ -23,8 +23,8 @@ paused because a full no-training EXL3 conversion is much slower to iterate on.
 
 On this 10-core M5, the LFM fixture reaches a three-run warm median of 63.1
 generated tokens/s and a 4.02 GB peak allocation. The matching MLX 8-bit model
-reaches 58.9 tokens/s and 9.04 GB. Prefill is currently 102.0 versus 122.5
-tokens/s; a tensor-tiled EXL3 GEMM remains future work.
+reaches 58.9 tokens/s and 9.04 GB. Prefill reaches 113.9 tok/s on a 51-token
+prompt; larger-batch segmented GEMM remains future work.
 
 ## Local model CLI
 

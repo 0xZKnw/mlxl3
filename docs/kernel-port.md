@@ -13,7 +13,7 @@ compatibility and performance checks.
 | `quant/signs.*` | FP16 signs/scales | working; packed legacy signs still queued |
 | `quant/reconstruct.*` | exact matrix reconstruction | working CPU + Metal/MLX |
 | `quant/exl3_gemv*` | tiled low-bit `m = 1` QMV | working K 1–6/8; K7 scalar fallback |
-| `quant/exl3_gemm*` | batched dense GEMM | working vectorized 2/4/8-row Metal QMM; tensor-tiled large-batch kernel queued |
+| `quant/exl3_gemm*` | batched dense GEMM | vector QMM for M<48; 64x64 simdgroup-matrix QMM for M≥48 |
 | `quant/exl3_gemv_int8*` | int8-activation QMV | queued |
 | `quant/exl3_moe*` | mapped gate/up/down expert QMV | working correctness-first path |
 | `quant/quantize_tiles*` | Metal Viterbi trellis search | temporary Pony implementation |
@@ -83,3 +83,18 @@ tall/narrow matrices retain split-K. Focused same-process QMV comparisons show
 1–3% lower latency, while mapped MoE projections improve by 2–7%. On the full
 LFM fixture, the same 128-token benchmark moved from 61.47 to 63.14 tok/s
 (+2.7%) with unchanged 4.02 GB peak memory and deterministic text.
+
+For longer prefills, a 64x64 QMM decodes a 32x64 weight stage once into
+threadgroup memory and uses Metal simdgroup matrix instructions for the token
+rows. It is dispatched only from 48 rows upward, after the crossover measured
+against vector QMM:
+
+| Shape / rows | vector QMM | matrix QMM | speedup |
+| --- | ---: | ---: | ---: |
+| 2048 → 2048 / 48 | 0.522 ms | 0.447 ms | 1.17× |
+| 2048 → 6144 / 48 | 1.127 ms | 0.781 ms | 1.44× |
+| 1024 → 4096 / 64 | 0.649 ms | 0.411 ms | 1.58× |
+| 2048 → 6144 / 64 | 1.412 ms | 0.773 ms | 1.83× |
+
+On the full LFM model with a 51-token prompt, median prefill improves from
+109.53 to 113.89 tok/s (+4.0%); decode stays statistically unchanged.
