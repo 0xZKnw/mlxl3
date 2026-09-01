@@ -226,7 +226,7 @@ def _qmv_mapped_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_v2"
+            f"_nt{tiles_per_group}_v3"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
@@ -272,10 +272,16 @@ def _qmv_mapped_tile_kernel(
                 (uint(TILES_K) + uint(N_SPLITS) - 1u) / uint(N_SPLITS);
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
+            uint sub = tile_sub[local_tile];
+            uint tile_ns[MLXL3_QMV_NT];
+            for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+                uint tile_offset = local_tile + output_tile;
+                tile_ns[output_tile] =
+                    IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
+            }
             for (uint tile_k = tile_begin + simd; tile_k < tile_end; tile_k += 4u) {
                 // Output rows are 128-aligned, so both tiles in a pair use
                 // the same transformed activation row.
-                uint sub = tile_sub[local_tile];
                 float x_lane = float(
                     xhat[sub * uint(INPUT_DIMS) + tile_k * 16u + (lane & 15u)]
                 );
@@ -288,10 +294,9 @@ def _qmv_mapped_tile_kernel(
                     output_tile < MLXL3_QMV_NT;
                     ++output_tile
                 ) {
-                    uint tile_offset = local_tile + output_tile;
-                    uint tile_n = IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
                     const device uint* words = trellis +
-                        (tile_k * uint(TILES_N) + tile_n) * uint(PACKED_U32);
+                        (tile_k * uint(TILES_N) + tile_ns[output_tile])
+                        * uint(PACKED_U32);
                     for (uint group = 0u; group < 2u; ++group) {
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
