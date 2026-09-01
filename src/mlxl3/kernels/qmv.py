@@ -262,6 +262,111 @@ def _qmv_mapped_tile_kernel(k: int, mode: int, input_dims: int, source_tiles: in
     )
 
 
+@cache
+def _qmm_tile_kernel(k: int, mode: int, input_dims: int, output_dims: int, mt: int):
+    """Decode each EXL3 tile once for a 2/4/8-row activation group."""
+
+    if mt not in (2, 4, 8):
+        raise ValueError(f"unsupported QMM row tile {mt}")
+    vector_width = 2 if mt == 2 else 4
+    vectors = mt // vector_width
+    vector_type = f"float{vector_width}"
+    half_vector_type = f"half{vector_width}"
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_qmm_tile_k{k}_cb{mode}_{input_dims}x{output_dims}_m{mt}_v1",
+        input_names=["xhat", "trellis"],
+        output_names=["yhat"],
+        header=specialized_codebook_header(mode) + forward_permutation_header(),
+        source=f"""
+            #define MT {mt}u
+            #define VW {vector_width}u
+            #define NV {vectors}u
+
+            uint tid = thread_position_in_threadgroup.x;
+            uint lane = thread_index_in_simdgroup;
+            uint simd = simdgroup_index_in_threadgroup;
+            uint input_phase = simd >> 1u;
+            uint tile_half = simd & 1u;
+            uint tile_n = threadgroup_position_in_grid.x;
+            uint row_group = threadgroup_position_in_grid.y;
+            uint split = threadgroup_position_in_grid.z;
+            uint row_begin = row_group * MT;
+            threadgroup float partials[2][256];
+
+            uint positions[4];
+            uint rows[4];
+            for (uint j = 0u; j < 4u; ++j) {{
+                uint code = tile_half * 128u + lane * 4u + j;
+                positions[j] = uint(mlxl3_perm[code]);
+                rows[j] = positions[j] >> 4u;
+            }}
+
+            uint code0 = tile_half * 128u + lane * 4u;
+            int end = int(code0 + 4u) * K + 256 * K;
+            int last_word = (end - 1) / 32;
+            uint word1 = uint(last_word) % uint(PACKED_U32);
+            uint word0 = uint(last_word - 1) % uint(PACKED_U32);
+            uint shift = uint((last_word + 1) * 32 - end);
+
+            {vector_type} acc[4][NV];
+            for (uint j = 0u; j < 4u; ++j) {{
+                for (uint q = 0u; q < NV; ++q) {{
+                    acc[j][q] = {vector_type}(0.0f);
+                }}
+            }}
+
+            uint tiles_per_split =
+                (uint(TILES_K) + uint(N_SPLITS) - 1u) / uint(N_SPLITS);
+            uint tile_begin = split * tiles_per_split;
+            uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
+            const device half* group_x = xhat + row_begin;
+            for (uint tile_k = tile_begin + input_phase; tile_k < tile_end; tile_k += 2u) {{
+                const device uint* words =
+                    trellis + (tile_k * uint(TILES_N) + tile_n) * uint(PACKED_U32);
+                ulong merged = (ulong(words[word0]) << 32) | ulong(words[word1]);
+                uint codewords[4];
+                codewords[3] = uint(merged >> shift) & 0xffffu;
+                codewords[2] = uint(merged >> (shift + uint(K))) & 0xffffu;
+                codewords[1] = uint(merged >> (shift + 2u * uint(K))) & 0xffffu;
+                codewords[0] = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
+
+                for (uint j = 0u; j < 4u; ++j) {{
+                    float weight = mlxl3_decode_codeword(codewords[j], CB);
+                    const device {half_vector_type}* values =
+                        (const device {half_vector_type}*)(
+                            group_x + (tile_k * 16u + rows[j]) * uint(PADDED_ROWS)
+                        );
+                    for (uint q = 0u; q < NV; ++q) {{
+                        acc[j][q] = fma(
+                            {vector_type}(values[q]), {vector_type}(weight), acc[j][q]
+                        );
+                    }}
+                }}
+            }}
+
+            for (uint mm = 0u; mm < MT; ++mm) {{
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                for (uint j = 0u; j < 4u; ++j) {{
+                    partials[input_phase][positions[j]] = acc[j][mm / VW][mm % VW];
+                }}
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                if (tid < 16u && row_begin + mm < uint(ROWS)) {{
+                    float sum = 0.0f;
+                    for (uint row = 0u; row < 16u; ++row) {{
+                        uint position = row * 16u + tid;
+                        sum += partials[0][position] + partials[1][position];
+                    }}
+                    uint output_index =
+                        ((row_begin + mm) * uint(N_SPLITS) + split) *
+                        uint(OUTPUT_DIMS) + tile_n * 16u + tid;
+                    yhat[output_index] = sum;
+                }}
+            }}
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
 def _hadamard_right(x: mx.array) -> mx.array:
     if x.shape[-1] % 128:
         raise ValueError(f"Hadamard dimension must be divisible by 128, got {x.shape[-1]}")
@@ -424,11 +529,9 @@ def qmm_exl3(
 ) -> mx.array:
     """Evaluate a small token batch without reconstructing a dense weight.
 
-    This is the correctness-first prefill path: every row is mapped to the
-    same serialized matrix and all row/output tiles share one Metal launch.
-    It deliberately reuses the mapped QMV kernel until a tensor-tiled EXL3
-    GEMM supersedes it, keeping both model memory and numerical behaviour
-    aligned with autoregressive decode.
+    Rows are processed in groups of 2, 4, or 8. Each simdgroup decodes its
+    assigned weights once and applies them to a vector of activation rows,
+    amortizing trellis decode across the batch.
     """
 
     if x.ndim < 2:
@@ -439,19 +542,46 @@ def qmm_exl3(
         raise ValueError(f"QMM expects width {input_dims}, got {x.shape[-1]}")
     rows = x.size // input_dims
     flat = x.reshape(rows, input_dims)
-    output_tiles = output_dims // 16
-    tile_map = mx.broadcast_to(
-        mx.arange(output_tiles, dtype=mx.uint32)[None, :],
-        (rows, output_tiles),
-    ).reshape(-1)
-    output = qmv_exl3_mapped(
-        flat,
-        trellis,
-        mx.broadcast_to(suh, flat.shape),
-        mx.broadcast_to(svh, (rows, output_dims)),
-        tile_map,
-        output_dims=output_dims,
-        k=k,
-        mode=mode,
-    )
+    if k == 7:
+        output = mx.stack(
+            [qmv_exl3(row, trellis, suh, svh, k, mode) for row in flat], axis=0
+        )
+        return output.reshape(*x.shape[:-1], output_dims)
+
+    cb = CodebookMode(mode)
+    if trellis.dtype == mx.int16:
+        trellis = trellis.view(mx.uint16)
+    mt = 2 if rows <= 2 else (4 if rows <= 4 else 8)
+    row_groups = (rows + mt - 1) // mt
+    padded_rows = row_groups * mt
+    xhat = _hadamard_right(flat.astype(mx.float32) * suh)
+    x_transposed = xhat.transpose(1, 0)
+    if rows < padded_rows:
+        x_transposed = mx.pad(x_transposed, [(0, 0), (0, padded_rows - rows)])
+    x_transposed = mx.contiguous(x_transposed).reshape(-1)
+
+    output_tiles = trellis.shape[1]
+    splits = 1
+    while output_tiles * row_groups * splits < 8192 and trellis.shape[0] // (splits * 2) >= 64:
+        splits *= 2
+    partials = _qmm_tile_kernel(k, int(cb), input_dims, output_dims, mt)(
+        inputs=[x_transposed, trellis.reshape(-1).view(mx.uint32)],
+        template=[
+            ("K", k),
+            ("CB", int(cb)),
+            ("PACKED_U32", k * 8),
+            ("TILES_K", trellis.shape[0]),
+            ("TILES_N", output_tiles),
+            ("N_SPLITS", splits),
+            ("ROWS", rows),
+            ("PADDED_ROWS", padded_rows),
+            ("OUTPUT_DIMS", output_dims),
+        ],
+        grid=(output_tiles * 128, row_groups, splits),
+        threadgroup=(128, 1, 1),
+        output_shapes=[(rows, splits, output_dims)],
+        output_dtypes=[mx.float32],
+    )[0]
+    yhat = partials[:, 0] if splits == 1 else partials.sum(axis=1)
+    output = (_hadamard_right(yhat) * svh).astype(x.dtype)
     return output.reshape(*x.shape[:-1], output_dims)

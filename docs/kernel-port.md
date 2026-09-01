@@ -13,7 +13,7 @@ compatibility and performance checks.
 | `quant/signs.*` | FP16 signs/scales | working; packed legacy signs still queued |
 | `quant/reconstruct.*` | exact matrix reconstruction | working CPU + Metal/MLX |
 | `quant/exl3_gemv*` | tiled low-bit `m = 1` QMV | working K 1–6/8; K7 scalar fallback |
-| `quant/exl3_gemm*` | batched dense GEMM | working mapped-QMV fallback; tensor-tiled kernel queued |
+| `quant/exl3_gemm*` | batched dense GEMM | working vectorized 2/4/8-row Metal QMM; tensor-tiled large-batch kernel queued |
 | `quant/exl3_gemv_int8*` | int8-activation QMV | queued |
 | `quant/exl3_moe*` | mapped gate/up/down expert QMV | working correctness-first path |
 | `quant/quantize_tiles*` | Metal Viterbi trellis search | temporary Pony implementation |
@@ -64,3 +64,15 @@ Warm medians on the M5 in this workspace, checked against Pony output:
 
 The full 0.8B fixture is 16.51 ms/token (60.6 tok/s) in mlxl3 and 16.42
 ms/token (60.9 tok/s) in the corrected Pony runtime, with identical logits.
+
+The first generic small-batch pass amortizes trellis decode across groups of
+2, 4, or 8 activation rows. Same-process A/B medians against the former mapped
+QMV path on the 10-core M5 are:
+
+| Shape / rows | mapped QMV | vector QMM | speedup |
+| --- | ---: | ---: | ---: |
+| 1024 → 4096 / 2 | 0.280 ms | 0.228 ms | 1.22× |
+| 2048 → 1792 / 8 | 0.456 ms | 0.251 ms | 1.82× |
+| 1024 → 4096 / 16 | 0.813 ms | 0.309 ms | 2.63× |
+| 2048 → 2048 / 32 | 1.354 ms | 0.408 ms | 3.32× |
+| 1024 → 4096 / 64 | 2.526 ms | 0.654 ms | 3.86× |

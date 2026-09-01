@@ -12,7 +12,7 @@ The working runtime now contains:
 - JIT-compiled Metal pack and fused unpack/decode kernels;
 - a CUDA-style 128-thread tiled QMV kernel for autoregressive decode;
 - a mapped two-launch `SwitchGLU` path for selected MoE experts;
-- a one-launch, multi-row prefill fallback that keeps weights serialized;
+- a vectorized 2/4/8-row Metal QMM that keeps weights serialized and amortizes decode;
 - a standard EXL3 safetensors loader on top of MLX-LM architectures;
 - CPU-vs-Metal conformance tests for every bit width from 1 through 8.
 
