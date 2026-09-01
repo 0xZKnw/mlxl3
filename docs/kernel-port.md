@@ -13,6 +13,7 @@ compatibility and performance checks.
 | `quant/signs.*` | FP16 signs/scales | working; packed legacy signs still queued |
 | `quant/reconstruct.*` | exact matrix reconstruction | working CPU + Metal/MLX |
 | `quant/exl3_gemv*` | tiled low-bit `m = 1` QMV | working K 1–6/8; K7 scalar fallback |
+| compatible projection groups | ragged QKV / gate-up QMV | automatic fusion when input/K/codebook match |
 | `quant/exl3_gemm*` | batched dense GEMM | vector M<24; 32x64 matrix M=24–47; 64x64 matrix M≥48 |
 | `quant/exl3_gemv_int8*` | int8-activation QMV | queued |
 | `quant/exl3_moe*` | mapped gate/up/down expert QMV | working correctness-first path |
@@ -104,3 +105,9 @@ On the full LFM model with a 51-token prompt, the 64-row kernel improves median
 prefill from 109.53 to 113.89 tok/s (+4.0%); decode stays statistically
 unchanged. Model-wide measurements made while running on battery are noisier
 than the alternating same-process kernel A/B figures above.
+
+Decode call sites with compatible EXL3 input width, K, and codebook are grouped
+without architecture-specific forks. A Q/K/V triplet 2048→(2048,512,512) moves
+from 0.282 to 0.250 ms (1.128×) and remains bit-identical. The LFM fixture only
+has 6 attention layers out of 24, so its paired two-model decode A/B improves by
+0.65%; attention-dense architectures expose this fusion on every layer.

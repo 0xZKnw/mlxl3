@@ -184,7 +184,7 @@ def _qmv_mapped_tile_kernel(k: int, mode: int, input_dims: int, source_tiles: in
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
             uint local_tile = threadgroup_position_in_grid.x;
-            uint tile_n = tile_map[local_tile];
+            uint tile_n = IDENTITY_MAP ? local_tile : tile_map[local_tile];
             uint sub = tile_sub[local_tile];
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[4][256];
@@ -673,6 +673,7 @@ def qmv_exl3_mapped(
             ("TILES_N", trellis.shape[1]),
             ("N_SPLITS", splits),
             ("LOCAL_OUTPUT_DIMS", tile_map.size * 16),
+            ("IDENTITY_MAP", 0),
         ],
         grid=(tile_map.size * 128, 1, splits),
         threadgroup=(128, 1, 1),
@@ -681,6 +682,89 @@ def qmv_exl3_mapped(
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
     return (_hadamard_right(yhat) * svh).astype(x.dtype)
+
+
+def qmv_exl3_grouped(
+    x: mx.array,
+    trellis: mx.array,
+    suh: mx.array,
+    svh: mx.array,
+    tile_sub: mx.array,
+    *,
+    output_dims: tuple[int, ...],
+    k: int,
+    mode: CodebookMode | int = CodebookMode.DEFAULT,
+) -> tuple[mx.array, ...]:
+    """Evaluate compatible ragged projections of the same activation together."""
+
+    if len(output_dims) < 2:
+        raise ValueError("grouped QMV requires at least two projections")
+    if any(width % 128 for width in output_dims):
+        raise ValueError(f"grouped QMV outputs must be 128-aligned, got {output_dims}")
+    if trellis.dtype == mx.int16:
+        trellis = trellis.view(mx.uint16)
+    if trellis.dtype != mx.uint16 or trellis.ndim != 3 or trellis.shape[-1] != 16 * k:
+        raise ValueError(f"invalid EXL3 trellis shape/dtype: {trellis.shape}/{trellis.dtype}")
+    input_dims = trellis.shape[0] * 16
+    total_output_dims = sum(output_dims)
+    if trellis.shape[1] * 16 != total_output_dims:
+        raise ValueError(
+            f"grouped trellis has {trellis.shape[1] * 16} outputs, "
+            f"expected {total_output_dims}"
+        )
+    if x.size != input_dims:
+        raise ValueError(f"grouped QMV expects one row of width {input_dims}, got {x.shape}")
+    if suh.shape != (len(output_dims), input_dims):
+        raise ValueError(
+            f"grouped input scales must be {(len(output_dims), input_dims)}, got {suh.shape}"
+        )
+    if svh.shape != (total_output_dims,):
+        raise ValueError(f"grouped output scales must be {(total_output_dims,)}, got {svh.shape}")
+    if tile_sub.shape != (trellis.shape[1],):
+        raise ValueError(f"grouped tile map must be {(trellis.shape[1],)}, got {tile_sub.shape}")
+    if k == 7:
+        raise NotImplementedError("grouped K=7 requires the three-word decode path")
+
+    cb = CodebookMode(mode)
+    original_shape = x.shape[:-1]
+    xhat = _hadamard_right(x.reshape(1, input_dims).astype(mx.float32) * suh)
+    total_tiles = trellis.shape[1]
+    identity_map = mx.zeros((1,), dtype=mx.uint32)
+    splits = _split_count(trellis.shape[0], total_tiles)
+    partials = _qmv_mapped_tile_kernel(k, int(cb), input_dims, total_tiles)(
+        inputs=[
+            xhat.reshape(-1),
+            trellis.reshape(-1).view(mx.uint32),
+            identity_map,
+            tile_sub.astype(mx.uint32),
+        ],
+        template=[
+            ("K", k),
+            ("CB", int(cb)),
+            ("PACKED_U32", k * 8),
+            ("INPUT_DIMS", input_dims),
+            ("TILES_K", trellis.shape[0]),
+            ("TILES_N", total_tiles),
+            ("N_SPLITS", splits),
+            ("LOCAL_OUTPUT_DIMS", total_output_dims),
+            ("IDENTITY_MAP", 1),
+        ],
+        grid=(total_tiles * 128, 1, splits),
+        threadgroup=(128, 1, 1),
+        output_shapes=[(splits, total_output_dims)],
+        output_dtypes=[mx.float32],
+    )[0]
+    yhat = partials[0] if splits == 1 else partials.sum(axis=0)
+    output = (_hadamard_right(yhat.reshape(1, total_output_dims))[0] * svh).astype(x.dtype)
+    boundaries = []
+    cursor = 0
+    for width in output_dims[:-1]:
+        cursor += width
+        boundaries.append(cursor)
+    return tuple(
+        part.reshape(*original_shape, width)
+        for part, width in zip(mx.split(output, boundaries), output_dims, strict=True)
+    )
 
 
 def qmm_exl3(

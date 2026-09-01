@@ -11,6 +11,7 @@ The working runtime now contains:
 - the three procedural EXL3 codebooks (`default`, `mcg`, and `mul1`);
 - JIT-compiled Metal pack and fused unpack/decode kernels;
 - a CUDA-style 128-thread tiled QMV kernel for autoregressive decode;
+- automatic ragged QKV and gate/up fusion for compatible EXL3 projections;
 - a mapped two-launch `SwitchGLU` path for selected MoE experts;
 - vector and 32/64x64 simdgroup-matrix QMM kernels that keep weights serialized;
 - a standard EXL3 safetensors loader on top of MLX-LM architectures;
