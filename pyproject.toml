@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlxl3"
+version = "0.1.0.dev0"
+description = "Independent EXL3 inference and conversion engine for Apple Silicon"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+  "mlx>=0.32.2",
+  "mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99",
+  "numpy>=2.0",
+  "safetensors>=0.5",
+]
+
+[project.scripts]
+mlxl3 = "mlxl3.cli:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.12",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
