@@ -43,6 +43,16 @@ with EXL3-backed modules.
 
 ## Current measured decode kernels
 
+Generic kernel changes are gated with `benchmarks/kernel_bench.py`. The quick
+suite covers dense, expert, mapped small-batch, K3/K5, and all three codebook
+families; the full suite adds a vocabulary head, expands to K2–K6, and sweeps
+batch sizes 1–64. Store machine-local runs under `benchmarks/results/local/`.
+
+```bash
+python benchmarks/kernel_bench.py --suite full \
+  --output benchmarks/results/local/baseline.json
+```
+
 Warm medians on the M5 in this workspace, checked against Pony output:
 
 | Shape / codebook | mlxl3 | PonyExl3 | max difference |
