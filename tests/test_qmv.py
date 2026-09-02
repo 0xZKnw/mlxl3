@@ -6,6 +6,7 @@ import pytest
 from mlx import nn
 
 from mlxl3.codec.codebook import CodebookMode
+from mlxl3.codec.perm import permutation
 from mlxl3.codec.trellis import pack_trellis
 from mlxl3.kernels.qmv import (
     _qmv_tiles_per_group,
@@ -15,6 +16,22 @@ from mlxl3.kernels.qmv import (
 )
 from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 from mlxl3.linear import EXL3Linear, EXL3ProjectionProxy, fuse_compatible_linear_groups
+
+
+def test_exl3_permutation_supports_quadgroup_column_reduction() -> None:
+    positions = permutation().reshape(32, 8)
+    for lane in range(32):
+        row_base = 2 * (lane & 3)
+        expected_rows = (row_base, row_base + 1, row_base + 8, row_base + 9)
+        expected_column = lane >> 2
+        np.testing.assert_array_equal(
+            positions[lane] // 16,
+            (*expected_rows, *expected_rows),
+        )
+        np.testing.assert_array_equal(
+            positions[lane] % 16,
+            (expected_column,) * 4 + (expected_column + 8,) * 4,
+        )
 
 
 @pytest.mark.parametrize("k", (1, 2, 3, 4, 5, 6, 8))

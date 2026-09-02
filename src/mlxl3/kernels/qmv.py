@@ -99,7 +99,7 @@ def _qmv_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}"
-            f"_nt{tiles_per_group}_sg{simdgroups}_v3"
+            f"_nt{tiles_per_group}_sg{simdgroups}_v4"
         ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
@@ -108,7 +108,6 @@ def _qmv_tile_kernel(
             f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
             + specialized_codebook_header(mode)
-            + forward_permutation_header()
         ),
         source=r"""
             uint tid = thread_position_in_threadgroup.x;
@@ -116,14 +115,10 @@ def _qmv_tile_kernel(
             uint simd = simdgroup_index_in_threadgroup;
             uint tile_n = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
-            threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 256u];
+            threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
 
-            uint positions[8];
-            uint rows[8];
-            for (uint j = 0u; j < 8u; ++j) {
-                positions[j] = uint(mlxl3_perm[lane * 8u + j]);
-                rows[j] = positions[j] >> 4;
-            }
+            uint row_base = (lane & 3u) << 1u;
+            uint rows[4] = {row_base, row_base + 1u, row_base + 8u, row_base + 9u};
 
             uint word0[2];
             uint word1[2];
@@ -153,6 +148,10 @@ def _qmv_tile_kernel(
                 tile_k += MLXL3_QMV_SG
             ) {
                 float x_lane = float(xhat[tile_k * 16u + (lane & 15u)]);
+                float x_values[4];
+                for (uint j = 0u; j < 4u; ++j) {
+                    x_values[j] = simd_shuffle(x_lane, ushort(rows[j]));
+                }
                 for (
                     uint output_tile = 0u;
                     output_tile < MLXL3_QMV_NT;
@@ -174,22 +173,22 @@ def _qmv_tile_kernel(
                             : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
                         uint j = group * 4u;
                         acc[output_tile][j] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j])),
+                            x_values[0],
                             float(mlxl3_decode_codeword(cw0, CB)),
                             acc[output_tile][j]
                         );
                         acc[output_tile][j + 1u] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j + 1u])),
+                            x_values[1],
                             float(mlxl3_decode_codeword(cw1, CB)),
                             acc[output_tile][j + 1u]
                         );
                         acc[output_tile][j + 2u] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j + 2u])),
+                            x_values[2],
                             float(mlxl3_decode_codeword(cw2, CB)),
                             acc[output_tile][j + 2u]
                         );
                         acc[output_tile][j + 3u] = fma(
-                            simd_shuffle(x_lane, ushort(rows[j + 3u])),
+                            x_values[3],
                             float(mlxl3_decode_codeword(cw3, CB)),
                             acc[output_tile][j + 3u]
                         );
@@ -198,9 +197,24 @@ def _qmv_tile_kernel(
             }
 
             for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
-                for (uint j = 0u; j < 8u; ++j) {
-                    partials[simd][output_tile * 256u + positions[j]] =
-                        acc[output_tile][j];
+                // The EXL3 permutation assigns each four-lane quadgroup one
+                // output column and gives every lane four rows for columns
+                // c and c + 8. Reduce those rows in registers instead of
+                // materializing all 256 products in threadgroup memory.
+                float column0 = quad_sum(
+                    acc[output_tile][0] + acc[output_tile][1]
+                ) + quad_sum(
+                    acc[output_tile][2] + acc[output_tile][3]
+                );
+                float column1 = quad_sum(
+                    acc[output_tile][4] + acc[output_tile][5]
+                ) + quad_sum(
+                    acc[output_tile][6] + acc[output_tile][7]
+                );
+                if ((lane & 3u) == 0u) {
+                    uint column = lane >> 2u;
+                    partials[simd][output_tile * 16u + column] = column0;
+                    partials[simd][output_tile * 16u + column + 8u] = column1;
                 }
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -208,11 +222,8 @@ def _qmv_tile_kernel(
                 uint output_tile = tid >> 4u;
                 uint column = tid & 15u;
                 float sum = 0.0f;
-                for (uint row = 0u; row < 16u; ++row) {
-                    uint position = output_tile * 256u + row * 16u + column;
-                    for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
-                        sum += partials[group][position];
-                    }
+                for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
+                    sum += partials[group][output_tile * 16u + column];
                 }
                 yhat[
                     split * uint(OUTPUT_DIMS)
@@ -246,7 +257,7 @@ def _qmv_mapped_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_sg{simdgroups}_v6"
+            f"_nt{tiles_per_group}_sg{simdgroups}_v7"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
@@ -255,7 +266,6 @@ def _qmv_mapped_tile_kernel(
             f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
             + specialized_codebook_header(mode)
-            + forward_permutation_header()
         ),
         source=r"""
             uint tid = thread_position_in_threadgroup.x;
@@ -264,14 +274,10 @@ def _qmv_mapped_tile_kernel(
             uint tile_group = threadgroup_position_in_grid.x;
             uint local_tile = tile_group * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
-            threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 256u];
+            threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
 
-            uint positions[8];
-            uint rows[8];
-            for (uint j = 0u; j < 8u; ++j) {
-                positions[j] = uint(mlxl3_perm[lane * 8u + j]);
-                rows[j] = positions[j] >> 4;
-            }
+            uint row_base = (lane & 3u) << 1u;
+            uint rows[4] = {row_base, row_base + 1u, row_base + 8u, row_base + 9u};
 
             uint word0[2];
             uint word1[2];
@@ -336,8 +342,8 @@ def _qmv_mapped_tile_kernel(
                 float x_lane = float(
                     xhat[sub * uint(INPUT_DIMS) + tile_k * 16u + (lane & 15u)]
                 );
-                float x_values[8];
-                for (uint j = 0u; j < 8u; ++j) {
+                float x_values[4];
+                for (uint j = 0u; j < 4u; ++j) {
                     x_values[j] = simd_shuffle(x_lane, ushort(rows[j]));
                 }
                 for (
@@ -361,22 +367,22 @@ def _qmv_mapped_tile_kernel(
                             : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
                         uint j = group * 4u;
                         acc[output_tile][j] = fma(
-                            x_values[j],
+                            x_values[0],
                             float(mlxl3_decode_codeword(cw0, CB)),
                             acc[output_tile][j]
                         );
                         acc[output_tile][j + 1u] = fma(
-                            x_values[j + 1u],
+                            x_values[1],
                             float(mlxl3_decode_codeword(cw1, CB)),
                             acc[output_tile][j + 1u]
                         );
                         acc[output_tile][j + 2u] = fma(
-                            x_values[j + 2u],
+                            x_values[2],
                             float(mlxl3_decode_codeword(cw2, CB)),
                             acc[output_tile][j + 2u]
                         );
                         acc[output_tile][j + 3u] = fma(
-                            x_values[j + 3u],
+                            x_values[3],
                             float(mlxl3_decode_codeword(cw3, CB)),
                             acc[output_tile][j + 3u]
                         );
@@ -385,9 +391,20 @@ def _qmv_mapped_tile_kernel(
             }
 
             for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
-                for (uint j = 0u; j < 8u; ++j) {
-                    partials[simd][output_tile * 256u + positions[j]] =
-                        acc[output_tile][j];
+                float column0 = quad_sum(
+                    acc[output_tile][0] + acc[output_tile][1]
+                ) + quad_sum(
+                    acc[output_tile][2] + acc[output_tile][3]
+                );
+                float column1 = quad_sum(
+                    acc[output_tile][4] + acc[output_tile][5]
+                ) + quad_sum(
+                    acc[output_tile][6] + acc[output_tile][7]
+                );
+                if ((lane & 3u) == 0u) {
+                    uint column = lane >> 2u;
+                    partials[simd][output_tile * 16u + column] = column0;
+                    partials[simd][output_tile * 16u + column + 8u] = column1;
                 }
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -395,11 +412,8 @@ def _qmv_mapped_tile_kernel(
                 uint output_tile = tid >> 4u;
                 uint column = tid & 15u;
                 float sum = 0.0f;
-                for (uint row = 0u; row < 16u; ++row) {
-                    uint position = output_tile * 256u + row * 16u + column;
-                    for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
-                        sum += partials[group][position];
-                    }
+                for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
+                    sum += partials[group][output_tile * 16u + column];
                 }
                 yhat[
                     split * uint(LOCAL_OUTPUT_DIMS)
