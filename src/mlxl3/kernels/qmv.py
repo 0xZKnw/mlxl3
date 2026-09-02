@@ -85,21 +85,27 @@ def _qmv_tile_kernel(
     input_dims: int,
     output_dims: int,
     tiles_per_group: int = 1,
+    simdgroups: int = 4,
 ):
-    """Four-simdgroup CUDA-style kernel over adjacent output tiles."""
+    """Configurable-simdgroup CUDA-style kernel over adjacent output tiles."""
 
     if tiles_per_group not in (1, 2, 4):
         raise ValueError(f"unsupported QMV output tile group {tiles_per_group}")
+    if simdgroups not in (2, 4, 8) or simdgroups * tiles_per_group > 32:
+        raise ValueError(
+            f"unsupported QMV shape: {simdgroups} simdgroups x {tiles_per_group} tiles"
+        )
 
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}"
-            f"_nt{tiles_per_group}_v2"
+            f"_nt{tiles_per_group}_sg{simdgroups}_v3"
         ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
         header=(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
+            f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
             + specialized_codebook_header(mode)
             + forward_permutation_header()
@@ -110,7 +116,7 @@ def _qmv_tile_kernel(
             uint simd = simdgroup_index_in_threadgroup;
             uint tile_n = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
-            threadgroup float partials[4][MLXL3_QMV_NT * 256u];
+            threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 256u];
 
             uint positions[8];
             uint rows[8];
@@ -141,7 +147,11 @@ def _qmv_tile_kernel(
                 (uint(TILES_K) + uint(N_SPLITS) - 1u) / uint(N_SPLITS);
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
-            for (uint tile_k = tile_begin + simd; tile_k < tile_end; tile_k += 4u) {
+            for (
+                uint tile_k = tile_begin + simd;
+                tile_k < tile_end;
+                tile_k += MLXL3_QMV_SG
+            ) {
                 float x_lane = float(xhat[tile_k * 16u + (lane & 15u)]);
                 for (
                     uint output_tile = 0u;
@@ -200,7 +210,7 @@ def _qmv_tile_kernel(
                 float sum = 0.0f;
                 for (uint row = 0u; row < 16u; ++row) {
                     uint position = output_tile * 256u + row * 16u + column;
-                    for (uint group = 0u; group < 4u; ++group) {
+                    for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                         sum += partials[group][position];
                     }
                 }
@@ -221,21 +231,28 @@ def _qmv_mapped_tile_kernel(
     input_dims: int,
     source_tiles: int,
     tiles_per_group: int = 1,
+    simdgroups: int = 4,
 ):
     """Tile-cooperative QMV over an indirect list of expert output tiles."""
 
     if tiles_per_group not in (1, 2, 4):
         raise ValueError(f"unsupported mapped QMV output tile group {tiles_per_group}")
+    if simdgroups not in (2, 4, 8) or simdgroups * tiles_per_group > 32:
+        raise ValueError(
+            f"unsupported mapped QMV shape: {simdgroups} simdgroups x "
+            f"{tiles_per_group} tiles"
+        )
 
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_v5"
+            f"_nt{tiles_per_group}_sg{simdgroups}_v6"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
         header=(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
+            f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
             + specialized_codebook_header(mode)
             + forward_permutation_header()
@@ -247,7 +264,7 @@ def _qmv_mapped_tile_kernel(
             uint tile_group = threadgroup_position_in_grid.x;
             uint local_tile = tile_group * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
-            threadgroup float partials[4][MLXL3_QMV_NT * 256u];
+            threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 256u];
 
             uint positions[8];
             uint rows[8];
@@ -309,7 +326,11 @@ def _qmv_mapped_tile_kernel(
                         IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
                 }
             }
-            for (uint tile_k = tile_begin + simd; tile_k < tile_end; tile_k += 4u) {
+            for (
+                uint tile_k = tile_begin + simd;
+                tile_k < tile_end;
+                tile_k += MLXL3_QMV_SG
+            ) {
                 // Output rows are 128-aligned, so both tiles in a pair use
                 // the same transformed activation row.
                 float x_lane = float(
@@ -376,7 +397,7 @@ def _qmv_mapped_tile_kernel(
                 float sum = 0.0f;
                 for (uint row = 0u; row < 16u; ++row) {
                     uint position = output_tile * 256u + row * 16u + column;
-                    for (uint group = 0u; group < 4u; ++group) {
+                    for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                         sum += partials[group][position];
                     }
                 }
@@ -710,6 +731,26 @@ def _qmv_tiles_per_group(
     return 2 if output_tiles % 2 == 0 else 1
 
 
+@cache
+def _is_m5_gpu() -> bool:
+    return str(mx.device_info().get("architecture", "")) == "applegpu_g17g"
+
+
+def _qmv_simdgroups(
+    input_tiles: int,
+    output_tiles: int,
+    k: int,
+    mode: CodebookMode,
+    mapped_rows: int,
+) -> int:
+    """Choose cooperative depth from end-to-end measurements on this GPU."""
+
+    del input_tiles, output_tiles, k, mode, mapped_rows
+    # Microbenchmarks disagree slightly on narrow shapes, but full decode is
+    # consistently faster with eight groups on both dense and MoE fixtures.
+    return 8 if _is_m5_gpu() else 4
+
+
 def qmv_exl3(
     x: mx.array,
     trellis: mx.array,
@@ -756,10 +797,13 @@ def qmv_exl3(
         tiles_per_group = _qmv_tiles_per_group(
             trellis.shape[0], trellis.shape[1], k, cb
         )
+        simdgroups = _qmv_simdgroups(
+            trellis.shape[0], trellis.shape[1], k, cb, 0
+        )
         if trellis.shape[1] % tiles_per_group:
             tiles_per_group = 1
         partials = _qmv_tile_kernel(
-            k, int(cb), input_dims, output_dims, tiles_per_group
+            k, int(cb), input_dims, output_dims, tiles_per_group, simdgroups
         )(
             inputs=[xhat, trellis.reshape(-1).view(mx.uint32)],
             template=[
@@ -771,8 +815,12 @@ def qmv_exl3(
                 ("N_SPLITS", splits),
                 ("OUTPUT_DIMS", output_dims),
             ],
-            grid=((trellis.shape[1] // tiles_per_group) * 128, 1, splits),
-            threadgroup=(128, 1, 1),
+            grid=(
+                (trellis.shape[1] // tiles_per_group) * simdgroups * 32,
+                1,
+                splits,
+            ),
+            threadgroup=(simdgroups * 32, 1, 1),
             output_shapes=[(splits, output_dims)],
             output_dtypes=[mx.float32],
         )[0]
@@ -831,10 +879,13 @@ def qmv_exl3_mapped(
     tiles_per_group = _qmv_tiles_per_group(
         trellis.shape[0], tile_map.size, k, cb
     )
+    simdgroups = _qmv_simdgroups(
+        trellis.shape[0], tile_map.size, k, cb, rows
+    )
     if tile_map.size % tiles_per_group:
         tiles_per_group = 1
     partials = _qmv_mapped_tile_kernel(
-        k, int(cb), input_dims, trellis.shape[1], tiles_per_group
+        k, int(cb), input_dims, trellis.shape[1], tiles_per_group, simdgroups
     )(
         inputs=[
             xhat.reshape(-1),
@@ -857,8 +908,12 @@ def qmv_exl3_mapped(
             ("ROUTING_REPEAT", 1),
             ("PROJECTION_STRIDE_TILES", 0),
         ],
-        grid=((tile_map.size // tiles_per_group) * 128, 1, splits),
-        threadgroup=(128, 1, 1),
+        grid=(
+            (tile_map.size // tiles_per_group) * simdgroups * 32,
+            1,
+            splits,
+        ),
+        threadgroup=(simdgroups * 32, 1, 1),
         output_shapes=[(splits, rows, output_dims)],
         output_dtypes=[mx.float32],
     )[0]
@@ -918,10 +973,13 @@ def qmv_exl3_expert_mapped(
     tiles_per_group = _qmv_tiles_per_group(
         trellis.shape[0], local_tiles, k, cb
     )
+    simdgroups = _qmv_simdgroups(
+        trellis.shape[0], local_tiles, k, cb, rows
+    )
     if output_tiles % tiles_per_group:
         tiles_per_group = 1
     partials = _qmv_mapped_tile_kernel(
-        k, int(cb), input_dims, trellis.shape[1], tiles_per_group
+        k, int(cb), input_dims, trellis.shape[1], tiles_per_group, simdgroups
     )(
         inputs=[
             xhat.reshape(-1),
@@ -944,8 +1002,12 @@ def qmv_exl3_expert_mapped(
             ("ROUTING_REPEAT", projections_per_route),
             ("PROJECTION_STRIDE_TILES", projection_stride_tiles),
         ],
-        grid=((local_tiles // tiles_per_group) * 128, 1, splits),
-        threadgroup=(128, 1, 1),
+        grid=(
+            (local_tiles // tiles_per_group) * simdgroups * 32,
+            1,
+            splits,
+        ),
+        threadgroup=(simdgroups * 32, 1, 1),
         output_shapes=[(splits, rows, output_dims)],
         output_dtypes=[mx.float32],
     )[0]
@@ -1003,10 +1065,13 @@ def qmv_exl3_grouped(
     tiles_per_group = _qmv_tiles_per_group(
         trellis.shape[0], total_tiles, k, cb
     )
+    simdgroups = _qmv_simdgroups(
+        trellis.shape[0], total_tiles, k, cb, len(output_dims)
+    )
     if total_tiles % tiles_per_group:
         tiles_per_group = 1
     partials = _qmv_mapped_tile_kernel(
-        k, int(cb), input_dims, total_tiles, tiles_per_group
+        k, int(cb), input_dims, total_tiles, tiles_per_group, simdgroups
     )(
         inputs=[
             xhat.reshape(-1),
@@ -1029,8 +1094,12 @@ def qmv_exl3_grouped(
             ("ROUTING_REPEAT", 1),
             ("PROJECTION_STRIDE_TILES", 0),
         ],
-        grid=((total_tiles // tiles_per_group) * 128, 1, splits),
-        threadgroup=(128, 1, 1),
+        grid=(
+            (total_tiles // tiles_per_group) * simdgroups * 32,
+            1,
+            splits,
+        ),
+        threadgroup=(simdgroups * 32, 1, 1),
         output_shapes=[(splits, total_output_dims)],
         output_dtypes=[mx.float32],
     )[0]
