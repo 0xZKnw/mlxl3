@@ -2,11 +2,123 @@
 
 from __future__ import annotations
 
+import os
+from functools import cache
+from typing import Any
+
 import mlx.core as mx
 from mlx import nn
 
 from mlxl3.codec.codebook import CodebookMode
-from mlxl3.kernels.qmv import qmv_exl3_mapped
+from mlxl3.kernels.qmv import qmv_exl3_expert_mapped
+
+_USE_FUSED_LFM_ROUTER = os.environ.get("MLXL3_FUSED_MOE_ROUTER", "1") != "0"
+
+
+@cache
+def _topk_biased_kernel(experts: int, top_k: int):
+    if experts > 32:
+        raise ValueError("single-SIMD router supports at most 32 experts")
+    if not 0 < top_k <= experts:
+        raise ValueError("invalid router top-k")
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_topk_biased_e{experts}_k{top_k}_v1",
+        input_names=["probabilities", "bias"],
+        output_names=["indices", "scores"],
+        source=f"""
+            constexpr uint EXPERTS = {experts}u;
+            constexpr uint TOP_K = {top_k}u;
+            uint row = threadgroup_position_in_grid.x;
+            uint lane = thread_index_in_simdgroup;
+            uint offset = row * EXPERTS;
+
+            T probability = lane < EXPERTS ? probabilities[offset + lane] : T(0);
+            float candidate = lane < EXPERTS
+                ? float(probability) + float(bias[lane])
+                : -INFINITY;
+            uint chosen[TOP_K];
+            for (uint rank = 0u; rank < TOP_K; ++rank) {{
+                float best = simd_max(candidate);
+                uint possible = candidate == best ? lane : 0xffffffffu;
+                uint winner = simd_min(possible);
+                if (lane == 0u) {{
+                    chosen[rank] = winner;
+                }}
+                if (lane == winner) {{
+                    candidate = -INFINITY;
+                }}
+            }}
+            if (lane == 0u) {{
+                // MLX argpartition returns its selected tail in ascending
+                // value order for this small contiguous row.
+                for (uint slot = 0u; slot < TOP_K; ++slot) {{
+                    uint expert = chosen[TOP_K - 1u - slot];
+                    indices[row * TOP_K + slot] = expert;
+                    scores[row * TOP_K + slot] = probabilities[offset + expert];
+                }}
+            }}
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
+def topk_biased(
+    probabilities: mx.array,
+    bias: mx.array,
+    top_k: int,
+) -> tuple[mx.array, mx.array]:
+    """Select biased experts while returning their original probabilities."""
+
+    experts = int(probabilities.shape[-1])
+    if bias.shape != (experts,):
+        raise ValueError(f"expected expert bias {(experts,)}, got {bias.shape}")
+    rows = probabilities.size // experts
+    prefix = probabilities.shape[:-1]
+    indices, scores = _topk_biased_kernel(experts, top_k)(
+        inputs=[probabilities, bias],
+        template=[("T", probabilities.dtype)],
+        grid=(rows * 32, 1, 1),
+        threadgroup=(32, 1, 1),
+        output_shapes=[(*prefix, top_k), (*prefix, top_k)],
+        output_dtypes=[mx.uint32, probabilities.dtype],
+    )
+    return indices, scores
+
+
+def _fused_lfm_moe_call(module: Any, x: mx.array) -> mx.array:
+    if not _USE_FUSED_LFM_ROUTER or x.size != x.shape[-1]:
+        return module._mlxl3_original_call(x)
+
+    gate_logits = module.gate(x)
+    routing_weights = mx.sigmoid(gate_logits)
+    indices, scores = topk_biased(routing_weights, module.expert_bias, module.top_k)
+    if module.norm_topk_prob:
+        scores = scores / (mx.sum(scores, axis=-1, keepdims=True) + 1e-6)
+    scores = (scores * module.routed_scaling_factor).astype(x.dtype)
+    output = module.switch_mlp(x, indices)
+    return (output * scores[..., None]).sum(axis=-2)
+
+
+def fuse_lfm_moe_routers(model: nn.Module) -> int:
+    """Replace LFM2 decode router chains with a single-SIMD selector."""
+
+    fused = 0
+    for _, module in model.named_modules():
+        if not (
+            hasattr(module, "switch_mlp")
+            and isinstance(module.switch_mlp, EXL3SwitchGLU)
+            and getattr(module, "num_experts", 0) <= 32
+            and hasattr(module, "expert_bias")
+        ):
+            continue
+        module._mlxl3_original_call = module.__call__
+        module.__class__ = type(
+            f"MLXL3Fused{module.__class__.__name__}",
+            (module.__class__,),
+            {"__call__": _fused_lfm_moe_call},
+        )
+        fused += 1
+    return fused
 
 
 class EXL3SwitchGLU(nn.Module):
@@ -73,37 +185,29 @@ class EXL3SwitchGLU(nn.Module):
             (rows, top_k, 2, self.input_dims),
         ).reshape(slots * 2, self.input_dims)
 
-        selected_gu = mx.repeat(selected, 2)
-        projection = mx.arange(slots * 2, dtype=mx.uint32) & 1
-        gate_or_up_base = (
-            selected_gu.astype(mx.uint32) + projection * self.num_experts
-        ) * self._hidden_tiles
-        gu_tile_map = (
-            gate_or_up_base[:, None] + mx.arange(self._hidden_tiles, dtype=mx.uint32)[None, :]
-        ).reshape(-1)
-        gu = qmv_exl3_mapped(
+        gu = qmv_exl3_expert_mapped(
             x_gu,
             self.gu_trellis,
             self.gu_suh[selected].reshape(slots * 2, self.input_dims),
             self.gu_svh[selected].reshape(slots * 2, self.hidden_dims),
-            gu_tile_map,
+            selected,
             output_dims=self.hidden_dims,
+            projections_per_route=2,
+            projection_stride_tiles=self.num_experts * self._hidden_tiles,
             k=self.bits,
             mode=self.mode,
         ).reshape(slots, 2, self.hidden_dims)
         hidden = nn.silu(gu[:, 0]) * gu[:, 1]
 
-        down_base = selected.astype(mx.uint32) * self._output_tiles
-        down_tile_map = (
-            down_base[:, None] + mx.arange(self._output_tiles, dtype=mx.uint32)[None, :]
-        ).reshape(-1)
-        output = qmv_exl3_mapped(
+        output = qmv_exl3_expert_mapped(
             hidden,
             self.down_trellis,
             self.down_suh[selected],
             self.down_svh[selected],
-            down_tile_map,
+            selected,
             output_dims=self.input_dims,
+            projections_per_route=1,
+            projection_stride_tiles=0,
             k=self.bits,
             mode=self.mode,
         )

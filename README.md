@@ -11,8 +11,9 @@ The working runtime now contains:
 - the three procedural EXL3 codebooks (`default`, `mcg`, and `mul1`);
 - JIT-compiled Metal pack and fused unpack/decode kernels;
 - a CUDA-style 128-thread tiled QMV kernel for autoregressive decode;
+- automatic ragged QKV and gate/up fusion for compatible EXL3 projections;
 - a mapped two-launch `SwitchGLU` path for selected MoE experts;
-- a one-launch, multi-row prefill fallback that keeps weights serialized;
+- vector and 32/64x64 simdgroup-matrix QMM kernels that keep weights serialized;
 - a standard EXL3 safetensors loader on top of MLX-LM architectures;
 - CPU-vs-Metal conformance tests for every bit width from 1 through 8.
 
@@ -21,10 +22,10 @@ The current end-to-end target is the official LFM2.5-8B-A1B EXL3 checkpoint at
 projections, and runs the model entirely through MLX/Metal. Ling conversion is
 paused because a full no-training EXL3 conversion is much slower to iterate on.
 
-On this 10-core M5, the LFM fixture reaches a three-run warm median of 55.5
+On this 10-core M5, the LFM fixture reaches a paired 12-run warm median of 65.8
 generated tokens/s and a 4.02 GB peak allocation. The matching MLX 8-bit model
-reaches 58.9 tokens/s and 9.04 GB. Prefill is currently 77.1 versus 122.5
-tokens/s; a tensor-tiled EXL3 GEMM remains future work.
+reaches 58.9 tokens/s and 9.04 GB. Prefill reaches 113.9 tok/s on a 51-token
+prompt; larger-batch segmented GEMM remains future work.
 
 ## Local model CLI
 

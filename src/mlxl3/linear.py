@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import weakref
 from pathlib import Path
 
 import mlx.core as mx
@@ -9,7 +10,7 @@ from mlx import nn
 from safetensors import safe_open
 
 from mlxl3.codec.codebook import CodebookMode
-from mlxl3.kernels.qmv import qmm_exl3, qmv_exl3
+from mlxl3.kernels.qmv import qmm_exl3, qmv_exl3, qmv_exl3_grouped
 from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 
 
@@ -105,3 +106,144 @@ class EXL3Linear(nn.Module):
             bits=bits,
             mode=mode,
         )
+
+
+class _GroupRuntime:
+    """Ephemeral Python-only cache shared by consecutive projection proxies."""
+
+    def __init__(self) -> None:
+        self.input: mx.array | None = None
+        self.outputs: tuple[mx.array, ...] | None = None
+
+
+class EXL3LinearGroup(nn.Module):
+    """Compatible ragged EXL3 projections evaluated by one decode QMV launch."""
+
+    def __init__(self, linears: tuple[EXL3Linear, ...]):
+        super().__init__()
+        if len(linears) < 2:
+            raise ValueError("an EXL3 linear group needs at least two projections")
+        first = linears[0]
+        if first.bits == 7:
+            raise ValueError("K=7 cannot use grouped EXL3 QMV")
+        if any(
+            linear.input_dims != first.input_dims
+            or linear.bits != first.bits
+            or linear.mode != first.mode
+            for linear in linears[1:]
+        ):
+            raise ValueError("grouped EXL3 projections require equal input/K/codebook")
+
+        self.trellis = mx.concatenate([linear.trellis for linear in linears], axis=1)
+        self.suh = mx.stack([linear.suh for linear in linears])
+        self.svh = mx.concatenate([linear.svh for linear in linears])
+        self.output_widths = tuple(linear.output_dims for linear in linears)
+        self.output_tiles = tuple(width // 16 for width in self.output_widths)
+        self.tile_sub = mx.concatenate(
+            [
+                mx.full((tiles,), index, dtype=mx.uint32)
+                for index, tiles in enumerate(self.output_tiles)
+            ]
+        )
+        self.biases = tuple(linear.bias for linear in linears)
+        self.input_dims = first.input_dims
+        self.bits = first.bits
+        self.mode = first.mode
+        self._runtime = _GroupRuntime()
+
+    def _evaluate(self, x: mx.array) -> tuple[mx.array, ...]:
+        if x.size == self.input_dims:
+            outputs = qmv_exl3_grouped(
+                x,
+                self.trellis,
+                self.suh,
+                self.svh,
+                self.tile_sub,
+                output_dims=self.output_widths,
+                k=self.bits,
+                mode=self.mode,
+            )
+        else:
+            tile_cursor = 0
+            scale_cursor = 0
+            parts = []
+            for index, (width, tiles) in enumerate(
+                zip(self.output_widths, self.output_tiles, strict=True)
+            ):
+                parts.append(
+                    qmm_exl3(
+                        x,
+                        self.trellis[:, tile_cursor : tile_cursor + tiles],
+                        self.suh[index],
+                        self.svh[scale_cursor : scale_cursor + width],
+                        self.bits,
+                        self.mode,
+                    )
+                )
+                tile_cursor += tiles
+                scale_cursor += width
+            outputs = tuple(parts)
+        return tuple(
+            output if bias is None else output + bias
+            for output, bias in zip(outputs, self.biases, strict=True)
+        )
+
+    def project(self, index: int, x: mx.array) -> mx.array:
+        runtime = self._runtime
+        if runtime.input is not x or runtime.outputs is None:
+            runtime.input = x
+            runtime.outputs = self._evaluate(x)
+        output = runtime.outputs[index]
+        if index == len(self.output_widths) - 1:
+            runtime.input = None
+            runtime.outputs = None
+        return output
+
+
+class EXL3ProjectionProxy(nn.Module):
+    """Preserve an architecture's individual projection call sites."""
+
+    def __init__(self, group: EXL3LinearGroup, index: int):
+        super().__init__()
+        self._group = weakref.ref(group)
+        self.index = index
+        self.input_dims = group.input_dims
+        self.output_dims = group.output_widths[index]
+        self.bits = group.bits
+        self.mode = group.mode
+
+    def __call__(self, x: mx.array) -> mx.array:
+        group = self._group()
+        if group is None:
+            raise RuntimeError("grouped EXL3 projection owner was released")
+        return group.project(self.index, x)
+
+
+def fuse_compatible_linear_groups(model: nn.Module) -> int:
+    """Fuse common QKV and gate/up call sequences without architecture forks."""
+
+    fused = 0
+    patterns = (
+        ("q_proj", "k_proj", "v_proj"),
+        ("gate_proj", "up_proj"),
+    )
+    for _, module in list(model.named_modules()):
+        for names in patterns:
+            linears = tuple(getattr(module, name, None) for name in names)
+            if not all(isinstance(linear, EXL3Linear) for linear in linears):
+                continue
+            first = linears[0]
+            if first.bits == 7 or any(
+                linear.input_dims != first.input_dims
+                or linear.bits != first.bits
+                or linear.mode != first.mode
+                for linear in linears[1:]
+            ):
+                continue
+            group = EXL3LinearGroup(linears)
+            group_name = "_mlxl3_" + "_".join(names)
+            setattr(module, group_name, group)
+            for index, name in enumerate(names):
+                setattr(module, name, EXL3ProjectionProxy(group, index))
+            fused += 1
+    return fused
