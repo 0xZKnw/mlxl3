@@ -65,6 +65,28 @@ mlxl3 register MY_MODEL /absolute/path/to/exl3-model
 Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 `--repetition-penalty`, and `--system`.
 
+## Native macOS app
+
+MLXL3 Studio is a native SwiftUI application for macOS 26. It uses the system
+Liquid Glass materials and talks directly to the local MLXL3 Metal runtime. The
+model stays resident while answers stream; reasoning, final answers, TTFT,
+prefill/decode throughput, and peak memory are displayed separately. Context is
+kept per conversation for the lifetime of the application. Press Return to send
+and Control-Return to add a line. The eject button releases the active model and
+its Metal memory without removing it from the local registry. Output has no
+artificial token ceiling and stops on the model's end token or when you press
+Stop.
+
+Build the signed local application bundle and open it:
+
+```bash
+./scripts/build-macos-app.sh
+open "dist/MLXL3 Studio.app"
+```
+
+The app discovers the editable project virtual environment automatically. A
+different executable can be selected with `MLXL3_EXECUTABLE=/path/to/mlxl3`.
+
 ## Development
 
 ```bash

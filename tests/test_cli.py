@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 from types import SimpleNamespace
 
 import mlx_lm
@@ -67,6 +68,20 @@ def test_thinking_renderer_handles_tags_split_across_tokens() -> None:
     renderer.finish()
 
     assert stream.getvalue() == ("── Réflexion ──\nraisonnement\n── Réponse ──\nréponse\n")
+
+
+def test_thinking_splitter_emits_machine_readable_phases() -> None:
+    splitter = cli.ThinkingSplitter()
+    fragments = []
+    for piece in ("<thi", "nk>\nraison", "nement\n</thi", "nk>\nréponse"):
+        fragments.extend(splitter.feed(piece))
+    fragments.extend(splitter.finish())
+
+    assert fragments == [
+        ("thinking", "raison"),
+        ("thinking", "nement\n"),
+        ("answer", "réponse"),
+    ]
 
 
 def test_thinking_renderer_marks_unclosed_reasoning_as_reasoning() -> None:
@@ -148,3 +163,89 @@ def test_model_table_contains_registered_metadata() -> None:
     assert "lfm" in table
     assert "3.10" in table
     assert "3.9 GB" in table
+
+
+def test_list_json_is_stable_for_the_native_app(monkeypatch, capsys) -> None:
+    entry = ModelEntry(
+        name="lfm",
+        path="/models/lfm",
+        model_type="lfm2_moe",
+        format="EXL3",
+        bits=3.1,
+        size_bytes=3_920_000_000,
+        modules=2179,
+        added_at="2026-09-01T00:00:00+00:00",
+    )
+    monkeypatch.setattr(cli, "load_registry", lambda: {entry.name: entry})
+
+    assert cli.main(["list", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == [
+        {
+            "name": "lfm",
+            "path": "/models/lfm",
+            "model_type": "lfm2_moe",
+            "format": "EXL3",
+            "bits": 3.1,
+            "size_bytes": 3_920_000_000,
+            "modules": 2179,
+            "added_at": "2026-09-01T00:00:00+00:00",
+            "size": "3.9 GB",
+        }
+    ]
+
+
+def test_bridge_streams_thinking_answer_and_stats(monkeypatch, capsys) -> None:
+    stats = cli.GenerationStats(
+        ttft_seconds=0.12,
+        prefill_tps=70.0,
+        decode_tps=90.0,
+        prompt_tokens=12,
+        generated_tokens=8,
+        peak_memory_gb=4.1,
+    )
+
+    def fake_stream(model, tokenizer, messages, *, on_text, **kwargs):
+        assert messages == [{"role": "user", "content": "hello"}]
+        assert kwargs["max_tokens"] == -1
+        on_text("<thi")
+        on_text("nk>reason</think>")
+        on_text("answer")
+        return "<think>reason</think>answer", stats
+
+    monkeypatch.setattr(cli, "resolve_model", lambda name: (name, "/tmp/model"))
+    monkeypatch.setattr(cli, "_load_model", lambda path: (object(), object(), 42, 0.5, 3.9))
+    monkeypatch.setattr(cli, "_stream_response", fake_stream)
+    monkeypatch.setattr(
+        cli.sys,
+        "stdin",
+        io.StringIO(
+            json.dumps(
+                {
+                    "type": "generate",
+                    "request_id": "turn-1",
+                    "messages": [{"role": "user", "content": "hello"}],
+                }
+            )
+            + "\n"
+        ),
+    )
+
+    assert cli._bridge(SimpleNamespace(model="lfm")) == 0
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert [event["type"] for event in events] == [
+        "loading",
+        "ready",
+        "delta",
+        "delta",
+        "complete",
+    ]
+    assert events[2] == {
+        "type": "delta",
+        "request_id": "turn-1",
+        "phase": "thinking",
+        "text": "reason",
+    }
+    assert events[3]["phase"] == "answer"
+    assert events[3]["text"] == "answer"
+    assert events[4]["assistant_context"] == "answer"
+    assert events[4]["stats"]["decode_tps"] == 90.0
