@@ -94,12 +94,13 @@ def _qmv_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}"
-            f"_nt{tiles_per_group}_v1"
+            f"_nt{tiles_per_group}_v2"
         ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
         header=(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
+            f"#define MLXL3_K_BITS {k}u\n"
             + specialized_codebook_header(mode)
             + forward_permutation_header()
         ),
@@ -154,10 +155,13 @@ def _qmv_tile_kernel(
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
                         uint shift = shifts[group];
-                        uint cw3 = uint(merged >> shift) & 0xffffu;
-                        uint cw2 = uint(merged >> (shift + uint(K))) & 0xffffu;
-                        uint cw1 = uint(merged >> (shift + 2u * uint(K))) & 0xffffu;
-                        uint cw0 = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
+                        uint window = uint(merged >> shift);
+                        uint cw3 = window & 0xffffu;
+                        uint cw2 = (window >> MLXL3_K_BITS) & 0xffffu;
+                        uint cw1 = (window >> (2u * MLXL3_K_BITS)) & 0xffffu;
+                        uint cw0 = MLXL3_K_BITS <= 5u
+                            ? (window >> (3u * MLXL3_K_BITS)) & 0xffffu
+                            : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
                         uint j = group * 4u;
                         acc[output_tile][j] = fma(
                             simd_shuffle(x_lane, ushort(rows[j])),
@@ -226,12 +230,13 @@ def _qmv_mapped_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_v4"
+            f"_nt{tiles_per_group}_v5"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
         header=(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
+            f"#define MLXL3_K_BITS {k}u\n"
             + specialized_codebook_header(mode)
             + forward_permutation_header()
         ),
@@ -326,10 +331,13 @@ def _qmv_mapped_tile_kernel(
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
                         uint shift = shifts[group];
-                        uint cw3 = uint(merged >> shift) & 0xffffu;
-                        uint cw2 = uint(merged >> (shift + uint(K))) & 0xffffu;
-                        uint cw1 = uint(merged >> (shift + 2u * uint(K))) & 0xffffu;
-                        uint cw0 = uint(merged >> (shift + 3u * uint(K))) & 0xffffu;
+                        uint window = uint(merged >> shift);
+                        uint cw3 = window & 0xffffu;
+                        uint cw2 = (window >> MLXL3_K_BITS) & 0xffffu;
+                        uint cw1 = (window >> (2u * MLXL3_K_BITS)) & 0xffffu;
+                        uint cw0 = MLXL3_K_BITS <= 5u
+                            ? (window >> (3u * MLXL3_K_BITS)) & 0xffffu
+                            : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
                         uint j = group * 4u;
                         acc[output_tile][j] = fma(
                             x_values[j],

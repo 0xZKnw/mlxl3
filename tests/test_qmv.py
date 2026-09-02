@@ -12,7 +12,7 @@ from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 from mlxl3.linear import EXL3Linear, EXL3ProjectionProxy, fuse_compatible_linear_groups
 
 
-@pytest.mark.parametrize("k", (2, 3, 4))
+@pytest.mark.parametrize("k", (1, 2, 3, 4, 5, 6, 8))
 @pytest.mark.parametrize("mode", list(CodebookMode))
 def test_qmv_matches_reconstructed_weight(k: int, mode: CodebookMode) -> None:
     rng = np.random.default_rng(44000 + 10 * k + int(mode))
