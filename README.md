@@ -22,7 +22,7 @@ The current end-to-end target is the official LFM2.5-8B-A1B EXL3 checkpoint at
 projections, and runs the model entirely through MLX/Metal. Ling conversion is
 paused because a full no-training EXL3 conversion is much slower to iterate on.
 
-On this 10-core M5, the LFM fixture reaches a three-run warm median of 63.1
+On this 10-core M5, the LFM fixture reaches a paired 12-run warm median of 64.7
 generated tokens/s and a 4.02 GB peak allocation. The matching MLX 8-bit model
 reaches 58.9 tokens/s and 9.04 GB. Prefill reaches 113.9 tok/s on a 51-token
 prompt; larger-batch segmented GEMM remains future work.

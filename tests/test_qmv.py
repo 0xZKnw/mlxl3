@@ -7,7 +7,12 @@ from mlx import nn
 
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.codec.trellis import pack_trellis
-from mlxl3.kernels.qmv import _split_count, qmm_exl3, qmv_exl3
+from mlxl3.kernels.qmv import (
+    _qmv_tiles_per_group,
+    _split_count,
+    qmm_exl3,
+    qmv_exl3,
+)
 from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 from mlxl3.linear import EXL3Linear, EXL3ProjectionProxy, fuse_compatible_linear_groups
 
@@ -81,6 +86,18 @@ def test_split_count_balances_width_and_input_work(
     input_tiles: int, output_tiles: int, expected: int
 ) -> None:
     assert _split_count(input_tiles, output_tiles) == expected
+
+
+@pytest.mark.parametrize(
+    ("output_tiles", "expected"),
+    ((15, 1), (14, 2), (128, 4), (448, 4), (1024, 2), (8000, 2)),
+)
+def test_qmv_output_group_balances_reuse_and_occupancy(
+    output_tiles: int, expected: int
+) -> None:
+    assert (
+        _qmv_tiles_per_group(128, output_tiles, 3, CodebookMode.MCG) == expected
+    )
 
 
 def test_compatible_projection_group_matches_individual_decode_and_batch() -> None:

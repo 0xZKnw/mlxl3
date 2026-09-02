@@ -88,7 +88,7 @@ def _qmv_tile_kernel(
 ):
     """Four-simdgroup CUDA-style kernel over adjacent output tiles."""
 
-    if tiles_per_group not in (1, 2):
+    if tiles_per_group not in (1, 2, 4):
         raise ValueError(f"unsupported QMV output tile group {tiles_per_group}")
 
     return mx.fast.metal_kernel(
@@ -224,7 +224,7 @@ def _qmv_mapped_tile_kernel(
 ):
     """Tile-cooperative QMV over an indirect list of expert output tiles."""
 
-    if tiles_per_group not in (1, 2):
+    if tiles_per_group not in (1, 2, 4):
         raise ValueError(f"unsupported mapped QMV output tile group {tiles_per_group}")
 
     return mx.fast.metal_kernel(
@@ -676,9 +676,16 @@ def _qmv_tiles_per_group(
     k: int,
     mode: CodebookMode,
 ) -> int:
-    """Reuse each activation slice across two adjacent output tiles."""
+    """Reuse each activation slice across adjacent output tiles."""
 
     del input_tiles, k, mode
+    # Four tiles amortize activation routing and launch work best for ordinary
+    # transformer projections. Very wide vocabulary heads already expose ample
+    # parallelism and retain better occupancy with the smaller register tile.
+    if output_tiles >= 1024:
+        return 2 if output_tiles % 2 == 0 else 1
+    if output_tiles % 4 == 0:
+        return 4
     return 2 if output_tiles % 2 == 0 else 1
 
 
