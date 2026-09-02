@@ -1,3 +1,4 @@
+import Darwin
 @preconcurrency import Foundation
 
 enum MLXL3BridgeError: LocalizedError {
@@ -77,6 +78,16 @@ final class MLXL3Bridge: @unchecked Sendable {
     private let displayFlushInterval = 0.05
 
     var isRunning: Bool { process?.isRunning == true }
+
+    func residentMemoryBytes() -> UInt64 {
+        var pids = [getpid()]
+        if let process, process.isRunning {
+            pids.append(process.processIdentifier)
+        }
+        return pids.reduce(0) { total, pid in
+            total + residentMemoryBytes(for: pid)
+        }
+    }
 
     static func listModels(
         completion: @escaping @MainActor @Sendable (Result<[LocalModel], Error>) -> Void
@@ -271,5 +282,14 @@ final class MLXL3Bridge: @unchecked Sendable {
 
     private func dispatchToMain(_ event: BridgeEvent) {
         DispatchQueue.main.async { [weak self] in self?.onEvent?(event) }
+    }
+
+    private func residentMemoryBytes(for pid: pid_t) -> UInt64 {
+        var info = proc_taskinfo()
+        let size = MemoryLayout<proc_taskinfo>.stride
+        let read = withUnsafeMutablePointer(to: &info) { pointer in
+            proc_pidinfo(pid, PROC_PIDTASKINFO, 0, pointer, Int32(size))
+        }
+        return read == size ? info.pti_resident_size : 0
     }
 }

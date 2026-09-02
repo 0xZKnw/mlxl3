@@ -54,6 +54,18 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    var loadedModel: LocalModel? {
+        canEject ? selectedModel : nil
+    }
+
+    var latestGenerationStats: GenerationStats? {
+        currentConversation?.messages.reversed().compactMap(\.stats).first
+    }
+
+    var residentMemoryBytes: UInt64 {
+        bridge.residentMemoryBytes()
+    }
+
     func start() {
         guard !didStart else { return }
         didStart = true

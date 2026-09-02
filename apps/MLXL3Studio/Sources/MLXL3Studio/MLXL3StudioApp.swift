@@ -2,14 +2,18 @@ import SwiftUI
 
 @main
 struct MLXL3StudioApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var studio = StudioModel()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("MLXL3 Desktop") {
             StudioView()
                 .environmentObject(studio)
                 .preferredColorScheme(.dark)
-                .onAppear { studio.start() }
+                .onAppear {
+                    studio.start()
+                    appDelegate.configureMenuBar(with: studio)
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
@@ -21,5 +25,6 @@ struct MLXL3StudioApp: App {
                     .keyboardShortcut("n", modifiers: .command)
             }
         }
+
     }
 }

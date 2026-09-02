@@ -75,7 +75,8 @@ kept per conversation for the lifetime of the application. Press Return to send
 and Control-Return to add a line. The eject button releases the active model and
 its Metal memory without removing it from the local registry. Output has no
 artificial token ceiling and stops on the model's end token or when you press
-Stop.
+Stop. A native menu-bar panel keeps unified-memory usage, the loaded model, and
+the latest generation performance visible even when the main window is closed.
 
 Build the signed local application bundle and open it:
 

@@ -235,6 +235,8 @@ struct ComposerView: View {
                     .lineLimit(1...6)
                     .focused($focused)
                     .padding(.vertical, 5)
+                    .frame(minHeight: 34, alignment: .topLeading)
+                    .contentShape(Rectangle())
                     .disabled(studio.isGenerating)
                     .onSubmit { studio.send() }
                     .onKeyPress(.return, phases: .down) { press in
@@ -285,9 +287,19 @@ struct ComposerView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 10)
         }
+        .contentShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .onTapGesture {
+            guard !studio.isGenerating else { return }
+            focused = true
+        }
         .premiumGlass(radius: 23, tint: Color.white.opacity(0.035))
         .frame(maxWidth: 790)
         .frame(maxWidth: .infinity)
         .onAppear { focused = true }
+        .onChange(of: studio.isGenerating) {
+            if !studio.isGenerating {
+                focused = true
+            }
+        }
     }
 }
