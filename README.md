@@ -88,6 +88,52 @@ open "dist/MLXL3 Desktop.app"
 The app discovers the editable project virtual environment automatically. A
 different executable can be selected with `MLXL3_EXECUTABLE=/path/to/mlxl3`.
 
+### Install the current DMG release
+
+The current `v0.1.0` DMG contains the native desktop interface, but it does not
+yet bundle the Python/MLX inference runtime or a Hugging Face downloader. On an
+Apple Silicon Mac running macOS 26:
+
+1. Download
+   [`MLXL3-Desktop-v0.1.0-Apple-Silicon.dmg`](https://github.com/0xZKnw/mlxl3/releases/download/v0.1.0/MLXL3-Desktop-v0.1.0-Apple-Silicon.dmg),
+   open it, and drag **MLXL3 Desktop** into Applications. The app is currently
+   ad-hoc signed rather than Apple-notarized, so the first launch may require
+   right-clicking the app and choosing **Open**.
+2. Install the local engine and Hugging Face CLI:
+
+   ```bash
+   brew install python@3.12 pipx hf
+   pipx ensurepath
+   pipx install --python "$(brew --prefix python@3.12)/bin/python3.12" \
+     "git+https://github.com/0xZKnw/mlxl3.git"
+   ```
+
+3. Download a standard EXL3 model. This is the LFM checkpoint used by the
+   project and known to work end to end:
+
+   ```bash
+   mkdir -p "$HOME/Models"
+   hf download turboderp/LFM2.5-8B-A1B-exl3 \
+     --revision 3.10bpw \
+     --local-dir "$HOME/Models/LFM2.5-8B-A1B-EXL3-3.10bpw"
+   ```
+
+4. Add the downloaded directory to MLXL3's local registry:
+
+   ```bash
+   mlxl3 register lfm2.5-8b-a1b \
+     "$HOME/Models/LFM2.5-8B-A1B-EXL3-3.10bpw"
+   mlxl3 list
+   ```
+
+5. Launch **MLXL3 Desktop**. It discovers the registered model automatically.
+   If the app was already open while registering it, quit and reopen the app.
+
+The same `hf download` then `mlxl3 register` flow applies to other standard
+EXL3 checkpoints whose model architecture is supported by the pinned MLX-LM
+runtime. Bundling the runtime and model manager directly in the app is planned
+for a future standalone release.
+
 ## Development
 
 ```bash
