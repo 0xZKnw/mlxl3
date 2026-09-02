@@ -4,6 +4,7 @@ import mlx.core as mx
 import numpy as np
 from mlx import nn
 
+import mlxl3.kernels.qmv as qmv_kernels
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.codec.trellis import pack_trellis
 from mlxl3.kernels.qmv import qmv_exl3
@@ -28,7 +29,7 @@ def test_fused_biased_topk_matches_mlx_selection() -> None:
     np.testing.assert_array_equal(np.asarray(actual_scores), np.asarray(expected_scores))
 
 
-def test_grouped_switch_glu_matches_individual_qmv() -> None:
+def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
     rng = np.random.default_rng(53100)
     experts = 4
     dims = hidden = 128
@@ -75,6 +76,12 @@ def test_grouped_switch_glu_matches_individual_qmv() -> None:
             )
         )
     expected = mx.stack(expected_rows, axis=-2)
-    actual = module(x, indices)
-    mx.eval(expected, actual)
-    np.testing.assert_allclose(np.asarray(actual), np.asarray(expected), atol=0.05, rtol=0.005)
+    monkeypatch.setattr(qmv_kernels, "_USE_K3_WINDOW_DECODE", False)
+    legacy = module(x, indices)
+    monkeypatch.setattr(qmv_kernels, "_USE_K3_WINDOW_DECODE", True)
+    optimized = module(x, indices)
+    mx.eval(expected, legacy, optimized)
+    np.testing.assert_array_equal(np.asarray(optimized), np.asarray(legacy))
+    np.testing.assert_allclose(
+        np.asarray(optimized), np.asarray(expected), atol=0.05, rtol=0.005
+    )
