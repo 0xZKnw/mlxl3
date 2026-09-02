@@ -99,7 +99,7 @@ def _qmv_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}"
-            f"_nt{tiles_per_group}_sg{simdgroups}_v4"
+            f"_nt{tiles_per_group}_sg{simdgroups}_v5"
         ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
@@ -116,9 +116,6 @@ def _qmv_tile_kernel(
             uint tile_n = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
-
-            uint row_base = (lane & 3u) << 1u;
-            uint rows[4] = {row_base, row_base + 1u, row_base + 8u, row_base + 9u};
 
             uint word0[2];
             uint word1[2];
@@ -147,11 +144,16 @@ def _qmv_tile_kernel(
                 tile_k < tile_end;
                 tile_k += MLXL3_QMV_SG
             ) {
-                float x_lane = float(xhat[tile_k * 16u + (lane & 15u)]);
+                const device half2* x_pairs =
+                    reinterpret_cast<const device half2*>(xhat + tile_k * 16u);
+                half2 x_pair = x_pairs[lane & 7u];
+                half2 x_pair0 = simd_shuffle(x_pair, ushort(lane & 3u));
+                half2 x_pair1 = simd_shuffle(x_pair, ushort((lane & 3u) + 4u));
                 float x_values[4];
-                for (uint j = 0u; j < 4u; ++j) {
-                    x_values[j] = simd_shuffle(x_lane, ushort(rows[j]));
-                }
+                x_values[0] = float(x_pair0.x);
+                x_values[1] = float(x_pair0.y);
+                x_values[2] = float(x_pair1.x);
+                x_values[3] = float(x_pair1.y);
                 for (
                     uint output_tile = 0u;
                     output_tile < MLXL3_QMV_NT;
@@ -257,7 +259,7 @@ def _qmv_mapped_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_sg{simdgroups}_v7"
+            f"_nt{tiles_per_group}_sg{simdgroups}_v8"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
@@ -275,9 +277,6 @@ def _qmv_mapped_tile_kernel(
             uint local_tile = tile_group * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
-
-            uint row_base = (lane & 3u) << 1u;
-            uint rows[4] = {row_base, row_base + 1u, row_base + 8u, row_base + 9u};
 
             uint word0[2];
             uint word1[2];
@@ -339,13 +338,17 @@ def _qmv_mapped_tile_kernel(
             ) {
                 // Output rows are 128-aligned, so both tiles in a pair use
                 // the same transformed activation row.
-                float x_lane = float(
-                    xhat[sub * uint(INPUT_DIMS) + tile_k * 16u + (lane & 15u)]
+                const device half2* x_pairs = reinterpret_cast<const device half2*>(
+                    xhat + sub * uint(INPUT_DIMS) + tile_k * 16u
                 );
+                half2 x_pair = x_pairs[lane & 7u];
+                half2 x_pair0 = simd_shuffle(x_pair, ushort(lane & 3u));
+                half2 x_pair1 = simd_shuffle(x_pair, ushort((lane & 3u) + 4u));
                 float x_values[4];
-                for (uint j = 0u; j < 4u; ++j) {
-                    x_values[j] = simd_shuffle(x_lane, ushort(rows[j]));
-                }
+                x_values[0] = float(x_pair0.x);
+                x_values[1] = float(x_pair0.y);
+                x_values[2] = float(x_pair1.x);
+                x_values[3] = float(x_pair1.y);
                 for (
                     uint output_tile = 0u;
                     output_tile < MLXL3_QMV_NT;
