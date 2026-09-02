@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.46" stop-color="#dceefe"/>
+      <stop offset="1" stop-color="#83b5df"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.72"/>
+      <stop offset="0.48" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="32"/>
+      <feOffset dy="24"/>
+      <feColorMatrix values="0 0 0 0 0.12 0 0 0 0 0.28 0 0 0 0 0.44 0 0 0 0.45 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="64" width="880" height="880" rx="276" fill="url(#surface)"/>
+    <rect x="86" y="78" width="852" height="852" rx="262" fill="none" stroke="#ffffff" stroke-opacity="0.58" stroke-width="12"/>
+    <path d="M 160 320 C 260 126 772 90 880 320 C 714 232 316 240 160 320 Z" fill="url(#shine)"/>
+
+    <circle cx="512" cy="506" r="278" fill="none" stroke="#070a0d" stroke-opacity="0.93"
+            stroke-width="104" stroke-linecap="round" stroke-dasharray="1223 524"
+            transform="rotate(-67 512 506)"/>
+    <circle cx="512" cy="506" r="82" fill="#070a0d"/>
+    <circle cx="486" cy="478" r="24" fill="#ffffff" fill-opacity="0.13"/>
+  </g>
+</svg>

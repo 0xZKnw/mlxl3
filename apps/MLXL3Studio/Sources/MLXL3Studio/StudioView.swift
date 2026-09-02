@@ -51,7 +51,7 @@ private struct SidebarView: View {
                     Text("MLXL3")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .tracking(0.7)
-                    Text("LOCAL STUDIO")
+                    Text("DESKTOP")
                         .font(.system(size: 8, weight: .semibold, design: .rounded))
                         .tracking(1.8)
                         .foregroundStyle(StudioTheme.quiet)

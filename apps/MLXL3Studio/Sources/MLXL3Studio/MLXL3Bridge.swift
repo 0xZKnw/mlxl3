@@ -45,6 +45,21 @@ enum CLIResolver {
         return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
             .map { URL(fileURLWithPath: $0) }
     }
+
+    static func workingDirectory(for executable: URL) -> URL {
+        let bin = executable.deletingLastPathComponent()
+        let environment = bin.deletingLastPathComponent()
+        if environment.lastPathComponent == ".venv" {
+            return environment.deletingLastPathComponent()
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
+    }
+}
+
+private struct PendingDelta {
+    let requestID: String?
+    let phase: String?
+    var text: String
 }
 
 final class MLXL3Bridge: @unchecked Sendable {
@@ -57,6 +72,9 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var outputBuffer = Data()
     private var stderrBuffer = Data()
     private var intentionalStop = false
+    private var pendingDelta: PendingDelta?
+    private var deltaFlushWorkItem: DispatchWorkItem?
+    private let displayFlushInterval = 0.05
 
     var isRunning: Bool { process?.isRunning == true }
 
@@ -73,6 +91,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             let error = Pipe()
             process.executableURL = executable
             process.arguments = ["list", "--json"]
+            process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
             process.standardOutput = output
             process.standardError = error
             do {
@@ -104,12 +123,18 @@ final class MLXL3Bridge: @unchecked Sendable {
         let input = Pipe()
         let output = Pipe()
         let error = Pipe()
-        outputBuffer.removeAll(keepingCapacity: true)
-        stderrBuffer.removeAll(keepingCapacity: true)
+        ioQueue.sync {
+            outputBuffer.removeAll(keepingCapacity: true)
+            stderrBuffer.removeAll(keepingCapacity: true)
+            pendingDelta = nil
+            deltaFlushWorkItem?.cancel()
+            deltaFlushWorkItem = nil
+        }
         intentionalStop = false
 
         process.executableURL = executable
         process.arguments = ["bridge", model]
+        process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
         process.standardInput = input
         process.standardOutput = output
         process.standardError = error
@@ -169,7 +194,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             guard !line.isEmpty else { continue }
             do {
                 let event = try JSONDecoder().decode(BridgeEvent.self, from: line)
-                DispatchQueue.main.async { [weak self] in self?.onEvent?(event) }
+                queueForDisplay(event)
             } catch {
                 let raw = String(data: line, encoding: .utf8) ?? ""
                 let event = BridgeEvent(
@@ -185,8 +210,66 @@ final class MLXL3Bridge: @unchecked Sendable {
                     stats: nil,
                     message: "Réponse moteur invalide: \(raw)"
                 )
-                DispatchQueue.main.async { [weak self] in self?.onEvent?(event) }
+                queueForDisplay(event)
             }
         }
+    }
+
+    private func queueForDisplay(_ event: BridgeEvent) {
+        guard event.type == "delta", let text = event.text else {
+            flushPendingDelta()
+            dispatchToMain(event)
+            return
+        }
+
+        if pendingDelta?.requestID == event.requestID, pendingDelta?.phase == event.phase {
+            pendingDelta?.text += text
+        } else {
+            flushPendingDelta()
+            pendingDelta = PendingDelta(
+                requestID: event.requestID,
+                phase: event.phase,
+                text: text
+            )
+        }
+        scheduleDeltaFlush()
+    }
+
+    private func scheduleDeltaFlush() {
+        guard deltaFlushWorkItem == nil else { return }
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.flushPendingDelta()
+        }
+        deltaFlushWorkItem = workItem
+        ioQueue.asyncAfter(
+            deadline: .now() + displayFlushInterval,
+            execute: workItem
+        )
+    }
+
+    private func flushPendingDelta() {
+        deltaFlushWorkItem?.cancel()
+        deltaFlushWorkItem = nil
+        guard let pendingDelta else { return }
+        self.pendingDelta = nil
+        dispatchToMain(
+            BridgeEvent(
+                type: "delta",
+                model: nil,
+                modules: nil,
+                loadSeconds: nil,
+                residentGB: nil,
+                requestID: pendingDelta.requestID,
+                phase: pendingDelta.phase,
+                text: pendingDelta.text,
+                assistantContext: nil,
+                stats: nil,
+                message: nil
+            )
+        )
+    }
+
+    private func dispatchToMain(_ event: BridgeEvent) {
+        DispatchQueue.main.async { [weak self] in self?.onEvent?(event) }
     }
 }

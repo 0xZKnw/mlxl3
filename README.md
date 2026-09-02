@@ -67,7 +67,7 @@ Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 
 ## Native macOS app
 
-MLXL3 Studio is a native SwiftUI application for macOS 26. It uses the system
+MLXL3 Desktop is a native SwiftUI application for macOS 26. It uses the system
 Liquid Glass materials and talks directly to the local MLXL3 Metal runtime. The
 model stays resident while answers stream; reasoning, final answers, TTFT,
 prefill/decode throughput, and peak memory are displayed separately. Context is
@@ -81,7 +81,7 @@ Build the signed local application bundle and open it:
 
 ```bash
 ./scripts/build-macos-app.sh
-open "dist/MLXL3 Studio.app"
+open "dist/MLXL3 Desktop.app"
 ```
 
 The app discovers the editable project virtual environment automatically. A

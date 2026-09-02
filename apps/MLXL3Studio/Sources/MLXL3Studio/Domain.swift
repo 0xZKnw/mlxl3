@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 struct LocalModel: Codable, Hashable, Identifiable {
@@ -88,19 +89,20 @@ struct GenerationRequest: Encodable {
     }
 }
 
-struct ChatMessage: Identifiable, Hashable {
-    enum Role: String, Hashable {
+final class ChatMessage: ObservableObject, Identifiable {
+    enum Role: String {
         case user
         case assistant
     }
 
     let id: UUID
     let role: Role
-    var content: String
-    var thinking: String
-    var isStreaming: Bool
-    var stats: GenerationStats?
-    var error: String?
+    private(set) var content: String
+    private(set) var thinking: String
+    private(set) var isStreaming: Bool
+    private(set) var stats: GenerationStats?
+    private(set) var error: String?
+    private(set) var streamRevision = 0
 
     init(
         id: UUID = UUID(),
@@ -119,9 +121,38 @@ struct ChatMessage: Identifiable, Hashable {
         self.stats = stats
         self.error = error
     }
+
+    func append(_ text: String, phase: String?) {
+        guard !text.isEmpty else { return }
+        objectWillChange.send()
+        if phase == "thinking" {
+            thinking += text
+        } else {
+            content += text
+        }
+        streamRevision &+= 1
+    }
+
+    func finish(stats: GenerationStats?, fallbackAnswer: String?) {
+        objectWillChange.send()
+        isStreaming = false
+        self.stats = stats
+        if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let fallbackAnswer {
+            content = fallbackAnswer
+        }
+        streamRevision &+= 1
+    }
+
+    func fail(_ message: String) {
+        objectWillChange.send()
+        isStreaming = false
+        error = message
+        streamRevision &+= 1
+    }
 }
 
-struct Conversation: Identifiable, Hashable {
+struct Conversation: Identifiable {
     let id: UUID
     var title: String
     var messages: [ChatMessage]

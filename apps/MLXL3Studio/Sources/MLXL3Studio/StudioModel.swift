@@ -89,10 +89,7 @@ final class StudioModel: ObservableObject {
 
     func ejectModel() {
         guard canEject else { return }
-        if let location = activeMessageLocation() {
-            conversations[location.conversation].messages[location.message].isStreaming = false
-            conversations[location.conversation].messages[location.message].error = "Modèle éjecté"
-        }
+        activeMessage()?.fail("Modèle éjecté")
         activeRequestID = nil
         activeResponseID = nil
         readyInfo = nil
@@ -167,10 +164,7 @@ final class StudioModel: ObservableObject {
 
     func stopGeneration() {
         guard isGenerating else { return }
-        if let location = activeMessageLocation() {
-            conversations[location.conversation].messages[location.message].isStreaming = false
-            conversations[location.conversation].messages[location.message].error = "Génération arrêtée"
-        }
+        activeMessage()?.fail("Génération arrêtée")
         activeRequestID = nil
         activeResponseID = nil
         bridge.stop()
@@ -214,25 +208,14 @@ final class StudioModel: ObservableObject {
         case "delta":
             guard event.requestID == activeRequestID,
                   let text = event.text,
-                  let location = activeMessageLocation()
+                  let message = activeMessage()
             else { return }
-            if event.phase == "thinking" {
-                conversations[location.conversation].messages[location.message].thinking += text
-            } else {
-                conversations[location.conversation].messages[location.message].content += text
-            }
+            message.append(text, phase: event.phase)
         case "complete":
             guard event.requestID == activeRequestID,
-                  let location = activeMessageLocation()
+                  let message = activeMessage()
             else { return }
-            var message = conversations[location.conversation].messages[location.message]
-            message.isStreaming = false
-            message.stats = event.stats
-            if message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-               let answer = event.assistantContext {
-                message.content = answer
-            }
-            conversations[location.conversation].messages[location.message] = message
+            message.finish(stats: event.stats, fallbackAnswer: event.assistantContext)
             activeRequestID = nil
             activeResponseID = nil
             restoreReadyState()
@@ -257,10 +240,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func failActiveTurn(_ message: String) {
-        if let location = activeMessageLocation() {
-            conversations[location.conversation].messages[location.message].isStreaming = false
-            conversations[location.conversation].messages[location.message].error = message
-        }
+        activeMessage()?.fail(message)
         activeRequestID = nil
         activeResponseID = nil
         if readyInfo == nil {
@@ -270,13 +250,13 @@ final class StudioModel: ObservableObject {
         }
     }
 
-    private func activeMessageLocation() -> (conversation: Int, message: Int)? {
+    private func activeMessage() -> ChatMessage? {
         guard let activeResponseID else { return nil }
         for conversation in conversations.indices {
-            if let message = conversations[conversation].messages.firstIndex(
+            if let message = conversations[conversation].messages.first(
                 where: { $0.id == activeResponseID }
             ) {
-                return (conversation, message)
+                return message
             }
         }
         return nil

@@ -11,7 +11,9 @@ struct MessagesView: View {
                         MessageView(message: message)
                             .id(message.id)
                     }
-                    Color.clear.frame(height: 4).id("bottom")
+                    Color.clear
+                        .frame(height: 4)
+                        .id("conversation-bottom")
                 }
                 .padding(.horizontal, 48)
                 .padding(.top, 28)
@@ -20,9 +22,16 @@ struct MessagesView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.never)
-            .onChange(of: messages) {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    proxy.scrollTo("bottom", anchor: .bottom)
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .defaultScrollAnchor(.bottom, for: .sizeChanges)
+            .onChange(of: messages.last?.id) {
+                Task { @MainActor in
+                    await Task.yield()
+                    var transaction = Transaction(animation: nil)
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        proxy.scrollTo("conversation-bottom", anchor: .bottom)
+                    }
                 }
             }
         }
@@ -31,7 +40,7 @@ struct MessagesView: View {
 }
 
 private struct MessageView: View {
-    let message: ChatMessage
+    @ObservedObject var message: ChatMessage
 
     var body: some View {
         if message.role == .user {
@@ -52,7 +61,7 @@ private struct MessageView: View {
 }
 
 private struct AssistantMessageView: View {
-    let message: ChatMessage
+    @ObservedObject var message: ChatMessage
 
     var body: some View {
         HStack(alignment: .top, spacing: 13) {
@@ -70,18 +79,19 @@ private struct AssistantMessageView: View {
                 }
 
                 if !message.thinking.isEmpty {
-                    ThinkingBlock(text: message.thinking, streaming: message.isStreaming && message.content.isEmpty)
+                    ThinkingBlock(
+                        text: message.thinking,
+                        streaming: message.isStreaming && message.content.isEmpty
+                    )
                 } else if message.isStreaming && message.content.isEmpty {
                     ThinkingPlaceholder()
                 }
 
                 if !message.content.isEmpty {
-                    Text(renderedMarkdown(message.content))
-                        .font(.system(size: 14.5, weight: .regular))
-                        .foregroundStyle(Color.white.opacity(0.92))
-                        .lineSpacing(5)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
+                    MarkdownResponseView(
+                        message.content,
+                        streaming: message.isStreaming
+                    )
                 }
 
                 if let error = message.error {
@@ -98,12 +108,6 @@ private struct AssistantMessageView: View {
         }
     }
 
-    private func renderedMarkdown(_ text: String) -> AttributedString {
-        (try? AttributedString(
-            markdown: text,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        )) ?? AttributedString(text)
-    }
 }
 
 private struct StreamingIndicator: View {
@@ -150,29 +154,19 @@ private struct ThinkingBlock: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(spacing: 0) {
-                        Text(text)
-                            .font(.system(size: 11.5, weight: .regular, design: .monospaced))
-                            .foregroundStyle(Color.white.opacity(0.57))
-                            .lineSpacing(3)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 10)
-                        Color.clear
-                            .frame(height: 1)
-                            .id("thinking-bottom")
-                    }
-                }
-                .onChange(of: text) {
-                    guard streaming else { return }
-                    proxy.scrollTo("thinking-bottom", anchor: .bottom)
-                }
-                .onAppear {
-                    proxy.scrollTo("thinking-bottom", anchor: .bottom)
+            ScrollView {
+                SmoothStreamingSource(text, streaming: streaming) { displayedText in
+                    Text(displayedText)
+                        .font(.system(size: 11.5, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Color.white.opacity(0.57))
+                        .lineSpacing(3)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 10)
                 }
             }
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .defaultScrollAnchor(.bottom, for: .sizeChanges)
             .frame(maxHeight: 180)
         } label: {
             HStack(spacing: 8) {
