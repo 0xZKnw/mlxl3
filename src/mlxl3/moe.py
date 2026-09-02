@@ -6,7 +6,7 @@ import mlx.core as mx
 from mlx import nn
 
 from mlxl3.codec.codebook import CodebookMode
-from mlxl3.kernels.qmv import qmv_exl3_mapped
+from mlxl3.kernels.qmv import qmv_exl3_expert_mapped
 
 
 class EXL3SwitchGLU(nn.Module):
@@ -73,37 +73,29 @@ class EXL3SwitchGLU(nn.Module):
             (rows, top_k, 2, self.input_dims),
         ).reshape(slots * 2, self.input_dims)
 
-        selected_gu = mx.repeat(selected, 2)
-        projection = mx.arange(slots * 2, dtype=mx.uint32) & 1
-        gate_or_up_base = (
-            selected_gu.astype(mx.uint32) + projection * self.num_experts
-        ) * self._hidden_tiles
-        gu_tile_map = (
-            gate_or_up_base[:, None] + mx.arange(self._hidden_tiles, dtype=mx.uint32)[None, :]
-        ).reshape(-1)
-        gu = qmv_exl3_mapped(
+        gu = qmv_exl3_expert_mapped(
             x_gu,
             self.gu_trellis,
             self.gu_suh[selected].reshape(slots * 2, self.input_dims),
             self.gu_svh[selected].reshape(slots * 2, self.hidden_dims),
-            gu_tile_map,
+            selected,
             output_dims=self.hidden_dims,
+            projections_per_route=2,
+            projection_stride_tiles=self.num_experts * self._hidden_tiles,
             k=self.bits,
             mode=self.mode,
         ).reshape(slots, 2, self.hidden_dims)
         hidden = nn.silu(gu[:, 0]) * gu[:, 1]
 
-        down_base = selected.astype(mx.uint32) * self._output_tiles
-        down_tile_map = (
-            down_base[:, None] + mx.arange(self._output_tiles, dtype=mx.uint32)[None, :]
-        ).reshape(-1)
-        output = qmv_exl3_mapped(
+        output = qmv_exl3_expert_mapped(
             hidden,
             self.down_trellis,
             self.down_suh[selected],
             self.down_svh[selected],
-            down_tile_map,
+            selected,
             output_dims=self.input_dims,
+            projections_per_route=1,
+            projection_stride_tiles=0,
             k=self.bits,
             mode=self.mode,
         )

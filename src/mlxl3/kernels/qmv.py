@@ -226,7 +226,7 @@ def _qmv_mapped_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_v3"
+            f"_nt{tiles_per_group}_v4"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
@@ -239,7 +239,8 @@ def _qmv_mapped_tile_kernel(
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
-            uint local_tile = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
+            uint tile_group = threadgroup_position_in_grid.x;
+            uint local_tile = tile_group * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[4][MLXL3_QMV_NT * 256u];
 
@@ -272,12 +273,36 @@ def _qmv_mapped_tile_kernel(
                 (uint(TILES_K) + uint(N_SPLITS) - 1u) / uint(N_SPLITS);
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
-            uint sub = tile_sub[local_tile];
+            uint sub;
             uint tile_ns[MLXL3_QMV_NT];
-            for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
-                uint tile_offset = local_tile + output_tile;
-                tile_ns[output_tile] =
-                    IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
+            if (EXPERT_MAP) {
+                uint groups_per_row = uint(OUTPUT_TILES) / MLXL3_QMV_NT;
+                sub = tile_group / groups_per_row;
+                uint group_in_row = tile_group - sub * groups_per_row;
+                uint route = sub / uint(ROUTING_REPEAT);
+                uint projection = sub - route * uint(ROUTING_REPEAT);
+                uint source_base =
+                    tile_map[route] * uint(OUTPUT_TILES)
+                    + projection * uint(PROJECTION_STRIDE_TILES)
+                    + group_in_row * MLXL3_QMV_NT;
+                for (
+                    uint output_tile = 0u;
+                    output_tile < MLXL3_QMV_NT;
+                    ++output_tile
+                ) {
+                    tile_ns[output_tile] = source_base + output_tile;
+                }
+            } else {
+                sub = tile_sub[local_tile];
+                for (
+                    uint output_tile = 0u;
+                    output_tile < MLXL3_QMV_NT;
+                    ++output_tile
+                ) {
+                    uint tile_offset = local_tile + output_tile;
+                    tile_ns[output_tile] =
+                        IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
+                }
             }
             for (uint tile_k = tile_begin + simd; tile_k < tile_end; tile_k += 4u) {
                 // Output rows are 128-aligned, so both tiles in a pair use
@@ -791,8 +816,99 @@ def qmv_exl3_mapped(
             ("N_SPLITS", splits),
             ("LOCAL_OUTPUT_DIMS", tile_map.size * 16),
             ("IDENTITY_MAP", 0),
+            ("EXPERT_MAP", 0),
+            ("OUTPUT_TILES", output_tiles),
+            ("ROUTING_REPEAT", 1),
+            ("PROJECTION_STRIDE_TILES", 0),
         ],
         grid=((tile_map.size // tiles_per_group) * 128, 1, splits),
+        threadgroup=(128, 1, 1),
+        output_shapes=[(splits, rows, output_dims)],
+        output_dtypes=[mx.float32],
+    )[0]
+    yhat = partials[0] if splits == 1 else partials.sum(axis=0)
+    return (_hadamard_right(yhat) * svh).astype(x.dtype)
+
+
+def qmv_exl3_expert_mapped(
+    x: mx.array,
+    trellis: mx.array,
+    suh: mx.array,
+    svh: mx.array,
+    selected: mx.array,
+    *,
+    output_dims: int,
+    projections_per_route: int,
+    projection_stride_tiles: int,
+    k: int,
+    mode: CodebookMode | int = CodebookMode.DEFAULT,
+) -> mx.array:
+    """Run contiguous expert projections from compact routing indices."""
+
+    cb = CodebookMode(mode)
+    if k == 7:
+        raise NotImplementedError("expert-mapped K=7 requires the three-word decode path")
+    if trellis.dtype == mx.int16:
+        trellis = trellis.view(mx.uint16)
+    if trellis.dtype != mx.uint16 or trellis.ndim != 3 or trellis.shape[-1] != 16 * k:
+        raise ValueError(f"invalid EXL3 trellis shape/dtype: {trellis.shape}/{trellis.dtype}")
+    if x.ndim != 2:
+        raise ValueError(f"expert-mapped QMV expects a row matrix, got {x.shape}")
+    rows, input_dims = x.shape
+    if input_dims != trellis.shape[0] * 16:
+        raise ValueError(
+            f"expert-mapped QMV input width {input_dims} != "
+            f"trellis width {trellis.shape[0] * 16}"
+        )
+    if output_dims % 128:
+        raise ValueError(f"expert output_dims must be a multiple of 128, got {output_dims}")
+    if projections_per_route < 1:
+        raise ValueError("projections_per_route must be positive")
+    if selected.size * projections_per_route != rows:
+        raise ValueError(
+            f"{selected.size} routes x {projections_per_route} projections != {rows} rows"
+        )
+    if suh.shape != x.shape or svh.shape != (rows, output_dims):
+        raise ValueError(
+            f"scale shapes must be {x.shape} and {(rows, output_dims)}, "
+            f"got {suh.shape} and {svh.shape}"
+        )
+
+    output_tiles = output_dims // 16
+    local_tiles = rows * output_tiles
+    xhat = _hadamard_right(x.astype(mx.float32) * suh)
+    routes = selected.reshape(-1).astype(mx.uint32)
+    splits = _split_count(trellis.shape[0], local_tiles)
+    tiles_per_group = _qmv_tiles_per_group(
+        trellis.shape[0], local_tiles, k, cb
+    )
+    if output_tiles % tiles_per_group:
+        tiles_per_group = 1
+    partials = _qmv_mapped_tile_kernel(
+        k, int(cb), input_dims, trellis.shape[1], tiles_per_group
+    )(
+        inputs=[
+            xhat.reshape(-1),
+            trellis.reshape(-1).view(mx.uint32),
+            routes,
+            routes,
+        ],
+        template=[
+            ("K", k),
+            ("CB", int(cb)),
+            ("PACKED_U32", k * 8),
+            ("INPUT_DIMS", input_dims),
+            ("TILES_K", trellis.shape[0]),
+            ("TILES_N", trellis.shape[1]),
+            ("N_SPLITS", splits),
+            ("LOCAL_OUTPUT_DIMS", local_tiles * 16),
+            ("IDENTITY_MAP", 0),
+            ("EXPERT_MAP", 1),
+            ("OUTPUT_TILES", output_tiles),
+            ("ROUTING_REPEAT", projections_per_route),
+            ("PROJECTION_STRIDE_TILES", projection_stride_tiles),
+        ],
+        grid=((local_tiles // tiles_per_group) * 128, 1, splits),
         threadgroup=(128, 1, 1),
         output_shapes=[(splits, rows, output_dims)],
         output_dtypes=[mx.float32],
@@ -872,6 +988,10 @@ def qmv_exl3_grouped(
             ("N_SPLITS", splits),
             ("LOCAL_OUTPUT_DIMS", total_output_dims),
             ("IDENTITY_MAP", 1),
+            ("EXPERT_MAP", 0),
+            ("OUTPUT_TILES", total_tiles),
+            ("ROUTING_REPEAT", 1),
+            ("PROJECTION_STRIDE_TILES", 0),
         ],
         grid=((total_tiles // tiles_per_group) * 128, 1, splits),
         threadgroup=(128, 1, 1),
