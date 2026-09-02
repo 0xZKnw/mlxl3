@@ -1,0 +1,865 @@
+import AppKit
+import SwiftMath
+import SwiftUI
+
+private enum MarkdownBlockKind {
+    case paragraph(String)
+    case heading(level: Int, text: String)
+    case unordered(indent: Int, text: String)
+    case ordered(indent: Int, number: String, text: String)
+    case quote(String)
+    case code(language: String?, text: String)
+    case math(String)
+    case table(header: [String], alignments: [MarkdownTableAlignment], rows: [[String]])
+    case rule
+}
+
+private enum MarkdownTableAlignment {
+    case leading
+    case center
+    case trailing
+}
+
+private struct MarkdownBlock: Identifiable {
+    let id: Int
+    let kind: MarkdownBlockKind
+}
+
+private struct OpenMathBlock {
+    let opener: String
+    let closer: String
+    var lines: [String]
+}
+
+private enum MarkdownParser {
+    static func parse(_ source: String) -> [MarkdownBlock] {
+        var kinds: [MarkdownBlockKind] = []
+        var paragraph: [String] = []
+        var codeLines: [String]?
+        var codeLanguage: String?
+        var mathBlock: OpenMathBlock?
+
+        func flushParagraph() {
+            guard !paragraph.isEmpty else { return }
+            kinds.append(.paragraph(paragraph.joined(separator: " ")))
+            paragraph.removeAll(keepingCapacity: true)
+        }
+
+        let lines = source.components(separatedBy: .newlines)
+        var lineIndex = 0
+        while lineIndex < lines.count {
+            let rawLine = lines[lineIndex]
+            let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+
+            if codeLines != nil {
+                if trimmed.hasPrefix("```") {
+                    kinds.append(.code(language: codeLanguage, text: codeLines!.joined(separator: "\n")))
+                    codeLines = nil
+                    codeLanguage = nil
+                } else {
+                    codeLines?.append(rawLine)
+                }
+                lineIndex += 1
+                continue
+            }
+
+            if var openMath = mathBlock {
+                if let closerRange = trimmed.range(of: openMath.closer) {
+                    let prefix = String(trimmed[..<closerRange.lowerBound])
+                    if !prefix.isEmpty {
+                        openMath.lines.append(prefix)
+                    }
+                    kinds.append(.math(openMath.lines.joined(separator: "\n")))
+                    mathBlock = nil
+
+                    let suffix = String(trimmed[closerRange.upperBound...])
+                        .trimmingCharacters(in: .whitespaces)
+                    if !suffix.isEmpty {
+                        paragraph.append(suffix)
+                    }
+                } else {
+                    openMath.lines.append(rawLine)
+                    mathBlock = openMath
+                }
+                lineIndex += 1
+                continue
+            }
+
+            if lineIndex + 1 < lines.count,
+               let table = table(
+                   headerLine: rawLine,
+                   delimiterLine: lines[lineIndex + 1]
+               ) {
+                flushParagraph()
+                var rows: [[String]] = []
+                lineIndex += 2
+                while lineIndex < lines.count,
+                      let row = tableRow(from: lines[lineIndex]),
+                      !lines[lineIndex].trimmingCharacters(in: .whitespaces).isEmpty {
+                    rows.append(normalized(row, count: table.header.count))
+                    lineIndex += 1
+                }
+                kinds.append(
+                    .table(
+                        header: table.header,
+                        alignments: table.alignments,
+                        rows: rows
+                    )
+                )
+                continue
+            }
+
+            if trimmed.hasPrefix("```") {
+                flushParagraph()
+                let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+                codeLanguage = language.isEmpty ? nil : language
+                codeLines = []
+                lineIndex += 1
+                continue
+            }
+            if let opened = openMath(from: trimmed) {
+                flushParagraph()
+                if let closerRange = opened.remainder.range(of: opened.closer) {
+                    let formula = opened.remainder[..<closerRange.lowerBound]
+                        .trimmingCharacters(in: .whitespaces)
+                    if !formula.isEmpty {
+                        kinds.append(.math(formula))
+                    }
+                    let suffix = opened.remainder[closerRange.upperBound...]
+                        .trimmingCharacters(in: .whitespaces)
+                    if !suffix.isEmpty {
+                        paragraph.append(suffix)
+                    }
+                } else {
+                    let firstLine = opened.remainder.trimmingCharacters(in: .whitespaces)
+                    mathBlock = OpenMathBlock(
+                        opener: opened.opener,
+                        closer: opened.closer,
+                        lines: firstLine.isEmpty ? [] : [firstLine]
+                    )
+                }
+                lineIndex += 1
+                continue
+            }
+            if trimmed.isEmpty {
+                flushParagraph()
+                lineIndex += 1
+                continue
+            }
+            if isRule(trimmed) {
+                flushParagraph()
+                kinds.append(.rule)
+                lineIndex += 1
+                continue
+            }
+            if let heading = heading(from: trimmed) {
+                flushParagraph()
+                kinds.append(.heading(level: heading.level, text: heading.text))
+                lineIndex += 1
+                continue
+            }
+            if let listItem = unorderedItem(from: rawLine) {
+                flushParagraph()
+                kinds.append(.unordered(indent: listItem.indent, text: listItem.text))
+                lineIndex += 1
+                continue
+            }
+            if let listItem = orderedItem(from: rawLine) {
+                flushParagraph()
+                kinds.append(
+                    .ordered(
+                        indent: listItem.indent,
+                        number: listItem.number,
+                        text: listItem.text
+                    )
+                )
+                lineIndex += 1
+                continue
+            }
+            if trimmed.hasPrefix(">") {
+                flushParagraph()
+                let quote = trimmed.dropFirst().trimmingCharacters(in: .whitespaces)
+                kinds.append(.quote(quote))
+                lineIndex += 1
+                continue
+            }
+            paragraph.append(trimmed)
+            lineIndex += 1
+        }
+
+        if let codeLines {
+            kinds.append(.code(language: codeLanguage, text: codeLines.joined(separator: "\n")))
+        }
+        if let mathBlock {
+            let raw = ([mathBlock.opener] + mathBlock.lines).joined(separator: "\n")
+            kinds.append(.paragraph(raw))
+        }
+        flushParagraph()
+        return kinds.enumerated().map { MarkdownBlock(id: $0.offset, kind: $0.element) }
+    }
+
+    private static func openMath(
+        from line: String
+    ) -> (opener: String, closer: String, remainder: String)? {
+        if line.hasPrefix("$$") {
+            return ("$$", "$$", String(line.dropFirst(2)))
+        }
+        if line.hasPrefix(#"\["#) {
+            return (#"\["#, #"\]"#, String(line.dropFirst(2)))
+        }
+        return nil
+    }
+
+    private static func isRule(_ line: String) -> Bool {
+        let compact = line.filter { !$0.isWhitespace }
+        guard compact.count >= 3, let first = compact.first, first == "-" || first == "*" else {
+            return false
+        }
+        return compact.allSatisfy { $0 == first }
+    }
+
+    private static func heading(from line: String) -> (level: Int, text: String)? {
+        let level = line.prefix(while: { $0 == "#" }).count
+        guard (1...6).contains(level) else { return nil }
+        let remainder = line.dropFirst(level)
+        guard remainder.first?.isWhitespace == true else { return nil }
+        return (level, remainder.trimmingCharacters(in: .whitespaces))
+    }
+
+    private static func indentation(of line: String) -> (count: Int, remainder: Substring) {
+        let whitespace = line.prefix(while: { $0 == " " || $0 == "\t" })
+        let spaces = whitespace.reduce(into: 0) { count, character in
+            count += character == "\t" ? 4 : 1
+        }
+        return (spaces / 2, line.dropFirst(whitespace.count))
+    }
+
+    private static func unorderedItem(from line: String) -> (indent: Int, text: String)? {
+        let parsed = indentation(of: line)
+        guard parsed.remainder.count >= 2,
+              let marker = parsed.remainder.first,
+              ["-", "*", "+"].contains(marker),
+              parsed.remainder.dropFirst().first?.isWhitespace == true
+        else { return nil }
+        return (
+            parsed.count,
+            parsed.remainder.dropFirst().trimmingCharacters(in: .whitespaces)
+        )
+    }
+
+    private static func orderedItem(
+        from line: String
+    ) -> (indent: Int, number: String, text: String)? {
+        let parsed = indentation(of: line)
+        let digits = parsed.remainder.prefix(while: \.isNumber)
+        guard !digits.isEmpty else { return nil }
+        let afterDigits = parsed.remainder.dropFirst(digits.count)
+        guard afterDigits.hasPrefix(". ") else { return nil }
+        return (
+            parsed.count,
+            String(digits),
+            afterDigits.dropFirst(2).trimmingCharacters(in: .whitespaces)
+        )
+    }
+
+    private static func table(
+        headerLine: String,
+        delimiterLine: String
+    ) -> (header: [String], alignments: [MarkdownTableAlignment])? {
+        guard let header = tableRow(from: headerLine),
+              let delimiters = tableRow(from: delimiterLine),
+              header.count == delimiters.count,
+              header.count >= 2
+        else { return nil }
+
+        var alignments: [MarkdownTableAlignment] = []
+        for rawDelimiter in delimiters {
+            let delimiter = rawDelimiter.trimmingCharacters(in: .whitespaces)
+            let core = delimiter.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
+            guard core.count >= 3, core.allSatisfy({ $0 == "-" }) else { return nil }
+            if delimiter.hasPrefix(":"), delimiter.hasSuffix(":") {
+                alignments.append(.center)
+            } else if delimiter.hasSuffix(":") {
+                alignments.append(.trailing)
+            } else {
+                alignments.append(.leading)
+            }
+        }
+        return (normalized(header, count: delimiters.count), alignments)
+    }
+
+    private static func tableRow(from line: String) -> [String]? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.contains("|") else { return nil }
+
+        var cells: [String] = []
+        var current = ""
+        var escaped = false
+        var insideCode = false
+        for character in trimmed {
+            if escaped {
+                current.append(character)
+                escaped = false
+            } else if character == "\\" {
+                current.append(character)
+                escaped = true
+            } else if character == "`" {
+                insideCode.toggle()
+                current.append(character)
+            } else if character == "|", !insideCode {
+                cells.append(current.trimmingCharacters(in: .whitespaces))
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+        cells.append(current.trimmingCharacters(in: .whitespaces))
+
+        if trimmed.hasPrefix("|") { cells.removeFirst() }
+        if trimmed.hasSuffix("|") { cells.removeLast() }
+        return cells.count >= 2 ? cells : nil
+    }
+
+    private static func normalized(_ cells: [String], count: Int) -> [String] {
+        Array((cells + Array(repeating: "", count: max(0, count - cells.count))).prefix(count))
+    }
+}
+
+struct MarkdownResponseView: View {
+    private let source: String
+    private let streaming: Bool
+
+    init(_ source: String, streaming: Bool = false) {
+        self.source = source
+        self.streaming = streaming
+    }
+
+    var body: some View {
+        SmoothStreamingSource(source, streaming: streaming) { displayedSource in
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(MarkdownParser.parse(displayedSource)) { block in
+                    blockView(block.kind)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled)
+        }
+    }
+
+    @ViewBuilder
+    private func blockView(_ block: MarkdownBlockKind) -> some View {
+        switch block {
+        case let .paragraph(text):
+            animatedText(text, size: 14.5, weight: .regular)
+                .lineSpacing(5)
+        case let .heading(level, text):
+            animatedText(
+                text,
+                size: headingSize(level),
+                weight: level <= 2 ? .bold : .semibold
+            )
+            .tracking(level <= 2 ? -0.3 : -0.1)
+            .padding(.top, level <= 2 ? 8 : 4)
+        case let .unordered(indent, text):
+            HStack(alignment: .firstTextBaseline, spacing: 9) {
+                Circle()
+                    .fill(Color.white.opacity(indent == 0 ? 0.72 : 0.42))
+                    .frame(width: indent == 0 ? 4.5 : 3.5, height: indent == 0 ? 4.5 : 3.5)
+                animatedText(text, size: 14.2, weight: .regular)
+                    .lineSpacing(4)
+            }
+            .padding(.leading, CGFloat(indent) * 18 + 3)
+        case let .ordered(indent, number, text):
+            HStack(alignment: .firstTextBaseline, spacing: 9) {
+                Text(number + ".")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.48))
+                    .frame(minWidth: 18, alignment: .trailing)
+                animatedText(text, size: 14.2, weight: .regular)
+                    .lineSpacing(4)
+            }
+            .padding(.leading, CGFloat(indent) * 18)
+        case let .quote(text):
+            HStack(spacing: 12) {
+                Capsule()
+                    .fill(Color.white.opacity(0.22))
+                    .frame(width: 2)
+                animatedText(text, size: 13.5, weight: .regular)
+                    .italic()
+                    .foregroundStyle(Color.white.opacity(0.68))
+            }
+            .padding(.vertical, 2)
+        case let .code(language, text):
+            VStack(alignment: .leading, spacing: 8) {
+                if let language {
+                    Text(language.uppercased())
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .tracking(1.1)
+                        .foregroundStyle(StudioTheme.quiet)
+                }
+                ScrollView(.horizontal) {
+                    SmoothTokenText(
+                        content: Text(text)
+                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.78)),
+                        source: text,
+                        streaming: streaming
+                    )
+                    .fixedSize(horizontal: true, vertical: false)
+                }
+                .scrollIndicators(.never)
+            }
+            .padding(13)
+            .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.075), lineWidth: 0.7)
+            }
+        case let .math(latex):
+            LatexBlockView(latex: latex, streaming: streaming)
+        case let .table(header, alignments, rows):
+            MarkdownTableView(
+                header: header,
+                alignments: alignments,
+                rows: rows,
+                streaming: streaming
+            )
+        case .rule:
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.16), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
+                .padding(.vertical, 6)
+        }
+    }
+
+    private func animatedText(
+        _ source: String,
+        size: CGFloat,
+        weight: Font.Weight
+    ) -> some View {
+        SmoothTokenText(
+            content: InlineLatexText.render(source, mathSize: size),
+            source: source,
+            streaming: streaming
+        )
+        .font(.system(size: size, weight: weight, design: .rounded))
+        .foregroundStyle(Color.white.opacity(0.92))
+    }
+
+    private func headingSize(_ level: Int) -> CGFloat {
+        switch level {
+        case 1: 23
+        case 2: 19
+        case 3: 16.5
+        default: 14.5
+        }
+    }
+
+}
+
+private struct MarkdownTableView: View {
+    let header: [String]
+    let alignments: [MarkdownTableAlignment]
+    let rows: [[String]]
+    let streaming: Bool
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow {
+                    ForEach(header.indices, id: \.self) { column in
+                        cell(header[column], column: column, header: true)
+                    }
+                }
+                ForEach(rows.indices, id: \.self) { row in
+                    GridRow {
+                        ForEach(header.indices, id: \.self) { column in
+                            cell(rows[row][column], column: column, header: false)
+                        }
+                    }
+                }
+            }
+            .background(Color.white.opacity(0.018), in: RoundedRectangle(cornerRadius: 11))
+            .overlay {
+                RoundedRectangle(cornerRadius: 11)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.7)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 11))
+        }
+        .scrollIndicators(.never)
+    }
+
+    private func cell(_ source: String, column: Int, header isHeader: Bool) -> some View {
+        SmoothTokenText(
+            content: InlineLatexText.render(source, mathSize: 12.5),
+            source: source,
+            streaming: streaming
+        )
+        .font(.system(size: 12.5, weight: isHeader ? .semibold : .regular, design: .rounded))
+        .foregroundStyle(Color.white.opacity(isHeader ? 0.92 : 0.76))
+        .frame(minWidth: 112, maxWidth: 260, alignment: frameAlignment(column))
+        .padding(.horizontal, 12)
+        .padding(.vertical, isHeader ? 10 : 9)
+        .background(isHeader ? Color.white.opacity(0.055) : Color.clear)
+        .overlay(alignment: .trailing) {
+            if column < header.count - 1 {
+                Rectangle().fill(Color.white.opacity(0.07)).frame(width: 0.7)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.white.opacity(0.07)).frame(height: 0.7)
+        }
+    }
+
+    private func frameAlignment(_ column: Int) -> Alignment {
+        guard alignments.indices.contains(column) else { return .leading }
+        switch alignments[column] {
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
+        }
+    }
+}
+
+@MainActor
+private enum InlineLatexText {
+    static func render(_ source: String, mathSize: CGFloat) -> Text {
+        InlineMathParser.parse(source).reduce(Text("")) { result, piece in
+            switch piece {
+            case let .prose(text):
+                return Text("\(result)\(markdownText(text))")
+            case let .math(latex, raw, mode):
+                guard let image = LatexImageCache.image(
+                    latex: latex,
+                    fontSize: mode == .display ? mathSize * 1.22 : mathSize,
+                    mode: mode
+                ) else {
+                    return Text("\(result)\(Text(raw))")
+                }
+                let offset = mode == .display ? -2.4 : -1.2
+                let formula = Text(Image(nsImage: image)).baselineOffset(offset)
+                return Text("\(result)\(formula)")
+            }
+        }
+    }
+
+    private static func markdownText(_ source: String) -> Text {
+        let attributed = (try? AttributedString(
+            markdown: source,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(source)
+        return Text(attributed)
+    }
+}
+
+private enum InlineMathPiece {
+    case prose(String)
+    case math(latex: String, raw: String, mode: MTMathUILabelMode)
+}
+
+private enum InlineMathParser {
+    static func parse(_ source: String) -> [InlineMathPiece] {
+        let characters = Array(source)
+        var pieces: [InlineMathPiece] = []
+        var textStart = 0
+        var index = 0
+
+        func appendProse(until end: Int) {
+            guard end > textStart else { return }
+            pieces.append(.prose(String(characters[textStart..<end])))
+        }
+
+        func appendMath(
+            from start: Int,
+            contentStart: Int,
+            closeStart: Int,
+            end: Int,
+            mode: MTMathUILabelMode
+        ) {
+            appendProse(until: start)
+            pieces.append(
+                .math(
+                    latex: String(characters[contentStart..<closeStart]),
+                    raw: String(characters[start..<end]),
+                    mode: mode
+                )
+            )
+            textStart = end
+            index = end
+        }
+
+        while index < characters.count {
+            if characters[index] == "`" {
+                index = indexAfterCodeSpan(startingAt: index, in: characters)
+                continue
+            }
+            if matches(#"\("#, at: index, in: characters),
+               let close = indexOf(#"\)"#, after: index + 2, in: characters) {
+                appendMath(
+                    from: index,
+                    contentStart: index + 2,
+                    closeStart: close,
+                    end: close + 2,
+                    mode: .text
+                )
+                continue
+            }
+            if matches(#"\["#, at: index, in: characters),
+               let close = indexOf(#"\]"#, after: index + 2, in: characters) {
+                appendMath(
+                    from: index,
+                    contentStart: index + 2,
+                    closeStart: close,
+                    end: close + 2,
+                    mode: .display
+                )
+                continue
+            }
+            if characters[index] == "$", !isEscaped(index, in: characters) {
+                let delimiterLength = index + 1 < characters.count && characters[index + 1] == "$" ? 2 : 1
+                if let close = dollarCloser(
+                    after: index + delimiterLength,
+                    length: delimiterLength,
+                    in: characters
+                ) {
+                    appendMath(
+                        from: index,
+                        contentStart: index + delimiterLength,
+                        closeStart: close,
+                        end: close + delimiterLength,
+                        mode: delimiterLength == 2 ? .display : .text
+                    )
+                    continue
+                }
+            }
+            index += 1
+        }
+
+        appendProse(until: characters.count)
+        return pieces
+    }
+
+    private static func matches(_ needle: String, at index: Int, in characters: [Character]) -> Bool {
+        let pattern = Array(needle)
+        guard index + pattern.count <= characters.count else { return false }
+        return Array(characters[index..<(index + pattern.count)]) == pattern
+    }
+
+    private static func indexOf(
+        _ needle: String,
+        after start: Int,
+        in characters: [Character]
+    ) -> Int? {
+        var index = start
+        while index < characters.count {
+            if matches(needle, at: index, in: characters), !isEscaped(index, in: characters) {
+                return index
+            }
+            index += 1
+        }
+        return nil
+    }
+
+    private static func dollarCloser(
+        after start: Int,
+        length: Int,
+        in characters: [Character]
+    ) -> Int? {
+        var index = start
+        while index < characters.count {
+            guard characters[index] == "$", !isEscaped(index, in: characters) else {
+                index += 1
+                continue
+            }
+            if length == 1 {
+                let besideDollar = index + 1 < characters.count && characters[index + 1] == "$"
+                if !besideDollar {
+                    return index
+                }
+            } else if index + 1 < characters.count && characters[index + 1] == "$" {
+                return index
+            }
+            index += 1
+        }
+        return nil
+    }
+
+    private static func indexAfterCodeSpan(startingAt start: Int, in characters: [Character]) -> Int {
+        var index = start + 1
+        while index < characters.count {
+            if characters[index] == "`", !isEscaped(index, in: characters) {
+                return index + 1
+            }
+            index += 1
+        }
+        return start + 1
+    }
+
+    private static func isEscaped(_ index: Int, in characters: [Character]) -> Bool {
+        guard index > 0 else { return false }
+        var backslashes = 0
+        var cursor = index - 1
+        while characters[cursor] == "\\" {
+            backslashes += 1
+            guard cursor > 0 else { break }
+            cursor -= 1
+        }
+        return backslashes.isMultiple(of: 2) == false
+    }
+}
+
+@MainActor
+private enum LatexImageCache {
+    private static let cache = NSCache<NSString, NSImage>()
+
+    static func image(
+        latex: String,
+        fontSize: CGFloat,
+        mode: MTMathUILabelMode
+    ) -> NSImage? {
+        let modeKey = mode == .display ? "display" : "text"
+        let key = "\(modeKey)|\(fontSize)|\(latex)" as NSString
+        if let cached = cache.object(forKey: key) {
+            return cached
+        }
+
+        let renderer = MTMathImage(
+            latex: latex,
+            fontSize: fontSize,
+            textColor: NSColor(white: 0.94, alpha: 1),
+            labelMode: mode,
+            textAlignment: .center
+        )
+        let (_, rendered) = renderer.asImage()
+        guard let rendered else { return nil }
+        cache.setObject(rendered, forKey: key)
+        return rendered
+    }
+}
+
+private struct LatexBlockView: View {
+    let latex: String
+    let streaming: Bool
+    @State private var visible = false
+
+    var body: some View {
+        Group {
+            if let image = LatexImageCache.image(
+                latex: latex,
+                fontSize: 18,
+                mode: .display
+            ) {
+                ScrollView(.horizontal) {
+                    Image(nsImage: image)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .scrollIndicators(.never)
+            } else {
+                Text("$$\n\(latex)\n$$")
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.68))
+            }
+        }
+        .padding(.vertical, 7)
+        .opacity(streaming ? (visible ? 1 : 0.25) : 1)
+        .scaleEffect(streaming ? (visible ? 1 : 0.985) : 1, anchor: .leading)
+        .onAppear {
+            guard streaming else { return }
+            withAnimation(.easeOut(duration: 0.16)) {
+                visible = true
+            }
+        }
+    }
+}
+
+private struct SmoothTokenText: View {
+    let content: Text
+    let source: String
+    let streaming: Bool
+
+    var body: some View {
+        content
+    }
+}
+
+struct SmoothStreamingSource<Content: View>: View {
+    let source: String
+    let streaming: Bool
+    @ViewBuilder let content: (String) -> Content
+
+    @State private var displayedSource: String
+    @State private var targetSource: String
+    @State private var revealTask: Task<Void, Never>?
+
+    init(
+        _ source: String,
+        streaming: Bool,
+        @ViewBuilder content: @escaping (String) -> Content
+    ) {
+        self.source = source
+        self.streaming = streaming
+        self.content = content
+        _displayedSource = State(initialValue: source)
+        _targetSource = State(initialValue: source)
+    }
+
+    var body: some View {
+        content(displayedSource)
+            .onAppear { updateTarget(source) }
+            .onChange(of: source) { updateTarget(source) }
+            .onChange(of: streaming) {
+                if streaming {
+                    updateTarget(source)
+                } else {
+                    revealTask?.cancel()
+                    revealTask = nil
+                    targetSource = source
+                    displayedSource = source
+                }
+            }
+            .onDisappear {
+                revealTask?.cancel()
+                revealTask = nil
+            }
+    }
+
+    private func updateTarget(_ newTarget: String) {
+        targetSource = newTarget
+        guard streaming else {
+            displayedSource = newTarget
+            return
+        }
+        guard newTarget.hasPrefix(displayedSource) else {
+            displayedSource = newTarget
+            return
+        }
+        startRevealLoopIfNeeded()
+    }
+
+    private func startRevealLoopIfNeeded() {
+        guard revealTask == nil, displayedSource != targetSource else { return }
+        revealTask = Task { @MainActor in
+            while !Task.isCancelled, displayedSource != targetSource {
+                guard targetSource.hasPrefix(displayedSource) else {
+                    displayedSource = targetSource
+                    break
+                }
+                let remaining = targetSource.count - displayedSource.count
+                let step = min(10, max(1, Int(ceil(Double(remaining) * 0.42))))
+                displayedSource = String(targetSource.prefix(displayedSource.count + step))
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            revealTask = nil
+            if displayedSource != targetSource {
+                startRevealLoopIfNeeded()
+            }
+        }
+    }
+}
