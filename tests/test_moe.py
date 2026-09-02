@@ -95,8 +95,12 @@ def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
     legacy = module(x, indices)
     monkeypatch.setattr(qmv_kernels, "_USE_K3_WINDOW_DECODE", True)
     optimized = module(x, indices)
-    mx.eval(expected, legacy, optimized)
+    scores = mx.array([[[0.375, 0.625]]], dtype=mx.float16)
+    expected_reduced = (optimized * scores[..., None]).sum(axis=-2)
+    reduced = module(x, indices, scores=scores)
+    mx.eval(expected, legacy, optimized, expected_reduced, reduced)
     np.testing.assert_array_equal(np.asarray(optimized), np.asarray(legacy))
+    np.testing.assert_array_equal(np.asarray(reduced), np.asarray(expected_reduced))
     np.testing.assert_allclose(
         np.asarray(optimized), np.asarray(expected), atol=0.05, rtol=0.005
     )

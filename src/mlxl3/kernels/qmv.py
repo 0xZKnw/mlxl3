@@ -752,6 +752,23 @@ def _scaled_hadamard_output(x: mx.array, scale: mx.array) -> mx.array:
     return transformed * scale.astype(mx.float16)
 
 
+@mx.compile
+def _scaled_hadamard_output_reduce(
+    x: mx.array,
+    scale: mx.array,
+    weights: mx.array,
+) -> mx.array:
+    """Finish routed expert rows and reduce them without an intermediate."""
+
+    values = x.astype(mx.float16)
+    shape = values.shape
+    blocks = values.reshape(*shape[:-1], shape[-1] // 128, 128)
+    transformed = mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
+    finished = transformed * scale.astype(mx.float16)
+    return (finished.reshape(weights.shape[0], weights.shape[1], shape[-1])
+            * weights[..., None].astype(mx.float16)).sum(axis=1)
+
+
 def _split_count(input_tiles: int, output_tiles: int) -> int:
     # A wide projection already exposes enough independent output tiles to
     # occupy the GPU. Splitting it further only adds a partial-output buffer
@@ -988,6 +1005,7 @@ def qmv_exl3_expert_mapped(
     output_dims: int,
     projections_per_route: int,
     projection_stride_tiles: int,
+    reduce_weights: mx.array | None = None,
     k: int,
     mode: CodebookMode | int = CodebookMode.DEFAULT,
 ) -> mx.array:
@@ -1020,6 +1038,13 @@ def qmv_exl3_expert_mapped(
         raise ValueError(
             f"scale shapes must be {x.shape} and {(rows, output_dims)}, "
             f"got {suh.shape} and {svh.shape}"
+        )
+    if reduce_weights is not None and (
+        reduce_weights.ndim != 2 or reduce_weights.size != selected.size
+    ):
+        raise ValueError(
+            "reduce_weights must be a row/top-k matrix with "
+            f"{selected.size} entries, got {reduce_weights.shape}"
         )
 
     output_tiles = output_dims // 16
@@ -1075,6 +1100,14 @@ def qmv_exl3_expert_mapped(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
+    if reduce_weights is not None:
+        if projections_per_route != 1:
+            raise ValueError("expert reduction requires one projection per route")
+        return _scaled_hadamard_output_reduce(
+            yhat,
+            svh,
+            reduce_weights,
+        ).astype(x.dtype)
     return _scaled_hadamard_output(yhat, svh).astype(x.dtype)
 
 

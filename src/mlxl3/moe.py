@@ -14,6 +14,7 @@ from mlxl3.kernels.qmv import qmv_exl3_expert_mapped
 
 _USE_FUSED_LFM_ROUTER = os.environ.get("MLXL3_FUSED_MOE_ROUTER", "1") != "0"
 _USE_FUSED_ROUTER_TOPK = os.environ.get("MLXL3_FUSED_ROUTER_TOPK", "1") != "0"
+_USE_FUSED_MOE_REDUCE = os.environ.get("MLXL3_FUSED_MOE_REDUCE", "1") != "0"
 
 
 @cache
@@ -185,6 +186,8 @@ def _fused_lfm_moe_call(module: Any, x: mx.array) -> mx.array:
     if module.norm_topk_prob:
         scores = scores / (mx.sum(scores, axis=-1, keepdims=True) + 1e-6)
     scores = (scores * module.routed_scaling_factor).astype(x.dtype)
+    if _USE_FUSED_MOE_REDUCE:
+        return module.switch_mlp(x, indices, scores=scores)
     output = module.switch_mlp(x, indices)
     return (output * scores[..., None]).sum(axis=-2)
 
@@ -203,8 +206,11 @@ def _fused_qwen_moe_call(module: Any, x: mx.array) -> mx.array:
         module.top_k,
         normalize=module.norm_topk_prob,
     )
-    routed = module.switch_mlp(x, indices)
-    routed = (routed * scores[..., None]).sum(axis=-2)
+    if _USE_FUSED_MOE_REDUCE:
+        routed = module.switch_mlp(x, indices, scores=scores)
+    else:
+        routed = module.switch_mlp(x, indices)
+        routed = (routed * scores[..., None]).sum(axis=-2)
     shared = module.shared_expert(x)
     shared = mx.sigmoid(module.shared_expert_gate(x)) * shared
     return routed + shared
@@ -289,7 +295,12 @@ class EXL3SwitchGLU(nn.Module):
         self._hidden_tiles = self.hidden_dims // 16
         self._output_tiles = self.input_dims // 16
 
-    def __call__(self, x: mx.array, indices: mx.array) -> mx.array:
+    def __call__(
+        self,
+        x: mx.array,
+        indices: mx.array,
+        scores: mx.array | None = None,
+    ) -> mx.array:
         if x.shape[:-1] != indices.shape[:-1]:
             raise ValueError(f"input/routing prefixes differ: {x.shape} and {indices.shape}")
         if x.shape[-1] != self.input_dims:
@@ -328,7 +339,10 @@ class EXL3SwitchGLU(nn.Module):
             output_dims=self.input_dims,
             projections_per_route=1,
             projection_stride_tiles=0,
+            reduce_weights=scores.reshape(rows, top_k) if scores is not None else None,
             k=self.bits,
             mode=self.mode,
         )
+        if scores is not None:
+            return output.reshape(*indices.shape[:-1], self.input_dims)
         return output.reshape(*indices.shape, self.input_dims)
