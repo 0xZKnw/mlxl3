@@ -8,7 +8,22 @@ import mlxl3.kernels.qmv as qmv_kernels
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.codec.trellis import pack_trellis
 from mlxl3.kernels.qmv import qmv_exl3
-from mlxl3.moe import EXL3SwitchGLU, topk_biased
+from mlxl3.moe import EXL3SwitchGLU, router_topk, topk_biased
+
+
+def test_fused_router_topk_matches_mlx_chain() -> None:
+    rng = np.random.default_rng(52900)
+    logits = mx.array(rng.normal(size=(1, 1, 256)).astype(np.float16))
+    values = mx.softmax(logits, axis=-1, precise=True)
+    expected_indices = mx.argpartition(values, kth=-8, axis=-1)[..., -8:]
+    expected_scores = mx.take_along_axis(values, expected_indices, axis=-1)
+    expected_scores = expected_scores / expected_scores.sum(axis=-1, keepdims=True)
+
+    actual_indices, actual_scores = router_topk(values, 8, normalize=True)
+    mx.eval(expected_indices, expected_scores, actual_indices, actual_scores)
+
+    np.testing.assert_array_equal(np.asarray(actual_indices), np.asarray(expected_indices))
+    np.testing.assert_array_equal(np.asarray(actual_scores), np.asarray(expected_scores))
 
 
 def test_fused_biased_topk_matches_mlx_selection() -> None:
