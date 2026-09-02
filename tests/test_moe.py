@@ -7,7 +7,25 @@ from mlx import nn
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.codec.trellis import pack_trellis
 from mlxl3.kernels.qmv import qmv_exl3
-from mlxl3.moe import EXL3SwitchGLU
+from mlxl3.moe import EXL3SwitchGLU, topk_biased
+
+
+def test_fused_biased_topk_matches_mlx_selection() -> None:
+    rng = np.random.default_rng(53000)
+    probabilities = mx.array(rng.uniform(0.0, 1.0, size=(7, 32)).astype(np.float16))
+    bias = mx.array(rng.uniform(-0.2, 0.2, size=(32,)).astype(np.float16))
+
+    expected_indices = mx.argpartition(
+        probabilities.astype(mx.float32) + bias,
+        kth=-4,
+        axis=-1,
+    )[..., -4:]
+    expected_scores = mx.take_along_axis(probabilities, expected_indices, axis=-1)
+    actual_indices, actual_scores = topk_biased(probabilities, bias, 4)
+    mx.eval(expected_indices, expected_scores, actual_indices, actual_scores)
+
+    np.testing.assert_array_equal(np.asarray(actual_indices), np.asarray(expected_indices))
+    np.testing.assert_array_equal(np.asarray(actual_scores), np.asarray(expected_scores))
 
 
 def test_grouped_switch_glu_matches_individual_qmv() -> None:
