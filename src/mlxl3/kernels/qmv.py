@@ -705,7 +705,12 @@ def _split_count(input_tiles: int, output_tiles: int) -> int:
     # occupy the GPU. Splitting it further only adds a partial-output buffer
     # and a reduction. Tall/narrow projections still need split-K to create
     # enough threadgroups, with shorter chunks for fewer output tiles.
+    # Narrow outputs do not expose enough independent threadgroups. Halving
+    # their per-split K target raised decode throughput on both 2048->1024 and
+    # 3584->1024 projections while preserving wide-projection behavior.
     target_input_tiles = min(max(output_tiles, 32), 256)
+    if output_tiles <= 64:
+        target_input_tiles = max(output_tiles // 2, 32)
     splits = 1
     while input_tiles // (splits * 2) >= target_input_tiles:
         splits *= 2
