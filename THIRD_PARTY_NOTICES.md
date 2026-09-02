@@ -47,3 +47,33 @@ dispatch API, compile-time specialization, permutation embedding, split-K
 policy, row crossover, output layout, and integration/tests. PonyExl3 is
 licensed under the Apache License, Version 2.0; a copy is provided in
 `LICENSES/Apache-2.0.txt`.
+
+## MLX Swift LM
+
+Source: <https://github.com/ml-explore/mlx-swift-lm>, pinned during development
+at `5694a2f6705f7c8b9cf195f29ec6d05938d42d22`.
+
+The stable single-row MoE router top-k algorithm in `src/mlxl3/moe.py` is a
+Metal/Python adaptation of MLX Swift LM's `MoERouterTopK.swift`. MLXL3 adds its
+own runtime dispatch and EXL3 integration. MLX Swift LM is licensed under the
+MIT License.
+
+Copyright (c) 2024 ml-explore
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

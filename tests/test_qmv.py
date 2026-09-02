@@ -159,3 +159,19 @@ def test_compatible_projection_group_matches_individual_decode_and_batch() -> No
         np.testing.assert_array_equal(np.asarray(actual), np.asarray(expected))
     for expected, actual in zip(expected_batch, actual_batch, strict=True):
         np.testing.assert_array_equal(np.asarray(actual), np.asarray(expected))
+
+    class GatedDeltaInputs(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.in_proj_qkv, self.in_proj_z = linears[:2]
+
+    gated_delta = GatedDeltaInputs()
+    assert fuse_compatible_linear_groups(gated_delta) == 1
+    assert isinstance(gated_delta.in_proj_qkv, EXL3ProjectionProxy)
+    actual_delta = (
+        gated_delta.in_proj_qkv(decode_x),
+        gated_delta.in_proj_z(decode_x),
+    )
+    mx.eval(*actual_delta)
+    for expected, actual in zip(expected_decode[:2], actual_delta, strict=True):
+        np.testing.assert_array_equal(np.asarray(actual), np.asarray(expected))

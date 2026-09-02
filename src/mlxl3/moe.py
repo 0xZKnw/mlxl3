@@ -13,6 +13,97 @@ from mlxl3.codec.codebook import CodebookMode
 from mlxl3.kernels.qmv import qmv_exl3_expert_mapped
 
 _USE_FUSED_LFM_ROUTER = os.environ.get("MLXL3_FUSED_MOE_ROUTER", "1") != "0"
+_USE_FUSED_ROUTER_TOPK = os.environ.get("MLXL3_FUSED_ROUTER_TOPK", "1") != "0"
+_USE_FUSED_MOE_REDUCE = os.environ.get("MLXL3_FUSED_MOE_REDUCE", "1") != "0"
+
+
+@cache
+def _router_topk_kernel(experts: int, top_k: int, normalize: bool):
+    """Single-row stable top-k adapted from mlx-swift-lm's Qwen router."""
+
+    if experts > 1024:
+        raise ValueError("fused router supports at most 1024 experts")
+    if not 0 < top_k <= experts:
+        raise ValueError("invalid router top-k")
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_router_topk_e{experts}_k{top_k}_n{int(normalize)}_v1",
+        input_names=["selection", "values"],
+        output_names=["indices", "scores"],
+        source=f"""
+            constexpr uint EXPERTS = {experts}u;
+            constexpr uint TOP_K = {top_k}u;
+            uint row = threadgroup_position_in_grid.y;
+            uint tid = thread_position_in_threadgroup.x;
+
+            threadgroup ulong sort_keys[EXPERTS];
+            threadgroup float top_values[TOP_K];
+
+            float value = float(selection[row * EXPERTS + tid]);
+            uint bits = value == 0.0f ? 0u : as_type<uint>(value);
+            uint monotonic = isnan(value)
+                ? 0xffffffffu
+                : bits ^ uint((int(bits) >> 31) | int(0x80000000u));
+            ulong key = (ulong(monotonic) << 32) | ulong(tid);
+            sort_keys[tid] = key;
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+
+            int above = 0;
+            for (uint other = 0u; other < EXPERTS; ++other) {{
+                above += sort_keys[other] > key ? 1 : 0;
+            }}
+            if (above < int(TOP_K)) {{
+                uint slot = TOP_K - 1u - uint(above);
+                top_values[slot] = float(values[row * EXPERTS + tid]);
+                indices[row * TOP_K + slot] = tid;
+            }}
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+
+            if (tid == 0u) {{
+                T sum = T(0);
+                for (uint slot = 0u; slot < TOP_K; ++slot) {{
+                    sum = T(top_values[slot]) + sum;
+                }}
+                for (uint slot = 0u; slot < TOP_K; ++slot) {{
+                    T score = T(top_values[slot]);
+                    scores[row * TOP_K + slot] = {'score / sum' if normalize else 'score'};
+                }}
+            }}
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
+def router_topk(
+    values: mx.array,
+    top_k: int,
+    *,
+    normalize: bool,
+) -> tuple[mx.array, mx.array]:
+    """Select and gather one router row without MLX's full GPU sort."""
+
+    experts = int(values.shape[-1])
+    if not (
+        _USE_FUSED_ROUTER_TOPK
+        and values.size == experts
+        and experts <= 1024
+        and values.dtype in (mx.float16, mx.float32, mx.bfloat16)
+    ):
+        indices = mx.argpartition(values, kth=-top_k, axis=-1)[..., -top_k:]
+        scores = mx.take_along_axis(values, indices, axis=-1)
+        if normalize:
+            scores = scores / scores.sum(axis=-1, keepdims=True)
+        return indices, scores
+
+    output_shape = (*values.shape[:-1], top_k)
+    indices, scores = _router_topk_kernel(experts, top_k, normalize)(
+        inputs=[values, values],
+        template=[("T", values.dtype)],
+        grid=(experts, 1, 1),
+        threadgroup=(experts, 1, 1),
+        output_shapes=[output_shape, output_shape],
+        output_dtypes=[mx.uint32, values.dtype],
+    )
+    return indices, scores
 
 
 @cache
@@ -95,27 +186,62 @@ def _fused_lfm_moe_call(module: Any, x: mx.array) -> mx.array:
     if module.norm_topk_prob:
         scores = scores / (mx.sum(scores, axis=-1, keepdims=True) + 1e-6)
     scores = (scores * module.routed_scaling_factor).astype(x.dtype)
+    if _USE_FUSED_MOE_REDUCE:
+        return module.switch_mlp(x, indices, scores=scores)
     output = module.switch_mlp(x, indices)
     return (output * scores[..., None]).sum(axis=-2)
 
 
-def fuse_lfm_moe_routers(model: nn.Module) -> int:
-    """Replace LFM2 decode router chains with a single-SIMD selector."""
+def _fused_qwen_moe_call(module: Any, x: mx.array) -> mx.array:
+    if (
+        not _USE_FUSED_ROUTER_TOPK
+        or x.size != x.shape[-1]
+        or module.sharding_group is not None
+    ):
+        return module._mlxl3_original_call(x)
+
+    gates = mx.softmax(module.gate(x), axis=-1, precise=True)
+    indices, scores = router_topk(
+        gates,
+        module.top_k,
+        normalize=module.norm_topk_prob,
+    )
+    if _USE_FUSED_MOE_REDUCE:
+        routed = module.switch_mlp(x, indices, scores=scores)
+    else:
+        routed = module.switch_mlp(x, indices)
+        routed = (routed * scores[..., None]).sum(axis=-2)
+    shared = module.shared_expert(x)
+    shared = mx.sigmoid(module.shared_expert_gate(x)) * shared
+    return routed + shared
+
+
+def fuse_moe_routers(model: nn.Module) -> int:
+    """Replace supported decode router chains with fused Metal selectors."""
 
     fused = 0
     for _, module in model.named_modules():
-        if not (
+        is_lfm = (
             hasattr(module, "switch_mlp")
             and isinstance(module.switch_mlp, EXL3SwitchGLU)
             and getattr(module, "num_experts", 0) <= 32
             and hasattr(module, "expert_bias")
-        ):
+        )
+        is_qwen = (
+            hasattr(module, "switch_mlp")
+            and isinstance(module.switch_mlp, EXL3SwitchGLU)
+            and 0 < getattr(module, "num_experts", 0) <= 1024
+            and not hasattr(module, "expert_bias")
+            and hasattr(module, "shared_expert")
+            and hasattr(module, "shared_expert_gate")
+        )
+        if not is_lfm and not is_qwen:
             continue
         module._mlxl3_original_call = module.__call__
         module.__class__ = type(
             f"MLXL3Fused{module.__class__.__name__}",
             (module.__class__,),
-            {"__call__": _fused_lfm_moe_call},
+            {"__call__": _fused_lfm_moe_call if is_lfm else _fused_qwen_moe_call},
         )
         fused += 1
     return fused
@@ -169,7 +295,12 @@ class EXL3SwitchGLU(nn.Module):
         self._hidden_tiles = self.hidden_dims // 16
         self._output_tiles = self.input_dims // 16
 
-    def __call__(self, x: mx.array, indices: mx.array) -> mx.array:
+    def __call__(
+        self,
+        x: mx.array,
+        indices: mx.array,
+        scores: mx.array | None = None,
+    ) -> mx.array:
         if x.shape[:-1] != indices.shape[:-1]:
             raise ValueError(f"input/routing prefixes differ: {x.shape} and {indices.shape}")
         if x.shape[-1] != self.input_dims:
@@ -208,7 +339,10 @@ class EXL3SwitchGLU(nn.Module):
             output_dims=self.input_dims,
             projections_per_route=1,
             projection_stride_tiles=0,
+            reduce_weights=scores.reshape(rows, top_k) if scores is not None else None,
             k=self.bits,
             mode=self.mode,
         )
+        if scores is not None:
+            return output.reshape(*indices.shape[:-1], self.input_dims)
         return output.reshape(*indices.shape, self.input_dims)

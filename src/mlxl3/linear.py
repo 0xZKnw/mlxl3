@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import weakref
 from pathlib import Path
 
@@ -12,6 +13,10 @@ from safetensors import safe_open
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.kernels.qmv import qmm_exl3, qmv_exl3, qmv_exl3_grouped
 from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
+
+_USE_FUSED_GATED_DELTA_INPUTS = (
+    os.environ.get("MLXL3_FUSED_GATED_DELTA_INPUTS", "1") != "0"
+)
 
 
 class EXL3Linear(nn.Module):
@@ -223,10 +228,12 @@ def fuse_compatible_linear_groups(model: nn.Module) -> int:
     """Fuse common QKV and gate/up call sequences without architecture forks."""
 
     fused = 0
-    patterns = (
+    patterns = [
         ("q_proj", "k_proj", "v_proj"),
         ("gate_proj", "up_proj"),
-    )
+    ]
+    if _USE_FUSED_GATED_DELTA_INPUTS:
+        patterns.append(("in_proj_qkv", "in_proj_z"))
     for _, module in list(model.named_modules()):
         for names in patterns:
             linears = tuple(getattr(module, name, None) for name in names)

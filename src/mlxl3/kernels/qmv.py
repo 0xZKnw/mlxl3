@@ -7,6 +7,7 @@ repository's ``THIRD_PARTY_NOTICES.md`` for attribution and license details.
 from __future__ import annotations
 
 import math
+import os
 from functools import cache
 
 import mlx.core as mx
@@ -19,6 +20,7 @@ from mlxl3.kernels.common import (
 )
 
 _HADAMARD_SCALE = 1.0 / math.sqrt(128.0)
+_USE_K3_WINDOW_DECODE = os.environ.get("MLXL3_K3_WINDOW_DECODE", "1") != "0"
 
 
 @cache
@@ -245,6 +247,7 @@ def _qmv_mapped_tile_kernel(
     source_tiles: int,
     tiles_per_group: int = 1,
     simdgroups: int = 4,
+    k3_window_decode: bool = False,
 ):
     """Tile-cooperative QMV over an indirect list of expert output tiles."""
 
@@ -259,7 +262,7 @@ def _qmv_mapped_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
-            f"_nt{tiles_per_group}_sg{simdgroups}_v8"
+            f"_nt{tiles_per_group}_sg{simdgroups}_k3w{int(k3_window_decode)}_v12"
         ),
         input_names=["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
@@ -267,6 +270,7 @@ def _qmv_mapped_tile_kernel(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
             f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
+            f"#define MLXL3_K3_WINDOW_DECODE {int(k3_window_decode)}\n"
             + specialized_codebook_header(mode)
         ),
         source=r"""
@@ -278,6 +282,13 @@ def _qmv_mapped_tile_kernel(
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
 
+#if MLXL3_K3_WINDOW_DECODE
+            int k3_bit_end = int((lane * 8u + 257u) * 3u + 21u);
+            int k3_word_end = (k3_bit_end - 1) / 32;
+            uint k3_word1 = uint(k3_word_end) % uint(PACKED_U32);
+            uint k3_word0 = uint((k3_bit_end - 21 - 16) / 32) % uint(PACKED_U32);
+            uint k3_shift = uint((k3_word_end + 1) * 32 - k3_bit_end);
+#else
             uint word0[2];
             uint word1[2];
             uint shifts[2];
@@ -289,6 +300,7 @@ def _qmv_mapped_tile_kernel(
                 word0[group] = uint(last_word - 1) % uint(PACKED_U32);
                 shifts[group] = uint((last_word + 1) * 32 - end);
             }
+#endif
 
             float acc[MLXL3_QMV_NT][8];
             for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
@@ -357,6 +369,28 @@ def _qmv_mapped_tile_kernel(
                     const device uint* words = trellis +
                         (tile_k * uint(TILES_N) + tile_ns[output_tile])
                         * uint(PACKED_U32);
+#if MLXL3_K3_WINDOW_DECODE
+                    ulong merged = (ulong(words[k3_word0]) << 32)
+                        | ulong(words[k3_word1]);
+                    uint codewords[8];
+                    uint window7 = uint(merged >> k3_shift);
+                    codewords[7] = window7;
+                    codewords[6] = window7 >> 3u;
+                    codewords[5] = window7 >> 6u;
+                    codewords[4] = window7 >> 9u;
+                    uint window3 = uint(merged >> (k3_shift + 12u));
+                    codewords[3] = window3;
+                    codewords[2] = window3 >> 3u;
+                    codewords[1] = window3 >> 6u;
+                    codewords[0] = window3 >> 9u;
+                    for (uint j = 0u; j < 8u; ++j) {
+                        acc[output_tile][j] = fma(
+                            x_values[j & 3u],
+                            float(mlxl3_decode_codeword(codewords[j], CB)),
+                            acc[output_tile][j]
+                        );
+                    }
+#else
                     for (uint group = 0u; group < 2u; ++group) {
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
@@ -390,6 +424,7 @@ def _qmv_mapped_tile_kernel(
                             acc[output_tile][j + 3u]
                         );
                     }
+#endif
                 }
             }
 
@@ -717,6 +752,23 @@ def _scaled_hadamard_output(x: mx.array, scale: mx.array) -> mx.array:
     return transformed * scale.astype(mx.float16)
 
 
+@mx.compile
+def _scaled_hadamard_output_reduce(
+    x: mx.array,
+    scale: mx.array,
+    weights: mx.array,
+) -> mx.array:
+    """Finish routed expert rows and reduce them without an intermediate."""
+
+    values = x.astype(mx.float16)
+    shape = values.shape
+    blocks = values.reshape(*shape[:-1], shape[-1] // 128, 128)
+    transformed = mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
+    finished = transformed * scale.astype(mx.float16)
+    return (finished.reshape(weights.shape[0], weights.shape[1], shape[-1])
+            * weights[..., None].astype(mx.float16)).sum(axis=1)
+
+
 def _split_count(input_tiles: int, output_tiles: int) -> int:
     # A wide projection already exposes enough independent output tiles to
     # occupy the GPU. Splitting it further only adds a partial-output buffer
@@ -953,6 +1005,7 @@ def qmv_exl3_expert_mapped(
     output_dims: int,
     projections_per_route: int,
     projection_stride_tiles: int,
+    reduce_weights: mx.array | None = None,
     k: int,
     mode: CodebookMode | int = CodebookMode.DEFAULT,
 ) -> mx.array:
@@ -986,6 +1039,13 @@ def qmv_exl3_expert_mapped(
             f"scale shapes must be {x.shape} and {(rows, output_dims)}, "
             f"got {suh.shape} and {svh.shape}"
         )
+    if reduce_weights is not None and (
+        reduce_weights.ndim != 2 or reduce_weights.size != selected.size
+    ):
+        raise ValueError(
+            "reduce_weights must be a row/top-k matrix with "
+            f"{selected.size} entries, got {reduce_weights.shape}"
+        )
 
     output_tiles = output_dims // 16
     local_tiles = rows * output_tiles
@@ -1001,7 +1061,13 @@ def qmv_exl3_expert_mapped(
     if output_tiles % tiles_per_group:
         tiles_per_group = 1
     partials = _qmv_mapped_tile_kernel(
-        k, int(cb), input_dims, trellis.shape[1], tiles_per_group, simdgroups
+        k,
+        int(cb),
+        input_dims,
+        trellis.shape[1],
+        tiles_per_group,
+        simdgroups,
+        _USE_K3_WINDOW_DECODE and k == 3,
     )(
         inputs=[
             xhat.reshape(-1),
@@ -1034,6 +1100,14 @@ def qmv_exl3_expert_mapped(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
+    if reduce_weights is not None:
+        if projections_per_route != 1:
+            raise ValueError("expert reduction requires one projection per route")
+        return _scaled_hadamard_output_reduce(
+            yhat,
+            svh,
+            reduce_weights,
+        ).astype(x.dtype)
     return _scaled_hadamard_output(yhat, svh).astype(x.dtype)
 
 

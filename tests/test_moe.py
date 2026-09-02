@@ -4,10 +4,26 @@ import mlx.core as mx
 import numpy as np
 from mlx import nn
 
+import mlxl3.kernels.qmv as qmv_kernels
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.codec.trellis import pack_trellis
 from mlxl3.kernels.qmv import qmv_exl3
-from mlxl3.moe import EXL3SwitchGLU, topk_biased
+from mlxl3.moe import EXL3SwitchGLU, router_topk, topk_biased
+
+
+def test_fused_router_topk_matches_mlx_chain() -> None:
+    rng = np.random.default_rng(52900)
+    logits = mx.array(rng.normal(size=(1, 1, 256)).astype(np.float16))
+    values = mx.softmax(logits, axis=-1, precise=True)
+    expected_indices = mx.argpartition(values, kth=-8, axis=-1)[..., -8:]
+    expected_scores = mx.take_along_axis(values, expected_indices, axis=-1)
+    expected_scores = expected_scores / expected_scores.sum(axis=-1, keepdims=True)
+
+    actual_indices, actual_scores = router_topk(values, 8, normalize=True)
+    mx.eval(expected_indices, expected_scores, actual_indices, actual_scores)
+
+    np.testing.assert_array_equal(np.asarray(actual_indices), np.asarray(expected_indices))
+    np.testing.assert_array_equal(np.asarray(actual_scores), np.asarray(expected_scores))
 
 
 def test_fused_biased_topk_matches_mlx_selection() -> None:
@@ -28,7 +44,7 @@ def test_fused_biased_topk_matches_mlx_selection() -> None:
     np.testing.assert_array_equal(np.asarray(actual_scores), np.asarray(expected_scores))
 
 
-def test_grouped_switch_glu_matches_individual_qmv() -> None:
+def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
     rng = np.random.default_rng(53100)
     experts = 4
     dims = hidden = 128
@@ -75,6 +91,16 @@ def test_grouped_switch_glu_matches_individual_qmv() -> None:
             )
         )
     expected = mx.stack(expected_rows, axis=-2)
-    actual = module(x, indices)
-    mx.eval(expected, actual)
-    np.testing.assert_allclose(np.asarray(actual), np.asarray(expected), atol=0.05, rtol=0.005)
+    monkeypatch.setattr(qmv_kernels, "_USE_K3_WINDOW_DECODE", False)
+    legacy = module(x, indices)
+    monkeypatch.setattr(qmv_kernels, "_USE_K3_WINDOW_DECODE", True)
+    optimized = module(x, indices)
+    scores = mx.array([[[0.375, 0.625]]], dtype=mx.float16)
+    expected_reduced = (optimized * scores[..., None]).sum(axis=-2)
+    reduced = module(x, indices, scores=scores)
+    mx.eval(expected, legacy, optimized, expected_reduced, reduced)
+    np.testing.assert_array_equal(np.asarray(optimized), np.asarray(legacy))
+    np.testing.assert_array_equal(np.asarray(reduced), np.asarray(expected_reduced))
+    np.testing.assert_allclose(
+        np.asarray(optimized), np.asarray(expected), atol=0.05, rtol=0.005
+    )
