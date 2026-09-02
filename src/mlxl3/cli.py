@@ -39,10 +39,17 @@ class ThinkingSplitter:
     _OPEN = "<think>"
     _CLOSE = "</think>"
 
-    def __init__(self):
-        self.mode = "answer"
+    def __init__(self, *, initial_mode: str = "answer"):
+        if initial_mode not in {"answer", "thinking"}:
+            raise ValueError(f"unsupported thinking mode: {initial_mode!r}")
+        self.mode = initial_mode
         self.buffer = ""
         self.drop_leading_newline = False
+
+    def configure_for_prompt(self, prompt: str) -> None:
+        """Account for chat templates that prefill the opening think tag."""
+
+        self.mode = "thinking" if _prompt_prefills_thinking(prompt) else "answer"
 
     @staticmethod
     def _partial_marker_length(text: str, marker: str) -> int:
@@ -90,20 +97,32 @@ class ThinkingSplitter:
         return [] if fragment is None else [fragment]
 
 
+def _prompt_prefills_thinking(prompt: str) -> bool:
+    """Return whether the generation prompt already opened a reasoning block."""
+
+    return prompt.rstrip().endswith(ThinkingSplitter._OPEN)
+
+
 class ThinkingRenderer:
     """Incrementally render ``<think>`` blocks separately from final text."""
 
     _OPEN = "<think>"
     _CLOSE = "</think>"
 
-    def __init__(self, *, stream=None, color: bool | None = None):
+    def __init__(
+        self,
+        *,
+        stream=None,
+        color: bool | None = None,
+        initial_mode: str = "answer",
+    ):
         self.stream = sys.stdout if stream is None else stream
         self.color = (
             bool(getattr(self.stream, "isatty", lambda: False)()) and "NO_COLOR" not in os.environ
             if color is None
             else color
         )
-        self.splitter = ThinkingSplitter()
+        self.splitter = ThinkingSplitter(initial_mode=initial_mode)
         self.section: str | None = None
         self.last_was_newline = True
 
@@ -231,6 +250,7 @@ def _stream_response(
     top_k: int,
     repetition_penalty: float,
     on_text: Callable[[str], None] | None = None,
+    on_prompt: Callable[[str], None] | None = None,
 ) -> tuple[str, GenerationStats]:
     from mlx_lm import stream_generate
     from mlx_lm.sample_utils import make_logits_processors, make_sampler
@@ -240,13 +260,16 @@ def _stream_response(
         tokenize=False,
         add_generation_prompt=True,
     )
+    if on_prompt is not None:
+        on_prompt(prompt)
     sampler = make_sampler(temp=temperature, top_k=top_k)
     processors = make_logits_processors(repetition_penalty=repetition_penalty)
     started = time.perf_counter()
     first_token_at: float | None = None
     final = None
     pieces: list[str] = []
-    renderer = ThinkingRenderer() if on_text is None else None
+    initial_mode = "thinking" if _prompt_prefills_thinking(prompt) else "answer"
+    renderer = ThinkingRenderer(initial_mode=initial_mode) if on_text is None else None
     try:
         for response in stream_generate(
             model,
@@ -462,6 +485,7 @@ def _bridge(args) -> int:
                 top_k=top_k,
                 repetition_penalty=repetition_penalty,
                 on_text=emit_text,
+                on_prompt=splitter.configure_for_prompt,
             )
             for phase, fragment in splitter.finish():
                 _json_event(

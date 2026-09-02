@@ -84,6 +84,20 @@ def test_thinking_splitter_emits_machine_readable_phases() -> None:
     ]
 
 
+def test_thinking_splitter_handles_opening_tag_prefilled_by_prompt() -> None:
+    splitter = cli.ThinkingSplitter(initial_mode="thinking")
+    fragments = []
+    for piece in ("raison", "nement</thi", "nk>\nréponse"):
+        fragments.extend(splitter.feed(piece))
+    fragments.extend(splitter.finish())
+
+    assert fragments == [
+        ("thinking", "raison"),
+        ("thinking", "nement"),
+        ("answer", "réponse"),
+    ]
+
+
 def test_thinking_renderer_marks_unclosed_reasoning_as_reasoning() -> None:
     stream = io.StringIO()
     renderer = cli.ThinkingRenderer(stream=stream, color=False)
@@ -194,7 +208,7 @@ def test_list_json_is_stable_for_the_native_app(monkeypatch, capsys) -> None:
     ]
 
 
-def test_bridge_streams_thinking_answer_and_stats(monkeypatch, capsys) -> None:
+def test_bridge_handles_thinking_tag_prefilled_by_chat_template(monkeypatch, capsys) -> None:
     stats = cli.GenerationStats(
         ttft_seconds=0.12,
         prefill_tps=70.0,
@@ -204,13 +218,13 @@ def test_bridge_streams_thinking_answer_and_stats(monkeypatch, capsys) -> None:
         peak_memory_gb=4.1,
     )
 
-    def fake_stream(model, tokenizer, messages, *, on_text, **kwargs):
+    def fake_stream(model, tokenizer, messages, *, on_text, on_prompt, **kwargs):
         assert messages == [{"role": "user", "content": "hello"}]
         assert kwargs["max_tokens"] == -1
-        on_text("<thi")
-        on_text("nk>reason</think>")
+        on_prompt("<|im_start|>assistant\n<think>\n")
+        on_text("reason</think>")
         on_text("answer")
-        return "<think>reason</think>answer", stats
+        return "reason</think>answer", stats
 
     monkeypatch.setattr(cli, "resolve_model", lambda name: (name, "/tmp/model"))
     monkeypatch.setattr(cli, "_load_model", lambda path: (object(), object(), 42, 0.5, 3.9))
