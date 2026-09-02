@@ -19,7 +19,7 @@ from mlxl3.moe import EXL3SwitchGLU, fuse_lfm_moe_routers
 
 _SERIALIZED_SUFFIXES = (".trellis", ".suh", ".svh", ".su", ".sv", ".mul1", ".mcg")
 _LING_EXPERT_RE = re.compile(
-    r"^model\.layers\.(?P<layer>\d+)\.mlp\.experts\."
+    r"^model\.(?P<wrapper>language_model\.)?layers\.(?P<layer>\d+)\.mlp\.experts\."
     r"(?P<expert>\d+)\.(?P<projection>gate_proj|up_proj|down_proj)$"
 )
 _LFM_EXPERT_RE = re.compile(
@@ -97,12 +97,18 @@ def _mode(weights: dict[str, mx.array], prefix: str) -> CodebookMode:
 def _expert_spec(prefix: str) -> tuple[str, int, int, str, str] | None:
     match = _LING_EXPERT_RE.match(prefix)
     if match is not None:
+        layer = int(match.group("layer"))
+        module_path = (
+            f"language_model.model.layers.{layer}.mlp.switch_mlp"
+            if match.group("wrapper")
+            else f"model.layers.{layer}.mlp.switch_mlp"
+        )
         return (
             "ling",
-            int(match.group("layer")),
+            layer,
             int(match.group("expert")),
             match.group("projection"),
-            f"model.layers.{match.group('layer')}.mlp.switch_mlp",
+            module_path,
         )
     match = _LFM_EXPERT_RE.match(prefix)
     if match is None:
@@ -120,6 +126,8 @@ def _expert_spec(prefix: str) -> tuple[str, int, int, str, str] | None:
 def _stack_moe_experts(
     disk_modules: list[str],
     weights: dict[str, mx.array],
+    *,
+    materialize: bool = False,
 ) -> tuple[list[tuple[str, nn.Module]], set[str]]:
     """Build one mapped SwitchGLU per supported MoE layer."""
 
@@ -194,6 +202,15 @@ def _stack_moe_experts(
             bits=bits.pop(),
             mode=modes.pop(),
         )
+        if materialize:
+            # Evaluate one routed layer at a time. Evaluating every lazy
+            # concatenation together briefly needs close to a second copy of
+            # a large MoE checkpoint.
+            mx.eval(module.parameters())
+            for prefix in all_prefixes:
+                for suffix in _SERIALIZED_SUFFIXES:
+                    weights.pop(f"{prefix}{suffix}", None)
+            mx.clear_cache()
         replacements.append((module_path, module))
         consumed.update(all_prefixes)
     return replacements, consumed
@@ -226,7 +243,7 @@ def _build_model_with_output_head(
     return LFM2MoeWithOutputHead(args)
 
 
-def load_exl3_model(
+def _load_exl3_model(
     model_path: str | Path,
     *,
     lazy: bool = True,
@@ -252,17 +269,20 @@ def load_exl3_model(
     model = _build_model_with_output_head(model_class, args, config, disk_modules)
 
     raw_weights = _load_all_safetensors(root)
-    weights = dict(raw_weights)
-    if hasattr(model, "sanitize"):
-        weights = model.sanitize(weights)
-
     leaves = dict(
         tree_flatten(
             model.leaf_modules(),
             is_leaf=lambda value: isinstance(value, nn.Module),
         )
     )
-    replacements, grouped_experts = _stack_moe_experts(disk_modules, raw_weights)
+    replacements, grouped_experts = _stack_moe_experts(
+        disk_modules,
+        raw_weights,
+        materialize=not lazy,
+    )
+    weights = dict(raw_weights)
+    if hasattr(model, "sanitize"):
+        weights = model.sanitize(weights)
     replaced: list[str] = []
     skipped: list[str] = []
     for disk_prefix in disk_modules:
@@ -306,3 +326,23 @@ def load_exl3_model(
     if not lazy:
         mx.eval(model.parameters())
     return model, config, LoadReport(tuple(replaced), tuple(skipped))
+
+
+def load_exl3_model(
+    model_path: str | Path,
+    *,
+    lazy: bool = True,
+    strict_modules: bool = True,
+) -> tuple[nn.Module, dict, LoadReport]:
+    """Load an EXL3 model and release transient repacking allocations."""
+
+    result = _load_exl3_model(
+        model_path,
+        lazy=lazy,
+        strict_modules=strict_modules,
+    )
+    if not lazy:
+        # This must run after the implementation frame has released its raw
+        # checkpoint dictionaries; otherwise MLX cannot return their buffers.
+        mx.clear_cache()
+    return result
