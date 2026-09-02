@@ -658,6 +658,27 @@ def _hadamard_right(x: mx.array) -> mx.array:
     return mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
 
 
+@mx.compile
+def _scaled_hadamard_input(x: mx.array, scale: mx.array) -> mx.array:
+    """Fuse input scaling, fp16 rounding, and block Hadamards."""
+
+    values = x.astype(mx.float16) * scale.astype(mx.float16)
+    shape = values.shape
+    blocks = values.reshape(*shape[:-1], shape[-1] // 128, 128)
+    return mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
+
+
+@mx.compile
+def _scaled_hadamard_output(x: mx.array, scale: mx.array) -> mx.array:
+    """Fuse fp16 block Hadamards with their output scaling."""
+
+    values = x.astype(mx.float16)
+    shape = values.shape
+    blocks = values.reshape(*shape[:-1], shape[-1] // 128, 128)
+    transformed = mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
+    return transformed * scale.astype(mx.float16)
+
+
 def _split_count(input_tiles: int, output_tiles: int) -> int:
     # A wide projection already exposes enough independent output tiles to
     # occupy the GPU. Splitting it further only adds a partial-output buffer
@@ -715,7 +736,7 @@ def qmv_exl3(
         raise ValueError(f"QMV expects one row with {input_dims} inputs, got {x.shape}")
 
     original_shape = x.shape[:-1]
-    xhat = _hadamard_right(x.reshape(1, input_dims).astype(mx.float32) * suh)[0]
+    xhat = _scaled_hadamard_input(x.reshape(1, input_dims), suh)[0]
     if k == 7:
         yhat = _qmv_inner_kernel(k, int(cb), input_dims, output_dims)(
             inputs=[xhat, trellis],
@@ -756,7 +777,7 @@ def qmv_exl3(
             output_dtypes=[mx.float32],
         )[0]
         yhat = partials[0] if splits == 1 else partials.sum(axis=0)
-    output = _hadamard_right(yhat.reshape(1, output_dims))[0] * svh
+    output = _scaled_hadamard_output(yhat.reshape(1, output_dims), svh)[0]
     return output.astype(x.dtype).reshape(*original_shape, output_dims)
 
 
@@ -804,7 +825,7 @@ def qmv_exl3_mapped(
             f"got {suh.shape} and {svh.shape}"
         )
 
-    xhat = _hadamard_right(x.astype(mx.float32) * suh)
+    xhat = _scaled_hadamard_input(x, suh)
     tile_sub = mx.repeat(mx.arange(rows, dtype=mx.uint32), output_tiles)
     splits = _split_count(trellis.shape[0], tile_map.size)
     tiles_per_group = _qmv_tiles_per_group(
@@ -842,7 +863,7 @@ def qmv_exl3_mapped(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
-    return (_hadamard_right(yhat) * svh).astype(x.dtype)
+    return _scaled_hadamard_output(yhat, svh).astype(x.dtype)
 
 
 def qmv_exl3_expert_mapped(
@@ -891,7 +912,7 @@ def qmv_exl3_expert_mapped(
 
     output_tiles = output_dims // 16
     local_tiles = rows * output_tiles
-    xhat = _hadamard_right(x.astype(mx.float32) * suh)
+    xhat = _scaled_hadamard_input(x, suh)
     routes = selected.reshape(-1).astype(mx.uint32)
     splits = _split_count(trellis.shape[0], local_tiles)
     tiles_per_group = _qmv_tiles_per_group(
@@ -929,7 +950,7 @@ def qmv_exl3_expert_mapped(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
-    return (_hadamard_right(yhat) * svh).astype(x.dtype)
+    return _scaled_hadamard_output(yhat, svh).astype(x.dtype)
 
 
 def qmv_exl3_grouped(
@@ -975,7 +996,7 @@ def qmv_exl3_grouped(
 
     cb = CodebookMode(mode)
     original_shape = x.shape[:-1]
-    xhat = _hadamard_right(x.reshape(1, input_dims).astype(mx.float32) * suh)
+    xhat = _scaled_hadamard_input(x.reshape(1, input_dims), suh)
     total_tiles = trellis.shape[1]
     identity_map = mx.zeros((1,), dtype=mx.uint32)
     splits = _split_count(trellis.shape[0], total_tiles)
@@ -1014,7 +1035,9 @@ def qmv_exl3_grouped(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
-    output = (_hadamard_right(yhat.reshape(1, total_output_dims))[0] * svh).astype(x.dtype)
+    output = _scaled_hadamard_output(
+        yhat.reshape(1, total_output_dims), svh
+    )[0].astype(x.dtype)
     boundaries = []
     cursor = 0
     for width in output_dims[:-1]:
@@ -1061,7 +1084,7 @@ def qmm_exl3(
     if rows >= 24:
         block_rows = 64 if rows >= 48 else 32
         padded_rows = ((rows + block_rows - 1) // block_rows) * block_rows
-        xhat = _hadamard_right(flat.astype(mx.float32) * suh)
+        xhat = _scaled_hadamard_input(flat, suh)
         if rows < padded_rows:
             xhat = mx.pad(xhat, [(0, padded_rows - rows), (0, 0)])
         yhat = _qmm_matrix_kernel(k, int(cb), input_dims, output_dims, block_rows)(
@@ -1080,13 +1103,13 @@ def qmm_exl3(
             output_shapes=[(padded_rows, output_dims)],
             output_dtypes=[mx.float16],
         )[0][:rows]
-        output = (_hadamard_right(yhat) * svh).astype(x.dtype)
+        output = _scaled_hadamard_output(yhat, svh).astype(x.dtype)
         return output.reshape(*x.shape[:-1], output_dims)
 
     mt = 2 if rows <= 2 else (4 if rows <= 4 else 8)
     row_groups = (rows + mt - 1) // mt
     padded_rows = row_groups * mt
-    xhat = _hadamard_right(flat.astype(mx.float32) * suh)
+    xhat = _scaled_hadamard_input(flat, suh)
     x_transposed = xhat.transpose(1, 0)
     if rows < padded_rows:
         x_transposed = mx.pad(x_transposed, [(0, 0), (0, padded_rows - rows)])
@@ -1115,5 +1138,5 @@ def qmm_exl3(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[:, 0] if splits == 1 else partials.sum(axis=1)
-    output = (_hadamard_right(yhat) * svh).astype(x.dtype)
+    output = _scaled_hadamard_output(yhat, svh).astype(x.dtype)
     return output.reshape(*x.shape[:-1], output_dims)
