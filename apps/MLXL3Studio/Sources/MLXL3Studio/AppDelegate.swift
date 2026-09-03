@@ -7,6 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let popover = NSPopover()
     private weak var studio: StudioModel?
 
+    func applicationWillTerminate(_ notification: Notification) {
+        studio?.persistNow()
+    }
+
     func configureMenuBar(with studio: StudioModel) {
         guard statusItem == nil else { return }
         self.studio = studio

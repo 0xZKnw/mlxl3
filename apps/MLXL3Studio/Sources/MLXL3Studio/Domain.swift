@@ -26,7 +26,7 @@ struct LocalModel: Codable, Hashable, Identifiable {
     }
 }
 
-struct GenerationStats: Codable, Hashable {
+struct GenerationStats: Codable, Hashable, Sendable {
     let ttftSeconds: Double
     let prefillTps: Double
     let decodeTps: Double
@@ -56,6 +56,13 @@ struct BridgeEvent: Decodable {
     let assistantContext: String?
     let stats: GenerationStats?
     let message: String?
+    let mcpServers: Int?
+    let mcpTools: Int?
+    let mcpErrors: [String: String]?
+    let toolCallID: String?
+    let toolName: String?
+    let serverName: String?
+    let isError: Bool?
 
     enum CodingKeys: String, CodingKey {
         case type, model, modules, phase, text, stats, message
@@ -63,7 +70,28 @@ struct BridgeEvent: Decodable {
         case residentGB = "resident_gb"
         case requestID = "request_id"
         case assistantContext = "assistant_context"
+        case mcpServers = "mcp_servers"
+        case mcpTools = "mcp_tools"
+        case mcpErrors = "mcp_errors"
+        case toolCallID = "tool_call_id"
+        case toolName = "tool_name"
+        case serverName = "server_name"
+        case isError = "is_error"
     }
+}
+
+struct ToolActivity: Codable, Hashable, Identifiable, Sendable {
+    enum State: String, Codable, Sendable {
+        case running
+        case complete
+        case failed
+    }
+
+    let id: String
+    let serverName: String?
+    let toolName: String
+    var state: State
+    var result: String?
 }
 
 struct PromptMessage: Codable, Hashable {
@@ -102,6 +130,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     private(set) var isStreaming: Bool
     private(set) var stats: GenerationStats?
     private(set) var error: String?
+    private(set) var toolActivities: [ToolActivity]
     private(set) var streamRevision = 0
 
     init(
@@ -111,7 +140,8 @@ final class ChatMessage: ObservableObject, Identifiable {
         thinking: String = "",
         isStreaming: Bool = false,
         stats: GenerationStats? = nil,
-        error: String? = nil
+        error: String? = nil,
+        toolActivities: [ToolActivity] = []
     ) {
         self.id = id
         self.role = role
@@ -120,6 +150,7 @@ final class ChatMessage: ObservableObject, Identifiable {
         self.isStreaming = isStreaming
         self.stats = stats
         self.error = error
+        self.toolActivities = toolActivities
     }
 
     func append(_ text: String, phase: String?) {
@@ -150,6 +181,55 @@ final class ChatMessage: ObservableObject, Identifiable {
         error = message
         streamRevision &+= 1
     }
+
+    func startTool(id: String, serverName: String?, toolName: String) {
+        objectWillChange.send()
+        toolActivities.append(
+            ToolActivity(
+                id: id,
+                serverName: serverName,
+                toolName: toolName,
+                state: .running,
+                result: nil
+            )
+        )
+        streamRevision &+= 1
+    }
+
+    func finishTool(id: String, result: String?, isError: Bool) {
+        guard let index = toolActivities.firstIndex(where: { $0.id == id }) else { return }
+        objectWillChange.send()
+        toolActivities[index].state = isError ? .failed : .complete
+        toolActivities[index].result = result
+        streamRevision &+= 1
+    }
+
+    var snapshot: ChatMessageSnapshot {
+        ChatMessageSnapshot(
+            id: id,
+            role: role.rawValue,
+            content: content,
+            thinking: thinking,
+            wasStreaming: isStreaming,
+            stats: stats,
+            error: error,
+            toolActivities: toolActivities
+        )
+    }
+
+    convenience init?(snapshot: ChatMessageSnapshot) {
+        guard let role = Role(rawValue: snapshot.role) else { return nil }
+        self.init(
+            id: snapshot.id,
+            role: role,
+            content: snapshot.content,
+            thinking: snapshot.thinking,
+            isStreaming: false,
+            stats: snapshot.stats,
+            error: snapshot.error ?? (snapshot.wasStreaming ? "Génération interrompue" : nil),
+            toolActivities: snapshot.toolActivities ?? []
+        )
+    }
 }
 
 struct Conversation: Identifiable {
@@ -158,11 +238,34 @@ struct Conversation: Identifiable {
     var messages: [ChatMessage]
     let createdAt: Date
 
-    init(id: UUID = UUID(), title: String = "Nouvelle conversation") {
+    init(
+        id: UUID = UUID(),
+        title: String = "Nouvelle conversation",
+        messages: [ChatMessage] = [],
+        createdAt: Date = Date()
+    ) {
         self.id = id
         self.title = title
-        self.messages = []
-        self.createdAt = Date()
+        self.messages = messages
+        self.createdAt = createdAt
+    }
+
+    var snapshot: ConversationSnapshot {
+        ConversationSnapshot(
+            id: id,
+            title: title,
+            messages: messages.map(\.snapshot),
+            createdAt: createdAt
+        )
+    }
+
+    init(snapshot: ConversationSnapshot) {
+        self.init(
+            id: snapshot.id,
+            title: snapshot.title,
+            messages: snapshot.messages.compactMap(ChatMessage.init(snapshot:)),
+            createdAt: snapshot.createdAt
+        )
     }
 }
 

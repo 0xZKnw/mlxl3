@@ -94,7 +94,7 @@ private struct SidebarView: View {
                             conversation: conversation,
                             selected: conversation.id == studio.selectedConversationID
                         )
-                        .onTapGesture { studio.selectedConversationID = conversation.id }
+                        .onTapGesture { studio.selectConversation(conversation.id) }
                         .contextMenu {
                             Button("Supprimer", role: .destructive) {
                                 studio.deleteConversation(conversation.id)

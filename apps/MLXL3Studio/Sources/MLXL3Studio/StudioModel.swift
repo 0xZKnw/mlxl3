@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @MainActor
@@ -13,19 +14,44 @@ final class StudioModel: ObservableObject {
     @Published var topK = 80
     @Published var repetitionPenalty = 1.05
     @Published var systemPrompt = ""
+    @Published private(set) var mcpServerCount = 0
+    @Published private(set) var mcpToolCount = 0
+    @Published private(set) var mcpErrors: [String: String] = [:]
 
     private let bridge = MLXL3Bridge()
+    private let conversationStore: ConversationStore
+    private let conversationFileURL: URL
+    private var persistenceTask: Task<Void, Never>?
     private var didStart = false
     private var activeRequestID: String?
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
 
-    init() {
-        selectedConversationID = conversations.first?.id
+    init(conversationFileURL: URL = ConversationStore.defaultFileURL()) {
+        self.conversationFileURL = conversationFileURL
+        conversationStore = ConversationStore(fileURL: conversationFileURL)
+        if let snapshot = ConversationStore.load(from: conversationFileURL),
+           !snapshot.conversations.isEmpty {
+            conversations = snapshot.conversations.map(Conversation.init(snapshot:))
+            selectedConversationID = conversations.contains {
+                $0.id == snapshot.selectedConversationID
+            } ? snapshot.selectedConversationID : conversations.first?.id
+            selectedModelName = snapshot.selectedModelName
+            temperature = snapshot.temperature
+            topK = snapshot.topK
+            repetitionPenalty = snapshot.repetitionPenalty
+            systemPrompt = snapshot.systemPrompt
+        } else {
+            selectedConversationID = conversations.first?.id
+        }
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         bridge.onExit = { [weak self] message in
             guard let self, let message, !message.isEmpty else { return }
-            self.engineState = .failed(message)
+            if self.activeRequestID != nil {
+                self.failActiveTurn(message)
+            } else {
+                self.engineState = .failed(message)
+            }
         }
     }
 
@@ -66,6 +92,18 @@ final class StudioModel: ObservableObject {
         bridge.residentMemoryBytes()
     }
 
+    var mcpConfigurationURL: URL {
+        let environment = ProcessInfo.processInfo.environment
+        let root: URL
+        if let override = environment["MLXL3_HOME"], !override.isEmpty {
+            root = URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
+        } else {
+            root = FileManager.default.homeDirectoryForCurrentUser
+                .appending(path: ".config/mlxl3", directoryHint: .isDirectory)
+        }
+        return root.appending(path: "mcp.json")
+    }
+
     func start() {
         guard !didStart else { return }
         didStart = true
@@ -96,6 +134,7 @@ final class StudioModel: ObservableObject {
     func selectModel(_ name: String) {
         if name == selectedModelName, bridge.isRunning { return }
         selectedModelName = name
+        schedulePersistence()
         loadSelectedModel()
     }
 
@@ -107,6 +146,7 @@ final class StudioModel: ObservableObject {
         readyInfo = nil
         bridge.stop()
         engineState = .idle
+        schedulePersistence()
     }
 
     func newConversation() {
@@ -114,6 +154,7 @@ final class StudioModel: ObservableObject {
         conversations.insert(conversation, at: 0)
         selectedConversationID = conversation.id
         draft = ""
+        schedulePersistence()
     }
 
     func deleteConversation(_ id: UUID) {
@@ -121,12 +162,14 @@ final class StudioModel: ObservableObject {
             if let index = conversations.firstIndex(where: { $0.id == id }) {
                 conversations[index] = Conversation(id: id)
             }
+            schedulePersistence()
             return
         }
         conversations.removeAll { $0.id == id }
         if selectedConversationID == id {
             selectedConversationID = conversations.first?.id
         }
+        schedulePersistence()
     }
 
     func send() {
@@ -142,6 +185,7 @@ final class StudioModel: ObservableObject {
         )
         let assistant = ChatMessage(role: .assistant, content: "", isStreaming: true)
         conversations[conversationIndex].messages.append(assistant)
+        schedulePersistence()
 
         let requestID = UUID().uuidString
         activeRequestID = requestID
@@ -180,7 +224,45 @@ final class StudioModel: ObservableObject {
         activeRequestID = nil
         activeResponseID = nil
         bridge.stop()
+        schedulePersistence()
         loadSelectedModel()
+    }
+
+    func reloadMCPServers() {
+        guard !isGenerating else { return }
+        loadSelectedModel()
+    }
+
+    func openMCPConfiguration() {
+        let url = mcpConfigurationURL
+        if !FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try? "{\n  \"version\": 1,\n  \"mcpServers\": {}\n}\n".write(
+                to: url,
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    func settingsDidChange() {
+        schedulePersistence()
+    }
+
+    func selectConversation(_ id: UUID) {
+        guard conversations.contains(where: { $0.id == id }) else { return }
+        selectedConversationID = id
+        schedulePersistence()
+    }
+
+    func persistNow() {
+        persistenceTask?.cancel()
+        persistenceTask = nil
+        try? ConversationStore.write(workspaceSnapshot, to: conversationFileURL)
     }
 
     private var conversationIndex: Int? {
@@ -192,6 +274,9 @@ final class StudioModel: ObservableObject {
         guard let selectedModelName else { return }
         engineState = .loading(selectedModelName)
         readyInfo = nil
+        mcpServerCount = 0
+        mcpToolCount = 0
+        mcpErrors = [:]
         activeRequestID = nil
         activeResponseID = nil
         do {
@@ -212,6 +297,9 @@ final class StudioModel: ObservableObject {
                 residentGB: event.residentGB ?? 0
             )
             readyInfo = info
+            mcpServerCount = event.mcpServers ?? 0
+            mcpToolCount = event.mcpTools ?? 0
+            mcpErrors = event.mcpErrors ?? [:]
             engineState = .ready(
                 model: info.model,
                 modules: info.modules,
@@ -223,6 +311,30 @@ final class StudioModel: ObservableObject {
                   let message = activeMessage()
             else { return }
             message.append(text, phase: event.phase)
+            schedulePersistence()
+        case "tool_start":
+            guard event.requestID == activeRequestID,
+                  let callID = event.toolCallID,
+                  let toolName = event.toolName,
+                  let message = activeMessage()
+            else { return }
+            message.startTool(
+                id: callID,
+                serverName: event.serverName,
+                toolName: toolName
+            )
+            schedulePersistence()
+        case "tool_result":
+            guard event.requestID == activeRequestID,
+                  let callID = event.toolCallID,
+                  let message = activeMessage()
+            else { return }
+            message.finishTool(
+                id: callID,
+                result: event.text,
+                isError: event.isError ?? false
+            )
+            schedulePersistence()
         case "complete":
             guard event.requestID == activeRequestID,
                   let message = activeMessage()
@@ -230,6 +342,7 @@ final class StudioModel: ObservableObject {
             message.finish(stats: event.stats, fallbackAnswer: event.assistantContext)
             activeRequestID = nil
             activeResponseID = nil
+            schedulePersistence()
             restoreReadyState()
         case "error":
             guard event.requestID == nil || event.requestID == activeRequestID else { return }
@@ -260,6 +373,7 @@ final class StudioModel: ObservableObject {
         } else {
             restoreReadyState()
         }
+        schedulePersistence()
     }
 
     private func activeMessage() -> ChatMessage? {
@@ -278,5 +392,28 @@ final class StudioModel: ObservableObject {
         let words = prompt.split(whereSeparator: \.isWhitespace)
         let title = words.prefix(7).joined(separator: " ")
         return title.count > 46 ? String(title.prefix(46)) + "…" : title
+    }
+
+    private var workspaceSnapshot: WorkspaceSnapshot {
+        WorkspaceSnapshot(
+            selectedConversationID: selectedConversationID,
+            selectedModelName: selectedModelName,
+            conversations: conversations.map(\.snapshot),
+            temperature: temperature,
+            topK: topK,
+            repetitionPenalty: repetitionPenalty,
+            systemPrompt: systemPrompt
+        )
+    }
+
+    private func schedulePersistence() {
+        guard persistenceTask == nil else { return }
+        persistenceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let self else { return }
+            persistenceTask = nil
+            let snapshot = workspaceSnapshot
+            try? await conversationStore.save(snapshot)
+        }
     }
 }

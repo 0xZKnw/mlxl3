@@ -117,6 +117,113 @@ def test_thinking_renderer_uses_bright_magenta_in_a_color_terminal() -> None:
     assert "\033[1;36m── Réponse ──\033[0m" in rendered
 
 
+def test_tool_call_stream_filter_hides_split_xml_payload() -> None:
+    stream_filter = cli.ToolCallStreamFilter()
+    visible = []
+    for piece in (
+        "Avant <tool_",
+        "call><function=demo.echo><parameter=value>hi</parameter>",
+        "</function></tool_call> Après",
+    ):
+        visible.extend(stream_filter.feed(piece))
+    visible.extend(stream_filter.finish())
+
+    assert "".join(visible) == "Avant  Après"
+
+
+def test_parse_qwen_and_json_tool_calls() -> None:
+    response = """
+<tool_call>
+<function=files.read>
+<parameter=path>
+/tmp/demo.txt
+</parameter>
+<parameter=limit>
+12
+</parameter>
+</function>
+</tool_call>
+<tool_call>{"name":"clock.now","arguments":{"zone":"Europe/Paris"}}</tool_call>
+"""
+    assert cli._parse_tool_calls(response) == [
+        cli.ToolCallRequest("files.read", {"path": "/tmp/demo.txt", "limit": 12}),
+        cli.ToolCallRequest("clock.now", {"zone": "Europe/Paris"}),
+    ]
+
+
+def test_bridge_generation_executes_mcp_tool_then_returns_answer(monkeypatch, capsys) -> None:
+    stats = cli.GenerationStats(0.1, 20, 30, 5, 6, 4)
+    responses = iter(
+        (
+            (
+                "inspect</think><tool_call><function=demo.echo>"
+                "<parameter=value>bonjour</parameter></function></tool_call>"
+            ),
+            "respond</think>Résultat MCP",
+        )
+    )
+    observed_messages = []
+
+    def fake_stream(model, tokenizer, messages, *, on_text, on_prompt, tools, **kwargs):
+        observed_messages.append(messages)
+        response = next(responses)
+        on_prompt("<|im_start|>assistant\n<think>\n")
+        on_text(response)
+        return response, stats
+
+    class FakeMCP:
+        def __init__(self):
+            self.chat_tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "demo.echo",
+                        "description": "Echo",
+                        "parameters": {"type": "object"},
+                    },
+                }
+            ]
+            self.tools = {"demo.echo": SimpleNamespace(server="demo")}
+
+        def call(self, name, arguments):
+            assert name == "demo.echo"
+            assert arguments == {"value": "bonjour"}
+            return SimpleNamespace(text="bonjour", is_error=False)
+
+    monkeypatch.setattr(cli, "_stream_response", fake_stream)
+    cli._bridge_generate(
+        object(),
+        object(),
+        [{"role": "user", "content": "utilise echo"}],
+        request_id="turn-mcp",
+        max_tokens=-1,
+        temperature=0.2,
+        top_k=80,
+        repetition_penalty=1.05,
+        mcp=FakeMCP(),
+    )
+
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert [event["type"] for event in events] == [
+        "delta",
+        "tool_start",
+        "tool_result",
+        "delta",
+        "delta",
+        "complete",
+    ]
+    assert events[0]["phase"] == "thinking"
+    assert events[1]["tool_name"] == "demo.echo"
+    assert events[2]["text"] == "bonjour"
+    assert events[-2]["text"] == "Résultat MCP"
+    assert events[-1]["assistant_context"] == "Résultat MCP"
+    assert observed_messages[1][-1] == {
+        "role": "tool",
+        "name": "demo.echo",
+        "content": "bonjour",
+    }
+
+
 def test_chat_history_is_forwarded_to_the_next_turn(monkeypatch, capsys) -> None:
     observed = []
     replies = iter(("première réponse", "deuxième réponse"))

@@ -325,6 +325,52 @@ private enum MarkdownParser {
     }
 }
 
+struct StreamingTextChunk: Identifiable, Equatable {
+    let id: Int
+    let source: String
+}
+
+enum StreamingTextChunker {
+    static let targetBytes = 6_000
+    static let hardLimitBytes = 16_000
+
+    static func chunks(_ source: String) -> [StreamingTextChunk] {
+        guard source.utf8.count > targetBytes else {
+            return [StreamingTextChunk(id: 0, source: source)]
+        }
+
+        let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
+        var chunks: [StreamingTextChunk] = []
+        var current = ""
+        var byteOffset = 0
+        var insideCodeFence = false
+
+        func flush() {
+            guard !current.isEmpty else { return }
+            chunks.append(StreamingTextChunk(id: byteOffset, source: current))
+            byteOffset += current.utf8.count
+            current = ""
+        }
+
+        for (index, line) in lines.enumerated() {
+            let renderedLine = String(line) + (index == lines.count - 1 ? "" : "\n")
+            current += renderedLine
+
+            if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                insideCodeFence.toggle()
+            }
+            let isBlankBoundary = line.trimmingCharacters(in: .whitespaces).isEmpty
+            if !insideCodeFence,
+               (current.utf8.count >= hardLimitBytes
+                || (current.utf8.count >= targetBytes && isBlankBoundary)) {
+                flush()
+            }
+        }
+        flush()
+        return chunks.isEmpty ? [StreamingTextChunk(id: 0, source: source)] : chunks
+    }
+}
+
 struct MarkdownResponseView: View {
     private let source: String
     private let streaming: Bool
@@ -335,6 +381,30 @@ struct MarkdownResponseView: View {
     }
 
     var body: some View {
+        let chunks = StreamingTextChunker.chunks(source)
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(chunks) { chunk in
+                MarkdownChunkView(
+                    source: chunk.source,
+                    streaming: streaming && chunk.id == chunks.last?.id
+                )
+                .equatable()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .textSelection(.enabled)
+    }
+}
+
+private struct MarkdownChunkView: View, Equatable {
+    let source: String
+    let streaming: Bool
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.source == rhs.source && lhs.streaming == rhs.streaming
+    }
+
+    var body: some View {
         SmoothStreamingSource(source, streaming: streaming) { displayedSource in
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(MarkdownParser.parse(displayedSource)) { block in
@@ -342,7 +412,6 @@ struct MarkdownResponseView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .textSelection(.enabled)
         }
     }
 

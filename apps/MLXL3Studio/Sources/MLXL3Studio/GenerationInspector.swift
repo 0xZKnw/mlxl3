@@ -86,6 +86,51 @@ struct GenerationInspector: View {
                             }
                     }
 
+                    SettingCard(title: "MCP", icon: "shippingbox") {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(studio.mcpServerCount) serveur\(studio.mcpServerCount == 1 ? "" : "s") connecté\(studio.mcpServerCount == 1 ? "" : "s")")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text("\(studio.mcpToolCount) outil\(studio.mcpToolCount == 1 ? "" : "s") disponible\(studio.mcpToolCount == 1 ? "" : "s")")
+                                    .font(.system(size: 9.5, weight: .medium))
+                                    .foregroundStyle(StudioTheme.quiet)
+                            }
+                            Spacer()
+                            Circle()
+                                .fill(studio.mcpServerCount > 0 ? Color.green : StudioTheme.quiet)
+                                .frame(width: 7, height: 7)
+                        }
+
+                        if let error = studio.mcpErrors.sorted(by: { $0.key < $1.key }).first {
+                            Text("\(error.key) · \(error.value)")
+                                .font(.system(size: 9, weight: .medium, design: .rounded))
+                                .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
+                                .lineLimit(3)
+                        }
+
+                        HStack(spacing: 8) {
+                            Button(action: studio.openMCPConfiguration) {
+                                Label("Configurer", systemImage: "doc.text")
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 29)
+                            }
+                            .buttonStyle(GlassPillButtonStyle())
+
+                            Button(action: studio.reloadMCPServers) {
+                                Image(systemName: "arrow.clockwise")
+                                    .frame(width: 29, height: 29)
+                            }
+                            .buttonStyle(RoundGlassButtonStyle())
+                            .disabled(studio.isGenerating)
+                            .help("Recharger les serveurs MCP")
+                        }
+
+                        Text("Les outils des serveurs activés sont proposés au modèle et exécutés localement.")
+                            .font(.system(size: 8.5, weight: .medium))
+                            .foregroundStyle(StudioTheme.quiet)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     if let model = studio.selectedModel {
                         SettingCard(title: "Modèle actif", icon: "cpu") {
                             InspectorValue(label: "Architecture", value: model.architectureLabel)
@@ -100,6 +145,10 @@ struct GenerationInspector: View {
             }
         }
         .background(StudioTheme.sidebar.opacity(0.95))
+        .onChange(of: studio.temperature) { studio.settingsDidChange() }
+        .onChange(of: studio.topK) { studio.settingsDidChange() }
+        .onChange(of: studio.repetitionPenalty) { studio.settingsDidChange() }
+        .onChange(of: studio.systemPrompt) { studio.settingsDidChange() }
     }
 }
 

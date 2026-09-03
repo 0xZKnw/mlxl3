@@ -48,7 +48,7 @@ Enter `/clear` to reset chat history and `/exit` to quit. Every response is
 streamed with a magenta `Réflexion` section separated from the final `Réponse`,
 then followed by TTFT, prefill tok/s, decode tok/s, token counts, and peak MLX
 memory. Questions and final answers remain in context for the lifetime of the
-interactive process; no conversation is persisted between separate runs.
+interactive process.
 
 For a single streamed response without entering the REPL:
 
@@ -71,12 +71,49 @@ MLXL3 Desktop is a native SwiftUI application for macOS 26. It uses the system
 Liquid Glass materials and talks directly to the local MLXL3 Metal runtime. The
 model stays resident while answers stream; reasoning, final answers, TTFT,
 prefill/decode throughput, and peak memory are displayed separately. Context is
-kept per conversation for the lifetime of the application. Press Return to send
-and Control-Return to add a line. The eject button releases the active model and
-its Metal memory without removing it from the local registry. Output has no
-artificial token ceiling and stops on the model's end token or when you press
-Stop. A native menu-bar panel keeps unified-memory usage, the loaded model, and
-the latest generation performance visible even when the main window is closed.
+kept per conversation and saved atomically under
+`~/Library/Application Support/io.mlxl3.desktop/conversations.json`, including
+partial long generations. Press Return to send and Control-Return to add a line.
+The eject button releases the active model and its Metal memory without removing
+it from the local registry. Output has no artificial token ceiling and stops on
+the model's end token, when you press Stop, or at the unified-memory safety limit
+that keeps macOS responsive. Long Markdown and reasoning streams are rendered in
+bounded chunks so completed text is not reparsed for every new token. A native
+menu-bar panel keeps unified-memory usage, the loaded model, and the latest
+generation performance visible even when the main window is closed.
+
+### Local MCP tools
+
+MLXL3 Desktop can connect to local MCP servers over stdio, expose their tools to
+the active model, execute tool calls, and show each call inline. Qwen tool
+templates are used directly; models without a native tool template receive a
+portable XML/JSON fallback prompt. Configure servers with the CLI:
+
+```bash
+mlxl3 mcp add filesystem npx -y @modelcontextprotocol/server-filesystem "$HOME/Documents"
+mlxl3 mcp list
+```
+
+Or open **Generation settings → MCP → Configure** and edit the common
+`mcpServers` JSON format stored in `~/.config/mlxl3/mcp.json`:
+
+```json
+{
+  "version": 1,
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/Documents"],
+      "enabled": true
+    }
+  }
+}
+```
+
+Reload MCP from the same panel after editing. Commands are started directly,
+without a shell, but enabled MCP servers and their tool descriptions are trusted
+local code: only configure servers you trust and only grant the directories or
+credentials they actually need.
 
 Build the signed local application bundle and open it:
 
