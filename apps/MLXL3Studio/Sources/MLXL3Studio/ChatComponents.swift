@@ -6,7 +6,7 @@ struct MessagesView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 27) {
+                VStack(spacing: 27) {
                     ForEach(messages) { message in
                         MessageView(message: message)
                             .id(message.id)
@@ -60,7 +60,7 @@ private struct StreamingScrollFollower: View {
             .onChange(of: message.streamRevision) {
                 guard pendingScroll == nil else { return }
                 pendingScroll = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(100))
+                    try? await Task.sleep(for: .milliseconds(250))
                     guard !Task.isCancelled else { return }
                     scrollToBottom()
                     pendingScroll = nil
@@ -272,7 +272,7 @@ private struct ThinkingBlock: View {
         DisclosureGroup(isExpanded: $expanded) {
             ScrollView {
                 let chunks = StreamingTextChunker.chunks(text)
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(chunks) { chunk in
                         ThinkingTextChunk(
                             source: chunk.source,
@@ -314,14 +314,12 @@ private struct ThinkingTextChunk: View, Equatable {
     }
 
     var body: some View {
-        SmoothStreamingSource(source, streaming: streaming) { displayedText in
-            Text(displayedText)
-                .font(.system(size: 11.5, weight: .regular, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(0.57))
-                .lineSpacing(3)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        Text(source)
+            .font(.system(size: 11.5, weight: .regular, design: .monospaced))
+            .foregroundStyle(Color.white.opacity(streaming ? 0.55 : 0.57))
+            .lineSpacing(3)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
