@@ -60,7 +60,7 @@ private struct StreamingScrollFollower: View {
             .onChange(of: message.streamRevision) {
                 guard pendingScroll == nil else { return }
                 pendingScroll = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(45))
+                    try? await Task.sleep(for: .milliseconds(100))
                     guard !Task.isCancelled else { return }
                     scrollToBottom()
                     pendingScroll = nil

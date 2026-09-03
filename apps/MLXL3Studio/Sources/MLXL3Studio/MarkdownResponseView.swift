@@ -331,11 +331,11 @@ struct StreamingTextChunk: Identifiable, Equatable {
 }
 
 enum StreamingTextChunker {
-    static let targetBytes = 6_000
-    static let hardLimitBytes = 16_000
+    static let targetCharacters = 4_096
+    static let hardLimitCharacters = 8_192
 
     static func chunks(_ source: String) -> [StreamingTextChunk] {
-        guard source.utf8.count > targetBytes else {
+        guard source.count > targetCharacters else {
             return [StreamingTextChunk(id: 0, source: source)]
         }
 
@@ -344,6 +344,8 @@ enum StreamingTextChunker {
         var current = ""
         var byteOffset = 0
         var insideCodeFence = false
+        var codeFenceHeader = "```\n"
+        var codeFenceCloser = "```\n"
 
         func flush() {
             guard !current.isEmpty else { return }
@@ -352,17 +354,61 @@ enum StreamingTextChunker {
             current = ""
         }
 
+        func closeAndReopenCodeFence() {
+            // Keep every chunk valid on its own so a large fenced file never
+            // becomes one enormous SwiftUI Text/layer while it is streaming.
+            if !current.hasSuffix("\n") {
+                current.append("\n")
+            }
+            current += codeFenceCloser
+            flush()
+            current = codeFenceHeader
+        }
+
         for (index, line) in lines.enumerated() {
             let renderedLine = String(line) + (index == lines.count - 1 ? "" : "\n")
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let isFence = trimmed.hasPrefix("```")
+
+            if insideCodeFence, !isFence {
+                var remainder = renderedLine[...]
+                while !remainder.isEmpty {
+                    let available = max(1, targetCharacters - current.count)
+                    let amount = min(available, remainder.count)
+                    let end = remainder.index(remainder.startIndex, offsetBy: amount)
+                    current += remainder[..<end]
+                    remainder = remainder[end...]
+                    if current.count >= targetCharacters, !remainder.isEmpty {
+                        closeAndReopenCodeFence()
+                    }
+                }
+
+                let nextIsFence = index + 1 < lines.count
+                    && lines[index + 1].trimmingCharacters(in: .whitespaces).hasPrefix("```")
+                if current.count >= targetCharacters,
+                   index < lines.count - 1,
+                   !nextIsFence {
+                    closeAndReopenCodeFence()
+                }
+                continue
+            }
+
             current += renderedLine
 
-            if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
-                insideCodeFence.toggle()
+            if isFence {
+                if insideCodeFence {
+                    insideCodeFence = false
+                } else {
+                    insideCodeFence = true
+                    codeFenceHeader = trimmed + "\n"
+                    let delimiter = trimmed.prefix(while: { $0 == "`" })
+                    codeFenceCloser = String(delimiter) + "\n"
+                }
             }
-            let isBlankBoundary = line.trimmingCharacters(in: .whitespaces).isEmpty
+            let isBlankBoundary = trimmed.isEmpty
             if !insideCodeFence,
-               (current.utf8.count >= hardLimitBytes
-                || (current.utf8.count >= targetBytes && isBlankBoundary)) {
+               (current.count >= hardLimitCharacters
+                || (current.count >= targetCharacters && isBlankBoundary)) {
                 flush()
             }
         }
@@ -382,7 +428,7 @@ struct MarkdownResponseView: View {
 
     var body: some View {
         let chunks = StreamingTextChunker.chunks(source)
-        VStack(alignment: .leading, spacing: 10) {
+        LazyVStack(alignment: .leading, spacing: 10) {
             ForEach(chunks) { chunk in
                 MarkdownChunkView(
                     source: chunk.source,
@@ -466,17 +512,15 @@ private struct MarkdownChunkView: View, Equatable {
                         .tracking(1.1)
                         .foregroundStyle(StudioTheme.quiet)
                 }
-                ScrollView(.horizontal) {
-                    SmoothTokenText(
-                        content: Text(text)
-                            .font(.system(size: 12, weight: .regular, design: .monospaced))
-                            .foregroundStyle(Color.white.opacity(0.78)),
-                        source: text,
-                        streaming: streaming
-                    )
-                    .fixedSize(horizontal: true, vertical: false)
-                }
-                .scrollIndicators(.never)
+                SmoothTokenText(
+                    content: Text(text)
+                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Color.white.opacity(0.78)),
+                    source: text,
+                    streaming: streaming
+                )
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(13)
             .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
@@ -923,7 +967,7 @@ struct SmoothStreamingSource<Content: View>: View {
                 let remaining = targetSource.count - displayedSource.count
                 let step = min(10, max(1, Int(ceil(Double(remaining) * 0.42))))
                 displayedSource = String(targetSource.prefix(displayedSource.count + step))
-                try? await Task.sleep(for: .milliseconds(16))
+                try? await Task.sleep(for: .milliseconds(24))
             }
             revealTask = nil
             if displayedSource != targetSource {
