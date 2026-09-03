@@ -72,7 +72,6 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var inputPipe: Pipe?
     private var outputBuffer = Data()
     private var stderrBuffer = Data()
-    private var intentionalStop = false
     private var pendingDelta: PendingDelta?
     private var deltaFlushWorkItem: DispatchWorkItem?
     private let displayFlushInterval = 0.05
@@ -141,8 +140,6 @@ final class MLXL3Bridge: @unchecked Sendable {
             deltaFlushWorkItem?.cancel()
             deltaFlushWorkItem = nil
         }
-        intentionalStop = false
-
         process.executableURL = executable
         process.arguments = ["bridge", model]
         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
@@ -160,14 +157,22 @@ final class MLXL3Bridge: @unchecked Sendable {
             guard !data.isEmpty, let bridge = self else { return }
             bridge.ioQueue.async { bridge.stderrBuffer.append(data) }
         }
-        process.terminationHandler = { [weak self] _ in
+        process.terminationHandler = { [weak self] terminatedProcess in
             guard let self else { return }
             self.ioQueue.async {
+                guard let currentProcess = self.process,
+                      currentProcess === terminatedProcess
+                else { return }
                 output.fileHandleForReading.readabilityHandler = nil
                 error.fileHandleForReading.readabilityHandler = nil
+                self.flushPendingDelta()
                 let details = String(data: self.stderrBuffer, encoding: .utf8)?
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                let message = self.intentionalStop || details?.isEmpty == true ? nil : details
+                let message = details?.isEmpty == false
+                    ? details
+                    : "Le moteur MLXL3 s’est arrêté de façon inattendue."
+                self.process = nil
+                self.inputPipe = nil
                 DispatchQueue.main.async { self.onExit?(message) }
             }
         }
@@ -187,7 +192,6 @@ final class MLXL3Bridge: @unchecked Sendable {
     }
 
     func stop() {
-        intentionalStop = true
         inputPipe?.fileHandleForWriting.closeFile()
         if process?.isRunning == true {
             process?.terminate()
@@ -219,7 +223,14 @@ final class MLXL3Bridge: @unchecked Sendable {
                     text: nil,
                     assistantContext: nil,
                     stats: nil,
-                    message: "Réponse moteur invalide: \(raw)"
+                    message: "Réponse moteur invalide: \(raw)",
+                    mcpServers: nil,
+                    mcpTools: nil,
+                    mcpErrors: nil,
+                    toolCallID: nil,
+                    toolName: nil,
+                    serverName: nil,
+                    isError: nil
                 )
                 queueForDisplay(event)
             }
@@ -275,7 +286,14 @@ final class MLXL3Bridge: @unchecked Sendable {
                 text: pendingDelta.text,
                 assistantContext: nil,
                 stats: nil,
-                message: nil
+                message: nil,
+                mcpServers: nil,
+                mcpTools: nil,
+                mcpErrors: nil,
+                toolCallID: nil,
+                toolName: nil,
+                serverName: nil,
+                isError: nil
             )
         )
     }

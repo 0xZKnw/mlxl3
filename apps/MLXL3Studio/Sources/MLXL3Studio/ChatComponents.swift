@@ -23,7 +23,6 @@ struct MessagesView: View {
             }
             .scrollIndicators(.never)
             .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .defaultScrollAnchor(.bottom, for: .sizeChanges)
             .onChange(of: messages.last?.id) {
                 Task { @MainActor in
                     await Task.yield()
@@ -34,8 +33,43 @@ struct MessagesView: View {
                     }
                 }
             }
+            .overlay {
+                if let lastMessage = messages.last {
+                    StreamingScrollFollower(message: lastMessage) {
+                        var transaction = Transaction(animation: nil)
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            proxy.scrollTo("conversation-bottom", anchor: .bottom)
+                        }
+                    }
+                    .frame(width: 0, height: 0)
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct StreamingScrollFollower: View {
+    @ObservedObject var message: ChatMessage
+    let scrollToBottom: @MainActor () -> Void
+    @State private var pendingScroll: Task<Void, Never>?
+
+    var body: some View {
+        Color.clear
+            .onChange(of: message.streamRevision) {
+                guard pendingScroll == nil else { return }
+                pendingScroll = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(45))
+                    guard !Task.isCancelled else { return }
+                    scrollToBottom()
+                    pendingScroll = nil
+                }
+            }
+            .onDisappear {
+                pendingScroll?.cancel()
+                pendingScroll = nil
+            }
     }
 }
 
@@ -87,6 +121,14 @@ private struct AssistantMessageView: View {
                     ThinkingPlaceholder()
                 }
 
+                if !message.toolActivities.isEmpty {
+                    VStack(spacing: 7) {
+                        ForEach(message.toolActivities) { activity in
+                            MCPToolActivityRow(activity: activity)
+                        }
+                    }
+                }
+
                 if !message.content.isEmpty {
                     MarkdownResponseView(
                         message.content,
@@ -108,6 +150,80 @@ private struct AssistantMessageView: View {
         }
     }
 
+}
+
+private struct MCPToolActivityRow: View {
+    let activity: ToolActivity
+    @State private var expanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            if let result = activity.result, !result.isEmpty {
+                Text(result)
+                    .font(.system(size: 10.5, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.58))
+                    .lineLimit(10)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                stateIcon
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(activity.toolName)
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                    if let server = activity.serverName {
+                        Text("MCP · \(server)")
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .tracking(0.65)
+                            .foregroundStyle(StudioTheme.quiet)
+                    }
+                }
+                Spacer()
+                Text(stateLabel)
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(stateColor)
+            }
+        }
+        .tint(Color.white.opacity(0.42))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 11))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11)
+                .stroke(Color.white.opacity(0.07), lineWidth: 0.6)
+        }
+    }
+
+    @ViewBuilder
+    private var stateIcon: some View {
+        if activity.state == .running {
+            ProgressView()
+                .controlSize(.mini)
+                .tint(StudioTheme.accent)
+        } else {
+            Image(systemName: activity.state == .complete ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(stateColor)
+        }
+    }
+
+    private var stateLabel: String {
+        switch activity.state {
+        case .running: "EXÉCUTION"
+        case .complete: "TERMINÉ"
+        case .failed: "ERREUR"
+        }
+    }
+
+    private var stateColor: Color {
+        activity.state == .failed
+            ? Color(red: 1, green: 0.48, blue: 0.50)
+            : StudioTheme.accent.opacity(0.82)
+    }
 }
 
 private struct StreamingIndicator: View {
@@ -155,15 +271,18 @@ private struct ThinkingBlock: View {
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             ScrollView {
-                SmoothStreamingSource(text, streaming: streaming) { displayedText in
-                    Text(displayedText)
-                        .font(.system(size: 11.5, weight: .regular, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(0.57))
-                        .lineSpacing(3)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 10)
+                let chunks = StreamingTextChunker.chunks(text)
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(chunks) { chunk in
+                        ThinkingTextChunk(
+                            source: chunk.source,
+                            streaming: streaming && chunk.id == chunks.last?.id
+                        )
+                        .equatable()
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 10)
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)
             .defaultScrollAnchor(.bottom, for: .sizeChanges)
@@ -183,6 +302,26 @@ private struct ThinkingBlock: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .premiumGlass(radius: 14, tint: Color.white.opacity(0.018))
+    }
+}
+
+private struct ThinkingTextChunk: View, Equatable {
+    let source: String
+    let streaming: Bool
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.source == rhs.source && lhs.streaming == rhs.streaming
+    }
+
+    var body: some View {
+        SmoothStreamingSource(source, streaming: streaming) { displayedText in
+            Text(displayedText)
+                .font(.system(size: 11.5, weight: .regular, design: .monospaced))
+                .foregroundStyle(Color.white.opacity(0.57))
+                .lineSpacing(3)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

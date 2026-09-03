@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -12,6 +13,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from mlxl3.mcp import (
+    MCPError,
+    MCPManager,
+    add_mcp_server,
+    ensure_mcp_config,
+    load_mcp_servers,
+    remove_mcp_server,
+)
 from mlxl3.registry import (
     ModelEntry,
     RegistryError,
@@ -31,6 +40,20 @@ class GenerationStats:
     prompt_tokens: int
     generated_tokens: int
     peak_memory_gb: float
+
+
+class MemorySafetyError(RuntimeError):
+    """Generation stopped before Metal pressure can destabilize the desktop."""
+
+
+def _mlx_memory_guard_bytes() -> int:
+    import mlx.core as mx
+
+    info = mx.device_info()
+    physical = int(info.get("memory_size") or 0)
+    recommended = int(info.get("max_recommended_working_set_size") or 0)
+    candidates = [value for value in (int(physical * 0.82), int(recommended * 0.96)) if value]
+    return min(candidates) if candidates else 16_000_000_000
 
 
 class ThinkingSplitter:
@@ -165,6 +188,107 @@ class ThinkingRenderer:
             self._write("\n")
 
 
+@dataclass(frozen=True)
+class ToolCallRequest:
+    name: str
+    arguments: dict[str, Any]
+
+
+class ToolCallStreamFilter:
+    """Hide streamed tool payloads while preserving ordinary answer text."""
+
+    _OPEN = "<tool_call>"
+    _CLOSE = "</tool_call>"
+
+    def __init__(self):
+        self.buffer = ""
+        self.inside_call = False
+
+    def feed(self, text: str) -> list[str]:
+        visible: list[str] = []
+        self.buffer += text
+        while self.buffer:
+            marker = self._CLOSE if self.inside_call else self._OPEN
+            position = self.buffer.find(marker)
+            if position >= 0:
+                if not self.inside_call and position:
+                    visible.append(self.buffer[:position])
+                self.buffer = self.buffer[position + len(marker) :]
+                self.inside_call = not self.inside_call
+                continue
+            keep = ThinkingSplitter._partial_marker_length(self.buffer, marker)
+            emit_until = len(self.buffer) - keep
+            if not self.inside_call and emit_until:
+                visible.append(self.buffer[:emit_until])
+            self.buffer = self.buffer[emit_until:]
+            break
+        return visible
+
+    def finish(self) -> list[str]:
+        visible = [] if self.inside_call or not self.buffer else [self.buffer]
+        self.buffer = ""
+        return visible
+
+
+_TOOL_BLOCK = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL)
+_TOOL_FUNCTION = re.compile(r"<function=([^>\n]+)>\s*(.*?)\s*</function>", re.DOTALL)
+_TOOL_PARAMETER = re.compile(r"<parameter=([^>\n]+)>\s*(.*?)\s*</parameter>", re.DOTALL)
+
+
+def _parse_tool_calls(response: str) -> list[ToolCallRequest]:
+    calls: list[ToolCallRequest] = []
+    for match in _TOOL_BLOCK.finditer(response):
+        body = match.group(1).strip()
+        function = _TOOL_FUNCTION.fullmatch(body)
+        if function is not None:
+            arguments = {
+                parameter.group(1).strip(): _parse_tool_argument(parameter.group(2))
+                for parameter in _TOOL_PARAMETER.finditer(function.group(2))
+            }
+            calls.append(ToolCallRequest(function.group(1).strip(), arguments))
+            continue
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            continue
+        payloads = payload if isinstance(payload, list) else [payload]
+        for item in payloads:
+            if not isinstance(item, dict):
+                continue
+            function_payload = item.get("function", item)
+            if not isinstance(function_payload, dict):
+                continue
+            name = function_payload.get("name")
+            arguments = function_payload.get("arguments", {})
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+            if isinstance(name, str) and isinstance(arguments, dict):
+                calls.append(ToolCallRequest(name, arguments))
+    return calls
+
+
+def _parse_tool_argument(raw: str) -> Any:
+    value = raw.strip()
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
+
+
+def _without_tool_calls(response: str) -> str:
+    return _TOOL_BLOCK.sub("", _assistant_context(response)).strip()
+
+
+def _reasoning_context(response: str) -> str:
+    close = response.rfind("</think>")
+    if close < 0:
+        return ""
+    return response[:close].removeprefix("<think>").strip()
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mlxl3",
@@ -184,6 +308,18 @@ def _parser() -> argparse.ArgumentParser:
 
     remove = commands.add_parser("remove", aliases=["rm"], help="remove a registry entry")
     remove.add_argument("name")
+
+    mcp = commands.add_parser("mcp", help="manage local MCP stdio servers")
+    mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
+    mcp_list = mcp_commands.add_parser("list", aliases=["ls"], help="list MCP servers")
+    mcp_list.add_argument("--json", action="store_true")
+    mcp_commands.add_parser("config", help="print and create the MCP configuration path")
+    mcp_add = mcp_commands.add_parser("add", help="add or replace an MCP stdio server")
+    mcp_add.add_argument("name")
+    mcp_add.add_argument("server_command")
+    mcp_add.add_argument("server_args", nargs=argparse.REMAINDER)
+    mcp_remove = mcp_commands.add_parser("remove", aliases=["rm"], help="remove an MCP server")
+    mcp_remove.add_argument("name")
 
     run = commands.add_parser("run", help="stream a response or start an interactive chat")
     run.add_argument("model", help="registered model name or local model directory")
@@ -222,12 +358,97 @@ def _format_models(entries: dict[str, ModelEntry]) -> str:
     return "\n".join([render(headers), *(render(row) for row in rows)])
 
 
+def _format_mcp_servers() -> str:
+    servers = load_mcp_servers()
+    if not servers:
+        return "Aucun serveur MCP configuré."
+    return "\n".join(
+        f"{server.name}\t{'ACTIF' if server.enabled else 'INACTIF'}\t"
+        f"{server.command} {' '.join(server.args)}".rstrip()
+        for server in servers
+    )
+
+
+def _legacy_tool_messages(
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    specification = json.dumps(tools, ensure_ascii=False, separators=(",", ":"))
+    instructions = (
+        "You can use local tools. Available tools as JSON: "
+        f"{specification}\n"
+        "When a tool is necessary, output exactly one or more calls as "
+        '<tool_call>{"name":"tool.name","arguments":{}}</tool_call>. '
+        "Do not invent tool results. After a tool response, answer the user normally."
+    )
+    rendered: list[dict[str, str]] = []
+    inserted_instructions = False
+    for message in messages:
+        role = str(message.get("role", ""))
+        content = str(message.get("content", ""))
+        if role == "system" and not inserted_instructions:
+            rendered.append({"role": "system", "content": instructions + "\n\n" + content})
+            inserted_instructions = True
+        elif role == "assistant":
+            tool_calls = message.get("tool_calls")
+            if isinstance(tool_calls, list):
+                blocks = []
+                for call in tool_calls:
+                    function = call.get("function", {}) if isinstance(call, dict) else {}
+                    if isinstance(function, dict):
+                        blocks.append(
+                            "<tool_call>"
+                            + json.dumps(function, ensure_ascii=False, separators=(",", ":"))
+                            + "</tool_call>"
+                        )
+                content = "\n".join(part for part in (content, *blocks) if part)
+            rendered.append({"role": "assistant", "content": content})
+        elif role == "tool":
+            name = str(message.get("name", "tool"))
+            rendered.append(
+                {
+                    "role": "user",
+                    "content": f"<tool_response name={name}>\n{content}\n</tool_response>",
+                }
+            )
+        else:
+            rendered.append({"role": role, "content": content})
+    if not inserted_instructions:
+        rendered.insert(0, {"role": "system", "content": instructions})
+    return rendered
+
+
+def _render_generation_prompt(
+    tokenizer: Any,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None,
+) -> str:
+    template_options: dict[str, Any] = {
+        "tokenize": False,
+        "add_generation_prompt": True,
+    }
+    if tools:
+        template_options["tools"] = tools
+    prompt = tokenizer.apply_chat_template(messages, **template_options)
+    if not tools:
+        return prompt
+    tool_names = [tool.get("function", {}).get("name") for tool in tools]
+    if all(isinstance(name, str) and name in prompt for name in tool_names):
+        return prompt
+    return tokenizer.apply_chat_template(
+        _legacy_tool_messages(messages, tools),
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+
+
 def _load_model(model_path: Path):
     import mlx.core as mx
     from mlx_lm.utils import load_tokenizer
 
     from mlxl3.checkpoint import load_exl3_model
 
+    mx.set_memory_limit(_mlx_memory_guard_bytes())
     started = time.perf_counter()
     model, _, report = load_exl3_model(model_path, lazy=False)
     tokenizer = load_tokenizer(str(model_path))
@@ -251,15 +472,13 @@ def _stream_response(
     repetition_penalty: float,
     on_text: Callable[[str], None] | None = None,
     on_prompt: Callable[[str], None] | None = None,
+    tools: list[dict[str, Any]] | None = None,
 ) -> tuple[str, GenerationStats]:
+    import mlx.core as mx
     from mlx_lm import stream_generate
     from mlx_lm.sample_utils import make_logits_processors, make_sampler
 
-    prompt = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
+    prompt = _render_generation_prompt(tokenizer, messages, tools)
     if on_prompt is not None:
         on_prompt(prompt)
     sampler = make_sampler(temp=temperature, top_k=top_k)
@@ -268,6 +487,7 @@ def _stream_response(
     first_token_at: float | None = None
     final = None
     pieces: list[str] = []
+    memory_guard = _mlx_memory_guard_bytes()
     initial_mode = "thinking" if _prompt_prefills_thinking(prompt) else "answer"
     renderer = ThinkingRenderer(initial_mode=initial_mode) if on_text is None else None
     try:
@@ -287,6 +507,13 @@ def _stream_response(
                 renderer.feed(response.text)
             else:
                 on_text(response.text)
+            if response.generation_tokens % 32 == 0:
+                active_memory = mx.get_active_memory()
+                if active_memory >= memory_guard:
+                    raise MemorySafetyError(
+                        "génération arrêtée avant saturation de la mémoire unifiée "
+                        f"({active_memory / 1e9:.1f} / {memory_guard / 1e9:.1f} GB)"
+                    )
     finally:
         if renderer is not None:
             renderer.finish()
@@ -421,89 +648,203 @@ def _bridge_messages(payload: Any) -> list[dict[str, str]]:
     return messages
 
 
+def _emit_split_fragment(
+    phase: str,
+    fragment: str,
+    *,
+    request_id: str,
+    tool_filter: ToolCallStreamFilter | None,
+) -> None:
+    if phase == "thinking" or tool_filter is None:
+        _json_event("delta", request_id=request_id, phase=phase, text=fragment)
+        return
+    for visible in tool_filter.feed(fragment):
+        _json_event("delta", request_id=request_id, phase="answer", text=visible)
+
+
+def _bridge_generate(
+    model: Any,
+    tokenizer: Any,
+    messages: list[dict[str, Any]],
+    *,
+    request_id: str,
+    max_tokens: int,
+    temperature: float,
+    top_k: int,
+    repetition_penalty: float,
+    mcp: MCPManager,
+) -> None:
+    dialogue = list(messages)
+    chat_tools = mcp.chat_tools
+    for tool_round in range(5):
+        splitter = ThinkingSplitter()
+        tool_filter = ToolCallStreamFilter() if chat_tools else None
+
+        def emit_text(
+            text: str,
+            event_splitter: ThinkingSplitter = splitter,
+            event_id: str = request_id,
+            event_filter: ToolCallStreamFilter | None = tool_filter,
+        ) -> None:
+            for phase, fragment in event_splitter.feed(text):
+                _emit_split_fragment(
+                    phase,
+                    fragment,
+                    request_id=event_id,
+                    tool_filter=event_filter,
+                )
+
+        response, stats = _stream_response(
+            model,
+            tokenizer,
+            dialogue,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_k=top_k,
+            repetition_penalty=repetition_penalty,
+            on_text=emit_text,
+            on_prompt=splitter.configure_for_prompt,
+            tools=chat_tools,
+        )
+        for phase, fragment in splitter.finish():
+            _emit_split_fragment(
+                phase,
+                fragment,
+                request_id=request_id,
+                tool_filter=tool_filter,
+            )
+        if tool_filter is not None:
+            for visible in tool_filter.finish():
+                _json_event("delta", request_id=request_id, phase="answer", text=visible)
+
+        calls = _parse_tool_calls(response) if chat_tools else []
+        if not calls:
+            _json_event(
+                "complete",
+                request_id=request_id,
+                assistant_context=_without_tool_calls(response),
+                stats=asdict(stats),
+            )
+            return
+        if tool_round == 4:
+            raise MCPError("the model exceeded the limit of 5 consecutive MCP tool rounds")
+
+        assistant_message: dict[str, Any] = {
+            "role": "assistant",
+            "content": _without_tool_calls(response),
+            "tool_calls": [
+                {
+                    "type": "function",
+                    "function": {"name": call.name, "arguments": call.arguments},
+                }
+                for call in calls
+            ],
+        }
+        reasoning = _reasoning_context(response)
+        if reasoning:
+            assistant_message["reasoning_content"] = reasoning
+        dialogue.append(assistant_message)
+
+        for call in calls:
+            tool = mcp.tools.get(call.name)
+            call_id = f"mcp-{tool_round}-{len(dialogue)}-{call.name}"
+            _json_event(
+                "tool_start",
+                request_id=request_id,
+                tool_call_id=call_id,
+                tool_name=call.name,
+                server_name=tool.server if tool else None,
+            )
+            result = mcp.call(call.name, call.arguments)
+            _json_event(
+                "tool_result",
+                request_id=request_id,
+                tool_call_id=call_id,
+                tool_name=call.name,
+                server_name=tool.server if tool else None,
+                text=result.text[:4_000],
+                is_error=result.is_error,
+            )
+            dialogue.append(
+                {
+                    "role": "tool",
+                    "name": call.name,
+                    "content": result.text,
+                }
+            )
+
+
 def _bridge(args) -> int:
     name, path = resolve_model(args.model)
     _json_event("loading", model=name)
     model, tokenizer, modules, load_seconds, resident_gb = _load_model(path)
-    _json_event(
-        "ready",
-        model=name,
-        modules=modules,
-        load_seconds=load_seconds,
-        resident_gb=resident_gb,
-    )
+    try:
+        mcp = MCPManager()
+        mcp.connect()
+    except Exception as error:  # noqa: BLE001 - MCP must never prevent local inference
+        mcp = MCPManager([])
+        mcp.errors["configuration"] = str(error)
+    try:
+        _json_event(
+            "ready",
+            model=name,
+            modules=modules,
+            load_seconds=load_seconds,
+            resident_gb=resident_gb,
+            mcp_servers=mcp.connected_server_count,
+            mcp_tools=len(mcp.tools),
+            mcp_errors=mcp.errors,
+        )
 
-    for line in sys.stdin:
-        if not line.strip():
-            continue
-        request_id: str | None = None
-        try:
-            request = json.loads(line)
-            if not isinstance(request, dict):
-                raise TypeError("request must be an object")
-            request_type = request.get("type")
-            request_id = str(request.get("request_id", ""))
-            if request_type == "shutdown":
-                return 0
-            if request_type == "ping":
-                _json_event("pong", request_id=request_id)
+        for line in sys.stdin:
+            if not line.strip():
                 continue
-            if request_type != "generate":
-                raise ValueError(f"unsupported request type: {request_type!r}")
+            request_id: str | None = None
+            try:
+                request = json.loads(line)
+                if not isinstance(request, dict):
+                    raise TypeError("request must be an object")
+                request_type = request.get("type")
+                request_id = str(request.get("request_id", ""))
+                if request_type == "shutdown":
+                    return 0
+                if request_type == "ping":
+                    _json_event("pong", request_id=request_id)
+                    continue
+                if request_type != "generate":
+                    raise ValueError(f"unsupported request type: {request_type!r}")
 
-            messages = _bridge_messages(request.get("messages"))
-            max_tokens = int(request.get("max_tokens", -1))
-            temperature = float(request.get("temperature", 0.2))
-            top_k = int(request.get("top_k", 80))
-            repetition_penalty = float(request.get("repetition_penalty", 1.05))
-            if max_tokens == 0 or max_tokens < -1:
-                raise ValueError("max_tokens must be positive, or -1 for no output limit")
-            if temperature < 0:
-                raise ValueError("temperature must be non-negative")
+                messages = _bridge_messages(request.get("messages"))
+                max_tokens = int(request.get("max_tokens", -1))
+                temperature = float(request.get("temperature", 0.2))
+                top_k = int(request.get("top_k", 80))
+                repetition_penalty = float(request.get("repetition_penalty", 1.05))
+                if max_tokens == 0 or max_tokens < -1:
+                    raise ValueError("max_tokens must be positive, or -1 for no output limit")
+                if temperature < 0:
+                    raise ValueError("temperature must be non-negative")
 
-            splitter = ThinkingSplitter()
-
-            def emit_text(
-                text: str,
-                event_splitter: ThinkingSplitter = splitter,
-                event_id: str | None = request_id,
-            ) -> None:
-                for phase, fragment in event_splitter.feed(text):
-                    _json_event(
-                        "delta",
-                        request_id=event_id,
-                        phase=phase,
-                        text=fragment,
-                    )
-
-            response, stats = _stream_response(
-                model,
-                tokenizer,
-                messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                top_k=top_k,
-                repetition_penalty=repetition_penalty,
-                on_text=emit_text,
-                on_prompt=splitter.configure_for_prompt,
-            )
-            for phase, fragment in splitter.finish():
-                _json_event(
-                    "delta",
+                _bridge_generate(
+                    model,
+                    tokenizer,
+                    messages,
                     request_id=request_id,
-                    phase=phase,
-                    text=fragment,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    top_k=top_k,
+                    repetition_penalty=repetition_penalty,
+                    mcp=mcp,
                 )
-            _json_event(
-                "complete",
-                request_id=request_id,
-                assistant_context=_assistant_context(response),
-                stats=asdict(stats),
-            )
-        except (ValueError, TypeError, json.JSONDecodeError) as error:
-            _json_event("error", request_id=request_id, message=str(error))
-        except Exception as error:  # noqa: BLE001 - report failed turns without killing the bridge
-            _json_event("error", request_id=request_id, message=f"{type(error).__name__}: {error}")
+            except (ValueError, TypeError, json.JSONDecodeError) as error:
+                _json_event("error", request_id=request_id, message=str(error))
+            except Exception as error:  # noqa: BLE001 - keep the resident model available
+                _json_event(
+                    "error",
+                    request_id=request_id,
+                    message=f"{type(error).__name__}: {error}",
+                )
+    finally:
+        mcp.close()
     return 0
 
 
@@ -534,12 +875,41 @@ def main(argv: list[str] | None = None) -> int:
             entry = remove_model(args.name)
             print(f"Modèle {entry.name!r} retiré du registre; ses fichiers sont conservés.")
             return 0
+        if args.command == "mcp":
+            if args.mcp_command in {"list", "ls"}:
+                servers = load_mcp_servers()
+                if args.json:
+                    print(
+                        json.dumps(
+                            [asdict(server) for server in servers],
+                            ensure_ascii=False,
+                        )
+                    )
+                else:
+                    print(_format_mcp_servers())
+                return 0
+            if args.mcp_command == "config":
+                print(ensure_mcp_config())
+                return 0
+            if args.mcp_command == "add":
+                server = add_mcp_server(
+                    args.name,
+                    args.server_command,
+                    args.server_args,
+                )
+                print(f"Serveur MCP {server.name!r} enregistré.")
+                return 0
+            if args.mcp_command in {"remove", "rm"}:
+                remove_mcp_server(args.name)
+                print(f"Serveur MCP {args.name!r} retiré.")
+                return 0
+            raise AssertionError(f"unknown MCP command {args.mcp_command}")
         if args.command == "run":
             return _run(args)
         if args.command == "bridge":
             return _bridge(args)
         raise AssertionError(f"unknown command {args.command}")
-    except (RegistryError, FileNotFoundError, KeyError) as error:
+    except (MCPError, RegistryError, FileNotFoundError, KeyError) as error:
         print(f"Erreur: {error}", file=sys.stderr)
         return 2
 
