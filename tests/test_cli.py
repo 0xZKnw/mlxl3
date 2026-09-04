@@ -178,6 +178,28 @@ def test_prefill_step_adapts_to_available_memory(monkeypatch) -> None:
     assert cli._select_prefill_step_size(17_500_000_000, 18_000_000_000) == 512
 
 
+def test_prefill_step_limits_very_long_large_moe_prompts(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 0)
+    assert (
+        cli._select_prefill_step_size(
+            10_000_000_000,
+            18_000_000_000,
+            token_count=32_768,
+            num_experts=256,
+        )
+        == 512
+    )
+    assert (
+        cli._select_prefill_step_size(
+            10_000_000_000,
+            18_000_000_000,
+            token_count=32_768,
+            num_experts=64,
+        )
+        == 2048
+    )
+
+
 def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -> None:
     responses = [
         SimpleNamespace(

@@ -68,6 +68,19 @@ _SESSION_CACHE_BUDGET_BYTES = int(
 _WARM_MODEL_ON_LOAD = os.environ.get("MLXL3_WARM_MODEL_ON_LOAD", "1") != "0"
 
 
+def _model_num_experts(model: Any) -> int:
+    """Read common MLX-LM config locations without tying the scheduler to Qwen."""
+
+    language_model = getattr(model, "language_model", None)
+    for owner in (model, language_model):
+        args = getattr(owner, "args", None)
+        for name in ("num_experts", "num_local_experts"):
+            value = getattr(args, name, 0)
+            if isinstance(value, int) and value > 0:
+                return value
+    return 0
+
+
 def _cache_nbytes(cache: list[Any] | None, seen: set[int] | None = None) -> int:
     """Count unique MLX storage referenced by a model cache."""
 
@@ -246,6 +259,8 @@ class GenerationSession:
         step_size = _select_prefill_step_size(
             mx.get_active_memory(),
             _mlx_memory_guard_bytes(),
+            token_count=len(extension),
+            num_experts=_model_num_experts(model),
         )
         while processed < len(stable_tokens):
             chunk_end = min(processed + step_size, len(stable_tokens))
@@ -329,11 +344,22 @@ def _mlx_memory_guard_bytes() -> int:
     return min(candidates) if candidates else 16_000_000_000
 
 
-def _select_prefill_step_size(active_bytes: int, limit_bytes: int) -> int:
+def _select_prefill_step_size(
+    active_bytes: int,
+    limit_bytes: int,
+    *,
+    token_count: int = 0,
+    num_experts: int = 0,
+) -> int:
     """Choose the widest measured-fast QMM block that fits with headroom."""
 
     if _PREFILL_STEP_SIZE > 0:
         return _PREFILL_STEP_SIZE
+    # Very long prefills on 128+ expert MoEs can exceed Metal's resource-count
+    # ceiling even when byte memory remains available. A 512-token command is
+    # the proven-safe fallback; short and cached extensions retain wider QMMs.
+    if num_experts >= 128 and token_count >= 32_768:
+        return 512
     headroom = max(0, limit_bytes - active_bytes)
     if headroom >= 2_000_000_000:
         return 2048
