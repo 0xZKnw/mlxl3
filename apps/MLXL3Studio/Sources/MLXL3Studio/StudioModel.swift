@@ -10,6 +10,8 @@ final class StudioModel: ObservableObject {
     @Published var draft = ""
     @Published var engineState: EngineState = .idle
     @Published var showInspector = false
+    @Published var showModelManager = false
+    @Published private(set) var modelInstallState: ModelInstallState = .idle
     @Published var temperature = 0.2
     @Published var topK = 80
     @Published var repetitionPenalty = 1.05
@@ -135,6 +137,51 @@ final class StudioModel: ObservableObject {
                 self.loadSelectedModel()
             case let .failure(error):
                 self.engineState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    func openModelManager() {
+        modelInstallState = .idle
+        showModelManager = true
+    }
+
+    func importModelFolder() {
+        guard !modelInstallState.isWorking else { return }
+        let panel = NSOpenPanel()
+        panel.title = "Importer un modèle EXL3"
+        panel.message = "Choisis le dossier contenant config.json et les poids EXL3."
+        panel.prompt = "Importer"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor [weak self] in
+                self?.registerModelFolder(url)
+            }
+        }
+    }
+
+    func downloadModel(repo: String, revision: String, name: String) {
+        let repository = repo.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !repository.isEmpty, !modelInstallState.isWorking else { return }
+        let cleanRevision = revision.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        modelInstallState = .working("Téléchargement de \(repository)…")
+        MLXL3Bridge.downloadModel(
+            repo: repository,
+            revision: cleanRevision.isEmpty ? nil : cleanRevision,
+            name: cleanName.isEmpty ? nil : cleanName
+        ) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case let .success(model):
+                self.selectedModelName = model.name
+                self.modelInstallState = .succeeded("\(model.name) est prêt.")
+                self.refreshModels()
+            case let .failure(error):
+                self.modelInstallState = .failed(error.localizedDescription)
             }
         }
     }
@@ -298,6 +345,31 @@ final class StudioModel: ObservableObject {
             try bridge.start(model: selectedModelName)
         } catch {
             engineState = .failed(error.localizedDescription)
+        }
+    }
+
+    private func registerModelFolder(_ url: URL) {
+        let rawName = url.lastPathComponent
+        let name = rawName.replacingOccurrences(
+            of: "[^A-Za-z0-9._-]+",
+            with: "-",
+            options: .regularExpression
+        ).trimmingCharacters(in: CharacterSet(charactersIn: ".-"))
+        guard !name.isEmpty else {
+            modelInstallState = .failed("Le dossier n’a pas de nom utilisable.")
+            return
+        }
+        modelInstallState = .working("Validation de \(rawName)…")
+        MLXL3Bridge.registerModel(name: name, path: url) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success:
+                self.selectedModelName = name
+                self.modelInstallState = .succeeded("\(name) est prêt.")
+                self.refreshModels()
+            case let .failure(error):
+                self.modelInstallState = .failed(error.localizedDescription)
+            }
         }
     }
 

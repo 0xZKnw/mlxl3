@@ -8,10 +8,14 @@ let package = Package(
     products: [
         .executable(name: "MLXL3Studio", targets: ["MLXL3Studio"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/mgriebling/SwiftMath.git", exact: "1.7.0"),
-    ],
+    dependencies: [],
     targets: [
+        .target(
+            name: "SwiftMath",
+            path: "Vendor/SwiftMath/Sources/SwiftMath",
+            exclude: ["mathFonts.bundle"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .executableTarget(
             name: "MLXL3Studio",
             dependencies: ["SwiftMath"]

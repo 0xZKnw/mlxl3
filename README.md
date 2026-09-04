@@ -62,6 +62,17 @@ Register another standard EXL3 directory under any local name:
 mlxl3 register MY_MODEL /absolute/path/to/exl3-model
 ```
 
+Or download and register a public Hugging Face checkpoint in one command:
+
+```bash
+mlxl3 download UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw \
+  --name qwen3.6-35b-a3b
+```
+
+Use `--revision 3.10bpw` when a repository stores BPW variants in branches.
+Managed downloads live under
+`~/Library/Application Support/io.mlxl3.desktop/Models` by default.
+
 Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 `--repetition-penalty`, and `--system`.
 
@@ -73,7 +84,8 @@ headroom allows it. The choice can be pinned for experiments with
 
 ## Native macOS app
 
-MLXL3 Desktop is a native SwiftUI application for macOS 26. It uses the system
+MLXL3 Desktop is a native SwiftUI application for Apple Silicon Macs running
+macOS 26.2 or newer. It uses the system
 Liquid Glass materials and talks directly to the local MLXL3 Metal runtime. The
 model stays resident while answers stream; reasoning, final answers, TTFT,
 prefill/decode throughput, and peak memory are displayed separately. Context is
@@ -130,61 +142,43 @@ Build the signed local application bundle and open it:
 open "dist/MLXL3 Desktop.app"
 ```
 
-The app discovers the editable project virtual environment automatically. A
-different executable can be selected with `MLXL3_EXECUTABLE=/path/to/mlxl3`.
+Release builds embed their own Python 3.12 interpreter, MLX/Metal libraries,
+MLX-LM model implementations, tokenizers, Hugging Face downloader, and MLXL3
+engine. Development builds still discover the editable project virtual
+environment automatically. A different executable can be selected with
+`MLXL3_EXECUTABLE=/path/to/mlxl3`.
 
-### Install the current DMG release
+### Install the standalone DMG
 
-The current `v0.1.0` DMG contains the native desktop interface, but it does not
-yet bundle the Python/MLX inference runtime or a Hugging Face downloader. On an
-Apple Silicon Mac running macOS 26:
+On an M1, M2, M3, M4, or M5 Mac running macOS 26.2 or newer:
 
 1. Download
-   [`MLXL3-Desktop-v0.1.0-Apple-Silicon.dmg`](https://github.com/0xZKnw/mlxl3/releases/download/v0.1.0/MLXL3-Desktop-v0.1.0-Apple-Silicon.dmg),
-   open it, and drag **MLXL3 Desktop** into Applications. The app is currently
-   ad-hoc signed rather than Apple-notarized, so the first launch may require
-   right-clicking the app and choosing **Open**.
-2. Install the local engine and Hugging Face CLI:
+   `MLXL3-Desktop-v0.2.0-Apple-Silicon.dmg`, open it, and drag
+   **MLXL3 Desktop** into Applications.
+2. Launch the app. No Python, Homebrew, MLX, Hugging Face CLI, or Terminal setup
+   is required. The current build is ad-hoc signed rather than Apple-notarized,
+   so macOS may require right-clicking the app and choosing **Open** once.
+3. Click **Ajouter un modèle EXL3**. Paste a public Hugging Face repository and,
+   when needed, its BPW revision; alternatively import an existing EXL3 folder.
+   The app downloads, registers, and loads the model automatically.
 
-   ```bash
-   brew install python@3.12 pipx hf
-   pipx ensurepath
-   pipx install --python "$(brew --prefix python@3.12)/bin/python3.12" \
-     "git+https://github.com/0xZKnw/mlxl3.git"
-   ```
-
-3. Download a standard EXL3 model. This is the LFM checkpoint used by the
-   project and known to work end to end:
-
-   ```bash
-   mkdir -p "$HOME/Models"
-   hf download turboderp/LFM2.5-8B-A1B-exl3 \
-     --revision 3.10bpw \
-     --local-dir "$HOME/Models/LFM2.5-8B-A1B-EXL3-3.10bpw"
-   ```
-
-4. Add the downloaded directory to MLXL3's local registry:
-
-   ```bash
-   mlxl3 register lfm2.5-8b-a1b \
-     "$HOME/Models/LFM2.5-8B-A1B-EXL3-3.10bpw"
-   mlxl3 list
-   ```
-
-5. Launch **MLXL3 Desktop**. It discovers the registered model automatically.
-   If the app was already open while registering it, quit and reopen the app.
-
-The same `hf download` then `mlxl3 register` flow applies to other standard
-EXL3 checkpoints whose model architecture is supported by the pinned MLX-LM
-runtime. Bundling the runtime and model manager directly in the app is planned
-for a future standalone release.
+The DMG intentionally does not contain model weights: they are often several to
+dozens of gigabytes and remain user-selected. M5-specific TensorOps are enabled
+automatically where supported; earlier Apple Silicon GPUs use the compatible
+Metal paths.
 
 ## Development
 
 ```bash
 python3.12 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+.venv/bin/pip install -e ".[dev,bundle]"
 .venv/bin/pytest
+```
+
+Build the redistributable app and DMG with:
+
+```bash
+./scripts/build-macos-dmg.sh
 ```
 
 The local model layout is intentionally ignored by Git:

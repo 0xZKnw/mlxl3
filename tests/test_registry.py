@@ -8,6 +8,7 @@ import pytest
 from mlxl3.registry import (
     RegistryError,
     load_registry,
+    managed_models_path,
     register_model,
     remove_model,
     resolve_model,
@@ -58,3 +59,8 @@ def test_resolve_accepts_a_direct_directory(tmp_path: Path, monkeypatch) -> None
     monkeypatch.setenv("MLXL3_HOME", str(tmp_path / "registry"))
     model_path = _fake_model(tmp_path / "direct")
     assert resolve_model(str(model_path)) == ("direct", model_path.resolve())
+
+
+def test_managed_models_path_honors_override(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLXL3_MODELS_DIR", str(tmp_path / "models"))
+    assert managed_models_path() == tmp_path / "models"

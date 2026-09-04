@@ -29,9 +29,11 @@ from mlxl3.registry import (
     RegistryError,
     human_size,
     load_registry,
+    managed_models_path,
     register_model,
     remove_model,
     resolve_model,
+    validate_model_name,
 )
 
 
@@ -623,6 +625,16 @@ def _parser() -> argparse.ArgumentParser:
     register.add_argument("name")
     register.add_argument("path", type=Path)
     register.add_argument("--force", action="store_true")
+
+    download = commands.add_parser(
+        "download", help="download and register an EXL3 model from Hugging Face"
+    )
+    download.add_argument("repo", help="Hugging Face repository, for example owner/model")
+    download.add_argument("--revision", help="branch, tag, or EXL3 BPW revision")
+    download.add_argument("--name", help="local registry name; defaults to the repository name")
+    download.add_argument("--directory", type=Path, help="custom destination directory")
+    download.add_argument("--force", action="store_true", help="redownload existing files")
+    download.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
 
     remove = commands.add_parser("remove", aliases=["rm"], help="remove a registry entry")
     remove.add_argument("name")
@@ -1274,6 +1286,46 @@ def _bridge(args) -> int:
     return 0
 
 
+def _download_hugging_face_model(
+    repo: str,
+    *,
+    revision: str | None,
+    name: str | None,
+    directory: Path | None,
+    force: bool,
+) -> ModelEntry:
+    """Download into app-owned storage and register only a complete model."""
+
+    from huggingface_hub import snapshot_download
+
+    repo = repo.strip()
+    if not repo or repo.startswith("/") or repo.endswith("/"):
+        raise RegistryError("invalid Hugging Face repository name")
+    model_name = (name or repo.rsplit("/", 1)[-1]).strip()
+    validate_model_name(model_name)
+    # The registry accepts slashes for names supplied by advanced CLI users,
+    # but a managed download must never turn them into directory traversal.
+    directory_name = re.sub(r"[^A-Za-z0-9._-]+", "-", model_name).strip(".-")
+    if not directory_name:
+        raise RegistryError("invalid local model name")
+    destination = (
+        directory.expanduser()
+        if directory is not None
+        else managed_models_path() / directory_name
+    ).resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        downloaded = snapshot_download(
+            repo_id=repo,
+            revision=revision or None,
+            local_dir=destination,
+            force_download=force,
+        )
+    except Exception as error:
+        raise RegistryError(f"Hugging Face download failed: {error}") from error
+    return register_model(model_name, downloaded, force=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
@@ -1296,6 +1348,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in {"register", "add"}:
             entry = register_model(args.name, args.path, force=args.force)
             print(f"Modèle {entry.name!r} enregistré ({human_size(entry.size_bytes)}).")
+            return 0
+        if args.command == "download":
+            entry = _download_hugging_face_model(
+                args.repo,
+                revision=args.revision,
+                name=args.name,
+                directory=args.directory,
+                force=args.force,
+            )
+            if args.json:
+                print(json.dumps(_model_payload(entry), ensure_ascii=False))
+            else:
+                print(
+                    f"Modèle {entry.name!r} téléchargé et enregistré "
+                    f"({human_size(entry.size_bytes)})."
+                )
             return 0
         if args.command in {"remove", "rm"}:
             entry = remove_model(args.name)
