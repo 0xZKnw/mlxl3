@@ -49,6 +49,7 @@ class MemorySafetyError(RuntimeError):
 
 
 _PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "2048"))
+_WARM_MODEL_ON_LOAD = os.environ.get("MLXL3_WARM_MODEL_ON_LOAD", "1") != "0"
 
 
 class GenerationSession:
@@ -590,6 +591,8 @@ def _load_model(model_path: Path):
     started = time.perf_counter()
     model, _, report = load_exl3_model(model_path, lazy=False)
     tokenizer = load_tokenizer(str(model_path))
+    if _WARM_MODEL_ON_LOAD:
+        _warm_model(model, tokenizer)
     return (
         model,
         tokenizer,
@@ -597,6 +600,24 @@ def _load_model(model_path: Path):
         time.perf_counter() - started,
         mx.get_active_memory() / 1e9,
     )
+
+
+def _warm_model(model: Any, tokenizer: Any, *, prompt_tokens: int = 32) -> None:
+    """Compile representative prefill/decode graphs before reporting ready."""
+
+    import mlx.core as mx
+    from mlx_lm.models.cache import make_prompt_cache
+
+    encoded = tokenizer.encode("MLXL3 warmup", add_special_tokens=False)
+    token = int(encoded[0]) if encoded else int(tokenizer.eos_token_id or 0)
+    prefix = mx.array([[token] * prompt_tokens], dtype=mx.int32)
+    prompt_cache = make_prompt_cache(model)
+    logits = model(prefix, cache=prompt_cache)
+    next_token = mx.argmax(logits[:, -1, :], axis=-1)
+    mx.eval(next_token)
+    decode_logits = model(next_token[:, None], cache=prompt_cache)
+    mx.eval(decode_logits)
+    mx.clear_cache()
 
 
 def _stream_response(
