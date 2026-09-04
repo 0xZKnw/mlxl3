@@ -269,6 +269,17 @@ def test_streaming_generation_can_be_cancelled_cooperatively(monkeypatch) -> Non
         )
 
 
+def test_gemma_thinking_markers_split_at_every_character():
+    splitter = cli.ThinkingSplitter()
+    fragments = []
+    for char in '<|channel>thought\nraisonnement<channel|>\nBonjour':
+        fragments.extend(splitter.feed(char))
+    fragments.extend(splitter.finish())
+    assert ''.join(t for p, t in fragments if p == 'thinking') == 'raisonnement'
+    assert ''.join(t for p, t in fragments if p == 'answer') == 'Bonjour'
+    assert cli._assistant_context('<|channel>thought\nraisonnement<channel|>Bonjour') == 'Bonjour'
+
+
 def test_thinking_renderer_handles_tags_split_across_tokens() -> None:
     stream = io.StringIO()
     renderer = cli.ThinkingRenderer(stream=stream, color=False)

@@ -409,8 +409,9 @@ class ThinkingSplitter:
         fragments: list[tuple[str, str]] = []
         self.buffer += text
         while self.buffer:
-            marker = self._CLOSE if self.mode == "thinking" else self._OPEN
-            position = self.buffer.find(marker)
+            markers = (self._CLOSE, '<channel|>') if self.mode == 'thinking' else (self._OPEN, '<|channel>thought')
+            matches = [(self.buffer.find(m), m) for m in markers if m in self.buffer]
+            position, marker = min(matches) if matches else (-1, markers[0])
             if position >= 0:
                 fragment = self._fragment(self.buffer[:position])
                 if fragment is not None:
@@ -419,7 +420,7 @@ class ThinkingSplitter:
                 self.mode = "answer" if self.mode == "thinking" else "thinking"
                 self.drop_leading_newline = True
                 continue
-            keep = self._partial_marker_length(self.buffer, marker)
+            keep = max(self._partial_marker_length(self.buffer, m) for m in markers)
             emit_until = len(self.buffer) - keep
             fragment = self._fragment(self.buffer[:emit_until])
             if fragment is not None:
@@ -437,7 +438,7 @@ class ThinkingSplitter:
 def _prompt_prefills_thinking(prompt: str) -> bool:
     """Return whether the generation prompt already opened a reasoning block."""
 
-    return prompt.rstrip().endswith(ThinkingSplitter._OPEN)
+    return prompt.rstrip().endswith((ThinkingSplitter._OPEN, '<|channel>thought'))
 
 
 class ThinkingRenderer:
@@ -603,6 +604,8 @@ def _cache_context(response: str) -> str:
 
 
 def _reasoning_context(response: str) -> str:
+    if '<|channel>thought' in response:
+        return response.split('<|channel>thought', 1)[1].split('<channel|>', 1)[0].strip()
     close = response.rfind("</think>")
     if close < 0:
         return ""
@@ -787,7 +790,9 @@ def _load_model(model_path: Path):
     mx.set_memory_limit(_mlx_memory_guard_bytes())
     started = time.perf_counter()
     model, _, report = load_exl3_model(model_path, lazy=False)
-    tokenizer = load_tokenizer(str(model_path))
+    generation_config_path = model_path / 'generation_config.json'
+    generation_config = json.loads(generation_config_path.read_text()) if generation_config_path.is_file() else {}
+    tokenizer = load_tokenizer(str(model_path), eos_token_ids=generation_config.get('eos_token_id'))
     if _WARM_MODEL_ON_LOAD:
         _warm_model(model, tokenizer)
     return (
@@ -967,6 +972,10 @@ def _messages(system: str | None) -> list[dict[str, str]]:
 def _assistant_context(response: str) -> str:
     """Keep final answers, not hidden or truncated reasoning, in chat history."""
 
+    if '<channel|>' in response:
+        return response.rsplit('<channel|>', 1)[1].strip() or '(La réponse précédente ne contenait pas de conclusion.)'
+    if '<|channel>thought' in response:
+        return '(La réponse précédente a été interrompue avant sa conclusion.)'
     close = response.rfind("</think>")
     if close >= 0:
         final = response[close + len("</think>") :].strip()

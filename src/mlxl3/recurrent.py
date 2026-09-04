@@ -76,6 +76,10 @@ def compile_recurrent_layers(model: nn.Module) -> int:
     stateless_ids: set[int] = set()
     for _, module in list(model.named_modules()):
         module_type = type(module)
+        if module_type.__module__ == 'mlx_lm.models.gemma4_text' and module_type.__name__ in ('MLP', 'Router'):
+            _compile_stateless_module(module)
+            compiled += 1
+            continue
         if not module_type.__module__.startswith("mlx_lm.models.qwen3_5"):
             continue
         if getattr(module, "is_linear", None) is False:

@@ -22,6 +22,26 @@ The current end-to-end target is the official LFM2.5-8B-A1B EXL3 checkpoint at
 projections, and runs the model entirely through MLX/Metal. Ling conversion is
 paused because a full no-training EXL3 conversion is much slower to iterate on.
 
+Gemma 4 26B-A4B EXL3 is also supported for text chat. The loader maps its
+individual experts to grouped Metal projections, applies GeGLU, respects padded
+checkpoint dimensions, and loads its separately quantized output head. Gemma's
+reasoning channels and generation-config end tokens are handled by both clients.
+The local 3.54-bpw checkpoint has been checked with full short responses and an
+expert-level reconstruction comparison; image/audio input is not implemented.
+Gemma decode also groups padded gate/up projections and compiles its MLP/router
+graphs. `benchmarks/benchmark_gemma_fusion.py` compares the optimized and reference
+paths on identical tokens with fresh caches, alternating execution order and
+checking full-vocabulary logits. This measures synchronized engine decode rather
+than UI streaming throughput. The GeGLU rotation fusion remains disabled.
+An experimental SIMD scaled-Hadamard kernel is available with
+`MLXL3_SCALED_HADAMARD=1`. It preserves MLX's intermediate FP16 rounding and is
+covered by exact comparison tests. It remains opt-in: five paired 192-token
+Gemma CLI generations gave identical tokens but only a 2.2% median paired gain,
+with substantial timing variation. `benchmarks/benchmark_gemma_cli.py` reproduces
+that comparison. `benchmarks/profile_gemma_decode.py` counts and times isolated
+stages with explicit synchronization; those diagnostic times are not GPU timings
+and must not be compared directly with streaming throughput.
+
 On this 10-core M5, the LFM fixture reaches a paired 12-run warm median of 65.8
 generated tokens/s and a 4.02 GB peak allocation. The matching MLX 8-bit model
 reaches 58.9 tokens/s and 9.04 GB. Prefill reaches 113.9 tok/s on a 51-token
@@ -73,9 +93,8 @@ Use `--revision 3.10bpw` when a repository stores BPW variants in branches.
 Managed downloads live under
 `~/Library/Application Support/io.mlxl3.desktop/Models` by default.
 Those managed models never require access to Documents. For an existing model
-stored in Documents, Downloads, or on an external disk, select its folder once
-from MLXL3 Desktop. The app stores a macOS security-scoped bookmark and restores
-that access on later launches instead of triggering a new Files & Folders prompt.
+stored in Documents, Downloads, or on an external disk, macOS can display its
+native Files & Folders permission prompt when MLXL3 first loads the checkpoint.
 
 Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 `--repetition-penalty`, and `--system`.

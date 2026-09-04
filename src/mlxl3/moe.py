@@ -400,6 +400,8 @@ class EXL3SwitchGLU(nn.Module):
         down_svh: mx.array,
         bits: int,
         mode: CodebookMode | int,
+        activation: str = 'silu',
+        logical_hidden_dims: int | None = None,
     ):
         super().__init__()
         self.gu_trellis = gu_trellis.view(mx.uint16) if gu_trellis.dtype == mx.int16 else gu_trellis
@@ -412,6 +414,10 @@ class EXL3SwitchGLU(nn.Module):
         self.down_svh = down_svh
         self.bits = int(bits)
         self.mode = CodebookMode(mode)
+        if activation not in ('silu', 'gelu'):
+            raise ValueError('unsupported EXL3 expert activation')
+        self.activation = activation
+        self.logical_hidden_dims = logical_hidden_dims
 
         if gu_suh.ndim != 3 or gu_suh.shape[1] != 2:
             raise ValueError(f"gu_suh must have shape (experts, 2, input), got {gu_suh.shape}")
@@ -493,7 +499,7 @@ class EXL3SwitchGLU(nn.Module):
             mode=self.mode,
         )
 
-        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0
+        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0 and self.activation == 'silu' and self.logical_hidden_dims is None
         if use_fused_glu:
             gate_up = mx.stack([gate_raw, up_raw], axis=1).reshape(
                 slots * 2, self.hidden_dims
@@ -513,7 +519,9 @@ class EXL3SwitchGLU(nn.Module):
                 up_raw,
                 self.gu_svh[sorted_experts, 1],
             )
-            hidden = nn.silu(gate) * up
+            hidden = (nn.gelu_approx(gate) if self.activation == 'gelu' else nn.silu(gate)) * up
+            if self.logical_hidden_dims is not None:
+                hidden = mx.where(mx.arange(self.hidden_dims) < self.logical_hidden_dims, hidden, 0)
             down_x = _scaled_hadamard_input(
                 hidden,
                 self.down_suh[sorted_experts],
@@ -579,7 +587,7 @@ class EXL3SwitchGLU(nn.Module):
             (rows, top_k, 2, self.input_dims),
         ).reshape(slots * 2, self.input_dims)
 
-        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0
+        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0 and self.activation == 'silu' and self.logical_hidden_dims is None
         gu = qmv_exl3_expert_mapped(
             x_gu,
             self.gu_trellis,
@@ -604,7 +612,9 @@ class EXL3SwitchGLU(nn.Module):
             )
         else:
             gu = gu.reshape(slots, 2, self.hidden_dims)
-            hidden = nn.silu(gu[:, 0]) * gu[:, 1]
+            hidden = (nn.gelu_approx(gu[:, 0]) if self.activation == 'gelu' else nn.silu(gu[:, 0])) * gu[:, 1]
+            if self.logical_hidden_dims is not None:
+                hidden = mx.where(mx.arange(self.hidden_dims) < self.logical_hidden_dims, hidden, 0)
 
         output = qmv_exl3_expert_mapped(
             hidden,

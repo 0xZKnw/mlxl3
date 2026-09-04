@@ -17,6 +17,7 @@ from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 _USE_FUSED_GATED_DELTA_INPUTS = (
     os.environ.get("MLXL3_FUSED_GATED_DELTA_INPUTS", "1") != "0"
 )
+_USE_PADDED_GROUPS = os.environ.get('MLXL3_PADDED_LINEAR_GROUPS', '1') != '0'
 
 
 class EXL3Linear(nn.Module):
@@ -31,6 +32,7 @@ class EXL3Linear(nn.Module):
         bits: int,
         mode: CodebookMode | int = CodebookMode.DEFAULT,
         bias: mx.array | None = None,
+        logical_shape: tuple[int, int] | None = None,
     ):
         super().__init__()
         self.trellis = trellis.view(mx.uint16) if trellis.dtype == mx.int16 else trellis
@@ -39,6 +41,13 @@ class EXL3Linear(nn.Module):
         self.bits = int(bits)
         self.mode = CodebookMode(mode)
         self.bias = bias
+        self.logical_shape = logical_shape
+        if logical_shape is not None and (
+            len(logical_shape) != 2
+            or not 0 < logical_shape[0] <= self.output_dims
+            or not 0 < logical_shape[1] <= self.input_dims
+        ):
+            raise ValueError('logical EXL3 shape exceeds serialized dimensions')
         self._dense_cache: mx.array | None = None
 
     @property
@@ -64,6 +73,11 @@ class EXL3Linear(nn.Module):
         return self._dense_cache
 
     def __call__(self, x: mx.array) -> mx.array:
+        if self.logical_shape is not None:
+            if x.shape[-1] != self.logical_shape[1]:
+                raise ValueError('EXL3 logical input width mismatch')
+            if x.shape[-1] < self.input_dims:
+                x = mx.pad(x, [(0, 0)] * (x.ndim - 1) + [(0, self.input_dims - x.shape[-1])])
         if x.size == self.input_dims:
             output = qmv_exl3(
                 x,
@@ -82,6 +96,8 @@ class EXL3Linear(nn.Module):
                 self.bits,
                 self.mode,
             )
+        if self.logical_shape is not None:
+            output = output[..., :self.logical_shape[0]]
         return output if self.bias is None else output + self.bias
 
     @classmethod
@@ -139,6 +155,7 @@ class EXL3LinearGroup(nn.Module):
         self.suh = mx.stack([linear.suh for linear in linears])
         self.svh = mx.concatenate([linear.svh for linear in linears])
         self.output_widths = tuple(linear.output_dims for linear in linears)
+        self.logical_output_widths = tuple(linear.logical_shape[0] if linear.logical_shape else linear.output_dims for linear in linears)
         self.output_tiles = tuple(width // 16 for width in self.output_widths)
         self.tile_sub = mx.concatenate(
             [
@@ -153,7 +170,8 @@ class EXL3LinearGroup(nn.Module):
         self._runtime = _GroupRuntime()
 
     def _evaluate(self, x: mx.array) -> tuple[mx.array, ...]:
-        if x.size == self.input_dims:
+        padded = self.logical_output_widths != self.output_widths
+        if x.size == self.input_dims and (not padded or _USE_PADDED_GROUPS):
             outputs = qmv_exl3_grouped(
                 x,
                 self.trellis,
@@ -172,7 +190,7 @@ class EXL3LinearGroup(nn.Module):
                 zip(self.output_widths, self.output_tiles, strict=True)
             ):
                 parts.append(
-                    qmm_exl3(
+                    (qmv_exl3 if x.size == self.input_dims else qmm_exl3)(
                         x,
                         self.trellis[:, tile_cursor : tile_cursor + tiles],
                         self.suh[index],
@@ -185,8 +203,8 @@ class EXL3LinearGroup(nn.Module):
                 scale_cursor += width
             outputs = tuple(parts)
         return tuple(
-            output if bias is None else output + bias
-            for output, bias in zip(outputs, self.biases, strict=True)
+            output[..., :width] if bias is None else output[..., :width] + bias
+            for output, bias, width in zip(outputs, self.biases, self.logical_output_widths, strict=True)
         )
 
     def project(self, index: int, x: mx.array) -> mx.array:
@@ -236,6 +254,11 @@ def fuse_compatible_linear_groups(model: nn.Module) -> int:
             if not all(isinstance(linear, EXL3Linear) for linear in linears):
                 continue
             first = linears[0]
+            if any(linear.logical_shape is not None and (
+                linear.logical_shape[1] != linear.input_dims or
+                (not _USE_PADDED_GROUPS and linear.logical_shape[0] != linear.output_dims)
+            ) for linear in linears):
+                continue
             if first.bits == 7 or any(
                 linear.input_dims != first.input_dims
                 or linear.bits != first.bits

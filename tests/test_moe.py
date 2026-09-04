@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import mlx.core as mx
 import numpy as np
+import pytest
 from mlx import nn
 
 import mlxl3.kernels.qmv as qmv_kernels
@@ -45,7 +46,8 @@ def test_fused_biased_topk_matches_mlx_selection() -> None:
     np.testing.assert_array_equal(np.asarray(actual_scores), np.asarray(expected_scores))
 
 
-def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
+@pytest.mark.parametrize('activation,logical_hidden', [('silu', None), ('gelu', 96)])
+def test_grouped_switch_glu_matches_individual_qmv(monkeypatch, activation, logical_hidden) -> None:
     rng = np.random.default_rng(53100)
     experts = 4
     dims = hidden = 128
@@ -72,6 +74,8 @@ def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
         down_svh=down_svh,
         bits=k,
         mode=mode,
+        activation=activation,
+        logical_hidden_dims=logical_hidden,
     )
     # Keep the synthetic activations in the range observed after RMSNorm. The
     # fused path deliberately rounds gate/up values once before SwiGLU, matching
@@ -83,7 +87,9 @@ def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
     for expert in (1, 3):
         gate = qmv_exl3(x, gates[expert], gu_suh[expert, 0], gu_svh[expert, 0], k, mode)
         up = qmv_exl3(x, ups[expert], gu_suh[expert, 1], gu_svh[expert, 1], k, mode)
-        hidden_row = nn.silu(gate) * up
+        hidden_row = (nn.gelu_approx(gate) if activation == 'gelu' else nn.silu(gate)) * up
+        if logical_hidden is not None:
+            hidden_row = mx.where(mx.arange(hidden) < logical_hidden, hidden_row, 0)
         expected_rows.append(
             qmv_exl3(
                 hidden_row,
