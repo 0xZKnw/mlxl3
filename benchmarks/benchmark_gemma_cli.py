@@ -26,9 +26,17 @@ def main():
             for module in (layer.mlp, layer.router):
                 original = module._mlxl3_stateless_original_call
                 module._mlxl3_compiled_stateless = mx.compile(lambda x, call=original: call(x))
-        list(stream_generate(model, tokenizer, prompt, max_tokens=8, sampler=make_sampler(temp=0)))
-        results = list(stream_generate(model, tokenizer, prompt, max_tokens=count, sampler=make_sampler(temp=0)))
-        return results[-1], [r.token for r in results], ''.join(r.text for r in results)
+        for _ in stream_generate(model, tokenizer, prompt, max_tokens=8, sampler=make_sampler(temp=0)):
+            pass
+        final = None
+        tokens, pieces = [], []
+        for response in stream_generate(model, tokenizer, prompt, max_tokens=count, sampler=make_sampler(temp=0)):
+            final = response
+            tokens.append(response.token)
+            pieces.append(response.text)
+        if final is None:
+            raise RuntimeError('generation returned no responses')
+        return final, tokens, ''.join(pieces)
 
     run(False, 8)
     run(True, 8)

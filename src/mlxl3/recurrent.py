@@ -13,6 +13,7 @@ from mlx_lm.models.cache import ArraysCache
 _USE_COMPILED_RECURRENT_LAYERS = (
     os.environ.get("MLXL3_COMPILED_RECURRENT_LAYERS", "1") != "0"
 )
+_USE_COMPILED_SHORTCONV = os.environ.get('MLXL3_COMPILED_SHORTCONV', '0') == '1'
 
 
 def _compiled_recurrent_call(
@@ -76,6 +77,21 @@ def compile_recurrent_layers(model: nn.Module) -> int:
     stateless_ids: set[int] = set()
     for _, module in list(model.named_modules()):
         module_type = type(module)
+        if (_USE_COMPILED_SHORTCONV and module_type.__module__ == 'mlx_lm.models.lfm2'
+                and module_type.__name__ == 'ShortConv'):
+            original = module.__call__
+
+            def short_decode(x, state, *, call=original):
+                local_cache = ArraysCache(len(state[0]))
+                local_cache.state = state
+                output = call(x, mask=None, cache=local_cache)
+                return output, local_cache.state
+
+            module._mlxl3_original_call = original
+            module._mlxl3_compiled_decode = mx.compile(short_decode)
+            module.__class__ = _compiled_recurrent_class(module_type)
+            compiled += 1
+            continue
         if module_type.__module__ == 'mlx_lm.models.gemma4_text' and module_type.__name__ in ('MLP', 'Router'):
             _compile_stateless_module(module)
             compiled += 1

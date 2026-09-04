@@ -11,13 +11,15 @@ from mlx import nn
 from safetensors import safe_open
 
 from mlxl3.codec.codebook import CodebookMode
-from mlxl3.kernels.qmv import qmm_exl3, qmv_exl3, qmv_exl3_grouped
+from mlxl3.kernels.qmv import qmm_exl3, qmm_exl3_view, qmv_exl3, qmv_exl3_grouped
 from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 
 _USE_FUSED_GATED_DELTA_INPUTS = (
     os.environ.get("MLXL3_FUSED_GATED_DELTA_INPUTS", "1") != "0"
 )
 _USE_PADDED_GROUPS = os.environ.get('MLXL3_PADDED_LINEAR_GROUPS', '1') != '0'
+_USE_QK_GROUPS = os.environ.get('MLXL3_QK_GROUPS', '0') == '1'
+_USE_STRIDED_PREFILL = os.environ.get('MLXL3_STRIDED_PREFILL', '0') == '1'
 
 
 class EXL3Linear(nn.Module):
@@ -189,6 +191,15 @@ class EXL3LinearGroup(nn.Module):
             for index, (width, tiles) in enumerate(
                 zip(self.output_widths, self.output_tiles, strict=True)
             ):
+                if _USE_STRIDED_PREFILL and x.size != self.input_dims:
+                    parts.append(qmm_exl3_view(
+                        x, self.trellis, self.suh[index],
+                        self.svh[scale_cursor:scale_cursor + width], self.bits, self.mode,
+                        tile_offset=tile_cursor, output_dims=width,
+                    ))
+                    tile_cursor += tiles
+                    scale_cursor += width
+                    continue
                 parts.append(
                     (qmv_exl3 if x.size == self.input_dims else qmm_exl3)(
                         x,
@@ -246,6 +257,10 @@ def fuse_compatible_linear_groups(model: nn.Module) -> int:
         ("q_proj", "k_proj", "v_proj"),
         ("gate_proj", "up_proj"),
     ]
+    if _USE_QK_GROUPS:
+        # QKV is considered first. Its proxies prevent a second/nested group.
+        # Useful for shared-KV Gemma layers with Q and K but no V projection.
+        patterns.append(("q_proj", "k_proj"))
     if _USE_FUSED_GATED_DELTA_INPUTS:
         patterns.append(("in_proj_qkv", "in_proj_z"))
     for _, module in list(model.named_modules()):

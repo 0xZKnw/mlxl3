@@ -17,9 +17,14 @@ from mlxl3.kernels.qmv import (
     qmm_exl3_expert_segmented,
     qmv_exl3_expert_mapped,
 )
+from mlxl3.kernels.routing import inverse_permutation
 
 _USE_FUSED_LFM_ROUTER = os.environ.get("MLXL3_FUSED_MOE_ROUTER", "1") != "0"
 _USE_FUSED_ROUTER_TOPK = os.environ.get("MLXL3_FUSED_ROUTER_TOPK", "1") != "0"
+_USE_BITONIC_ROUTER = os.environ.get('MLXL3_BITONIC_ROUTER', '0') == '1'
+_USE_GEMMA_EXPERT_REDUCE = os.environ.get('MLXL3_GEMMA_EXPERT_REDUCE', '0') == '1'
+_USE_GELU_DOWN_PREP = os.environ.get('MLXL3_GELU_DOWN_PREP', '0') == '1'
+_USE_PREFILL_GATHER_HADAMARD = os.environ.get('MLXL3_PREFILL_GATHER_HADAMARD', '0') == '1'
 _USE_FUSED_MOE_REDUCE = os.environ.get("MLXL3_FUSED_MOE_REDUCE", "1") != "0"
 _USE_FUSED_MOE_GLU_PREP = os.environ.get("MLXL3_FUSED_MOE_GLU_PREP", "1") != "0"
 _USE_SEGMENTED_MOE_PREFILL = os.environ.get("MLXL3_SEGMENTED_MOE_PREFILL", "1") != "0"
@@ -27,7 +32,7 @@ _SEGMENTED_BLOCK_ROWS = 64
 _SEGMENTED_MOE_MIN_ROWS = int(os.environ.get("MLXL3_SEGMENTED_MOE_MIN_ROWS", "64"))
 
 
-def _butterfly_source(source: str, target: str) -> str:
+def _butterfly_source(source: str, target: str, round_after_four: bool = False) -> str:
     stages: list[str] = []
     for shift in range(7):
         step = 1 << shift
@@ -41,22 +46,73 @@ def _butterfly_source(source: str, target: str) -> str:
                 : {source}_value_{shift} + {source}_peer_{shift};
             """
         )
+        if round_after_four and shift == 3:
+            stages.append(f'{target}[tid] = float(half({target}[tid]));')
         source, target = target, source
     return "".join(stages)
 
 
 @cache
-def _fused_glu_down_prepare_kernel(hidden_dims: int):
+def _prefill_gather_hadamard_kernel(dims):
+    stages = _butterfly_source('a', 'b', round_after_four=True)
+    return mx.fast.metal_kernel(
+        name=f'mlxl3_prefill_gather_hadamard_d{dims}_v1',
+        input_names=['x', 'scales', 'tokens', 'experts'], output_names=['out'],
+        source=f"""
+            uint tid = thread_position_in_threadgroup.x;
+            uint block = threadgroup_position_in_grid.x;
+            uint route = threadgroup_position_in_grid.y;
+            uint projection = threadgroup_position_in_grid.z;
+            uint column = block * 128u + tid;
+            uint token = tokens[route];
+            uint expert = uint(experts[route]);
+            threadgroup float a[128];
+            threadgroup float b[128];
+            a[tid] = float(half(half(x[token * {dims}u + column]) *
+                half(scales[(expert * 2u + projection) * {dims}u + column])));
+            {stages}
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            out[(projection * uint(tokens_shape[0]) + route) * {dims}u + column] =
+                half(float(half(b[tid])) * 0.08838834764831845f);
+        """, compile_options={'math_mode': 'safe'},
+    )
+
+
+def _prefill_gather_hadamard(x, scales, tokens, experts):
+    dims = x.shape[-1]
+    if dims % 128 or scales.shape[1:] != (2, dims) or tokens.shape != experts.shape:
+        raise ValueError('invalid routed prefill Hadamard shape')
+    return _prefill_gather_hadamard_kernel(dims)(
+        inputs=[x, scales, tokens, experts], grid=(dims, tokens.size, 2),
+        threadgroup=(128, 1, 1), output_shapes=[(2, tokens.size, dims)],
+        output_dtypes=[mx.float16],
+    )[0]
+
+
+@cache
+def _fused_glu_down_prepare_kernel(hidden_dims: int, activation: str = 'silu', logical_hidden: int | None = None):
     """Fuse two output rotations, SwiGLU and the down input rotation."""
 
     if hidden_dims % 128:
         raise ValueError("fused MoE hidden width must be 128-aligned")
-    gate_stages = _butterfly_source("gate_a", "gate_b")
-    up_stages = _butterfly_source("up_a", "up_b")
-    down_stages = _butterfly_source("down_a", "down_b")
+    gate_stages = _butterfly_source("gate_a", "gate_b", activation == 'gelu')
+    up_stages = _butterfly_source("up_a", "up_b", activation == 'gelu')
+    down_stages = _butterfly_source("down_a", "down_b", activation == 'gelu')
+    if activation not in ('silu', 'gelu'):
+        raise ValueError('unsupported GLU activation')
+    if logical_hidden is not None and not 0 < logical_hidden <= hidden_dims:
+        raise ValueError('invalid logical GLU width')
+    activate = ('gate / (1.0f + exp(-gate))' if activation == 'silu' else
+                '0.5f * gate * (1.0f + tanh(0.7978845608028654f * (gate + 0.044715f * gate * gate * gate)))')
+    gate_finish = ('float(half(float(half(gate_b[tid])) * HAD_SCALE))' if activation == 'gelu'
+                   else 'gate_b[tid] * HAD_SCALE')
+    up_finish = ('float(half(float(half(up_b[tid])) * HAD_SCALE))' if activation == 'gelu'
+                 else 'up_b[tid] * HAD_SCALE')
+    hidden_finish = f'float(half(({activate}) * up))' if activation == 'silu' else f'float(half(half({activate}) * half(up)))'
+    down_finish = 'float(half(down_b[tid]))' if activation == 'gelu' else 'down_b[tid]'
     # Seven stages leave the result in the alternate buffer.
     return mx.fast.metal_kernel(
-        name=f"mlxl3_moe_glu_down_prep_h{hidden_dims}_v1",
+        name=f"mlxl3_moe_glu_down_prep_h{hidden_dims}_{activation}_l{logical_hidden or hidden_dims}_v2",
         input_names=["ygu", "gu_svh", "down_suh", "selected"],
         output_names=["xhat"],
         source=f"""
@@ -83,20 +139,21 @@ def _fused_glu_down_prepare_kernel(hidden_dims: int):
             {up_stages}
             threadgroup_barrier(mem_flags::mem_threadgroup);
             float gate = float(half(
-                gate_b[tid] * HAD_SCALE
+                {gate_finish}
                 * float(gu_svh[(expert * 2u) * HIDDEN + column])
             ));
             float up = float(half(
-                up_b[tid] * HAD_SCALE
+                {up_finish}
                 * float(gu_svh[(expert * 2u + 1u) * HIDDEN + column])
             ));
-            float hidden = float(half((gate / (1.0f + exp(-gate))) * up));
+            float hidden = {hidden_finish};
+            if (column >= {logical_hidden or hidden_dims}u) hidden = 0.0f;
             down_a[tid] = float(half(
                 hidden * float(down_suh[expert * HIDDEN + column])
             ));
             {down_stages}
             threadgroup_barrier(mem_flags::mem_threadgroup);
-            xhat[slot * HIDDEN + column] = half(down_b[tid] * HAD_SCALE);
+            xhat[slot * HIDDEN + column] = half({down_finish} * HAD_SCALE);
         """,
         compile_options={"math_mode": "safe"},
     )
@@ -107,10 +164,12 @@ def _fused_glu_down_prepare(
     gu_svh: mx.array,
     down_suh: mx.array,
     selected: mx.array,
+    activation: str = 'silu',
+    logical_hidden: int | None = None,
 ) -> mx.array:
     slots = int(selected.size)
     hidden_dims = int(ygu.shape[-1])
-    return _fused_glu_down_prepare_kernel(hidden_dims)(
+    return _fused_glu_down_prepare_kernel(hidden_dims, activation, logical_hidden)(
         inputs=[ygu, gu_svh, down_suh, selected],
         grid=(slots * (hidden_dims // 128) * 128, 1, 1),
         threadgroup=(128, 1, 1),
@@ -151,15 +210,46 @@ def _segmented_block_table(experts: int, max_blocks: int):
 
 
 @cache
-def _router_topk_kernel(experts: int, top_k: int, normalize: bool):
+def _router_topk_kernel(experts: int, top_k: int, normalize: bool, bitonic: bool = False):
     """Single-row stable top-k adapted from mlx-swift-lm's Qwen router."""
 
     if experts > 1024:
         raise ValueError("fused router supports at most 1024 experts")
     if not 0 < top_k <= experts:
         raise ValueError("invalid router top-k")
+    if bitonic and experts & (experts - 1):
+        raise ValueError('bitonic router requires a power-of-two expert count')
+    ranking = """
+            int above = 0;
+            for (uint other = 0u; other < EXPERTS; ++other) {
+                above += sort_keys[other] > key ? 1 : 0;
+            }
+            if (above < int(TOP_K)) {
+                uint slot = TOP_K - 1u - uint(above);
+                top_values[slot] = float(values[row * EXPERTS + tid]);
+                indices[row * TOP_K + slot] = tid;
+            }
+    """
+    if bitonic:
+        ranking = """
+            for (uint width = 2u; width <= EXPERTS; width <<= 1u) {
+                for (uint step = width >> 1u; step; step >>= 1u) {
+                    ulong own = sort_keys[tid];
+                    ulong peer = sort_keys[tid ^ step];
+                    bool take_min = ((tid & width) == 0u) == ((tid & step) == 0u);
+                    threadgroup_barrier(mem_flags::mem_threadgroup);
+                    sort_keys[tid] = take_min ? min(own, peer) : max(own, peer);
+                    threadgroup_barrier(mem_flags::mem_threadgroup);
+                }
+            }
+            if (tid < TOP_K) {
+                uint expert = uint(sort_keys[EXPERTS - TOP_K + tid]);
+                indices[row * TOP_K + tid] = expert;
+                top_values[tid] = float(values[row * EXPERTS + expert]);
+            }
+        """
     return mx.fast.metal_kernel(
-        name=f"mlxl3_router_topk_e{experts}_k{top_k}_n{int(normalize)}_v1",
+        name=f"mlxl3_router_topk_e{experts}_k{top_k}_n{int(normalize)}_b{int(bitonic)}_v2",
         input_names=["selection", "values"],
         output_names=["indices", "scores"],
         source=f"""
@@ -180,15 +270,7 @@ def _router_topk_kernel(experts: int, top_k: int, normalize: bool):
             sort_keys[tid] = key;
             threadgroup_barrier(mem_flags::mem_threadgroup);
 
-            int above = 0;
-            for (uint other = 0u; other < EXPERTS; ++other) {{
-                above += sort_keys[other] > key ? 1 : 0;
-            }}
-            if (above < int(TOP_K)) {{
-                uint slot = TOP_K - 1u - uint(above);
-                top_values[slot] = float(values[row * EXPERTS + tid]);
-                indices[row * TOP_K + slot] = tid;
-            }}
+            {ranking}
             threadgroup_barrier(mem_flags::mem_threadgroup);
 
             if (tid == 0u) {{
@@ -228,7 +310,7 @@ def router_topk(
         return indices, scores
 
     output_shape = (*values.shape[:-1], top_k)
-    indices, scores = _router_topk_kernel(experts, top_k, normalize)(
+    indices, scores = _router_topk_kernel(experts, top_k, normalize, _USE_BITONIC_ROUTER and experts & (experts - 1) == 0)(
         inputs=[values, values],
         template=[("T", values.dtype)],
         grid=(experts, 1, 1),
@@ -349,11 +431,26 @@ def _fused_qwen_moe_call(module: Any, x: mx.array) -> mx.array:
     return routed + shared
 
 
+def _fused_gemma_experts_call(module, x, top_k_indices, top_k_weights):
+    if x.size != x.shape[-1]:
+        return module._mlxl3_original_call(x, top_k_indices, top_k_weights)
+    return module.switch_glu(x, top_k_indices, scores=top_k_weights)
+
+
 def fuse_moe_routers(model: nn.Module) -> int:
     """Replace supported decode router chains with fused Metal selectors."""
 
     fused = 0
     for _, module in model.named_modules():
+        if (_USE_GEMMA_EXPERT_REDUCE
+                and type(module).__module__ == 'mlx_lm.models.gemma4_text'
+                and type(module).__name__ == 'Experts'
+                and isinstance(module.switch_glu, EXL3SwitchGLU)):
+            module._mlxl3_original_call = module.__call__
+            module.__class__ = type('MLXL3FusedGemmaExperts', (type(module),),
+                                    {'__call__': _fused_gemma_experts_call})
+            fused += 1
+            continue
         is_lfm = (
             hasattr(module, "switch_mlp")
             and isinstance(module.switch_mlp, EXL3SwitchGLU)
@@ -447,7 +544,7 @@ class EXL3SwitchGLU(nn.Module):
         slots = rows * top_k
         selected = indices.reshape(-1).astype(mx.int32)
         order = mx.argsort(selected)
-        inverse = mx.argsort(order)
+        inverse = inverse_permutation(order)
         sorted_experts = selected[order]
         token_rows = (mx.arange(slots, dtype=mx.uint32) // top_k)[order]
 
@@ -460,20 +557,19 @@ class EXL3SwitchGLU(nn.Module):
                 mx.zeros((_SEGMENTED_BLOCK_ROWS,), dtype=mx.int32),
             ]
         )
-        routed_x = x.reshape(rows, self.input_dims)[padded_tokens]
         max_blocks = slots // _SEGMENTED_BLOCK_ROWS + self.num_experts + 1
         block_table, block_count = _segmented_block_table(
             self.num_experts, max_blocks
         )(sorted_experts)
 
-        gate_x = _scaled_hadamard_input(
-            routed_x,
-            self.gu_suh[padded_experts, 0],
-        )
-        up_x = _scaled_hadamard_input(
-            routed_x,
-            self.gu_suh[padded_experts, 1],
-        )
+        if _USE_PREFILL_GATHER_HADAMARD:
+            prepared = _prefill_gather_hadamard(
+                x.reshape(rows, self.input_dims), self.gu_suh, padded_tokens, padded_experts)
+            gate_x, up_x = prepared[0], prepared[1]
+        else:
+            routed_x = x.reshape(rows, self.input_dims)[padded_tokens]
+            gate_x = _scaled_hadamard_input(routed_x, self.gu_suh[padded_experts, 0])
+            up_x = _scaled_hadamard_input(routed_x, self.gu_suh[padded_experts, 1])
         gate_raw = qmm_exl3_expert_segmented(
             gate_x,
             self.gu_trellis,
@@ -499,7 +595,7 @@ class EXL3SwitchGLU(nn.Module):
             mode=self.mode,
         )
 
-        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0 and self.activation == 'silu' and self.logical_hidden_dims is None
+        use_fused_glu = self._use_fused_prepare()
         if use_fused_glu:
             gate_up = mx.stack([gate_raw, up_raw], axis=1).reshape(
                 slots * 2, self.hidden_dims
@@ -509,6 +605,8 @@ class EXL3SwitchGLU(nn.Module):
                 self.gu_svh,
                 self.down_suh,
                 sorted_experts,
+                self.activation,
+                self.logical_hidden_dims,
             )
         else:
             gate = _scaled_hadamard_output(
@@ -558,6 +656,12 @@ class EXL3SwitchGLU(nn.Module):
             return output.reshape(*indices.shape[:-1], self.input_dims)
         return output.reshape(*indices.shape, self.input_dims)
 
+    def _use_fused_prepare(self):
+        return self.hidden_dims % 128 == 0 and (
+            (_USE_FUSED_MOE_GLU_PREP and self.activation == 'silu' and self.logical_hidden_dims is None)
+            or (_USE_GELU_DOWN_PREP and self.activation == 'gelu')
+        )
+
     def __call__(
         self,
         x: mx.array,
@@ -587,7 +691,7 @@ class EXL3SwitchGLU(nn.Module):
             (rows, top_k, 2, self.input_dims),
         ).reshape(slots * 2, self.input_dims)
 
-        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0 and self.activation == 'silu' and self.logical_hidden_dims is None
+        use_fused_glu = self._use_fused_prepare()
         gu = qmv_exl3_expert_mapped(
             x_gu,
             self.gu_trellis,
@@ -609,6 +713,8 @@ class EXL3SwitchGLU(nn.Module):
                 self.gu_svh,
                 self.down_suh,
                 selected,
+                self.activation,
+                self.logical_hidden_dims,
             )
         else:
             gu = gu.reshape(slots, 2, self.hidden_dims)
@@ -642,7 +748,7 @@ class EXL3SwitchGLU(nn.Module):
                     output,
                     scales,
                     scores.reshape(rows, top_k),
-                ).astype(x.dtype)
+                ).astype(mx.result_type(x, scores))
             else:
                 output = _scaled_hadamard_output(output, scales).astype(x.dtype)
         if scores is not None:

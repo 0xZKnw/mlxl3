@@ -25,17 +25,20 @@ def chat_prompt(tokenizer, text: str) -> str:
 
 
 def run_generation(model, tokenizer, prompt: str, max_tokens: int):
-    responses = list(
-        stream_generate(
+    final = None
+    pieces = []
+    for response in stream_generate(
             model,
             tokenizer,
             chat_prompt(tokenizer, prompt),
             max_tokens=max_tokens,
             sampler=make_sampler(temp=0.0),
-        )
-    )
-    final = responses[-1]
-    return final, "".join(response.text for response in responses)
+        ):
+        final = response
+        pieces.append(response.text)
+    if final is None:
+        raise RuntimeError('generation returned no responses')
+    return final, "".join(pieces)
 
 
 def main() -> None:
