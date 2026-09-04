@@ -13,6 +13,7 @@ from mlx import nn
 from mlx.utils import tree_flatten, tree_unflatten
 from mlx_lm.utils import _get_classes
 
+from mlxl3.attention import install_gemma_attention
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.linear import EXL3Linear, fuse_compatible_linear_groups
 from mlxl3.moe import EXL3SwitchGLU, fuse_moe_routers
@@ -336,6 +337,7 @@ def _load_exl3_model(
     fuse_compatible_linear_groups(model)
     fuse_moe_routers(model)
     compile_recurrent_layers(model)
+    install_gemma_attention(model)
     model.eval()
     if not lazy:
         mx.eval(model.parameters())

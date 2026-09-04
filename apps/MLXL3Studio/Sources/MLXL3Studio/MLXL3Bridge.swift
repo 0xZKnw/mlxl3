@@ -210,6 +210,13 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
         process.executableURL = executable
         process.arguments = ["bridge", model]
+        // Group shared KV heads for Gemma d=512 decode; other cases retain
+        // the reference path. Preserve explicit overrides for comparisons.
+        var environment = ProcessInfo.processInfo.environment
+        if environment["MLXL3_GEMMA_SDPA512"] == nil {
+            environment["MLXL3_GEMMA_SDPA512"] = "grouped"
+        }
+        process.environment = environment
         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
         process.standardInput = input
         process.standardOutput = output

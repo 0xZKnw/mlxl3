@@ -164,6 +164,14 @@ without a shell, but enabled MCP servers and their tool descriptions are trusted
 local code: only configure servers you trust and only grant the directories or
 credentials they actually need.
 
+Desktop enables grouped full-context attention for Gemma's FP16 d=512 decode
+at 2048+ KV tokens. Other attention cases and architectures retain their usual
+path. This avoids repeated KV reads across query heads; no speculative decoding
+or extra quantization is used. Floating-point reduction order can differ.
+Set `MLXL3_GEMMA_SDPA512=off` when launching Desktop to compare the reference
+path; the standalone CLI remains opt-in. See the
+[benchmark notes](docs/gemma-sdpa512-investigation.md).
+
 Build the signed local application bundle and open it:
 
 ```bash
