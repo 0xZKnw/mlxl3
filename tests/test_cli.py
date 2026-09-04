@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import mlx_lm
+import pytest
 from mlx_lm.models.cache import ArraysCache
 
 from mlxl3 import cli
@@ -218,6 +219,30 @@ def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -
     assert stats.prefill_tps == 100.0
     assert stats.decode_tps == 0.5
     assert capsys.readouterr().out == "── Réponse ──\nbonjour\n"
+
+
+def test_streaming_generation_can_be_cancelled_cooperatively(monkeypatch) -> None:
+    response = SimpleNamespace(
+        text="ignored",
+        token=1,
+        generation_tokens=1,
+        prompt_tps=100.0,
+        prompt_tokens=20,
+        peak_memory=4.0,
+    )
+    monkeypatch.setattr(mlx_lm, "stream_generate", lambda *args, **kwargs: iter([response]))
+
+    with pytest.raises(cli.GenerationCancelled):
+        cli._stream_response(
+            object(),
+            FakeTokenizer(),
+            [{"role": "user", "content": "hello"}],
+            max_tokens=2,
+            temperature=0.0,
+            top_k=0,
+            repetition_penalty=0.0,
+            should_cancel=lambda: True,
+        )
 
 
 def test_thinking_renderer_handles_tags_split_across_tokens() -> None:
@@ -530,3 +555,31 @@ def test_bridge_handles_thinking_tag_prefilled_by_chat_template(monkeypatch, cap
     assert events[3]["text"] == "answer"
     assert events[4]["assistant_context"] == "answer"
     assert events[4]["stats"]["decode_tps"] == 90.0
+
+
+def test_bridge_reports_cooperative_cancellation(monkeypatch, capsys) -> None:
+    def cancel(*args, **kwargs):
+        raise cli.GenerationCancelled
+
+    monkeypatch.setattr(cli, "resolve_model", lambda name: (name, "/tmp/model"))
+    monkeypatch.setattr(cli, "_load_model", lambda path: (object(), object(), 42, 0.5, 3.9))
+    monkeypatch.setattr(cli, "_bridge_generate", cancel)
+    monkeypatch.setattr(
+        cli.sys,
+        "stdin",
+        io.StringIO(
+            json.dumps(
+                {
+                    "type": "generate",
+                    "request_id": "turn-cancelled",
+                    "messages": [{"role": "user", "content": "hello"}],
+                }
+            )
+            + "\n"
+        ),
+    )
+
+    assert cli._bridge(SimpleNamespace(model="lfm")) == 0
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert [event["type"] for event in events] == ["loading", "ready", "cancelled"]
+    assert events[-1]["request_id"] == "turn-cancelled"

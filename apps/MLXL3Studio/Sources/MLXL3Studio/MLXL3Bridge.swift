@@ -191,6 +191,11 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
+    func cancelGeneration() -> Bool {
+        guard let process, process.isRunning else { return false }
+        return Darwin.kill(process.processIdentifier, SIGUSR1) == 0
+    }
+
     func stop() {
         inputPipe?.fileHandleForWriting.closeFile()
         if process?.isRunning == true {

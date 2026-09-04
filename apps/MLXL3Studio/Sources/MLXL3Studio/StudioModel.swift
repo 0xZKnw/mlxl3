@@ -224,6 +224,9 @@ final class StudioModel: ObservableObject {
 
     func stopGeneration() {
         guard isGenerating else { return }
+        if bridge.cancelGeneration() {
+            return
+        }
         activeMessage()?.fail("Génération arrêtée")
         activeRequestID = nil
         activeResponseID = nil
@@ -348,6 +351,13 @@ final class StudioModel: ObservableObject {
                 fallbackAnswer: event.assistantContext,
                 cacheContext: event.cacheContext
             )
+            activeRequestID = nil
+            activeResponseID = nil
+            schedulePersistence()
+            restoreReadyState()
+        case "cancelled":
+            guard event.requestID == activeRequestID else { return }
+            activeMessage()?.fail("Génération arrêtée")
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()

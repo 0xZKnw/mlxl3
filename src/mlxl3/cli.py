@@ -6,7 +6,9 @@ import argparse
 import json
 import os
 import re
+import signal
 import sys
+import threading
 import time
 from collections import OrderedDict
 from collections.abc import Callable
@@ -47,6 +49,10 @@ class GenerationStats:
 
 class MemorySafetyError(RuntimeError):
     """Generation stopped before Metal pressure can destabilize the desktop."""
+
+
+class GenerationCancelled(RuntimeError):
+    """A bridge client cooperatively cancelled the active generation."""
 
 
 # Zero selects a memory-aware serialized-QMM step. An explicit environment
@@ -786,6 +792,7 @@ def _stream_response(
     on_prompt: Callable[[str], None] | None = None,
     tools: list[dict[str, Any]] | None = None,
     session: GenerationSession | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> tuple[str, GenerationStats]:
     import mlx.core as mx
     from mlx_lm import stream_generate
@@ -854,6 +861,8 @@ def _stream_response(
             logits_processors=processors,
             prompt_cache=prompt_cache,
         ):
+            if should_cancel is not None and should_cancel():
+                raise GenerationCancelled
             if first_token_at is None:
                 first_token_at = time.perf_counter()
             final = response
@@ -1046,6 +1055,7 @@ def _bridge_generate(
     repetition_penalty: float,
     mcp: MCPManager,
     session: GenerationSession | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> None:
     dialogue = list(messages)
     session = session or GenerationSession()
@@ -1080,6 +1090,7 @@ def _bridge_generate(
             on_prompt=splitter.configure_for_prompt,
             tools=chat_tools,
             session=session,
+            should_cancel=should_cancel,
         )
         for phase, fragment in splitter.finish():
             _emit_split_fragment(
@@ -1155,6 +1166,9 @@ def _bridge(args) -> int:
     _json_event("loading", model=name)
     model, tokenizer, modules, load_seconds, resident_gb = _load_model(path)
     sessions = GenerationSessionPool()
+    cancel_requested = threading.Event()
+    previous_cancel_handler = signal.getsignal(signal.SIGUSR1)
+    signal.signal(signal.SIGUSR1, lambda _signum, _frame: cancel_requested.set())
     try:
         mcp = MCPManager()
         mcp.connect()
@@ -1213,8 +1227,11 @@ def _bridge(args) -> int:
                     repetition_penalty=repetition_penalty,
                     mcp=mcp,
                     session=sessions.acquire(conversation_id),
+                    should_cancel=cancel_requested.is_set,
                 )
                 sessions.prune(conversation_id)
+            except GenerationCancelled:
+                _json_event("cancelled", request_id=request_id)
             except (ValueError, TypeError, json.JSONDecodeError) as error:
                 _json_event("error", request_id=request_id, message=str(error))
             except Exception as error:  # noqa: BLE001 - keep the resident model available
@@ -1223,7 +1240,10 @@ def _bridge(args) -> int:
                     request_id=request_id,
                     message=f"{type(error).__name__}: {error}",
                 )
+            finally:
+                cancel_requested.clear()
     finally:
+        signal.signal(signal.SIGUSR1, previous_cancel_handler)
         mcp.close()
     return 0
 
