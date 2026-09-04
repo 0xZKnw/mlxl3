@@ -19,9 +19,11 @@ from mlxl3.kernels.common import (
     permutation_header,
     specialized_codebook_header,
 )
+from mlxl3.tuning import tensor_tile
 
 _HADAMARD_SCALE = 1.0 / math.sqrt(128.0)
 _USE_SCALED_HADAMARD = os.environ.get('MLXL3_SCALED_HADAMARD', '0') == '1'
+_USE_QMV_OUTPUT_FUSION = os.environ.get('MLXL3_QMV_OUTPUT_FUSION', '0') == '1'
 
 
 @cache
@@ -82,6 +84,10 @@ _USE_TENSOR_QMM = os.environ.get("MLXL3_TENSOR_QMM", "1") != "0"
 _USE_TENSOR_SEGMENTED_QMM = (
     os.environ.get("MLXL3_TENSOR_SEGMENTED_QMM", "1") != "0"
 )
+_SEGMENTED_TENSOR_ROWS = int(os.environ.get('MLXL3_SEGMENTED_TENSOR_ROWS', '32'))
+_USE_SEGMENTED_BUCKETS = os.environ.get('MLXL3_SEGMENTED_BUCKETS', '0') == '1'
+if _SEGMENTED_TENSOR_ROWS not in (8, 16, 32):
+    raise ValueError('MLXL3_SEGMENTED_TENSOR_ROWS must be 8, 16 or 32')
 
 
 @cache
@@ -149,12 +155,15 @@ def _qmv_tile_kernel(
     output_dims: int,
     tiles_per_group: int = 1,
     simdgroups: int = 4,
+    fuse_output: bool = False,
 ):
     """Configurable-simdgroup CUDA-style kernel over adjacent output tiles."""
 
-    if tiles_per_group not in (1, 2, 4):
+    if tiles_per_group not in (1, 2, 4, 8):
         raise ValueError(f"unsupported QMV output tile group {tiles_per_group}")
-    if simdgroups not in (2, 4, 8) or simdgroups * tiles_per_group > 32:
+    if fuse_output and tiles_per_group != 8:
+        raise ValueError('fused output needs a whole 128-element Hadamard block')
+    if simdgroups not in (2, 4, 8) or simdgroups * tiles_per_group > 64:
         raise ValueError(
             f"unsupported QMV shape: {simdgroups} simdgroups x {tiles_per_group} tiles"
         )
@@ -162,14 +171,15 @@ def _qmv_tile_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}"
-            f"_nt{tiles_per_group}_sg{simdgroups}_v5"
+            f"_nt{tiles_per_group}_sg{simdgroups}_f{int(fuse_output)}_v6"
         ),
-        input_names=["xhat", "trellis"],
+        input_names=["xhat", "trellis", "svh"],
         output_names=["yhat"],
         header=(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
             f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
+            f"#define MLXL3_FUSE_OUTPUT {int(fuse_output)}\n"
             + specialized_codebook_header(mode)
         ),
         source=r"""
@@ -179,6 +189,8 @@ def _qmv_tile_kernel(
             uint tile_n = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
+            threadgroup float ha[128];
+            threadgroup float hb[128];
 
             uint word0[2];
             uint word1[2];
@@ -290,10 +302,29 @@ def _qmv_tile_kernel(
                 for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                     sum += partials[group][output_tile * 16u + column];
                 }
-                yhat[
+                if (MLXL3_FUSE_OUTPUT) ha[tid] = float(half(sum));
+                else yhat[
                     split * uint(OUTPUT_DIMS)
                     + (tile_n + output_tile) * 16u + column
                 ] = sum;
+            }
+            if (MLXL3_FUSE_OUTPUT) {
+                for (uint shift = 0u; shift < 7u; ++shift) {
+                    threadgroup_barrier(mem_flags::mem_threadgroup);
+                    if (tid < 128u) {
+                        uint h = 1u << shift;
+                        float own = ha[tid], peer = ha[tid ^ h];
+                        float value = (tid & h) ? peer - own : own + peer;
+                        hb[tid] = shift == 3u ? float(half(value)) : value;
+                    }
+                    threadgroup_barrier(mem_flags::mem_threadgroup);
+                    if (tid < 128u) ha[tid] = hb[tid];
+                }
+                if (tid < 128u) {
+                    uint index = tile_n * 16u + tid;
+                    half rotated = half(float(half(ha[tid])) * 0.08838834764831845f);
+                    yhat[index] = half(rotated * half(svh[index]));
+                }
             }
         """,
         compile_options={"math_mode": "safe"},
@@ -663,6 +694,8 @@ def _qmm_tensor_kernel(
     block_rows: int,
     block_columns: int = 32,
     block_depth: int = 32,
+    weight_tiles_n: int | None = None,
+    weight_tile_offset: int = 0,
 ):
     """EXL3 QMM using M5 TensorOps with on-chip cooperative dequantization."""
 
@@ -677,7 +710,7 @@ def _qmm_tensor_kernel(
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmm_tensor_k{k}_cb{mode}_{input_dims}x{output_dims}"
-            f"_m{block_rows}_n{block_columns}_d{block_depth}_v1"
+            f"_m{block_rows}_n{block_columns}_d{block_depth}_s{weight_tiles_n or output_dims // 16}_o{weight_tile_offset}_v2"
         ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
@@ -697,7 +730,7 @@ def _qmm_tensor_kernel(
             constexpr uint PACKED_U32 = {k * 8}u;
             constexpr uint INPUT_DIMS = {input_dims}u;
             constexpr uint OUTPUT_DIMS = {output_dims}u;
-            constexpr uint TILES_N = {output_dims // 16}u;
+            constexpr uint TILES_N = {weight_tiles_n or output_dims // 16}u;
 
             uint column_block = threadgroup_position_in_grid.x;
             uint row_block = threadgroup_position_in_grid.y;
@@ -739,7 +772,7 @@ def _qmm_tensor_kernel(
                     uint output_column = column_block * BN + uint(coordinate[0]);
                     uint input_row = depth + uint(coordinate[1]);
                     uint tile_k = input_row >> 4u;
-                    uint tile_n = output_column >> 4u;
+                    uint tile_n = (output_column >> 4u) + {weight_tile_offset}u;
                     uint local = (input_row & 15u) * 16u + (output_column & 15u);
                     uint source = uint(mlxl3_perm_inv[local]);
                     uint position = source >> 1u;
@@ -977,7 +1010,7 @@ def _scaled_hadamard_output_reduce(
     transformed = mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
     finished = transformed * scale.astype(mx.float16)
     return (finished.reshape(weights.shape[0], weights.shape[1], shape[-1])
-            * weights[..., None].astype(mx.float16)).sum(axis=1)
+            * weights[..., None]).sum(axis=1)
 
 
 def _split_count(input_tiles: int, output_tiles: int) -> int:
@@ -1104,10 +1137,13 @@ def qmv_exl3(
         )
         if trellis.shape[1] % tiles_per_group:
             tiles_per_group = 1
+        fused_output = _USE_QMV_OUTPUT_FUSION and splits == 1 and output_dims % 128 == 0
+        if fused_output:
+            tiles_per_group = 8
         partials = _qmv_tile_kernel(
-            k, int(cb), input_dims, output_dims, tiles_per_group, simdgroups
+            k, int(cb), input_dims, output_dims, tiles_per_group, simdgroups, fused_output
         )(
-            inputs=[xhat, trellis.reshape(-1).view(mx.uint32)],
+            inputs=[xhat, trellis.reshape(-1).view(mx.uint32), svh],
             template=[
                 ("K", k),
                 ("CB", int(cb)),
@@ -1126,6 +1162,8 @@ def qmv_exl3(
             output_shapes=[(splits, output_dims)],
             output_dtypes=[mx.float32],
         )[0]
+        if fused_output:
+            return partials[0].astype(x.dtype).reshape(*original_shape, output_dims)
         yhat = partials[0] if splits == 1 else partials.sum(axis=0)
     output = _scaled_hadamard_output(yhat.reshape(1, output_dims), svh)[0]
     return output.astype(x.dtype).reshape(*original_shape, output_dims)
@@ -1345,7 +1383,7 @@ def qmv_exl3_expert_mapped(
             yhat,
             svh,
             reduce_weights,
-        ).astype(x.dtype)
+        ).astype(mx.result_type(x, reduce_weights))
     return _scaled_hadamard_output(yhat, svh).astype(x.dtype)
 
 
@@ -1618,13 +1656,31 @@ def _segmented_expert_qmm_kernel(k: int, mode: int):
     )
 
 
+def _make_segmented_tensor_kernel(*, bucketed, block_rows, **kwargs):
+    if bucketed:
+        # One GPU dispatch. The device-side route table selects a descriptor;
+        # no host readback, second output buffer or merge/reduction is needed.
+        source = kwargs['source']
+        marker = 'uint local_row_begin = row_subblock * BM;'
+        prefix, body = source.split(marker)
+        prefix = prefix.replace(f'constexpr uint BM = {block_rows}u;', '')
+        body = marker + body
+        kwargs['source'] = prefix + (
+            'if (segment_rows <= 8u) { constexpr uint BM = 8u;' + body + '}'
+            'else if (segment_rows <= 16u) { constexpr uint BM = 16u;' + body + '}'
+            'else { constexpr uint BM = 32u;' + body + '}'
+        )
+    return mx.fast.metal_kernel(**kwargs)
+
+
 @cache
-def _segmented_expert_qmm_tensor_kernel(k: int, mode: int):
+def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32, bucketed: bool = False):
     """M5 TensorOp QMM over sorted expert rows and EXL3 trellises."""
 
     packed_u32 = k * 256 // 32
-    return mx.fast.metal_kernel(
-        name=f"mlxl3_expert_qmm_tensor_segmented_k{k}_cb{mode}_v1",
+    return _make_segmented_tensor_kernel(
+        bucketed=bucketed, block_rows=block_rows,
+        name=f"mlxl3_expert_qmm_tensor_segmented_k{k}_cb{mode}_bm{block_rows}_b{int(bucketed)}_v3",
         input_names=["xhat", "trellis", "block_table", "block_count", "dims"],
         output_names=["output"],
         header=(
@@ -1636,7 +1692,7 @@ def _segmented_expert_qmm_tensor_kernel(k: int, mode: int):
             + permutation_header()
         ),
         source=f"""
-            constexpr uint BM = 32u;
+            constexpr uint BM = {block_rows}u;
             constexpr uint BN = 32u;
             constexpr uint BK = 16u;
             constexpr uint PACKED_U32 = {packed_u32}u;
@@ -1781,12 +1837,12 @@ def qmm_exl3_expert_segmented(
         dtype=mx.uint32,
     )
     kernel = (
-        _segmented_expert_qmm_tensor_kernel(k, int(cb))
+        _segmented_expert_qmm_tensor_kernel(k, int(cb), _SEGMENTED_TENSOR_ROWS, _USE_SEGMENTED_BUCKETS)
         if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
         else _segmented_expert_qmm_kernel(k, int(cb))
     )
     grid = (
-        ((output_dims // 32) * 32, max_blocks, 2)
+        ((output_dims // 32) * 32, max_blocks, 8 if _USE_SEGMENTED_BUCKETS else 64 // _SEGMENTED_TENSOR_ROWS)
         if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
         else ((output_dims // 64) * 128, max_blocks, 1)
     )
@@ -1809,6 +1865,39 @@ def qmm_exl3_expert_segmented(
         output_shapes=[(rows, output_dims)],
         output_dtypes=[mx.float16],
     )[0]
+
+
+def qmm_exl3_view(x, trellis, suh, svh, k, mode, *, tile_offset, output_dims):
+    """Read one projection from grouped storage without compacting its weights.
+
+    The TensorOps math and dispatch shape match the ordinary QMM. Other
+    backends retain the established contiguous path until separately ported.
+    """
+    if tile_offset < 0 or output_dims <= 0 or output_dims % 128:
+        raise ValueError('invalid EXL3 projection view')
+    if tile_offset + output_dims // 16 > trellis.shape[1]:
+        raise ValueError('EXL3 projection view exceeds parent storage')
+    input_dims = trellis.shape[0] * 16
+    rows = x.size // input_dims
+    if x.shape[-1] != input_dims:
+        raise ValueError('EXL3 projection input width mismatch')
+    if rows < 24 or not (_USE_TENSOR_QMM and _tensor_ops_available()):
+        return qmm_exl3(x, trellis[:, tile_offset:tile_offset + output_dims // 16], suh, svh, k, mode)
+    bm, bn, bk = tensor_tile(rows, input_dims, output_dims, k, mode)
+    padded_rows = ((rows + bm - 1) // bm) * bm
+    xhat = _scaled_hadamard_input(x.reshape(rows, input_dims), suh)
+    if padded_rows != rows:
+        xhat = mx.pad(xhat, [(0, padded_rows - rows), (0, 0)])
+    raw = _qmm_tensor_kernel(
+        k, int(mode), input_dims, output_dims, bm, bn, bk,
+        trellis.shape[1], tile_offset,
+    )(
+        inputs=[mx.contiguous(xhat), trellis.reshape(-1).view(mx.uint32)],
+        grid=((output_dims // bn) * 32, padded_rows // bm, 1),
+        threadgroup=(32, 1, 1), output_shapes=[(padded_rows, output_dims)],
+        output_dtypes=[mx.float16],
+    )[0][:rows]
+    return _scaled_hadamard_output(raw, svh).astype(x.dtype).reshape(*x.shape[:-1], output_dims)
 
 
 def qmm_exl3(
@@ -1839,7 +1928,7 @@ def qmm_exl3(
         trellis = trellis.view(mx.uint16)
     if rows >= 24:
         if _USE_TENSOR_QMM and _tensor_ops_available():
-            block_rows = 32
+            block_rows, block_columns, block_depth = tensor_tile(rows, input_dims, output_dims, k, cb)
             padded_rows = ((rows + block_rows - 1) // block_rows) * block_rows
             xhat = _scaled_hadamard_input(flat, suh)
             if rows < padded_rows:
@@ -1850,11 +1939,11 @@ def qmm_exl3(
                 input_dims,
                 output_dims,
                 block_rows,
-                32,
-                16,
+                block_columns,
+                block_depth,
             )(
                 inputs=[mx.contiguous(xhat), trellis.reshape(-1).view(mx.uint32)],
-                grid=((output_dims // 32) * 32, padded_rows // block_rows, 1),
+                grid=((output_dims // block_columns) * 32, padded_rows // block_rows, 1),
                 threadgroup=(32, 1, 1),
                 output_shapes=[(padded_rows, output_dims)],
                 output_dtypes=[mx.float16],

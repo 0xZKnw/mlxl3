@@ -52,6 +52,10 @@ class GenerationStats:
     stable_prefill_tokens: int = 0
     cache_fork_seconds: float = 0.0
     first_visible_text_seconds: float | None = None
+    cache_lookup_seconds: float = 0.0
+    tokenizer_encode_seconds: float = 0.0
+    stream_setup_seconds: float = 0.0
+    suffix_prefill_chunk_seconds: float = 0.0
 
 
 class MemorySafetyError(RuntimeError):
@@ -73,6 +77,8 @@ _SESSION_CACHE_BUDGET_BYTES = int(
     float(os.environ.get("MLXL3_SESSION_CACHE_GB", "1.0")) * 1_000_000_000
 )
 _WARM_MODEL_ON_LOAD = os.environ.get("MLXL3_WARM_MODEL_ON_LOAD", "1") != "0"
+_USE_COW_KV = os.environ.get('MLXL3_COW_KV', '0') == '1'
+_COMPACT_CONV_STATES = os.environ.get('MLXL3_COMPACT_CONV_STATES', '0') == '1'
 
 
 def _model_num_experts(model: Any) -> int:
@@ -100,6 +106,8 @@ def _cache_nbytes(cache: list[Any] | None, seen: set[int] | None = None) -> int:
     import mlx.core as mx
     from mlx_lm.models.cache import KVCache
 
+    from mlxl3.cache import SharedKVCache
+
     seen = set() if seen is None else seen
 
     def visit(value: Any) -> int:
@@ -115,10 +123,18 @@ def _cache_nbytes(cache: list[Any] | None, seen: set[int] | None = None) -> int:
             return sum(visit(item) for item in value)
         return 0
 
-    return sum(
-        visit((item.keys, item.values)) if type(item) is KVCache else visit(item.state)
-        for item in cache
-    )
+    total = 0
+    for item in cache:
+        if type(item) is SharedKVCache and item.storage_owner is not None:
+            owner = item.storage_owner
+            if id(owner) not in seen:
+                total += owner.nbytes
+                seen.add(id(owner))
+        elif type(item) in (KVCache, SharedKVCache):
+            total += visit((item.keys, item.values))
+        else:
+            total += visit(item.state)
+    return total
 
 
 class GenerationSession:
@@ -133,6 +149,7 @@ class GenerationSession:
         self.stable_prefill_seconds = 0.0
         self.stable_prefill_tokens = 0
         self.cache_fork_seconds = 0.0
+        self.cache_lookup_seconds = 0.0
 
     def reset(self) -> None:
         self.prompt_cache = None
@@ -158,11 +175,16 @@ class GenerationSession:
         from mlx.utils import tree_map
         from mlx_lm.models.cache import ArraysCache, KVCache
 
+        from mlxl3.cache import SharedKVCache
+
         def copy_array(value: Any) -> Any:
             return mx.array(value) if isinstance(value, mx.array) else value
 
         cloned = []
         for item in cache:
+            if type(item) is SharedKVCache or (_USE_COW_KV and type(item) is KVCache):
+                cloned.append(SharedKVCache.adopt(item).fork())
+                continue
             if type(item) is KVCache:
                 fork = KVCache()
                 if item.keys is not None:
@@ -193,7 +215,7 @@ class GenerationSession:
                     tree_map(mapper, item.meta_state),
                 )
             )
-        states = [(item.keys, item.values) if type(item) is KVCache else item.state for item in cloned]
+        states = [(item.keys, item.values) if type(item) in (KVCache, SharedKVCache) else item.state for item in cloned]
         if synchronize:
             mx.eval(states)
         else:
@@ -225,9 +247,13 @@ class GenerationSession:
         # the same objects in the existing immutable-state fork implementation.
         from mlx_lm.models.cache import ArraysCache, KVCache
 
+        from mlxl3.cache import SharedKVCache
+
         incremental = 0
         for item in self.prompt_cache:
             if isinstance(item, ArraysCache):
+                continue
+            if type(item) is SharedKVCache or (_USE_COW_KV and type(item) is KVCache):
                 continue
             if type(item) is KVCache and item.keys is not None:
                 incremental += sum(
@@ -286,9 +312,11 @@ class GenerationSession:
                 raise GenerationCancelled
 
         check_cancel()
+        lookup_started = time.monotonic()
         self.stable_prefill_seconds = 0.0
         self.stable_prefill_tokens = 0
         self.cache_fork_seconds = 0.0
+        self.cache_lookup_seconds = 0.0
 
         # A template should append its assistant-generation marker to the
         # stable history. If it does not, fall back to a clean full prefill.
@@ -330,6 +358,7 @@ class GenerationSession:
                     self.block_caches.clear()
 
         extension = stable_tokens[common:]
+        self.cache_lookup_seconds = time.monotonic() - lookup_started
         prefill_started = time.monotonic()
         processed = common
         step_size = _select_prefill_step_size(
@@ -357,6 +386,9 @@ class GenerationSession:
                 chunk_end = min(chunk_end, next_boundary)
             chunk = stable_tokens[processed:chunk_end]
             model(mx.array(chunk)[None], cache=self.prompt_cache)
+            if _COMPACT_CONV_STATES:
+                from mlxl3.cache import compact_conv_states
+                compact_conv_states(self.prompt_cache, len(chunk))
             # Submit successive cache states without stalling the CPU between
             # chunks. MLX preserves their data dependencies on the generation
             # stream, so one terminal synchronization is sufficient.
@@ -882,6 +914,9 @@ def _load_model(model_path: Path):
     generation_config_path = model_path / 'generation_config.json'
     generation_config = json.loads(generation_config_path.read_text()) if generation_config_path.is_file() else {}
     tokenizer = load_tokenizer(str(model_path), eos_token_ids=generation_config.get('eos_token_id'))
+    if os.environ.get('MLXL3_CACHED_DETOKENIZER', '1') != '0':
+        from mlxl3.tokenizer import cache_detokenizer_metadata
+        cache_detokenizer_metadata(tokenizer)
     if _WARM_MODEL_ON_LOAD:
         _warm_model(model, tokenizer)
     return (
@@ -976,22 +1011,29 @@ def _stream_response(
     evaluated_prompt_tokens = 0
     generation_prompt: str | list[int] = prompt
     prompt_cache = None
+    tokenizer_encode_seconds = 0.0
     if session is not None:
         add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(
             tokenizer.bos_token
         )
+        encode_started = time.monotonic()
         full_prompt_tokens = list(
             tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
         )
+        tokenizer_encode_seconds += time.monotonic() - encode_started
+        stable_template_started = time.monotonic()
         stable_prompt = _render_generation_prompt(
             tokenizer,
             messages,
             tools,
             add_generation_prompt=False,
         )
+        template_seconds += time.monotonic() - stable_template_started
+        encode_started = time.monotonic()
         stable_tokens = list(
             tokenizer.encode(stable_prompt, add_special_tokens=add_special_tokens)
         )
+        tokenizer_encode_seconds += time.monotonic() - encode_started
         (
             generation_prompt,
             prompt_cache,
@@ -1010,8 +1052,20 @@ def _stream_response(
     memory_guard = _mlx_memory_guard_bytes()
     initial_mode = "thinking" if _prompt_prefills_thinking(prompt) else "answer"
     renderer = ThinkingRenderer(initial_mode=initial_mode) if on_text is None else None
+    stream_started = time.monotonic()
+    progress_started = None
+    stream_setup_seconds = 0.0
+    suffix_prefill_chunk_seconds = 0.0
 
     def prefill_progress(processed, total):
+        nonlocal progress_started, stream_setup_seconds, suffix_prefill_chunk_seconds
+        now = time.monotonic()
+        if progress_started is None:
+            progress_started = now
+            stream_setup_seconds = now - stream_started
+        if 0 < processed < total:
+            # The final callback includes first decode, so keep it separate.
+            suffix_prefill_chunk_seconds = now - progress_started
         # MLX-LM invokes this between its synchronized prefill chunks as well
         # as before prefill and after the first token. No extra GPU barrier.
         if should_cancel is not None and should_cancel():
@@ -1094,6 +1148,10 @@ def _stream_response(
         stable_prefill_tokens=session.stable_prefill_tokens if session else 0,
         cache_fork_seconds=session.cache_fork_seconds if session else 0.0,
         first_visible_text_seconds=(first_visible_at - template_started) if first_visible_at is not None else None,
+        cache_lookup_seconds=session.cache_lookup_seconds if session else 0.0,
+        tokenizer_encode_seconds=tokenizer_encode_seconds,
+        stream_setup_seconds=stream_setup_seconds,
+        suffix_prefill_chunk_seconds=suffix_prefill_chunk_seconds,
     )
 
 
