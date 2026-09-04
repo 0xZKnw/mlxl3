@@ -151,6 +151,11 @@ class GenerationSession:
         for begin in range(0, len(extension), _PREFILL_STEP_SIZE):
             chunk = extension[begin : begin + _PREFILL_STEP_SIZE]
             model(mx.array(chunk)[None], cache=self.prompt_cache)
+            # Submit successive cache states without stalling the CPU between
+            # chunks. MLX preserves their data dependencies on the generation
+            # stream, so one terminal synchronization is sufficient.
+            mx.async_eval([item.state for item in self.prompt_cache])
+        if extension:
             mx.eval([item.state for item in self.prompt_cache])
             mx.clear_cache()
         self.tokens = list(stable_tokens)
