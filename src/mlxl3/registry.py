@@ -32,10 +32,27 @@ class ModelEntry:
         return cls(**value)
 
 
+def validate_model_name(name: str) -> None:
+    if not _NAME_RE.fullmatch(name):
+        raise RegistryError(
+            "model names must start with a letter or digit and contain only "
+            "letters, digits, '.', '_', ':', '/', or '-'"
+        )
+
+
 def registry_path() -> Path:
     override = os.environ.get("MLXL3_HOME")
     root = Path(override).expanduser() if override else Path.home() / ".config" / "mlxl3"
     return root / "models.json"
+
+
+def managed_models_path() -> Path:
+    """Return the user-owned directory used by Desktop model downloads."""
+
+    override = os.environ.get("MLXL3_MODELS_DIR")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / "Library" / "Application Support" / "io.mlxl3.desktop" / "Models"
 
 
 def load_registry() -> dict[str, ModelEntry]:
@@ -73,11 +90,7 @@ def save_registry(entries: dict[str, ModelEntry]) -> None:
 def inspect_model(name: str, model_path: str | Path) -> ModelEntry:
     from mlxl3.checkpoint import list_exl3_modules, quantization_config
 
-    if not _NAME_RE.fullmatch(name):
-        raise RegistryError(
-            "model names must start with a letter or digit and contain only "
-            "letters, digits, '.', '_', ':', '/', or '-'"
-        )
+    validate_model_name(name)
     path = Path(model_path).expanduser().resolve()
     if not path.is_dir():
         raise RegistryError(f"model directory does not exist: {path}")

@@ -9,7 +9,7 @@ enum MLXL3BridgeError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .executableNotFound:
-            "Commande mlxl3 introuvable. Installe le projet avec `pip install -e .`."
+            "Runtime MLXL3 introuvable. Réinstalle MLXL3 Desktop depuis le DMG."
         case let .commandFailed(message):
             message
         case .invalidResponse:
@@ -24,6 +24,10 @@ enum CLIResolver {
         var candidates: [String] = []
         if let override = environment["MLXL3_EXECUTABLE"], !override.isEmpty {
             candidates.append((override as NSString).expandingTildeInPath)
+        }
+
+        if let resources = Bundle.main.resourceURL {
+            candidates.append(resources.appending(path: "runtime/mlxl3").path)
         }
 
         var sourceProbe = URL(fileURLWithPath: #filePath)
@@ -94,35 +98,96 @@ final class MLXL3Bridge: @unchecked Sendable {
     static func listModels(
         completion: @escaping @MainActor @Sendable (Result<[LocalModel], Error>) -> Void
     ) {
+        execute(["list", "--json"]) { result in
+            completion(
+                result.flatMap { data in
+                    do {
+                        return .success(try JSONDecoder().decode([LocalModel].self, from: data))
+                    } catch {
+                        return .failure(error)
+                    }
+                }
+            )
+        }
+    }
+
+    static func registerModel(
+        name: String,
+        path: URL,
+        completion: @escaping @MainActor @Sendable (Result<Void, Error>) -> Void
+    ) {
+        execute(["register", name, path.path, "--force"]) { result in
+            completion(result.map { _ in () })
+        }
+    }
+
+    static func downloadModel(
+        repo: String,
+        revision: String?,
+        name: String?,
+        completion: @escaping @MainActor @Sendable (Result<LocalModel, Error>) -> Void
+    ) {
+        var arguments = ["download", repo, "--json"]
+        if let revision, !revision.isEmpty {
+            arguments += ["--revision", revision]
+        }
+        if let name, !name.isEmpty {
+            arguments += ["--name", name]
+        }
+        execute(arguments) { result in
+            completion(
+                result.flatMap { data in
+                    do {
+                        return .success(try JSONDecoder().decode(LocalModel.self, from: data))
+                    } catch {
+                        return .failure(error)
+                    }
+                }
+            )
+        }
+    }
+
+    private static func execute(
+        _ arguments: [String],
+        completion: @escaping @MainActor @Sendable (Result<Data, Error>) -> Void
+    ) {
         guard let executable = CLIResolver.executable() else {
-            DispatchQueue.main.async { completion(.failure(MLXL3BridgeError.executableNotFound)) }
+            DispatchQueue.main.async {
+                completion(.failure(MLXL3BridgeError.executableNotFound))
+            }
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
             let process = Process()
             let output = Pipe()
-            let error = Pipe()
+            let errorURL = FileManager.default.temporaryDirectory
+                .appending(path: "mlxl3-command-\(UUID().uuidString).log")
+            FileManager.default.createFile(atPath: errorURL.path, contents: nil)
             process.executableURL = executable
-            process.arguments = ["list", "--json"]
+            process.arguments = arguments
             process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
             process.standardOutput = output
-            process.standardError = error
             do {
+                let errorHandle = try FileHandle(forWritingTo: errorURL)
+                process.standardError = errorHandle
                 try process.run()
                 process.waitUntilExit()
+                try? errorHandle.close()
                 let data = output.fileHandleForReading.readDataToEndOfFile()
                 if process.terminationStatus != 0 {
                     let details = String(
-                        data: error.fileHandleForReading.readDataToEndOfFile(),
+                        data: (try? Data(contentsOf: errorURL)) ?? Data(),
                         encoding: .utf8
-                    ) ?? "Échec de mlxl3 list"
-                    throw MLXL3BridgeError.commandFailed(details.trimmingCharacters(in: .whitespacesAndNewlines))
+                    ) ?? "Échec de la commande MLXL3"
+                    throw MLXL3BridgeError.commandFailed(
+                        details.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
                 }
-                let models = try JSONDecoder().decode([LocalModel].self, from: data)
-                DispatchQueue.main.async { completion(.success(models)) }
+                DispatchQueue.main.async { completion(.success(data)) }
             } catch {
                 DispatchQueue.main.async { completion(.failure(error)) }
             }
+            try? FileManager.default.removeItem(at: errorURL)
         }
     }
 

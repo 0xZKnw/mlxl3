@@ -312,3 +312,15 @@ enum EngineState: Equatable {
         return false
     }
 }
+
+enum ModelInstallState: Equatable {
+    case idle
+    case working(String)
+    case succeeded(String)
+    case failed(String)
+
+    var isWorking: Bool {
+        if case .working = self { return true }
+        return false
+    }
+}

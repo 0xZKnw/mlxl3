@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
+import huggingface_hub
 import mlx.core as mx
 import mlx_lm
 import pytest
@@ -520,6 +522,55 @@ def test_list_json_is_stable_for_the_native_app(monkeypatch, capsys) -> None:
             "size": "3.9 GB",
         }
     ]
+
+
+def test_download_command_uses_managed_storage_and_registers(monkeypatch, tmp_path, capsys) -> None:
+    destination = tmp_path / "managed"
+    downloaded = destination / "qwen-test"
+    observed = {}
+    entry = ModelEntry(
+        name="qwen-test",
+        path=str(downloaded),
+        model_type="qwen3_5_moe",
+        format="EXL3",
+        bits=2.49,
+        size_bytes=12_000_000_000,
+        modules=42,
+        added_at="2026-09-04T00:00:00+00:00",
+    )
+
+    def fake_download(**kwargs):
+        observed.update(kwargs)
+        return str(downloaded)
+
+    def fake_register(name, path, *, force=False):
+        assert name == "qwen-test"
+        assert Path(path) == downloaded
+        assert force
+        return entry
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_download)
+    monkeypatch.setattr(cli, "managed_models_path", lambda: destination)
+    monkeypatch.setattr(cli, "register_model", fake_register)
+
+    assert cli.main(
+        [
+            "download",
+            "owner/Qwen-EXL3",
+            "--revision",
+            "2.49bpw",
+            "--name",
+            "qwen-test",
+            "--json",
+        ]
+    ) == 0
+    assert observed == {
+        "repo_id": "owner/Qwen-EXL3",
+        "revision": "2.49bpw",
+        "local_dir": downloaded.resolve(),
+        "force_download": False,
+    }
+    assert json.loads(capsys.readouterr().out)["name"] == "qwen-test"
 
 
 def test_bridge_handles_thinking_tag_prefilled_by_chat_template(monkeypatch, capsys) -> None:
