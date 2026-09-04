@@ -47,6 +47,11 @@ class GenerationStats:
     peak_memory_gb: float
     cached_prompt_tokens: int = 0
     evaluated_prompt_tokens: int = 0
+    template_seconds: float = 0.0
+    stable_prefill_seconds: float = 0.0
+    stable_prefill_tokens: int = 0
+    cache_fork_seconds: float = 0.0
+    first_visible_text_seconds: float | None = None
 
 
 class MemorySafetyError(RuntimeError):
@@ -84,11 +89,16 @@ def _model_num_experts(model: Any) -> int:
 
 
 def _cache_nbytes(cache: list[Any] | None, seen: set[int] | None = None) -> int:
-    """Count unique MLX storage referenced by a model cache."""
+    """Conservative cache accounting; not a physical allocation census.
+
+    For known KV caches count the owned reserve, not the used-prefix view.
+    Unknown view aliases cannot be deduplicated reliably at the Python level.
+    """
 
     if cache is None:
         return 0
     import mlx.core as mx
+    from mlx_lm.models.cache import KVCache
 
     seen = set() if seen is None else seen
 
@@ -105,7 +115,10 @@ def _cache_nbytes(cache: list[Any] | None, seen: set[int] | None = None) -> int:
             return sum(visit(item) for item in value)
         return 0
 
-    return sum(visit(item.state) for item in cache)
+    return sum(
+        visit((item.keys, item.values)) if type(item) is KVCache else visit(item.state)
+        for item in cache
+    )
 
 
 class GenerationSession:
@@ -117,6 +130,9 @@ class GenerationSession:
         self.exact_cache: list[Any] | None = None
         self.exact_tokens: list[int] = []
         self.block_caches: OrderedDict[int, list[Any]] = OrderedDict()
+        self.stable_prefill_seconds = 0.0
+        self.stable_prefill_tokens = 0
+        self.cache_fork_seconds = 0.0
 
     def reset(self) -> None:
         self.prompt_cache = None
@@ -135,16 +151,36 @@ class GenerationSession:
         return common
 
     @staticmethod
-    def _clone_cache(cache: list[Any], *, synchronize: bool = True) -> list[Any]:
+    def _clone_cache(
+        cache: list[Any], *, synchronize: bool = True, reserve_tokens: int = 1,
+    ) -> list[Any]:
         import mlx.core as mx
         from mlx.utils import tree_map
-        from mlx_lm.models.cache import ArraysCache
+        from mlx_lm.models.cache import ArraysCache, KVCache
 
         def copy_array(value: Any) -> Any:
             return mx.array(value) if isinstance(value, mx.array) else value
 
         cloned = []
         for item in cache:
+            if type(item) is KVCache:
+                fork = KVCache()
+                if item.keys is not None:
+                    length = item.offset
+                    capacity = length
+                    if reserve_tokens > 0:
+                        capacity = ((length + reserve_tokens + item.step - 1) // item.step) * item.step
+                    def copy_prefix(value, capacity=capacity, length=length):
+                        shape = (*value.shape[:2], capacity, value.shape[3])
+                        storage = mx.zeros(shape, dtype=value.dtype)
+                        if length:
+                            storage[..., :length, :] = value[..., :length, :]
+                        return storage
+                    fork.keys = copy_prefix(item.keys)
+                    fork.values = copy_prefix(item.values)
+                    fork.offset = length
+                cloned.append(fork)
+                continue
             # Qwen Gated DeltaNet replaces its ArraysCache states on every
             # update instead of writing into their buffers. Rebuild the Python
             # containers but share those immutable arrays across forks. KV
@@ -157,7 +193,7 @@ class GenerationSession:
                     tree_map(mapper, item.meta_state),
                 )
             )
-        states = [item.state for item in cloned]
+        states = [(item.keys, item.values) if type(item) is KVCache else item.state for item in cloned]
         if synchronize:
             mx.eval(states)
         else:
@@ -165,7 +201,7 @@ class GenerationSession:
         return cloned
 
     def nbytes(self) -> int:
-        """Return unique GPU bytes retained by this conversation."""
+        """Return conservative retained bytes, including owned KV reserves."""
 
         seen: set[int] = set()
         total = _cache_nbytes(self.prompt_cache, seen)
@@ -185,9 +221,32 @@ class GenerationSession:
             or _PREFIX_CACHE_BUDGET_BYTES <= 0
         ):
             return
+        # Decide admission before allocating a copy. ArraysCache states retain
+        # the same objects in the existing immutable-state fork implementation.
+        from mlx_lm.models.cache import ArraysCache, KVCache
+
+        incremental = 0
+        for item in self.prompt_cache:
+            if isinstance(item, ArraysCache):
+                continue
+            if type(item) is KVCache and item.keys is not None:
+                incremental += sum(
+                    value.shape[0] * value.shape[1] * item.offset * value.shape[3] * value.itemsize
+                    for value in (item.keys, item.values)
+                )
+            else:
+                incremental += _cache_nbytes([item])
+        seen: set[int] = set()
+        active = _cache_nbytes(self.prompt_cache, seen) + _cache_nbytes(self.exact_cache, seen)
+        if active + incremental > _PREFIX_CACHE_BUDGET_BYTES:
+            return
+        self.block_caches.pop(length, None)
+        while self.block_caches and self.nbytes() + incremental > _PREFIX_CACHE_BUDGET_BYTES:
+            self.block_caches.popitem(last=False)
         self.block_caches[length] = self._clone_cache(
             self.prompt_cache,
             synchronize=False,
+            reserve_tokens=0,
         )
         self.block_caches.move_to_end(length)
         self._prune_block_caches()
@@ -209,6 +268,8 @@ class GenerationSession:
         model: Any,
         full_tokens: list[int],
         stable_tokens: list[int],
+        *,
+        should_cancel: Callable[[], bool] | None = None,
     ) -> tuple[list[int], list[Any], int, int]:
         import mlx.core as mx
         from mlx_lm.models.cache import (
@@ -216,6 +277,18 @@ class GenerationSession:
             make_prompt_cache,
             trim_prompt_cache,
         )
+
+        def check_cancel():
+            if should_cancel is not None and should_cancel():
+                # A partially updated recurrent state is not a valid snapshot
+                # of self.tokens. Retire it rather than reuse a wrong offset.
+                self.reset()
+                raise GenerationCancelled
+
+        check_cancel()
+        self.stable_prefill_seconds = 0.0
+        self.stable_prefill_tokens = 0
+        self.cache_fork_seconds = 0.0
 
         # A template should append its assistant-generation marker to the
         # stable history. If it does not, fall back to a clean full prefill.
@@ -257,6 +330,7 @@ class GenerationSession:
                     self.block_caches.clear()
 
         extension = stable_tokens[common:]
+        prefill_started = time.monotonic()
         processed = common
         step_size = _select_prefill_step_size(
             mx.get_active_memory(),
@@ -265,6 +339,16 @@ class GenerationSession:
             num_experts=_model_num_experts(model),
         )
         while processed < len(stable_tokens):
+            check_cancel()
+            active = mx.get_active_memory()
+            guard = _mlx_memory_guard_bytes()
+            if active >= guard:
+                self.reset()
+                raise MemorySafetyError("prefill arrêté avant saturation de la mémoire unifiée")
+            step_size = min(step_size, _select_prefill_step_size(
+                active, guard, token_count=len(stable_tokens) - processed,
+                num_experts=_model_num_experts(model),
+            ))
             chunk_end = min(processed + step_size, len(stable_tokens))
             if _PREFIX_CACHE_BLOCK_SIZE > 0:
                 next_boundary = (
@@ -286,11 +370,16 @@ class GenerationSession:
         if extension:
             mx.eval([item.state for item in self.prompt_cache])
             mx.clear_cache()
+        check_cancel()
+        self.stable_prefill_seconds = time.monotonic() - prefill_started if extension else 0.0
+        self.stable_prefill_tokens = len(extension)
         self.tokens = list(stable_tokens)
 
         # Generation mutates its cache. Preserve the stable-history cache so
         # recurrent layers can reuse it on the following turn without rewind.
+        fork_started = time.monotonic()
         generation_cache = self._clone_cache(self.prompt_cache)
+        self.cache_fork_seconds = time.monotonic() - fork_started
         generation_tokens = full_tokens[len(stable_tokens) :]
         return (
             generation_tokens,
@@ -822,6 +911,34 @@ def _warm_model(model: Any, tokenizer: Any, *, prompt_tokens: int = 32) -> None:
     mx.clear_cache()
 
 
+def _prefix_processors(processors, prefix, windows):
+    """Wrap explicit history contracts; unknown/unbounded processors keep all.
+
+    This bounds the stable-prefix work, not MLX-LM's own internal history.
+    Multiplicities and ordering are retained for frequency/presence penalties.
+    """
+    import mlx.core as mx
+
+    wrapped = []
+    for processor, window in zip(processors, windows, strict=True):
+        if window is not None and window <= 0:
+            raise ValueError("processor window must be positive or None (unbounded)")
+        retained = mx.array(prefix if window is None else prefix[-window:], dtype=mx.int32)
+
+        def apply(tokens, logits, processor=processor, retained=retained, window=window):
+            if window is None:
+                history = mx.concatenate([retained, tokens])
+            elif tokens.size >= window:
+                history = tokens[-window:]
+            else:
+                missing = window - tokens.size
+                history = mx.concatenate([retained[-missing:], tokens])
+            return processor(history, logits)
+
+        wrapped.append(apply)
+    return wrapped
+
+
 def _stream_response(
     model: Any,
     tokenizer: Any,
@@ -841,13 +958,16 @@ def _stream_response(
     from mlx_lm import stream_generate
     from mlx_lm.sample_utils import make_logits_processors, make_sampler
 
+    started = time.perf_counter()
+    template_started = time.monotonic()
     prompt = _render_generation_prompt(tokenizer, messages, tools)
+    template_seconds = time.monotonic() - template_started
     if on_prompt is not None:
         on_prompt(prompt)
     sampler = make_sampler(temp=temperature, top_k=top_k)
-    processors = make_logits_processors(repetition_penalty=repetition_penalty)
-    started = time.perf_counter()
+    processors = make_logits_processors(repetition_penalty=repetition_penalty, repetition_context_size=20)
     first_token_at: float | None = None
+    first_visible_at: float | None = None
     final = None
     pieces: list[str] = []
     generated_token_ids: list[int] = []
@@ -881,19 +1001,28 @@ def _stream_response(
             model,
             full_prompt_tokens,
             stable_tokens,
+            should_cancel=should_cancel,
         )
         if stable_tokens and processors:
-            cached_prefix = mx.array(stable_tokens)
-            base_processors = processors
-            processors = [
-                lambda tokens, logits, processor=processor: processor(
-                    mx.concatenate([cached_prefix, tokens]), logits
-                )
-                for processor in base_processors
-            ]
+            # The only enabled factory option above is repetition_penalty.
+            # Pin its history contract instead of introspecting opaque closures.
+            processors = _prefix_processors(processors, stable_tokens, [20] * len(processors))
     memory_guard = _mlx_memory_guard_bytes()
     initial_mode = "thinking" if _prompt_prefills_thinking(prompt) else "answer"
     renderer = ThinkingRenderer(initial_mode=initial_mode) if on_text is None else None
+
+    def prefill_progress(processed, total):
+        # MLX-LM invokes this between its synchronized prefill chunks as well
+        # as before prefill and after the first token. No extra GPU barrier.
+        if should_cancel is not None and should_cancel():
+            if session is not None:
+                session.reset()
+            raise GenerationCancelled
+        if mx.get_active_memory() >= memory_guard:
+            if session is not None:
+                session.reset()
+            raise MemorySafetyError("prefill arrêté avant saturation de la mémoire unifiée")
+
     try:
         for response in stream_generate(
             model,
@@ -903,11 +1032,14 @@ def _stream_response(
             sampler=sampler,
             logits_processors=processors,
             prompt_cache=prompt_cache,
+            prompt_progress_callback=prefill_progress,
         ):
             if should_cancel is not None and should_cancel():
                 raise GenerationCancelled
             if first_token_at is None:
                 first_token_at = time.perf_counter()
+            if response.text and first_visible_at is None:
+                first_visible_at = time.monotonic()
             final = response
             if session is not None:
                 generated_token_ids.append(int(response.token))
@@ -942,7 +1074,12 @@ def _stream_response(
     ttft_seconds = first_token_at - started
     prefill_tps = final.prompt_tps
     if session is not None and evaluated_prompt_tokens:
-        prefill_tps = evaluated_prompt_tokens / ttft_seconds
+        # Upstream prompt_tps includes processing the first decode token.
+        # Combine its suffix interval with our measured stable prefill; never
+        # label total request TTFT (template/cache fork included) as prefill.
+        suffix_seconds = final.prompt_tokens / final.prompt_tps if final.prompt_tps > 0 else 0.0
+        prefill_seconds = session.stable_prefill_seconds + suffix_seconds
+        prefill_tps = evaluated_prompt_tokens / prefill_seconds if prefill_seconds else 0.0
     return text, GenerationStats(
         ttft_seconds=ttft_seconds,
         prefill_tps=prefill_tps,
@@ -952,6 +1089,11 @@ def _stream_response(
         peak_memory_gb=final.peak_memory,
         cached_prompt_tokens=cached_prompt_tokens,
         evaluated_prompt_tokens=evaluated_prompt_tokens or final.prompt_tokens,
+        template_seconds=template_seconds,
+        stable_prefill_seconds=session.stable_prefill_seconds if session else 0.0,
+        stable_prefill_tokens=session.stable_prefill_tokens if session else 0,
+        cache_fork_seconds=session.cache_fork_seconds if session else 0.0,
+        first_visible_text_seconds=(first_visible_at - template_started) if first_visible_at is not None else None,
     )
 
 

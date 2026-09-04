@@ -17,6 +17,7 @@ from mlxl3.kernels.qmv import (
     qmm_exl3_expert_segmented,
     qmv_exl3_expert_mapped,
 )
+from mlxl3.kernels.routing import inverse_permutation
 
 _USE_FUSED_LFM_ROUTER = os.environ.get("MLXL3_FUSED_MOE_ROUTER", "1") != "0"
 _USE_FUSED_ROUTER_TOPK = os.environ.get("MLXL3_FUSED_ROUTER_TOPK", "1") != "0"
@@ -447,7 +448,7 @@ class EXL3SwitchGLU(nn.Module):
         slots = rows * top_k
         selected = indices.reshape(-1).astype(mx.int32)
         order = mx.argsort(selected)
-        inverse = mx.argsort(order)
+        inverse = inverse_permutation(order)
         sorted_experts = selected[order]
         token_rows = (mx.arange(slots, dtype=mx.uint32) // top_k)[order]
 
