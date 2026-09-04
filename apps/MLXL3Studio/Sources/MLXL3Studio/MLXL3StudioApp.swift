@@ -24,6 +24,10 @@ struct MLXL3StudioApp: App {
                 Button("Nouvelle conversation") { studio.newConversation() }
                     .keyboardShortcut("n", modifiers: .command)
             }
+            CommandGroup(replacing: .appSettings) {
+                Button("Réglages…") { studio.openAppSettings() }
+                    .keyboardShortcut(",", modifiers: .command)
+            }
         }
 
     }

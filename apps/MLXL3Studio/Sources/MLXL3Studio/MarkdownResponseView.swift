@@ -550,24 +550,226 @@ private enum CodeTextChunker {
     }
 }
 
+@MainActor
+private enum SyntaxHighlighter {
+    private static let base = NSColor(srgbRed: 0.82, green: 0.85, blue: 0.89, alpha: 1)
+    private static let comment = NSColor(srgbRed: 0.43, green: 0.49, blue: 0.54, alpha: 1)
+    private static let string = NSColor(srgbRed: 0.62, green: 0.83, blue: 0.65, alpha: 1)
+    private static let keyword = NSColor(srgbRed: 0.48, green: 0.73, blue: 0.98, alpha: 1)
+    private static let type = NSColor(srgbRed: 0.74, green: 0.67, blue: 0.94, alpha: 1)
+    private static let number = NSColor(srgbRed: 0.94, green: 0.72, blue: 0.43, alpha: 1)
+    private static let function = NSColor(srgbRed: 0.48, green: 0.84, blue: 0.86, alpha: 1)
+    private static var lexerCache: [String: NSRegularExpression] = [:]
+    private static var markupRegexCache: [(NSRegularExpression, NSColor)]?
+
+    static func highlight(_ source: String, language rawLanguage: String?) -> AttributedString {
+        let result = NSMutableAttributedString(
+            string: source,
+            attributes: [.foregroundColor: base]
+        )
+        guard !source.isEmpty else { return AttributedString(result) }
+
+        let language = normalized(rawLanguage)
+        if ["html", "xml", "svg", "vue", "svelte"].contains(language) {
+            highlightMarkup(result, source: source)
+            return AttributedString(result)
+        }
+
+        guard let regex = lexer(for: language) else { return AttributedString(result) }
+
+        let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
+        for match in regex.matches(in: source, range: fullRange) {
+            let colors = [comment, string, keyword, type, number, function]
+            for group in 1...colors.count where match.range(at: group).location != NSNotFound {
+                result.addAttribute(
+                    .foregroundColor,
+                    value: colors[group - 1],
+                    range: match.range(at: group)
+                )
+                break
+            }
+        }
+        return AttributedString(result)
+    }
+
+    private static func highlightMarkup(_ result: NSMutableAttributedString, source: String) {
+        if markupRegexCache == nil {
+            markupRegexCache = [
+                (#"<!--[\s\S]*?-->"#, comment),
+                (#"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'"#, string),
+                (#"</?\s*[A-Za-z][A-Za-z0-9:_-]*"#, keyword),
+                (#"\b[A-Za-z_:][A-Za-z0-9:._-]*(?=\s*=)"#, function),
+                (#"<!DOCTYPE[^>]*>|</?|/?>"#, type),
+                (#"&(?:[A-Za-z][A-Za-z0-9]+|#\d+|#x[0-9A-Fa-f]+);"#, number),
+            ].compactMap { pattern, color in
+                guard let regex = try? NSRegularExpression(
+                    pattern: pattern,
+                    options: [.anchorsMatchLines]
+                ) else { return nil }
+                return (regex, color)
+            }
+        }
+        for (regex, color) in markupRegexCache ?? [] {
+            apply(regex, color: color, to: result, source: source)
+        }
+    }
+
+    private static func apply(
+        _ regex: NSRegularExpression,
+        color: NSColor,
+        to result: NSMutableAttributedString,
+        source: String
+    ) {
+        let range = NSRange(source.startIndex..<source.endIndex, in: source)
+        for match in regex.matches(in: source, range: range) {
+            result.addAttribute(.foregroundColor, value: color, range: match.range)
+        }
+    }
+
+    private static func lexer(for language: String) -> NSRegularExpression? {
+        let key = lexerKey(for: language)
+        if let cached = lexerCache[key] { return cached }
+        let definition = definition(for: language)
+        let pattern = "(\(definition.comments))|(\(definition.strings))|\\b(\(alternation(definition.keywords)))\\b|\\b(\(alternation(definition.types)))\\b|(\\b(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[bB][01](?:_?[01])*|(?:\\d(?:_?\\d)*)?(?:\\.\\d(?:_?\\d)*)|\\d(?:_?\\d)*(?:[eE][+-]?\\d+)?)[fFdDuUlL]*\\b)|(\\b[A-Za-z_$][A-Za-z0-9_$]*(?=\\s*\\())"
+        guard let regex = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.anchorsMatchLines]
+        ) else { return nil }
+        lexerCache[key] = regex
+        return regex
+    }
+
+    private static func lexerKey(for language: String) -> String {
+        switch language {
+        case "python", "swift", "javascript", "typescript", "bash", "json", "sql", "yaml", "toml", "markdown":
+            language
+        default:
+            "generic"
+        }
+    }
+
+    private static func alternation(_ values: [String]) -> String {
+        guard !values.isEmpty else { return "(?!)" }
+        return "(?:" + values.map(NSRegularExpression.escapedPattern(for:)).joined(separator: "|") + ")"
+    }
+
+    private static func normalized(_ rawLanguage: String?) -> String {
+        let language = rawLanguage?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return switch language {
+        case "js", "jsx": "javascript"
+        case "ts", "tsx": "typescript"
+        case "py": "python"
+        case "rs": "rust"
+        case "sh", "zsh", "shell": "bash"
+        case "yml": "yaml"
+        case "md": "markdown"
+        case "c++", "cc", "hpp": "cpp"
+        case "cs": "csharp"
+        default: language
+        }
+    }
+
+    private static func definition(for language: String) -> SyntaxDefinition {
+        switch language {
+        case "python":
+            SyntaxDefinition(
+                comments: #"#.*$"#,
+                strings: #"\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?'''|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'"#,
+                keywords: ["and", "as", "assert", "async", "await", "break", "case", "class", "continue", "def", "del", "elif", "else", "except", "False", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "match", "None", "nonlocal", "not", "or", "pass", "raise", "return", "True", "try", "while", "with", "yield"],
+                types: ["bool", "bytes", "dict", "float", "frozenset", "int", "list", "object", "set", "str", "tuple", "type"]
+            )
+        case "swift":
+            SyntaxDefinition(
+                comments: #"//.*$|/\*[\s\S]*?\*/"#,
+                strings: #"\"\"\"[\s\S]*?\"\"\"|\"(?:\\.|[^\"\\])*\""#,
+                keywords: ["actor", "as", "async", "await", "break", "case", "catch", "class", "continue", "default", "defer", "do", "else", "enum", "extension", "fallthrough", "false", "fileprivate", "for", "func", "guard", "if", "import", "in", "init", "inout", "internal", "is", "let", "nil", "nonisolated", "open", "private", "protocol", "public", "repeat", "return", "self", "some", "static", "struct", "subscript", "super", "switch", "throw", "throws", "true", "try", "typealias", "var", "where", "while"],
+                types: ["Any", "Array", "Bool", "Character", "Data", "Dictionary", "Double", "Error", "Float", "Int", "Never", "Result", "Set", "String", "URL", "UUID", "Void"]
+            )
+        case "javascript", "typescript":
+            SyntaxDefinition(
+                comments: #"//.*$|/\*[\s\S]*?\*/"#,
+                strings: #"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#,
+                keywords: ["async", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "export", "extends", "false", "finally", "for", "from", "function", "get", "if", "implements", "import", "in", "instanceof", "interface", "let", "new", "null", "of", "package", "private", "protected", "public", "return", "set", "static", "super", "switch", "this", "throw", "true", "try", "typeof", "undefined", "var", "void", "while", "with", "yield"],
+                types: ["Array", "BigInt", "Boolean", "Date", "Error", "Map", "Number", "Object", "Promise", "Record", "Set", "String", "Symbol", "unknown", "never"]
+            )
+        case "bash":
+            SyntaxDefinition(
+                comments: #"#.*$"#,
+                strings: #"\"(?:\\.|[^\"\\])*\"|'[^']*'"#,
+                keywords: ["case", "do", "done", "elif", "else", "esac", "export", "fi", "for", "function", "if", "in", "local", "readonly", "return", "select", "then", "time", "until", "while"],
+                types: ["false", "true"]
+            )
+        case "json":
+            SyntaxDefinition(
+                comments: #"(?!)"#,
+                strings: #"\"(?:\\.|[^\"\\])*\""#,
+                keywords: ["false", "null", "true"],
+                types: []
+            )
+        case "sql":
+            SyntaxDefinition(
+                comments: #"--.*$|/\*[\s\S]*?\*/"#,
+                strings: #"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\""#,
+                keywords: ["ADD", "ALTER", "AND", "AS", "ASC", "BEGIN", "BETWEEN", "BY", "CASE", "CREATE", "DELETE", "DESC", "DISTINCT", "DROP", "ELSE", "END", "EXISTS", "FROM", "FULL", "GROUP", "HAVING", "IN", "INDEX", "INNER", "INSERT", "INTO", "IS", "JOIN", "LEFT", "LIKE", "LIMIT", "NOT", "NULL", "ON", "OR", "ORDER", "OUTER", "RETURNING", "RIGHT", "SELECT", "SET", "TABLE", "THEN", "UNION", "UNIQUE", "UPDATE", "VALUES", "WHEN", "WHERE", "WITH"],
+                types: ["BIGINT", "BOOLEAN", "CHAR", "DATE", "DECIMAL", "FLOAT", "INTEGER", "JSON", "NUMERIC", "REAL", "TEXT", "TIMESTAMP", "VARCHAR"]
+            )
+        case "yaml", "toml", "markdown":
+            SyntaxDefinition(
+                comments: #"#.*$|<!--[^>]*-->"#,
+                strings: #"\"(?:\\.|[^\"\\])*\"|'[^']*'"#,
+                keywords: ["false", "null", "true", "yes", "no"],
+                types: []
+            )
+        default:
+            SyntaxDefinition(
+                comments: #"//.*$|/\*[\s\S]*?\*/"#,
+                strings: #"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#,
+                keywords: ["abstract", "as", "async", "await", "break", "case", "catch", "class", "const", "continue", "default", "defer", "do", "else", "enum", "export", "extends", "false", "final", "finally", "for", "func", "function", "if", "implements", "import", "in", "interface", "let", "match", "new", "nil", "null", "package", "private", "protected", "public", "return", "static", "struct", "super", "switch", "this", "throw", "throws", "true", "try", "type", "var", "void", "where", "while", "yield"],
+                types: ["bool", "boolean", "byte", "char", "double", "float", "int", "long", "short", "string", "uint", "usize"]
+            )
+        }
+    }
+}
+
+private struct SyntaxDefinition {
+    let comments: String
+    let strings: String
+    let keywords: [String]
+    let types: [String]
+}
+
 private struct CodeBlockView: View {
     let language: String?
     let source: String
     let streaming: Bool
+    @State private var copied = false
 
     var body: some View {
         let chunks = CodeTextChunker.chunks(source)
         VStack(alignment: .leading, spacing: 8) {
-            if let language {
-                Text(language.uppercased())
+            HStack(spacing: 10) {
+                Text((language ?? "code").uppercased())
                     .font(.system(size: 8, weight: .bold, design: .rounded))
                     .tracking(1.1)
                     .foregroundStyle(StudioTheme.quiet)
+                Spacer()
+                Button(action: copySource) {
+                    Label(copied ? "Copié" : "Copier", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(copied ? StudioTheme.accent : StudioTheme.secondary)
+                        .padding(.horizontal, 9)
+                        .frame(height: 25)
+                        .background(Color.white.opacity(0.045), in: Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.075), lineWidth: 0.6))
+                }
+                .buttonStyle(.plain)
+                .help("Copier tout le bloc")
             }
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(chunks) { chunk in
                     CodeTextChunkView(
                         source: chunk.source,
+                        language: language,
                         streaming: streaming && chunk.id == chunks.last?.id
                     )
                     .equatable()
@@ -582,20 +784,31 @@ private struct CodeBlockView: View {
                 .stroke(Color.white.opacity(0.075), lineWidth: 0.7)
         }
     }
+
+    private func copySource() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(source, forType: .string)
+        copied = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.4))
+            copied = false
+        }
+    }
 }
 
 private struct CodeTextChunkView: View, Equatable {
     let source: String
+    let language: String?
     let streaming: Bool
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming
     }
 
     var body: some View {
-        Text(source)
+        Text(SyntaxHighlighter.highlight(source, language: language))
             .font(.system(size: 12, weight: .regular, design: .monospaced))
-            .foregroundStyle(Color.white.opacity(streaming ? 0.76 : 0.78))
+            .opacity(streaming ? 0.94 : 1)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

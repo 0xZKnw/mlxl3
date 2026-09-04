@@ -72,6 +72,10 @@ mlxl3 download UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw \
 Use `--revision 3.10bpw` when a repository stores BPW variants in branches.
 Managed downloads live under
 `~/Library/Application Support/io.mlxl3.desktop/Models` by default.
+Those managed models never require access to Documents. For an existing model
+stored in Documents, Downloads, or on an external disk, select its folder once
+from MLXL3 Desktop. The app stores a macOS security-scoped bookmark and restores
+that access on later launches instead of triggering a new Files & Folders prompt.
 
 Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 `--repetition-penalty`, and `--system`.
@@ -98,9 +102,15 @@ keeping the model and stable conversation caches resident for the next prompt.
 Output has no artificial token ceiling and stops on the model's end token, when
 you press Stop, or at the unified-memory safety limit that keeps macOS responsive.
 Long Markdown and reasoning streams are rendered in bounded chunks so completed
-text is not reparsed for every new token. A native menu-bar panel keeps
-unified-memory usage, the loaded model, and the latest generation performance
-visible even when the main window is closed.
+text is not reparsed for every new token. Fenced code blocks are highlighted as
+they stream and include a one-click copy action for the complete block. A native
+menu-bar panel keeps unified-memory usage, the loaded model, and the latest
+generation performance visible even when the main window is closed.
+
+The Settings page checks the latest public GitHub release at launch and on
+demand. When a newer all-in-one DMG is available, it downloads in the background,
+verifies GitHub's SHA-256 digest, then offers **Restart and install**. The engine
+and native UI are versioned and updated together so their protocol stays in sync.
 
 ### Local MCP tools
 
