@@ -1,0 +1,74 @@
+"""Lossless graph compilation for fixed-shape recurrent decode layers."""
+
+from __future__ import annotations
+
+import os
+from functools import cache
+from typing import Any
+
+import mlx.core as mx
+from mlx import nn
+from mlx_lm.models.cache import ArraysCache
+
+_USE_COMPILED_RECURRENT_LAYERS = (
+    os.environ.get("MLXL3_COMPILED_RECURRENT_LAYERS", "1") != "0"
+)
+
+
+def _compiled_recurrent_call(
+    module: nn.Module,
+    x: mx.array,
+    mask: mx.array | None = None,
+    cache: Any | None = None,
+) -> mx.array:
+    """Use the state-explicit graph only for initialized one-token decode."""
+
+    if (
+        _USE_COMPILED_RECURRENT_LAYERS
+        and isinstance(cache, ArraysCache)
+        and x.shape[-2] == 1
+        and mask is None
+        and all(value is not None for value in cache.cache)
+    ):
+        output, state = module._mlxl3_compiled_decode(x, cache.state)
+        cache.state = state
+        return output
+    return module._mlxl3_original_call(x, mask=mask, cache=cache)
+
+
+@cache
+def _compiled_recurrent_class(base: type[nn.Module]) -> type[nn.Module]:
+    return type(
+        f"MLXL3Compiled{base.__name__}",
+        (base,),
+        {"__call__": _compiled_recurrent_call},
+    )
+
+
+def compile_recurrent_layers(model: nn.Module) -> int:
+    """Compile Qwen recurrent decoder blocks as explicit state transitions."""
+
+    if not _USE_COMPILED_RECURRENT_LAYERS:
+        return 0
+    compiled = 0
+    for _, module in list(model.named_modules()):
+        module_type = type(module)
+        if (
+            not getattr(module, "is_linear", False)
+            or not module_type.__module__.startswith("mlx_lm.models.qwen3_5")
+            or hasattr(module, "_mlxl3_compiled_decode")
+        ):
+            continue
+        original = module.__call__
+
+        def decode(x: mx.array, state: Any, *, call=original):
+            local_cache = ArraysCache(len(state[0]))
+            local_cache.state = state
+            output = call(x, mask=None, cache=local_cache)
+            return output, local_cache.state
+
+        module._mlxl3_original_call = original
+        module._mlxl3_compiled_decode = mx.compile(decode)
+        module.__class__ = _compiled_recurrent_class(module_type)
+        compiled += 1
+    return compiled
