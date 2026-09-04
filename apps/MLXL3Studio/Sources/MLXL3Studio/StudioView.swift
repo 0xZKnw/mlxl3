@@ -239,20 +239,10 @@ private struct WorkspaceHeader: View {
             .buttonStyle(GlassPillButtonStyle())
             .disabled(studio.isGenerating)
 
-            if studio.selectedModelNeedsAccess {
-                Button(action: studio.authorizeSelectedModel) {
-                    Label("Autoriser l’accès", systemImage: "lock.open.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(StudioTheme.accent)
-                }
-                .buttonStyle(.plain)
-                .help("Mémoriser l’accès à ce dossier de modèle")
-            } else {
-                Text(studio.engineState.label)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(StudioTheme.quiet)
-                    .lineLimit(1)
-            }
+            Text(studio.engineState.label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(StudioTheme.quiet)
+                .lineLimit(1)
 
             Spacer()
 
@@ -314,17 +304,6 @@ private struct WelcomeView: View {
                         .padding(.vertical, 10)
                         .background(Color.red.opacity(0.08), in: Capsule())
 
-                    if studio.selectedModelNeedsAccess {
-                        Button(action: studio.authorizeSelectedModel) {
-                            Label(
-                                "Autoriser ce modèle une seule fois",
-                                systemImage: "folder.badge.checkmark"
-                            )
-                            .padding(.horizontal, 16)
-                            .frame(height: 38)
-                        }
-                        .buttonStyle(GlassPillButtonStyle())
-                    }
                 }
                 .padding(.top, 22)
             }

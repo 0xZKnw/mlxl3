@@ -63,6 +63,8 @@ def _load_all_safetensors(model_path: Path) -> dict[str, mx.array]:
 
 
 def _sanitized_prefix(model: nn.Module, prefix: str) -> str:
+    if prefix == 'lm_head' and getattr(model, 'model_type', None) == 'gemma4':
+        return 'language_model.lm_head'
     sentinel = mx.zeros((1,), dtype=mx.uint16)
     # Architecture sanitizers normally rewrite public ``.weight`` names, not
     # EXL3's serialized suffixes.  Probe with a weight key to obtain the actual
@@ -96,6 +98,11 @@ def _mode(weights: dict[str, mx.array], prefix: str) -> CodebookMode:
 
 
 def _expert_spec(prefix: str) -> tuple[str, int, int, str, str] | None:
+    gemma = re.fullmatch(r'model\.language_model\.layers\.(\d+)\.experts\.(\d+)\.(gate_proj|up_proj|down_proj)', prefix)
+    if gemma:
+        layer, expert, projection = gemma.groups()
+        return ('gemma4', int(layer), int(expert), projection,
+                f'language_model.model.layers.{layer}.experts.switch_glu')
     match = _LING_EXPERT_RE.match(prefix)
     if match is not None:
         layer = int(match.group("layer"))
@@ -129,6 +136,7 @@ def _stack_moe_experts(
     weights: dict[str, mx.array],
     *,
     materialize: bool = False,
+    gemma_hidden_dims: int | None = None,
 ) -> tuple[list[tuple[str, nn.Module]], set[str]]:
     """Build one mapped SwitchGLU per supported MoE layer."""
 
@@ -202,6 +210,8 @@ def _stack_moe_experts(
             down_svh=mx.stack([_scale(weights, prefix, "svh", "sv") for prefix in downs]),
             bits=bits.pop(),
             mode=modes.pop(),
+            activation='gelu' if architecture == 'gemma4' else 'silu',
+            logical_hidden_dims=gemma_hidden_dims if architecture == 'gemma4' else None,
         )
         if materialize:
             # Evaluate one routed layer at a time. Evaluating every lazy
@@ -280,6 +290,7 @@ def _load_exl3_model(
         disk_modules,
         raw_weights,
         materialize=not lazy,
+        gemma_hidden_dims=config.get('text_config', {}).get('moe_intermediate_size'),
     )
     weights = dict(raw_weights)
     if hasattr(model, "sanitize"):
@@ -303,6 +314,7 @@ def _load_exl3_model(
             bits=bits,
             mode=_mode(raw_weights, disk_prefix),
             bias=raw_weights.get(f"{disk_prefix}.bias"),
+            logical_shape=tuple(leaves[prefix].weight.shape) if config.get('model_type') == 'gemma4' else None,
         )
         replacements.append((prefix, module))
         replaced.append(prefix)

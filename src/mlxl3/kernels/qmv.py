@@ -21,6 +21,62 @@ from mlxl3.kernels.common import (
 )
 
 _HADAMARD_SCALE = 1.0 / math.sqrt(128.0)
+_USE_SCALED_HADAMARD = os.environ.get('MLXL3_SCALED_HADAMARD', '0') == '1'
+
+
+@cache
+def _scaled_hadamard_kernel(input_scale: bool):
+    # Match MLX radix-16 then radix-8, including both FP16 roundings.
+    return mx.fast.metal_kernel(
+        name=f'mlxl3_scaled_hadamard_{int(input_scale)}_simd_v2',
+        input_names=['x', 'scales'], output_names=['y'],
+        source='''
+            uint tid = thread_position_in_threadgroup.x;
+            uint base = threadgroup_position_in_grid.x * 128u;
+            float v[4];
+            for (uint r=0; r<4; ++r) {
+                uint index=base+tid*4+r;
+                half value=half(x[index % X_SIZE]);
+                if (INPUT_SCALE) value=half(value * half(scales[index % SCALE_SIZE]));
+                v[r]=float(value);
+            }
+            for (uint h=1; h<4; h*=2) {
+                for (uint i=0; i<2; ++i) {
+                    uint k=i & (h-1); uint j=((i-k)<<1)+k;
+                    float a=v[j], b=v[j+h]; v[j]=a+b; v[j+h]=a-b;
+                }
+            }
+            for (uint h=1; h<4; h*=2) {
+                for (uint r=0; r<4; ++r) {
+                    float peer=simd_shuffle_xor(v[r], h);
+                    v[r]=(tid & h) ? peer-v[r] : v[r]+peer;
+                }
+            }
+            for (uint r=0; r<4; ++r) v[r]=float(half(v[r]));
+            for (uint h=4; h<32; h*=2) {
+                for (uint r=0; r<4; ++r) {
+                    float peer=simd_shuffle_xor(v[r], h);
+                    v[r]=(tid & h) ? peer-v[r] : v[r]+peer;
+                }
+            }
+            for (uint r=0; r<4; ++r) {
+                uint index=base+tid*4+r;
+                half result=half(float(half(v[r])) * 0.08838834764831845f);
+                if (!INPUT_SCALE) result=half(result * half(scales[index % SCALE_SIZE]));
+                y[index]=result;
+            }
+        ''', compile_options={'math_mode':'safe'},
+    )
+
+
+@mx.compile
+def _run_scaled_hadamard(x, scale, input_scale):
+    shape = mx.broadcast_arrays(x, scale)[0].shape
+    size = math.prod(shape)
+    return _scaled_hadamard_kernel(input_scale)(
+        inputs=[x, scale], template=[('INPUT_SCALE', input_scale), ('SCALE_SIZE', scale.size), ('X_SIZE', x.size)],
+        grid=(size//128*32, 1, 1), threadgroup=(32,1,1),
+        output_shapes=[shape], output_dtypes=[mx.float16])[0]
 _USE_K3_WINDOW_DECODE = os.environ.get("MLXL3_K3_WINDOW_DECODE", "1") != "0"
 _USE_TENSOR_QMM = os.environ.get("MLXL3_TENSOR_QMM", "1") != "0"
 _USE_TENSOR_SEGMENTED_QMM = (
@@ -874,8 +930,14 @@ def _hadamard_right(x: mx.array) -> mx.array:
     return mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
 
 
-@mx.compile
 def _scaled_hadamard_input(x: mx.array, scale: mx.array) -> mx.array:
+    if _USE_SCALED_HADAMARD:
+        return _run_scaled_hadamard(x, scale, True)
+    return _reference_scaled_hadamard_input(x, scale)
+
+
+@mx.compile
+def _reference_scaled_hadamard_input(x: mx.array, scale: mx.array) -> mx.array:
     """Fuse input scaling, fp16 rounding, and block Hadamards."""
 
     values = x.astype(mx.float16) * scale.astype(mx.float16)
@@ -884,8 +946,14 @@ def _scaled_hadamard_input(x: mx.array, scale: mx.array) -> mx.array:
     return mx.hadamard_transform(blocks, scale=_HADAMARD_SCALE).reshape(shape)
 
 
-@mx.compile
 def _scaled_hadamard_output(x: mx.array, scale: mx.array) -> mx.array:
+    if _USE_SCALED_HADAMARD:
+        return _run_scaled_hadamard(x, scale, False)
+    return _reference_scaled_hadamard_output(x, scale)
+
+
+@mx.compile
+def _reference_scaled_hadamard_output(x: mx.array, scale: mx.array) -> mx.array:
     """Fuse fp16 block Hadamards with their output scaling."""
 
     values = x.astype(mx.float16)
