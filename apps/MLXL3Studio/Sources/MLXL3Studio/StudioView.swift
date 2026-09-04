@@ -41,6 +41,10 @@ struct StudioView: View {
             ModelManagerView()
                 .environmentObject(studio)
         }
+        .sheet(isPresented: $studio.showAppSettings) {
+            AppSettingsView()
+                .environmentObject(studio)
+        }
     }
 }
 
@@ -61,7 +65,12 @@ private struct SidebarView: View {
                         .foregroundStyle(StudioTheme.quiet)
                 }
                 Spacer()
+                UpdateStatusButton(
+                    updater: studio.updateManager,
+                    action: studio.openAppSettings
+                )
             }
+            .frame(maxWidth: .infinity)
             .padding(.top, 44)
             .padding(.horizontal, 18)
 
@@ -230,10 +239,20 @@ private struct WorkspaceHeader: View {
             .buttonStyle(GlassPillButtonStyle())
             .disabled(studio.isGenerating)
 
-            Text(studio.engineState.label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(StudioTheme.quiet)
-                .lineLimit(1)
+            if studio.selectedModelNeedsAccess {
+                Button(action: studio.authorizeSelectedModel) {
+                    Label("Autoriser l’accès", systemImage: "lock.open.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(StudioTheme.accent)
+                }
+                .buttonStyle(.plain)
+                .help("Mémoriser l’accès à ce dossier de modèle")
+            } else {
+                Text(studio.engineState.label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(StudioTheme.quiet)
+                    .lineLimit(1)
+            }
 
             Spacer()
 
@@ -287,13 +306,27 @@ private struct WelcomeView: View {
                 .padding(.top, 11)
 
             if case let .failed(message) = studio.engineState {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color.red.opacity(0.08), in: Capsule())
-                    .padding(.top, 22)
+                VStack(spacing: 10) {
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.red.opacity(0.08), in: Capsule())
+
+                    if studio.selectedModelNeedsAccess {
+                        Button(action: studio.authorizeSelectedModel) {
+                            Label(
+                                "Autoriser ce modèle une seule fois",
+                                systemImage: "folder.badge.checkmark"
+                            )
+                            .padding(.horizontal, 16)
+                            .frame(height: 38)
+                        }
+                        .buttonStyle(GlassPillButtonStyle())
+                    }
+                }
+                .padding(.top, 22)
             }
             Button {
                 studio.openModelManager()

@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 
 @MainActor
@@ -11,6 +12,7 @@ final class StudioModel: ObservableObject {
     @Published var engineState: EngineState = .idle
     @Published var showInspector = false
     @Published var showModelManager = false
+    @Published var showAppSettings = false
     @Published private(set) var modelInstallState: ModelInstallState = .idle
     @Published var temperature = 0.2
     @Published var topK = 80
@@ -20,7 +22,9 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mcpToolCount = 0
     @Published private(set) var mcpErrors: [String: String] = [:]
 
+    let updateManager: UpdateManager
     private let bridge = MLXL3Bridge()
+    private let modelAccess: ModelAccessStore
     private let conversationStore: ConversationStore
     private let conversationFileURL: URL
     private var persistenceTask: Task<Void, Never>?
@@ -29,8 +33,14 @@ final class StudioModel: ObservableObject {
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
 
-    init(conversationFileURL: URL = ConversationStore.defaultFileURL()) {
+    init(
+        conversationFileURL: URL = ConversationStore.defaultFileURL(),
+        updateManager: UpdateManager = UpdateManager(),
+        modelAccess: ModelAccessStore = ModelAccessStore()
+    ) {
         self.conversationFileURL = conversationFileURL
+        self.updateManager = updateManager
+        self.modelAccess = modelAccess
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         if let snapshot = ConversationStore.load(from: conversationFileURL),
            !snapshot.conversations.isEmpty {
@@ -59,6 +69,13 @@ final class StudioModel: ObservableObject {
 
     var selectedModel: LocalModel? {
         models.first { $0.name == selectedModelName }
+    }
+
+    var selectedModelNeedsAccess: Bool {
+        guard let selectedModel else { return false }
+        return !modelAccess.hasAccess(
+            to: URL(fileURLWithPath: selectedModel.path, isDirectory: true)
+        )
     }
 
     var currentConversation: Conversation? {
@@ -117,6 +134,8 @@ final class StudioModel: ObservableObject {
     func start() {
         guard !didStart else { return }
         didStart = true
+        modelAccess.restoreAccess()
+        updateManager.startAutomaticCheck()
         refreshModels()
     }
 
@@ -146,6 +165,24 @@ final class StudioModel: ObservableObject {
         showModelManager = true
     }
 
+    func openAppSettings() {
+        showAppSettings = true
+    }
+
+    func installUpdateAndRestart() {
+        guard !isGenerating else { return }
+        persistNow()
+        guard updateManager.beginInstallation() else { return }
+        bridge.stop()
+        persistNow()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            Darwin.exit(EXIT_SUCCESS)
+        }
+        DispatchQueue.main.async {
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
     func importModelFolder() {
         guard !modelInstallState.isWorking else { return }
         let panel = NSOpenPanel()
@@ -158,7 +195,13 @@ final class StudioModel: ObservableObject {
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             Task { @MainActor [weak self] in
-                self?.registerModelFolder(url)
+                guard let self else { return }
+                do {
+                    try self.modelAccess.authorize(modelURL: url, selectedURL: url)
+                    self.registerModelFolder(url)
+                } catch {
+                    self.modelInstallState = .failed(error.localizedDescription)
+                }
             }
         }
     }
@@ -190,7 +233,17 @@ final class StudioModel: ObservableObject {
         if name == selectedModelName, bridge.isRunning { return }
         selectedModelName = name
         schedulePersistence()
-        loadSelectedModel()
+        guard let model = selectedModel else { return }
+        if modelAccess.hasAccess(to: URL(fileURLWithPath: model.path, isDirectory: true)) {
+            loadSelectedModel()
+        } else {
+            requestAccess(to: model)
+        }
+    }
+
+    func authorizeSelectedModel() {
+        guard let selectedModel else { return }
+        requestAccess(to: selectedModel)
     }
 
     func ejectModel() {
@@ -333,7 +386,15 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
-        guard let selectedModelName else { return }
+        guard let selectedModelName, let model = selectedModel else { return }
+        guard modelAccess.hasAccess(
+            to: URL(fileURLWithPath: model.path, isDirectory: true)
+        ) else {
+            engineState = .failed(
+                "Accès requis. Choisis à nouveau ce modèle dans le menu pour l’autoriser une seule fois."
+            )
+            return
+        }
         engineState = .loading(selectedModelName)
         readyInfo = nil
         mcpServerCount = 0
@@ -345,6 +406,34 @@ final class StudioModel: ObservableObject {
             try bridge.start(model: selectedModelName)
         } catch {
             engineState = .failed(error.localizedDescription)
+        }
+    }
+
+    private func requestAccess(to model: LocalModel) {
+        let modelURL = URL(fileURLWithPath: model.path, isDirectory: true).standardizedFileURL
+        let panel = NSOpenPanel()
+        panel.title = "Autoriser \(model.name)"
+        panel.message = "Sélectionne le dossier “\(modelURL.lastPathComponent)”. MLXL3 mémorisera cet accès et ne le redemandera plus à chaque lancement."
+        panel.prompt = "Autoriser une fois"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = false
+        panel.allowsMultipleSelection = false
+        // Open inside the exact checkpoint so the confirmation button grants
+        // only this model directory, not the whole Documents folder.
+        panel.directoryURL = modelURL
+        panel.begin { [weak self] response in
+            guard let self else { return }
+            guard response == .OK, let selectedURL = panel.url else {
+                self.engineState = .failed("Accès au modèle non autorisé.")
+                return
+            }
+            do {
+                try self.modelAccess.authorize(modelURL: modelURL, selectedURL: selectedURL)
+                self.loadSelectedModel()
+            } catch {
+                self.engineState = .failed(error.localizedDescription)
+            }
         }
     }
 
