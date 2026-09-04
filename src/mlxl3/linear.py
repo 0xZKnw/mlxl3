@@ -1,4 +1,4 @@
-"""EXL3-backed linear layer with a correctness-first dense fallback."""
+"""EXL3-backed linear layers that stay serialized during inference."""
 
 from __future__ import annotations
 
@@ -17,11 +17,10 @@ from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 _USE_FUSED_GATED_DELTA_INPUTS = (
     os.environ.get("MLXL3_FUSED_GATED_DELTA_INPUTS", "1") != "0"
 )
-_PREFILL_ROW_LIMIT = int(os.environ.get("MLXL3_PREFILL_ROW_LIMIT", "512"))
 
 
 class EXL3Linear(nn.Module):
-    """An EXL3 matrix kept in serialized form for decode and small prefill."""
+    """An EXL3 matrix kept in serialized form for decode and arbitrary prefill."""
 
     def __init__(
         self,
@@ -74,7 +73,7 @@ class EXL3Linear(nn.Module):
                 self.bits,
                 self.mode,
             )
-        elif x.size // self.input_dims <= _PREFILL_ROW_LIMIT and self.bits != 7:
+        else:
             output = qmm_exl3(
                 x,
                 self.trellis,
@@ -83,10 +82,6 @@ class EXL3Linear(nn.Module):
                 self.bits,
                 self.mode,
             )
-        else:
-            # Long offline batches use a transient public weight. Generation
-            # never reaches this path and the dense matrix is not retained.
-            output = x @ self.reconstruct(cache=False)
         return output if self.bias is None else output + self.bias
 
     @classmethod

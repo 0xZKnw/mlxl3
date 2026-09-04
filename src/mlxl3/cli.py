@@ -49,10 +49,9 @@ class MemorySafetyError(RuntimeError):
     """Generation stopped before Metal pressure can destabilize the desktop."""
 
 
-# Keep each cached-prefix chunk on EXL3's serialized QMM path. Larger chunks
-# fall back to transient dense reconstruction, which is both slower and much
-# more memory hungry for low-bpw checkpoints.
-_PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "512"))
+# Zero selects a memory-aware serialized-QMM step. An explicit environment
+# override remains useful for profiling and unusually constrained hosts.
+_PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "0"))
 _PREFIX_CACHE_BLOCK_SIZE = int(os.environ.get("MLXL3_PREFIX_CACHE_BLOCK_SIZE", "2048"))
 _PREFIX_CACHE_BUDGET_BYTES = int(
     float(os.environ.get("MLXL3_PREFIX_CACHE_GB", "0.5")) * 1_000_000_000
@@ -230,8 +229,12 @@ class GenerationSession:
 
         extension = stable_tokens[common:]
         processed = common
+        step_size = _select_prefill_step_size(
+            mx.get_active_memory(),
+            _mlx_memory_guard_bytes(),
+        )
         while processed < len(stable_tokens):
-            chunk_end = min(processed + _PREFILL_STEP_SIZE, len(stable_tokens))
+            chunk_end = min(processed + step_size, len(stable_tokens))
             if _PREFIX_CACHE_BLOCK_SIZE > 0:
                 next_boundary = (
                     (processed // _PREFIX_CACHE_BLOCK_SIZE) + 1
@@ -310,6 +313,19 @@ def _mlx_memory_guard_bytes() -> int:
     recommended = int(info.get("max_recommended_working_set_size") or 0)
     candidates = [value for value in (int(physical * 0.82), int(recommended * 0.96)) if value]
     return min(candidates) if candidates else 16_000_000_000
+
+
+def _select_prefill_step_size(active_bytes: int, limit_bytes: int) -> int:
+    """Choose the widest measured-fast QMM block that fits with headroom."""
+
+    if _PREFILL_STEP_SIZE > 0:
+        return _PREFILL_STEP_SIZE
+    headroom = max(0, limit_bytes - active_bytes)
+    if headroom >= 2_000_000_000:
+        return 2048
+    if headroom >= 750_000_000:
+        return 1024
+    return 512
 
 
 class ThinkingSplitter:

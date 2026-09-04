@@ -148,6 +148,18 @@ def test_generation_session_pool_evicts_oldest_cache() -> None:
     assert first.prompt_cache is None
 
 
+def test_prefill_step_uses_explicit_override(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 1536)
+    assert cli._select_prefill_step_size(17_000_000_000, 18_000_000_000) == 1536
+
+
+def test_prefill_step_adapts_to_available_memory(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 0)
+    assert cli._select_prefill_step_size(10_000_000_000, 18_000_000_000) == 2048
+    assert cli._select_prefill_step_size(17_100_000_000, 18_000_000_000) == 1024
+    assert cli._select_prefill_step_size(17_500_000_000, 18_000_000_000) == 512
+
+
 def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -> None:
     responses = [
         SimpleNamespace(

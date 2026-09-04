@@ -65,9 +65,11 @@ mlxl3 register MY_MODEL /absolute/path/to/exl3-model
 Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 `--repetition-penalty`, and `--system`.
 
-Cached chat prefixes are evaluated in 512-token chunks so EXL3 stays on its
-serialized Metal QMM path instead of reconstructing dense weights. The size can
-be overridden for experiments with `MLXL3_PREFILL_STEP_SIZE`.
+All prompt sizes stay on the serialized Metal QMM path; MLXL3 never reconstructs
+a dense weight during ordinary inference. Cached chat prefixes use a memory-aware
+512/1024/2048-token step, selecting wider and faster blocks when unified-memory
+headroom allows it. The choice can be pinned for experiments with
+`MLXL3_PREFILL_STEP_SIZE`.
 
 ## Native macOS app
 

@@ -1766,12 +1766,6 @@ def qmm_exl3(
         raise ValueError(f"QMM expects width {input_dims}, got {x.shape[-1]}")
     rows = x.size // input_dims
     flat = x.reshape(rows, input_dims)
-    if k == 7:
-        output = mx.stack(
-            [qmv_exl3(row, trellis, suh, svh, k, mode) for row in flat], axis=0
-        )
-        return output.reshape(*x.shape[:-1], output_dims)
-
     cb = CodebookMode(mode)
     if trellis.dtype == mx.int16:
         trellis = trellis.view(mx.uint16)
@@ -1821,6 +1815,17 @@ def qmm_exl3(
             output_dtypes=[mx.float16],
         )[0][:rows]
         output = _scaled_hadamard_output(yhat, svh).astype(x.dtype)
+        return output.reshape(*x.shape[:-1], output_dims)
+
+    # The small-row CUDA-style tile path extracts four adjacent K-bit
+    # codewords from a two-word window, which is insufficient for K=7 at a
+    # handful of bit offsets. Matrix/TensorOps prefill above decodes pairs and
+    # supports K=7 natively; retain the exact scalar kernel only for tiny
+    # batches where building a matrix tile would be wasteful.
+    if k == 7:
+        output = mx.stack(
+            [qmv_exl3(row, trellis, suh, svh, k, mode) for row in flat], axis=0
+        )
         return output.reshape(*x.shape[:-1], output_dims)
 
     mt = 2 if rows <= 2 else (4 if rows <= 4 else 8)
