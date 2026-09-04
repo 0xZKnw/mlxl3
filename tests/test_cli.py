@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import mlx_lm
+from mlx_lm.models.cache import ArraysCache
 
 from mlxl3 import cli
 from mlxl3.registry import ModelEntry
@@ -91,6 +92,22 @@ def test_generation_session_promotes_exact_completed_turn_cache() -> None:
     assert next_cache[0].state.tolist() == [1, 2, 9, 7, 3, 4]
     next_cache[0].state[0] = 99
     assert session.prompt_cache[0].state.tolist() == [1, 2, 9, 7, 3, 4]
+
+
+def test_generation_session_forks_recurrent_state_without_copying_arrays() -> None:
+    recurrent = ArraysCache(2)
+    first = mx.arange(8)
+    second = mx.arange(4)
+    recurrent[0] = first
+    recurrent[1] = second
+
+    cloned = cli.GenerationSession._clone_cache([recurrent])[0]
+
+    assert cloned.cache is not recurrent.cache
+    assert cloned[0] is first
+    assert cloned[1] is second
+    cloned[0] = mx.zeros((8,))
+    assert recurrent[0] is first
 
 
 def test_generation_session_chunks_cached_prefill(monkeypatch) -> None:

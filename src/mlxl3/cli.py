@@ -117,17 +117,25 @@ class GenerationSession:
     def _clone_cache(cache: list[Any], *, synchronize: bool = True) -> list[Any]:
         import mlx.core as mx
         from mlx.utils import tree_map
+        from mlx_lm.models.cache import ArraysCache
 
         def copy_array(value: Any) -> Any:
             return mx.array(value) if isinstance(value, mx.array) else value
 
-        cloned = [
-            type(item).from_state(
-                tree_map(copy_array, item.state),
-                tree_map(copy_array, item.meta_state),
+        cloned = []
+        for item in cache:
+            # Qwen Gated DeltaNet replaces its ArraysCache states on every
+            # update instead of writing into their buffers. Rebuild the Python
+            # containers but share those immutable arrays across forks. KV
+            # caches retain real copies because their reserved buffers are
+            # updated in place during decode.
+            mapper = (lambda value: value) if isinstance(item, ArraysCache) else copy_array
+            cloned.append(
+                type(item).from_state(
+                    tree_map(mapper, item.state),
+                    tree_map(mapper, item.meta_state),
+                )
             )
-            for item in cache
-        ]
         states = [item.state for item in cloned]
         if synchronize:
             mx.eval(states)
