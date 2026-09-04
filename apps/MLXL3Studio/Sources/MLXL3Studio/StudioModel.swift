@@ -209,6 +209,7 @@ final class StudioModel: ObservableObject {
             try bridge.generate(
                 GenerationRequest(
                     requestID: requestID,
+                    conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
                     maxTokens: -1,
                     temperature: temperature,

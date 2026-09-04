@@ -104,6 +104,7 @@ struct PromptMessage: Codable, Hashable {
 struct GenerationRequest: Encodable {
     let type = "generate"
     let requestID: String
+    let conversationID: String
     let messages: [PromptMessage]
     let maxTokens: Int
     let temperature: Double
@@ -113,6 +114,7 @@ struct GenerationRequest: Encodable {
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
         case requestID = "request_id"
+        case conversationID = "conversation_id"
         case maxTokens = "max_tokens"
         case topK = "top_k"
         case repetitionPenalty = "repetition_penalty"

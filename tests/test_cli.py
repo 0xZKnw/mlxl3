@@ -110,6 +110,44 @@ def test_generation_session_chunks_cached_prefill(monkeypatch) -> None:
     assert generation_cache[0].state.tolist() == [1, 2, 3, 4, 5, 6, 7]
 
 
+def test_generation_session_restores_nearest_block_on_divergence(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 2)
+    monkeypatch.setattr(cli, "_PREFIX_CACHE_BLOCK_SIZE", 4)
+    monkeypatch.setattr(cli, "_PREFIX_CACHE_BUDGET_BYTES", 1_000_000)
+    model = FakeCachedModel()
+    session = cli.GenerationSession()
+
+    session.prepare(
+        model,
+        [1, 2, 3, 4, 5, 6, 7, 8, 99],
+        [1, 2, 3, 4, 5, 6, 7, 8],
+    )
+    suffix, generation_cache, common, evaluated = session.prepare(
+        model,
+        [1, 2, 3, 4, 20, 21, 99],
+        [1, 2, 3, 4, 20, 21],
+    )
+
+    assert suffix == [99]
+    assert common == 4
+    assert evaluated == 3
+    assert model.inputs == [[1, 2], [3, 4], [5, 6], [7, 8], [20, 21]]
+    assert generation_cache[0].state.tolist() == [1, 2, 3, 4, 20, 21]
+
+
+def test_generation_session_pool_evicts_oldest_cache() -> None:
+    pool = cli.GenerationSessionPool(budget_bytes=24)
+    first = pool.acquire("first")
+    first.prompt_cache = [FakeStateCache(mx.zeros((8,), dtype=mx.int32))]
+    second = pool.acquire("second")
+    second.prompt_cache = [FakeStateCache(mx.zeros((8,), dtype=mx.int32))]
+
+    pool.prune("second")
+
+    assert list(pool.sessions) == ["second"]
+    assert first.prompt_cache is None
+
+
 def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -> None:
     responses = [
         SimpleNamespace(

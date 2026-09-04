@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import time
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -52,7 +53,39 @@ class MemorySafetyError(RuntimeError):
 # fall back to transient dense reconstruction, which is both slower and much
 # more memory hungry for low-bpw checkpoints.
 _PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "512"))
+_PREFIX_CACHE_BLOCK_SIZE = int(os.environ.get("MLXL3_PREFIX_CACHE_BLOCK_SIZE", "2048"))
+_PREFIX_CACHE_BUDGET_BYTES = int(
+    float(os.environ.get("MLXL3_PREFIX_CACHE_GB", "0.5")) * 1_000_000_000
+)
+_SESSION_CACHE_BUDGET_BYTES = int(
+    float(os.environ.get("MLXL3_SESSION_CACHE_GB", "1.0")) * 1_000_000_000
+)
 _WARM_MODEL_ON_LOAD = os.environ.get("MLXL3_WARM_MODEL_ON_LOAD", "1") != "0"
+
+
+def _cache_nbytes(cache: list[Any] | None, seen: set[int] | None = None) -> int:
+    """Count unique MLX storage referenced by a model cache."""
+
+    if cache is None:
+        return 0
+    import mlx.core as mx
+
+    seen = set() if seen is None else seen
+
+    def visit(value: Any) -> int:
+        if isinstance(value, mx.array):
+            identity = id(value)
+            if identity in seen:
+                return 0
+            seen.add(identity)
+            return int(value.nbytes)
+        if isinstance(value, dict):
+            return sum(visit(item) for item in value.values())
+        if isinstance(value, (list, tuple)):
+            return sum(visit(item) for item in value)
+        return 0
+
+    return sum(visit(item.state) for item in cache)
 
 
 class GenerationSession:
@@ -63,12 +96,14 @@ class GenerationSession:
         self.tokens: list[int] = []
         self.exact_cache: list[Any] | None = None
         self.exact_tokens: list[int] = []
+        self.block_caches: OrderedDict[int, list[Any]] = OrderedDict()
 
     def reset(self) -> None:
         self.prompt_cache = None
         self.tokens = []
         self.exact_cache = None
         self.exact_tokens = []
+        self.block_caches.clear()
 
     @staticmethod
     def _common_prefix(left: list[int], right: list[int]) -> int:
@@ -80,7 +115,7 @@ class GenerationSession:
         return common
 
     @staticmethod
-    def _clone_cache(cache: list[Any]) -> list[Any]:
+    def _clone_cache(cache: list[Any], *, synchronize: bool = True) -> list[Any]:
         import mlx.core as mx
         from mlx.utils import tree_map
 
@@ -94,8 +129,52 @@ class GenerationSession:
             )
             for item in cache
         ]
-        mx.eval([item.state for item in cloned])
+        states = [item.state for item in cloned]
+        if synchronize:
+            mx.eval(states)
+        else:
+            mx.async_eval(states)
         return cloned
+
+    def nbytes(self) -> int:
+        """Return unique GPU bytes retained by this conversation."""
+
+        seen: set[int] = set()
+        total = _cache_nbytes(self.prompt_cache, seen)
+        total += _cache_nbytes(self.exact_cache, seen)
+        for cache in self.block_caches.values():
+            total += _cache_nbytes(cache, seen)
+        return total
+
+    def _prune_block_caches(self) -> None:
+        while self.block_caches and self.nbytes() > _PREFIX_CACHE_BUDGET_BYTES:
+            self.block_caches.popitem(last=False)
+
+    def _store_block_cache(self, length: int) -> None:
+        if (
+            self.prompt_cache is None
+            or _PREFIX_CACHE_BLOCK_SIZE <= 0
+            or _PREFIX_CACHE_BUDGET_BYTES <= 0
+        ):
+            return
+        self.block_caches[length] = self._clone_cache(
+            self.prompt_cache,
+            synchronize=False,
+        )
+        self.block_caches.move_to_end(length)
+        self._prune_block_caches()
+
+    def _restore_block_cache(self, common: int) -> int:
+        candidates = [length for length in self.block_caches if length <= common]
+        if not candidates:
+            return 0
+        length = max(candidates)
+        self.prompt_cache = self._clone_cache(self.block_caches[length])
+        self.tokens = self.tokens[:length]
+        for stale in [position for position in self.block_caches if position > length]:
+            del self.block_caches[stale]
+        self.block_caches.move_to_end(length)
+        return length
 
     def prepare(
         self,
@@ -141,20 +220,35 @@ class GenerationSession:
                     self.prompt_cache = make_prompt_cache(model)
                     common = 0
             else:
-                # Recurrent-state models such as Qwen3.6 cannot rewind their
-                # state cache. Exact extensions are reusable; a divergent chat
-                # simply starts a fresh cache.
-                self.prompt_cache = make_prompt_cache(model)
-                common = 0
+                # Recurrent-state models such as Qwen3.6 cannot trim their
+                # state cache. Restore the nearest immutable block snapshot;
+                # only the suffix after the fork point must be evaluated.
+                common = self._restore_block_cache(common)
+                if common == 0:
+                    self.prompt_cache = make_prompt_cache(model)
+                    self.block_caches.clear()
 
         extension = stable_tokens[common:]
-        for begin in range(0, len(extension), _PREFILL_STEP_SIZE):
-            chunk = extension[begin : begin + _PREFILL_STEP_SIZE]
+        processed = common
+        while processed < len(stable_tokens):
+            chunk_end = min(processed + _PREFILL_STEP_SIZE, len(stable_tokens))
+            if _PREFIX_CACHE_BLOCK_SIZE > 0:
+                next_boundary = (
+                    (processed // _PREFIX_CACHE_BLOCK_SIZE) + 1
+                ) * _PREFIX_CACHE_BLOCK_SIZE
+                chunk_end = min(chunk_end, next_boundary)
+            chunk = stable_tokens[processed:chunk_end]
             model(mx.array(chunk)[None], cache=self.prompt_cache)
             # Submit successive cache states without stalling the CPU between
             # chunks. MLX preserves their data dependencies on the generation
             # stream, so one terminal synchronization is sufficient.
             mx.async_eval([item.state for item in self.prompt_cache])
+            processed = chunk_end
+            if (
+                _PREFIX_CACHE_BLOCK_SIZE > 0
+                and processed % _PREFIX_CACHE_BLOCK_SIZE == 0
+            ):
+                self._store_block_cache(processed)
         if extension:
             mx.eval([item.state for item in self.prompt_cache])
             mx.clear_cache()
@@ -179,6 +273,33 @@ class GenerationSession:
     ) -> None:
         self.exact_tokens = [*prompt_tokens, *generated_tokens]
         self.exact_cache = generation_cache
+
+
+class GenerationSessionPool:
+    """RAM-bounded LRU of warm prompt caches keyed by conversation."""
+
+    def __init__(self, budget_bytes: int = _SESSION_CACHE_BUDGET_BYTES) -> None:
+        self.budget_bytes = max(0, budget_bytes)
+        self.sessions: OrderedDict[str, GenerationSession] = OrderedDict()
+
+    def acquire(self, conversation_id: str) -> GenerationSession:
+        session = self.sessions.get(conversation_id)
+        if session is None:
+            session = GenerationSession()
+            self.sessions[conversation_id] = session
+        self.sessions.move_to_end(conversation_id)
+        return session
+
+    def prune(self, active_id: str) -> None:
+        while len(self.sessions) > 1:
+            retained = sum(session.nbytes() for session in self.sessions.values())
+            if retained <= self.budget_bytes:
+                break
+            oldest = next(iter(self.sessions))
+            if oldest == active_id:
+                self.sessions.move_to_end(oldest)
+                continue
+            self.sessions.pop(oldest).reset()
 
 
 def _mlx_memory_guard_bytes() -> int:
@@ -1009,7 +1130,7 @@ def _bridge(args) -> int:
     name, path = resolve_model(args.model)
     _json_event("loading", model=name)
     model, tokenizer, modules, load_seconds, resident_gb = _load_model(path)
-    session = GenerationSession()
+    sessions = GenerationSessionPool()
     try:
         mcp = MCPManager()
         mcp.connect()
@@ -1047,6 +1168,7 @@ def _bridge(args) -> int:
                     raise ValueError(f"unsupported request type: {request_type!r}")
 
                 messages = _bridge_messages(request.get("messages"))
+                conversation_id = str(request.get("conversation_id") or "default")
                 max_tokens = int(request.get("max_tokens", -1))
                 temperature = float(request.get("temperature", 0.2))
                 top_k = int(request.get("top_k", 80))
@@ -1066,8 +1188,9 @@ def _bridge(args) -> int:
                     top_k=top_k,
                     repetition_penalty=repetition_penalty,
                     mcp=mcp,
-                    session=session,
+                    session=sessions.acquire(conversation_id),
                 )
+                sessions.prune(conversation_id)
             except (ValueError, TypeError, json.JSONDecodeError) as error:
                 _json_event("error", request_id=request_id, message=str(error))
             except Exception as error:  # noqa: BLE001 - keep the resident model available
