@@ -24,7 +24,7 @@ _USE_FUSED_MOE_REDUCE = os.environ.get("MLXL3_FUSED_MOE_REDUCE", "1") != "0"
 _USE_FUSED_MOE_GLU_PREP = os.environ.get("MLXL3_FUSED_MOE_GLU_PREP", "1") != "0"
 _USE_SEGMENTED_MOE_PREFILL = os.environ.get("MLXL3_SEGMENTED_MOE_PREFILL", "1") != "0"
 _SEGMENTED_BLOCK_ROWS = 64
-_SEGMENTED_MOE_MIN_ROWS = int(os.environ.get("MLXL3_SEGMENTED_MOE_MIN_ROWS", "384"))
+_SEGMENTED_MOE_MIN_ROWS = int(os.environ.get("MLXL3_SEGMENTED_MOE_MIN_ROWS", "64"))
 
 
 def _butterfly_source(source: str, target: str) -> str:
