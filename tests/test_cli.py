@@ -4,6 +4,7 @@ import io
 import json
 from types import SimpleNamespace
 
+import mlx.core as mx
 import mlx_lm
 
 from mlxl3 import cli
@@ -13,8 +14,83 @@ from mlxl3.registry import ModelEntry
 class FakeTokenizer:
     def apply_chat_template(self, messages, **kwargs):
         assert messages == [{"role": "user", "content": "hello"}]
-        assert kwargs == {"tokenize": False, "add_generation_prompt": True}
+        assert kwargs == {
+            "tokenize": False,
+            "add_generation_prompt": True,
+            "preserve_thinking": True,
+        }
         return "rendered prompt"
+
+
+class FakeStateCache:
+    def __init__(self, state=None):
+        self._state = mx.array([], dtype=mx.int32) if state is None else state
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, value):
+        self._state = value
+
+    @property
+    def meta_state(self):
+        return ""
+
+    @classmethod
+    def from_state(cls, state, meta_state):
+        assert meta_state == ""
+        return cls(state)
+
+    def is_trimmable(self):
+        return False
+
+
+class FakeCachedModel:
+    def __init__(self):
+        self.inputs = []
+
+    def make_cache(self):
+        return [FakeStateCache()]
+
+    def __call__(self, tokens, *, cache):
+        self.inputs.append(list(map(int, tokens.reshape(-1).tolist())))
+        cache[0].state = mx.concatenate([cache[0].state, tokens.reshape(-1)])
+        return mx.zeros((*tokens.shape, 4))
+
+
+def test_generation_session_promotes_exact_completed_turn_cache() -> None:
+    model = FakeCachedModel()
+    session = cli.GenerationSession()
+
+    suffix, generation_cache, common, evaluated = session.prepare(
+        model,
+        [1, 2, 9],
+        [1, 2],
+    )
+    assert suffix == [9]
+    assert common == 0
+    assert evaluated == 3
+    assert model.inputs == [[1, 2]]
+
+    generation_cache[0].state = mx.concatenate(
+        [generation_cache[0].state, mx.array([9, 7])]
+    )
+    session.finish([1, 2, 9], [7], generation_cache)
+    suffix, next_cache, common, evaluated = session.prepare(
+        model,
+        [1, 2, 9, 7, 3, 4, 9],
+        [1, 2, 9, 7, 3, 4],
+    )
+
+    assert suffix == [9]
+    assert common == 4
+    assert evaluated == 3
+    assert model.inputs == [[1, 2], [3, 4]]
+    assert next_cache[0].state.tolist() == [1, 2, 9, 7, 3, 4]
+    next_cache[0].state[0] = 99
+    assert session.prompt_cache[0].state.tolist() == [1, 2, 9, 7, 3, 4]
 
 
 def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -> None:

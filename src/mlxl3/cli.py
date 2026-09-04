@@ -40,10 +40,136 @@ class GenerationStats:
     prompt_tokens: int
     generated_tokens: int
     peak_memory_gb: float
+    cached_prompt_tokens: int = 0
+    evaluated_prompt_tokens: int = 0
 
 
 class MemorySafetyError(RuntimeError):
     """Generation stopped before Metal pressure can destabilize the desktop."""
+
+
+_PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "2048"))
+
+
+class GenerationSession:
+    """Reuse the stable chat prefix and its model cache across turns."""
+
+    def __init__(self) -> None:
+        self.prompt_cache: list[Any] | None = None
+        self.tokens: list[int] = []
+        self.exact_cache: list[Any] | None = None
+        self.exact_tokens: list[int] = []
+
+    def reset(self) -> None:
+        self.prompt_cache = None
+        self.tokens = []
+        self.exact_cache = None
+        self.exact_tokens = []
+
+    @staticmethod
+    def _common_prefix(left: list[int], right: list[int]) -> int:
+        common = 0
+        for old, new in zip(left, right, strict=False):
+            if old != new:
+                break
+            common += 1
+        return common
+
+    @staticmethod
+    def _clone_cache(cache: list[Any]) -> list[Any]:
+        import mlx.core as mx
+        from mlx.utils import tree_map
+
+        def copy_array(value: Any) -> Any:
+            return mx.array(value) if isinstance(value, mx.array) else value
+
+        cloned = [
+            type(item).from_state(
+                tree_map(copy_array, item.state),
+                tree_map(copy_array, item.meta_state),
+            )
+            for item in cache
+        ]
+        mx.eval([item.state for item in cloned])
+        return cloned
+
+    def prepare(
+        self,
+        model: Any,
+        full_tokens: list[int],
+        stable_tokens: list[int],
+    ) -> tuple[list[int], list[Any], int, int]:
+        import mlx.core as mx
+        from mlx_lm.models.cache import (
+            can_trim_prompt_cache,
+            make_prompt_cache,
+            trim_prompt_cache,
+        )
+
+        # A template should append its assistant-generation marker to the
+        # stable history. If it does not, fall back to a clean full prefill.
+        if full_tokens[: len(stable_tokens)] != stable_tokens:
+            self.reset()
+            stable_tokens = []
+        if not stable_tokens:
+            return full_tokens, make_prompt_cache(model), 0, len(full_tokens)
+
+        # A normally completed assistant turn is already in the exact byte
+        # form emitted by the template. Promote its post-generation cache and
+        # avoid reevaluating that answer. Truncated reasoning falls back to the
+        # stable pre-assistant snapshot below.
+        if self.exact_cache is not None and self.exact_tokens:
+            exact_common = self._common_prefix(self.exact_tokens, stable_tokens)
+            if exact_common == len(self.exact_tokens):
+                self.prompt_cache = self.exact_cache
+                self.tokens = self.exact_tokens
+            self.exact_cache = None
+            self.exact_tokens = []
+
+        common = self._common_prefix(self.tokens, stable_tokens)
+        if self.prompt_cache is None:
+            self.prompt_cache = make_prompt_cache(model)
+            common = 0
+        elif common < len(self.tokens):
+            if can_trim_prompt_cache(self.prompt_cache):
+                requested = len(self.tokens) - common
+                if trim_prompt_cache(self.prompt_cache, requested) != requested:
+                    self.prompt_cache = make_prompt_cache(model)
+                    common = 0
+            else:
+                # Recurrent-state models such as Qwen3.6 cannot rewind their
+                # state cache. Exact extensions are reusable; a divergent chat
+                # simply starts a fresh cache.
+                self.prompt_cache = make_prompt_cache(model)
+                common = 0
+
+        extension = stable_tokens[common:]
+        for begin in range(0, len(extension), _PREFILL_STEP_SIZE):
+            chunk = extension[begin : begin + _PREFILL_STEP_SIZE]
+            model(mx.array(chunk)[None], cache=self.prompt_cache)
+            mx.eval([item.state for item in self.prompt_cache])
+            mx.clear_cache()
+        self.tokens = list(stable_tokens)
+
+        # Generation mutates its cache. Preserve the stable-history cache so
+        # recurrent layers can reuse it on the following turn without rewind.
+        generation_cache = self._clone_cache(self.prompt_cache)
+        generation_tokens = full_tokens[len(stable_tokens) :]
+        return (
+            generation_tokens,
+            generation_cache,
+            common,
+            len(full_tokens) - common,
+        )
+
+    def finish(
+        self,
+        prompt_tokens: list[int],
+        generated_tokens: list[int],
+        generation_cache: list[Any],
+    ) -> None:
+        self.exact_tokens = [*prompt_tokens, *generated_tokens]
+        self.exact_cache = generation_cache
 
 
 def _mlx_memory_guard_bytes() -> int:
@@ -282,6 +408,12 @@ def _without_tool_calls(response: str) -> str:
     return _TOOL_BLOCK.sub("", _assistant_context(response)).strip()
 
 
+def _cache_context(response: str) -> str:
+    """Keep exact generated reasoning/final bytes for lossless prefix reuse."""
+
+    return _TOOL_BLOCK.sub("", response)
+
+
 def _reasoning_context(response: str) -> str:
     close = response.rfind("</think>")
     if close < 0:
@@ -422,10 +554,15 @@ def _render_generation_prompt(
     tokenizer: Any,
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]] | None,
+    *,
+    add_generation_prompt: bool = True,
 ) -> str:
     template_options: dict[str, Any] = {
         "tokenize": False,
-        "add_generation_prompt": True,
+        "add_generation_prompt": add_generation_prompt,
+        # Qwen templates otherwise delete earlier reasoning. Keeping the
+        # generated bytes makes the next prompt an exact cache extension.
+        "preserve_thinking": True,
     }
     if tools:
         template_options["tools"] = tools
@@ -438,7 +575,8 @@ def _render_generation_prompt(
     return tokenizer.apply_chat_template(
         _legacy_tool_messages(messages, tools),
         tokenize=False,
-        add_generation_prompt=True,
+        add_generation_prompt=add_generation_prompt,
+        preserve_thinking=True,
     )
 
 
@@ -473,6 +611,7 @@ def _stream_response(
     on_text: Callable[[str], None] | None = None,
     on_prompt: Callable[[str], None] | None = None,
     tools: list[dict[str, Any]] | None = None,
+    session: GenerationSession | None = None,
 ) -> tuple[str, GenerationStats]:
     import mlx.core as mx
     from mlx_lm import stream_generate
@@ -487,6 +626,47 @@ def _stream_response(
     first_token_at: float | None = None
     final = None
     pieces: list[str] = []
+    generated_token_ids: list[int] = []
+    full_prompt_tokens: list[int] | None = None
+    cached_prompt_tokens = 0
+    evaluated_prompt_tokens = 0
+    generation_prompt: str | list[int] = prompt
+    prompt_cache = None
+    if session is not None:
+        add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(
+            tokenizer.bos_token
+        )
+        full_prompt_tokens = list(
+            tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
+        )
+        stable_prompt = _render_generation_prompt(
+            tokenizer,
+            messages,
+            tools,
+            add_generation_prompt=False,
+        )
+        stable_tokens = list(
+            tokenizer.encode(stable_prompt, add_special_tokens=add_special_tokens)
+        )
+        (
+            generation_prompt,
+            prompt_cache,
+            cached_prompt_tokens,
+            evaluated_prompt_tokens,
+        ) = session.prepare(
+            model,
+            full_prompt_tokens,
+            stable_tokens,
+        )
+        if stable_tokens and processors:
+            cached_prefix = mx.array(stable_tokens)
+            base_processors = processors
+            processors = [
+                lambda tokens, logits, processor=processor: processor(
+                    mx.concatenate([cached_prefix, tokens]), logits
+                )
+                for processor in base_processors
+            ]
     memory_guard = _mlx_memory_guard_bytes()
     initial_mode = "thinking" if _prompt_prefills_thinking(prompt) else "answer"
     renderer = ThinkingRenderer(initial_mode=initial_mode) if on_text is None else None
@@ -494,14 +674,17 @@ def _stream_response(
         for response in stream_generate(
             model,
             tokenizer,
-            prompt,
+            generation_prompt,
             max_tokens=max_tokens,
             sampler=sampler,
             logits_processors=processors,
+            prompt_cache=prompt_cache,
         ):
             if first_token_at is None:
                 first_token_at = time.perf_counter()
             final = response
+            if session is not None:
+                generated_token_ids.append(int(response.token))
             pieces.append(response.text)
             if renderer is not None:
                 renderer.feed(response.text)
@@ -521,26 +704,38 @@ def _stream_response(
     if final is None or first_token_at is None:
         raise RuntimeError("generation returned no response")
     text = "".join(pieces)
-
+    if (
+        session is not None
+        and full_prompt_tokens is not None
+        and prompt_cache is not None
+    ):
+        session.finish(full_prompt_tokens, generated_token_ids, prompt_cache)
     decode_tokens = max(0, final.generation_tokens - 1)
     decode_seconds = max(0.0, finished - first_token_at)
     decode_tps = decode_tokens / decode_seconds if decode_tokens and decode_seconds else 0.0
+    ttft_seconds = first_token_at - started
+    prefill_tps = final.prompt_tps
+    if session is not None and evaluated_prompt_tokens:
+        prefill_tps = evaluated_prompt_tokens / ttft_seconds
     return text, GenerationStats(
-        ttft_seconds=first_token_at - started,
-        prefill_tps=final.prompt_tps,
+        ttft_seconds=ttft_seconds,
+        prefill_tps=prefill_tps,
         decode_tps=decode_tps,
-        prompt_tokens=final.prompt_tokens,
+        prompt_tokens=len(full_prompt_tokens) if full_prompt_tokens is not None else final.prompt_tokens,
         generated_tokens=final.generation_tokens,
         peak_memory_gb=final.peak_memory,
+        cached_prompt_tokens=cached_prompt_tokens,
+        evaluated_prompt_tokens=evaluated_prompt_tokens or final.prompt_tokens,
     )
 
 
 def _print_stats(stats: GenerationStats) -> None:
+    cache = f" · cache {stats.cached_prompt_tokens} tok" if stats.cached_prompt_tokens else ""
     print(
         f"[TTFT {stats.ttft_seconds * 1000:.0f} ms · "
         f"prefill {stats.prefill_tps:.1f} tok/s ({stats.prompt_tokens} tok) · "
         f"decode {stats.decode_tps:.1f} tok/s ({stats.generated_tokens} tok) · "
-        f"peak {stats.peak_memory_gb:.2f} GB]"
+        f"peak {stats.peak_memory_gb:.2f} GB{cache}]"
     )
 
 
@@ -560,7 +755,7 @@ def _assistant_context(response: str) -> str:
     return response.strip()
 
 
-def _generate_turn(model, tokenizer, messages, user_text, args) -> None:
+def _generate_turn(model, tokenizer, messages, user_text, args, session=None) -> None:
     messages.append({"role": "user", "content": user_text})
     try:
         response, stats = _stream_response(
@@ -571,17 +766,19 @@ def _generate_turn(model, tokenizer, messages, user_text, args) -> None:
             temperature=args.temperature,
             top_k=args.top_k,
             repetition_penalty=args.repetition_penalty,
+            session=session,
         )
     except KeyboardInterrupt:
         messages.pop()
         print("\n[génération interrompue]")
         return
-    messages.append({"role": "assistant", "content": _assistant_context(response)})
+    messages.append({"role": "assistant", "content": _cache_context(response)})
     _print_stats(stats)
 
 
 def _interactive_chat(model, tokenizer, args) -> None:
     messages = _messages(args.system)
+    session = GenerationSession()
     print("Chat interactif. Commandes: /clear, /help, /exit")
     while True:
         try:
@@ -595,12 +792,13 @@ def _interactive_chat(model, tokenizer, args) -> None:
             return
         if user_text == "/clear":
             messages = _messages(args.system)
+            session.reset()
             print("Historique effacé.")
             continue
         if user_text == "/help":
             print("/clear efface l'historique · /exit quitte le chat")
             continue
-        _generate_turn(model, tokenizer, messages, user_text, args)
+        _generate_turn(model, tokenizer, messages, user_text, args, session)
 
 
 def _run(args) -> int:
@@ -673,8 +871,10 @@ def _bridge_generate(
     top_k: int,
     repetition_penalty: float,
     mcp: MCPManager,
+    session: GenerationSession | None = None,
 ) -> None:
     dialogue = list(messages)
+    session = session or GenerationSession()
     chat_tools = mcp.chat_tools
     for tool_round in range(5):
         splitter = ThinkingSplitter()
@@ -705,6 +905,7 @@ def _bridge_generate(
             on_text=emit_text,
             on_prompt=splitter.configure_for_prompt,
             tools=chat_tools,
+            session=session,
         )
         for phase, fragment in splitter.finish():
             _emit_split_fragment(
@@ -723,6 +924,7 @@ def _bridge_generate(
                 "complete",
                 request_id=request_id,
                 assistant_context=_without_tool_calls(response),
+                cache_context=_cache_context(response),
                 stats=asdict(stats),
             )
             return
@@ -778,6 +980,7 @@ def _bridge(args) -> int:
     name, path = resolve_model(args.model)
     _json_event("loading", model=name)
     model, tokenizer, modules, load_seconds, resident_gb = _load_model(path)
+    session = GenerationSession()
     try:
         mcp = MCPManager()
         mcp.connect()
@@ -834,6 +1037,7 @@ def _bridge(args) -> int:
                     top_k=top_k,
                     repetition_penalty=repetition_penalty,
                     mcp=mcp,
+                    session=session,
                 )
             except (ValueError, TypeError, json.JSONDecodeError) as error:
                 _json_event("error", request_id=request_id, message=str(error))

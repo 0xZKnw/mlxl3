@@ -17,6 +17,7 @@ from mlxl3.kernels.reconstruct import reconstruct_public_weights_mlx
 _USE_FUSED_GATED_DELTA_INPUTS = (
     os.environ.get("MLXL3_FUSED_GATED_DELTA_INPUTS", "1") != "0"
 )
+_PREFILL_ROW_LIMIT = int(os.environ.get("MLXL3_PREFILL_ROW_LIMIT", "512"))
 
 
 class EXL3Linear(nn.Module):
@@ -73,7 +74,7 @@ class EXL3Linear(nn.Module):
                 self.bits,
                 self.mode,
             )
-        elif x.size // self.input_dims <= 64 and self.bits != 7:
+        elif x.size // self.input_dims <= _PREFILL_ROW_LIMIT and self.bits != 7:
             output = qmm_exl3(
                 x,
                 self.trellis,

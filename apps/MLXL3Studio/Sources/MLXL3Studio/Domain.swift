@@ -54,6 +54,7 @@ struct BridgeEvent: Decodable {
     let phase: String?
     let text: String?
     let assistantContext: String?
+    let cacheContext: String?
     let stats: GenerationStats?
     let message: String?
     let mcpServers: Int?
@@ -70,6 +71,7 @@ struct BridgeEvent: Decodable {
         case residentGB = "resident_gb"
         case requestID = "request_id"
         case assistantContext = "assistant_context"
+        case cacheContext = "cache_context"
         case mcpServers = "mcp_servers"
         case mcpTools = "mcp_tools"
         case mcpErrors = "mcp_errors"
@@ -131,6 +133,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     private(set) var stats: GenerationStats?
     private(set) var error: String?
     private(set) var toolActivities: [ToolActivity]
+    private(set) var cacheContext: String?
     private(set) var streamRevision = 0
 
     init(
@@ -141,7 +144,8 @@ final class ChatMessage: ObservableObject, Identifiable {
         isStreaming: Bool = false,
         stats: GenerationStats? = nil,
         error: String? = nil,
-        toolActivities: [ToolActivity] = []
+        toolActivities: [ToolActivity] = [],
+        cacheContext: String? = nil
     ) {
         self.id = id
         self.role = role
@@ -151,6 +155,7 @@ final class ChatMessage: ObservableObject, Identifiable {
         self.stats = stats
         self.error = error
         self.toolActivities = toolActivities
+        self.cacheContext = cacheContext
     }
 
     func append(_ text: String, phase: String?) {
@@ -164,10 +169,11 @@ final class ChatMessage: ObservableObject, Identifiable {
         streamRevision &+= 1
     }
 
-    func finish(stats: GenerationStats?, fallbackAnswer: String?) {
+    func finish(stats: GenerationStats?, fallbackAnswer: String?, cacheContext: String?) {
         objectWillChange.send()
         isStreaming = false
         self.stats = stats
+        self.cacheContext = cacheContext
         if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            let fallbackAnswer {
             content = fallbackAnswer
@@ -213,7 +219,8 @@ final class ChatMessage: ObservableObject, Identifiable {
             wasStreaming: isStreaming,
             stats: stats,
             error: error,
-            toolActivities: toolActivities
+            toolActivities: toolActivities,
+            cacheContext: cacheContext
         )
     }
 
@@ -227,7 +234,8 @@ final class ChatMessage: ObservableObject, Identifiable {
             isStreaming: false,
             stats: snapshot.stats,
             error: snapshot.error ?? (snapshot.wasStreaming ? "Génération interrompue" : nil),
-            toolActivities: snapshot.toolActivities ?? []
+            toolActivities: snapshot.toolActivities ?? [],
+            cacheContext: snapshot.cacheContext
         )
     }
 }

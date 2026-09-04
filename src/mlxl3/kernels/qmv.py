@@ -819,9 +819,13 @@ def _qmv_simdgroups(
 ) -> int:
     """Choose cooperative depth from end-to-end measurements on this GPU."""
 
-    del input_tiles, output_tiles, k, mode, mapped_rows
+    del input_tiles, output_tiles, mode
     # Microbenchmarks disagree slightly on narrow shapes, but full decode is
-    # consistently faster with eight groups on both dense and MoE fixtures.
+    # consistently faster with eight groups on dense projections. K=2 routed
+    # experts need fewer lanes per output tile and retain better occupancy with
+    # four groups; K>=3 still benefits from the extra cooperative depth.
+    if _is_m5_gpu() and mapped_rows and k == 2:
+        return 4
     return 8 if _is_m5_gpu() else 4
 
 
@@ -998,8 +1002,8 @@ def qmv_exl3_mapped(
 def qmv_exl3_expert_mapped(
     x: mx.array,
     trellis: mx.array,
-    suh: mx.array,
-    svh: mx.array,
+    suh: mx.array | None,
+    svh: mx.array | None,
     selected: mx.array,
     *,
     output_dims: int,
@@ -1008,6 +1012,8 @@ def qmv_exl3_expert_mapped(
     reduce_weights: mx.array | None = None,
     k: int,
     mode: CodebookMode | int = CodebookMode.DEFAULT,
+    input_pretransformed: bool = False,
+    return_raw: bool = False,
 ) -> mx.array:
     """Run contiguous expert projections from compact routing indices."""
 
@@ -1034,11 +1040,17 @@ def qmv_exl3_expert_mapped(
         raise ValueError(
             f"{selected.size} routes x {projections_per_route} projections != {rows} rows"
         )
-    if suh.shape != x.shape or svh.shape != (rows, output_dims):
+    if not input_pretransformed and (suh is None or suh.shape != x.shape):
         raise ValueError(
-            f"scale shapes must be {x.shape} and {(rows, output_dims)}, "
-            f"got {suh.shape} and {svh.shape}"
+            f"input scales must be {x.shape}, got {None if suh is None else suh.shape}"
         )
+    if not return_raw and (svh is None or svh.shape != (rows, output_dims)):
+        raise ValueError(
+            f"output scales must be {(rows, output_dims)}, "
+            f"got {None if svh is None else svh.shape}"
+        )
+    if return_raw and reduce_weights is not None:
+        raise ValueError("raw expert QMV cannot reduce before the output transform")
     if reduce_weights is not None and (
         reduce_weights.ndim != 2 or reduce_weights.size != selected.size
     ):
@@ -1049,7 +1061,7 @@ def qmv_exl3_expert_mapped(
 
     output_tiles = output_dims // 16
     local_tiles = rows * output_tiles
-    xhat = _scaled_hadamard_input(x, suh)
+    xhat = x if input_pretransformed else _scaled_hadamard_input(x, suh)
     routes = selected.reshape(-1).astype(mx.uint32)
     splits = _split_count(trellis.shape[0], local_tiles)
     tiles_per_group = _qmv_tiles_per_group(
@@ -1100,6 +1112,8 @@ def qmv_exl3_expert_mapped(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
+    if return_raw:
+        return yhat
     if reduce_weights is not None:
         if projections_per_route != 1:
             raise ValueError("expert reduction requires one projection per route")
@@ -1212,6 +1226,220 @@ def qmv_exl3_grouped(
         part.reshape(*original_shape, width)
         for part, width in zip(mx.split(output, boundaries), output_dims, strict=True)
     )
+
+
+@cache
+def _segmented_expert_qmm_kernel(k: int, mode: int):
+    """Decode each routed expert tile once per 64-row Metal GEMM block."""
+
+    packed_u32 = k * 256 // 32
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_expert_qmm_segmented_k{k}_cb{mode}_v1",
+        input_names=["xhat", "trellis", "block_table", "block_count", "dims"],
+        output_names=["output"],
+        header=(
+            "#include <metal_simdgroup_matrix>\n"
+            "#include <metal_stdlib>\n"
+            "using namespace metal;\n"
+            + specialized_codebook_header(mode)
+            + permutation_header()
+        ),
+        source=f"""
+            constexpr uint PACKED_U32 = {packed_u32}u;
+            constexpr uint K_BITS = {k}u;
+            constexpr uint BM = 64u;
+            constexpr uint BN = 64u;
+            constexpr uint WEIGHT_STRIDE = 72u;
+
+            uint block = threadgroup_position_in_grid.y;
+            if (block >= block_count[0]) {{
+                return;
+            }}
+            uint column_block = threadgroup_position_in_grid.x;
+            uint tid = thread_position_in_threadgroup.x;
+            uint lane = thread_index_in_simdgroup;
+            uint simd = simdgroup_index_in_threadgroup;
+            uint simd_row = simd >> 1u;
+            uint simd_column = simd & 1u;
+
+            uint input_tiles = dims[0];
+            uint tiles_per_expert = dims[1];
+            uint source_tiles = dims[2];
+            uint tile_base = dims[3];
+            uint output_dims = dims[4];
+            uint max_blocks = dims[5];
+            uint input_dims = input_tiles * 16u;
+
+            uint expert = block_table[block];
+            uint row_begin = block_table[max_blocks + block];
+            uint block_rows = block_table[2u * max_blocks + block];
+            uint output_tile =
+                tile_base + expert * tiles_per_expert + column_block * 4u;
+
+            uint decoded_column = tid >> 3u;
+            uint row_pair = tid & 7u;
+            uint word0[2];
+            uint word1[2];
+            uint shifts[2];
+            for (uint pair = 0u; pair < 2u; ++pair) {{
+                uint source = mlxl3_perm_inv[
+                    (2u * row_pair + pair) * 16u + decoded_column
+                ];
+                uint position = source >> 1u;
+                int begin = int(position) * 2 * int(K_BITS)
+                    + int(K_BITS) - 16 + 256 * int(K_BITS);
+                int end = begin + int(K_BITS) + 16;
+                word0[pair] = uint(begin / 32) % PACKED_U32;
+                word1[pair] = uint((end - 1) / 32) % PACKED_U32;
+                shifts[pair] = uint(((end - 1) / 32 + 1) * 32 - end)
+                    + ((source & 1u) ? 0u : K_BITS);
+            }}
+
+            threadgroup half weights[32u * WEIGHT_STRIDE];
+            threadgroup float scratch[4u * 64u];
+            simdgroup_float8x8 accum[4][4];
+            for (uint row = 0u; row < 4u; ++row) {{
+                for (uint column = 0u; column < 4u; ++column) {{
+                    accum[row][column] =
+                        make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
+                }}
+            }}
+
+            const device half* input_row = xhat
+                + ulong(row_begin + simd_row * 32u) * input_dims;
+            uint stages = input_tiles >> 1u;
+            for (uint stage = 0u; stage < stages; ++stage) {{
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                for (uint inner_tile = 0u; inner_tile < 2u; ++inner_tile) {{
+                    uint input_tile = stage * 2u + inner_tile;
+                    for (uint local_tile = 0u; local_tile < 4u; ++local_tile) {{
+                        const device uint* words = trellis
+                            + ulong(input_tile * source_tiles
+                                + output_tile + local_tile) * PACKED_U32;
+                        for (uint pair = 0u; pair < 2u; ++pair) {{
+                            ulong merged =
+                                (ulong(words[word0[pair]]) << 32)
+                                | ulong(words[word1[pair]]);
+                            uint codeword = uint(merged >> shifts[pair]) & 0xffffu;
+                            weights[
+                                (inner_tile * 16u + 2u * row_pair + pair)
+                                    * WEIGHT_STRIDE
+                                + local_tile * 16u + decoded_column
+                            ] = half(mlxl3_decode_codeword(codeword, 0));
+                        }}
+                    }}
+                }}
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                for (uint k_fragment = 0u; k_fragment < 4u; ++k_fragment) {{
+                    simdgroup_half8x8 weight0;
+                    simdgroup_half8x8 weight1;
+                    simdgroup_half8x8 weight2;
+                    simdgroup_half8x8 weight3;
+                    const threadgroup half* weight_row =
+                        &weights[k_fragment * 8u * WEIGHT_STRIDE
+                            + simd_column * 32u];
+                    simdgroup_load(weight0, weight_row, WEIGHT_STRIDE);
+                    simdgroup_load(weight1, weight_row + 8u, WEIGHT_STRIDE);
+                    simdgroup_load(weight2, weight_row + 16u, WEIGHT_STRIDE);
+                    simdgroup_load(weight3, weight_row + 24u, WEIGHT_STRIDE);
+                    for (uint row = 0u; row < 4u; ++row) {{
+                        simdgroup_half8x8 input_fragment;
+                        simdgroup_load(
+                            input_fragment,
+                            input_row + ulong(row * 8u) * input_dims
+                                + stage * 32u + k_fragment * 8u,
+                            input_dims
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][0], input_fragment, weight0, accum[row][0]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][1], input_fragment, weight1, accum[row][1]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][2], input_fragment, weight2, accum[row][2]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][3], input_fragment, weight3, accum[row][3]
+                        );
+                    }}
+                }}
+            }}
+
+            uint output_column = column_block * BN + simd_column * 32u;
+            uint output_row = simd_row * 32u;
+            for (uint row = 0u; row < 4u; ++row) {{
+                if (output_row + row * 8u >= block_rows) {{
+                    break;
+                }}
+                for (uint column = 0u; column < 4u; ++column) {{
+                    simdgroup_store(accum[row][column], &scratch[simd * 64u], 8u);
+                    simdgroup_barrier(mem_flags::mem_threadgroup);
+                    for (uint index = lane; index < 64u; index += 32u) {{
+                        uint local_row = index >> 3u;
+                        uint local_column = index & 7u;
+                        uint global_row = output_row + row * 8u + local_row;
+                        if (global_row < block_rows) {{
+                            output[
+                                ulong(row_begin + global_row) * output_dims
+                                + output_column + column * 8u + local_column
+                            ] = half(scratch[simd * 64u + index]);
+                        }}
+                    }}
+                    simdgroup_barrier(mem_flags::mem_threadgroup);
+                }}
+            }}
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
+def qmm_exl3_expert_segmented(
+    xhat_sorted: mx.array,
+    trellis: mx.array,
+    block_table: mx.array,
+    block_count: mx.array,
+    *,
+    rows: int,
+    tiles_per_expert: int,
+    output_dims: int,
+    expert_tile_base: int,
+    k: int,
+    mode: CodebookMode | int,
+) -> mx.array:
+    """Multiply expert-sorted rows without materializing decoded weights."""
+
+    if rows < 1 or xhat_sorted.shape[0] < rows + 64:
+        raise ValueError("segmented expert QMM input needs 64 padded rows")
+    if output_dims % 64 or trellis.shape[0] % 2:
+        raise ValueError("segmented expert QMM requires 64-aligned matrices")
+    cb = CodebookMode(mode)
+    max_blocks = int(block_table.shape[1])
+    dims = mx.array(
+        [
+            trellis.shape[0],
+            tiles_per_expert,
+            trellis.shape[1],
+            expert_tile_base,
+            output_dims,
+            max_blocks,
+        ],
+        dtype=mx.uint32,
+    )
+    return _segmented_expert_qmm_kernel(k, int(cb))(
+        inputs=[
+            xhat_sorted.reshape(-1),
+            trellis.reshape(-1).view(mx.uint32),
+            block_table.reshape(-1),
+            block_count,
+            dims,
+        ],
+        template=[("T", mx.float16)],
+        grid=((output_dims // 64) * 128, max_blocks, 1),
+        threadgroup=(128, 1, 1),
+        output_shapes=[(rows, output_dims)],
+        output_dtypes=[mx.float16],
+    )[0]
 
 
 def qmm_exl3(

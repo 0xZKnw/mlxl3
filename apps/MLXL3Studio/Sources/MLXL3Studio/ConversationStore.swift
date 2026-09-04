@@ -48,6 +48,7 @@ struct ChatMessageSnapshot: Codable, Sendable {
     let stats: GenerationStats?
     let error: String?
     let toolActivities: [ToolActivity]?
+    let cacheContext: String?
 }
 
 actor ConversationStore {

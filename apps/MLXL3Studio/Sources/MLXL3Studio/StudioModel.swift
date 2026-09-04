@@ -199,7 +199,10 @@ final class StudioModel: ObservableObject {
         }
         messages += conversations[conversationIndex].messages.compactMap { message in
             guard !message.isStreaming else { return nil }
-            return PromptMessage(role: message.role.rawValue, content: message.content)
+            let context = message.role == .assistant
+                ? (message.cacheContext ?? message.content)
+                : message.content
+            return PromptMessage(role: message.role.rawValue, content: context)
         }
 
         do {
@@ -339,7 +342,11 @@ final class StudioModel: ObservableObject {
             guard event.requestID == activeRequestID,
                   let message = activeMessage()
             else { return }
-            message.finish(stats: event.stats, fallbackAnswer: event.assistantContext)
+            message.finish(
+                stats: event.stats,
+                fallbackAnswer: event.assistantContext,
+                cacheContext: event.cacheContext
+            )
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()

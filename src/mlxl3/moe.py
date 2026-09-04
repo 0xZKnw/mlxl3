@@ -10,11 +10,144 @@ import mlx.core as mx
 from mlx import nn
 
 from mlxl3.codec.codebook import CodebookMode
-from mlxl3.kernels.qmv import qmv_exl3_expert_mapped
+from mlxl3.kernels.qmv import (
+    _scaled_hadamard_input,
+    _scaled_hadamard_output,
+    _scaled_hadamard_output_reduce,
+    qmm_exl3_expert_segmented,
+    qmv_exl3_expert_mapped,
+)
 
 _USE_FUSED_LFM_ROUTER = os.environ.get("MLXL3_FUSED_MOE_ROUTER", "1") != "0"
 _USE_FUSED_ROUTER_TOPK = os.environ.get("MLXL3_FUSED_ROUTER_TOPK", "1") != "0"
 _USE_FUSED_MOE_REDUCE = os.environ.get("MLXL3_FUSED_MOE_REDUCE", "1") != "0"
+_USE_FUSED_MOE_GLU_PREP = os.environ.get("MLXL3_FUSED_MOE_GLU_PREP", "1") != "0"
+_USE_SEGMENTED_MOE_PREFILL = os.environ.get("MLXL3_SEGMENTED_MOE_PREFILL", "1") != "0"
+_SEGMENTED_BLOCK_ROWS = 64
+_SEGMENTED_MOE_MIN_ROWS = int(os.environ.get("MLXL3_SEGMENTED_MOE_MIN_ROWS", "384"))
+
+
+def _butterfly_source(source: str, target: str) -> str:
+    stages: list[str] = []
+    for shift in range(7):
+        step = 1 << shift
+        stages.append(
+            f"""
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            float {source}_value_{shift} = {source}[tid];
+            float {source}_peer_{shift} = {source}[tid ^ {step}u];
+            {target}[tid] = (tid & {step}u)
+                ? {source}_peer_{shift} - {source}_value_{shift}
+                : {source}_value_{shift} + {source}_peer_{shift};
+            """
+        )
+        source, target = target, source
+    return "".join(stages)
+
+
+@cache
+def _fused_glu_down_prepare_kernel(hidden_dims: int):
+    """Fuse two output rotations, SwiGLU and the down input rotation."""
+
+    if hidden_dims % 128:
+        raise ValueError("fused MoE hidden width must be 128-aligned")
+    gate_stages = _butterfly_source("gate_a", "gate_b")
+    up_stages = _butterfly_source("up_a", "up_b")
+    down_stages = _butterfly_source("down_a", "down_b")
+    # Seven stages leave the result in the alternate buffer.
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_moe_glu_down_prep_h{hidden_dims}_v1",
+        input_names=["ygu", "gu_svh", "down_suh", "selected"],
+        output_names=["xhat"],
+        source=f"""
+            constexpr uint HIDDEN = {hidden_dims}u;
+            constexpr float HAD_SCALE = 0.08838834764831845f;
+            uint tid = thread_position_in_threadgroup.x;
+            uint group = threadgroup_position_in_grid.x;
+            uint blocks = HIDDEN / 128u;
+            uint slot = group / blocks;
+            uint block = group - slot * blocks;
+            uint column = block * 128u + tid;
+            uint expert = uint(selected[slot]);
+
+            threadgroup float gate_a[128];
+            threadgroup float gate_b[128];
+            threadgroup float up_a[128];
+            threadgroup float up_b[128];
+            threadgroup float down_a[128];
+            threadgroup float down_b[128];
+
+            gate_a[tid] = float(half(ygu[(slot * 2u) * HIDDEN + column]));
+            up_a[tid] = float(half(ygu[(slot * 2u + 1u) * HIDDEN + column]));
+            {gate_stages}
+            {up_stages}
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            float gate = float(half(
+                gate_b[tid] * HAD_SCALE
+                * float(gu_svh[(expert * 2u) * HIDDEN + column])
+            ));
+            float up = float(half(
+                up_b[tid] * HAD_SCALE
+                * float(gu_svh[(expert * 2u + 1u) * HIDDEN + column])
+            ));
+            float hidden = float(half((gate / (1.0f + exp(-gate))) * up));
+            down_a[tid] = float(half(
+                hidden * float(down_suh[expert * HIDDEN + column])
+            ));
+            {down_stages}
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            xhat[slot * HIDDEN + column] = half(down_b[tid] * HAD_SCALE);
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
+def _fused_glu_down_prepare(
+    ygu: mx.array,
+    gu_svh: mx.array,
+    down_suh: mx.array,
+    selected: mx.array,
+) -> mx.array:
+    slots = int(selected.size)
+    hidden_dims = int(ygu.shape[-1])
+    return _fused_glu_down_prepare_kernel(hidden_dims)(
+        inputs=[ygu, gu_svh, down_suh, selected],
+        grid=(slots * (hidden_dims // 128) * 128, 1, 1),
+        threadgroup=(128, 1, 1),
+        output_shapes=[(slots, hidden_dims)],
+        output_dtypes=[mx.float16],
+    )[0]
+
+
+@cache
+def _segmented_block_table(experts: int, max_blocks: int):
+    """Build a device-side expert/run table without synchronizing routing."""
+
+    @mx.compile
+    def build(sorted_experts: mx.array) -> tuple[mx.array, mx.array]:
+        counts = mx.zeros((experts,), dtype=mx.uint32).at[sorted_experts].add(1)
+        segment_start = mx.cumsum(counts) - counts
+        blocks_per_expert = (
+            counts + (_SEGMENTED_BLOCK_ROWS - 1)
+        ) // _SEGMENTED_BLOCK_ROWS
+        block_end = mx.cumsum(blocks_per_expert)
+        block_count = block_end[experts - 1 : experts]
+        marks = mx.zeros((max_blocks + 1,), dtype=mx.uint32).at[block_end].add(1)
+        block_expert = mx.minimum(mx.cumsum(marks)[:max_blocks], experts - 1)
+        local_block = mx.arange(max_blocks, dtype=mx.uint32) - (
+            block_end - blocks_per_expert
+        )[block_expert]
+        row_begin = (
+            segment_start[block_expert] + local_block * _SEGMENTED_BLOCK_ROWS
+        )
+        row_count = mx.minimum(
+            counts[block_expert] - local_block * _SEGMENTED_BLOCK_ROWS,
+            _SEGMENTED_BLOCK_ROWS,
+        )
+        table = mx.stack([block_expert, row_begin, row_count]).astype(mx.uint32)
+        return table, block_count.astype(mx.uint32)
+
+    return build
 
 
 @cache
@@ -295,6 +428,128 @@ class EXL3SwitchGLU(nn.Module):
         self._hidden_tiles = self.hidden_dims // 16
         self._output_tiles = self.input_dims // 16
 
+    def _segmented_prefill(
+        self,
+        x: mx.array,
+        indices: mx.array,
+        scores: mx.array | None,
+    ) -> mx.array:
+        """Sort routes and reuse decoded expert tiles across token blocks."""
+
+        rows = x.size // self.input_dims
+        top_k = indices.shape[-1]
+        slots = rows * top_k
+        selected = indices.reshape(-1).astype(mx.int32)
+        order = mx.argsort(selected)
+        inverse = mx.argsort(order)
+        sorted_experts = selected[order]
+        token_rows = (mx.arange(slots, dtype=mx.uint32) // top_k)[order]
+
+        padded_tokens = mx.concatenate(
+            [token_rows, mx.zeros((_SEGMENTED_BLOCK_ROWS,), dtype=mx.uint32)]
+        )
+        padded_experts = mx.concatenate(
+            [
+                sorted_experts,
+                mx.zeros((_SEGMENTED_BLOCK_ROWS,), dtype=mx.int32),
+            ]
+        )
+        routed_x = x.reshape(rows, self.input_dims)[padded_tokens]
+        max_blocks = slots // _SEGMENTED_BLOCK_ROWS + self.num_experts + 1
+        block_table, block_count = _segmented_block_table(
+            self.num_experts, max_blocks
+        )(sorted_experts)
+
+        gate_x = _scaled_hadamard_input(
+            routed_x,
+            self.gu_suh[padded_experts, 0],
+        )
+        up_x = _scaled_hadamard_input(
+            routed_x,
+            self.gu_suh[padded_experts, 1],
+        )
+        gate_raw = qmm_exl3_expert_segmented(
+            gate_x,
+            self.gu_trellis,
+            block_table,
+            block_count,
+            rows=slots,
+            tiles_per_expert=self._hidden_tiles,
+            output_dims=self.hidden_dims,
+            expert_tile_base=0,
+            k=self.bits,
+            mode=self.mode,
+        )
+        up_raw = qmm_exl3_expert_segmented(
+            up_x,
+            self.gu_trellis,
+            block_table,
+            block_count,
+            rows=slots,
+            tiles_per_expert=self._hidden_tiles,
+            output_dims=self.hidden_dims,
+            expert_tile_base=self.num_experts * self._hidden_tiles,
+            k=self.bits,
+            mode=self.mode,
+        )
+
+        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0
+        if use_fused_glu:
+            gate_up = mx.stack([gate_raw, up_raw], axis=1).reshape(
+                slots * 2, self.hidden_dims
+            )
+            down_x = _fused_glu_down_prepare(
+                gate_up,
+                self.gu_svh,
+                self.down_suh,
+                sorted_experts,
+            )
+        else:
+            gate = _scaled_hadamard_output(
+                gate_raw,
+                self.gu_svh[sorted_experts, 0],
+            )
+            up = _scaled_hadamard_output(
+                up_raw,
+                self.gu_svh[sorted_experts, 1],
+            )
+            hidden = nn.silu(gate) * up
+            down_x = _scaled_hadamard_input(
+                hidden,
+                self.down_suh[sorted_experts],
+            )
+
+        down_x = mx.concatenate(
+            [
+                down_x,
+                mx.zeros(
+                    (_SEGMENTED_BLOCK_ROWS, self.hidden_dims),
+                    dtype=down_x.dtype,
+                ),
+            ]
+        )
+        down_raw = qmm_exl3_expert_segmented(
+            down_x,
+            self.down_trellis,
+            block_table,
+            block_count,
+            rows=slots,
+            tiles_per_expert=self._output_tiles,
+            output_dims=self.input_dims,
+            expert_tile_base=0,
+            k=self.bits,
+            mode=self.mode,
+        )
+        output = _scaled_hadamard_output(
+            down_raw,
+            self.down_svh[sorted_experts],
+        )[inverse]
+        output = output.reshape(rows, top_k, self.input_dims)
+        if scores is not None:
+            output = (output * scores.reshape(rows, top_k, 1)).sum(axis=1)
+            return output.reshape(*indices.shape[:-1], self.input_dims)
+        return output.reshape(*indices.shape, self.input_dims)
+
     def __call__(
         self,
         x: mx.array,
@@ -308,6 +563,14 @@ class EXL3SwitchGLU(nn.Module):
 
         rows = x.size // self.input_dims
         top_k = indices.shape[-1]
+        if (
+            _USE_SEGMENTED_MOE_PREFILL
+            and rows >= _SEGMENTED_MOE_MIN_ROWS
+            and self.input_dims % 64 == 0
+            and self.hidden_dims % 64 == 0
+            and self.bits != 7
+        ):
+            return self._segmented_prefill(x, indices, scores)
         slots = rows * top_k
         selected = indices.reshape(-1).astype(mx.int32)
         x_rows = x.reshape(rows, self.input_dims)
@@ -316,33 +579,62 @@ class EXL3SwitchGLU(nn.Module):
             (rows, top_k, 2, self.input_dims),
         ).reshape(slots * 2, self.input_dims)
 
+        use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0
         gu = qmv_exl3_expert_mapped(
             x_gu,
             self.gu_trellis,
             self.gu_suh[selected].reshape(slots * 2, self.input_dims),
-            self.gu_svh[selected].reshape(slots * 2, self.hidden_dims),
+            None if use_fused_glu else self.gu_svh[selected].reshape(
+                slots * 2, self.hidden_dims
+            ),
             selected,
             output_dims=self.hidden_dims,
             projections_per_route=2,
             projection_stride_tiles=self.num_experts * self._hidden_tiles,
             k=self.bits,
             mode=self.mode,
-        ).reshape(slots, 2, self.hidden_dims)
-        hidden = nn.silu(gu[:, 0]) * gu[:, 1]
+            return_raw=use_fused_glu,
+        )
+        if use_fused_glu:
+            hidden = _fused_glu_down_prepare(
+                gu.reshape(slots * 2, self.hidden_dims),
+                self.gu_svh,
+                self.down_suh,
+                selected,
+            )
+        else:
+            gu = gu.reshape(slots, 2, self.hidden_dims)
+            hidden = nn.silu(gu[:, 0]) * gu[:, 1]
 
         output = qmv_exl3_expert_mapped(
             hidden,
             self.down_trellis,
-            self.down_suh[selected],
-            self.down_svh[selected],
+            None if use_fused_glu else self.down_suh[selected],
+            None if use_fused_glu else self.down_svh[selected],
             selected,
             output_dims=self.input_dims,
             projections_per_route=1,
             projection_stride_tiles=0,
-            reduce_weights=scores.reshape(rows, top_k) if scores is not None else None,
+            reduce_weights=(
+                scores.reshape(rows, top_k)
+                if scores is not None and not use_fused_glu
+                else None
+            ),
             k=self.bits,
             mode=self.mode,
+            input_pretransformed=use_fused_glu,
+            return_raw=use_fused_glu,
         )
+        if use_fused_glu:
+            scales = self.down_svh[selected]
+            if scores is not None:
+                output = _scaled_hadamard_output_reduce(
+                    output,
+                    scales,
+                    scores.reshape(rows, top_k),
+                ).astype(x.dtype)
+            else:
+                output = _scaled_hadamard_output(output, scales).astype(x.dtype)
         if scores is not None:
             return output.reshape(*indices.shape[:-1], self.input_dims)
         return output.reshape(*indices.shape, self.input_dims)

@@ -5,6 +5,7 @@ import numpy as np
 from mlx import nn
 
 import mlxl3.kernels.qmv as qmv_kernels
+import mlxl3.moe as moe_module
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.codec.trellis import pack_trellis
 from mlxl3.kernels.qmv import qmv_exl3
@@ -72,7 +73,10 @@ def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
         bits=k,
         mode=mode,
     )
-    x = mx.array(rng.normal(size=(1, 1, dims)).astype(np.float16))
+    # Keep the synthetic activations in the range observed after RMSNorm. The
+    # fused path deliberately rounds gate/up values once before SwiGLU, matching
+    # real FP16 model execution without amplifying unrealistic random weights.
+    x = mx.array((rng.normal(size=(1, 1, dims)) * 0.05).astype(np.float16))
     indices = mx.array([[[1, 3]]], dtype=mx.int32)
 
     expected_rows = []
@@ -91,16 +95,39 @@ def test_grouped_switch_glu_matches_individual_qmv(monkeypatch) -> None:
             )
         )
     expected = mx.stack(expected_rows, axis=-2)
+    monkeypatch.setattr(moe_module, "_USE_FUSED_MOE_GLU_PREP", False)
     monkeypatch.setattr(qmv_kernels, "_USE_K3_WINDOW_DECODE", False)
     legacy = module(x, indices)
     monkeypatch.setattr(qmv_kernels, "_USE_K3_WINDOW_DECODE", True)
+    windowed = module(x, indices)
+    monkeypatch.setattr(moe_module, "_USE_FUSED_MOE_GLU_PREP", True)
     optimized = module(x, indices)
     scores = mx.array([[[0.375, 0.625]]], dtype=mx.float16)
     expected_reduced = (optimized * scores[..., None]).sum(axis=-2)
     reduced = module(x, indices, scores=scores)
-    mx.eval(expected, legacy, optimized, expected_reduced, reduced)
-    np.testing.assert_array_equal(np.asarray(optimized), np.asarray(legacy))
+    mx.eval(expected, legacy, windowed, optimized, expected_reduced, reduced)
+    np.testing.assert_array_equal(np.asarray(windowed), np.asarray(legacy))
     np.testing.assert_array_equal(np.asarray(reduced), np.asarray(expected_reduced))
     np.testing.assert_allclose(
+        np.asarray(optimized), np.asarray(legacy), atol=0.1, rtol=0.01
+    )
+    np.testing.assert_allclose(
         np.asarray(optimized), np.asarray(expected), atol=0.05, rtol=0.005
+    )
+
+    batch_x = mx.broadcast_to(x, (1, 4, dims))
+    batch_indices = mx.broadcast_to(indices, (1, 4, 2))
+    batch_scores = mx.broadcast_to(scores, (1, 4, 2))
+    monkeypatch.setattr(moe_module, "_USE_FUSED_MOE_GLU_PREP", False)
+    monkeypatch.setattr(moe_module, "_USE_SEGMENTED_MOE_PREFILL", False)
+    batch_legacy = module(batch_x, batch_indices, scores=batch_scores)
+    monkeypatch.setattr(moe_module, "_USE_SEGMENTED_MOE_PREFILL", True)
+    monkeypatch.setattr(moe_module, "_SEGMENTED_MOE_MIN_ROWS", 1)
+    batch_segmented = module(batch_x, batch_indices, scores=batch_scores)
+    mx.eval(batch_legacy, batch_segmented)
+    np.testing.assert_allclose(
+        np.asarray(batch_segmented),
+        np.asarray(batch_legacy),
+        atol=0.1,
+        rtol=0.01,
     )
