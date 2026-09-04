@@ -25,19 +25,25 @@ _USE_SCALED_HADAMARD = os.environ.get('MLXL3_SCALED_HADAMARD', '0') == '1'
 
 
 @cache
-def _scaled_hadamard_kernel(input_scale: bool):
+def _scaled_hadamard_kernel(input_scale: bool, gather: bool = False):
     # Match MLX radix-16 then radix-8, including both FP16 roundings.
     return mx.fast.metal_kernel(
-        name=f'mlxl3_scaled_hadamard_{int(input_scale)}_simd_v2',
-        input_names=['x', 'scales'], output_names=['y'],
+        name=f'mlxl3_scaled_hadamard_{int(input_scale)}_simd_v2_gather{int(gather)}',
+        input_names=['x', 'scales', 'selected'] if gather else ['x', 'scales'], output_names=['y'],
+        header=f'#define MLXL3_GATHER {int(gather)}\n',
         source='''
             uint tid = thread_position_in_threadgroup.x;
             uint base = threadgroup_position_in_grid.x * 128u;
             float v[4];
             for (uint r=0; r<4; ++r) {
                 uint index=base+tid*4+r;
+                uint si=index % SCALE_SIZE;
+#if MLXL3_GATHER
+                uint row=index / WIDTH;
+                si=(uint(selected[row / REPEAT]) * REPEAT + row % REPEAT) * WIDTH + index % WIDTH;
+#endif
                 half value=half(x[index % X_SIZE]);
-                if (INPUT_SCALE) value=half(value * half(scales[index % SCALE_SIZE]));
+                if (INPUT_SCALE) value=half(value * half(scales[si]));
                 v[r]=float(value);
             }
             for (uint h=1; h<4; h*=2) {
@@ -61,8 +67,13 @@ def _scaled_hadamard_kernel(input_scale: bool):
             }
             for (uint r=0; r<4; ++r) {
                 uint index=base+tid*4+r;
+                uint si=index % SCALE_SIZE;
+#if MLXL3_GATHER
+                uint row=index / WIDTH;
+                si=(uint(selected[row / REPEAT]) * REPEAT + row % REPEAT) * WIDTH + index % WIDTH;
+#endif
                 half result=half(float(half(v[r])) * 0.08838834764831845f);
-                if (!INPUT_SCALE) result=half(result * half(scales[index % SCALE_SIZE]));
+                if (!INPUT_SCALE) result=half(result * half(scales[si]));
                 y[index]=result;
             }
         ''', compile_options={'math_mode':'safe'},
@@ -78,10 +89,44 @@ def _run_scaled_hadamard(x, scale, input_scale):
         grid=(size//128*32, 1, 1), threadgroup=(32,1,1),
         output_shapes=[shape], output_dtypes=[mx.float16])[0]
 _USE_K3_WINDOW_DECODE = os.environ.get("MLXL3_K3_WINDOW_DECODE", "1") != "0"
+_USE_GATHER_HADAMARD = os.environ.get("MLXL3_GATHER_HADAMARD", "0") == "1"
+_USE_CODEBOOK_LUT = os.environ.get("MLXL3_CODEBOOK_LUT", "0") == "1"
+_USE_K24_WINDOW_DECODE = os.environ.get("MLXL3_K24_WINDOW_DECODE", "0") == "1"
 _USE_TENSOR_QMM = os.environ.get("MLXL3_TENSOR_QMM", "1") != "0"
 _USE_TENSOR_SEGMENTED_QMM = (
     os.environ.get("MLXL3_TENSOR_SEGMENTED_QMM", "1") != "0"
 )
+
+
+@mx.compile
+def _gather_scaled_hadamard(x, scales, selected, input_scale, repeat):
+    width = scales.shape[-1]
+    shape = (selected.size * repeat, width)
+    return _scaled_hadamard_kernel(input_scale, True)(
+        inputs=[x, scales, selected],
+        template=[('INPUT_SCALE', input_scale), ('SCALE_SIZE', scales.size),
+                  ('X_SIZE', x.size), ('WIDTH', width), ('REPEAT', repeat)],
+        grid=(math.prod(shape)//128*32, 1, 1), threadgroup=(32,1,1),
+        output_shapes=[shape], output_dtypes=[mx.float16])[0]
+
+
+@cache
+def _codebook_table(mode):
+    kernel = mx.fast.metal_kernel(
+        name=f'mlxl3_exact_codebook_table_{mode}', input_names=['ids'], output_names=['table'],
+        header=specialized_codebook_header(mode),
+        source=f'table[thread_position_in_grid.x] = mlxl3_decode_codeword(ids[thread_position_in_grid.x], {mode});',
+        compile_options={'math_mode': 'safe'})
+    table = kernel(inputs=[mx.arange(65536, dtype=mx.uint32)], grid=(65536,1,1), threadgroup=(256,1,1), output_shapes=[(65536,)], output_dtypes=[mx.float32])[0]
+    mx.eval(table)
+    return table
+
+
+def _with_codebook(kernel, mode):
+    table = _codebook_table(mode)
+    def run(*, inputs, **kwargs):
+        return kernel(inputs=[*inputs, table], **kwargs)
+    return run
 
 
 @cache
@@ -149,6 +194,9 @@ def _qmv_tile_kernel(
     output_dims: int,
     tiles_per_group: int = 1,
     simdgroups: int = 4,
+    storage_nt: int = 0,
+    window_decode: bool = False,
+    lookup: bool = False,
 ):
     """Configurable-simdgroup CUDA-style kernel over adjacent output tiles."""
 
@@ -159,18 +207,24 @@ def _qmv_tile_kernel(
             f"unsupported QMV shape: {simdgroups} simdgroups x {tiles_per_group} tiles"
         )
 
-    return mx.fast.metal_kernel(
+    kernel = mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_tile_k{k}_cb{mode}_{input_dims}x{output_dims}"
             f"_nt{tiles_per_group}_sg{simdgroups}_v5"
+            f"_layout{storage_nt}"
+            f"_window{int(window_decode)}"
+            f"_lut{int(lookup)}"
         ),
-        input_names=["xhat", "trellis"],
+        input_names=["xhat", "trellis", "codebook"] if lookup else ["xhat", "trellis"],
         output_names=["yhat"],
         header=(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
             f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
+            f"#define MLXL3_STORAGE_NT {storage_nt}u\n"
+            f"#define MLXL3_WINDOW_DECODE {int(window_decode)}\n"
             + specialized_codebook_header(mode)
+            + ('\n#define mlxl3_decode_codeword(x, cb) codebook[(x) & 0xffffu]\n' if lookup else '')
         ),
         source=r"""
             uint tid = thread_position_in_threadgroup.x;
@@ -180,6 +234,13 @@ def _qmv_tile_kernel(
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
 
+#if MLXL3_WINDOW_DECODE
+            int bit_end = int((lane * 8u + 264u) * MLXL3_K_BITS);
+            int last_word = (bit_end - 1) / 32;
+            uint w1 = uint(last_word) % uint(PACKED_U32);
+            uint w0 = uint((bit_end - 7 * K - 16) / 32) % uint(PACKED_U32);
+            uint shift = uint((last_word + 1) * 32 - bit_end);
+#else
             uint word0[2];
             uint word1[2];
             uint shifts[2];
@@ -191,6 +252,7 @@ def _qmv_tile_kernel(
                 word0[group] = uint(last_word - 1) % uint(PACKED_U32);
                 shifts[group] = uint((last_word + 1) * 32 - end);
             }
+#endif
 
             float acc[MLXL3_QMV_NT][8];
             for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
@@ -223,8 +285,36 @@ def _qmv_tile_kernel(
                     ++output_tile
                 ) {
                     const device uint* words = trellis +
+#if MLXL3_STORAGE_NT
+                        (((tile_n + output_tile) / MLXL3_STORAGE_NT * uint(TILES_K)
+                          + tile_k) * MLXL3_STORAGE_NT
+                          + (tile_n + output_tile) % MLXL3_STORAGE_NT)
+#else
                         (tile_k * uint(TILES_N) + tile_n + output_tile)
+#endif
                         * uint(PACKED_U32);
+#if MLXL3_WINDOW_DECODE
+#if MLXL3_K_BITS == 2
+                    uint hi = words[w0], lo = words[w1];
+                    uint window7 = (lo >> shift) | (shift ? hi << (32u - shift) : 0u);
+                    uint window3 = window7 >> 8u;
+#elif MLXL3_K_BITS == 4
+                    uint window7 = words[w1];
+                    uint window3 = (window7 >> 16u) | (words[w0] << 16u);
+#else
+                    ulong merged = (ulong(words[w0]) << 32) | ulong(words[w1]);
+                    uint window7 = uint(merged >> shift);
+                    uint window3 = uint(merged >> (shift + 4u * MLXL3_K_BITS));
+#endif
+                    for (uint j = 0u; j < 8u; ++j) {
+                        uint cw = j < 4u
+                            ? window3 >> ((3u - j) * MLXL3_K_BITS)
+                            : window7 >> ((7u - j) * MLXL3_K_BITS);
+                        acc[output_tile][j] = fma(
+                            x_values[j & 3u], mlxl3_decode_codeword(cw, CB),
+                            acc[output_tile][j]);
+                    }
+#else
                     for (uint group = 0u; group < 2u; ++group) {
                         ulong merged = (ulong(words[word0[group]]) << 32) |
                                        ulong(words[word1[group]]);
@@ -258,6 +348,7 @@ def _qmv_tile_kernel(
                             acc[output_tile][j + 3u]
                         );
                     }
+#endif
                 }
             }
 
@@ -300,6 +391,9 @@ def _qmv_tile_kernel(
     )
 
 
+    return _with_codebook(kernel, mode) if lookup else kernel
+
+
 @cache
 def _qmv_mapped_tile_kernel(
     k: int,
@@ -309,6 +403,8 @@ def _qmv_mapped_tile_kernel(
     tiles_per_group: int = 1,
     simdgroups: int = 4,
     k3_window_decode: bool = False,
+    storage_nt: int = 0,
+    lookup: bool = False,
 ):
     """Tile-cooperative QMV over an indirect list of expert output tiles."""
 
@@ -320,19 +416,23 @@ def _qmv_mapped_tile_kernel(
             f"{tiles_per_group} tiles"
         )
 
-    return mx.fast.metal_kernel(
+    kernel = mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmv_mapped_k{k}_cb{mode}_{input_dims}x{source_tiles}"
             f"_nt{tiles_per_group}_sg{simdgroups}_k3w{int(k3_window_decode)}_v12"
+            f"_layout{storage_nt}"
+            f"_lut{int(lookup)}"
         ),
-        input_names=["xhat", "trellis", "tile_map", "tile_sub"],
+        input_names=["xhat", "trellis", "tile_map", "tile_sub", "codebook"] if lookup else ["xhat", "trellis", "tile_map", "tile_sub"],
         output_names=["yhat"],
         header=(
             f"#define MLXL3_QMV_NT {tiles_per_group}u\n"
             f"#define MLXL3_QMV_SG {simdgroups}u\n"
             f"#define MLXL3_K_BITS {k}u\n"
             f"#define MLXL3_K3_WINDOW_DECODE {int(k3_window_decode)}\n"
+            f"#define MLXL3_STORAGE_NT {storage_nt}u\n"
             + specialized_codebook_header(mode)
+            + ('\n#define mlxl3_decode_codeword(x, cb) codebook[(x) & 0xffffu]\n' if lookup else '')
         ),
         source=r"""
             uint tid = thread_position_in_threadgroup.x;
@@ -344,10 +444,10 @@ def _qmv_mapped_tile_kernel(
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
 
 #if MLXL3_K3_WINDOW_DECODE
-            int k3_bit_end = int((lane * 8u + 257u) * 3u + 21u);
+            int k3_bit_end = int((lane * 8u + 264u) * MLXL3_K_BITS);
             int k3_word_end = (k3_bit_end - 1) / 32;
             uint k3_word1 = uint(k3_word_end) % uint(PACKED_U32);
-            uint k3_word0 = uint((k3_bit_end - 21 - 16) / 32) % uint(PACKED_U32);
+            uint k3_word0 = uint((k3_bit_end - 7 * K - 16) / 32) % uint(PACKED_U32);
             uint k3_shift = uint((k3_word_end + 1) * 32 - k3_bit_end);
 #else
             uint word0[2];
@@ -428,22 +528,37 @@ def _qmv_mapped_tile_kernel(
                     ++output_tile
                 ) {
                     const device uint* words = trellis +
+#if MLXL3_STORAGE_NT
+                        ((tile_ns[output_tile] / MLXL3_STORAGE_NT * uint(TILES_K)
+                         + tile_k) * MLXL3_STORAGE_NT
+                         + tile_ns[output_tile] % MLXL3_STORAGE_NT)
+#else
                         (tile_k * uint(TILES_N) + tile_ns[output_tile])
+#endif
                         * uint(PACKED_U32);
 #if MLXL3_K3_WINDOW_DECODE
+#if MLXL3_K_BITS == 2
+                    uint hi = words[k3_word0], lo = words[k3_word1];
+                    uint window7 = (lo >> k3_shift) | (k3_shift ? hi << (32u - k3_shift) : 0u);
+                    uint window3 = window7 >> 8u;
+#elif MLXL3_K_BITS == 4
+                    uint window7 = words[k3_word1];
+                    uint window3 = (window7 >> 16u) | (words[k3_word0] << 16u);
+#else
                     ulong merged = (ulong(words[k3_word0]) << 32)
                         | ulong(words[k3_word1]);
-                    uint codewords[8];
                     uint window7 = uint(merged >> k3_shift);
+                    uint window3 = uint(merged >> (k3_shift + 4u * MLXL3_K_BITS));
+#endif
+                    uint codewords[8];
                     codewords[7] = window7;
-                    codewords[6] = window7 >> 3u;
-                    codewords[5] = window7 >> 6u;
-                    codewords[4] = window7 >> 9u;
-                    uint window3 = uint(merged >> (k3_shift + 12u));
+                    codewords[6] = window7 >> MLXL3_K_BITS;
+                    codewords[5] = window7 >> (2u * MLXL3_K_BITS);
+                    codewords[4] = window7 >> (3u * MLXL3_K_BITS);
                     codewords[3] = window3;
-                    codewords[2] = window3 >> 3u;
-                    codewords[1] = window3 >> 6u;
-                    codewords[0] = window3 >> 9u;
+                    codewords[2] = window3 >> MLXL3_K_BITS;
+                    codewords[1] = window3 >> (2u * MLXL3_K_BITS);
+                    codewords[0] = window3 >> (3u * MLXL3_K_BITS);
                     for (uint j = 0u; j < 8u; ++j) {
                         acc[output_tile][j] = fma(
                             x_values[j & 3u],
@@ -522,6 +637,9 @@ def _qmv_mapped_tile_kernel(
         """,
         compile_options={"math_mode": "safe"},
     )
+
+
+    return _with_codebook(kernel, mode) if lookup else kernel
 
 
 @cache
@@ -1105,7 +1223,9 @@ def qmv_exl3(
         if trellis.shape[1] % tiles_per_group:
             tiles_per_group = 1
         partials = _qmv_tile_kernel(
-            k, int(cb), input_dims, output_dims, tiles_per_group, simdgroups
+            k, int(cb), input_dims, output_dims, tiles_per_group, simdgroups,
+            window_decode=_USE_K24_WINDOW_DECODE and k in (2, 4),
+            lookup=_USE_CODEBOOK_LUT,
         )(
             inputs=[xhat, trellis.reshape(-1).view(mx.uint32)],
             template=[
@@ -1187,7 +1307,9 @@ def qmv_exl3_mapped(
     if tile_map.size % tiles_per_group:
         tiles_per_group = 1
     partials = _qmv_mapped_tile_kernel(
-        k, int(cb), input_dims, trellis.shape[1], tiles_per_group, simdgroups
+        k, int(cb), input_dims, trellis.shape[1], tiles_per_group, simdgroups,
+        _USE_K24_WINDOW_DECODE and k in (2, 4),
+        lookup=_USE_CODEBOOK_LUT,
     )(
         inputs=[
             xhat.reshape(-1),
@@ -1303,7 +1425,8 @@ def qmv_exl3_expert_mapped(
         trellis.shape[1],
         tiles_per_group,
         simdgroups,
-        _USE_K3_WINDOW_DECODE and k == 3,
+        (_USE_K3_WINDOW_DECODE and k == 3) or (_USE_K24_WINDOW_DECODE and k in (2, 4)),
+        lookup=_USE_CODEBOOK_LUT,
     )(
         inputs=[
             xhat.reshape(-1),
@@ -1405,7 +1528,9 @@ def qmv_exl3_grouped(
     if total_tiles % tiles_per_group:
         tiles_per_group = 1
     partials = _qmv_mapped_tile_kernel(
-        k, int(cb), input_dims, total_tiles, tiles_per_group, simdgroups
+        k, int(cb), input_dims, total_tiles, tiles_per_group, simdgroups,
+        _USE_K24_WINDOW_DECODE and k in (2, 4),
+        lookup=_USE_CODEBOOK_LUT,
     )(
         inputs=[
             xhat.reshape(-1),

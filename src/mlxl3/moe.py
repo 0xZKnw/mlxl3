@@ -10,6 +10,7 @@ import mlx.core as mx
 from mlx import nn
 
 from mlxl3.codec.codebook import CodebookMode
+from mlxl3.kernels import qmv as qmv_kernels
 from mlxl3.kernels.qmv import (
     _scaled_hadamard_input,
     _scaled_hadamard_output,
@@ -588,10 +589,13 @@ class EXL3SwitchGLU(nn.Module):
         ).reshape(slots * 2, self.input_dims)
 
         use_fused_glu = _USE_FUSED_MOE_GLU_PREP and self.hidden_dims % 128 == 0 and self.activation == 'silu' and self.logical_hidden_dims is None
+        gather_input = qmv_kernels._USE_GATHER_HADAMARD and rows == 1
+        if gather_input:
+            x_gu = qmv_kernels._gather_scaled_hadamard(x_rows, self.gu_suh, selected, True, 2)
         gu = qmv_exl3_expert_mapped(
             x_gu,
             self.gu_trellis,
-            self.gu_suh[selected].reshape(slots * 2, self.input_dims),
+            None if gather_input else self.gu_suh[selected].reshape(slots * 2, self.input_dims),
             None if use_fused_glu else self.gu_svh[selected].reshape(
                 slots * 2, self.hidden_dims
             ),
@@ -602,6 +606,7 @@ class EXL3SwitchGLU(nn.Module):
             k=self.bits,
             mode=self.mode,
             return_raw=use_fused_glu,
+            input_pretransformed=gather_input,
         )
         if use_fused_glu:
             hidden = _fused_glu_down_prepare(
