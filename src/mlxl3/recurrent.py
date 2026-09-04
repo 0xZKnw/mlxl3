@@ -45,18 +45,52 @@ def _compiled_recurrent_class(base: type[nn.Module]) -> type[nn.Module]:
     )
 
 
+def _compiled_stateless_call(module: nn.Module, x: mx.array) -> mx.array:
+    if _USE_COMPILED_RECURRENT_LAYERS and x.shape[-2] == 1:
+        return module._mlxl3_compiled_stateless(x)
+    return module._mlxl3_stateless_original_call(x)
+
+
+@cache
+def _compiled_stateless_class(base: type[nn.Module]) -> type[nn.Module]:
+    return type(
+        f"MLXL3Compiled{base.__name__}",
+        (base,),
+        {"__call__": _compiled_stateless_call},
+    )
+
+
+def _compile_stateless_module(module: nn.Module) -> None:
+    original = module.__call__
+    module._mlxl3_stateless_original_call = original
+    module._mlxl3_compiled_stateless = mx.compile(original)
+    module.__class__ = _compiled_stateless_class(type(module))
+
+
 def compile_recurrent_layers(model: nn.Module) -> int:
     """Compile Qwen recurrent decoder blocks as explicit state transitions."""
 
     if not _USE_COMPILED_RECURRENT_LAYERS:
         return 0
     compiled = 0
+    stateless_ids: set[int] = set()
     for _, module in list(model.named_modules()):
         module_type = type(module)
-        if (
-            not getattr(module, "is_linear", False)
-            or not module_type.__module__.startswith("mlx_lm.models.qwen3_5")
-            or hasattr(module, "_mlxl3_compiled_decode")
+        if not module_type.__module__.startswith("mlx_lm.models.qwen3_5"):
+            continue
+        if getattr(module, "is_linear", None) is False:
+            mlp = getattr(module, "mlp", None)
+            if (
+                isinstance(mlp, nn.Module)
+                and id(mlp) not in stateless_ids
+                and not hasattr(mlp, "_mlxl3_compiled_stateless")
+            ):
+                _compile_stateless_module(mlp)
+                stateless_ids.add(id(mlp))
+                compiled += 1
+            continue
+        if not getattr(module, "is_linear", False) or hasattr(
+            module, "_mlxl3_compiled_decode"
         ):
             continue
         original = module.__call__

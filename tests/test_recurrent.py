@@ -23,6 +23,22 @@ class FakeQwenRecurrentLayer(nn.Module):
 FakeQwenRecurrentLayer.__module__ = "mlx_lm.models.qwen3_5"
 
 
+class FakeStatelessMLP(nn.Module):
+    def __call__(self, x):
+        return mx.tanh(x) * 0.5
+
+
+class FakeQwenAttentionLayer(nn.Module):
+    is_linear = False
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.mlp = FakeStatelessMLP()
+
+
+FakeQwenAttentionLayer.__module__ = "mlx_lm.models.qwen3_5"
+
+
 def test_compiled_recurrent_layer_preserves_outputs_and_state() -> None:
     expected_layer = FakeQwenRecurrentLayer()
     actual_layer = FakeQwenRecurrentLayer()
@@ -48,3 +64,21 @@ def test_compiled_recurrent_layer_preserves_outputs_and_state() -> None:
             np.testing.assert_array_equal(
                 np.asarray(actual_state), np.asarray(expected_state)
             )
+
+
+def test_compiled_attention_mlp_preserves_decode_output() -> None:
+    layer = FakeQwenAttentionLayer()
+    assert compile_recurrent_layers(layer) == 1
+
+    prefill = mx.arange(24, dtype=mx.float16).reshape(1, 6, 4) * 0.01
+    expected_prefill = mx.tanh(prefill) * 0.5
+    actual_prefill = layer.mlp(prefill)
+    token = mx.full((1, 1, 4), 0.125, dtype=mx.float16)
+    expected_token = mx.tanh(token) * 0.5
+    actual_token = layer.mlp(token)
+    mx.eval(expected_prefill, actual_prefill, expected_token, actual_token)
+
+    np.testing.assert_array_equal(
+        np.asarray(actual_prefill), np.asarray(expected_prefill)
+    )
+    np.testing.assert_array_equal(np.asarray(actual_token), np.asarray(expected_token))
