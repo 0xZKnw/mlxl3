@@ -16,6 +16,7 @@ from mlx_lm.utils import _get_classes
 from mlxl3.codec.codebook import CodebookMode
 from mlxl3.linear import EXL3Linear, fuse_compatible_linear_groups
 from mlxl3.moe import EXL3SwitchGLU, fuse_moe_routers
+from mlxl3.recurrent import compile_recurrent_layers
 
 _SERIALIZED_SUFFIXES = (".trellis", ".suh", ".svh", ".su", ".sv", ".mul1", ".mcg")
 _LING_EXPERT_RE = re.compile(
@@ -322,6 +323,7 @@ def _load_exl3_model(
     model.load_weights(ordinary_weights, strict=False)
     fuse_compatible_linear_groups(model)
     fuse_moe_routers(model)
+    compile_recurrent_layers(model)
     model.eval()
     if not lazy:
         mx.eval(model.parameters())

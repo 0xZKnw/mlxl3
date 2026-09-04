@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import os
+import platform
 from functools import cache
 
 import mlx.core as mx
@@ -21,6 +22,10 @@ from mlxl3.kernels.common import (
 
 _HADAMARD_SCALE = 1.0 / math.sqrt(128.0)
 _USE_K3_WINDOW_DECODE = os.environ.get("MLXL3_K3_WINDOW_DECODE", "1") != "0"
+_USE_TENSOR_QMM = os.environ.get("MLXL3_TENSOR_QMM", "1") != "0"
+_USE_TENSOR_SEGMENTED_QMM = (
+    os.environ.get("MLXL3_TENSOR_SEGMENTED_QMM", "1") != "0"
+)
 
 
 @cache
@@ -588,6 +593,144 @@ def _qmm_matrix_kernel(
         f"#define MLXL3_ROW_FRAGMENTS {row_fragments}u\n"
         f"#define MLXL3_SIMD_ROWS {simd_rows}u\n"
     )
+    return _qmm_matrix_kernel_impl(
+        k, mode, input_dims, output_dims, block_rows, matrix_header
+    )
+
+
+@cache
+def _qmm_tensor_kernel(
+    k: int,
+    mode: int,
+    input_dims: int,
+    output_dims: int,
+    block_rows: int,
+    block_columns: int = 32,
+    block_depth: int = 32,
+):
+    """EXL3 QMM using M5 TensorOps with on-chip cooperative dequantization."""
+
+    if block_rows not in (8, 16, 32):
+        raise ValueError(f"unsupported TensorOp QMM row block {block_rows}")
+    if block_columns not in (16, 32, 64):
+        raise ValueError(f"unsupported TensorOp QMM column block {block_columns}")
+    if block_depth not in (16, 32, 64):
+        raise ValueError(f"unsupported TensorOp QMM depth block {block_depth}")
+    if input_dims % block_depth or output_dims % block_columns:
+        raise ValueError("TensorOp QMM requires exactly tiled matrix dimensions")
+    return mx.fast.metal_kernel(
+        name=(
+            f"mlxl3_qmm_tensor_k{k}_cb{mode}_{input_dims}x{output_dims}"
+            f"_m{block_rows}_n{block_columns}_d{block_depth}_v1"
+        ),
+        input_names=["xhat", "trellis"],
+        output_names=["yhat"],
+        header=(
+            "#include <metal_tensor>\n"
+            "#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\n"
+            "using namespace metal;\n"
+            "using namespace mpp;\n"
+            + specialized_codebook_header(mode)
+            + permutation_header()
+        ),
+        source=f"""
+            constexpr uint BM = {block_rows}u;
+            constexpr uint BN = {block_columns}u;
+            constexpr uint BK = {block_depth}u;
+            constexpr uint K_BITS = {k}u;
+            constexpr uint PACKED_U32 = {k * 8}u;
+            constexpr uint INPUT_DIMS = {input_dims}u;
+            constexpr uint OUTPUT_DIMS = {output_dims}u;
+            constexpr uint TILES_N = {output_dims // 16}u;
+
+            uint column_block = threadgroup_position_in_grid.x;
+            uint row_block = threadgroup_position_in_grid.y;
+            device half* activation = const_cast<device half*>(xhat);
+
+            constexpr auto descriptor = tensor_ops::matmul2d_descriptor(
+                BM,
+                BN,
+                BK,
+                false,
+                false,
+                false,
+                tensor_ops::matmul2d_descriptor::mode::multiply_accumulate
+            );
+            tensor_ops::matmul2d<descriptor, execution_simdgroup> operation;
+            auto right = operation.get_right_input_cooperative_tensor<
+                half, half, float
+            >();
+            auto first_left = tensor(
+                activation + ulong(row_block * BM) * INPUT_DIMS,
+                dextents<int, 2>{{int(BK), int(BM)}},
+                array<int, 2>{{1, int(INPUT_DIMS)}}
+            );
+            auto accumulator = operation.get_destination_cooperative_tensor<
+                decltype(first_left), decltype(right), float
+            >();
+            for (ushort index = 0; index < accumulator.get_capacity(); ++index) {{
+                if (accumulator.is_valid_element(index)) {{
+                    accumulator[index] = 0.0f;
+                }}
+            }}
+
+            for (uint depth = 0u; depth < INPUT_DIMS; depth += BK) {{
+                for (ushort index = 0; index < right.get_capacity(); ++index) {{
+                    if (!right.is_valid_element(index)) {{
+                        continue;
+                    }}
+                    auto coordinate = right.get_multidimensional_index(index);
+                    uint output_column = column_block * BN + uint(coordinate[0]);
+                    uint input_row = depth + uint(coordinate[1]);
+                    uint tile_k = input_row >> 4u;
+                    uint tile_n = output_column >> 4u;
+                    uint local = (input_row & 15u) * 16u + (output_column & 15u);
+                    uint source = uint(mlxl3_perm_inv[local]);
+                    uint position = source >> 1u;
+                    int begin = int(position * 2u * K_BITS + K_BITS)
+                        - 16 + int(256u * K_BITS);
+                    int end = begin + int(K_BITS) + 16;
+                    uint word0 = uint(begin / 32) % PACKED_U32;
+                    uint word1 = uint((end - 1) / 32) % PACKED_U32;
+                    uint shift = uint(((end - 1) / 32 + 1) * 32 - end)
+                        + ((source & 1u) ? 0u : K_BITS);
+                    const device uint* words = trellis
+                        + ulong(tile_k * TILES_N + tile_n) * PACKED_U32;
+                    ulong merged = (ulong(words[word0]) << 32) | ulong(words[word1]);
+                    uint codeword = uint(merged >> shift) & 0xffffu;
+                    right[index] = half(mlxl3_decode_codeword(codeword, 0));
+                }}
+                auto left = tensor(
+                    activation + ulong(row_block * BM) * INPUT_DIMS + depth,
+                    dextents<int, 2>{{int(BK), int(BM)}},
+                    array<int, 2>{{1, int(INPUT_DIMS)}}
+                );
+                operation.run(left, right, accumulator);
+            }}
+
+            for (ushort index = 0; index < accumulator.get_capacity(); ++index) {{
+                if (!accumulator.is_valid_element(index)) {{
+                    continue;
+                }}
+                auto coordinate = accumulator.get_multidimensional_index(index);
+                uint output_row = row_block * BM + uint(coordinate[1]);
+                uint output_column = column_block * BN + uint(coordinate[0]);
+                yhat[ulong(output_row) * OUTPUT_DIMS + output_column] =
+                    half(accumulator[index]);
+            }}
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
+def _qmm_matrix_kernel_impl(
+    k: int,
+    mode: int,
+    input_dims: int,
+    output_dims: int,
+    block_rows: int,
+    matrix_header: str,
+):
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmm_matrix_k{k}_cb{mode}_{input_dims}x{output_dims}"
@@ -810,6 +953,19 @@ def _is_m5_gpu() -> bool:
     return str(mx.device_info().get("architecture", "")) == "applegpu_g17g"
 
 
+@cache
+def _tensor_ops_available() -> bool:
+    """Return whether this host exposes the cooperative TensorOps used below."""
+
+    if not _is_m5_gpu():
+        return False
+    try:
+        version = tuple(int(part) for part in platform.mac_ver()[0].split(".")[:2])
+    except ValueError:
+        return False
+    return version >= (26, 3)
+
+
 def _qmv_simdgroups(
     input_tiles: int,
     output_tiles: int,
@@ -819,9 +975,13 @@ def _qmv_simdgroups(
 ) -> int:
     """Choose cooperative depth from end-to-end measurements on this GPU."""
 
-    del input_tiles, output_tiles, k, mode, mapped_rows
+    del input_tiles, output_tiles, mode
     # Microbenchmarks disagree slightly on narrow shapes, but full decode is
-    # consistently faster with eight groups on both dense and MoE fixtures.
+    # consistently faster with eight groups on dense projections. K=2 routed
+    # experts need fewer lanes per output tile and retain better occupancy with
+    # four groups; K>=3 still benefits from the extra cooperative depth.
+    if _is_m5_gpu() and mapped_rows and k == 2:
+        return 4
     return 8 if _is_m5_gpu() else 4
 
 
@@ -998,8 +1158,8 @@ def qmv_exl3_mapped(
 def qmv_exl3_expert_mapped(
     x: mx.array,
     trellis: mx.array,
-    suh: mx.array,
-    svh: mx.array,
+    suh: mx.array | None,
+    svh: mx.array | None,
     selected: mx.array,
     *,
     output_dims: int,
@@ -1008,6 +1168,8 @@ def qmv_exl3_expert_mapped(
     reduce_weights: mx.array | None = None,
     k: int,
     mode: CodebookMode | int = CodebookMode.DEFAULT,
+    input_pretransformed: bool = False,
+    return_raw: bool = False,
 ) -> mx.array:
     """Run contiguous expert projections from compact routing indices."""
 
@@ -1034,11 +1196,17 @@ def qmv_exl3_expert_mapped(
         raise ValueError(
             f"{selected.size} routes x {projections_per_route} projections != {rows} rows"
         )
-    if suh.shape != x.shape or svh.shape != (rows, output_dims):
+    if not input_pretransformed and (suh is None or suh.shape != x.shape):
         raise ValueError(
-            f"scale shapes must be {x.shape} and {(rows, output_dims)}, "
-            f"got {suh.shape} and {svh.shape}"
+            f"input scales must be {x.shape}, got {None if suh is None else suh.shape}"
         )
+    if not return_raw and (svh is None or svh.shape != (rows, output_dims)):
+        raise ValueError(
+            f"output scales must be {(rows, output_dims)}, "
+            f"got {None if svh is None else svh.shape}"
+        )
+    if return_raw and reduce_weights is not None:
+        raise ValueError("raw expert QMV cannot reduce before the output transform")
     if reduce_weights is not None and (
         reduce_weights.ndim != 2 or reduce_weights.size != selected.size
     ):
@@ -1049,7 +1217,7 @@ def qmv_exl3_expert_mapped(
 
     output_tiles = output_dims // 16
     local_tiles = rows * output_tiles
-    xhat = _scaled_hadamard_input(x, suh)
+    xhat = x if input_pretransformed else _scaled_hadamard_input(x, suh)
     routes = selected.reshape(-1).astype(mx.uint32)
     splits = _split_count(trellis.shape[0], local_tiles)
     tiles_per_group = _qmv_tiles_per_group(
@@ -1100,6 +1268,8 @@ def qmv_exl3_expert_mapped(
         output_dtypes=[mx.float32],
     )[0]
     yhat = partials[0] if splits == 1 else partials.sum(axis=0)
+    if return_raw:
+        return yhat
     if reduce_weights is not None:
         if projections_per_route != 1:
             raise ValueError("expert reduction requires one projection per route")
@@ -1214,6 +1384,365 @@ def qmv_exl3_grouped(
     )
 
 
+@cache
+def _segmented_expert_qmm_kernel(k: int, mode: int):
+    """Decode each routed expert tile once per 64-row Metal GEMM block."""
+
+    packed_u32 = k * 256 // 32
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_expert_qmm_segmented_k{k}_cb{mode}_v1",
+        input_names=["xhat", "trellis", "block_table", "block_count", "dims"],
+        output_names=["output"],
+        header=(
+            "#include <metal_simdgroup_matrix>\n"
+            "#include <metal_stdlib>\n"
+            "using namespace metal;\n"
+            + specialized_codebook_header(mode)
+            + permutation_header()
+        ),
+        source=f"""
+            constexpr uint PACKED_U32 = {packed_u32}u;
+            constexpr uint K_BITS = {k}u;
+            constexpr uint BM = 64u;
+            constexpr uint BN = 64u;
+            constexpr uint WEIGHT_STRIDE = 72u;
+
+            uint block = threadgroup_position_in_grid.y;
+            if (block >= block_count[0]) {{
+                return;
+            }}
+            uint column_block = threadgroup_position_in_grid.x;
+            uint tid = thread_position_in_threadgroup.x;
+            uint lane = thread_index_in_simdgroup;
+            uint simd = simdgroup_index_in_threadgroup;
+            uint simd_row = simd >> 1u;
+            uint simd_column = simd & 1u;
+
+            uint input_tiles = dims[0];
+            uint tiles_per_expert = dims[1];
+            uint source_tiles = dims[2];
+            uint tile_base = dims[3];
+            uint output_dims = dims[4];
+            uint max_blocks = dims[5];
+            uint input_dims = input_tiles * 16u;
+
+            uint expert = block_table[block];
+            uint row_begin = block_table[max_blocks + block];
+            uint block_rows = block_table[2u * max_blocks + block];
+            uint output_tile =
+                tile_base + expert * tiles_per_expert + column_block * 4u;
+
+            uint decoded_column = tid >> 3u;
+            uint row_pair = tid & 7u;
+            uint word0[2];
+            uint word1[2];
+            uint shifts[2];
+            for (uint pair = 0u; pair < 2u; ++pair) {{
+                uint source = mlxl3_perm_inv[
+                    (2u * row_pair + pair) * 16u + decoded_column
+                ];
+                uint position = source >> 1u;
+                int begin = int(position) * 2 * int(K_BITS)
+                    + int(K_BITS) - 16 + 256 * int(K_BITS);
+                int end = begin + int(K_BITS) + 16;
+                word0[pair] = uint(begin / 32) % PACKED_U32;
+                word1[pair] = uint((end - 1) / 32) % PACKED_U32;
+                shifts[pair] = uint(((end - 1) / 32 + 1) * 32 - end)
+                    + ((source & 1u) ? 0u : K_BITS);
+            }}
+
+            threadgroup half weights[32u * WEIGHT_STRIDE];
+            threadgroup float scratch[4u * 64u];
+            simdgroup_float8x8 accum[4][4];
+            for (uint row = 0u; row < 4u; ++row) {{
+                for (uint column = 0u; column < 4u; ++column) {{
+                    accum[row][column] =
+                        make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
+                }}
+            }}
+
+            const device half* input_row = xhat
+                + ulong(row_begin + simd_row * 32u) * input_dims;
+            uint stages = input_tiles >> 1u;
+            for (uint stage = 0u; stage < stages; ++stage) {{
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                for (uint inner_tile = 0u; inner_tile < 2u; ++inner_tile) {{
+                    uint input_tile = stage * 2u + inner_tile;
+                    for (uint local_tile = 0u; local_tile < 4u; ++local_tile) {{
+                        const device uint* words = trellis
+                            + ulong(input_tile * source_tiles
+                                + output_tile + local_tile) * PACKED_U32;
+                        for (uint pair = 0u; pair < 2u; ++pair) {{
+                            ulong merged =
+                                (ulong(words[word0[pair]]) << 32)
+                                | ulong(words[word1[pair]]);
+                            uint codeword = uint(merged >> shifts[pair]) & 0xffffu;
+                            weights[
+                                (inner_tile * 16u + 2u * row_pair + pair)
+                                    * WEIGHT_STRIDE
+                                + local_tile * 16u + decoded_column
+                            ] = half(mlxl3_decode_codeword(codeword, 0));
+                        }}
+                    }}
+                }}
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                for (uint k_fragment = 0u; k_fragment < 4u; ++k_fragment) {{
+                    simdgroup_half8x8 weight0;
+                    simdgroup_half8x8 weight1;
+                    simdgroup_half8x8 weight2;
+                    simdgroup_half8x8 weight3;
+                    const threadgroup half* weight_row =
+                        &weights[k_fragment * 8u * WEIGHT_STRIDE
+                            + simd_column * 32u];
+                    simdgroup_load(weight0, weight_row, WEIGHT_STRIDE);
+                    simdgroup_load(weight1, weight_row + 8u, WEIGHT_STRIDE);
+                    simdgroup_load(weight2, weight_row + 16u, WEIGHT_STRIDE);
+                    simdgroup_load(weight3, weight_row + 24u, WEIGHT_STRIDE);
+                    for (uint row = 0u; row < 4u; ++row) {{
+                        simdgroup_half8x8 input_fragment;
+                        simdgroup_load(
+                            input_fragment,
+                            input_row + ulong(row * 8u) * input_dims
+                                + stage * 32u + k_fragment * 8u,
+                            input_dims
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][0], input_fragment, weight0, accum[row][0]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][1], input_fragment, weight1, accum[row][1]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][2], input_fragment, weight2, accum[row][2]
+                        );
+                        simdgroup_multiply_accumulate(
+                            accum[row][3], input_fragment, weight3, accum[row][3]
+                        );
+                    }}
+                }}
+            }}
+
+            uint output_column = column_block * BN + simd_column * 32u;
+            uint output_row = simd_row * 32u;
+            for (uint row = 0u; row < 4u; ++row) {{
+                if (output_row + row * 8u >= block_rows) {{
+                    break;
+                }}
+                for (uint column = 0u; column < 4u; ++column) {{
+                    simdgroup_store(accum[row][column], &scratch[simd * 64u], 8u);
+                    simdgroup_barrier(mem_flags::mem_threadgroup);
+                    for (uint index = lane; index < 64u; index += 32u) {{
+                        uint local_row = index >> 3u;
+                        uint local_column = index & 7u;
+                        uint global_row = output_row + row * 8u + local_row;
+                        if (global_row < block_rows) {{
+                            output[
+                                ulong(row_begin + global_row) * output_dims
+                                + output_column + column * 8u + local_column
+                            ] = half(scratch[simd * 64u + index]);
+                        }}
+                    }}
+                    simdgroup_barrier(mem_flags::mem_threadgroup);
+                }}
+            }}
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
+@cache
+def _segmented_expert_qmm_tensor_kernel(k: int, mode: int):
+    """M5 TensorOp QMM over sorted expert rows and EXL3 trellises."""
+
+    packed_u32 = k * 256 // 32
+    return mx.fast.metal_kernel(
+        name=f"mlxl3_expert_qmm_tensor_segmented_k{k}_cb{mode}_v1",
+        input_names=["xhat", "trellis", "block_table", "block_count", "dims"],
+        output_names=["output"],
+        header=(
+            "#include <metal_tensor>\n"
+            "#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\n"
+            "using namespace metal;\n"
+            "using namespace mpp;\n"
+            + specialized_codebook_header(mode)
+            + permutation_header()
+        ),
+        source=f"""
+            constexpr uint BM = 32u;
+            constexpr uint BN = 32u;
+            constexpr uint BK = 16u;
+            constexpr uint PACKED_U32 = {packed_u32}u;
+            constexpr uint K_BITS = {k}u;
+
+            uint block = threadgroup_position_in_grid.y;
+            if (block >= block_count[0]) {{
+                return;
+            }}
+            uint row_subblock = threadgroup_position_in_grid.z;
+            uint column_block = threadgroup_position_in_grid.x;
+            uint input_tiles = dims[0];
+            uint tiles_per_expert = dims[1];
+            uint source_tiles = dims[2];
+            uint tile_base = dims[3];
+            uint output_dims = dims[4];
+            uint max_blocks = dims[5];
+            uint input_dims = input_tiles * 16u;
+
+            uint expert = block_table[block];
+            uint segment_begin = block_table[max_blocks + block];
+            uint segment_rows = block_table[2u * max_blocks + block];
+            uint local_row_begin = row_subblock * BM;
+            if (local_row_begin >= segment_rows) {{
+                return;
+            }}
+            uint row_begin = segment_begin + local_row_begin;
+            uint output_tile = tile_base + expert * tiles_per_expert
+                + column_block * (BN / 16u);
+            device half* activation = const_cast<device half*>(xhat);
+
+            constexpr auto descriptor = tensor_ops::matmul2d_descriptor(
+                BM,
+                BN,
+                BK,
+                false,
+                false,
+                false,
+                tensor_ops::matmul2d_descriptor::mode::multiply_accumulate
+            );
+            tensor_ops::matmul2d<descriptor, execution_simdgroup> operation;
+            auto right = operation.get_right_input_cooperative_tensor<
+                half, half, float
+            >();
+            auto first_left = tensor(
+                activation + ulong(row_begin) * input_dims,
+                dextents<int, 2>{{int(BK), int(BM)}},
+                array<int, 2>{{1, int(input_dims)}}
+            );
+            auto accumulator = operation.get_destination_cooperative_tensor<
+                decltype(first_left), decltype(right), float
+            >();
+            for (ushort index = 0; index < accumulator.get_capacity(); ++index) {{
+                if (accumulator.is_valid_element(index)) {{
+                    accumulator[index] = 0.0f;
+                }}
+            }}
+
+            for (uint depth = 0u; depth < input_dims; depth += BK) {{
+                for (ushort index = 0; index < right.get_capacity(); ++index) {{
+                    if (!right.is_valid_element(index)) {{
+                        continue;
+                    }}
+                    auto coordinate = right.get_multidimensional_index(index);
+                    uint local_column = uint(coordinate[0]);
+                    uint input_row = depth + uint(coordinate[1]);
+                    uint tile_k = input_row >> 4u;
+                    uint tile_n = output_tile + (local_column >> 4u);
+                    uint local = (input_row & 15u) * 16u + (local_column & 15u);
+                    uint source = uint(mlxl3_perm_inv[local]);
+                    uint position = source >> 1u;
+                    int begin = int(position * 2u * K_BITS + K_BITS)
+                        - 16 + int(256u * K_BITS);
+                    int end = begin + int(K_BITS) + 16;
+                    uint word0 = uint(begin / 32) % PACKED_U32;
+                    uint word1 = uint((end - 1) / 32) % PACKED_U32;
+                    uint shift = uint(((end - 1) / 32 + 1) * 32 - end)
+                        + ((source & 1u) ? 0u : K_BITS);
+                    const device uint* words = trellis
+                        + ulong(tile_k * source_tiles + tile_n) * PACKED_U32;
+                    ulong merged = (ulong(words[word0]) << 32) | ulong(words[word1]);
+                    uint codeword = uint(merged >> shift) & 0xffffu;
+                    right[index] = half(mlxl3_decode_codeword(codeword, 0));
+                }}
+                auto left = tensor(
+                    activation + ulong(row_begin) * input_dims + depth,
+                    dextents<int, 2>{{int(BK), int(BM)}},
+                    array<int, 2>{{1, int(input_dims)}}
+                );
+                operation.run(left, right, accumulator);
+            }}
+
+            for (ushort index = 0; index < accumulator.get_capacity(); ++index) {{
+                if (!accumulator.is_valid_element(index)) {{
+                    continue;
+                }}
+                auto coordinate = accumulator.get_multidimensional_index(index);
+                uint local_row = uint(coordinate[1]);
+                if (local_row_begin + local_row >= segment_rows) {{
+                    continue;
+                }}
+                uint output_row = row_begin + local_row;
+                uint output_column = column_block * BN + uint(coordinate[0]);
+                output[ulong(output_row) * output_dims + output_column] =
+                    half(accumulator[index]);
+            }}
+        """,
+        compile_options={"math_mode": "safe"},
+    )
+
+
+def qmm_exl3_expert_segmented(
+    xhat_sorted: mx.array,
+    trellis: mx.array,
+    block_table: mx.array,
+    block_count: mx.array,
+    *,
+    rows: int,
+    tiles_per_expert: int,
+    output_dims: int,
+    expert_tile_base: int,
+    k: int,
+    mode: CodebookMode | int,
+) -> mx.array:
+    """Multiply expert-sorted rows without materializing decoded weights."""
+
+    if rows < 1 or xhat_sorted.shape[0] < rows + 64:
+        raise ValueError("segmented expert QMM input needs 64 padded rows")
+    if output_dims % 64 or trellis.shape[0] % 2:
+        raise ValueError("segmented expert QMM requires 64-aligned matrices")
+    cb = CodebookMode(mode)
+    max_blocks = int(block_table.shape[1])
+    dims = mx.array(
+        [
+            trellis.shape[0],
+            tiles_per_expert,
+            trellis.shape[1],
+            expert_tile_base,
+            output_dims,
+            max_blocks,
+        ],
+        dtype=mx.uint32,
+    )
+    kernel = (
+        _segmented_expert_qmm_tensor_kernel(k, int(cb))
+        if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
+        else _segmented_expert_qmm_kernel(k, int(cb))
+    )
+    grid = (
+        ((output_dims // 32) * 32, max_blocks, 2)
+        if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
+        else ((output_dims // 64) * 128, max_blocks, 1)
+    )
+    threadgroup = (
+        (32, 1, 1)
+        if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
+        else (128, 1, 1)
+    )
+    return kernel(
+        inputs=[
+            xhat_sorted.reshape(-1),
+            trellis.reshape(-1).view(mx.uint32),
+            block_table.reshape(-1),
+            block_count,
+            dims,
+        ],
+        template=[("T", mx.float16)],
+        grid=grid,
+        threadgroup=threadgroup,
+        output_shapes=[(rows, output_dims)],
+        output_dtypes=[mx.float16],
+    )[0]
+
+
 def qmm_exl3(
     x: mx.array,
     trellis: mx.array,
@@ -1237,16 +1766,33 @@ def qmm_exl3(
         raise ValueError(f"QMM expects width {input_dims}, got {x.shape[-1]}")
     rows = x.size // input_dims
     flat = x.reshape(rows, input_dims)
-    if k == 7:
-        output = mx.stack(
-            [qmv_exl3(row, trellis, suh, svh, k, mode) for row in flat], axis=0
-        )
-        return output.reshape(*x.shape[:-1], output_dims)
-
     cb = CodebookMode(mode)
     if trellis.dtype == mx.int16:
         trellis = trellis.view(mx.uint16)
     if rows >= 24:
+        if _USE_TENSOR_QMM and _tensor_ops_available():
+            block_rows = 32
+            padded_rows = ((rows + block_rows - 1) // block_rows) * block_rows
+            xhat = _scaled_hadamard_input(flat, suh)
+            if rows < padded_rows:
+                xhat = mx.pad(xhat, [(0, padded_rows - rows), (0, 0)])
+            yhat = _qmm_tensor_kernel(
+                k,
+                int(cb),
+                input_dims,
+                output_dims,
+                block_rows,
+                32,
+                16,
+            )(
+                inputs=[mx.contiguous(xhat), trellis.reshape(-1).view(mx.uint32)],
+                grid=((output_dims // 32) * 32, padded_rows // block_rows, 1),
+                threadgroup=(32, 1, 1),
+                output_shapes=[(padded_rows, output_dims)],
+                output_dtypes=[mx.float16],
+            )[0][:rows]
+            output = _scaled_hadamard_output(yhat, svh).astype(x.dtype)
+            return output.reshape(*x.shape[:-1], output_dims)
         block_rows = 64 if rows >= 48 else 32
         padded_rows = ((rows + block_rows - 1) // block_rows) * block_rows
         xhat = _scaled_hadamard_input(flat, suh)
@@ -1269,6 +1815,17 @@ def qmm_exl3(
             output_dtypes=[mx.float16],
         )[0][:rows]
         output = _scaled_hadamard_output(yhat, svh).astype(x.dtype)
+        return output.reshape(*x.shape[:-1], output_dims)
+
+    # The small-row CUDA-style tile path extracts four adjacent K-bit
+    # codewords from a two-word window, which is insufficient for K=7 at a
+    # handful of bit offsets. Matrix/TensorOps prefill above decodes pairs and
+    # supports K=7 natively; retain the exact scalar kernel only for tiny
+    # batches where building a matrix tile would be wasteful.
+    if k == 7:
+        output = mx.stack(
+            [qmv_exl3(row, trellis, suh, svh, k, mode) for row in flat], axis=0
+        )
         return output.reshape(*x.shape[:-1], output_dims)
 
     mt = 2 if rows <= 2 else (4 if rows <= 4 else 8)

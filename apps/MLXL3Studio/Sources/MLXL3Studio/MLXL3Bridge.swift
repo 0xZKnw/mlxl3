@@ -79,13 +79,16 @@ final class MLXL3Bridge: @unchecked Sendable {
     var isRunning: Bool { process?.isRunning == true }
 
     func residentMemoryBytes() -> UInt64 {
-        var pids = [getpid()]
-        if let process, process.isRunning {
-            pids.append(process.processIdentifier)
-        }
-        return pids.reduce(0) { total, pid in
-            total + residentMemoryBytes(for: pid)
-        }
+        interfaceResidentMemoryBytes() + engineResidentMemoryBytes()
+    }
+
+    func interfaceResidentMemoryBytes() -> UInt64 {
+        residentMemoryBytes(for: getpid())
+    }
+
+    func engineResidentMemoryBytes() -> UInt64 {
+        guard let process, process.isRunning else { return 0 }
+        return residentMemoryBytes(for: process.processIdentifier)
     }
 
     static func listModels(
@@ -191,6 +194,11 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
+    func cancelGeneration() -> Bool {
+        guard let process, process.isRunning else { return false }
+        return Darwin.kill(process.processIdentifier, SIGUSR1) == 0
+    }
+
     func stop() {
         inputPipe?.fileHandleForWriting.closeFile()
         if process?.isRunning == true {
@@ -222,6 +230,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                     phase: nil,
                     text: nil,
                     assistantContext: nil,
+                    cacheContext: nil,
                     stats: nil,
                     message: "Réponse moteur invalide: \(raw)",
                     mcpServers: nil,
@@ -285,6 +294,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                 phase: pendingDelta.phase,
                 text: pendingDelta.text,
                 assistantContext: nil,
+                cacheContext: nil,
                 stats: nil,
                 message: nil,
                 mcpServers: nil,

@@ -332,6 +332,11 @@ private struct StatsRow: View {
             MetricChip(icon: "arrow.right.to.line", value: String(format: "%.1f tok/s", stats.prefillTps), label: "prefill")
             MetricChip(icon: "timer", value: String(format: "%.0f ms", stats.ttftSeconds * 1000), label: "TTFT")
             MetricChip(icon: "memorychip", value: String(format: "%.2f GB", stats.peakMemoryGB), label: "pic")
+            MetricChip(
+                icon: "externaldrive.badge.checkmark",
+                value: "\(stats.cachedPromptTokens ?? 0)/\(stats.evaluatedPromptTokens ?? stats.promptTokens)",
+                label: String(format: "cache %.0f%%", stats.cacheHitPercent)
+            )
         }
         .padding(.top, 3)
     }

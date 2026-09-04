@@ -6,8 +6,11 @@ import argparse
 import json
 import os
 import re
+import signal
 import sys
+import threading
 import time
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -40,10 +43,295 @@ class GenerationStats:
     prompt_tokens: int
     generated_tokens: int
     peak_memory_gb: float
+    cached_prompt_tokens: int = 0
+    evaluated_prompt_tokens: int = 0
 
 
 class MemorySafetyError(RuntimeError):
     """Generation stopped before Metal pressure can destabilize the desktop."""
+
+
+class GenerationCancelled(RuntimeError):
+    """A bridge client cooperatively cancelled the active generation."""
+
+
+# Zero selects a memory-aware serialized-QMM step. An explicit environment
+# override remains useful for profiling and unusually constrained hosts.
+_PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "0"))
+_PREFIX_CACHE_BLOCK_SIZE = int(os.environ.get("MLXL3_PREFIX_CACHE_BLOCK_SIZE", "2048"))
+_PREFIX_CACHE_BUDGET_BYTES = int(
+    float(os.environ.get("MLXL3_PREFIX_CACHE_GB", "0.5")) * 1_000_000_000
+)
+_SESSION_CACHE_BUDGET_BYTES = int(
+    float(os.environ.get("MLXL3_SESSION_CACHE_GB", "1.0")) * 1_000_000_000
+)
+_WARM_MODEL_ON_LOAD = os.environ.get("MLXL3_WARM_MODEL_ON_LOAD", "1") != "0"
+
+
+def _model_num_experts(model: Any) -> int:
+    """Read common MLX-LM config locations without tying the scheduler to Qwen."""
+
+    language_model = getattr(model, "language_model", None)
+    for owner in (model, language_model):
+        args = getattr(owner, "args", None)
+        for name in ("num_experts", "num_local_experts"):
+            value = getattr(args, name, 0)
+            if isinstance(value, int) and value > 0:
+                return value
+    return 0
+
+
+def _cache_nbytes(cache: list[Any] | None, seen: set[int] | None = None) -> int:
+    """Count unique MLX storage referenced by a model cache."""
+
+    if cache is None:
+        return 0
+    import mlx.core as mx
+
+    seen = set() if seen is None else seen
+
+    def visit(value: Any) -> int:
+        if isinstance(value, mx.array):
+            identity = id(value)
+            if identity in seen:
+                return 0
+            seen.add(identity)
+            return int(value.nbytes)
+        if isinstance(value, dict):
+            return sum(visit(item) for item in value.values())
+        if isinstance(value, (list, tuple)):
+            return sum(visit(item) for item in value)
+        return 0
+
+    return sum(visit(item.state) for item in cache)
+
+
+class GenerationSession:
+    """Reuse the stable chat prefix and its model cache across turns."""
+
+    def __init__(self) -> None:
+        self.prompt_cache: list[Any] | None = None
+        self.tokens: list[int] = []
+        self.exact_cache: list[Any] | None = None
+        self.exact_tokens: list[int] = []
+        self.block_caches: OrderedDict[int, list[Any]] = OrderedDict()
+
+    def reset(self) -> None:
+        self.prompt_cache = None
+        self.tokens = []
+        self.exact_cache = None
+        self.exact_tokens = []
+        self.block_caches.clear()
+
+    @staticmethod
+    def _common_prefix(left: list[int], right: list[int]) -> int:
+        common = 0
+        for old, new in zip(left, right, strict=False):
+            if old != new:
+                break
+            common += 1
+        return common
+
+    @staticmethod
+    def _clone_cache(cache: list[Any], *, synchronize: bool = True) -> list[Any]:
+        import mlx.core as mx
+        from mlx.utils import tree_map
+        from mlx_lm.models.cache import ArraysCache
+
+        def copy_array(value: Any) -> Any:
+            return mx.array(value) if isinstance(value, mx.array) else value
+
+        cloned = []
+        for item in cache:
+            # Qwen Gated DeltaNet replaces its ArraysCache states on every
+            # update instead of writing into their buffers. Rebuild the Python
+            # containers but share those immutable arrays across forks. KV
+            # caches retain real copies because their reserved buffers are
+            # updated in place during decode.
+            mapper = (lambda value: value) if isinstance(item, ArraysCache) else copy_array
+            cloned.append(
+                type(item).from_state(
+                    tree_map(mapper, item.state),
+                    tree_map(mapper, item.meta_state),
+                )
+            )
+        states = [item.state for item in cloned]
+        if synchronize:
+            mx.eval(states)
+        else:
+            mx.async_eval(states)
+        return cloned
+
+    def nbytes(self) -> int:
+        """Return unique GPU bytes retained by this conversation."""
+
+        seen: set[int] = set()
+        total = _cache_nbytes(self.prompt_cache, seen)
+        total += _cache_nbytes(self.exact_cache, seen)
+        for cache in self.block_caches.values():
+            total += _cache_nbytes(cache, seen)
+        return total
+
+    def _prune_block_caches(self) -> None:
+        while self.block_caches and self.nbytes() > _PREFIX_CACHE_BUDGET_BYTES:
+            self.block_caches.popitem(last=False)
+
+    def _store_block_cache(self, length: int) -> None:
+        if (
+            self.prompt_cache is None
+            or _PREFIX_CACHE_BLOCK_SIZE <= 0
+            or _PREFIX_CACHE_BUDGET_BYTES <= 0
+        ):
+            return
+        self.block_caches[length] = self._clone_cache(
+            self.prompt_cache,
+            synchronize=False,
+        )
+        self.block_caches.move_to_end(length)
+        self._prune_block_caches()
+
+    def _restore_block_cache(self, common: int) -> int:
+        candidates = [length for length in self.block_caches if length <= common]
+        if not candidates:
+            return 0
+        length = max(candidates)
+        self.prompt_cache = self._clone_cache(self.block_caches[length])
+        self.tokens = self.tokens[:length]
+        for stale in [position for position in self.block_caches if position > length]:
+            del self.block_caches[stale]
+        self.block_caches.move_to_end(length)
+        return length
+
+    def prepare(
+        self,
+        model: Any,
+        full_tokens: list[int],
+        stable_tokens: list[int],
+    ) -> tuple[list[int], list[Any], int, int]:
+        import mlx.core as mx
+        from mlx_lm.models.cache import (
+            can_trim_prompt_cache,
+            make_prompt_cache,
+            trim_prompt_cache,
+        )
+
+        # A template should append its assistant-generation marker to the
+        # stable history. If it does not, fall back to a clean full prefill.
+        if full_tokens[: len(stable_tokens)] != stable_tokens:
+            self.reset()
+            stable_tokens = []
+        if not stable_tokens:
+            return full_tokens, make_prompt_cache(model), 0, len(full_tokens)
+
+        # A normally completed assistant turn is already in the exact byte
+        # form emitted by the template. Promote its post-generation cache and
+        # avoid reevaluating that answer. Truncated reasoning falls back to the
+        # stable pre-assistant snapshot below.
+        if self.exact_cache is not None and self.exact_tokens:
+            exact_common = self._common_prefix(self.exact_tokens, stable_tokens)
+            if exact_common == len(self.exact_tokens):
+                self.prompt_cache = self.exact_cache
+                self.tokens = self.exact_tokens
+            self.exact_cache = None
+            self.exact_tokens = []
+
+        common = self._common_prefix(self.tokens, stable_tokens)
+        if self.prompt_cache is None:
+            self.prompt_cache = make_prompt_cache(model)
+            common = 0
+        elif common < len(self.tokens):
+            if can_trim_prompt_cache(self.prompt_cache):
+                requested = len(self.tokens) - common
+                if trim_prompt_cache(self.prompt_cache, requested) != requested:
+                    self.prompt_cache = make_prompt_cache(model)
+                    common = 0
+            else:
+                # Recurrent-state models such as Qwen3.6 cannot trim their
+                # state cache. Restore the nearest immutable block snapshot;
+                # only the suffix after the fork point must be evaluated.
+                common = self._restore_block_cache(common)
+                if common == 0:
+                    self.prompt_cache = make_prompt_cache(model)
+                    self.block_caches.clear()
+
+        extension = stable_tokens[common:]
+        processed = common
+        step_size = _select_prefill_step_size(
+            mx.get_active_memory(),
+            _mlx_memory_guard_bytes(),
+            token_count=len(extension),
+            num_experts=_model_num_experts(model),
+        )
+        while processed < len(stable_tokens):
+            chunk_end = min(processed + step_size, len(stable_tokens))
+            if _PREFIX_CACHE_BLOCK_SIZE > 0:
+                next_boundary = (
+                    (processed // _PREFIX_CACHE_BLOCK_SIZE) + 1
+                ) * _PREFIX_CACHE_BLOCK_SIZE
+                chunk_end = min(chunk_end, next_boundary)
+            chunk = stable_tokens[processed:chunk_end]
+            model(mx.array(chunk)[None], cache=self.prompt_cache)
+            # Submit successive cache states without stalling the CPU between
+            # chunks. MLX preserves their data dependencies on the generation
+            # stream, so one terminal synchronization is sufficient.
+            mx.async_eval([item.state for item in self.prompt_cache])
+            processed = chunk_end
+            if (
+                _PREFIX_CACHE_BLOCK_SIZE > 0
+                and processed % _PREFIX_CACHE_BLOCK_SIZE == 0
+            ):
+                self._store_block_cache(processed)
+        if extension:
+            mx.eval([item.state for item in self.prompt_cache])
+            mx.clear_cache()
+        self.tokens = list(stable_tokens)
+
+        # Generation mutates its cache. Preserve the stable-history cache so
+        # recurrent layers can reuse it on the following turn without rewind.
+        generation_cache = self._clone_cache(self.prompt_cache)
+        generation_tokens = full_tokens[len(stable_tokens) :]
+        return (
+            generation_tokens,
+            generation_cache,
+            common,
+            len(full_tokens) - common,
+        )
+
+    def finish(
+        self,
+        prompt_tokens: list[int],
+        generated_tokens: list[int],
+        generation_cache: list[Any],
+    ) -> None:
+        self.exact_tokens = [*prompt_tokens, *generated_tokens]
+        self.exact_cache = generation_cache
+
+
+class GenerationSessionPool:
+    """RAM-bounded LRU of warm prompt caches keyed by conversation."""
+
+    def __init__(self, budget_bytes: int = _SESSION_CACHE_BUDGET_BYTES) -> None:
+        self.budget_bytes = max(0, budget_bytes)
+        self.sessions: OrderedDict[str, GenerationSession] = OrderedDict()
+
+    def acquire(self, conversation_id: str) -> GenerationSession:
+        session = self.sessions.get(conversation_id)
+        if session is None:
+            session = GenerationSession()
+            self.sessions[conversation_id] = session
+        self.sessions.move_to_end(conversation_id)
+        return session
+
+    def prune(self, active_id: str) -> None:
+        while len(self.sessions) > 1:
+            retained = sum(session.nbytes() for session in self.sessions.values())
+            if retained <= self.budget_bytes:
+                break
+            oldest = next(iter(self.sessions))
+            if oldest == active_id:
+                self.sessions.move_to_end(oldest)
+                continue
+            self.sessions.pop(oldest).reset()
 
 
 def _mlx_memory_guard_bytes() -> int:
@@ -54,6 +342,30 @@ def _mlx_memory_guard_bytes() -> int:
     recommended = int(info.get("max_recommended_working_set_size") or 0)
     candidates = [value for value in (int(physical * 0.82), int(recommended * 0.96)) if value]
     return min(candidates) if candidates else 16_000_000_000
+
+
+def _select_prefill_step_size(
+    active_bytes: int,
+    limit_bytes: int,
+    *,
+    token_count: int = 0,
+    num_experts: int = 0,
+) -> int:
+    """Choose the widest measured-fast QMM block that fits with headroom."""
+
+    if _PREFILL_STEP_SIZE > 0:
+        return _PREFILL_STEP_SIZE
+    # Very long prefills on 128+ expert MoEs can exceed Metal's resource-count
+    # ceiling even when byte memory remains available. A 512-token command is
+    # the proven-safe fallback; short and cached extensions retain wider QMMs.
+    if num_experts >= 128 and token_count >= 32_768:
+        return 512
+    headroom = max(0, limit_bytes - active_bytes)
+    if headroom >= 2_000_000_000:
+        return 2048
+    if headroom >= 750_000_000:
+        return 1024
+    return 512
 
 
 class ThinkingSplitter:
@@ -282,6 +594,12 @@ def _without_tool_calls(response: str) -> str:
     return _TOOL_BLOCK.sub("", _assistant_context(response)).strip()
 
 
+def _cache_context(response: str) -> str:
+    """Keep exact generated reasoning/final bytes for lossless prefix reuse."""
+
+    return _TOOL_BLOCK.sub("", response)
+
+
 def _reasoning_context(response: str) -> str:
     close = response.rfind("</think>")
     if close < 0:
@@ -422,10 +740,15 @@ def _render_generation_prompt(
     tokenizer: Any,
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]] | None,
+    *,
+    add_generation_prompt: bool = True,
 ) -> str:
     template_options: dict[str, Any] = {
         "tokenize": False,
-        "add_generation_prompt": True,
+        "add_generation_prompt": add_generation_prompt,
+        # Qwen templates otherwise delete earlier reasoning. Keeping the
+        # generated bytes makes the next prompt an exact cache extension.
+        "preserve_thinking": True,
     }
     if tools:
         template_options["tools"] = tools
@@ -438,7 +761,8 @@ def _render_generation_prompt(
     return tokenizer.apply_chat_template(
         _legacy_tool_messages(messages, tools),
         tokenize=False,
-        add_generation_prompt=True,
+        add_generation_prompt=add_generation_prompt,
+        preserve_thinking=True,
     )
 
 
@@ -452,6 +776,8 @@ def _load_model(model_path: Path):
     started = time.perf_counter()
     model, _, report = load_exl3_model(model_path, lazy=False)
     tokenizer = load_tokenizer(str(model_path))
+    if _WARM_MODEL_ON_LOAD:
+        _warm_model(model, tokenizer)
     return (
         model,
         tokenizer,
@@ -459,6 +785,24 @@ def _load_model(model_path: Path):
         time.perf_counter() - started,
         mx.get_active_memory() / 1e9,
     )
+
+
+def _warm_model(model: Any, tokenizer: Any, *, prompt_tokens: int = 32) -> None:
+    """Compile representative prefill/decode graphs before reporting ready."""
+
+    import mlx.core as mx
+    from mlx_lm.models.cache import make_prompt_cache
+
+    encoded = tokenizer.encode("MLXL3 warmup", add_special_tokens=False)
+    token = int(encoded[0]) if encoded else int(tokenizer.eos_token_id or 0)
+    prefix = mx.array([[token] * prompt_tokens], dtype=mx.int32)
+    prompt_cache = make_prompt_cache(model)
+    logits = model(prefix, cache=prompt_cache)
+    next_token = mx.argmax(logits[:, -1, :], axis=-1)
+    mx.eval(next_token)
+    decode_logits = model(next_token[:, None], cache=prompt_cache)
+    mx.eval(decode_logits)
+    mx.clear_cache()
 
 
 def _stream_response(
@@ -473,6 +817,8 @@ def _stream_response(
     on_text: Callable[[str], None] | None = None,
     on_prompt: Callable[[str], None] | None = None,
     tools: list[dict[str, Any]] | None = None,
+    session: GenerationSession | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> tuple[str, GenerationStats]:
     import mlx.core as mx
     from mlx_lm import stream_generate
@@ -487,6 +833,47 @@ def _stream_response(
     first_token_at: float | None = None
     final = None
     pieces: list[str] = []
+    generated_token_ids: list[int] = []
+    full_prompt_tokens: list[int] | None = None
+    cached_prompt_tokens = 0
+    evaluated_prompt_tokens = 0
+    generation_prompt: str | list[int] = prompt
+    prompt_cache = None
+    if session is not None:
+        add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(
+            tokenizer.bos_token
+        )
+        full_prompt_tokens = list(
+            tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
+        )
+        stable_prompt = _render_generation_prompt(
+            tokenizer,
+            messages,
+            tools,
+            add_generation_prompt=False,
+        )
+        stable_tokens = list(
+            tokenizer.encode(stable_prompt, add_special_tokens=add_special_tokens)
+        )
+        (
+            generation_prompt,
+            prompt_cache,
+            cached_prompt_tokens,
+            evaluated_prompt_tokens,
+        ) = session.prepare(
+            model,
+            full_prompt_tokens,
+            stable_tokens,
+        )
+        if stable_tokens and processors:
+            cached_prefix = mx.array(stable_tokens)
+            base_processors = processors
+            processors = [
+                lambda tokens, logits, processor=processor: processor(
+                    mx.concatenate([cached_prefix, tokens]), logits
+                )
+                for processor in base_processors
+            ]
     memory_guard = _mlx_memory_guard_bytes()
     initial_mode = "thinking" if _prompt_prefills_thinking(prompt) else "answer"
     renderer = ThinkingRenderer(initial_mode=initial_mode) if on_text is None else None
@@ -494,14 +881,19 @@ def _stream_response(
         for response in stream_generate(
             model,
             tokenizer,
-            prompt,
+            generation_prompt,
             max_tokens=max_tokens,
             sampler=sampler,
             logits_processors=processors,
+            prompt_cache=prompt_cache,
         ):
+            if should_cancel is not None and should_cancel():
+                raise GenerationCancelled
             if first_token_at is None:
                 first_token_at = time.perf_counter()
             final = response
+            if session is not None:
+                generated_token_ids.append(int(response.token))
             pieces.append(response.text)
             if renderer is not None:
                 renderer.feed(response.text)
@@ -521,26 +913,38 @@ def _stream_response(
     if final is None or first_token_at is None:
         raise RuntimeError("generation returned no response")
     text = "".join(pieces)
-
+    if (
+        session is not None
+        and full_prompt_tokens is not None
+        and prompt_cache is not None
+    ):
+        session.finish(full_prompt_tokens, generated_token_ids, prompt_cache)
     decode_tokens = max(0, final.generation_tokens - 1)
     decode_seconds = max(0.0, finished - first_token_at)
     decode_tps = decode_tokens / decode_seconds if decode_tokens and decode_seconds else 0.0
+    ttft_seconds = first_token_at - started
+    prefill_tps = final.prompt_tps
+    if session is not None and evaluated_prompt_tokens:
+        prefill_tps = evaluated_prompt_tokens / ttft_seconds
     return text, GenerationStats(
-        ttft_seconds=first_token_at - started,
-        prefill_tps=final.prompt_tps,
+        ttft_seconds=ttft_seconds,
+        prefill_tps=prefill_tps,
         decode_tps=decode_tps,
-        prompt_tokens=final.prompt_tokens,
+        prompt_tokens=len(full_prompt_tokens) if full_prompt_tokens is not None else final.prompt_tokens,
         generated_tokens=final.generation_tokens,
         peak_memory_gb=final.peak_memory,
+        cached_prompt_tokens=cached_prompt_tokens,
+        evaluated_prompt_tokens=evaluated_prompt_tokens or final.prompt_tokens,
     )
 
 
 def _print_stats(stats: GenerationStats) -> None:
+    cache = f" · cache {stats.cached_prompt_tokens} tok" if stats.cached_prompt_tokens else ""
     print(
         f"[TTFT {stats.ttft_seconds * 1000:.0f} ms · "
         f"prefill {stats.prefill_tps:.1f} tok/s ({stats.prompt_tokens} tok) · "
         f"decode {stats.decode_tps:.1f} tok/s ({stats.generated_tokens} tok) · "
-        f"peak {stats.peak_memory_gb:.2f} GB]"
+        f"peak {stats.peak_memory_gb:.2f} GB{cache}]"
     )
 
 
@@ -560,7 +964,7 @@ def _assistant_context(response: str) -> str:
     return response.strip()
 
 
-def _generate_turn(model, tokenizer, messages, user_text, args) -> None:
+def _generate_turn(model, tokenizer, messages, user_text, args, session=None) -> None:
     messages.append({"role": "user", "content": user_text})
     try:
         response, stats = _stream_response(
@@ -571,17 +975,19 @@ def _generate_turn(model, tokenizer, messages, user_text, args) -> None:
             temperature=args.temperature,
             top_k=args.top_k,
             repetition_penalty=args.repetition_penalty,
+            session=session,
         )
     except KeyboardInterrupt:
         messages.pop()
         print("\n[génération interrompue]")
         return
-    messages.append({"role": "assistant", "content": _assistant_context(response)})
+    messages.append({"role": "assistant", "content": _cache_context(response)})
     _print_stats(stats)
 
 
 def _interactive_chat(model, tokenizer, args) -> None:
     messages = _messages(args.system)
+    session = GenerationSession()
     print("Chat interactif. Commandes: /clear, /help, /exit")
     while True:
         try:
@@ -595,12 +1001,13 @@ def _interactive_chat(model, tokenizer, args) -> None:
             return
         if user_text == "/clear":
             messages = _messages(args.system)
+            session.reset()
             print("Historique effacé.")
             continue
         if user_text == "/help":
             print("/clear efface l'historique · /exit quitte le chat")
             continue
-        _generate_turn(model, tokenizer, messages, user_text, args)
+        _generate_turn(model, tokenizer, messages, user_text, args, session)
 
 
 def _run(args) -> int:
@@ -673,8 +1080,11 @@ def _bridge_generate(
     top_k: int,
     repetition_penalty: float,
     mcp: MCPManager,
+    session: GenerationSession | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> None:
     dialogue = list(messages)
+    session = session or GenerationSession()
     chat_tools = mcp.chat_tools
     for tool_round in range(5):
         splitter = ThinkingSplitter()
@@ -705,6 +1115,8 @@ def _bridge_generate(
             on_text=emit_text,
             on_prompt=splitter.configure_for_prompt,
             tools=chat_tools,
+            session=session,
+            should_cancel=should_cancel,
         )
         for phase, fragment in splitter.finish():
             _emit_split_fragment(
@@ -723,6 +1135,7 @@ def _bridge_generate(
                 "complete",
                 request_id=request_id,
                 assistant_context=_without_tool_calls(response),
+                cache_context=_cache_context(response),
                 stats=asdict(stats),
             )
             return
@@ -778,6 +1191,10 @@ def _bridge(args) -> int:
     name, path = resolve_model(args.model)
     _json_event("loading", model=name)
     model, tokenizer, modules, load_seconds, resident_gb = _load_model(path)
+    sessions = GenerationSessionPool()
+    cancel_requested = threading.Event()
+    previous_cancel_handler = signal.getsignal(signal.SIGUSR1)
+    signal.signal(signal.SIGUSR1, lambda _signum, _frame: cancel_requested.set())
     try:
         mcp = MCPManager()
         mcp.connect()
@@ -815,6 +1232,7 @@ def _bridge(args) -> int:
                     raise ValueError(f"unsupported request type: {request_type!r}")
 
                 messages = _bridge_messages(request.get("messages"))
+                conversation_id = str(request.get("conversation_id") or "default")
                 max_tokens = int(request.get("max_tokens", -1))
                 temperature = float(request.get("temperature", 0.2))
                 top_k = int(request.get("top_k", 80))
@@ -834,7 +1252,12 @@ def _bridge(args) -> int:
                     top_k=top_k,
                     repetition_penalty=repetition_penalty,
                     mcp=mcp,
+                    session=sessions.acquire(conversation_id),
+                    should_cancel=cancel_requested.is_set,
                 )
+                sessions.prune(conversation_id)
+            except GenerationCancelled:
+                _json_event("cancelled", request_id=request_id)
             except (ValueError, TypeError, json.JSONDecodeError) as error:
                 _json_event("error", request_id=request_id, message=str(error))
             except Exception as error:  # noqa: BLE001 - keep the resident model available
@@ -843,7 +1266,10 @@ def _bridge(args) -> int:
                     request_id=request_id,
                     message=f"{type(error).__name__}: {error}",
                 )
+            finally:
+                cancel_requested.clear()
     finally:
+        signal.signal(signal.SIGUSR1, previous_cancel_handler)
         mcp.close()
     return 0
 

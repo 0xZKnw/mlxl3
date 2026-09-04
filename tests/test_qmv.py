@@ -70,7 +70,7 @@ def test_qmm_matches_individual_qmv(rows: int) -> None:
 
 
 @pytest.mark.parametrize("rows", (5, 32, 64))
-@pytest.mark.parametrize("k", (1, 2, 3, 4, 5, 6, 8))
+@pytest.mark.parametrize("k", (1, 2, 3, 4, 5, 6, 7, 8))
 def test_qmm_supports_code_widths(rows: int, k: int) -> None:
     rng = np.random.default_rng(46000 + 100 * rows + k)
     encoded = rng.integers(0, 1 << k, size=(8, 8, 256), dtype=np.uint16)
@@ -85,6 +85,23 @@ def test_qmm_supports_code_widths(rows: int, k: int) -> None:
     actual = qmm_exl3(x, trellis, suh, svh, k, CodebookMode.DEFAULT)
     mx.eval(expected, actual)
     np.testing.assert_allclose(np.asarray(actual), np.asarray(expected), atol=0.035, rtol=0.005)
+
+
+def test_qmm_supports_prefill_larger_than_512_rows() -> None:
+    rng = np.random.default_rng(46513)
+    rows = 513
+    k = 3
+    encoded = rng.integers(0, 1 << k, size=(8, 8, 256), dtype=np.uint16)
+    trellis = mx.array(pack_trellis(encoded, k))
+    suh = mx.array(rng.uniform(0.7, 1.3, size=128).astype(np.float16))
+    svh = mx.array(rng.uniform(0.7, 1.3, size=128).astype(np.float16))
+    x = mx.array(rng.normal(size=(rows, 128)).astype(np.float16))
+
+    dense = reconstruct_public_weights_mlx(trellis, suh, svh, k, CodebookMode.MCG)
+    expected = x @ dense
+    actual = qmm_exl3(x, trellis, suh, svh, k, CodebookMode.MCG)
+    mx.eval(expected, actual)
+    np.testing.assert_allclose(np.asarray(actual), np.asarray(expected), atol=0.055, rtol=0.005)
 
 
 @pytest.mark.parametrize(

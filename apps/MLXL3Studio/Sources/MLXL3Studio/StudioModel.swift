@@ -92,6 +92,14 @@ final class StudioModel: ObservableObject {
         bridge.residentMemoryBytes()
     }
 
+    var engineResidentMemoryBytes: UInt64 {
+        bridge.engineResidentMemoryBytes()
+    }
+
+    var interfaceResidentMemoryBytes: UInt64 {
+        bridge.interfaceResidentMemoryBytes()
+    }
+
     var mcpConfigurationURL: URL {
         let environment = ProcessInfo.processInfo.environment
         let root: URL
@@ -199,13 +207,17 @@ final class StudioModel: ObservableObject {
         }
         messages += conversations[conversationIndex].messages.compactMap { message in
             guard !message.isStreaming else { return nil }
-            return PromptMessage(role: message.role.rawValue, content: message.content)
+            let context = message.role == .assistant
+                ? (message.cacheContext ?? message.content)
+                : message.content
+            return PromptMessage(role: message.role.rawValue, content: context)
         }
 
         do {
             try bridge.generate(
                 GenerationRequest(
                     requestID: requestID,
+                    conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
                     maxTokens: -1,
                     temperature: temperature,
@@ -220,6 +232,9 @@ final class StudioModel: ObservableObject {
 
     func stopGeneration() {
         guard isGenerating else { return }
+        if bridge.cancelGeneration() {
+            return
+        }
         activeMessage()?.fail("Génération arrêtée")
         activeRequestID = nil
         activeResponseID = nil
@@ -339,7 +354,18 @@ final class StudioModel: ObservableObject {
             guard event.requestID == activeRequestID,
                   let message = activeMessage()
             else { return }
-            message.finish(stats: event.stats, fallbackAnswer: event.assistantContext)
+            message.finish(
+                stats: event.stats,
+                fallbackAnswer: event.assistantContext,
+                cacheContext: event.cacheContext
+            )
+            activeRequestID = nil
+            activeResponseID = nil
+            schedulePersistence()
+            restoreReadyState()
+        case "cancelled":
+            guard event.requestID == activeRequestID else { return }
+            activeMessage()?.fail("Génération arrêtée")
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()

@@ -65,6 +65,12 @@ mlxl3 register MY_MODEL /absolute/path/to/exl3-model
 Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 `--repetition-penalty`, and `--system`.
 
+All prompt sizes stay on the serialized Metal QMM path; MLXL3 never reconstructs
+a dense weight during ordinary inference. Cached chat prefixes use a memory-aware
+512/1024/2048-token step, selecting wider and faster blocks when unified-memory
+headroom allows it. The choice can be pinned for experiments with
+`MLXL3_PREFILL_STEP_SIZE`.
+
 ## Native macOS app
 
 MLXL3 Desktop is a native SwiftUI application for macOS 26. It uses the system
@@ -75,12 +81,14 @@ kept per conversation and saved atomically under
 `~/Library/Application Support/io.mlxl3.desktop/conversations.json`, including
 partial long generations. Press Return to send and Control-Return to add a line.
 The eject button releases the active model and its Metal memory without removing
-it from the local registry. Output has no artificial token ceiling and stops on
-the model's end token, when you press Stop, or at the unified-memory safety limit
-that keeps macOS responsive. Long Markdown and reasoning streams are rendered in
-bounded chunks so completed text is not reparsed for every new token. A native
-menu-bar panel keeps unified-memory usage, the loaded model, and the latest
-generation performance visible even when the main window is closed.
+it from the local registry. Stop cooperatively cancels only the active generation,
+keeping the model and stable conversation caches resident for the next prompt.
+Output has no artificial token ceiling and stops on the model's end token, when
+you press Stop, or at the unified-memory safety limit that keeps macOS responsive.
+Long Markdown and reasoning streams are rendered in bounded chunks so completed
+text is not reparsed for every new token. A native menu-bar panel keeps
+unified-memory usage, the loaded model, and the latest generation performance
+visible even when the main window is closed.
 
 ### Local MCP tools
 

@@ -4,7 +4,10 @@ import io
 import json
 from types import SimpleNamespace
 
+import mlx.core as mx
 import mlx_lm
+import pytest
+from mlx_lm.models.cache import ArraysCache
 
 from mlxl3 import cli
 from mlxl3.registry import ModelEntry
@@ -13,8 +16,188 @@ from mlxl3.registry import ModelEntry
 class FakeTokenizer:
     def apply_chat_template(self, messages, **kwargs):
         assert messages == [{"role": "user", "content": "hello"}]
-        assert kwargs == {"tokenize": False, "add_generation_prompt": True}
+        assert kwargs == {
+            "tokenize": False,
+            "add_generation_prompt": True,
+            "preserve_thinking": True,
+        }
         return "rendered prompt"
+
+
+class FakeStateCache:
+    def __init__(self, state=None):
+        self._state = mx.array([], dtype=mx.int32) if state is None else state
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, value):
+        self._state = value
+
+    @property
+    def meta_state(self):
+        return ""
+
+    @classmethod
+    def from_state(cls, state, meta_state):
+        assert meta_state == ""
+        return cls(state)
+
+    def is_trimmable(self):
+        return False
+
+
+class FakeCachedModel:
+    def __init__(self):
+        self.inputs = []
+
+    def make_cache(self):
+        return [FakeStateCache()]
+
+    def __call__(self, tokens, *, cache):
+        self.inputs.append(list(map(int, tokens.reshape(-1).tolist())))
+        cache[0].state = mx.concatenate([cache[0].state, tokens.reshape(-1)])
+        return mx.zeros((*tokens.shape, 4))
+
+
+def test_generation_session_promotes_exact_completed_turn_cache() -> None:
+    model = FakeCachedModel()
+    session = cli.GenerationSession()
+
+    suffix, generation_cache, common, evaluated = session.prepare(
+        model,
+        [1, 2, 9],
+        [1, 2],
+    )
+    assert suffix == [9]
+    assert common == 0
+    assert evaluated == 3
+    assert model.inputs == [[1, 2]]
+
+    generation_cache[0].state = mx.concatenate(
+        [generation_cache[0].state, mx.array([9, 7])]
+    )
+    session.finish([1, 2, 9], [7], generation_cache)
+    suffix, next_cache, common, evaluated = session.prepare(
+        model,
+        [1, 2, 9, 7, 3, 4, 9],
+        [1, 2, 9, 7, 3, 4],
+    )
+
+    assert suffix == [9]
+    assert common == 4
+    assert evaluated == 3
+    assert model.inputs == [[1, 2], [3, 4]]
+    assert next_cache[0].state.tolist() == [1, 2, 9, 7, 3, 4]
+    next_cache[0].state[0] = 99
+    assert session.prompt_cache[0].state.tolist() == [1, 2, 9, 7, 3, 4]
+
+
+def test_generation_session_forks_recurrent_state_without_copying_arrays() -> None:
+    recurrent = ArraysCache(2)
+    first = mx.arange(8)
+    second = mx.arange(4)
+    recurrent[0] = first
+    recurrent[1] = second
+
+    cloned = cli.GenerationSession._clone_cache([recurrent])[0]
+
+    assert cloned.cache is not recurrent.cache
+    assert cloned[0] is first
+    assert cloned[1] is second
+    cloned[0] = mx.zeros((8,))
+    assert recurrent[0] is first
+
+
+def test_generation_session_chunks_cached_prefill(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 3)
+    model = FakeCachedModel()
+
+    suffix, generation_cache, common, evaluated = cli.GenerationSession().prepare(
+        model,
+        [1, 2, 3, 4, 5, 6, 7, 9],
+        [1, 2, 3, 4, 5, 6, 7],
+    )
+
+    assert suffix == [9]
+    assert common == 0
+    assert evaluated == 8
+    assert model.inputs == [[1, 2, 3], [4, 5, 6], [7]]
+    assert generation_cache[0].state.tolist() == [1, 2, 3, 4, 5, 6, 7]
+
+
+def test_generation_session_restores_nearest_block_on_divergence(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 2)
+    monkeypatch.setattr(cli, "_PREFIX_CACHE_BLOCK_SIZE", 4)
+    monkeypatch.setattr(cli, "_PREFIX_CACHE_BUDGET_BYTES", 1_000_000)
+    model = FakeCachedModel()
+    session = cli.GenerationSession()
+
+    session.prepare(
+        model,
+        [1, 2, 3, 4, 5, 6, 7, 8, 99],
+        [1, 2, 3, 4, 5, 6, 7, 8],
+    )
+    suffix, generation_cache, common, evaluated = session.prepare(
+        model,
+        [1, 2, 3, 4, 20, 21, 99],
+        [1, 2, 3, 4, 20, 21],
+    )
+
+    assert suffix == [99]
+    assert common == 4
+    assert evaluated == 3
+    assert model.inputs == [[1, 2], [3, 4], [5, 6], [7, 8], [20, 21]]
+    assert generation_cache[0].state.tolist() == [1, 2, 3, 4, 20, 21]
+
+
+def test_generation_session_pool_evicts_oldest_cache() -> None:
+    pool = cli.GenerationSessionPool(budget_bytes=24)
+    first = pool.acquire("first")
+    first.prompt_cache = [FakeStateCache(mx.zeros((8,), dtype=mx.int32))]
+    second = pool.acquire("second")
+    second.prompt_cache = [FakeStateCache(mx.zeros((8,), dtype=mx.int32))]
+
+    pool.prune("second")
+
+    assert list(pool.sessions) == ["second"]
+    assert first.prompt_cache is None
+
+
+def test_prefill_step_uses_explicit_override(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 1536)
+    assert cli._select_prefill_step_size(17_000_000_000, 18_000_000_000) == 1536
+
+
+def test_prefill_step_adapts_to_available_memory(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 0)
+    assert cli._select_prefill_step_size(10_000_000_000, 18_000_000_000) == 2048
+    assert cli._select_prefill_step_size(17_100_000_000, 18_000_000_000) == 1024
+    assert cli._select_prefill_step_size(17_500_000_000, 18_000_000_000) == 512
+
+
+def test_prefill_step_limits_very_long_large_moe_prompts(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 0)
+    assert (
+        cli._select_prefill_step_size(
+            10_000_000_000,
+            18_000_000_000,
+            token_count=32_768,
+            num_experts=256,
+        )
+        == 512
+    )
+    assert (
+        cli._select_prefill_step_size(
+            10_000_000_000,
+            18_000_000_000,
+            token_count=32_768,
+            num_experts=64,
+        )
+        == 2048
+    )
 
 
 def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -> None:
@@ -58,6 +241,30 @@ def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -
     assert stats.prefill_tps == 100.0
     assert stats.decode_tps == 0.5
     assert capsys.readouterr().out == "── Réponse ──\nbonjour\n"
+
+
+def test_streaming_generation_can_be_cancelled_cooperatively(monkeypatch) -> None:
+    response = SimpleNamespace(
+        text="ignored",
+        token=1,
+        generation_tokens=1,
+        prompt_tps=100.0,
+        prompt_tokens=20,
+        peak_memory=4.0,
+    )
+    monkeypatch.setattr(mlx_lm, "stream_generate", lambda *args, **kwargs: iter([response]))
+
+    with pytest.raises(cli.GenerationCancelled):
+        cli._stream_response(
+            object(),
+            FakeTokenizer(),
+            [{"role": "user", "content": "hello"}],
+            max_tokens=2,
+            temperature=0.0,
+            top_k=0,
+            repetition_penalty=0.0,
+            should_cancel=lambda: True,
+        )
 
 
 def test_thinking_renderer_handles_tags_split_across_tokens() -> None:
@@ -370,3 +577,31 @@ def test_bridge_handles_thinking_tag_prefilled_by_chat_template(monkeypatch, cap
     assert events[3]["text"] == "answer"
     assert events[4]["assistant_context"] == "answer"
     assert events[4]["stats"]["decode_tps"] == 90.0
+
+
+def test_bridge_reports_cooperative_cancellation(monkeypatch, capsys) -> None:
+    def cancel(*args, **kwargs):
+        raise cli.GenerationCancelled
+
+    monkeypatch.setattr(cli, "resolve_model", lambda name: (name, "/tmp/model"))
+    monkeypatch.setattr(cli, "_load_model", lambda path: (object(), object(), 42, 0.5, 3.9))
+    monkeypatch.setattr(cli, "_bridge_generate", cancel)
+    monkeypatch.setattr(
+        cli.sys,
+        "stdin",
+        io.StringIO(
+            json.dumps(
+                {
+                    "type": "generate",
+                    "request_id": "turn-cancelled",
+                    "messages": [{"role": "user", "content": "hello"}],
+                }
+            )
+            + "\n"
+        ),
+    )
+
+    assert cli._bridge(SimpleNamespace(model="lfm")) == 0
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert [event["type"] for event in events] == ["loading", "ready", "cancelled"]
+    assert events[-1]["request_id"] == "turn-cancelled"
