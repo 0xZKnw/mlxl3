@@ -79,13 +79,16 @@ final class MLXL3Bridge: @unchecked Sendable {
     var isRunning: Bool { process?.isRunning == true }
 
     func residentMemoryBytes() -> UInt64 {
-        var pids = [getpid()]
-        if let process, process.isRunning {
-            pids.append(process.processIdentifier)
-        }
-        return pids.reduce(0) { total, pid in
-            total + residentMemoryBytes(for: pid)
-        }
+        interfaceResidentMemoryBytes() + engineResidentMemoryBytes()
+    }
+
+    func interfaceResidentMemoryBytes() -> UInt64 {
+        residentMemoryBytes(for: getpid())
+    }
+
+    func engineResidentMemoryBytes() -> UInt64 {
+        guard let process, process.isRunning else { return 0 }
+        return residentMemoryBytes(for: process.processIdentifier)
     }
 
     static func listModels(

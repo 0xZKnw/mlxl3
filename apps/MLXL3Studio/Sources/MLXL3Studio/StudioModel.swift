@@ -92,6 +92,14 @@ final class StudioModel: ObservableObject {
         bridge.residentMemoryBytes()
     }
 
+    var engineResidentMemoryBytes: UInt64 {
+        bridge.engineResidentMemoryBytes()
+    }
+
+    var interfaceResidentMemoryBytes: UInt64 {
+        bridge.interfaceResidentMemoryBytes()
+    }
+
     var mcpConfigurationURL: URL {
         let environment = ProcessInfo.processInfo.environment
         let root: URL

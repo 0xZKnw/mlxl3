@@ -6,14 +6,22 @@ struct MenuBarPanel: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
-            panel(memoryBytes: studio.residentMemoryBytes)
+            panel(
+                memoryBytes: studio.residentMemoryBytes,
+                engineMemoryBytes: studio.engineResidentMemoryBytes,
+                interfaceMemoryBytes: studio.interfaceResidentMemoryBytes
+            )
         }
         .frame(width: 342)
         .preferredColorScheme(.dark)
         .onAppear { studio.start() }
     }
 
-    private func panel(memoryBytes: UInt64) -> some View {
+    private func panel(
+        memoryBytes: UInt64,
+        engineMemoryBytes: UInt64,
+        interfaceMemoryBytes: UInt64
+    ) -> some View {
         ZStack {
             StudioTheme.canvas
             RadialGradient(
@@ -25,7 +33,11 @@ struct MenuBarPanel: View {
 
             VStack(spacing: 13) {
                 header
-                memoryCard(memoryBytes: memoryBytes)
+                memoryCard(
+                    memoryBytes: memoryBytes,
+                    engineMemoryBytes: engineMemoryBytes,
+                    interfaceMemoryBytes: interfaceMemoryBytes
+                )
                 modelCard
                 performanceCard(studio.latestGenerationStats)
                 actions
@@ -60,7 +72,11 @@ struct MenuBarPanel: View {
         }
     }
 
-    private func memoryCard(memoryBytes: UInt64) -> some View {
+    private func memoryCard(
+        memoryBytes: UInt64,
+        engineMemoryBytes: UInt64,
+        interfaceMemoryBytes: UInt64
+    ) -> some View {
         let physicalMemory = ProcessInfo.processInfo.physicalMemory
         let fraction = min(1, Double(memoryBytes) / Double(max(physicalMemory, 1)))
 
@@ -94,13 +110,18 @@ struct MenuBarPanel: View {
             .frame(height: 5)
 
             HStack {
-                Text("Moteur + interface")
+                Text("Moteur \(memory(engineMemoryBytes))")
                 Spacer()
-                Text("\(Int(fraction * 100)) % de \(memory(physicalMemory))")
+                Text("Interface \(memory(interfaceMemoryBytes))")
                     .monospacedDigit()
             }
             .font(.system(size: 9.5, weight: .medium, design: .rounded))
             .foregroundStyle(StudioTheme.quiet)
+
+            Text("\(Int(fraction * 100)) % de \(memory(physicalMemory))")
+                .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.quiet.opacity(0.82))
+                .monospacedDigit()
         }
         .padding(13)
         .premiumGlass(radius: 17, tint: StudioTheme.accent.opacity(0.035))
@@ -153,6 +174,8 @@ struct MenuBarPanel: View {
             compactMetric("PREFILL", stats.map { String(format: "%.1f", $0.prefillTps) } ?? "—", "tok/s")
             metricDivider
             compactMetric("TTFT", stats.map { String(format: "%.0f", $0.ttftSeconds * 1000) } ?? "—", "ms")
+            metricDivider
+            compactMetric("CACHE", stats.map { String(format: "%.0f", $0.cacheHitPercent) } ?? "—", "%")
         }
         .padding(.vertical, 11)
         .premiumGlass(radius: 17, tint: Color.white.opacity(0.014))

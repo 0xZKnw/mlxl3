@@ -33,6 +33,15 @@ struct GenerationStats: Codable, Hashable, Sendable {
     let promptTokens: Int
     let generatedTokens: Int
     let peakMemoryGB: Double
+    let cachedPromptTokens: Int?
+    let evaluatedPromptTokens: Int?
+
+    var cacheHitPercent: Double {
+        let cached = cachedPromptTokens ?? 0
+        let evaluated = evaluatedPromptTokens ?? promptTokens
+        let total = cached + evaluated
+        return total > 0 ? 100 * Double(cached) / Double(total) : 0
+    }
 
     enum CodingKeys: String, CodingKey {
         case ttftSeconds = "ttft_seconds"
@@ -41,6 +50,8 @@ struct GenerationStats: Codable, Hashable, Sendable {
         case promptTokens = "prompt_tokens"
         case generatedTokens = "generated_tokens"
         case peakMemoryGB = "peak_memory_gb"
+        case cachedPromptTokens = "cached_prompt_tokens"
+        case evaluatedPromptTokens = "evaluated_prompt_tokens"
     }
 }
 
