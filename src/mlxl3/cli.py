@@ -48,7 +48,10 @@ class MemorySafetyError(RuntimeError):
     """Generation stopped before Metal pressure can destabilize the desktop."""
 
 
-_PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "2048"))
+# Keep each cached-prefix chunk on EXL3's serialized QMM path. Larger chunks
+# fall back to transient dense reconstruction, which is both slower and much
+# more memory hungry for low-bpw checkpoints.
+_PREFILL_STEP_SIZE = int(os.environ.get("MLXL3_PREFILL_STEP_SIZE", "512"))
 _WARM_MODEL_ON_LOAD = os.environ.get("MLXL3_WARM_MODEL_ON_LOAD", "1") != "0"
 
 

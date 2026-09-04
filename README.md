@@ -65,6 +65,10 @@ mlxl3 register MY_MODEL /absolute/path/to/exl3-model
 Useful generation overrides are `--max-tokens`, `--temperature`, `--top-k`,
 `--repetition-penalty`, and `--system`.
 
+Cached chat prefixes are evaluated in 512-token chunks so EXL3 stays on its
+serialized Metal QMM path instead of reconstructing dense weights. The size can
+be overridden for experiments with `MLXL3_PREFILL_STEP_SIZE`.
+
 ## Native macOS app
 
 MLXL3 Desktop is a native SwiftUI application for macOS 26. It uses the system

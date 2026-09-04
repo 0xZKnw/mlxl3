@@ -93,6 +93,23 @@ def test_generation_session_promotes_exact_completed_turn_cache() -> None:
     assert session.prompt_cache[0].state.tolist() == [1, 2, 9, 7, 3, 4]
 
 
+def test_generation_session_chunks_cached_prefill(monkeypatch) -> None:
+    monkeypatch.setattr(cli, "_PREFILL_STEP_SIZE", 3)
+    model = FakeCachedModel()
+
+    suffix, generation_cache, common, evaluated = cli.GenerationSession().prepare(
+        model,
+        [1, 2, 3, 4, 5, 6, 7, 9],
+        [1, 2, 3, 4, 5, 6, 7],
+    )
+
+    assert suffix == [9]
+    assert common == 0
+    assert evaluated == 8
+    assert model.inputs == [[1, 2, 3], [4, 5, 6], [7]]
+    assert generation_cache[0].state.tolist() == [1, 2, 3, 4, 5, 6, 7]
+
+
 def test_streaming_stats_separate_ttft_prefill_and_decode(monkeypatch, capsys) -> None:
     responses = [
         SimpleNamespace(
