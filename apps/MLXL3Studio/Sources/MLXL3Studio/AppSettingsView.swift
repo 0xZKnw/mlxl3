@@ -9,7 +9,7 @@ struct AppSettingsView: View {
             HStack(spacing: 13) {
                 MonogramMark(size: 26)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Réglages")
+                    Text(L("Réglages", "Settings"))
                         .font(.system(size: 24, weight: .regular, design: .serif))
                     Text("MLXL3 Desktop")
                         .font(.system(size: 11, weight: .medium))
@@ -33,6 +33,18 @@ struct AppSettingsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    Label(L("Langue de l’app", "App language"), systemImage: "globe")
+                        .font(.system(size: 13, weight: .semibold))
+                    Picker(L("Langue de l’app", "App language"), selection: Binding(
+                        get: { studio.language }, set: { studio.setLanguage($0) }
+                    )) {
+                        ForEach(AppLanguage.allCases, id: \.self) { language in
+                            Text(language.title).tag(language)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel(L("Langue de l’app", "App language"))
+                    Divider()
                     UpdateSettingsCard(
                         updater: studio.updateManager,
                         canInstall: !studio.isGenerating,
@@ -40,15 +52,15 @@ struct AppSettingsView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 11) {
-                        Label("Comment ça marche", systemImage: "shippingbox")
+                        Label(L("Comment ça marche", "How it works"), systemImage: "shippingbox")
                             .font(.system(size: 13, weight: .semibold))
-                        Text("Le moteur MLXL3 et l’interface sont livrés dans le même DMG. Une nouvelle release GitHub met donc les deux à jour ensemble, sans désynchroniser leurs versions.")
+                        Text(L("Le moteur MLXL3 et l’interface sont livrés dans le même DMG. Une nouvelle release GitHub met donc les deux à jour ensemble, sans désynchroniser leurs versions.", "The MLXL3 engine and interface ship in the same DMG. A GitHub release updates both together, keeping their versions in sync."))
                             .font(.system(size: 12.5, weight: .regular))
                             .foregroundStyle(StudioTheme.secondary)
                             .lineSpacing(4)
                         HStack(spacing: 8) {
-                            Label("Vérification au démarrage", systemImage: "checkmark.circle.fill")
-                            Label("DMG vérifié en SHA-256", systemImage: "lock.shield.fill")
+                            Label(L("Vérification au démarrage", "Check at startup"), systemImage: "checkmark.circle.fill")
+                            Label(L("DMG vérifié en SHA-256", "SHA-256 verified DMG"), systemImage: "lock.shield.fill")
                         }
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(StudioTheme.quiet)
@@ -59,6 +71,7 @@ struct AppSettingsView: View {
                 .padding(26)
             }
         }
+        .id(studio.language)
         .frame(width: 650, height: 560)
         .background(StudioTheme.canvas)
         .preferredColorScheme(.dark)
@@ -83,9 +96,9 @@ private struct UpdateSettingsCard: View {
                 .frame(width: 40, height: 40)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Mises à jour")
+                    Text(L("Mises à jour", "Updates"))
                         .font(.system(size: 15, weight: .bold))
-                    Text("Version installée · \(updater.currentVersion)")
+                    Text(L("Version installée · \(updater.currentVersion)", "Installed version · \(updater.currentVersion)"))
                         .font(.system(size: 10.5, weight: .medium))
                         .foregroundStyle(StudioTheme.quiet)
                 }
@@ -117,12 +130,12 @@ private struct UpdateSettingsCard: View {
                !release.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
-                        Text("NOUVEAUTÉS · \(release.tag.uppercased())")
+                        Text(L("NOUVEAUTÉS · \(release.tag.uppercased())", "WHAT’S NEW · \(release.tag.uppercased())"))
                             .font(.system(size: 8.5, weight: .bold))
                             .tracking(1.1)
                             .foregroundStyle(StudioTheme.quiet)
                         Spacer()
-                        Button("Voir la release") { updater.openReleasePage() }
+                        Button(L("Voir la release", "View release")) { updater.openReleasePage() }
                             .buttonStyle(.plain)
                             .font(.system(size: 10.5, weight: .semibold))
                             .foregroundStyle(StudioTheme.accent)
@@ -137,7 +150,7 @@ private struct UpdateSettingsCard: View {
             }
 
             if case .ready = updater.state, !canInstall {
-                Text("Termine ou arrête la génération avant de redémarrer pour installer.")
+                Text(L("Termine ou arrête la génération avant de redémarrer pour installer.", "Finish or stop generation before restarting to install."))
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(Color.orange.opacity(0.82))
             }
@@ -150,7 +163,7 @@ private struct UpdateSettingsCard: View {
         switch updater.state {
         case .ready:
             Button(action: install) {
-                Label("Redémarrer et installer", systemImage: "arrow.clockwise")
+                Label(L("Redémarrer et installer", "Restart and install"), systemImage: "arrow.clockwise")
                     .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 13)
                     .frame(height: 34)
@@ -163,7 +176,7 @@ private struct UpdateSettingsCard: View {
                 .frame(width: 34, height: 34)
         default:
             Button(action: updater.checkForUpdates) {
-                Text("Rechercher")
+                Text(L("Rechercher", "Search"))
                     .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 15)
                     .frame(height: 34)
@@ -194,31 +207,31 @@ private struct UpdateSettingsCard: View {
 
     private var statusTitle: String {
         switch updater.state {
-        case .idle: "Prêt à vérifier"
-        case .checking: "Recherche sur GitHub…"
+        case .idle: L("Prêt à vérifier", "Ready to check")
+        case .checking: L("Recherche sur GitHub…", "Checking GitHub…")
         case let .upToDate(date):
-            "MLXL3 est à jour · \(date.formatted(date: .omitted, time: .shortened))"
-        case let .downloading(release): "Téléchargement de \(release.tag)…"
-        case let .ready(release, _): "\(release.tag) est prête"
-        case let .installing(release): "Préparation de \(release.tag)…"
-        case .failed: "Mise à jour impossible"
+            L("MLXL3 est à jour · \(date.formatted(date: .omitted, time: .shortened))", "MLXL3 is up to date · \(date.formatted(date: .omitted, time: .shortened))")
+        case let .downloading(release): L("Téléchargement de \(release.tag)…", "Downloading \(release.tag)…")
+        case let .ready(release, _): L("\(release.tag) est prête", "\(release.tag) is ready")
+        case let .installing(release): L("Préparation de \(release.tag)…", "Preparing \(release.tag)…")
+        case .failed: L("Mise à jour impossible", "Update failed")
         }
     }
 
     private var statusDetail: String {
         switch updater.state {
         case .idle:
-            "Recherche les nouvelles versions du moteur et de l’interface."
+            L("Recherche les nouvelles versions du moteur et de l’interface.", "Check for new engine and interface versions.")
         case .checking:
-            "Lecture de la dernière release publique de 0xZKnw/mlxl3."
+            L("Lecture de la dernière release publique de 0xZKnw/mlxl3.", "Reading the latest public release of 0xZKnw/mlxl3.")
         case .upToDate:
-            "Le moteur et l’interface utilisent la dernière version publiée."
+            L("Le moteur et l’interface utilisent la dernière version publiée.", "The engine and interface are up to date.")
         case let .downloading(release):
-            "Le DMG de \(ByteCountFormatter.string(fromByteCount: release.asset.size, countStyle: .file)) est téléchargé en arrière-plan."
+            L("Le DMG de \(ByteCountFormatter.string(fromByteCount: release.asset.size, countStyle: .file)) est téléchargé en arrière-plan.", "The \(ByteCountFormatter.string(fromByteCount: release.asset.size, countStyle: .file)) DMG is downloading in the background.")
         case .ready:
-            "Le téléchargement et l’empreinte SHA-256 sont validés."
+            L("Le téléchargement et l’empreinte SHA-256 sont validés.", "Download and SHA-256 checksum verified.")
         case .installing:
-            "MLXL3 va se fermer, remplacer l’app puis se relancer automatiquement."
+            L("MLXL3 va se fermer, remplacer l’app puis se relancer automatiquement.", "MLXL3 will close, replace the app, then restart automatically.")
         case let .failed(message):
             message
         }
@@ -245,6 +258,6 @@ struct UpdateStatusButton: View {
             }
         }
         .buttonStyle(RoundGlassButtonStyle())
-        .help(updater.hasAvailableUpdate ? "Mise à jour prête" : "Réglages")
+        .help(updater.hasAvailableUpdate ? L("Mise à jour prête", "Update ready") : L("Réglages", "Settings"))
     }
 }

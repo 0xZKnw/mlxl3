@@ -26,6 +26,67 @@ class FakeTokenizer:
         return "rendered prompt"
 
 
+def test_context_limit_and_stream_budget(tmp_path, monkeypatch):
+    for config, expected in [
+        ({"max_position_embeddings": 8192}, 8192),
+        ({"text_config": {"max_position_embeddings": 262144}}, 262144),
+        ({"seq_length": 4096}, 4096),
+        ({"max_position_embeddings": True}, 32768),
+        ({"text_config": "bad"}, 32768),
+        ([], 32768),
+    ]:
+        (tmp_path / "config.json").write_text(json.dumps(config))
+        assert cli._model_context_limit(tmp_path) == expected
+    assert cli._context_output_budget(20, 24, -1) == 4
+    assert cli._context_output_budget(20, 24, 2) == 2
+    assert cli._context_output_budget(20, 24, 100) == 4
+
+    class Tokenizer(FakeTokenizer):
+        bos_token = None
+        def encode(self, prompt, **kwargs):
+            return list(range(20))
+
+    calls, usage = [], []
+    def stream(*args, **kwargs):
+        calls.append(kwargs["max_tokens"])
+        for n in range(1, kwargs["max_tokens"] + 1):
+            yield SimpleNamespace(text="x", generation_tokens=n, prompt_tokens=20,
+                                  prompt_tps=100, peak_memory=0.01)
+    monkeypatch.setattr(mlx_lm, "stream_generate", stream)
+    options = dict(max_tokens=-1, temperature=0, top_k=0, repetition_penalty=0,
+                   on_text=lambda text: None, on_context=lambda used, limit: usage.append((used, limit)))
+    messages = [{"role": "user", "content": "hello"}]
+    text, stats = cli._stream_response(object(), Tokenizer(), messages, context_limit=24, **options)
+    assert text == "xxxx" and calls == [4]
+    assert stats.context_used == stats.context_limit == 24
+    assert usage == [(20, 24), (24, 24)]
+    assert messages == [{"role": "user", "content": "hello"}]
+    for limit in [19, 20]:
+        with pytest.raises(ValueError, match="Context full"):
+            cli._stream_response(object(), Tokenizer(), messages, context_limit=limit, **options)
+    assert calls == [4], "Over-limit input must be rejected before GPU work"
+
+
+def test_context_memory_uses_real_cache_shapes_and_windows():
+    from mlx_lm.models.cache import KVCache, RotatingKVCache
+    caches = [KVCache(), RotatingKVCache(max_size=512, keep=0), ArraysCache(size=1)]
+    for item in caches[:2]:
+        item.update_and_fetch(mx.zeros((1, 2, 33, 64), mx.float16),
+                              mx.zeros((1, 2, 33, 32), mx.float16))
+    caches[2][0] = mx.zeros((1, 4, 16, 16), mx.float32)
+    profile = cli._context_memory_profile(caches)
+    assert profile == {"layers": [
+        {"bytes_per_token": 384, "max_tokens": None, "step": 256},
+        {"bytes_per_token": 384, "max_tokens": 512, "step": 256},
+    ], "fixed_bytes": 4096}
+    # FP32 caches must be counted as FP32, not guessed from quantized weight bits.
+    fp32 = KVCache()
+    fp32.update_and_fetch(mx.zeros((1, 2, 1, 64)), mx.zeros((1, 2, 1, 64)))
+    assert cli._context_memory_profile([fp32])["layers"][0]["bytes_per_token"] == 1024
+    assert cli._context_memory_profile([object()]) is None
+    assert cli._context_memory_profile([KVCache()]) is None
+
+
 class FakeStateCache:
     def __init__(self, state=None):
         self._state = mx.array([], dtype=mx.int32) if state is None else state

@@ -11,9 +11,9 @@ struct ModelManagerView: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Modèles")
+                    Text(L("Modèles", "Models"))
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    Text("Importe un dossier local ou télécharge un checkpoint EXL3.")
+                    Text(L("Importe un dossier local ou télécharge un checkpoint EXL3.", "Import a local folder or download an EXL3 checkpoint."))
                         .font(.system(size: 12))
                         .foregroundStyle(StudioTheme.secondary)
                 }
@@ -26,7 +26,7 @@ struct ModelManagerView: View {
             }
 
             Button(action: studio.importModelFolder) {
-                Label("Choisir un dossier EXL3…", systemImage: "folder")
+                Label(L("Choisir un dossier EXL3…", "Choose an EXL3 folder…"), systemImage: "folder")
                     .frame(maxWidth: .infinity)
                     .frame(height: 42)
             }
@@ -35,7 +35,7 @@ struct ModelManagerView: View {
 
             HStack(spacing: 10) {
                 Rectangle().fill(StudioTheme.edge).frame(height: 1)
-                Text("OU HUGGING FACE")
+                Text(L("OU HUGGING FACE", "OR HUGGING FACE"))
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .tracking(1.2)
                     .foregroundStyle(StudioTheme.quiet)
@@ -44,18 +44,18 @@ struct ModelManagerView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 ModelField(
-                    title: "DÉPÔT",
+                    title: L("DÉPÔT", "REPOSITORY"),
                     placeholder: "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw",
                     text: $repository
                 )
                 HStack(spacing: 12) {
                     ModelField(
-                        title: "RÉVISION (OPTIONNEL)",
+                        title: L("RÉVISION (OPTIONNEL)", "REVISION (OPTIONAL)"),
                         placeholder: "2.49bpw",
                         text: $revision
                     )
                     ModelField(
-                        title: "NOM LOCAL (OPTIONNEL)",
+                        title: L("NOM LOCAL (OPTIONNEL)", "LOCAL NAME (OPTIONAL)"),
                         placeholder: "qwen3.6-35b-a3b",
                         text: $modelName
                     )
@@ -75,7 +75,7 @@ struct ModelManagerView: View {
                     } else {
                         Image(systemName: "arrow.down.circle.fill")
                     }
-                    Text(studio.modelInstallState.isWorking ? "Téléchargement…" : "Télécharger")
+                    Text(studio.modelInstallState.isWorking ? L("Téléchargement…", "Downloading…") : L("Télécharger", "Download"))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 42)
@@ -98,7 +98,7 @@ struct ModelManagerView: View {
         switch studio.modelInstallState {
         case .idle:
             Label(
-                "Les modèles restent sur ce Mac. Les dépôts privés utilisent le token HF local.",
+                L("Les modèles restent sur ce Mac. Les dépôts privés utilisent le token HF local.", "Models stay on this Mac. Private repositories use your local HF token."),
                 systemImage: "lock.fill"
             )
             .foregroundStyle(StudioTheme.quiet)

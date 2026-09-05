@@ -54,11 +54,11 @@ struct MLXL3StudioApp: App {
         .defaultPosition(.center)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Nouvelle conversation") { studio.newConversation() }
+                Button(L("Nouvelle conversation", "New conversation")) { studio.newConversation() }
                     .keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(replacing: .appSettings) {
-                Button("Réglages…") { studio.openAppSettings() }
+                Button(L("Réglages…", "Settings…")) { studio.openAppSettings() }
                     .keyboardShortcut(",", modifiers: .command)
             }
         }

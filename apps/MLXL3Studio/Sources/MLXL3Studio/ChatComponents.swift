@@ -63,7 +63,7 @@ struct MessagesView: View {
                         followsBottom = true
                         proxy.scrollTo("conversation-bottom", anchor: .bottom)
                     } label: {
-                        Label("Dernier message", systemImage: "arrow.down")
+                        Label(L("Dernier message", "Latest message"), systemImage: "arrow.down")
                             .font(.system(size: 11, weight: .medium))
                             .padding(.horizontal, 14).padding(.vertical, 9)
                     }
@@ -107,7 +107,7 @@ private struct MessageView: View {
           HStack(alignment: .top) {
             Spacer(minLength: 64)
             VStack(alignment: .trailing, spacing: 9) {
-                Text("Vous")
+                Text(L("Vous", "You"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(StudioTheme.quiet)
                 Text(message.content)
@@ -201,7 +201,7 @@ private struct PrefillActivityRow: View {
                     Image(systemName: part.interrupted == true ? "stop" : "checkmark")
                         .font(.system(size: 10))
                 }
-                Text(live ? part.text : (part.interrupted == true ? "Traitement interrompu" : "Contexte traité"))
+                Text(live ? localizedProgress(part.text) : (part.interrupted == true ? L("Traitement interrompu", "Processing interrupted") : L("Contexte traité", "Context processed")))
                     .lineLimit(2)
                 Spacer(minLength: 8)
                 let elapsed = part.elapsed ?? date.timeIntervalSince(part.startedAt ?? date)
@@ -275,9 +275,9 @@ private struct MCPToolActivityRow: View {
 
     private var stateLabel: String {
         switch activity.state {
-        case .running: "EXÉCUTION"
-        case .complete: "TERMINÉ"
-        case .failed: "ERREUR"
+        case .running: L("EXÉCUTION", "RUNNING")
+        case .complete: L("TERMINÉ", "DONE")
+        case .failed: L("ERREUR", "ERROR")
         }
     }
 
@@ -309,7 +309,7 @@ private struct ThinkingPlaceholder: View {
         HStack(spacing: 9) {
             Image(systemName: "ellipsis")
                 .font(.system(size: 10, weight: .bold))
-            Text("Réflexion en cours")
+            Text(L("Réflexion en cours", "Thinking"))
                 .font(.system(size: 11, weight: .medium))
             HStack(spacing: 3) {
                 ForEach(0..<3, id: \.self) { index in
@@ -350,7 +350,7 @@ private struct ThinkingBlock: View {
             .frame(maxHeight: 180)
         } label: {
             HStack(spacing: 8) {
-                Text(streaming ? "Réflexion en cours" : "Réflexion")
+                Text(streaming ? L("Réflexion en cours", "Thinking") : L("Réflexion", "Thinking"))
                     .font(.system(size: 11, weight: .medium))
                 if streaming { StreamingIndicator() }
             }
@@ -391,7 +391,7 @@ private struct StatsRow: View {
             MetricChip(icon: "bolt.fill", value: String(format: "%.1f tok/s", stats.decodeTps), label: "decode")
             MetricChip(icon: "arrow.right.to.line", value: String(format: "%.1f tok/s", stats.prefillTps), label: "prefill")
             MetricChip(icon: "timer", value: String(format: "%.0f ms", stats.ttftSeconds * 1000), label: "TTFT")
-            MetricChip(icon: "memorychip", value: String(format: "%.2f GB", stats.peakMemoryGB), label: "pic")
+            MetricChip(icon: "memorychip", value: String(format: "%.2f GB", stats.peakMemoryGB), label: L("pic", "peak"))
             MetricChip(
                 icon: "externaldrive.badge.checkmark",
                 value: "\(stats.cachedPromptTokens ?? 0)/\(stats.evaluatedPromptTokens ?? stats.promptTokens)",
@@ -430,7 +430,7 @@ struct ComposerView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: 12) {
-                TextField("Écrivez un message…", text: $studio.draft, axis: .vertical)
+                TextField(L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
                     .lineLimit(1...6)
@@ -457,8 +457,8 @@ struct ComposerView: View {
                             .frame(width: 31, height: 31)
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))
-                    .help("Arrêter")
-                    .accessibilityLabel("Arrêter la génération")
+                    .help(L("Arrêter", "Stop"))
+                    .accessibilityLabel(L("Arrêter la génération", "Stop generation"))
                 } else {
                     Button(action: studio.send) {
                         Image(systemName: "arrow.up")
@@ -468,8 +468,8 @@ struct ComposerView: View {
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))
                     .disabled(!studio.canSend)
-                    .help("Envoyer le message")
-                    .accessibilityLabel("Envoyer le message")
+                    .help(L("Envoyer le message", "Send message"))
+                    .accessibilityLabel(L("Envoyer le message", "Send message"))
                 }
             }
             .padding(.horizontal, 18)
@@ -520,10 +520,10 @@ private struct ComposerFooterView: View {
                 .fixedSize()
                 .tint(StudioTheme.accent)
                 .disabled(studio.isGenerating || studio.mcpUpdating)
-                .accessibilityLabel("Activer les outils MCP")
-                .help("Exa et les serveurs MCP configurés. Les requêtes peuvent quitter ce Mac. Choix mémorisé.")
+                .accessibilityLabel(L("Activer les outils MCP", "Enable MCP tools"))
+                .help(L("Exa et les serveurs MCP configurés. Les requêtes peuvent quitter ce Mac. Choix mémorisé.", "Exa and configured MCP servers. Requests may leave this Mac. Your choice is saved."))
                 if studio.mcpUpdating {
-                    ProgressView().controlSize(.mini).help("Connexion MCP…")
+                    ProgressView().controlSize(.mini).help(L("Connexion MCP…", "Connecting MCP…"))
                 } else if studio.mcpEnabled && !studio.mcpErrors.isEmpty {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
@@ -532,10 +532,17 @@ private struct ComposerFooterView: View {
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
                 HStack(spacing: 6) {
                     StatusDot(state: studio.engineState)
-                    Text(studio.isGenerating ? "Génération en cours" : studio.engineState.label)
+                    Text(studio.isGenerating ? L("Génération en cours", "Generating") : studio.engineState.label)
                 }
                 Spacer()
-                Text("↵ Envoyer     ⌃↵ Nouvelle ligne")
+                Text(L("↵ Envoyer     ⌃↵ Nouvelle ligne", "↵ Send     ⌃↵ New line"))
+                Button { studio.showInspector.toggle() } label: {
+                    Label(studio.contextLabel, systemImage: "chart.bar")
+                        .monospacedDigit()
+                }
+                .buttonStyle(.plain)
+                .help(L("Contexte : prompt, outils et génération du dernier envoi. Brouillon non inclus. Cliquer pour régler la limite.", "Context: prompt, tools and generation from the last send. Draft excluded. Click to adjust the limit."))
+                .accessibilityLabel(L("Contexte utilisé", "Context used") + " " + studio.contextLabel)
             }
             .font(.system(size: 10, weight: .regular))
             .foregroundStyle(StudioTheme.quiet)

@@ -23,6 +23,12 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mcpErrors: [String: String] = [:]
     @Published private(set) var mcpEnabled = false
     @Published private(set) var mcpUpdating = false
+    @Published var contextLengthDraft = 0
+    @Published private(set) var activeContextLimit: Int?
+    @Published private(set) var modelContextLimit: Int?
+    @Published private(set) var contextMemory: ContextMemoryProfile?
+    @Published private(set) var modelResidentBytes: Double?
+    @Published private(set) var language: AppLanguage = .fr
 
     let updateManager: UpdateManager
     let isPreview: Bool
@@ -46,8 +52,10 @@ final class StudioModel: ObservableObject {
         self.updateManager = updateManager
         self.isPreview = isPreview
         self.preferences = preferences
+        self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         conversationStore = ConversationStore(fileURL: conversationFileURL)
+        AppLocalization.set(language)
         if let snapshot = ConversationStore.load(from: conversationFileURL),
            !snapshot.conversations.isEmpty {
             conversations = snapshot.conversations.map(Conversation.init(snapshot:))
@@ -75,6 +83,51 @@ final class StudioModel: ObservableObject {
 
     var selectedModel: LocalModel? {
         models.first { $0.name == selectedModelName }
+    }
+
+    var savedContextLength: Int {
+        guard let name = selectedModelName else { return 0 }
+        return (preferences.dictionary(forKey: "studio.contextLengths")?[name] as? Int) ?? 0
+    }
+
+    func setLanguage(_ value: AppLanguage) {
+        AppLocalization.set(value)
+        language = value
+        preferences.set(value.rawValue, forKey: "studio.language")
+    }
+
+    var contextLabel: String {
+        let used = contextUsed.map { $0.formatted() } ?? "—"
+        let usage = currentConversation?.contextUsage
+        let limit = activeContextLimit ?? (usage?.model == selectedModelName ? usage?.limit : nil)
+        return "\(used) / \(limit.map { $0.formatted() } ?? "—")"
+    }
+
+    var contextUsed: Int? {
+        guard let conversation = currentConversation else { return nil }
+        if conversation.messages.isEmpty { return 0 }
+        guard let usage = conversation.contextUsage, usage.model == selectedModelName else { return nil }
+        return usage.used
+    }
+
+    var canSaveContext: Bool {
+        !isGenerating && selectedModel != nil && modelContextLimit != nil
+            && contextLengthDraft >= 0 && contextLengthDraft <= (modelContextLimit ?? 0)
+            && contextLengthDraft != savedContextLength
+    }
+
+    var draftContextBytes: Double? {
+        guard contextLengthDraft >= 0, let maximum = modelContextLimit,
+              contextLengthDraft <= maximum else { return nil }
+        return contextMemory?.bytes(tokens: contextLengthDraft == 0 ? maximum : contextLengthDraft)
+    }
+
+    func saveContextAndReload() {
+        guard canSaveContext, let name = selectedModelName else { return }
+        var lengths = preferences.dictionary(forKey: "studio.contextLengths") ?? [:]
+        lengths[name] = contextLengthDraft
+        preferences.set(lengths, forKey: "studio.contextLengths")
+        loadSelectedModel()
     }
 
     var currentConversation: Conversation? {
@@ -147,7 +200,7 @@ final class StudioModel: ObservableObject {
                 self.models = models
                 guard !models.isEmpty else {
                     self.selectedModelName = nil
-                    self.engineState = .failed("Aucun modèle enregistré dans MLXL3.")
+                    self.engineState = .failed(L("Aucun modèle enregistré dans MLXL3.", "No model registered in MLXL3."))
                     return
                 }
                 if !models.contains(where: { $0.name == self.selectedModelName }) {
@@ -188,9 +241,9 @@ final class StudioModel: ObservableObject {
         guard !isPreview else { return }
         guard !modelInstallState.isWorking else { return }
         let panel = NSOpenPanel()
-        panel.title = "Importer un modèle EXL3"
-        panel.message = "Choisis le dossier contenant config.json et les poids EXL3."
-        panel.prompt = "Importer"
+        panel.title = L("Importer un modèle EXL3", "Import an EXL3 model")
+        panel.message = L("Choisis le dossier contenant config.json et les poids EXL3.", "Choose the folder containing config.json and EXL3 weights.")
+        panel.prompt = L("Importer", "Import")
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
@@ -208,7 +261,7 @@ final class StudioModel: ObservableObject {
         guard !repository.isEmpty, !modelInstallState.isWorking else { return }
         let cleanRevision = revision.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        modelInstallState = .working("Téléchargement de \(repository)…")
+        modelInstallState = .working(L("Téléchargement de \(repository)…", "Downloading \(repository)…"))
         MLXL3Bridge.downloadModel(
             repo: repository,
             revision: cleanRevision.isEmpty ? nil : cleanRevision,
@@ -218,7 +271,7 @@ final class StudioModel: ObservableObject {
             switch result {
             case let .success(model):
                 self.selectedModelName = model.name
-                self.modelInstallState = .succeeded("\(model.name) est prêt.")
+                self.modelInstallState = .succeeded(L("\(model.name) est prêt.", "\(model.name) is ready."))
                 self.refreshModels()
             case let .failure(error):
                 self.modelInstallState = .failed(error.localizedDescription)
@@ -235,7 +288,7 @@ final class StudioModel: ObservableObject {
 
     func ejectModel() {
         guard canEject else { return }
-        activeMessage()?.fail("Modèle éjecté")
+        activeMessage()?.fail(L("Modèle éjecté", "Model unloaded"))
         activeRequestID = nil
         activeResponseID = nil
         readyInfo = nil
@@ -327,7 +380,7 @@ final class StudioModel: ObservableObject {
         if bridge.cancelGeneration() {
             return
         }
-        activeMessage()?.fail("Génération arrêtée")
+        activeMessage()?.fail(L("Génération arrêtée", "Generation stopped"))
         activeRequestID = nil
         activeResponseID = nil
         bridge.stop()
@@ -399,7 +452,18 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
-        guard !isPreview else { return }
+        contextLengthDraft = savedContextLength
+        if isPreview {
+            modelContextLimit = 262144
+            activeContextLimit = savedContextLength == 0 ? modelContextLimit : savedContextLength
+            modelResidentBytes = 12_000_000_000
+            contextMemory = ContextMemoryProfile(layers: [.init(bytesPerToken: 32768, maxTokens: nil, step: 256)], fixedBytes: 4_000_000)
+            return
+        }
+        activeContextLimit = nil
+        modelContextLimit = nil
+        contextMemory = nil
+        modelResidentBytes = nil
         guard let selectedModelName, selectedModel != nil else { return }
         engineState = .loading(selectedModelName)
         mcpUpdating = false
@@ -410,7 +474,7 @@ final class StudioModel: ObservableObject {
         activeRequestID = nil
         activeResponseID = nil
         do {
-            try bridge.start(model: selectedModelName)
+            try bridge.start(model: selectedModelName, contextLength: savedContextLength)
         } catch {
             engineState = .failed(error.localizedDescription)
         }
@@ -424,16 +488,16 @@ final class StudioModel: ObservableObject {
             options: .regularExpression
         ).trimmingCharacters(in: CharacterSet(charactersIn: ".-"))
         guard !name.isEmpty else {
-            modelInstallState = .failed("Le dossier n’a pas de nom utilisable.")
+            modelInstallState = .failed(L("Le dossier n’a pas de nom utilisable.", "The folder has no usable name."))
             return
         }
-        modelInstallState = .working("Validation de \(rawName)…")
+        modelInstallState = .working(L("Validation de \(rawName)…", "Validating \(rawName)…"))
         MLXL3Bridge.registerModel(name: name, path: url) { [weak self] result in
             guard let self else { return }
             switch result {
             case .success:
                 self.selectedModelName = name
-                self.modelInstallState = .succeeded("\(name) est prêt.")
+                self.modelInstallState = .succeeded(L("\(name) est prêt.", "\(name) is ready."))
                 self.refreshModels()
             case let .failure(error):
                 self.modelInstallState = .failed(error.localizedDescription)
@@ -446,6 +510,10 @@ final class StudioModel: ObservableObject {
         case "loading":
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
+            activeContextLimit = event.contextLimit
+            modelContextLimit = event.modelContextLimit
+            contextMemory = event.contextMemory
+            modelResidentBytes = event.residentGB.map { $0 * 1e9 }
             let info = (
                 model: event.model ?? selectedModelName ?? "modèle",
                 modules: event.modules ?? 0,
@@ -466,10 +534,18 @@ final class StudioModel: ObservableObject {
             mcpServerCount = event.mcpServers ?? 0
             mcpToolCount = event.mcpTools ?? 0
             mcpErrors = event.mcpErrors ?? [:]
+        case "context_usage":
+            guard event.requestID == activeRequestID,
+                  let used = event.usedTokens, let limit = event.contextLimit,
+                  let name = selectedModelName,
+                  let index = conversations.firstIndex(where: { conversation in
+                      conversation.messages.contains { $0.id == activeResponseID }
+                  }) else { return }
+            conversations[index].contextUsage = ContextUsage(used: max(0, used), limit: limit, model: name)
         case "generation_status":
             guard event.requestID == activeRequestID,
                   let message = activeMessage() else { return }
-            message.processing(event.text ?? "Préparation de la réponse")
+            message.processing(event.text ?? L("Préparation de la réponse", "Preparing response"))
             schedulePersistence()
         case "delta":
             guard event.requestID == activeRequestID,
@@ -510,20 +586,23 @@ final class StudioModel: ObservableObject {
                 fallbackAnswer: event.assistantContext,
                 cacheContext: event.cacheContext
             )
+            if event.contextFull == true {
+                message.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
+            }
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
             restoreReadyState()
         case "cancelled":
             guard event.requestID == activeRequestID else { return }
-            activeMessage()?.fail("Génération arrêtée")
+            activeMessage()?.fail(L("Génération arrêtée", "Generation stopped"))
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
             restoreReadyState()
         case "error":
             guard event.requestID == nil || event.requestID == activeRequestID else { return }
-            failActiveTurn(event.message ?? "Erreur inconnue du moteur")
+            failActiveTurn(event.message ?? L("Erreur inconnue du moteur", "Unknown engine error"))
         default:
             break
         }
@@ -543,7 +622,10 @@ final class StudioModel: ObservableObject {
 
     private func failActiveTurn(_ message: String) {
         mcpUpdating = false
-        activeMessage()?.fail(message)
+        let detail = message.hasPrefix("Context full (")
+            ? L("Contexte plein. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", message)
+            : message
+        activeMessage()?.fail(detail)
         activeRequestID = nil
         activeResponseID = nil
         if readyInfo == nil {

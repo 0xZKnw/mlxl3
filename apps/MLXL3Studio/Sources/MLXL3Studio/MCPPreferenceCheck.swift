@@ -21,6 +21,47 @@ enum MCPPreferenceCheck {
             if !condition { throw Failure(message: message) }
         }
         let first = instance()
+        try check(first.language == .fr, "Language must default to French")
+        first.draft = "Do not translate this"
+        first.setLanguage(.en)
+        try check(L("Réglages", "Settings") == "Settings", "English translation not applied")
+        try check(instance().language == .en, "Language was not persisted")
+        try check(first.draft == "Do not translate this", "Language changed user text")
+        first.setLanguage(.fr)
+
+        first.models = [LocalModel(name: "test", path: "/nonexistent", modelType: "test", format: "EXL3",
+                                  bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+        first.selectModel("test")
+        let initialLimit = first.activeContextLimit
+        first.contextLengthDraft = 8192
+        try check(first.activeContextLimit == initialLimit, "Draft changed applied context before saving")
+        try check(first.canSaveContext, "Valid context cannot be saved")
+        first.saveContextAndReload()
+        try check(first.activeContextLimit == 8192, "Reload did not apply saved context")
+        let restored = instance()
+        restored.selectedModelName = "test"
+        try check(restored.savedContextLength == 8192, "Context limit was not persisted")
+        restored.selectedModelName = "other"
+        try check(restored.savedContextLength == 0, "Context preference leaked to another model")
+        first.contextLengthDraft = -1
+        try check(!first.canSaveContext, "Negative context accepted")
+        first.contextLengthDraft = 999999999
+        try check(!first.canSaveContext, "Beyond-architecture context accepted")
+        let event = try JSONDecoder().decode(BridgeEvent.self, from: Data(
+            #"{"type":"context_usage","request_id":"r","used_tokens":7000,"context_limit":8192}"#.utf8))
+        try check(event.usedTokens == 7000 && event.contextLimit == 8192, "Context event decoding failed")
+        var chat = Conversation()
+        chat.contextUsage = ContextUsage(used: 7000, limit: 8192, model: "test")
+        let decoded = try JSONDecoder().decode(ConversationSnapshot.self, from: JSONEncoder().encode(chat.snapshot))
+        try check(decoded.contextUsage?.used == 7000, "Context usage not saved with conversation")
+        let profile = try JSONDecoder().decode(ContextMemoryProfile.self, from: Data(
+            #"{"layers":[{"bytes_per_token":384,"max_tokens":null,"step":256},{"bytes_per_token":384,"max_tokens":512,"step":256}],"fixed_bytes":4096}"#.utf8))
+        try check(profile.bytes(tokens: 100) == 4096 + 384 * 256 * 2, "KV block rounding failed")
+        try check(profile.bytes(tokens: 1024) == 4096 + 384 * (1024 + 512), "Sliding-window cap failed")
+        first.contextLengthDraft = 4096
+        let small = first.draftContextBytes
+        first.contextLengthDraft = 8192
+        try check((first.draftContextBytes ?? 0) > (small ?? 0), "Memory estimate did not update with draft")
         try check(!first.mcpEnabled, "MCP must default off")
         first.setMCPEnabled(true)
         try check(first.mcpEnabled, "Enabling MCP failed")

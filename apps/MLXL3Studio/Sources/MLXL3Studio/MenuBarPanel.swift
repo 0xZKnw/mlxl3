@@ -12,6 +12,7 @@ struct MenuBarPanel: View {
                 interfaceMemoryBytes: studio.interfaceResidentMemoryBytes
             )
         }
+        .id(studio.language)
         .frame(width: 342)
         .preferredColorScheme(.dark)
         .onAppear { studio.start() }
@@ -82,7 +83,7 @@ struct MenuBarPanel: View {
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Label("MÉMOIRE UNIFIÉE", systemImage: "memorychip")
+                Label(L("MÉMOIRE UNIFIÉE", "UNIFIED MEMORY"), systemImage: "memorychip")
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .tracking(0.85)
                     .foregroundStyle(StudioTheme.quiet)
@@ -110,7 +111,7 @@ struct MenuBarPanel: View {
             .frame(height: 5)
 
             HStack {
-                Text("Moteur \(memory(engineMemoryBytes))")
+                Text(L("Moteur \(memory(engineMemoryBytes))", "Engine \(memory(engineMemoryBytes))"))
                 Spacer()
                 Text("Interface \(memory(interfaceMemoryBytes))")
                     .monospacedDigit()
@@ -118,7 +119,7 @@ struct MenuBarPanel: View {
             .font(.system(size: 9.5, weight: .medium, design: .rounded))
             .foregroundStyle(StudioTheme.quiet)
 
-            Text("\(Int(fraction * 100)) % de \(memory(physicalMemory))")
+            Text(L("\(Int(fraction * 100)) % de \(memory(physicalMemory))", "\(Int(fraction * 100)) % of \(memory(physicalMemory))"))
                 .font(.system(size: 8.5, weight: .medium, design: .rounded))
                 .foregroundStyle(StudioTheme.quiet.opacity(0.82))
                 .monospacedDigit()
@@ -130,7 +131,7 @@ struct MenuBarPanel: View {
     private var modelCard: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
-                Label("MODÈLE", systemImage: "cpu")
+                Label(L("MODÈLE", "MODEL"), systemImage: "cpu")
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .tracking(0.85)
                     .foregroundStyle(StudioTheme.quiet)
@@ -158,7 +159,7 @@ struct MenuBarPanel: View {
                     .tracking(0.7)
                     .foregroundStyle(StudioTheme.quiet)
             } else {
-                Text("Aucun modèle chargé")
+                Text(L("Aucun modèle chargé", "No model loaded"))
                     .font(.system(size: 12.5, weight: .medium, design: .rounded))
                     .foregroundStyle(StudioTheme.secondary)
             }
@@ -184,7 +185,7 @@ struct MenuBarPanel: View {
     private var actions: some View {
         HStack(spacing: 9) {
             Button(action: studio.ejectModel) {
-                Label("Décharger", systemImage: "eject.fill")
+                Label(L("Décharger", "Unload"), systemImage: "eject.fill")
                     .frame(maxWidth: .infinity)
                     .frame(height: 34)
             }
@@ -194,7 +195,7 @@ struct MenuBarPanel: View {
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Label("Quitter", systemImage: "power")
+                Label(L("Quitter", "Quit"), systemImage: "power")
                     .frame(maxWidth: .infinity)
                     .frame(height: 34)
             }
@@ -205,11 +206,11 @@ struct MenuBarPanel: View {
 
     private var statusLabel: String {
         switch studio.engineState {
-        case .idle: "INACTIF"
-        case .loading: "CHARGEMENT"
-        case .ready: "PRÊT"
-        case .generating: "GÉNÈRE"
-        case .failed: "ERREUR"
+        case .idle: L("INACTIF", "IDLE")
+        case .loading: L("CHARGEMENT", "LOADING")
+        case .ready: L("PRÊT", "READY")
+        case .generating: L("GÉNÈRE", "GENERATING")
+        case .failed: L("ERREUR", "ERROR")
         }
     }
 

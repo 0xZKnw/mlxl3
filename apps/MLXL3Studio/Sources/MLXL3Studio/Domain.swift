@@ -35,6 +35,8 @@ struct GenerationStats: Codable, Hashable, Sendable {
     let peakMemoryGB: Double
     let cachedPromptTokens: Int?
     let evaluatedPromptTokens: Int?
+    var contextUsed: Int? = nil
+    var contextLimit: Int? = nil
 
     var cacheHitPercent: Double {
         let cached = cachedPromptTokens ?? 0
@@ -52,6 +54,8 @@ struct GenerationStats: Codable, Hashable, Sendable {
         case peakMemoryGB = "peak_memory_gb"
         case cachedPromptTokens = "cached_prompt_tokens"
         case evaluatedPromptTokens = "evaluated_prompt_tokens"
+        case contextUsed = "context_used"
+        case contextLimit = "context_limit"
     }
 }
 
@@ -75,6 +79,11 @@ struct BridgeEvent: Decodable {
     let toolName: String?
     let serverName: String?
     let isError: Bool?
+    var usedTokens: Int? = nil
+    var contextLimit: Int? = nil
+    var modelContextLimit: Int? = nil
+    var contextFull: Bool? = nil
+    var contextMemory: ContextMemoryProfile? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, model, modules, phase, text, stats, message
@@ -90,6 +99,38 @@ struct BridgeEvent: Decodable {
         case toolName = "tool_name"
         case serverName = "server_name"
         case isError = "is_error"
+        case usedTokens = "used_tokens"
+        case contextLimit = "context_limit"
+        case modelContextLimit = "model_context_limit"
+        case contextFull = "context_full"
+        case contextMemory = "context_memory"
+    }
+}
+
+struct ContextMemoryProfile: Decodable {
+    struct Layer: Decodable {
+        let bytesPerToken: Int
+        let maxTokens: Int?
+        let step: Int
+        enum CodingKeys: String, CodingKey {
+            case bytesPerToken = "bytes_per_token"
+            case maxTokens = "max_tokens"
+            case step
+        }
+    }
+    let layers: [Layer]
+    let fixedBytes: Int
+    enum CodingKeys: String, CodingKey {
+        case layers
+        case fixedBytes = "fixed_bytes"
+    }
+    func bytes(tokens: Int) -> Double {
+        guard tokens > 0 else { return 0 }
+        return layers.reduce(Double(fixedBytes)) { total, layer in
+            let step = max(layer.step, 1)
+            let allocated = ((tokens + step - 1) / step) * step
+            return total + Double(min(allocated, layer.maxTokens ?? allocated)) * Double(layer.bytesPerToken)
+        }
     }
 }
 
@@ -309,7 +350,7 @@ final class ChatMessage: ObservableObject, Identifiable {
             thinking: snapshot.thinking,
             isStreaming: false,
             stats: snapshot.stats,
-            error: snapshot.error ?? (snapshot.wasStreaming ? "Génération interrompue" : nil),
+            error: snapshot.error ?? (snapshot.wasStreaming ? L("Génération interrompue", "Generation interrupted") : nil),
             toolActivities: snapshot.toolActivities ?? [],
             cacheContext: snapshot.cacheContext,
             parts: snapshot.parts
@@ -318,22 +359,31 @@ final class ChatMessage: ObservableObject, Identifiable {
     }
 }
 
+struct ContextUsage: Codable, Sendable {
+    let used: Int
+    let limit: Int
+    let model: String
+}
+
 struct Conversation: Identifiable {
     let id: UUID
     var title: String
     var messages: [ChatMessage]
     let createdAt: Date
+    var contextUsage: ContextUsage?
 
     init(
         id: UUID = UUID(),
-        title: String = "Nouvelle conversation",
+        title: String = L("Nouvelle conversation", "New conversation"),
         messages: [ChatMessage] = [],
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        contextUsage: ContextUsage? = nil
     ) {
         self.id = id
         self.title = title
         self.messages = messages
         self.createdAt = createdAt
+        self.contextUsage = contextUsage
     }
 
     var snapshot: ConversationSnapshot {
@@ -341,7 +391,8 @@ struct Conversation: Identifiable {
             id: id,
             title: title,
             messages: messages.map(\.snapshot),
-            createdAt: createdAt
+            createdAt: createdAt,
+            contextUsage: contextUsage
         )
     }
 
@@ -350,7 +401,8 @@ struct Conversation: Identifiable {
             id: snapshot.id,
             title: snapshot.title,
             messages: snapshot.messages.compactMap(ChatMessage.init(snapshot:)),
-            createdAt: snapshot.createdAt
+            createdAt: snapshot.createdAt,
+            contextUsage: snapshot.contextUsage
         )
     }
 }
@@ -364,11 +416,11 @@ enum EngineState: Equatable {
 
     var label: String {
         switch self {
-        case .idle: "Modèle éjecté"
-        case let .loading(model): "Chargement de \(model)…"
-        case .ready: "Prêt sur Metal"
-        case .generating: "Génération…"
-        case .failed: "Indisponible"
+        case .idle: L("Modèle éjecté", "Model unloaded")
+        case let .loading(model): L("Chargement de \(model)…", "Loading \(model)…")
+        case .ready: L("Prêt sur Metal", "Ready on Metal")
+        case .generating: L("Génération…", "Generating…")
+        case .failed: L("Indisponible", "Unavailable")
         }
     }
 
