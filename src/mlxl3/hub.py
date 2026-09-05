@@ -223,13 +223,14 @@ def _download_selected(repo, commit, selected, stage, destination, name, emit):
             kwargs["disable"] = True
             self.reported = 0.0
             super().__init__(*args, **kwargs)
-            self.unit = kwargs.get("unit", "it")
-            self.desc = kwargs.get("desc", "")
+            # Disabled tqdm intentionally omits formatting fields. Setting `unit`
+            # bypasses its disabled format_dict path and breaks Xet rate callbacks.
+            self.reconstruction = kwargs.get("unit") == "B" and "Reconstruct" in kwargs.get("desc", "")
         def update(self, n=1):
             with progress_lock:
-                self.n += n
+                self.n += n or 0
                 now = time.monotonic()
-                if self.unit == "B" and "Reconstruct" in (self.desc or "") and now - self.reported > 0.15:
+                if self.reconstruction and now - self.reported > 0.15:
                     self.reported = now
                     emit({"type": "progress", "completed": self.n, "total": selected["size_bytes"]})
         def refresh(self, *args, **kwargs):

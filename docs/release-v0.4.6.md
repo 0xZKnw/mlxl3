@@ -1,5 +1,14 @@
 # MLXL3 Desktop v0.4.6
 
+## Download hotfix (same version)
+
+- Download progress is delivered immediately instead of waiting for a full
+  16 KiB pipe buffer. Hugging Face Xet progress callbacks no longer fail on
+  disabled terminal progress bars. Existing partial downloads remain resumable.
+- The DMG and checksum were replaced with this corrected build. If you already
+  have v0.4.6, download the DMG again manually: the updater compares version
+  numbers and will not offer another v0.4.6.
+
 ## Correct Metal memory accounting
 
 - The menu-bar widget now reports the macOS **physical memory footprint** of

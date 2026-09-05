@@ -42,7 +42,11 @@ final class CLICommand: @unchecked Sendable {
                         var result = Data()
                         var pending = Data()
                         // Drain before waiting: README responses can exceed a pipe's capacity.
-                        while let chunk = try pipe.fileHandleForReading.read(upToCount: 16384), !chunk.isEmpty {
+                        // A fixed-length FileHandle read waits to fill its buffer on macOS.
+                        // Deliver progress immediately, even when only one short line is ready.
+                        while true {
+                            let chunk = pipe.fileHandleForReading.availableData
+                            if chunk.isEmpty { break }
                             if let onLine {
                                 pending.append(chunk)
                                 while let newline = pending.firstIndex(of: 10) {

@@ -86,7 +86,14 @@ def test_download_pins_commit_filters_files_and_never_overwrites(monkeypatch, tm
         if attempts == 1:
             raise RuntimeError("interrupted fixture transfer")
         progress = kwargs["tqdm_class"](total=100, unit="B", desc="Reconstructing")
+        from huggingface_hub.utils._xet_progress_reporting import _set_aggregate_rate_postfix
+        transfer = kwargs["tqdm_class"](total=100, unit="B", desc="Downloading bytes")
+        transfer.update(25)
+        _set_aggregate_rate_postfix(transfer)
         progress.update(50)
+        _set_aggregate_rate_postfix(progress)
+        progress.update(None)
+        transfer.close()
         progress.close()
     monkeypatch.setattr(hub, "snapshot_download", snapshot)
     events = []
