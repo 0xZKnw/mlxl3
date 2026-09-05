@@ -424,6 +424,13 @@ def test_bridge_generation_executes_mcp_tool_then_returns_answer(monkeypatch, ca
     )
 
     events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    statuses = [event for event in events if event["type"] == "generation_status"]
+    assert [event["text"] for event in statuses] == ["Préparation du contexte", "Lecture des résultats MCP"]
+    # Non-delta events are ordering barriers in the desktop bridge.
+    assert next(i for i, e in enumerate(events) if e.get("text") == "Lecture des résultats MCP") > next(
+        i for i, e in enumerate(events) if e["type"] == "tool_result"
+    )
+    events = [event for event in events if event["type"] != "generation_status"]
     assert [event["type"] for event in events] == [
         "delta",
         "tool_start",
@@ -622,6 +629,7 @@ def test_bridge_handles_thinking_tag_prefilled_by_chat_template(monkeypatch, cap
 
     assert cli._bridge(SimpleNamespace(model="lfm")) == 0
     events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    events = [event for event in events if event["type"] != "generation_status"]
     assert [event["type"] for event in events] == [
         "loading",
         "ready",

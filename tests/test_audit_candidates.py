@@ -86,6 +86,30 @@ def test_prefill_gather_hadamard_exact():
     np.testing.assert_array_equal(np.asarray(actual), np.asarray(expected))
 
 
+@pytest.mark.parametrize('dims', [128, 256, 2048])
+@pytest.mark.parametrize('dtype', [mx.float16, mx.float32, mx.bfloat16])
+def test_prefill_gather_simd_exact(dims, dtype):
+    from mlxl3.kernels.qmv import _scaled_hadamard_input
+    mx.random.seed(128 + dims)
+    x = mx.random.normal((19, dims)).astype(dtype)
+    scales = mx.random.uniform(-2, 2, (32, 2, dims)).astype(mx.float16)
+    tokens = mx.array([3, 1, 3, 7, 1, 0, 18], dtype=mx.uint32)
+    experts = mx.array([2, 5, 2, 5, 7, 0, 31], dtype=mx.int32)
+    expected = mx.stack([_scaled_hadamard_input(x[tokens], scales[experts, i]) for i in range(2)])
+    actual = moe._prefill_gather_simd(x, scales, tokens, experts)
+    np.testing.assert_array_equal(np.asarray(actual), np.asarray(expected))
+
+
+def test_prefill_gather_simd_zero_and_subnormals():
+    from mlxl3.kernels.qmv import _scaled_hadamard_input
+    x = mx.array([0, -0., 2**-24, -2**-24, 2**-14, -2**-14, 1, -1] * 16, dtype=mx.float16)[None]
+    scales = mx.ones((1, 2, 128), dtype=mx.float16)
+    routes = mx.array([0], dtype=mx.uint32)
+    actual = moe._prefill_gather_simd(x, scales, routes, routes)
+    expected = mx.stack([_scaled_hadamard_input(x, scales[0, i]) for i in range(2)])
+    np.testing.assert_array_equal(np.asarray(actual).view(np.uint16), np.asarray(expected).view(np.uint16))
+
+
 def test_gemma_weighted_reduction_preserves_fp32():
     from mlxl3.kernels.qmv import _scaled_hadamard_output, _scaled_hadamard_output_reduce
     mx.random.seed(88)
@@ -152,7 +176,9 @@ def test_qmv_output_fusion_exact(bits, monkeypatch):
     np.testing.assert_array_equal(np.asarray(actual), np.asarray(expected))
 
 
-def test_device_side_route_buckets(monkeypatch):
+@pytest.mark.parametrize('locality', [False, True])
+@pytest.mark.parametrize('bits', [2, 3, 4, 7])
+def test_device_side_route_buckets(monkeypatch, locality, bits):
     from mlxl3.codec.codebook import CodebookMode
     from mlxl3.codec.trellis import pack_trellis
     from mlxl3.kernels import qmv
@@ -160,14 +186,18 @@ def test_device_side_route_buckets(monkeypatch):
     blocks = selected.size // 64 + 5 + 1
     table, count = moe._segmented_block_table(5, blocks)(selected)
     rng = np.random.default_rng(22)
-    parent = mx.array(pack_trellis(rng.integers(0, 8, (8, 40, 256), dtype=np.uint16), 3))
+    parent = mx.array(pack_trellis(rng.integers(0, 1 << bits, (8, 40, 256), dtype=np.uint16), bits))
     x = mx.array(rng.normal(size=(selected.size + 64, 128)).astype(np.float16))
     def run():
         return qmv.qmm_exl3_expert_segmented(x, parent, table, count, rows=selected.size,
                                             tiles_per_expert=8, output_dims=128,
-                                            expert_tile_base=0, k=3, mode=CodebookMode.MCG)
+                                            expert_tile_base=0, k=bits, mode=CodebookMode.MCG)
     monkeypatch.setattr(qmv, '_USE_SEGMENTED_BUCKETS', False)
+    monkeypatch.setattr(qmv, '_USE_SEGMENTED_LOCALITY', False)
     expected = run()
+    mx.eval(expected)
+    monkeypatch.setattr(qmv, '_USE_SEGMENTED_LOCALITY', locality)
+    np.testing.assert_array_equal(np.asarray(run()), np.asarray(expected))
     monkeypatch.setattr(qmv, '_USE_SEGMENTED_BUCKETS', True)
     actual = run()
     np.testing.assert_array_equal(np.asarray(actual), np.asarray(expected))

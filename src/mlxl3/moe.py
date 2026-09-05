@@ -25,6 +25,7 @@ _USE_BITONIC_ROUTER = os.environ.get('MLXL3_BITONIC_ROUTER', '0') == '1'
 _USE_GEMMA_EXPERT_REDUCE = os.environ.get('MLXL3_GEMMA_EXPERT_REDUCE', '0') == '1'
 _USE_GELU_DOWN_PREP = os.environ.get('MLXL3_GELU_DOWN_PREP', '0') == '1'
 _USE_PREFILL_GATHER_HADAMARD = os.environ.get('MLXL3_PREFILL_GATHER_HADAMARD', '0') == '1'
+_USE_PREFILL_GATHER_SIMD = os.environ.get('MLXL3_PREFILL_GATHER_SIMD', '1') != '0'
 _USE_FUSED_MOE_REDUCE = os.environ.get("MLXL3_FUSED_MOE_REDUCE", "1") != "0"
 _USE_FUSED_MOE_GLU_PREP = os.environ.get("MLXL3_FUSED_MOE_GLU_PREP", "1") != "0"
 _USE_SEGMENTED_MOE_PREFILL = os.environ.get("MLXL3_SEGMENTED_MOE_PREFILL", "1") != "0"
@@ -85,6 +86,66 @@ def _prefill_gather_hadamard(x, scales, tokens, experts):
     return _prefill_gather_hadamard_kernel(dims)(
         inputs=[x, scales, tokens, experts], grid=(dims, tokens.size, 2),
         threadgroup=(128, 1, 1), output_shapes=[(2, tokens.size, dims)],
+        output_dtypes=[mx.float16],
+    )[0]
+
+
+@cache
+def _prefill_gather_simd_kernel(dims: int):
+    # Gather + multiply + MLX's radix-16/radix-8 Hadamard in one SIMD group.
+    # No routed activation/scales buffers, threadgroup scratch or barriers.
+    # Keep the two FP16 intermediate roundings and final scale unchanged.
+    return mx.fast.metal_kernel(
+        name=f'mlxl3_prefill_gather_simd_d{dims}_v1',
+        input_names=['x', 'scales', 'tokens', 'experts'], output_names=['out'],
+        source=f'''
+            uint tid = thread_position_in_threadgroup.x;
+            uint block = threadgroup_position_in_grid.x;
+            uint route = threadgroup_position_in_grid.y;
+            uint projection = threadgroup_position_in_grid.z;
+            uint token = tokens[route];
+            uint expert = uint(experts[route]);
+            uint base = block * 128u + tid * 4u;
+            float v[4];
+            for (uint r=0; r<4; ++r) {{
+                uint col = base + r;
+                v[r] = float(half(half(x[token * {dims}u + col]) *
+                    half(scales[(expert * 2u + projection) * {dims}u + col])));
+            }}
+            for (uint h=1; h<4; h*=2) {{
+                for (uint i=0; i<2; ++i) {{
+                    uint k=i & (h-1); uint j=((i-k)<<1)+k;
+                    float a=v[j], b=v[j+h]; v[j]=a+b; v[j+h]=a-b;
+                }}
+            }}
+            for (uint h=1; h<4; h*=2) {{
+                for (uint r=0; r<4; ++r) {{
+                    float peer=simd_shuffle_xor(v[r], h);
+                    v[r]=(tid & h) ? peer-v[r] : v[r]+peer;
+                }}
+            }}
+            for (uint r=0; r<4; ++r) v[r]=float(half(v[r]));
+            for (uint h=4; h<32; h*=2) {{
+                for (uint r=0; r<4; ++r) {{
+                    float peer=simd_shuffle_xor(v[r], h);
+                    v[r]=(tid & h) ? peer-v[r] : v[r]+peer;
+                }}
+            }}
+            for (uint r=0; r<4; ++r) {{
+                out[(projection * uint(tokens_shape[0]) + route) * {dims}u + base + r] =
+                    half(float(half(v[r])) * 0.08838834764831845f);
+            }}
+        ''', compile_options={'math_mode': 'safe'},
+    )
+
+
+def _prefill_gather_simd(x, scales, tokens, experts):
+    dims = x.shape[-1]
+    if dims % 128 or scales.shape[1:] != (2, dims) or tokens.shape != experts.shape:
+        raise ValueError('invalid routed SIMD prefill Hadamard shape')
+    return _prefill_gather_simd_kernel(dims)(
+        inputs=[x, scales, tokens, experts], grid=(dims // 4, tokens.size, 2),
+        threadgroup=(32, 1, 1), output_shapes=[(2, tokens.size, dims)],
         output_dtypes=[mx.float16],
     )[0]
 
@@ -562,8 +623,12 @@ class EXL3SwitchGLU(nn.Module):
             self.num_experts, max_blocks
         )(sorted_experts)
 
-        if _USE_PREFILL_GATHER_HADAMARD:
-            prepared = _prefill_gather_hadamard(
+        # Promote on SwiGLU only: the full post-tool validation used Qwen.
+        # GeGLU/Gemma retains its existing path until model-level validation.
+        use_simd_gather = _USE_PREFILL_GATHER_SIMD and self.activation == 'silu'
+        if use_simd_gather or _USE_PREFILL_GATHER_HADAMARD:
+            prepare = _prefill_gather_simd if use_simd_gather else _prefill_gather_hadamard
+            prepared = prepare(
                 x.reshape(rows, self.input_dims), self.gu_suh, padded_tokens, padded_experts)
             gate_x, up_x = prepared[0], prepared[1]
         else:

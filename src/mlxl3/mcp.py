@@ -230,7 +230,7 @@ class MCPStdioClient:
             {
                 "protocolVersion": _PROTOCOL_VERSION,
                 "capabilities": {},
-                "clientInfo": {"name": "MLXL3 Desktop", "version": "0.4.0"},
+                "clientInfo": {"name": "MLXL3 Desktop", "version": "0.4.1"},
             },
         )
         self.protocol_version = result.get("protocolVersion", _PROTOCOL_VERSION)
@@ -379,7 +379,7 @@ class MCPHTTPClient(MCPStdioClient):
         headers.update({
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
-            "User-Agent": "MLXL3-Desktop/0.4.0",
+            "User-Agent": "MLXL3-Desktop/0.4.1",
             "MCP-Protocol-Version": self.protocol_version,
         })
         if self.session_id:

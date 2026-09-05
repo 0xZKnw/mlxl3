@@ -79,6 +79,7 @@ _SESSION_CACHE_BUDGET_BYTES = int(
 _WARM_MODEL_ON_LOAD = os.environ.get("MLXL3_WARM_MODEL_ON_LOAD", "1") != "0"
 _USE_COW_KV = os.environ.get('MLXL3_COW_KV', '0') == '1'
 _COMPACT_CONV_STATES = os.environ.get('MLXL3_COMPACT_CONV_STATES', '0') == '1'
+_RETAIN_PREFILL_ALLOCATOR = os.environ.get('MLXL3_RETAIN_PREFILL_ALLOCATOR', '0') == '1'
 
 
 def _model_num_experts(model: Any) -> int:
@@ -296,6 +297,7 @@ class GenerationSession:
         stable_tokens: list[int],
         *,
         should_cancel: Callable[[], bool] | None = None,
+        on_status: Callable[[str], None] | None = None,
     ) -> tuple[list[int], list[Any], int, int]:
         import mlx.core as mx
         from mlx_lm.models.cache import (
@@ -358,6 +360,8 @@ class GenerationSession:
                     self.block_caches.clear()
 
         extension = stable_tokens[common:]
+        if on_status is not None:
+            on_status(f"Lecture du contexte · {len(extension):,} nouveaux tokens · {common:,} en cache")
         self.cache_lookup_seconds = time.monotonic() - lookup_started
         prefill_started = time.monotonic()
         processed = common
@@ -400,8 +404,11 @@ class GenerationSession:
             ):
                 self._store_block_cache(processed)
         if extension:
+            if on_status is not None:
+                on_status(f"Traitement du contexte · {len(extension):,} nouveaux tokens · {common:,} en cache")
             mx.eval([item.state for item in self.prompt_cache])
-            mx.clear_cache()
+            if not _RETAIN_PREFILL_ALLOCATOR:
+                mx.clear_cache()
         check_cancel()
         self.stable_prefill_seconds = time.monotonic() - prefill_started if extension else 0.0
         self.stable_prefill_tokens = len(extension)
@@ -990,6 +997,7 @@ def _stream_response(
     tools: list[dict[str, Any]] | None = None,
     session: GenerationSession | None = None,
     should_cancel: Callable[[], bool] | None = None,
+    on_status: Callable[[str], None] | None = None,
 ) -> tuple[str, GenerationStats]:
     import mlx.core as mx
     from mlx_lm import stream_generate
@@ -1046,6 +1054,7 @@ def _stream_response(
             full_prompt_tokens,
             stable_tokens,
             should_cancel=should_cancel,
+            on_status=on_status,
         )
         if stable_tokens and processors:
             # The only enabled factory option above is repetition_penalty.
@@ -1068,6 +1077,11 @@ def _stream_response(
         if 0 < processed < total:
             # The final callback includes first decode, so keep it separate.
             suffix_prefill_chunk_seconds = now - progress_started
+        if on_status is not None and processed < total:
+            if total <= 16:
+                on_status("Finalisation du contexte · lancement de la réponse")
+            else:
+                on_status(f"Lecture du contexte · {processed:,} / {total:,} tokens traités")
         # MLX-LM invokes this between its synchronized prefill chunks as well
         # as before prefill and after the first token. No extra GPU barrier.
         if should_cancel is not None and should_cancel():
@@ -1310,6 +1324,10 @@ def _bridge_generate(
     session = session or GenerationSession()
     chat_tools = mcp.chat_tools
     for tool_round in range(5):
+        _json_event(
+            "generation_status", request_id=request_id, phase="prefill",
+            text="Lecture des résultats MCP" if tool_round else "Préparation du contexte",
+        )
         splitter = ThinkingSplitter()
         tool_filter = ToolCallStreamFilter() if chat_tools else None
 
@@ -1340,6 +1358,9 @@ def _bridge_generate(
             tools=chat_tools,
             session=session,
             should_cancel=should_cancel,
+            on_status=lambda label: _json_event(
+                "generation_status", request_id=request_id, phase="prefill", text=label,
+            ),
         )
         for phase, fragment in splitter.finish():
             _emit_split_fragment(

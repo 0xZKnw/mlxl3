@@ -144,28 +144,23 @@ private struct AssistantMessageView: View {
                     }
                 }
 
-                if !message.thinking.isEmpty {
-                    ThinkingBlock(
-                        text: message.thinking,
-                        streaming: message.isStreaming && message.content.isEmpty
-                    )
-                } else if message.isStreaming && message.content.isEmpty {
+                if message.parts.isEmpty && message.isStreaming {
                     ThinkingPlaceholder()
                 }
-
-                if !message.toolActivities.isEmpty {
-                    VStack(spacing: 7) {
-                        ForEach(message.toolActivities) { activity in
+                ForEach(message.parts) { part in
+                    let live = message.isStreaming && message.parts.last?.id == part.id
+                    switch part.kind {
+                    case .thinking:
+                        ThinkingBlock(text: part.text, streaming: live)
+                    case .answer:
+                        MarkdownResponseView(part.text, streaming: live)
+                    case .tool:
+                        if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
                             MCPToolActivityRow(activity: activity)
                         }
+                    case .processing:
+                        PrefillActivityRow(part: part, live: live)
                     }
-                }
-
-                if !message.content.isEmpty {
-                    MarkdownResponseView(
-                        message.content,
-                        streaming: message.isStreaming
-                    )
                 }
 
                 if let error = message.error {
@@ -182,6 +177,41 @@ private struct AssistantMessageView: View {
         }
     }
 
+}
+
+private struct PrefillActivityRow: View {
+    let part: AssistantPart
+    let live: Bool
+
+    var body: some View {
+        if live {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                row(at: context.date)
+            }
+        } else {
+            row(at: .now)
+        }
+    }
+
+    private func row(at date: Date) -> some View {
+            HStack(spacing: 8) {
+                if live {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Image(systemName: part.interrupted == true ? "stop" : "checkmark")
+                        .font(.system(size: 10))
+                }
+                Text(live ? part.text : (part.interrupted == true ? "Traitement interrompu" : "Contexte traité"))
+                    .lineLimit(2)
+                Spacer(minLength: 8)
+                let elapsed = part.elapsed ?? date.timeIntervalSince(part.startedAt ?? date)
+                Text("\(max(0, Int(elapsed))) s").monospacedDigit()
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(StudioTheme.secondary)
+            .padding(.vertical, 4)
+            .accessibilityElement(children: .combine)
+    }
 }
 
 private struct MCPToolActivityRow: View {

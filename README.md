@@ -216,7 +216,7 @@ environment automatically. A different executable can be selected with
 On an M1, M2, M3, M4, or M5 Mac running macOS 26.2 or newer:
 
 1. Download
-   `MLXL3-Desktop-v0.4.0-Apple-Silicon.dmg`, open it, and drag
+   `MLXL3-Desktop-v0.4.1-Apple-Silicon.dmg`, open it, and drag
    **MLXL3 Desktop** into Applications.
 2. Launch the app. No Python, Homebrew, MLX, Hugging Face CLI, or Terminal setup
    is required. The current build is ad-hoc signed rather than Apple-notarized,

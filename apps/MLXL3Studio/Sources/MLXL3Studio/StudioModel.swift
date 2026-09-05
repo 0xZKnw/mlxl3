@@ -466,6 +466,11 @@ final class StudioModel: ObservableObject {
             mcpServerCount = event.mcpServers ?? 0
             mcpToolCount = event.mcpTools ?? 0
             mcpErrors = event.mcpErrors ?? [:]
+        case "generation_status":
+            guard event.requestID == activeRequestID,
+                  let message = activeMessage() else { return }
+            message.processing(event.text ?? "Préparation de la réponse")
+            schedulePersistence()
         case "delta":
             guard event.requestID == activeRequestID,
                   let text = event.text,
