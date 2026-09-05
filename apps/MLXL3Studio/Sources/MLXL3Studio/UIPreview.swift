@@ -15,6 +15,7 @@ extension StudioModel {
             sizeBytes: 12_000_000_000, modules: 0, addedAt: "", size: "12 GB"
         )]
         studio.selectedModelName = studio.models.first?.name
+        studio.selectModel(studio.models[0].name)
         let sample = Conversation(title: "Un outil plus simple, plus agréable", messages: [
             ChatMessage(role: .user, content: "Comment rendre une interface plus agréable au quotidien ?"),
             ChatMessage(role: .assistant, content: """

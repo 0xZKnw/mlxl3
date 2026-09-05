@@ -37,6 +37,7 @@ struct ConversationSnapshot: Codable, Sendable {
     let title: String
     let messages: [ChatMessageSnapshot]
     let createdAt: Date
+    var contextUsage: ContextUsage? = nil
 }
 
 struct ChatMessageSnapshot: Codable, Sendable {

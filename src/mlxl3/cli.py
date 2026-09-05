@@ -56,6 +56,38 @@ class GenerationStats:
     tokenizer_encode_seconds: float = 0.0
     stream_setup_seconds: float = 0.0
     suffix_prefill_chunk_seconds: float = 0.0
+    context_used: int = 0
+    context_limit: int = 0
+
+
+def _model_context_limit(path: Path | str) -> int:
+    """Read the text architecture ceiling; never infer it from the file size."""
+    try:
+        config = json.loads((Path(path) / "config.json").read_text())
+    except (OSError, ValueError):
+        return 32768
+    if not isinstance(config, dict):
+        return 32768
+    text_config = config.get("text_config") or config
+    if not isinstance(text_config, dict):
+        return 32768
+    for key in ("max_position_embeddings", "max_sequence_length", "seq_length"):
+        value = text_config.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and 0 < value < 1_000_000_000:
+            return value
+    return 32768
+
+
+def _context_output_budget(prompt_tokens: int, limit: int, max_tokens: int) -> int:
+    if limit <= 0:
+        return max_tokens
+    remaining = limit - prompt_tokens
+    if remaining <= 0:
+        raise ValueError(
+            f"Context full ({prompt_tokens:,} / {limit:,} tokens). "
+            "Increase the context limit in model settings or start a new conversation."
+        )
+    return remaining if max_tokens < 0 else min(max_tokens, remaining)
 
 
 class MemorySafetyError(RuntimeError):
@@ -794,6 +826,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--repetition-penalty", type=float, default=1.05)
     bridge = commands.add_parser("bridge", help=argparse.SUPPRESS)
     bridge.add_argument("model", help="registered model name or local model directory")
+    bridge.add_argument("--context-length", type=int, default=0, help=argparse.SUPPRESS)
     return parser
 
 
@@ -927,7 +960,7 @@ def _load_model(model_path: Path):
         from mlxl3.tokenizer import cache_detokenizer_metadata
         cache_detokenizer_metadata(tokenizer)
     if _WARM_MODEL_ON_LOAD:
-        _warm_model(model, tokenizer)
+        model._mlxl3_context_memory = _warm_model(model, tokenizer)
     return (
         model,
         tokenizer,
@@ -937,7 +970,29 @@ def _load_model(model_path: Path):
     )
 
 
-def _warm_model(model: Any, tokenizer: Any, *, prompt_tokens: int = 32) -> None:
+def _context_memory_profile(caches) -> dict | None:
+    """Extrapolate the caches actually created by warmup, without allocating a long context."""
+    from mlx_lm.models.cache import ArraysCache, KVCache, RotatingKVCache
+
+    layers, fixed = [], 0
+    for cache in caches:
+        if isinstance(cache, (KVCache, RotatingKVCache)):
+            if cache.keys is None or cache.values is None:
+                return None
+            layers.append({
+                "bytes_per_token": sum(x.nbytes // x.shape[2] for x in (cache.keys, cache.values)),
+                "max_tokens": cache.max_size if isinstance(cache, RotatingKVCache) else None,
+                "step": cache.step,
+            })
+        elif type(cache) is ArraysCache:
+            fixed += cache.nbytes
+        else:
+            # Unknown cache layouts must not produce a misleading fit estimate.
+            return None
+    return {"layers": layers, "fixed_bytes": fixed}
+
+
+def _warm_model(model: Any, tokenizer: Any, *, prompt_tokens: int = 32) -> dict | None:
     """Compile representative prefill/decode graphs before reporting ready."""
 
     import mlx.core as mx
@@ -952,7 +1007,9 @@ def _warm_model(model: Any, tokenizer: Any, *, prompt_tokens: int = 32) -> None:
     mx.eval(next_token)
     decode_logits = model(next_token[:, None], cache=prompt_cache)
     mx.eval(decode_logits)
+    profile = _context_memory_profile(prompt_cache)
     mx.clear_cache()
+    return profile
 
 
 def _prefix_processors(processors, prefix, windows):
@@ -998,6 +1055,8 @@ def _stream_response(
     session: GenerationSession | None = None,
     should_cancel: Callable[[], bool] | None = None,
     on_status: Callable[[str], None] | None = None,
+    context_limit: int = 0,
+    on_context: Callable[[int, int], None] | None = None,
 ) -> tuple[str, GenerationStats]:
     import mlx.core as mx
     from mlx_lm import stream_generate
@@ -1022,7 +1081,7 @@ def _stream_response(
     generation_prompt: str | list[int] = prompt
     prompt_cache = None
     tokenizer_encode_seconds = 0.0
-    if session is not None:
+    if session is not None or context_limit > 0:
         add_special_tokens = tokenizer.bos_token is None or not prompt.startswith(
             tokenizer.bos_token
         )
@@ -1031,6 +1090,10 @@ def _stream_response(
             tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
         )
         tokenizer_encode_seconds += time.monotonic() - encode_started
+        if on_context is not None:
+            on_context(len(full_prompt_tokens), context_limit)
+        max_tokens = _context_output_budget(len(full_prompt_tokens), context_limit, max_tokens)
+    if session is not None:
         stable_template_started = time.monotonic()
         stable_prompt = _render_generation_prompt(
             tokenizer,
@@ -1111,6 +1174,8 @@ def _stream_response(
             if response.text and first_visible_at is None:
                 first_visible_at = time.monotonic()
             final = response
+            if on_context is not None and response.generation_tokens % 32 == 0:
+                on_context(len(full_prompt_tokens or []) + response.generation_tokens, context_limit)
             if session is not None:
                 generated_token_ids.append(int(response.token))
             pieces.append(response.text)
@@ -1132,6 +1197,9 @@ def _stream_response(
     if final is None or first_token_at is None:
         raise RuntimeError("generation returned no response")
     text = "".join(pieces)
+    context_used = (len(full_prompt_tokens) if full_prompt_tokens is not None else final.prompt_tokens) + final.generation_tokens
+    if on_context is not None:
+        on_context(context_used, context_limit)
     if (
         session is not None
         and full_prompt_tokens is not None
@@ -1168,6 +1236,8 @@ def _stream_response(
         tokenizer_encode_seconds=tokenizer_encode_seconds,
         stream_setup_seconds=stream_setup_seconds,
         suffix_prefill_chunk_seconds=suffix_prefill_chunk_seconds,
+        context_used=context_used,
+        context_limit=context_limit,
     )
 
 
@@ -1319,6 +1389,7 @@ def _bridge_generate(
     mcp: MCPManager,
     session: GenerationSession | None = None,
     should_cancel: Callable[[], bool] | None = None,
+    context_limit: int = 0,
 ) -> None:
     dialogue = list(messages)
     session = session or GenerationSession()
@@ -1361,6 +1432,10 @@ def _bridge_generate(
             on_status=lambda label: _json_event(
                 "generation_status", request_id=request_id, phase="prefill", text=label,
             ),
+            context_limit=context_limit,
+            on_context=lambda used, limit: _json_event(
+                "context_usage", request_id=request_id, used_tokens=used, context_limit=limit,
+            ),
         )
         for phase, fragment in splitter.finish():
             _emit_split_fragment(
@@ -1374,13 +1449,15 @@ def _bridge_generate(
                 _json_event("delta", request_id=request_id, phase="answer", text=visible)
 
         calls = _parse_tool_calls(response) if chat_tools else []
-        if not calls:
+        context_full = context_limit > 0 and stats.context_used >= context_limit
+        if not calls or context_full:
             _json_event(
                 "complete",
                 request_id=request_id,
                 assistant_context=_without_tool_calls(response),
                 cache_context=_cache_context(response),
                 stats=asdict(stats),
+                context_full=context_full,
             )
             return
         if tool_round == 4:
@@ -1433,6 +1510,11 @@ def _bridge_generate(
 
 def _bridge(args) -> int:
     name, path = resolve_model(args.model)
+    model_context_limit = _model_context_limit(path)
+    requested_context = getattr(args, "context_length", 0)
+    if requested_context < 0 or requested_context > model_context_limit:
+        raise ValueError(f"context length must be between 1 and {model_context_limit}, or 0 for automatic")
+    context_limit = requested_context or model_context_limit
     _json_event("loading", model=name)
     model, tokenizer, modules, load_seconds, resident_gb = _load_model(path)
     sessions = GenerationSessionPool()
@@ -1451,6 +1533,9 @@ def _bridge(args) -> int:
             mcp_servers=mcp.connected_server_count,
             mcp_tools=len(mcp.tools),
             mcp_errors=mcp.errors,
+            context_limit=context_limit,
+            model_context_limit=model_context_limit,
+            context_memory=getattr(model, "_mlxl3_context_memory", None),
         )
 
         for line in sys.stdin:
@@ -1500,6 +1585,7 @@ def _bridge(args) -> int:
                     mcp=mcp,
                     session=sessions.acquire(conversation_id),
                     should_cancel=cancel_requested.is_set,
+                    context_limit=context_limit,
                 )
                 sessions.prune(conversation_id)
             except GenerationCancelled:

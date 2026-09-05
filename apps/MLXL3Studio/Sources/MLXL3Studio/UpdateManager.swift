@@ -558,29 +558,29 @@ private enum UpdateError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .releaseLookupFailed:
-            "GitHub ne répond pas correctement. Réessaie dans quelques instants."
+            L("GitHub ne répond pas correctement. Réessaie dans quelques instants.", "GitHub is not responding correctly. Try again shortly.")
         case .invalidRelease:
-            "La dernière release GitHub n’est pas valide."
+            L("La dernière release GitHub n’est pas valide.", "The latest GitHub release is invalid.")
         case let .invalidVersion(version):
-            "Version de release invalide : \(version)."
+            L("Version de release invalide : \(version).", "Invalid release version: \(version).")
         case .missingDiskImage:
-            "Cette release ne contient pas de DMG Apple Silicon."
+            L("Cette release ne contient pas de DMG Apple Silicon.", "This release has no Apple Silicon DMG.")
         case .downloadFailed:
-            "Le téléchargement de la mise à jour a échoué."
+            L("Le téléchargement de la mise à jour a échoué.", "The update download failed.")
         case .missingDigest:
-            "GitHub n’a pas fourni l’empreinte SHA-256 de la release."
+            L("GitHub n’a pas fourni l’empreinte SHA-256 de la release.", "GitHub did not provide a SHA-256 checksum for the release.")
         case .integrityCheckFailed:
-            "L’empreinte SHA-256 du DMG ne correspond pas à la release GitHub."
+            L("L’empreinte SHA-256 du DMG ne correspond pas à la release GitHub.", "The DMG checksum does not match the GitHub release.")
         case .notRunningFromApp:
-            "L’installation automatique fonctionne depuis MLXL3 Desktop.app."
+            L("L’installation automatique fonctionne depuis MLXL3 Desktop.app.", "Automatic installation requires MLXL3 Desktop.app.")
         case .applicationNotWritable:
-            "MLXL3 Desktop doit être placé dans un dossier modifiable, par exemple Applications."
+            L("MLXL3 Desktop doit être placé dans un dossier modifiable, par exemple Applications.", "MLXL3 Desktop must be in a writable folder, such as Applications.")
         case .invalidDiskImage:
-            "Le DMG téléchargé ne contient pas une application MLXL3 valide."
+            L("Le DMG téléchargé ne contient pas une application MLXL3 valide.", "The downloaded DMG does not contain a valid MLXL3 app.")
         case .invalidApplication:
-            "La nouvelle application a une identité ou une version invalide."
+            L("La nouvelle application a une identité ou une version invalide.", "The new app has an invalid identity or version.")
         case let .commandFailed(message):
-            "La préparation de la mise à jour a échoué : \(message)"
+            L("La préparation de la mise à jour a échoué : \(message)", "Update preparation failed: \(message)")
         }
     }
 }

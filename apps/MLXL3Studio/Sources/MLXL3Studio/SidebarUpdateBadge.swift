@@ -13,8 +13,8 @@ struct SidebarUpdateBadge: View {
                     .frame(width: 28, height: 28)
             }
             .buttonStyle(StudioControlStyle())
-            .help("Mise à jour disponible")
-            .accessibilityLabel("Mise à jour disponible")
+            .help(L("Mise à jour disponible", "Update available"))
+            .accessibilityLabel(L("Mise à jour disponible", "Update available"))
         }
     }
 }

@@ -131,6 +131,23 @@ demand. When a newer all-in-one DMG is available, it downloads in the background
 verifies GitHub's SHA-256 digest, then offers **Restart and install**. The engine
 and native UI are versioned and updated together so their protocol stays in sync.
 
+### Language and context settings
+
+Choose **Français / English** in **Settings → App language**. The choice is
+saved across restarts and does not translate your conversations.
+Click the token counter beside the composer to open **Generation settings → Context**.
+It counts the last submitted prompt, tool results and generated tokens (not the unsent draft).
+Set a token limit, then click **Save and reload model**; the limit is saved per model.
+`0` uses the model's declared maximum (32,768 if the config does not declare one).
+Reloading clears the engine cache, not conversation history. Inputs that exceed
+the limit are rejected without silently dropping messages.
+
+The live **Model + context** estimate uses resident model memory and the actual
+cache shapes/dtypes observed during warmup, including recurrent states and
+sliding windows. It estimates one full conversation, not peak app RAM: compute
+buffers, other cached conversations and macOS require additional headroom.
+Unknown cache layouts or disabled warmup show an unavailable estimate, not a guessed number.
+
 ### MCP tools — Exa included, off by default
 
 The **MCP switch in the message composer** enables/disables tools for the app.
@@ -216,7 +233,7 @@ environment automatically. A different executable can be selected with
 On an M1, M2, M3, M4, or M5 Mac running macOS 26.2 or newer:
 
 1. Download
-   `MLXL3-Desktop-v0.4.1-Apple-Silicon.dmg`, open it, and drag
+   `MLXL3-Desktop-v0.4.2-Apple-Silicon.dmg`, open it, and drag
    **MLXL3 Desktop** into Applications.
 2. Launch the app. No Python, Homebrew, MLX, Hugging Face CLI, or Terminal setup
    is required. The current build is ad-hoc signed rather than Apple-notarized,

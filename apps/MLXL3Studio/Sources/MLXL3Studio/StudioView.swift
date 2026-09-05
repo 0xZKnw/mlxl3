@@ -46,6 +46,8 @@ struct StudioView: View {
                 }
             }
         }
+        .id(studio.language)
+        .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .background(StudioTheme.sidebar)
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
@@ -88,7 +90,7 @@ private struct SidebarView: View {
             Button(action: studio.newConversation) {
                 HStack(spacing: 10) {
                     Image(systemName: "square.and.pencil").font(.system(size: 14))
-                    Text("Nouvelle conversation").font(.system(size: 12, weight: .medium))
+                    Text(L("Nouvelle conversation", "New conversation")).font(.system(size: 12, weight: .medium))
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 11)
@@ -96,17 +98,17 @@ private struct SidebarView: View {
             }
             .buttonStyle(StudioControlStyle(emphasized: true))
             .padding(.horizontal, 12)
-            .help("Nouvelle conversation · ⌘N")
+            .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
 
             HStack(spacing: 9) {
                 Image(systemName: "magnifyingglass").font(.system(size: 12))
-                TextField("Rechercher", text: $search)
+                TextField(L("Rechercher", "Search"), text: $search)
                     .textFieldStyle(.plain)
-                    .accessibilityLabel("Rechercher dans les titres des conversations")
+                    .accessibilityLabel(L("Rechercher dans les titres des conversations", "Search conversation titles"))
                 if !search.isEmpty {
                     Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain)
-                        .help("Effacer la recherche")
+                        .help(L("Effacer la recherche", "Clear search"))
                 }
             }
             .font(.system(size: 12))
@@ -138,13 +140,13 @@ private struct SidebarView: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            Button("Supprimer", role: .destructive) {
+                            Button(L("Supprimer", "Delete"), role: .destructive) {
                                 studio.deleteConversation(conversation.id)
                             }
                         }
                     }
                     if filteredConversations.isEmpty {
-                        Text(search.isEmpty ? "Vos conversations apparaîtront ici." : "Aucune conversation trouvée.")
+                        Text(search.isEmpty ? L("Vos conversations apparaîtront ici.", "Your conversations will appear here.") : L("Aucune conversation trouvée.", "No conversations found."))
                             .font(.system(size: 12))
                             .foregroundStyle(StudioTheme.quiet)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -158,9 +160,9 @@ private struct SidebarView: View {
             VStack(spacing: 2) {
                 Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
                     .padding(.horizontal, 10).padding(.bottom, 12)
-                utilityButton("Modèles", icon: "square.stack", action: studio.openModelManager)
+                utilityButton(L("Modèles", "Models"), icon: "square.stack", action: studio.openModelManager)
                 HStack(spacing: 0) {
-                    utilityButton("Réglages", icon: "gearshape", action: studio.openAppSettings)
+                    utilityButton(L("Réglages", "Settings"), icon: "gearshape", action: studio.openAppSettings)
                     SidebarUpdateBadge(updater: studio.updateManager, action: studio.openAppSettings)
                         .padding(.trailing, 8)
                 }
@@ -192,7 +194,8 @@ private struct ConversationRow: View {
             RoundedRectangle(cornerRadius: 1)
                 .fill(selected ? StudioTheme.ink : .clear)
                 .frame(width: 2, height: 13)
-            Text(conversation.title)
+            Text(conversation.messages.isEmpty && ["Nouvelle conversation", "New conversation"].contains(conversation.title)
+                 ? L("Nouvelle conversation", "New conversation") : conversation.title)
                 .font(.system(size: 13, weight: selected ? .medium : .regular))
                 .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.secondary)
                 .lineLimit(1)
@@ -239,8 +242,8 @@ private struct WorkspaceHeader: View {
                 Image(systemName: "sidebar.left").frame(width: 30, height: 30)
             }
             .buttonStyle(StudioControlStyle())
-            .help(sidebarVisible ? "Masquer l’historique" : "Afficher l’historique")
-            .accessibilityLabel("Afficher ou masquer l’historique")
+            .help(sidebarVisible ? L("Masquer l’historique", "Hide history") : L("Afficher l’historique", "Show history"))
+            .accessibilityLabel(L("Afficher ou masquer l’historique", "Toggle history"))
             .keyboardShortcut("s", modifiers: [.command, .control])
 
             Text(studio.currentConversation?.messages.isEmpty == false
@@ -264,12 +267,12 @@ private struct WorkspaceHeader: View {
                 }
                 if !studio.models.isEmpty { Divider() }
                 Button(action: studio.openModelManager) {
-                    Label("Ajouter un modèle…", systemImage: "square.and.arrow.down")
+                    Label(L("Ajouter un modèle…", "Add a model…"), systemImage: "square.and.arrow.down")
                 }
             } label: {
                 HStack(spacing: 8) {
                     StatusDot(state: studio.engineState)
-                    Text(studio.selectedModelName ?? "Choisir un modèle")
+                    Text(studio.selectedModelName ?? L("Choisir un modèle", "Choose a model"))
                         .font(.system(size: 11, weight: .medium))
                         .lineLimit(1).truncationMode(.middle)
                     Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
@@ -286,22 +289,22 @@ private struct WorkspaceHeader: View {
             .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 6))
             .disabled(studio.isGenerating)
             .help(studio.engineState.label)
-            .accessibilityLabel("Modèle : \(studio.selectedModelName ?? "aucun")")
+            .accessibilityLabel(L("Modèle : \(studio.selectedModelName ?? "aucun")", "Model: \(studio.selectedModelName ?? "none")"))
 
             Button(action: studio.ejectModel) {
                 Image(systemName: "eject").frame(width: 30, height: 30)
             }
             .buttonStyle(StudioControlStyle())
             .disabled(!studio.canEject)
-            .help("Éjecter le modèle et libérer la mémoire Metal")
-            .accessibilityLabel("Éjecter le modèle")
+            .help(L("Éjecter le modèle et libérer la mémoire Metal", "Eject the model and free Metal memory"))
+            .accessibilityLabel(L("Éjecter le modèle", "Eject model"))
 
             Button { studio.showInspector.toggle() } label: {
                 Image(systemName: "slider.horizontal.3").frame(width: 30, height: 30)
             }
             .buttonStyle(StudioControlStyle(emphasized: studio.showInspector))
-            .help("Réglages de génération")
-            .accessibilityLabel("Réglages de génération")
+            .help(L("Réglages de génération", "Generation settings"))
+            .accessibilityLabel(L("Réglages de génération", "Generation settings"))
         }
         .font(.system(size: 13))
         .padding(.horizontal, 19)
@@ -320,13 +323,13 @@ private struct WelcomeView: View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 32)
             VStack(alignment: .leading, spacing: 14) {
-                Text("Nouvelle conversation")
+                Text(L("Nouvelle conversation", "New conversation"))
                     .font(.system(size: 34, weight: .regular, design: .serif))
                     .tracking(-0.8)
                     .foregroundStyle(StudioTheme.ink)
                 Text(studio.models.isEmpty
-                     ? "Ajoutez un modèle pour commencer."
-                     : "Échangez avec un modèle exécuté sur ce Mac.")
+                     ? L("Ajoutez un modèle pour commencer.", "Add a model to get started.")
+                     : L("Échangez avec un modèle exécuté sur ce Mac.", "Chat with a model running on this Mac."))
                     .font(.system(size: 13))
                     .foregroundStyle(StudioTheme.quiet)
             }
@@ -336,7 +339,7 @@ private struct WelcomeView: View {
             ComposerView()
 
             if case let .failed(message) = studio.engineState {
-                DisclosureGroup("Le modèle n’a pas pu être chargé") {
+                DisclosureGroup(L("Le modèle n’a pas pu être chargé", "The model could not be loaded")) {
                     Text(message)
                         .font(.system(size: 11, design: .monospaced))
                         .textSelection(.enabled)
@@ -349,12 +352,12 @@ private struct WelcomeView: View {
 
             HStack(spacing: 18) {
                 Button(action: studio.openModelManager) {
-                    Label(studio.models.isEmpty ? "Ajouter un modèle" : "Gérer les modèles", systemImage: "square.stack")
+                    Label(studio.models.isEmpty ? L("Ajouter un modèle", "Add a model") : L("Gérer les modèles", "Manage models"), systemImage: "square.stack")
                 }
                 .buttonStyle(.plain)
-                .help("Importer ou télécharger un modèle EXL3")
+                .help(L("Importer ou télécharger un modèle EXL3", "Import or download an EXL3 model"))
                 Spacer()
-                Text("⌘N  Nouvelle conversation")
+                Text(L("⌘N  Nouvelle conversation", "⌘N  New conversation"))
             }
             .font(.system(size: 10))
             .foregroundStyle(StudioTheme.quiet)

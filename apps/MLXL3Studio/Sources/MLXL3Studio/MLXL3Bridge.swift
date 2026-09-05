@@ -9,11 +9,11 @@ enum MLXL3BridgeError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .executableNotFound:
-            "Runtime MLXL3 introuvable. Réinstalle MLXL3 Desktop depuis le DMG."
+            L("Runtime MLXL3 introuvable. Réinstalle MLXL3 Desktop depuis le DMG.", "MLXL3 runtime not found. Reinstall MLXL3 Desktop from the DMG.")
         case let .commandFailed(message):
             message
         case .invalidResponse:
-            "La commande mlxl3 a renvoyé une réponse illisible."
+            L("La commande mlxl3 a renvoyé une réponse illisible.", "The mlxl3 command returned an unreadable response.")
         }
     }
 }
@@ -178,7 +178,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                     let details = String(
                         data: (try? Data(contentsOf: errorURL)) ?? Data(),
                         encoding: .utf8
-                    ) ?? "Échec de la commande MLXL3"
+                    ) ?? L("Échec de la commande MLXL3", "MLXL3 command failed")
                     throw MLXL3BridgeError.commandFailed(
                         details.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
@@ -191,7 +191,7 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
-    func start(model: String) throws {
+    func start(model: String, contextLength: Int = 0) throws {
         stop()
         guard let executable = CLIResolver.executable() else {
             throw MLXL3BridgeError.executableNotFound
@@ -209,7 +209,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             deltaFlushWorkItem = nil
         }
         process.executableURL = executable
-        process.arguments = ["bridge", model]
+        process.arguments = ["bridge", model, "--context-length", String(contextLength)]
         // Group shared KV heads for Gemma d=512 decode; other cases retain
         // the reference path. Preserve explicit overrides for comparisons.
         var environment = ProcessInfo.processInfo.environment
@@ -245,7 +245,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 let message = details?.isEmpty == false
                     ? details
-                    : "Le moteur MLXL3 s’est arrêté de façon inattendue."
+                    : L("Le moteur MLXL3 s’est arrêté de façon inattendue.", "The MLXL3 engine stopped unexpectedly.")
                 self.process = nil
                 self.inputPipe = nil
                 DispatchQueue.main.async { self.onExit?(message) }
@@ -259,7 +259,7 @@ final class MLXL3Bridge: @unchecked Sendable {
 
     func generate(_ request: GenerationRequest) throws {
         guard let process, process.isRunning, let inputPipe else {
-            throw MLXL3BridgeError.commandFailed("Le moteur MLXL3 n’est pas prêt.")
+            throw MLXL3BridgeError.commandFailed(L("Le moteur MLXL3 n’est pas prêt.", "The MLXL3 engine is not ready."))
         }
         var data = try JSONEncoder().encode(request)
         data.append(0x0A)
@@ -268,7 +268,7 @@ final class MLXL3Bridge: @unchecked Sendable {
 
     func setMCPEnabled(_ enabled: Bool) throws {
         guard let process, process.isRunning, let inputPipe else {
-            throw MLXL3BridgeError.commandFailed("Le moteur MLXL3 n’est pas prêt.")
+            throw MLXL3BridgeError.commandFailed(L("Le moteur MLXL3 n’est pas prêt.", "The MLXL3 engine is not ready."))
         }
         var data = try JSONSerialization.data(withJSONObject: ["type": "set_mcp", "enabled": enabled])
         data.append(0x0A)
@@ -313,7 +313,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                     assistantContext: nil,
                     cacheContext: nil,
                     stats: nil,
-                    message: "Réponse moteur invalide: \(raw)",
+                    message: L("Réponse moteur invalide: \(raw)", "Invalid engine response: \(raw)"),
                     mcpServers: nil,
                     mcpTools: nil,
                     mcpErrors: nil,

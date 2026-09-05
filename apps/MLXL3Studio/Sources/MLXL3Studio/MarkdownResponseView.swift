@@ -753,14 +753,14 @@ private struct CodeBlockView: View {
                     .foregroundStyle(StudioTheme.quiet)
                 Spacer()
                 Button(action: copySource) {
-                    Label(copied ? "Copié" : "Copier", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    Label(copied ? L("Copié", "Copied") : L("Copier", "Copy"), systemImage: copied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(copied ? StudioTheme.accent : StudioTheme.secondary)
                         .padding(.horizontal, 9)
                         .frame(height: 25)
                 }
                 .buttonStyle(StudioControlStyle())
-                .help("Copier tout le bloc")
+                .help(L("Copier tout le bloc", "Copy entire block"))
             }
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(chunks) { chunk in
