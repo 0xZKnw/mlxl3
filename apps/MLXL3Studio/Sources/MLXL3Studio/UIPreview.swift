@@ -35,6 +35,25 @@ extension StudioModel {
         ])
         studio.conversations = [Conversation(), sample, Conversation(title: "Notes de lecture"), Conversation(title: "Idées pour un projet personnel")]
         studio.selectedConversationID = studio.conversations.first?.id
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-tools") {
+            let response = ChatMessage(role: .assistant, content: "", isStreaming: true)
+            response.processing("Préparation du contexte")
+            response.append("Je vais consulter la documentation officielle avec Exa.", phase: "thinking")
+            response.startTool(id: "preview-exa", serverName: "exa", toolName: "web_search_exa")
+            response.finishTool(id: "preview-exa", result: "Documentation MLX · cache de prompt et évaluation différée.", isError: false)
+            response.processing("Lecture des résultats MCP · 3 737 nouveaux tokens · 950 en cache")
+            let conversation = Conversation(title: "Recherche avec Exa", messages: [
+                ChatMessage(role: .user, content: "Cherche la documentation du cache MLX avec Exa."), response
+            ])
+            studio.conversations = [conversation]
+            studio.selectedConversationID = conversation.id
+            // Dedicated visual QA fixture; no model, tool call or real history.
+            if ProcessInfo.processInfo.arguments.contains("--ui-preview-tools-complete") {
+                response.append("Les résultats sont disponibles. Je vais distinguer le cache de prompt et le cache d’allocations.", phase: "thinking")
+                response.append("### Deux caches différents\n\nLe **cache de prompt** réutilise les calculs du contexte. Le cache d’allocations conserve des buffers disponibles.\n\n```python\nmx.clear_cache()\n```", phase: "answer")
+                response.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+            }
+        }
         return studio
     }
 }

@@ -4,9 +4,24 @@ import SwiftUI
 struct MLXL3StudioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var studio: StudioModel
-    private let isPreview = ProcessInfo.processInfo.arguments.contains("--ui-preview")
+    // A QA bundle must stay isolated even when macOS relaunches it without args.
+    private static var previewProcess: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-preview")
+            || Bundle.main.bundleIdentifier == "io.mlxl3.designreview"
+    }
+    private let isPreview = Self.previewProcess
 
     init() {
+        if ProcessInfo.processInfo.arguments.contains("--check-chat-timeline") {
+            do {
+                try ChatTimelineCheck.run()
+                print("Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation")
+                exit(0)
+            } catch {
+                print("Chat timeline checks failed: \(error)")
+                exit(1)
+            }
+        }
         if ProcessInfo.processInfo.arguments.contains("--check-mcp-preferences") {
             do {
                 try MCPPreferenceCheck.run()
@@ -17,7 +32,7 @@ struct MLXL3StudioApp: App {
                 exit(1)
             }
         }
-        let preview = ProcessInfo.processInfo.arguments.contains("--ui-preview")
+        let preview = Self.previewProcess
         _studio = StateObject(wrappedValue: preview ? StudioModel.uiPreview() : StudioModel())
     }
 

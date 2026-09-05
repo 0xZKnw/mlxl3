@@ -1,0 +1,947 @@
+{"kind": "manifest", "git": "357f23e326a40aeba2e5d99bc06c390c87e58932", "dirty": "M apps/MLXL3Studio/Sources/MLXL3Studio/ChatComponents.swift\n M apps/MLXL3Studio/Sources/MLXL3Studio/ConversationStore.swift\n M apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift\n M apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift\n M src/mlxl3/cli.py\n?? benchmarks/benchmark_tool_prefill.py\n?? benchmarks/results/tool_prefill_rd_01.jsonl\n?? tmp/", "diff_sha256": "6aae0927ccf0c488bc6d115b075a8a1fae8d6c18b2368f9a093b3b73f419124c", "mlx": "0.32.2", "mlx_lm": "0.32.0", "mlx_lm_origin": "{\"url\": \"https://github.com/ml-explore/mlx-lm.git\", \"vcs_info\": {\"commit_id\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"requested_revision\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"vcs\": \"git\"}}", "os": "macOS-26.6.2-arm64-arm-64bit", "os_build": "25G83", "sdk": "26.5", "device": {"device_name": "Apple M5", "max_recommended_working_set_size": 19069665280, "memory_size": 25769803776, "architecture": "applegpu_g17g", "max_buffer_length": 14302248960, "resource_limit": 499000}, "flags": {}, "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw", "metadata_sha256": {"config.json": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51", "configuration.json": "c1b09db419119513247e9b8b912c4b9897106c9b20c6cada7e107d993c5435eb", "generation_config.json": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e", "model.safetensors.index.json": "2bd8127e0d395d375a931c2cbd5e5d1615756b7cbc21958abeabed21eae12b94", "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516", "quantization_config.json": "baf853ee4faea8c8b7e359defff3a4f52ecbba1b0f52e7f037d5c812c3fb25b5", "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42", "tokenizer_config.json": "5186f0defcd7f232382c7f0aebcd2252d073bb921ab240e407b7ae8745d2b29b", "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13", "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"}, "weights_hashed": false, "gpu_time": null, "thermal_state": "unmeasured", "contract": "Q0 addressing/lifetime; no new quantization or sampling change"}
+{"kind": "loaded", "active_gb": 12.078398706}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Préparation du contexte"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Lecture du contexte · 724 nouveaux tokens · 0 en cache"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Traitement du contexte · 724 nouveaux tokens · 0 en cache"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Préparation de la réponse · 0 / 5 tokens restants traités"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Préparation de la réponse · 4 / 5 tokens restants traités"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"The"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" user"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" wants"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" search"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" official"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" documentation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" of"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" using"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ex"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":".web"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_search"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_ex"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" tool"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Then"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":","}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" I"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" need"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" summarize"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" results"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" in"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" French"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"1"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Search"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Query"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" I"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" need"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" construct"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" query"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" that"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" targets"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" official"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" documentation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" is"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" likely"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" related"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Apple"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"'s"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" framework"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Machine"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Learning"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Apple"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Silicon"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Query"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"official"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" documentation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" or"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Apple"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" documentation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" I"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" should"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" look"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" official"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" sources"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"like"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" apple"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":".com"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" or"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" github"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":".com"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"/apple"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"/ml"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"x"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"2"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Tool"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Call"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ex"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":".web"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_search"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_ex"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" with"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" query"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"3"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Summary"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" After"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" receiving"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" results"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":","}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" I"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" will"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" summarize"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" them"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" in"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" French"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Let"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"'s"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" start"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" with"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" search"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"\n"}
+{"kind": "round", "messages": [{"role": "user", "content": "Utilise exa.web_search_exa pour chercher la documentation officielle du cache MLX. Résume les résultats en français."}], "response": "The user wants to search for the official documentation of the MLX cache using the `exa.web_search_exa` tool.\nThen, I need to summarize the results in French.\n\n1.  **Search Query**: I need to construct a query that targets the official documentation for \"MLX cache\". MLX is likely related to Apple's MLX framework (Machine Learning for Apple Silicon).\n    *   Query: \"official documentation MLX cache\" or \"Apple MLX cache documentation\".\n    *   I should look for official sources (like apple.com or github.com/apple/mlx).\n\n2.  **Tool Call**: `exa.web_search_exa` with the query.\n\n3.  **Summary**: After receiving the results, I will summarize them in French.\n\nLet's start with the search.\n</think>\n\n<tool_call>\n<function=exa.web_search_exa>\n<parameter=query>\nofficial documentation MLX cache Apple\n</parameter>\n<parameter=numResults>\n10\n</parameter>\n</function>\n</tool_call>", "ttft_seconds": 2.1755720420042053, "prefill_tps": 347.5993986624593, "decode_tps": 36.96925048698552, "prompt_tokens": 729, "generated_tokens": 221, "peak_memory_gb": 13.078607684, "cached_prompt_tokens": 0, "evaluated_prompt_tokens": 729, "template_seconds": 0.014083334004681092, "stable_prefill_seconds": 1.9609311660024105, "stable_prefill_tokens": 724, "cache_fork_seconds": 0.005476874997839332, "first_visible_text_seconds": 2.17557187499915, "cache_lookup_seconds": 8.216699643526226e-05, "tokenizer_encode_seconds": 0.0019564169997465797, "stream_setup_seconds": 0.061446167004760355, "suffix_prefill_chunk_seconds": 0.0649912909939303}
+{"type":"tool_start","request_id":"rd-real-1","tool_call_id":"mcp-0-2-exa.web_search_exa","tool_name":"exa.web_search_exa","server_name":"exa"}
+{"kind": "replay_tool", "name": "exa.web_search_exa", "arguments": {"query": "official documentation MLX cache Apple", "numResults": 10}}
+{"type":"tool_result","request_id":"rd-real-1","tool_call_id":"mcp-0-2-exa.web_search_exa","tool_name":"exa.web_search_exa","server_name":"exa","text":"Title: Lazy Evaluation — MLX 0.32.1 documentation\nURL: https://ml-explore.github.io/mlx/build/html/usage/lazy_evaluation.html\nPublished: N/A\nAuthor: N/A\nHighlights:\nLazy Evaluation — MLX 0.32.2 documentation\n...\nWhen you perform operations in MLX, no computation actually happens. Instead a compute graph is recorded. The actual computation only happens if an `eval()` is performed.\n...\nMLX uses lazy evaluation because it has some nice features, some of which we describe below.\n...\nLazy evaluation lets us record a compute graph without actually doing any computations. This is useful for function transformations like `grad()` and `vmap()` and graph optimizations.\n...\nCurrently, MLX does not compile and rerun compute graphs. They are all generated dynamically. However, lazy evaluation makes it much easier to integrate compilation for future performance enhancements.\n...\nSimilarly, lazy evaluation can be beneficial for saving memory while keeping code simple. Say you have a very large model `Model` derived from `mlx.nn.Module`. You can instantiate this model with `model = Model()`. Typically, this will initialize all of the weights as `float32`, but the initialization does not actually compute anything until you perform an `eval()`. If you update the model with `float16` weights, your maximum consumed memory will be half that required if eager computation was used instead.\n...\nThis pattern is simple to do in MLX thanks to lazy computation:\n...\n```\nmodel = Model() # no memory used yet\nmodel.load_weights(\"weights_fp16.safetensors\")\n...\nA common question is when to use `eval()`. The trade-off is between letting graphs get too large and not batching enough useful work.\n...\nThis is a bad idea because there is some fixed overhead with each graph evaluation. On the other hand, there is some slight overhead which grows with the compute graph size, so extremely large graphs (while computationally correct) can be costly.\n...\nLuckily, a wide range of compute graph sizes work pretty well with MLX: anything from a few tens of operations to many thousands of operations per evaluation should be okay.\n...\nMost numerical computations have an iterative outer loop (e.g. the iteration in stochastic gradient descent). A natural and usually efficient place to use `eval()` is at each iteration of this outer loop.\n...\nAn important behavior to be aware of is when the graph will be implicitly evaluated. Anytime you `print` an array, convert it to an `numpy.ndarray`, or otherwise access its memory via `memoryview`, the graph will be evaluated. Saving arrays via `save()` (or any other MLX saving functions) will also evaluate the array.\n...\nCalling `array.item()` on a scalar array will also evaluate it. In the example above, printing the loss (`print(loss)`) or adding the loss scalar to a list (`losses.append(loss.item())`) would cause a graph evaluation. If these lines are before `mx.eval(loss, model.parameters())` then this will be a partial evaluation, computing only the forward pass.\n...\nAlso, calling `eval()` on an array or set of arrays multiple times is perfectly fine. This is effectively a no-op.\n...\nused with gradient transformations\n\n---\n\nTitle: ml-explore/mlx-lm: Run LLMs with MLX\nURL: https://github.com/ml-explore/mlx-lm\nPublished: N/A\nAuthor: N/A\nHighlights:\n### Long Prompts and Generations \n\n`mlx-lm` has some tools to scale efficiently to long prompts and generations:\n...\n- A rotating fixed-size key-value cache.\n- Prompt caching\n- A configurable prefill step size\n...\nTo use the rotating key-value cache pass the argument `--max-kv-size n` where\n`n` can be any integer. Smaller values like `512` will use very little RAM but\nresult in worse quality. Larger values like `4096` or higher will use more RAM\nbut have better quality.\n...\nLong prompts are read in steps, and the step size sets how many prompt tokens\nare processed at once. Smaller steps use less peak memory while the prompt is\nread, at some cost to prompt processing speed. To change it pass\n`--","is_error":false}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Lecture des résultats MCP"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Lecture du contexte · 3,737 nouveaux tokens · 950 en cache"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Traitement du contexte · 3,737 nouveaux tokens · 950 en cache"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Préparation de la réponse · 0 / 5 tokens restants traités"}
+{"type":"generation_status","request_id":"rd-real-1","phase":"prefill","text":"Préparation de la réponse · 4 / 5 tokens restants traités"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"The"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" user"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" wants"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" summarize"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" official"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" documentation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" in"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" French"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"The"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" search"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" results"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" provided"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" information"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" about"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"1"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Lazy"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Evaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" uses"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" lazy"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" evaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":","}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" meaning"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" operations"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" are"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" recorded"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" in"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" graph"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" and"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" only"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" executed"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" when"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"eval"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"()`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" is"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" called"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" This"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" helps"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" with"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" memory"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" management"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" and"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" optimization"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"2"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"mlx"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-l"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"m"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" This"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" is"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" library"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" running"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" L"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"LM"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"s"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" with"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" It"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" mentions"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" specific"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" caching"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" mechanisms"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Rot"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ating"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" fixed"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-size"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" key"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-value"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Used"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" long"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompts"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" and"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" generations"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Config"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"urable"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" via"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"--"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"max"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-k"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"v"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-size"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" caching"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Allows"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" saving"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" and"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" re"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"using"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" pre"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-com"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"puted"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" caches"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" speed"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" up"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" inference"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Memory"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" wiring"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Mention"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ed"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" macOS"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" 1"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"5"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"+"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" speed"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" up"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" large"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" models"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"3"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Source"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Code"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" (`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":".py"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")**"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Shows"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" implementation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" details"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" like"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Rot"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ating"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`,"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Concat"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"enate"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`,"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Batch"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`,"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" and"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" functions"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" save"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"/load"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" caches"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" (`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"save"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`,"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"load"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"_cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`)."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"I"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" need"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" syn"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"thesize"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" this"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" information"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" into"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" French"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" summary"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Key"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" points"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cover"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Lazy"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Evaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Explain"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" that"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" doesn"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"'t"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" compute"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" immediately"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" but"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" builds"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" graph"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":","}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" evaluating"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" only"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" when"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" necessary"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" (`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"eval"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"()`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" This"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" is"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" crucial"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" memory"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" efficiency"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Key"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Value"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")**"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Specifically"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" L"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"LM"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"s"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"mlx"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-l"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"m"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Rot"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ating"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Keeps"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" fixed"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" size"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":","}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" disc"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"arding"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" old"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" tokens"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" save"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" memory"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" C"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"aching"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Saving"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" of"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" a"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" file"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"saf"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"et"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ensors"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" avoid"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" recom"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"put"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ing"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" it"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" subsequent"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" queries"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Implementation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Mention"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" that"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" provides"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" specific"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" classes"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" like"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Rot"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ating"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" and"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Batch"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" handle"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" these"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" operations"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" efficiently"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Structure"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" of"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" summary"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"1"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Lazy"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Evaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" General"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" concept"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"2"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"LL"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"M"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" C"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"aching"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"mlx"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-l"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"m"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")**"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Specific"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"s"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" for"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" language"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" models"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":","}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" caching"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"3"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Technical"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Details"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Classes"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" and"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" file"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" formats"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"I"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" will"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" write"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" summary"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" in"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" French"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Draft"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ing"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" response"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Introduction"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" utilise"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" une"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" évaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" pares"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"se"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"use"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"lazy"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" evaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Lazy"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Evaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Les"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" opérations"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" sont"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" enregistr"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ées"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" dans"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" un"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" grap"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"he"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" et"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ex"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"é"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"cut"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ées"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" via"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"eval"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"()"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Cela"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" permet"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" de"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" gérer"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" la"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" mémoire"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ex"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" conversion"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" float"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"3"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"2"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ->"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" float"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"1"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"6"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" sans"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" calcul"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" immédi"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"at"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" pour"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" les"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" L"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"LM"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"s"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"mlx"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-l"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"m"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")**"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Key"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Value"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")**"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Pour"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" les"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" longs"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompts"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Util"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ise"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" un"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" rot"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"atif"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" (`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Rot"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ating"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`)"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" de"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" taille"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" fixe"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" pour"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" économ"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"iser"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" la"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" RAM"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"   "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" *"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" de"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Per"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"met"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" de"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" sau"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ve"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"gard"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"er"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" le"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" d"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"'un"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" dans"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" un"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" fichier"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"saf"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"et"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ensors"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" pour"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" le"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ré"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"utiliser"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" plus"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" tard"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"gain"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" de"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" temps"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":")."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Impl"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"é"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"mentation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"**:"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Les"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" classes"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Rot"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ating"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`,"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" `"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Concat"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"enate"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"KV"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"`,"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" etc"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":".,"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" sont"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" disponibles"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" dans"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" le"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" code"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" source"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" pour"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" gérer"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ces"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" caches"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Ref"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ining"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" French"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":":"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Lazy"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Evaluation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ->"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"É"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"valuation"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" pares"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"se"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"use"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Compute"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" graph"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ->"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"G"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"raphe"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" de"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" calcul"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Key"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Value"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ->"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" Cl"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"é"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"-V"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"aleur"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"*"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"  "}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"Prompt"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" C"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"aching"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" ->"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" \""}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"M"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"ise"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" en"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" des"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" prompts"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"I"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" have"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" enough"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" information"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" to"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" construct"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" the"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":" summary"}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"."}
+{"type":"delta","request_id":"rd-real-1","phase":"thinking","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"\n"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"Vo"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"ici"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" un"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" résumé"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" de"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" la"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" documentation"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" officielle"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" concernant"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" le"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" cache"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" et"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" l"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"'é"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"valuation"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" dans"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" le"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" framework"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" **"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"ML"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"X"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"**"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" ("}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"dé"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"velopp"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"é"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" par"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" Apple"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" pour"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" l"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"'app"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"rent"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":"issage"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" machine"}
+{"type":"delta","request_id":"rd-real-1","phase":"answer","text":" sur"}
+{"kind": "round", "messages": [{"role": "user", "content": "Utilise exa.web_search_exa pour chercher la documentation officielle du cache MLX. Résume les résultats en français."}, {"role": "assistant", "content": "", "tool_calls": [{"type": "function", "function": {"name": "exa.web_search_exa", "arguments": {"query": "official documentation MLX cache Apple", "numResults": 10}}}], "reasoning_content": "The user wants to search for the official documentation of the MLX cache using the `exa.web_search_exa` tool.\nThen, I need to summarize the results in French.\n\n1.  **Search Query**: I need to construct a query that targets the official documentation for \"MLX cache\". MLX is likely related to Apple's MLX framework (Machine Learning for Apple Silicon).\n    *   Query: \"official documentation MLX cache\" or \"Apple MLX cache documentation\".\n    *   I should look for official sources (like apple.com or github.com/apple/mlx).\n\n2.  **Tool Call**: `exa.web_search_exa` with the query.\n\n3.  **Summary**: After receiving the results, I will summarize them in French.\n\nLet's start with the search."}, {"role": "tool", "name": "exa.web_search_exa", "content": "Title: Lazy Evaluation — MLX 0.32.1 documentation\nURL: https://ml-explore.github.io/mlx/build/html/usage/lazy_evaluation.html\nPublished: N/A\nAuthor: N/A\nHighlights:\nLazy Evaluation — MLX 0.32.2 documentation\n...\nWhen you perform operations in MLX, no computation actually happens. Instead a compute graph is recorded. The actual computation only happens if an `eval()` is performed.\n...\nMLX uses lazy evaluation because it has some nice features, some of which we describe below.\n...\nLazy evaluation lets us record a compute graph without actually doing any computations. This is useful for function transformations like `grad()` and `vmap()` and graph optimizations.\n...\nCurrently, MLX does not compile and rerun compute graphs. They are all generated dynamically. However, lazy evaluation makes it much easier to integrate compilation for future performance enhancements.\n...\nSimilarly, lazy evaluation can be beneficial for saving memory while keeping code simple. Say you have a very large model `Model` derived from `mlx.nn.Module`. You can instantiate this model with `model = Model()`. Typically, this will initialize all of the weights as `float32`, but the initialization does not actually compute anything until you perform an `eval()`. If you update the model with `float16` weights, your maximum consumed memory will be half that required if eager computation was used instead.\n...\nThis pattern is simple to do in MLX thanks to lazy computation:\n...\n```\nmodel = Model() # no memory used yet\nmodel.load_weights(\"weights_fp16.safetensors\")\n...\nA common question is when to use `eval()`. The trade-off is between letting graphs get too large and not batching enough useful work.\n...\nThis is a bad idea because there is some fixed overhead with each graph evaluation. On the other hand, there is some slight overhead which grows with the compute graph size, so extremely large graphs (while computationally correct) can be costly.\n...\nLuckily, a wide range of compute graph sizes work pretty well with MLX: anything from a few tens of operations to many thousands of operations per evaluation should be okay.\n...\nMost numerical computations have an iterative outer loop (e.g. the iteration in stochastic gradient descent). A natural and usually efficient place to use `eval()` is at each iteration of this outer loop.\n...\nAn important behavior to be aware of is when the graph will be implicitly evaluated. Anytime you `print` an array, convert it to an `numpy.ndarray`, or otherwise access its memory via `memoryview`, the graph will be evaluated. Saving arrays via `save()` (or any other MLX saving functions) will also evaluate the array.\n...\nCalling `array.item()` on a scalar array will also evaluate it. In the example above, printing the loss (`print(loss)`) or adding the loss scalar to a list (`losses.append(loss.item())`) would cause a graph evaluation. If these lines are before `mx.eval(loss, model.parameters())` then this will be a partial evaluation, computing only the forward pass.\n...\nAlso, calling `eval()` on an array or set of arrays multiple times is perfectly fine. This is effectively a no-op.\n...\nused with gradient transformations\n\n---\n\nTitle: ml-explore/mlx-lm: Run LLMs with MLX\nURL: https://github.com/ml-explore/mlx-lm\nPublished: N/A\nAuthor: N/A\nHighlights:\n### Long Prompts and Generations \n\n`mlx-lm` has some tools to scale efficiently to long prompts and generations:\n...\n- A rotating fixed-size key-value cache.\n- Prompt caching\n- A configurable prefill step size\n...\nTo use the rotating key-value cache pass the argument `--max-kv-size n` where\n`n` can be any integer. Smaller values like `512` will use very little RAM but\nresult in worse quality. Larger values like `4096` or higher will use more RAM\nbut have better quality.\n...\nLong prompts are read in steps, and the step size sets how many prompt tokens\nare processed at once. Smaller steps use less peak memory while the prompt is\nread, at some cost to prompt processing speed. To change it pass\n`--prefill-step-size n`. The default is `2048`, and `mlx_lm.generate`,\n`mlx_lm.chat`, `mlx_lm.server` and `mlx_lm.benchmark` all accept it.\n...\nCaching prompts can substantially speedup reusing the same long context with\ndifferent queries. To cache a prompt use `mlx_lm.cache_prompt`. For example:\n...\n```bash\ncat prompt.txt | mlx_lm.cache_prompt \\\n  --model mistralai/Mistral-7B-Instruct-v0.3 \\\n  --prompt - \\\n  --prompt-cache-file mistral_prompt.safetensors\n``` \n\nThen use the cached prompt with `mlx_lm.generate`:\n...\n```\nmlx_lm.generate \\\n    --prompt-cache-file mistral_prompt.safetensors \\\n    --prompt \"\\nSummarize the above text.\"\n```\n...\nThe cached prompt is treated as a prefix to the supplied prompt. Also notice\nwhen using a cached prompt, the model to use is read from the cache and need\nnot be supplied explicitly.\n...\nPrompt caching can also be used in the Python API in order to avoid\nrecomputing the prompt. This is useful in multi-turn dialogues or across\nrequests that use the same context. See the\n[example](https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/examples/chat.py)\nfor more usage details.\n...\nModels which are large relative to the total RAM available on the machine can\nbe slow. `mlx-lm` will attempt to make them faster by wiring the memory\noccupied by the model and cache. This requires macOS 15 or higher to\nwork.\n...\nIf you see the following warning message:\n...\n> [WARNING] Generating with a model that requires ...\n\nthen the model will likely be slow on the given machine. If the model fits in\nRAM then it can often be sped up by increasing the system wired memory limit.\n...\nincrease the limit\n...\nset the following `sysctl\n...\nsysctl iogpu\n...\nmb=N\n...\nthe size of the model in megabytes but\n...\nthe memory size of the machine.\n\n---\n\nTitle: mlx_lm/models/cache.py\nURL: https://github.com/ml-explore/mlx-lm/blob/564281f7/mlx_lm/models/cache.py\nPublished: N/A\nAuthor: N/A\nHighlights:\ndef make_prompt_cache(\n model: nn.Module,\n max_kv_size: Optional[int] = None,\n) -> List[Any]:\n \"\"\"\n Construct the model's cache for use in generation.\n\n This function will defer the cache construction to the model if it has a\n ``make_cache`` method, otherwise it will make a default KV cache.\n\n Args:\n model (nn.Module): The language model.\n max_kv_size (Optional[int]): If provided and the model does not have a\n ``make_cache`` method, a ``RotatingKVCache`` is used with a maximum\n size of ``max_kv_size``\n \"\"\"\n if hasattr(model, \"make_cache\"):\n return model.make_cache()\n\n num_layers = len(model.layers)\n if max_kv_size is not None:\n return [\n RotatingKVCache(max_size=max_kv_size, keep=4) for _ in range(num_layers)\n ]\n else:\n return [KVCache() for _ in range(num_layers)]\n...\ndef save_prompt_cache(file_name: str, cache: List[Any], metadata: Dict[str, str] = {}):\n \"\"\"\n Save a pre-computed prompt cache to a file.\n\n Args:\n file_name (str): The ``.safetensors`` file name.\n cache (List[Any]): The model state.\n metadata (Dict[str, str]): Optional metadata to save along with model\n state.\n \"\"\"\n cache_data = [c.state for c in cache]\n cache_info = [c.meta_state for c in cache]\n cache_data = dict(tree_flatten(cache_data))\n cache_classes = [type(c).__name__ for c in cache]\n cache_metadata = [cache_info, metadata, cache_classes]\n cache_metadata = dict(tree_flatten(cache_metadata))\n mx.save_safetensors(file_name, cache_data, cache_metadata)\n...\ndef load_prompt_cache(file_name, return_metadata=False):\n \"\"\"\n Load a prompt cache from a file.\n\n Args:\n file_name (str): The ``.safetensors`` file name.\n return_metadata (bool): Whether or not to return metadata.\n Default: ``False``.\n\n Returns:\n List[Any] or Tuple[List[Any], Dict[str, str]]: The prompt cache and\n the metadata if requested.\n \"\"\"\n arrays, cache_metadata = mx.load(file_name, return_metadata=True)\n arrays = tree_unflatten(list(arrays.items()))\n cache_metadata = tree_unflatten(list(cache_metadata.items()))\n info, metadata, classes = cache_metadata\n cache = [\n globals()[c].from_state(state, meta_state)\n for c, state, meta_state in zip(classes, arrays, info)\n ]\n if return_metadata:\n return cache, metadata\n return cache\n...\ndef can_trim_prompt_cache(cache: List[Any]) -> bool:\n \"\"\"\n Check if model's cache can be trimmed.\n \"\"\"\n return all(c.is_trimmable() for c in cache)\n...\ndef trim_prompt_cache(cache: List[Any], num_tokens: int) -> List[Any]:\n \"\"\"\n Trim the model's cache by the given number of tokens.\n\n This function will trim the cache if possible (in-place) and return the\n number of tokens that were trimmed.\n\n Args:\n cache (List[Any]): The model's cache.\n num_tokens (int): The number of tokens to trim.\n\n Returns:\n (int): The number of tokens that were trimmed.\n \"\"\"\n if not can_trim_prompt_cache(cache) or len(cache) == 0:\n return 0\n return [c.trim(num_tokens) for c in cache][0]\n...\ndef create_attention_mask(\n N: int, offset: int, return_array: bool, window_size: Optional[int]\n):\n if window_size is not None:\n return create_causal_mask(N, offset, window_size=window_size)\n elif N == 1:\n return None\n elif return_array:\n return create_causal_mask(N, offset, window_size=window_size)\n else:\n return \"causal\"\n...\nclass ConcatenateKVCache(_BaseCache):\n \"\"\"ConcatenateKVCache the simplest KV cache implementation.\n\n Can be used as a mock KV cache or when large blocks are being processed at\n a time in which case KVCache isn't necessarily faster. Consider using the\n KVCache with a larger step size before using this cache.\n \"\"\"\n\n def __init__(self):\n self.keys = None\n self.values = None\n self.offset = 0\n...\nclass RotatingKVCache(_BaseCache):\n step = 256\n\n def __init__(self, max_size, keep=0):\n self.keep = keep\n self.keys = None\n self.values = None\n self.offset = 0\n self.max_size = max_size\n self._idx = 0\n\n def _trim(self, trim_size, v, append=None):\n to_cat = []\n if trim_size > 0:\n to_cat = [v[..., : self.keep, :], v[..., trim_size + self.keep :, :]]\n else:\n to_cat = [v]\n if append is not None:\n to_cat.append(append)\n return mx.concatenate(to_cat, axis=2)\n\n def _temporal_order(self, v):\n \"\"\"\n Rearrange the cache into temporal order, slicing off the end if unused.\n \"\"\"\n if self._idx == v.shape[2]:\n return v\n elif self._idx < self.offset:\n return mx.concatenate(\n [\n v[..., : self.keep, :],\n v[..., self._idx :, :],\n v[..., self.keep : self._idx, :],\n ],\n axis=2,\n )\n else:\n return v[..., : self._idx, :]\n...\ndef _update_concat(self, keys, values):\n if self.keys is None:\n self.keys = keys\n self.values = values\n else:\n # Put the keys/values in temporal order to\n # preserve context\n self.keys = self._temporal_order(self.keys)\n self.values = self._temporal_order(self.values)\n self._idx = self.keys.shape[2]\n\n # The largest size is self.max_size + S - 1 to ensure\n # every token gets at least self.max_size context\n trim_size = self._idx - self.max_size + 1\n self.keys = self._trim(trim_size, self.keys, keys)\n self.values = self._trim(trim_size, self.values, values)\n self.offset += keys.shape[2]\n self._idx = self.keys.shape[2]\n return self.keys, self.values\n\n def _update_in_place(self, keys, values):\n # May not have hit the max size yet, so potentially\n # keep growing the cache\n B, n_kv_heads, S, k_head_dim = keys.shape\n prev = self.offset\n if self.keys is None or (\n prev >= self.keys.shape[2] and self.keys.shape[2] < self.max_size\n ):\n v_head_dim = values.shape[3]\n new_size = min(self.step, self.max_size - prev)\n k_shape = (B, n_kv_heads, new_size, k_head_dim)\n v_shape = (B, n_kv_heads, new_size, v_head_dim)\n new_k = mx.zeros(k_shape, keys.dtype)\n new_v = mx.zeros(v_shape, values.dtype)\n if self.keys is not None:\n self.keys = mx.concatenate([self.keys, new_k], axis=2)\n self.values = mx.concatenate([self.values, new_v], axis=2)\n else:\n self.keys, self.values = new_k, new_v\n self._idx = prev\n\n # Trim if needed\n trim_size = self.keys.shape[2] - self.max_size\n if trim_size > 0:\n self.keys = self._trim(trim_size, self.keys)\n self.values = self._trim(trim_size, self.values)\n self._idx = self.max_size\n\n # Rotate\n if self._idx == self.max_size:\n self._idx = self.keep\n\n # Assign\n self.keys[..., self._idx : self._idx + S, :] = keys\n self.values[..., self._idx : self._idx + S, :] = values\n self.offset += S\n self._idx += S\n\n # If the buffer is not full\n...\nclass ArraysCache(_BaseCache):\n def __new__(cls, *args, **kwargs):\n instance = super().__new__(cls)\n instance.left_padding = None\n instance.lengths = None\n return instance\n\n def __init__(self, size, left_padding\n...\nclass BatchKVCache(_BaseCache):\n step = 256\n\n def __init__(self, left_padding: List[int]):\n \"\"\"\n The BatchKV cache expects inputs to be left-padded.\n\n E.g. the following prompts:\n\n [1, 3, 5]\n [7]\n [2, 6, 8, 9]\n\n Should be padded like so:\n\n [0, 1, 3, 5]\n [0, 0, 0, 7]\n [2, 6, 8, 9]\n\n And ``left_padding`` specifies the amount of padding for each.\n In this case, ``left_padding = [1, 3, 0]``.\n \"\"\"\n self.keys = None\n self.values = None\n self.left_padding = mx.array(left_padding)\n self.offset = mx.array([-l for l in left_padding])\n self._idx = 0\n\n self._right_padding = None\n\n def update_and_fetch(\n...\nclass BatchRotatingKVCache(_BaseCache):\n step = 256\n\n def __init__(self, max_size, left_padding: List[int]):\n self.keys = None\n self.values = None\n\n self.left_padding = mx.array(left_padding)\n self.offset = mx.array([-l for l in left_padding])\n\n self.max_size = max_size\n self._idx = 0\n self._offset = 0\n self.rotated = False\n...\nis self.max_size + S - 1 to ensure\n # every token gets at least self.max_size context\n trim_size = self._idx - self.max_size + 1\n if trim_size > 0:\n self.left_padding -= trim_size\n self.keys = self._trim(trim_size, self.keys, keys)\n self.values = self._trim(trim_size, self.values, values)\n self.offset += keys.shape[2]\n self._offset += keys.shape[2]\n self._idx = self.keys.shape[2]\n\n # Make sure left_padding and offset are evaluated\n self.keys = mx.depends(self.keys, (self.left_padding, self.offset))\n\n return self.keys, self.values\n\n def _update_in_place(self, keys, values):"}], "response": "The user wants to summarize the official documentation for the MLX cache in French.\nThe search results provided information about:\n1.  **Lazy Evaluation**: MLX uses lazy evaluation, meaning operations are recorded in a graph and only executed when `eval()` is called. This helps with memory management and optimization.\n2.  **mlx-lm**: This is a library for running LLMs with MLX. It mentions specific caching mechanisms:\n    *   **Rotating fixed-size key-value cache**: Used for long prompts and generations. Configurable via `--max-kv-size`.\n    *   **Prompt caching**: Allows saving and reusing pre-computed prompt caches to speed up inference.\n    *   **Memory wiring**: Mentioned for macOS 15+ to speed up large models.\n3.  **Source Code (`cache.py`)**: Shows implementation details like `RotatingKVCache`, `ConcatenateKVCache`, `BatchKVCache`, and functions to save/load prompt caches (`save_prompt_cache`, `load_prompt_cache`).\n\nI need to synthesize this information into a French summary.\n\nKey points to cover:\n*   **Lazy Evaluation**: Explain that MLX doesn't compute immediately but builds a graph, evaluating only when necessary (`eval()`). This is crucial for memory efficiency.\n*   **KV Cache (Key-Value Cache)**: Specifically for LLMs (mlx-lm).\n    *   **Rotating Cache**: Keeps a fixed size, discarding old tokens to save memory.\n    *   **Prompt Caching**: Saving the cache of a prompt to a file (safetensors) to avoid recomputing it for subsequent queries.\n*   **Implementation**: Mention that MLX provides specific classes like `RotatingKVCache` and `BatchKVCache` to handle these operations efficiently.\n\nStructure of the summary:\n1.  **Lazy Evaluation**: General MLX concept.\n2.  **LLM Caching (mlx-lm)**: Specifics for language models (KV cache, prompt caching).\n3.  **Technical Details**: Classes and file formats.\n\nI will write the summary in French.\n\nDrafting the response:\n*   **Introduction**: MLX utilise une évaluation paresseuse (lazy evaluation).\n*   **Lazy Evaluation**: Les opérations sont enregistrées dans un graphe et exécutées via `eval()`. Cela permet de gérer la mémoire (ex: conversion float32 -> float16 sans calcul immédiat).\n*   **Cache pour les LLMs (mlx-lm)**:\n    *   **Cache KV (Key-Value)**: Pour les longs prompts. Utilise un cache rotatif (`RotatingKVCache`) de taille fixe pour économiser la RAM.\n    *   **Cache de Prompt**: Permet de sauvegarder le cache d'un prompt dans un fichier `.safetensors` pour le réutiliser plus tard (gain de temps).\n*   **Implémentation**: Les classes `RotatingKVCache`, `ConcatenateKVCache`, etc., sont disponibles dans le code source pour gérer ces caches.\n\nRefining the French:\n*   \"Lazy Evaluation\" -> \"Évaluation paresseuse\".\n*   \"Compute graph\" -> \"Graphe de calcul\".\n*   \"Key-Value Cache\" -> \"Cache Clé-Valeur\".\n*   \"Prompt Caching\" -> \"Mise en cache des prompts\".\n\nI have enough information to construct the summary.\n</think>\n\nVoici un résumé de la documentation officielle concernant le cache et l'évaluation dans le framework **MLX** (développé par Apple pour l'apprentissage machine sur", "ttft_seconds": 10.704944375000196, "prefill_tps": 357.0566779273223, "decode_tps": 35.01841050837462, "prompt_tokens": 4692, "generated_tokens": 768, "peak_memory_gb": 13.991822962, "cached_prompt_tokens": 950, "evaluated_prompt_tokens": 3742, "template_seconds": 0.0002641260070959106, "stable_prefill_seconds": 10.304847583000083, "stable_prefill_tokens": 3737, "cache_fork_seconds": 0.012482666003052145, "first_visible_text_seconds": 10.704944249999244, "cache_lookup_seconds": 0.00014199999714037403, "tokenizer_encode_seconds": 0.0075661669980036095, "stream_setup_seconds": 0.20427045800170163, "suffix_prefill_chunk_seconds": 0.11618758400436491}
+{"type":"complete","request_id":"rd-real-1","assistant_context":"Voici un résumé de la documentation officielle concernant le cache et l'évaluation dans le framework **MLX** (développé par Apple pour l'apprentissage machine sur","cache_context":"The user wants to summarize the official documentation for the MLX cache in French.\nThe search results provided information about:\n1.  **Lazy Evaluation**: MLX uses lazy evaluation, meaning operations are recorded in a graph and only executed when `eval()` is called. This helps with memory management and optimization.\n2.  **mlx-lm**: This is a library for running LLMs with MLX. It mentions specific caching mechanisms:\n    *   **Rotating fixed-size key-value cache**: Used for long prompts and generations. Configurable via `--max-kv-size`.\n    *   **Prompt caching**: Allows saving and reusing pre-computed prompt caches to speed up inference.\n    *   **Memory wiring**: Mentioned for macOS 15+ to speed up large models.\n3.  **Source Code (`cache.py`)**: Shows implementation details like `RotatingKVCache`, `ConcatenateKVCache`, `BatchKVCache`, and functions to save/load prompt caches (`save_prompt_cache`, `load_prompt_cache`).\n\nI need to synthesize this information into a French summary.\n\nKey points to cover:\n*   **Lazy Evaluation**: Explain that MLX doesn't compute immediately but builds a graph, evaluating only when necessary (`eval()`). This is crucial for memory efficiency.\n*   **KV Cache (Key-Value Cache)**: Specifically for LLMs (mlx-lm).\n    *   **Rotating Cache**: Keeps a fixed size, discarding old tokens to save memory.\n    *   **Prompt Caching**: Saving the cache of a prompt to a file (safetensors) to avoid recomputing it for subsequent queries.\n*   **Implementation**: Mention that MLX provides specific classes like `RotatingKVCache` and `BatchKVCache` to handle these operations efficiently.\n\nStructure of the summary:\n1.  **Lazy Evaluation**: General MLX concept.\n2.  **LLM Caching (mlx-lm)**: Specifics for language models (KV cache, prompt caching).\n3.  **Technical Details**: Classes and file formats.\n\nI will write the summary in French.\n\nDrafting the response:\n*   **Introduction**: MLX utilise une évaluation paresseuse (lazy evaluation).\n*   **Lazy Evaluation**: Les opérations sont enregistrées dans un graphe et exécutées via `eval()`. Cela permet de gérer la mémoire (ex: conversion float32 -> float16 sans calcul immédiat).\n*   **Cache pour les LLMs (mlx-lm)**:\n    *   **Cache KV (Key-Value)**: Pour les longs prompts. Utilise un cache rotatif (`RotatingKVCache`) de taille fixe pour économiser la RAM.\n    *   **Cache de Prompt**: Permet de sauvegarder le cache d'un prompt dans un fichier `.safetensors` pour le réutiliser plus tard (gain de temps).\n*   **Implémentation**: Les classes `RotatingKVCache`, `ConcatenateKVCache`, etc., sont disponibles dans le code source pour gérer ces caches.\n\nRefining the French:\n*   \"Lazy Evaluation\" -> \"Évaluation paresseuse\".\n*   \"Compute graph\" -> \"Graphe de calcul\".\n*   \"Key-Value Cache\" -> \"Cache Clé-Valeur\".\n*   \"Prompt Caching\" -> \"Mise en cache des prompts\".\n\nI have enough information to construct the summary.\n</think>\n\nVoici un résumé de la documentation officielle concernant le cache et l'évaluation dans le framework **MLX** (développé par Apple pour l'apprentissage machine sur","stats":{"ttft_seconds":10.704944375000196,"prefill_tps":357.0566779273223,"decode_tps":35.01841050837462,"prompt_tokens":4692,"generated_tokens":768,"peak_memory_gb":13.991822962,"cached_prompt_tokens":950,"evaluated_prompt_tokens":3742,"template_seconds":0.0002641260070959106,"stable_prefill_seconds":10.304847583000083,"stable_prefill_tokens":3737,"cache_fork_seconds":0.012482666003052145,"first_visible_text_seconds":10.704944249999244,"cache_lookup_seconds":0.00014199999714037403,"tokenizer_encode_seconds":0.0075661669980036095,"stream_setup_seconds":0.20427045800170163,"suffix_prefill_chunk_seconds":0.11618758400436491}}

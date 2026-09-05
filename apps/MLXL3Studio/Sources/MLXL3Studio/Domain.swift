@@ -112,6 +112,26 @@ struct PromptMessage: Codable, Hashable {
     let content: String
 }
 
+/// Stable, chronological blocks. Never move later reasoning above a tool call.
+struct AssistantPart: Codable, Identifiable, Sendable {
+    enum Kind: String, Codable, Sendable { case thinking, answer, tool, processing }
+    let id: UUID
+    let kind: Kind
+    var text: String
+    var toolID: String?
+    var startedAt: Date?
+    var elapsed: Double?
+    var interrupted: Bool?
+
+    init(kind: Kind, text: String = "", toolID: String? = nil) {
+        id = UUID()
+        self.kind = kind
+        self.text = text
+        self.toolID = toolID
+        startedAt = kind == .processing ? Date() : nil
+    }
+}
+
 struct GenerationRequest: Encodable {
     let type = "generate"
     let requestID: String
@@ -149,6 +169,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     private(set) var error: String?
     private(set) var toolActivities: [ToolActivity]
     private(set) var cacheContext: String?
+    private(set) var parts: [AssistantPart]
     private(set) var streamRevision = 0
 
     init(
@@ -160,7 +181,8 @@ final class ChatMessage: ObservableObject, Identifiable {
         stats: GenerationStats? = nil,
         error: String? = nil,
         toolActivities: [ToolActivity] = [],
-        cacheContext: String? = nil
+        cacheContext: String? = nil,
+        parts: [AssistantPart]? = nil
     ) {
         self.id = id
         self.role = role
@@ -171,11 +193,21 @@ final class ChatMessage: ObservableObject, Identifiable {
         self.error = error
         self.toolActivities = toolActivities
         self.cacheContext = cacheContext
+        // Old snapshots remain readable; their original ordering was not saved.
+        self.parts = parts ?? (
+            (thinking.isEmpty ? [] : [AssistantPart(kind: .thinking, text: thinking)])
+            + toolActivities.map { AssistantPart(kind: .tool, toolID: $0.id) }
+            + (content.isEmpty ? [] : [AssistantPart(kind: .answer, text: content)])
+        )
     }
 
     func append(_ text: String, phase: String?) {
         guard !text.isEmpty else { return }
         objectWillChange.send()
+        endProcessing()
+        let kind: AssistantPart.Kind = phase == "thinking" ? .thinking : .answer
+        if parts.last?.kind != kind { parts.append(AssistantPart(kind: kind)) }
+        parts[parts.count - 1].text += text
         if phase == "thinking" {
             thinking += text
         } else {
@@ -186,18 +218,21 @@ final class ChatMessage: ObservableObject, Identifiable {
 
     func finish(stats: GenerationStats?, fallbackAnswer: String?, cacheContext: String?) {
         objectWillChange.send()
+        endProcessing()
         isStreaming = false
         self.stats = stats
         self.cacheContext = cacheContext
         if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            let fallbackAnswer {
             content = fallbackAnswer
+            if !fallbackAnswer.isEmpty { parts.append(AssistantPart(kind: .answer, text: fallbackAnswer)) }
         }
         streamRevision &+= 1
     }
 
     func fail(_ message: String) {
         objectWillChange.send()
+        endProcessing(interrupted: true)
         isStreaming = false
         error = message
         streamRevision &+= 1
@@ -205,6 +240,8 @@ final class ChatMessage: ObservableObject, Identifiable {
 
     func startTool(id: String, serverName: String?, toolName: String) {
         objectWillChange.send()
+        endProcessing()
+        parts.append(AssistantPart(kind: .tool, toolID: id))
         toolActivities.append(
             ToolActivity(
                 id: id,
@@ -225,6 +262,22 @@ final class ChatMessage: ObservableObject, Identifiable {
         streamRevision &+= 1
     }
 
+    func processing(_ label: String) {
+        objectWillChange.send()
+        if parts.last?.kind != .processing || parts.last?.elapsed != nil {
+            parts.append(AssistantPart(kind: .processing))
+        }
+        parts[parts.count - 1].text = label
+        streamRevision &+= 1
+    }
+
+    private func endProcessing(interrupted: Bool = false) {
+        guard let last = parts.last, last.kind == .processing,
+              last.elapsed == nil, let start = last.startedAt else { return }
+        parts[parts.count - 1].elapsed = Date().timeIntervalSince(start)
+        parts[parts.count - 1].interrupted = interrupted
+    }
+
     var snapshot: ChatMessageSnapshot {
         ChatMessageSnapshot(
             id: id,
@@ -235,7 +288,15 @@ final class ChatMessage: ObservableObject, Identifiable {
             stats: stats,
             error: error,
             toolActivities: toolActivities,
-            cacheContext: cacheContext
+            cacheContext: cacheContext,
+            parts: parts.map { part in
+                var saved = part
+                if saved.kind == .processing, saved.elapsed == nil, let start = saved.startedAt {
+                    saved.elapsed = Date().timeIntervalSince(start)
+                    saved.interrupted = true
+                }
+                return saved
+            }
         )
     }
 
@@ -250,8 +311,10 @@ final class ChatMessage: ObservableObject, Identifiable {
             stats: snapshot.stats,
             error: snapshot.error ?? (snapshot.wasStreaming ? "Génération interrompue" : nil),
             toolActivities: snapshot.toolActivities ?? [],
-            cacheContext: snapshot.cacheContext
+            cacheContext: snapshot.cacheContext,
+            parts: snapshot.parts
         )
+        endProcessing(interrupted: snapshot.wasStreaming)
     }
 }
 

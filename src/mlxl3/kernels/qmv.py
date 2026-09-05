@@ -86,6 +86,7 @@ _USE_TENSOR_SEGMENTED_QMM = (
 )
 _SEGMENTED_TENSOR_ROWS = int(os.environ.get('MLXL3_SEGMENTED_TENSOR_ROWS', '32'))
 _USE_SEGMENTED_BUCKETS = os.environ.get('MLXL3_SEGMENTED_BUCKETS', '0') == '1'
+_USE_SEGMENTED_LOCALITY = os.environ.get('MLXL3_SEGMENTED_LOCALITY', '0') == '1'
 if _SEGMENTED_TENSOR_ROWS not in (8, 16, 32):
     raise ValueError('MLXL3_SEGMENTED_TENSOR_ROWS must be 8, 16 or 32')
 
@@ -1674,13 +1675,19 @@ def _make_segmented_tensor_kernel(*, bucketed, block_rows, **kwargs):
 
 
 @cache
-def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32, bucketed: bool = False):
+def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32, bucketed: bool = False, locality: bool = False):
     """M5 TensorOp QMM over sorted expert rows and EXL3 trellises."""
 
     packed_u32 = k * 256 // 32
+    subblocks = 8 if bucketed else 64 // block_rows
+    # Interleave row subblocks of the same expert/column tile. The work and
+    # per-output accumulation order are identical; only dispatch coordinates
+    # change so a serialized weight tile can stay hot across its consumers.
+    row_coordinate = f'threadgroup_position_in_grid.x % {subblocks}u' if locality else 'threadgroup_position_in_grid.z'
+    column_coordinate = f'threadgroup_position_in_grid.x / {subblocks}u' if locality else 'threadgroup_position_in_grid.x'
     return _make_segmented_tensor_kernel(
         bucketed=bucketed, block_rows=block_rows,
-        name=f"mlxl3_expert_qmm_tensor_segmented_k{k}_cb{mode}_bm{block_rows}_b{int(bucketed)}_v3",
+        name=f"mlxl3_expert_qmm_tensor_segmented_k{k}_cb{mode}_bm{block_rows}_b{int(bucketed)}_l{int(locality)}_v4",
         input_names=["xhat", "trellis", "block_table", "block_count", "dims"],
         output_names=["output"],
         header=(
@@ -1702,8 +1709,8 @@ def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32,
             if (block >= block_count[0]) {{
                 return;
             }}
-            uint row_subblock = threadgroup_position_in_grid.z;
-            uint column_block = threadgroup_position_in_grid.x;
+            uint row_subblock = {row_coordinate};
+            uint column_block = {column_coordinate};
             uint input_tiles = dims[0];
             uint tiles_per_expert = dims[1];
             uint source_tiles = dims[2];
@@ -1837,7 +1844,7 @@ def qmm_exl3_expert_segmented(
         dtype=mx.uint32,
     )
     kernel = (
-        _segmented_expert_qmm_tensor_kernel(k, int(cb), _SEGMENTED_TENSOR_ROWS, _USE_SEGMENTED_BUCKETS)
+        _segmented_expert_qmm_tensor_kernel(k, int(cb), _SEGMENTED_TENSOR_ROWS, _USE_SEGMENTED_BUCKETS, _USE_SEGMENTED_LOCALITY)
         if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
         else _segmented_expert_qmm_kernel(k, int(cb))
     )
@@ -1846,6 +1853,8 @@ def qmm_exl3_expert_segmented(
         if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
         else ((output_dims // 64) * 128, max_blocks, 1)
     )
+    if _USE_SEGMENTED_LOCALITY and _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available():
+        grid = (grid[0] * grid[2], grid[1], 1)
     threadgroup = (
         (32, 1, 1)
         if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
