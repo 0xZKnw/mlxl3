@@ -82,17 +82,13 @@ final class MLXL3Bridge: @unchecked Sendable {
 
     var isRunning: Bool { process?.isRunning == true }
 
-    func residentMemoryBytes() -> UInt64 {
-        interfaceResidentMemoryBytes() + engineResidentMemoryBytes()
+    func interfaceMemoryFootprintBytes() -> UInt64? {
+        Self.memoryFootprintBytes(for: getpid())
     }
 
-    func interfaceResidentMemoryBytes() -> UInt64 {
-        residentMemoryBytes(for: getpid())
-    }
-
-    func engineResidentMemoryBytes() -> UInt64 {
+    func engineMemoryFootprintBytes() -> UInt64? {
         guard let process, process.isRunning else { return 0 }
-        return residentMemoryBytes(for: process.processIdentifier)
+        return Self.memoryFootprintBytes(for: process.processIdentifier)
     }
 
     static func listModels(
@@ -359,12 +355,14 @@ final class MLXL3Bridge: @unchecked Sendable {
         DispatchQueue.main.async { [weak self] in self?.onEvent?(event) }
     }
 
-    private func residentMemoryBytes(for pid: pid_t) -> UInt64 {
-        var info = proc_taskinfo()
-        let size = MemoryLayout<proc_taskinfo>.stride
-        let read = withUnsafeMutablePointer(to: &info) { pointer in
-            proc_pidinfo(pid, PROC_PIDTASKINFO, 0, pointer, Int32(size))
+    static func memoryFootprintBytes(for pid: pid_t) -> UInt64? {
+        var info = rusage_info_v0()
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
+                proc_pid_rusage(pid, RUSAGE_INFO_V0, $0)
+            }
         }
-        return read == size ? info.pti_resident_size : 0
+        // RSS omits most Metal driver allocations. Use the kernel's footprint ledger.
+        return result == 0 ? info.ri_phys_footprint : nil
     }
 }

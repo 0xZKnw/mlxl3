@@ -238,14 +238,14 @@ On an M1, M2, M3, M4, or M5 Mac running macOS 26.2 or newer:
 2. Launch the app. No Python, Homebrew, MLX, Hugging Face CLI, or Terminal setup
    is required. The current build is ad-hoc signed rather than Apple-notarized,
    so macOS may require right-clicking the app and choosing **Open** once.
-3. Open **Models / Modèles**. In v0.4.5, **Discover / Découvrir** searches EXL3
+3. Open **Models / Modèles**. In v0.4.6, **Discover / Découvrir** searches EXL3
    repositories by name or `owner/repository`. Open a result to read its model
    card, select a branch/tag and variant, and see its download size. Download,
    then click **Load / Charger** in **My library / Ma bibliothèque**. You can
    also import an existing EXL3 folder. Earlier versions accept a repository
    and optional revision directly.
 
-The v0.4.5 library downloads only the selected variant at a pinned commit, not
+The v0.4.6 library downloads only the selected variant at a pinned commit, not
 every quantization in a repository. Branches, subfolders and separately named
 EXL3 descriptors in one folder are recognized; ambiguous layouts are rejected.
 **Pause** keeps partial files: select the same revision/variant to resume.
@@ -258,6 +258,12 @@ In the library, the folder button reveals a model in Finder. The trash button
 asks whether to remove just the library entry (files stay) or move its model
 folder to the macOS Trash (recoverable until emptied). A loaded model is
 unloaded first. No folder is deleted merely by opening the library.
+
+The menu-bar memory counter uses the macOS physical-footprint ledger for both
+the engine and interface, including Metal allocations. It is not CPU resident
+memory (RSS), nor the size of weights on disk. Footprint can include compressed
+or swapped memory; the bar is relative to physical RAM, not a system-wide RAM
+pressure gauge. A failed read displays an unavailable value, not a false zero.
 
 The DMG intentionally does not contain model weights: they are often several to
 dozens of gigabytes and remain user-selected. M5-specific TensorOps are enabled

@@ -160,16 +160,12 @@ final class StudioModel: ObservableObject {
         currentConversation?.messages.reversed().compactMap(\.stats).first
     }
 
-    var residentMemoryBytes: UInt64 {
-        bridge.residentMemoryBytes()
+    var engineMemoryFootprintBytes: UInt64? {
+        bridge.engineMemoryFootprintBytes()
     }
 
-    var engineResidentMemoryBytes: UInt64 {
-        bridge.engineResidentMemoryBytes()
-    }
-
-    var interfaceResidentMemoryBytes: UInt64 {
-        bridge.interfaceResidentMemoryBytes()
+    var interfaceMemoryFootprintBytes: UInt64? {
+        bridge.interfaceMemoryFootprintBytes()
     }
 
     var mcpConfigurationURL: URL {

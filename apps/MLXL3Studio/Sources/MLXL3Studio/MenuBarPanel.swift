@@ -7,34 +7,39 @@ struct MenuBarPanel: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
-            let engine = studio.engineResidentMemoryBytes
-            let interface = studio.interfaceResidentMemoryBytes
+            let engine = studio.engineMemoryFootprintBytes
+            let interface = studio.interfaceMemoryFootprintBytes
+            let total = engine.flatMap { engine in interface.map { engine + $0 } }
             VStack(alignment: .leading, spacing: 21) {
                 HStack(spacing: 12) {
                     MonogramMark(size: 25)
                     Text("MLXL3").font(.system(size: 27, weight: .regular, design: .serif))
                     Spacer()
                     StatusDot(state: studio.engineState)
-                    Text(studio.isGenerating ? L("Génération", "Generating") : studio.canEject ? L("Prêt", "Ready") : L("Au repos", "Idle"))
+                    Text(studio.isGenerating ? L("Génération", "Generating") : studio.engineState.isReady ? L("Prêt", "Ready") : studio.canEject ? L("Chargement", "Loading") : L("Au repos", "Idle"))
                         .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                 }
                 Divider().overlay(StudioTheme.edge)
                 VStack(alignment: .leading, spacing: 8) {
                     caption(L("MÉMOIRE DE L’APP", "APP MEMORY"))
                     HStack(alignment: .firstTextBaseline) {
-                        Text(memory(engine + interface)).font(.system(size: 38, weight: .regular, design: .serif)).monospacedDigit()
+                        Text(memory(total)).font(.system(size: 38, weight: .regular, design: .serif)).monospacedDigit()
                         Spacer()
                         Text(L("sur \(memory(ProcessInfo.processInfo.physicalMemory))", "of \(memory(ProcessInfo.processInfo.physicalMemory))"))
                             .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                     }
-                    ProgressView(value: min(Double(engine + interface) / Double(ProcessInfo.processInfo.physicalMemory), 1))
-                        .tint(StudioTheme.ink).scaleEffect(y: 0.65)
+                    if let total {
+                        ProgressView(value: min(Double(total) / Double(ProcessInfo.processInfo.physicalMemory), 1))
+                            .tint(StudioTheme.ink).scaleEffect(y: 0.65)
+                    } else {
+                        Text(L("Mesure indisponible", "Measurement unavailable")).font(.caption).foregroundStyle(StudioTheme.quiet)
+                    }
                     HStack {
                         Text(L("Moteur \(memory(engine))", "Engine \(memory(engine))"))
                         Spacer()
                         Text("UI \(memory(interface))")
                     }.font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).monospacedDigit()
-                }
+                }.help(L("Empreinte mémoire macOS : moteur et interface, allocations Metal comprises. Ce n’est pas la taille du modèle sur disque.", "macOS memory footprint: engine and interface, including Metal allocations. Not the model size on disk."))
                 VStack(alignment: .leading, spacing: 10) {
                     caption(L("MODÈLE ACTIF", "ACTIVE MODEL"))
                     if let model = studio.loadedModel {
@@ -100,7 +105,8 @@ struct MenuBarPanel: View {
         }.frame(maxWidth: .infinity)
     }
 
-    private func memory(_ bytes: UInt64) -> String {
-        String(format: "%.2f %@", Double(bytes) / 1e9, L("Go", "GB"))
+    private func memory(_ bytes: UInt64?) -> String {
+        guard let bytes else { return "—" }
+        return String(format: "%.2f %@", Double(bytes) / 1e9, L("Go", "GB"))
     }
 }

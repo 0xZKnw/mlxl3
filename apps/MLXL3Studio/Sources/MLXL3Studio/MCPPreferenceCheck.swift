@@ -1,4 +1,5 @@
 import Foundation
+import Metal
 
 /// Runs without XCTest/Xcode, a window, a model or the user's real preferences.
 /// Invoke MLXL3Studio --check-mcp-preferences on a packaged release as well.
@@ -20,6 +21,26 @@ enum MCPPreferenceCheck {
         func check(_ condition: Bool, _ message: String) throws {
             if !condition { throw Failure(message: message) }
         }
+        // Regression: a GPU-private allocation must be counted, unlike process RSS.
+        guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
+              let command = queue.makeCommandBuffer(), let blit = command.makeBlitCommandEncoder(),
+              let before = MLXL3Bridge.memoryFootprintBytes(for: getpid()) else {
+            throw Failure(message: "Cannot measure Metal memory footprint")
+        }
+        let bytes = 64 * 1024 * 1024
+        guard let buffer = device.makeBuffer(length: bytes, options: .storageModePrivate) else {
+            throw Failure(message: "Cannot allocate Metal test buffer")
+        }
+        blit.fill(buffer: buffer, range: 0..<bytes, value: 42)
+        blit.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+        try check(command.status == .completed, "Metal memory test command failed")
+        let after = MLXL3Bridge.memoryFootprintBytes(for: getpid()) ?? 0
+        try check(after > before && after - before >= UInt64(bytes * 3 / 4), "Memory counter omitted GPU-private allocation")
+        try check(MLXL3Bridge.memoryFootprintBytes(for: -1) == nil, "Failed memory read must not report zero")
+        withExtendedLifetime(buffer) { }
+        print("Metal footprint check passed: +\(after - before) bytes for a 64 MiB GPU buffer")
         let first = instance()
         try check(first.language == .fr, "Language must default to French")
         first.draft = "Do not translate this"
