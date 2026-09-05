@@ -16,10 +16,11 @@ from mlxl3.mcp import (
 def test_mcp_configuration_round_trip(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("MLXL3_HOME", str(tmp_path))
 
-    assert load_mcp_servers() == []
+    builtin = load_mcp_servers()
+    assert len(builtin) == 1 and builtin[0].url == "https://mcp.exa.ai/mcp"
     added = add_mcp_server("local-tools", "python3", ["server.py"])
     assert added.name == "local-tools"
-    assert load_mcp_servers() == [added]
+    assert load_mcp_servers() == [*builtin, added]
     assert json.loads(mcp_config_path().read_text())["mcpServers"]["local-tools"] == {
         "args": ["server.py"],
         "command": "python3",
@@ -27,7 +28,9 @@ def test_mcp_configuration_round_trip(monkeypatch, tmp_path) -> None:
     }
 
     remove_mcp_server("local-tools")
-    assert load_mcp_servers() == []
+    assert load_mcp_servers() == builtin
+    remove_mcp_server("exa")
+    assert load_mcp_servers()[0].enabled is False
 
 
 def test_stdio_manager_lists_and_calls_tools(tmp_path) -> None:

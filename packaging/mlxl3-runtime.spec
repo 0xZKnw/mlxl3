@@ -20,6 +20,7 @@ for package in (
     "safetensors",
     "tokenizers",
     "transformers",
+    "certifi",
 ):
     package_datas, package_binaries, package_hidden = collect_all(package)
     datas += package_datas

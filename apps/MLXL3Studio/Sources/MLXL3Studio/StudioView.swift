@@ -1,213 +1,260 @@
 import SwiftUI
 
+/// Window composition. The transcript owns its scroll state; chrome never
+/// observes token-by-token text updates.
 struct StudioView: View {
     @EnvironmentObject private var studio: StudioModel
+    @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
     var body: some View {
-        ZStack {
-            StudioTheme.canvas
-            RadialGradient(
-                colors: [Color(red: 0.10, green: 0.16, blue: 0.22).opacity(0.28), .clear],
-                center: UnitPoint(x: 0.72, y: 0.08),
-                startRadius: 20,
-                endRadius: 620
-            )
-
+        GeometryReader { geometry in
             HStack(spacing: 0) {
-                SidebarView()
-                    .frame(width: 250)
+                if sidebarVisible {
+                    SidebarView().frame(width: 232)
+                }
+                ChatWorkspaceView(sidebarVisible: $sidebarVisible)
+                    .background(StudioTheme.canvas)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(StudioTheme.edge, lineWidth: 0.5)
+                            .allowsHitTesting(false)
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                    .padding(.leading, sidebarVisible ? 0 : 8)
+                    .padding(.trailing, 8)
 
-                Rectangle()
-                    .fill(Color.white.opacity(0.075))
-                    .frame(width: 1)
-
-                ChatWorkspaceView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if studio.showInspector {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.075))
-                        .frame(width: 1)
+                if studio.showInspector && geometry.size.width >= 1220 {
+                    GenerationInspector().frame(width: 286)
+                }
+            }
+            .overlay(alignment: .trailing) {
+                if studio.showInspector && geometry.size.width < 1220 {
+                  ZStack(alignment: .trailing) {
+                    Color.black.opacity(0.28)
+                        .contentShape(Rectangle())
+                        .onTapGesture { studio.showInspector = false }
                     GenerationInspector()
-                        .frame(width: 294)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .frame(width: 286)
+                        .overlay(alignment: .leading) {
+                            Rectangle().fill(StudioTheme.edge).frame(width: 0.5)
+                        }
+                        .shadow(color: .black.opacity(0.3), radius: 20, x: -8)
+                  }
+                  .onExitCommand { studio.showInspector = false }
                 }
             }
         }
+        .background(StudioTheme.sidebar)
         .ignoresSafeArea()
-        .frame(minWidth: 980, minHeight: 650)
-        .animation(.snappy(duration: 0.28), value: studio.showInspector)
+        .frame(minWidth: 820, minHeight: 600)
         .sheet(isPresented: $studio.showModelManager) {
-            ModelManagerView()
-                .environmentObject(studio)
+            ModelManagerView().environmentObject(studio)
         }
         .sheet(isPresented: $studio.showAppSettings) {
-            AppSettingsView()
-                .environmentObject(studio)
+            AppSettingsView().environmentObject(studio)
         }
     }
 }
 
 private struct SidebarView: View {
     @EnvironmentObject private var studio: StudioModel
+    @State private var search = ""
+
+    private var filteredConversations: [Conversation] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        return studio.conversations.filter {
+            query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 11) {
-                LogoMark(size: 32)
-                VStack(alignment: .leading, spacing: -1) {
-                    Text("MLXL3")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .tracking(0.7)
-                    Text("DESKTOP")
-                        .font(.system(size: 8, weight: .semibold, design: .rounded))
-                        .tracking(1.8)
-                        .foregroundStyle(StudioTheme.quiet)
-                }
+            HStack(spacing: 9) {
+                MonogramMark(size: 21)
+                Text("MLXL3")
+                    .font(.system(size: 14, weight: .semibold))
+                    .tracking(1)
                 Spacer()
-                UpdateStatusButton(
-                    updater: studio.updateManager,
-                    action: studio.openAppSettings
-                )
+                Text("Desktop")
+                    .font(.system(size: 10))
+                    .foregroundStyle(StudioTheme.quiet)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 44)
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 22)
+            .padding(.top, 51)
+            .padding(.bottom, 32)
 
             Button(action: studio.newConversation) {
-                HStack(spacing: 9) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .bold))
-                    Text("Nouvelle conversation")
-                        .font(.system(size: 13, weight: .semibold))
-                    Spacer()
-                    Text("⌘N")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(StudioTheme.quiet)
+                HStack(spacing: 10) {
+                    Image(systemName: "square.and.pencil").font(.system(size: 14))
+                    Text("Nouvelle conversation").font(.system(size: 12, weight: .medium))
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 13)
-                .frame(height: 40)
+                .padding(.horizontal, 11)
+                .frame(height: 38)
             }
-            .buttonStyle(PrimaryGlassButtonStyle())
-            .padding(.top, 24)
-            .padding(.horizontal, 14)
+            .buttonStyle(StudioControlStyle(emphasized: true))
+            .padding(.horizontal, 12)
+            .help("Nouvelle conversation · ⌘N")
 
-            Text("CONVERSATIONS")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .tracking(1.4)
-                .foregroundStyle(StudioTheme.quiet)
-                .padding(.horizontal, 19)
-                .padding(.top, 27)
-                .padding(.bottom, 9)
+            HStack(spacing: 9) {
+                Image(systemName: "magnifyingglass").font(.system(size: 12))
+                TextField("Rechercher", text: $search)
+                    .textFieldStyle(.plain)
+                    .accessibilityLabel("Rechercher dans les titres des conversations")
+                if !search.isEmpty {
+                    Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain)
+                        .help("Effacer la recherche")
+                }
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(StudioTheme.secondary)
+            .padding(.horizontal, 12)
+            .frame(height: 38)
+            .padding(.horizontal, 12)
+            .padding(.top, 7)
+
+            HStack {
+                Text("Conversations")
+                Spacer()
+                Text("\(filteredConversations.count)").monospacedDigit()
+            }
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(StudioTheme.quiet)
+            .padding(.horizontal, 23)
+            .padding(.top, 25)
+            .padding(.bottom, 11)
 
             ScrollView {
-                LazyVStack(spacing: 3) {
-                    ForEach(studio.conversations) { conversation in
-                        ConversationRow(
-                            conversation: conversation,
-                            selected: conversation.id == studio.selectedConversationID
-                        )
-                        .onTapGesture { studio.selectConversation(conversation.id) }
+                LazyVStack(spacing: 2) {
+                    ForEach(filteredConversations) { conversation in
+                        Button { studio.selectConversation(conversation.id) } label: {
+                            ConversationRow(
+                                conversation: conversation,
+                                selected: conversation.id == studio.selectedConversationID
+                            )
+                        }
+                        .buttonStyle(.plain)
                         .contextMenu {
                             Button("Supprimer", role: .destructive) {
                                 studio.deleteConversation(conversation.id)
                             }
                         }
                     }
-                }
-                .padding(.horizontal, 9)
-            }
-
-            Spacer(minLength: 12)
-
-            if let model = studio.selectedModel {
-                VStack(alignment: .leading, spacing: 9) {
-                    HStack {
-                        StatusDot(state: studio.engineState)
-                        Text(studio.engineState.label)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(StudioTheme.secondary)
-                        Spacer()
+                    if filteredConversations.isEmpty {
+                        Text(search.isEmpty ? "Vos conversations apparaîtront ici." : "Aucune conversation trouvée.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(StudioTheme.quiet)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
                     }
-                    Text(model.name)
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                    HStack(spacing: 6) {
-                        Text(model.format)
-                        Text("·")
-                        Text(model.bits.map { String(format: "%.2f BPW", $0) } ?? "BPW —")
-                        Text("·")
-                        Text(model.size)
-                    }
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.quiet)
                 }
-                .padding(13)
-                .premiumGlass(radius: 15, tint: Color.white.opacity(0.025))
                 .padding(.horizontal, 12)
-                .padding(.bottom, 14)
             }
+            .scrollIndicators(.hidden)
+
+            VStack(spacing: 2) {
+                Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
+                    .padding(.horizontal, 10).padding(.bottom, 12)
+                utilityButton("Modèles", icon: "square.stack", action: studio.openModelManager)
+                HStack(spacing: 0) {
+                    utilityButton("Réglages", icon: "gearshape", action: studio.openAppSettings)
+                    SidebarUpdateBadge(updater: studio.updateManager, action: studio.openAppSettings)
+                        .padding(.trailing, 8)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 17)
         }
-        .background(StudioTheme.sidebar.opacity(0.93))
+    }
+
+    private func utilityButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 12))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 11)
+                .frame(height: 35)
+        }
+        .buttonStyle(StudioControlStyle())
     }
 }
 
 private struct ConversationRow: View {
     let conversation: Conversation
     let selected: Bool
+    @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: conversation.messages.isEmpty ? "sparkles" : "bubble.left")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(selected ? Color.white : StudioTheme.quiet)
-                .frame(width: 16)
+        HStack(spacing: 9) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(selected ? StudioTheme.ink : .clear)
+                .frame(width: 2, height: 13)
             Text(conversation.title)
-                .font(.system(size: 12, weight: selected ? .semibold : .regular))
-                .foregroundStyle(selected ? Color.white : StudioTheme.secondary)
+                .font(.system(size: 13, weight: selected ? .medium : .regular))
+                .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
         .frame(height: 36)
-        .background(
-            selected ? Color.white.opacity(0.085) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
+        .background(Color.white.opacity(selected ? 0.055 : (hovered ? 0.03 : 0)),
+                    in: RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .help(conversation.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
 private struct ChatWorkspaceView: View {
     @EnvironmentObject private var studio: StudioModel
+    @Binding var sidebarVisible: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            WorkspaceHeader()
-
+            WorkspaceHeader(sidebarVisible: $sidebarVisible)
             if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
                 MessagesView(messages: conversation.messages)
+                ComposerView()
+                    .padding(.horizontal, 32)
+                    .padding(.top, 10)
+                    .padding(.bottom, 22)
             } else {
                 WelcomeView()
             }
-
-            ComposerView()
-                .padding(.horizontal, 34)
-                .padding(.bottom, 24)
         }
     }
 }
 
 private struct WorkspaceHeader: View {
     @EnvironmentObject private var studio: StudioModel
+    @Binding var sidebarVisible: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
+            Button { sidebarVisible.toggle() } label: {
+                Image(systemName: "sidebar.left").frame(width: 30, height: 30)
+            }
+            .buttonStyle(StudioControlStyle())
+            .help(sidebarVisible ? "Masquer l’historique" : "Afficher l’historique")
+            .accessibilityLabel("Afficher ou masquer l’historique")
+            .keyboardShortcut("s", modifiers: [.command, .control])
+
+            Text(studio.currentConversation?.messages.isEmpty == false
+                 ? (studio.currentConversation?.title ?? "Conversation") : "Conversation")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(StudioTheme.secondary)
+                .lineLimit(1)
+                .layoutPriority(-1)
+
+            Spacer(minLength: 12)
+
             Menu {
                 ForEach(studio.models) { model in
-                    Button {
-                        studio.selectModel(model.name)
-                    } label: {
+                    Button { studio.selectModel(model.name) } label: {
                         if model.name == studio.selectedModelName {
                             Label(model.name, systemImage: "checkmark")
                         } else {
@@ -215,59 +262,54 @@ private struct WorkspaceHeader: View {
                         }
                     }
                 }
-                if !studio.models.isEmpty {
-                    Divider()
-                }
-                Button {
-                    studio.openModelManager()
-                } label: {
+                if !studio.models.isEmpty { Divider() }
+                Button(action: studio.openModelManager) {
                     Label("Ajouter un modèle…", systemImage: "square.and.arrow.down")
                 }
             } label: {
-                HStack(spacing: 9) {
+                HStack(spacing: 8) {
                     StatusDot(state: studio.engineState)
                     Text(studio.selectedModelName ?? "Choisir un modèle")
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1).truncationMode(.middle)
+                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
                         .foregroundStyle(StudioTheme.quiet)
                 }
-                .padding(.horizontal, 13)
-                .frame(height: 36)
+                .padding(.horizontal, 11)
+                .frame(height: 30)
+                .frame(maxWidth: 260)
             }
-            .buttonStyle(GlassPillButtonStyle())
+            .menuStyle(.button)
+            .buttonStyle(StudioControlStyle())
+            .menuIndicator(.hidden)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 6))
             .disabled(studio.isGenerating)
-
-            Text(studio.engineState.label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(StudioTheme.quiet)
-                .lineLimit(1)
-
-            Spacer()
+            .help(studio.engineState.label)
+            .accessibilityLabel("Modèle : \(studio.selectedModelName ?? "aucun")")
 
             Button(action: studio.ejectModel) {
-                Image(systemName: "eject.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .frame(width: 34, height: 34)
+                Image(systemName: "eject").frame(width: 30, height: 30)
             }
-            .buttonStyle(RoundGlassButtonStyle())
+            .buttonStyle(StudioControlStyle())
             .disabled(!studio.canEject)
             .help("Éjecter le modèle et libérer la mémoire Metal")
+            .accessibilityLabel("Éjecter le modèle")
 
-            Button {
-                studio.showInspector.toggle()
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(width: 34, height: 34)
+            Button { studio.showInspector.toggle() } label: {
+                Image(systemName: "slider.horizontal.3").frame(width: 30, height: 30)
             }
-            .buttonStyle(RoundGlassButtonStyle())
+            .buttonStyle(StudioControlStyle(emphasized: studio.showInspector))
             .help("Réglages de génération")
+            .accessibilityLabel("Réglages de génération")
         }
-        .padding(.top, 35)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 13)
+        .font(.system(size: 13))
+        .padding(.horizontal, 19)
+        .padding(.top, sidebarVisible ? 14 : 30)
+        .padding(.bottom, 14)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
+        }
     }
 }
 
@@ -275,191 +317,54 @@ private struct WelcomeView: View {
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.05))
-                    .frame(width: 116, height: 116)
-                    .blur(radius: 18)
-                LogoMark(size: 64)
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 32)
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Nouvelle conversation")
+                    .font(.system(size: 34, weight: .regular, design: .serif))
+                    .tracking(-0.8)
+                    .foregroundStyle(StudioTheme.ink)
+                Text(studio.models.isEmpty
+                     ? "Ajoutez un modèle pour commencer."
+                     : "Échangez avec un modèle exécuté sur ce Mac.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(StudioTheme.quiet)
             }
-            Text("Intelligence locale, sans compromis.")
-                .font(.system(size: 25, weight: .semibold, design: .rounded))
-                .tracking(-0.45)
-                .padding(.top, 24)
-            Text("Discute avec tes modèles EXL3 directement sur Apple Metal.\nPrivé, rapide, entièrement sur ce Mac.")
-                .font(.system(size: 12.5, weight: .regular))
-                .foregroundStyle(StudioTheme.secondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .padding(.top, 11)
+            .padding(.horizontal, 4)
+            .padding(.bottom, 30)
+
+            ComposerView()
 
             if case let .failed(message) = studio.engineState {
-                VStack(spacing: 10) {
-                    Label(message, systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.red.opacity(0.08), in: Capsule())
-
+                DisclosureGroup("Le modèle n’a pas pu être chargé") {
+                    Text(message)
+                        .font(.system(size: 11, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxHeight: 150)
                 }
-                .padding(.top, 22)
-            }
-            Button {
-                studio.openModelManager()
-            } label: {
-                Label("Ajouter un modèle EXL3", systemImage: "square.and.arrow.down")
-                    .padding(.horizontal, 18)
-                    .frame(height: 40)
-            }
-            .buttonStyle(PrimaryGlassButtonStyle())
-            .padding(.top, 18)
-            Spacer()
-            Spacer().frame(height: 48)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct ModelManagerView: View {
-    @EnvironmentObject private var studio: StudioModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var repository = ""
-    @State private var revision = ""
-    @State private var modelName = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Modèles")
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    Text("Importe un dossier local ou télécharge un checkpoint EXL3.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(StudioTheme.secondary)
-                }
-                Spacer()
-                Button(action: dismiss.callAsFunction) {
-                    Image(systemName: "xmark")
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(RoundGlassButtonStyle())
-            }
-
-            Button(action: studio.importModelFolder) {
-                Label("Choisir un dossier EXL3…", systemImage: "folder")
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 42)
-            }
-            .buttonStyle(GlassPillButtonStyle())
-            .disabled(studio.modelInstallState.isWorking)
-
-            HStack(spacing: 10) {
-                Rectangle().fill(StudioTheme.edge).frame(height: 1)
-                Text("OU HUGGING FACE")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .tracking(1.2)
-                    .foregroundStyle(StudioTheme.quiet)
-                Rectangle().fill(StudioTheme.edge).frame(height: 1)
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                ModelField(
-                    title: "DÉPÔT",
-                    placeholder: "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw",
-                    text: $repository
-                )
-                HStack(spacing: 12) {
-                    ModelField(
-                        title: "RÉVISION (OPTIONNEL)",
-                        placeholder: "2.49bpw",
-                        text: $revision
-                    )
-                    ModelField(
-                        title: "NOM LOCAL (OPTIONNEL)",
-                        placeholder: "qwen3.6-35b-a3b",
-                        text: $modelName
-                    )
-                }
-            }
-
-            Button {
-                studio.downloadModel(
-                    repo: repository,
-                    revision: revision,
-                    name: modelName
-                )
-            } label: {
-                HStack(spacing: 9) {
-                    if studio.modelInstallState.isWorking {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.down.circle.fill")
-                    }
-                    Text(studio.modelInstallState.isWorking ? "Téléchargement…" : "Télécharger")
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 42)
-            }
-            .buttonStyle(PrimaryGlassButtonStyle())
-            .disabled(
-                repository.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    || studio.modelInstallState.isWorking
-            )
-
-            installStatus
-        }
-        .padding(26)
-        .frame(width: 620)
-        .background(StudioTheme.canvas)
-    }
-
-    @ViewBuilder
-    private var installStatus: some View {
-        switch studio.modelInstallState {
-        case .idle:
-            Label(
-                "Les modèles restent sur ce Mac. Les dépôts privés utilisent le token HF local.",
-                systemImage: "lock.fill"
-            )
-            .foregroundStyle(StudioTheme.quiet)
-        case let .working(message):
-            Label(message, systemImage: "arrow.down.circle")
-                .foregroundStyle(StudioTheme.accent)
-        case let .succeeded(message):
-            Label(message, systemImage: "checkmark.circle.fill")
-                .foregroundStyle(Color(red: 0.42, green: 1.0, blue: 0.69))
-        case let .failed(message):
-            Label(message, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
-        }
-    }
-}
-
-private struct ModelField: View {
-    let title: String
-    let placeholder: String
-    @Binding var text: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title)
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .tracking(1.1)
-                .foregroundStyle(StudioTheme.quiet)
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.plain)
                 .font(.system(size: 12))
-                .padding(.horizontal, 12)
-                .frame(height: 38)
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(StudioTheme.edge, lineWidth: 0.7)
+                .foregroundStyle(Color(red: 0.94, green: 0.57, blue: 0.5))
+                .padding(.top, 18)
+            }
+
+            HStack(spacing: 18) {
+                Button(action: studio.openModelManager) {
+                    Label(studio.models.isEmpty ? "Ajouter un modèle" : "Gérer les modèles", systemImage: "square.stack")
                 }
+                .buttonStyle(.plain)
+                .help("Importer ou télécharger un modèle EXL3")
+                Spacer()
+                Text("⌘N  Nouvelle conversation")
+            }
+            .font(.system(size: 10))
+            .foregroundStyle(StudioTheme.quiet)
+            .padding(.horizontal, 4)
+            .padding(.top, 20)
+            Spacer(minLength: 32)
+            Spacer().frame(maxHeight: 70)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: 680)
+        .padding(.horizontal, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

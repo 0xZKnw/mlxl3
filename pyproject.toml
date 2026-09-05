@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mlxl3"
-version = "0.1.0.dev0"
+version = "0.4.0"
 description = "Independent EXL3 inference and conversion engine for Apple Silicon"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -14,6 +14,7 @@ dependencies = [
   "mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99",
   "numpy>=2.0",
   "safetensors>=0.5",
+  "certifi>=2025.1.31",
 ]
 
 [project.scripts]

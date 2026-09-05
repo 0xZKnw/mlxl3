@@ -3,16 +3,34 @@ import SwiftUI
 @main
 struct MLXL3StudioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var studio = StudioModel()
+    @StateObject private var studio: StudioModel
+    private let isPreview = ProcessInfo.processInfo.arguments.contains("--ui-preview")
+
+    init() {
+        if ProcessInfo.processInfo.arguments.contains("--check-mcp-preferences") {
+            do {
+                try MCPPreferenceCheck.run()
+                print("MCP checks passed: default off, persisted on/off, request flag, isolated preview")
+                exit(0)
+            } catch {
+                print("MCP checks failed: \(error)")
+                exit(1)
+            }
+        }
+        let preview = ProcessInfo.processInfo.arguments.contains("--ui-preview")
+        _studio = StateObject(wrappedValue: preview ? StudioModel.uiPreview() : StudioModel())
+    }
 
     var body: some Scene {
-        WindowGroup("MLXL3 Desktop") {
+        WindowGroup(isPreview ? "MLXL3 — Aperçu" : "MLXL3 Desktop") {
             StudioView()
                 .environmentObject(studio)
                 .preferredColorScheme(.dark)
                 .onAppear {
-                    studio.start()
-                    appDelegate.configureMenuBar(with: studio)
+                    if !isPreview {
+                        studio.start()
+                        appDelegate.configureMenuBar(with: studio)
+                    }
                 }
         }
         .windowStyle(.hiddenTitleBar)

@@ -131,9 +131,22 @@ demand. When a newer all-in-one DMG is available, it downloads in the background
 verifies GitHub's SHA-256 digest, then offers **Restart and install**. The engine
 and native UI are versioned and updated together so their protocol stays in sync.
 
-### Local MCP tools
+### MCP tools — Exa included, off by default
 
-MLXL3 Desktop can connect to local MCP servers over stdio, expose their tools to
+The **MCP switch in the message composer** enables/disables tools for the app.
+It is **off on first launch**. Your choice is saved on this Mac and restored
+after a relaunch, model change, or new conversation. Switching it does not reload
+the model. During a generation or connection update the switch is temporarily
+locked; turn it off before sending the next message to prevent tool use.
+
+Exa web search and page fetching are preconfigured using its hosted endpoint
+`https://mcp.exa.ai/mcp`. No Node installation or API key is required for Exa's
+free tier (subject to Exa's rate limits). The signed DMG includes the native HTTP
+client and certificate bundle. No MCP connection is opened while the master
+switch is off. **When enabled, search queries and fetched URLs are sent to Exa**;
+local model inference still runs on your Mac.
+
+MLXL3 Desktop can also connect to local MCP servers over stdio, expose their tools to
 the active model, execute tool calls, and show each call inline. Qwen tool
 templates are used directly; models without a native tool template receive a
 portable XML/JSON fallback prompt. Configure servers with the CLI:
@@ -141,6 +154,7 @@ portable XML/JSON fallback prompt. Configure servers with the CLI:
 ```bash
 mlxl3 mcp add filesystem npx -y @modelcontextprotocol/server-filesystem "$HOME/Documents"
 mlxl3 mcp list
+mlxl3 mcp check --json # explicitly connects to test tools, without loading a model
 ```
 
 Or open **Generation settings → MCP → Configure** and edit the common
@@ -150,6 +164,10 @@ Or open **Generation settings → MCP → Configure** and edit the common
 {
   "version": 1,
   "mcpServers": {
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp",
+      "enabled": true
+    },
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/Documents"],
@@ -159,7 +177,15 @@ Or open **Generation settings → MCP → Configure** and edit the common
 }
 ```
 
-Reload MCP from the same panel after editing. Commands are started directly,
+The per-server `enabled` flag controls which servers are eligible when the
+master switch is on; it does not enable MCP globally. An explicit Exa entry
+overrides the built-in preset. Set its `enabled` flag to `false` to exclude Exa
+while using other servers. `mlxl3 mcp remove exa` does this too. Remote servers
+support HTTPS Streamable HTTP (JSON/SSE responses); custom static `headers` are
+supported. Browser OAuth and legacy HTTP+SSE endpoints are not supported.
+
+Reload MCP from the same panel after editing (without reloading the model).
+Commands are started directly,
 without a shell, but enabled MCP servers and their tool descriptions are trusted
 local code: only configure servers you trust and only grant the directories or
 credentials they actually need.
@@ -190,7 +216,7 @@ environment automatically. A different executable can be selected with
 On an M1, M2, M3, M4, or M5 Mac running macOS 26.2 or newer:
 
 1. Download
-   `MLXL3-Desktop-v0.2.0-Apple-Silicon.dmg`, open it, and drag
+   `MLXL3-Desktop-v0.4.0-Apple-Silicon.dmg`, open it, and drag
    **MLXL3 Desktop** into Applications.
 2. Launch the app. No Python, Homebrew, MLX, Hugging Face CLI, or Terminal setup
    is required. The current build is ad-hoc signed rather than Apple-notarized,

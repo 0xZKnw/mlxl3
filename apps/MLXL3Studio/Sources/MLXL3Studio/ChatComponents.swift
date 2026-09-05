@@ -2,11 +2,13 @@ import SwiftUI
 
 struct MessagesView: View {
     let messages: [ChatMessage]
+    @State private var followsBottom = true
+    @State private var userIsScrolling = false
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 27) {
+                VStack(spacing: 38) {
                     ForEach(messages) { message in
                         MessageView(message: message)
                             .id(message.id)
@@ -15,15 +17,24 @@ struct MessagesView: View {
                         .frame(height: 4)
                         .id("conversation-bottom")
                 }
-                .padding(.horizontal, 48)
-                .padding(.top, 28)
+                .padding(.horizontal, 28)
+                .padding(.top, 38)
                 .padding(.bottom, 26)
-                .frame(maxWidth: 920)
+                .frame(maxWidth: 820)
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.never)
             .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .onScrollPhaseChange { _, phase in
+                userIsScrolling = phase == .interacting || phase == .decelerating
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentSize.height - geometry.visibleRect.maxY < 100
+            } action: { _, nearBottom in
+                if userIsScrolling || nearBottom { followsBottom = nearBottom }
+            }
             .onChange(of: messages.last?.id) {
+                followsBottom = true
                 Task { @MainActor in
                     await Task.yield()
                     var transaction = Transaction(animation: nil)
@@ -36,6 +47,7 @@ struct MessagesView: View {
             .overlay {
                 if let lastMessage = messages.last {
                     StreamingScrollFollower(message: lastMessage) {
+                        guard followsBottom else { return }
                         var transaction = Transaction(animation: nil)
                         transaction.disablesAnimations = true
                         withTransaction(transaction) {
@@ -43,6 +55,20 @@ struct MessagesView: View {
                         }
                     }
                     .frame(width: 0, height: 0)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if !followsBottom {
+                    Button {
+                        followsBottom = true
+                        proxy.scrollTo("conversation-bottom", anchor: .bottom)
+                    } label: {
+                        Label("Dernier message", systemImage: "arrow.down")
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 14).padding(.vertical, 9)
+                    }
+                    .buttonStyle(GlassPillButtonStyle())
+                    .padding(.bottom, 12)
                 }
             }
         }
@@ -78,16 +104,24 @@ private struct MessageView: View {
 
     var body: some View {
         if message.role == .user {
-            HStack {
-                Spacer(minLength: 120)
+          HStack(alignment: .top) {
+            Spacer(minLength: 64)
+            VStack(alignment: .trailing, spacing: 9) {
+                Text("Vous")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(StudioTheme.quiet)
                 Text(message.content)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(Color.white.opacity(0.94))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(StudioTheme.ink)
+                    .lineSpacing(5)
                     .textSelection(.enabled)
                     .padding(.horizontal, 17)
-                    .padding(.vertical, 12)
-                    .premiumGlass(radius: 18, tint: Color.white.opacity(0.045))
+                    .padding(.vertical, 13)
+                    .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
             }
+          }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.bottom, 4)
         } else {
             AssistantMessageView(message: message)
         }
@@ -98,15 +132,13 @@ private struct AssistantMessageView: View {
     @ObservedObject var message: ChatMessage
 
     var body: some View {
-        HStack(alignment: .top, spacing: 13) {
-            LogoMark(size: 27)
-                .padding(.top, 1)
-
+        HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 13) {
                 HStack(spacing: 7) {
+                    MonogramMark(size: 15)
                     Text("MLXL3")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .tracking(0.55)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(StudioTheme.secondary)
                     if message.isStreaming {
                         StreamingIndicator()
                     }
@@ -247,9 +279,8 @@ private struct ThinkingPlaceholder: View {
         HStack(spacing: 9) {
             Image(systemName: "ellipsis")
                 .font(.system(size: 10, weight: .bold))
-            Text("RAISONNEMENT")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .tracking(1.25)
+            Text("Réflexion en cours")
+                .font(.system(size: 11, weight: .medium))
             HStack(spacing: 3) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
@@ -289,19 +320,18 @@ private struct ThinkingBlock: View {
             .frame(maxHeight: 180)
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 10, weight: .bold))
-                Text(streaming ? "RAISONNEMENT EN COURS" : "RAISONNEMENT")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .tracking(1.15)
+                Text(streaming ? "Réflexion en cours" : "Réflexion")
+                    .font(.system(size: 11, weight: .medium))
                 if streaming { StreamingIndicator() }
             }
             .foregroundStyle(StudioTheme.thinking)
         }
         .tint(Color.white.opacity(0.52))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .premiumGlass(radius: 14, tint: Color.white.opacity(0.018))
+        .padding(.leading, 14)
+        .padding(.vertical, 5)
+        .overlay(alignment: .leading) {
+            Rectangle().fill(StudioTheme.edge).frame(width: 1)
+        }
     }
 }
 
@@ -316,7 +346,7 @@ private struct ThinkingTextChunk: View, Equatable {
     var body: some View {
         Text(source)
             .font(.system(size: 11.5, weight: .regular, design: .monospaced))
-            .foregroundStyle(Color.white.opacity(streaming ? 0.55 : 0.57))
+            .foregroundStyle(StudioTheme.secondary)
             .lineSpacing(3)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -327,7 +357,7 @@ private struct StatsRow: View {
     let stats: GenerationStats
 
     var body: some View {
-        HStack(spacing: 7) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), alignment: .leading)], alignment: .leading, spacing: 6) {
             MetricChip(icon: "bolt.fill", value: String(format: "%.1f tok/s", stats.decodeTps), label: "decode")
             MetricChip(icon: "arrow.right.to.line", value: String(format: "%.1f tok/s", stats.prefillTps), label: "prefill")
             MetricChip(icon: "timer", value: String(format: "%.0f ms", stats.ttftSeconds * 1000), label: "TTFT")
@@ -359,8 +389,7 @@ private struct MetricChip: View {
         .font(.system(size: 9, weight: .medium, design: .rounded))
         .padding(.horizontal, 8)
         .frame(height: 24)
-        .background(Color.white.opacity(0.04), in: Capsule())
-        .overlay { Capsule().stroke(Color.white.opacity(0.07), lineWidth: 0.6) }
+        .monospacedDigit()
     }
 }
 
@@ -371,13 +400,13 @@ struct ComposerView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: 12) {
-                TextField("Écris un message…", text: $studio.draft, axis: .vertical)
+                TextField("Écrivez un message…", text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14))
+                    .font(.system(size: 15))
                     .lineLimit(1...6)
                     .focused($focused)
                     .padding(.vertical, 5)
-                    .frame(minHeight: 34, alignment: .topLeading)
+                    .frame(minHeight: 48, alignment: .topLeading)
                     .contentShape(Rectangle())
                     .disabled(studio.isGenerating)
                     .onSubmit { studio.send() }
@@ -399,6 +428,7 @@ struct ComposerView: View {
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))
                     .help("Arrêter")
+                    .accessibilityLabel("Arrêter la génération")
                 } else {
                     Button(action: studio.send) {
                         Image(systemName: "arrow.up")
@@ -408,40 +438,78 @@ struct ComposerView: View {
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))
                     .disabled(!studio.canSend)
+                    .help("Envoyer le message")
+                    .accessibilityLabel("Envoyer le message")
                 }
             }
-            .padding(.horizontal, 15)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 18)
+            .padding(.top, 17)
+            .padding(.bottom, 14)
 
-            HStack(spacing: 7) {
-                Label("LOCAL", systemImage: "lock.fill")
-                Text("·")
-                Text("EXL3")
-                Text("·")
-                Text("APPLE METAL")
-                Spacer()
-                Text("↩ ENVOYER  ·  ⌃↩ NOUVELLE LIGNE")
-            }
-            .font(.system(size: 8.5, weight: .semibold, design: .rounded))
-            .tracking(0.65)
-            .foregroundStyle(StudioTheme.quiet)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 10)
+            ComposerFooterView()
         }
-        .contentShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onTapGesture {
             guard !studio.isGenerating else { return }
             focused = true
         }
-        .premiumGlass(radius: 23, tint: Color.white.opacity(0.035))
+        .background(Color(red: 0.105, green: 0.108, blue: 0.108), in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(focused ? 0.22 : 0.10), lineWidth: 0.7)
+                .allowsHitTesting(false)
+        }
         .frame(maxWidth: 790)
         .frame(maxWidth: .infinity)
         .onAppear { focused = true }
+        .onChange(of: studio.draft) {
+            if !studio.isGenerating && !studio.draft.isEmpty { focused = true }
+        }
         .onChange(of: studio.isGenerating) {
             if !studio.isGenerating {
                 focused = true
             }
         }
+    }
+}
+
+
+private struct ComposerFooterView: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    var body: some View {
+            HStack(spacing: 7) {
+                Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "network")
+                        Text("MCP")
+                    }
+                }
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .fixedSize()
+                .tint(StudioTheme.accent)
+                .disabled(studio.isGenerating || studio.mcpUpdating)
+                .accessibilityLabel("Activer les outils MCP")
+                .help("Exa et les serveurs MCP configurés. Les requêtes peuvent quitter ce Mac. Choix mémorisé.")
+                if studio.mcpUpdating {
+                    ProgressView().controlSize(.mini).help("Connexion MCP…")
+                } else if studio.mcpEnabled && !studio.mcpErrors.isEmpty {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .help(studio.mcpErrors.values.sorted().joined(separator: "\n"))
+                }
+                Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
+                HStack(spacing: 6) {
+                    StatusDot(state: studio.engineState)
+                    Text(studio.isGenerating ? "Génération en cours" : studio.engineState.label)
+                }
+                Spacer()
+                Text("↵ Envoyer     ⌃↵ Nouvelle ligne")
+            }
+            .font(.system(size: 10, weight: .regular))
+            .foregroundStyle(StudioTheme.quiet)
+            .padding(.horizontal, 18)
+            .padding(.bottom, 13)
     }
 }

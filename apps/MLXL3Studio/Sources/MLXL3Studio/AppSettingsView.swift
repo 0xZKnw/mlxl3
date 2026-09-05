@@ -7,12 +7,12 @@ struct AppSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 13) {
-                LogoMark(size: 38)
+                MonogramMark(size: 26)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Réglages")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .regular, design: .serif))
                     Text("MLXL3 Desktop")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(StudioTheme.quiet)
                 }
                 Spacer()
@@ -41,21 +41,20 @@ struct AppSettingsView: View {
 
                     VStack(alignment: .leading, spacing: 11) {
                         Label("Comment ça marche", systemImage: "shippingbox")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(size: 13, weight: .semibold))
                         Text("Le moteur MLXL3 et l’interface sont livrés dans le même DMG. Une nouvelle release GitHub met donc les deux à jour ensemble, sans désynchroniser leurs versions.")
-                            .font(.system(size: 12.5, weight: .regular, design: .rounded))
+                            .font(.system(size: 12.5, weight: .regular))
                             .foregroundStyle(StudioTheme.secondary)
                             .lineSpacing(4)
                         HStack(spacing: 8) {
                             Label("Vérification au démarrage", systemImage: "checkmark.circle.fill")
                             Label("DMG vérifié en SHA-256", systemImage: "lock.shield.fill")
                         }
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(StudioTheme.quiet)
                     }
-                    .padding(17)
+                    .padding(.vertical, 17)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .premiumGlass(radius: 16, tint: Color.white.opacity(0.025))
                 }
                 .padding(26)
             }
@@ -85,9 +84,9 @@ private struct UpdateSettingsCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Mises à jour")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .bold))
                     Text("Version installée · \(updater.currentVersion)")
-                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        .font(.system(size: 10.5, weight: .medium))
                         .foregroundStyle(StudioTheme.quiet)
                 }
                 Spacer()
@@ -98,9 +97,9 @@ private struct UpdateSettingsCard: View {
                 stateIcon
                 VStack(alignment: .leading, spacing: 3) {
                     Text(statusTitle)
-                        .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                        .font(.system(size: 12.5, weight: .semibold))
                     Text(statusDetail)
-                        .font(.system(size: 11, weight: .regular, design: .rounded))
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(StudioTheme.quiet)
                         .lineLimit(3)
                 }
@@ -119,17 +118,17 @@ private struct UpdateSettingsCard: View {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
                         Text("NOUVEAUTÉS · \(release.tag.uppercased())")
-                            .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                            .font(.system(size: 8.5, weight: .bold))
                             .tracking(1.1)
                             .foregroundStyle(StudioTheme.quiet)
                         Spacer()
                         Button("Voir la release") { updater.openReleasePage() }
                             .buttonStyle(.plain)
-                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .font(.system(size: 10.5, weight: .semibold))
                             .foregroundStyle(StudioTheme.accent)
                     }
                     Text(release.notes)
-                        .font(.system(size: 11.5, weight: .regular, design: .rounded))
+                        .font(.system(size: 11.5, weight: .regular))
                         .foregroundStyle(StudioTheme.secondary)
                         .lineSpacing(3)
                         .lineLimit(7)
@@ -139,12 +138,11 @@ private struct UpdateSettingsCard: View {
 
             if case .ready = updater.state, !canInstall {
                 Text("Termine ou arrête la génération avant de redémarrer pour installer.")
-                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(Color.orange.opacity(0.82))
             }
         }
-        .padding(18)
-        .premiumGlass(radius: 18, tint: StudioTheme.accent.opacity(0.025))
+        .padding(.vertical, 12)
     }
 
     @ViewBuilder
@@ -153,7 +151,7 @@ private struct UpdateSettingsCard: View {
         case .ready:
             Button(action: install) {
                 Label("Redémarrer et installer", systemImage: "arrow.clockwise")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 13)
                     .frame(height: 34)
             }
@@ -166,7 +164,7 @@ private struct UpdateSettingsCard: View {
         default:
             Button(action: updater.checkForUpdates) {
                 Text("Rechercher")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 15)
                     .frame(height: 34)
             }

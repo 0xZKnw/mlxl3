@@ -767,6 +767,8 @@ def _parser() -> argparse.ArgumentParser:
     mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
     mcp_list = mcp_commands.add_parser("list", aliases=["ls"], help="list MCP servers")
     mcp_list.add_argument("--json", action="store_true")
+    mcp_check = mcp_commands.add_parser("check", help="connect and list MCP tools without loading a model")
+    mcp_check.add_argument("--json", action="store_true")
     mcp_commands.add_parser("config", help="print and create the MCP configuration path")
     mcp_add = mcp_commands.add_parser("add", help="add or replace an MCP stdio server")
     mcp_add.add_argument("name")
@@ -818,7 +820,7 @@ def _format_mcp_servers() -> str:
         return "Aucun serveur MCP configuré."
     return "\n".join(
         f"{server.name}\t{'ACTIF' if server.enabled else 'INACTIF'}\t"
-        f"{server.command} {' '.join(server.args)}".rstrip()
+        f"{server.url or server.command} {' '.join(server.args)}".rstrip()
         for server in servers
     )
 
@@ -1416,12 +1418,8 @@ def _bridge(args) -> int:
     cancel_requested = threading.Event()
     previous_cancel_handler = signal.getsignal(signal.SIGUSR1)
     signal.signal(signal.SIGUSR1, lambda _signum, _frame: cancel_requested.set())
-    try:
-        mcp = MCPManager()
-        mcp.connect()
-    except Exception as error:  # noqa: BLE001 - MCP must never prevent local inference
-        mcp = MCPManager([])
-        mcp.errors["configuration"] = str(error)
+    # Off until the desktop explicitly restores/enables the user's preference.
+    mcp = MCPManager([])
     try:
         _json_event(
             "ready",
@@ -1449,10 +1447,16 @@ def _bridge(args) -> int:
                 if request_type == "ping":
                     _json_event("pong", request_id=request_id)
                     continue
+                if request_type == "set_mcp":
+                    mcp.set_enabled(request.get("enabled", False), refresh=True)
+                    _json_event("mcp_status", mcp_servers=mcp.connected_server_count,
+                                mcp_tools=len(mcp.tools), mcp_errors=mcp.errors)
+                    continue
                 if request_type != "generate":
                     raise ValueError(f"unsupported request type: {request_type!r}")
 
                 messages = _bridge_messages(request.get("messages"))
+                mcp.set_enabled(request.get("mcp_enabled", False))
                 conversation_id = str(request.get("conversation_id") or "default")
                 max_tokens = int(request.get("max_tokens", -1))
                 temperature = float(request.get("temperature", 0.2))
@@ -1579,6 +1583,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Modèle {entry.name!r} retiré du registre; ses fichiers sont conservés.")
             return 0
         if args.command == "mcp":
+            if args.mcp_command == "check":
+                manager = MCPManager([])
+                try:
+                    manager.set_enabled(True)
+                    result = {"connected": manager.connected_server_count,
+                              "tools": list(manager.tools), "errors": manager.errors}
+                    print(json.dumps(result, ensure_ascii=False, indent=None if args.json else 2))
+                    return 1 if manager.errors else 0
+                finally:
+                    manager.close()
             if args.mcp_command in {"list", "ls"}:
                 servers = load_mcp_servers()
                 if args.json:

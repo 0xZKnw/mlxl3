@@ -121,6 +121,7 @@ struct GenerationRequest: Encodable {
     let temperature: Double
     let topK: Int
     let repetitionPenalty: Double
+    var mcpEnabled: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -129,6 +130,7 @@ struct GenerationRequest: Encodable {
         case maxTokens = "max_tokens"
         case topK = "top_k"
         case repetitionPenalty = "repetition_penalty"
+        case mcpEnabled = "mcp_enabled"
     }
 }
 

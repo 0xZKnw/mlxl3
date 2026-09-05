@@ -266,6 +266,15 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
+    func setMCPEnabled(_ enabled: Bool) throws {
+        guard let process, process.isRunning, let inputPipe else {
+            throw MLXL3BridgeError.commandFailed("Le moteur MLXL3 n’est pas prêt.")
+        }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "set_mcp", "enabled": enabled])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
     func cancelGeneration() -> Bool {
         guard let process, process.isRunning else { return false }
         return Darwin.kill(process.processIdentifier, SIGUSR1) == 0

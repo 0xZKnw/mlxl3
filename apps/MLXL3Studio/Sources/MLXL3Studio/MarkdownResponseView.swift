@@ -418,7 +418,7 @@ private struct MarkdownChunkView: View, Equatable {
     private func blockView(_ block: MarkdownBlockKind) -> some View {
         switch block {
         case let .paragraph(text):
-            animatedText(text, size: 14.5, weight: .regular)
+            animatedText(text, size: 15, weight: .regular)
                 .lineSpacing(5)
         case let .heading(level, text):
             animatedText(
@@ -433,7 +433,7 @@ private struct MarkdownChunkView: View, Equatable {
                 Circle()
                     .fill(Color.white.opacity(indent == 0 ? 0.72 : 0.42))
                     .frame(width: indent == 0 ? 4.5 : 3.5, height: indent == 0 ? 4.5 : 3.5)
-                animatedText(text, size: 14.2, weight: .regular)
+                animatedText(text, size: 15, weight: .regular)
                     .lineSpacing(4)
             }
             .padding(.leading, CGFloat(indent) * 18 + 3)
@@ -443,7 +443,7 @@ private struct MarkdownChunkView: View, Equatable {
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.48))
                     .frame(minWidth: 18, alignment: .trailing)
-                animatedText(text, size: 14.2, weight: .regular)
+                animatedText(text, size: 15, weight: .regular)
                     .lineSpacing(4)
             }
             .padding(.leading, CGFloat(indent) * 18)
@@ -492,7 +492,7 @@ private struct MarkdownChunkView: View, Equatable {
             source: source,
             streaming: streaming
         )
-        .font(.system(size: size, weight: weight, design: .rounded))
+        .font(.system(size: size, weight: weight))
         .foregroundStyle(Color.white.opacity(0.92))
     }
 
@@ -748,21 +748,18 @@ private struct CodeBlockView: View {
         let chunks = CodeTextChunker.chunks(source)
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Text((language ?? "code").uppercased())
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                    .tracking(1.1)
+                Text(language ?? "code")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(StudioTheme.quiet)
                 Spacer()
                 Button(action: copySource) {
                     Label(copied ? "Copié" : "Copier", systemImage: copied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(copied ? StudioTheme.accent : StudioTheme.secondary)
                         .padding(.horizontal, 9)
                         .frame(height: 25)
-                        .background(Color.white.opacity(0.045), in: Capsule())
-                        .overlay(Capsule().stroke(Color.white.opacity(0.075), lineWidth: 0.6))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(StudioControlStyle())
                 .help("Copier tout le bloc")
             }
             VStack(alignment: .leading, spacing: 0) {

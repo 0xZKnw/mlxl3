@@ -667,3 +667,33 @@ def test_bridge_reports_cooperative_cancellation(monkeypatch, capsys) -> None:
     events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     assert [event["type"] for event in events] == ["loading", "ready", "cancelled"]
     assert events[-1]["request_id"] == "turn-cancelled"
+
+
+def test_bridge_mcp_switch_does_not_reload_model_and_gates_tools(monkeypatch, capsys):
+    from mlxl3 import mcp as mcp_module
+
+    loads, calls = [], []
+    monkeypatch.setattr(cli, "resolve_model", lambda name: (name, "/tmp/model"))
+    def load(path):
+        loads.append(path)
+        return object(), object(), 1, 0.1, 1.0
+    monkeypatch.setattr(cli, "_load_model", load)
+    monkeypatch.setattr(mcp_module, "load_mcp_servers", lambda: [
+        mcp_module.MCPServerConfig(name="exa", url="https://example.org/mcp")
+    ])
+    monkeypatch.setattr(mcp_module.MCPHTTPClient, "connect", lambda self: [
+        {"name": "search", "inputSchema": {"type": "object"}}
+    ])
+    monkeypatch.setattr(cli, "_bridge_generate", lambda *args, **kwargs: calls.append(list(kwargs["mcp"].tools)))
+    def generate(enabled):
+        return {"type": "generate", "mcp_enabled": enabled,
+                "messages": [{"role": "user", "content": "hello"}]}
+    requests = [generate(False), {"type": "set_mcp", "enabled": True}, generate(True),
+                {"type": "set_mcp", "enabled": False}, generate(False)]
+    monkeypatch.setattr(cli.sys, "stdin", io.StringIO("\n".join(map(json.dumps, requests))))
+    assert cli._bridge(SimpleNamespace(model="test")) == 0
+    assert len(loads) == 1
+    assert calls == [[], ["exa.search"], []]
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    status = [event for event in events if event["type"] == "mcp_status"]
+    assert [event["mcp_tools"] for event in status] == [1, 0]

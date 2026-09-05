@@ -9,9 +9,8 @@ struct GenerationInspector: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Génération")
                         .font(.system(size: 15, weight: .semibold))
-                    Text("PARAMÈTRES DU MODÈLE")
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .tracking(1.25)
+                    Text("Paramètres du modèle")
+                        .font(.system(size: 11))
                         .foregroundStyle(StudioTheme.quiet)
                 }
                 Spacer()
@@ -22,12 +21,12 @@ struct GenerationInspector: View {
                 }
                 .buttonStyle(RoundGlassButtonStyle())
             }
-            .padding(.top, 42)
+            .padding(.top, 25)
             .padding(.horizontal, 18)
             .padding(.bottom, 22)
 
             ScrollView {
-                VStack(spacing: 14) {
+                VStack(spacing: 28) {
                     SettingCard(title: "Échantillonnage", icon: "dial.medium") {
                         SliderSetting(
                             label: "Température",
@@ -103,7 +102,7 @@ struct GenerationInspector: View {
 
                         if let error = studio.mcpErrors.sorted(by: { $0.key < $1.key }).first {
                             Text("\(error.key) · \(error.value)")
-                                .font(.system(size: 9, weight: .medium, design: .rounded))
+                                .font(.system(size: 9, weight: .medium))
                                 .foregroundStyle(Color(red: 1, green: 0.56, blue: 0.56))
                                 .lineLimit(3)
                         }
@@ -144,7 +143,7 @@ struct GenerationInspector: View {
                 .padding(.bottom, 20)
             }
         }
-        .background(StudioTheme.sidebar.opacity(0.95))
+        .background(StudioTheme.sidebar)
         .onChange(of: studio.temperature) { studio.settingsDidChange() }
         .onChange(of: studio.topK) { studio.settingsDidChange() }
         .onChange(of: studio.repetitionPenalty) { studio.settingsDidChange() }
@@ -165,18 +164,13 @@ private struct SettingCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
-            Label(title, systemImage: icon)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(0.78))
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(StudioTheme.ink)
             content
         }
-        .padding(14)
+        .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .stroke(Color.white.opacity(0.075), lineWidth: 0.7)
-        }
     }
 }
 
@@ -214,6 +208,6 @@ private struct InspectorValue: View {
                 .foregroundStyle(Color.white.opacity(0.78))
                 .multilineTextAlignment(.trailing)
         }
-        .font(.system(size: 10, weight: .medium, design: .rounded))
+        .font(.system(size: 10, weight: .medium))
     }
 }

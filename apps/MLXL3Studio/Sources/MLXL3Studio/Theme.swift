@@ -1,14 +1,59 @@
 import SwiftUI
 
 enum StudioTheme {
-    static let canvas = Color(red: 0.018, green: 0.020, blue: 0.026)
-    static let sidebar = Color(red: 0.027, green: 0.030, blue: 0.038)
+    static let canvas = Color(red: 0.070, green: 0.072, blue: 0.072)
+    static let sidebar = Color(red: 0.046, green: 0.048, blue: 0.049)
     static let panel = Color.white.opacity(0.035)
-    static let edge = Color.white.opacity(0.105)
+    static let edge = Color.white.opacity(0.085)
+    static let ink = Color(red: 0.91, green: 0.90, blue: 0.87)
     static let quiet = Color.white.opacity(0.48)
     static let secondary = Color.white.opacity(0.68)
-    static let accent = Color(red: 0.76, green: 0.90, blue: 1.0)
+    static let accent = Color(red: 0.84, green: 0.87, blue: 0.86)
     static let thinking = Color.white.opacity(0.68)
+}
+
+/// A single, restrained interaction surface for navigation and toolbars.
+struct StudioControlStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    var emphasized = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        ControlSurface(configuration: configuration, emphasized: emphasized, enabled: isEnabled)
+    }
+
+    private struct ControlSurface: View {
+        let configuration: ButtonStyle.Configuration
+        let emphasized: Bool
+        let enabled: Bool
+        @State private var hovered = false
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(emphasized ? StudioTheme.ink : StudioTheme.secondary)
+                .background(Color.white.opacity(configuration.isPressed ? 0.11 : (hovered ? 0.075 : (emphasized ? 0.055 : 0))),
+                            in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(RoundedRectangle(cornerRadius: 6))
+                .opacity(enabled ? 1 : 0.32)
+                .onHover { hovered = $0 }
+        }
+    }
+}
+
+/// Monochrome in-product signature; the application icon is unchanged.
+struct MonogramMark: View {
+    var size: CGFloat = 20
+
+    var body: some View {
+        ZStack {
+            Circle().trim(from: 0.08, to: 0.78)
+                .stroke(StudioTheme.ink, style: StrokeStyle(lineWidth: size * 0.1, lineCap: .round))
+                .rotationEffect(.degrees(-38))
+                .padding(size * 0.1)
+            Circle().fill(StudioTheme.ink).frame(width: size * 0.17, height: size * 0.17)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
 }
 
 struct PremiumGlass: ViewModifier {
@@ -30,7 +75,7 @@ struct PremiumGlass: ViewModifier {
                     .stroke(
                         LinearGradient(
                             stops: [
-                                .init(color: Color.white.opacity(0.24), location: 0),
+                                .init(color: Color.white.opacity(0.14), location: 0),
                                 .init(color: Color.white.opacity(0.055), location: 0.42),
                                 .init(color: Color.white.opacity(0.10), location: 1),
                             ],
@@ -41,17 +86,7 @@ struct PremiumGlass: ViewModifier {
                     )
                     .allowsHitTesting(false)
             }
-            .overlay(alignment: .top) {
-                LinearGradient(
-                    colors: [.clear, Color.white.opacity(0.26), .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(height: 0.7)
-                .padding(.horizontal, radius)
-                .allowsHitTesting(false)
-            }
-            .shadow(color: Color.black.opacity(0.34), radius: 18, y: 9)
+            .shadow(color: Color.black.opacity(0.18), radius: 12, y: 4)
     }
 }
 
@@ -61,72 +96,28 @@ extension View {
     }
 }
 
+// Compatibility names keep auxiliary panels on the same design system.
 struct RoundGlassButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     var bright = false
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(bright ? Color.black : Color.white.opacity(0.88))
-            .background(
-                configuration.isPressed
-                    ? Color.white.opacity(bright ? 0.72 : 0.12)
-                    : Color.black.opacity(bright ? 0.04 : 0.16),
-                in: Circle()
-            )
-            .glassEffect(
-                (bright ? Glass.regular : Glass.clear)
-                    .tint(bright ? Color.white : Color.white.opacity(0.035))
-                    .interactive(isEnabled),
-                in: Circle()
-            )
-            .overlay {
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.28), Color.white.opacity(0.06)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.65
-                    )
-            }
-            .shadow(color: Color.black.opacity(0.32), radius: 9, y: 4)
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .opacity(isEnabled ? 1 : 0.32)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if bright {
+            configuration.label
+                .foregroundStyle(Color.black.opacity(0.9))
+                .background(StudioTheme.ink.opacity(configuration.isPressed ? 0.7 : 1),
+                            in: RoundedRectangle(cornerRadius: 8))
+                .glassEffect(.clear.interactive(isEnabled), in: RoundedRectangle(cornerRadius: 8))
+                .opacity(isEnabled ? 1 : 0.3)
+        } else {
+            StudioControlStyle().makeBody(configuration: configuration)
+        }
     }
 }
 
 struct GlassPillButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(Color.white.opacity(0.9))
-            .background(
-                Color.black.opacity(configuration.isPressed ? 0.05 : 0.18),
-                in: Capsule()
-            )
-            .glassEffect(
-                .clear.tint(Color.white.opacity(configuration.isPressed ? 0.07 : 0.03))
-                    .interactive(isEnabled),
-                in: Capsule()
-            )
-            .overlay {
-                Capsule()
-                    .stroke(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.23), Color.white.opacity(0.055)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 0.65
-                    )
-            }
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .opacity(isEnabled ? 1 : 0.38)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+        StudioControlStyle(emphasized: true).makeBody(configuration: configuration)
     }
 }
 
@@ -136,19 +127,9 @@ struct PrimaryGlassButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(Color.black.opacity(0.88))
-            .background(Color.white.opacity(configuration.isPressed ? 0.64 : 0.82), in: Capsule())
-            .glassEffect(
-                .regular.tint(Color.white).interactive(isEnabled),
-                in: Capsule()
-            )
-            .overlay {
-                Capsule()
-                    .stroke(Color.white.opacity(0.68), lineWidth: 0.7)
-            }
-            .shadow(color: Color.white.opacity(0.10), radius: 11, y: 2)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .background(StudioTheme.ink.opacity(configuration.isPressed ? 0.7 : 1),
+                        in: RoundedRectangle(cornerRadius: 7))
             .opacity(isEnabled ? 1 : 0.35)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -175,7 +156,7 @@ struct LogoMark: View {
                 .frame(width: size * 0.16, height: size * 0.16)
         }
         .frame(width: size, height: size)
-        .shadow(color: Color.white.opacity(0.16), radius: 12, y: 2)
+        .shadow(color: Color.black.opacity(0.18), radius: 6, y: 2)
     }
 }
 
@@ -196,6 +177,6 @@ struct StatusDot: View {
         Circle()
             .fill(color)
             .frame(width: 7, height: 7)
-            .shadow(color: color.opacity(0.8), radius: 5)
+            .accessibilityLabel(state.label)
     }
 }

@@ -21,8 +21,11 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mcpServerCount = 0
     @Published private(set) var mcpToolCount = 0
     @Published private(set) var mcpErrors: [String: String] = [:]
+    @Published private(set) var mcpEnabled = false
+    @Published private(set) var mcpUpdating = false
 
     let updateManager: UpdateManager
+    let isPreview: Bool
     private let bridge = MLXL3Bridge()
     private let conversationStore: ConversationStore
     private let conversationFileURL: URL
@@ -31,13 +34,19 @@ final class StudioModel: ObservableObject {
     private var activeRequestID: String?
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
+    private let preferences: UserDefaults
 
     init(
         conversationFileURL: URL = ConversationStore.defaultFileURL(),
-        updateManager: UpdateManager = UpdateManager()
+        updateManager: UpdateManager = UpdateManager(),
+        isPreview: Bool = false,
+        preferences: UserDefaults = .standard
     ) {
         self.conversationFileURL = conversationFileURL
         self.updateManager = updateManager
+        self.isPreview = isPreview
+        self.preferences = preferences
+        self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         if let snapshot = ConversationStore.load(from: conversationFileURL),
            !snapshot.conversations.isEmpty {
@@ -74,7 +83,7 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        engineState.isReady && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        engineState.isReady && !mcpUpdating && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var isGenerating: Bool {
@@ -122,6 +131,7 @@ final class StudioModel: ObservableObject {
     }
 
     func start() {
+        guard !isPreview else { return }
         guard !didStart else { return }
         didStart = true
         updateManager.startAutomaticCheck()
@@ -129,6 +139,7 @@ final class StudioModel: ObservableObject {
     }
 
     func refreshModels() {
+        guard !isPreview else { return }
         MLXL3Bridge.listModels { [weak self] result in
             guard let self else { return }
             switch result {
@@ -159,6 +170,7 @@ final class StudioModel: ObservableObject {
     }
 
     func installUpdateAndRestart() {
+        guard !isPreview else { return }
         guard !isGenerating else { return }
         persistNow()
         guard updateManager.beginInstallation() else { return }
@@ -173,6 +185,7 @@ final class StudioModel: ObservableObject {
     }
 
     func importModelFolder() {
+        guard !isPreview else { return }
         guard !modelInstallState.isWorking else { return }
         let panel = NSOpenPanel()
         panel.title = "Importer un modèle EXL3"
@@ -190,6 +203,7 @@ final class StudioModel: ObservableObject {
     }
 
     func downloadModel(repo: String, revision: String, name: String) {
+        guard !isPreview else { return }
         let repository = repo.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !repository.isEmpty, !modelInstallState.isWorking else { return }
         let cleanRevision = revision.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -227,6 +241,10 @@ final class StudioModel: ObservableObject {
         readyInfo = nil
         bridge.stop()
         engineState = .idle
+        mcpUpdating = false
+        mcpServerCount = 0
+        mcpToolCount = 0
+        mcpErrors = [:]
         schedulePersistence()
     }
 
@@ -255,7 +273,7 @@ final class StudioModel: ObservableObject {
 
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, engineState.isReady, let conversationIndex else { return }
+        guard !text.isEmpty, engineState.isReady, !mcpUpdating, let conversationIndex else { return }
 
         draft = ""
         if conversations[conversationIndex].messages.isEmpty {
@@ -295,7 +313,8 @@ final class StudioModel: ObservableObject {
                     maxTokens: -1,
                     temperature: temperature,
                     topK: topK,
-                    repetitionPenalty: repetitionPenalty
+                    repetitionPenalty: repetitionPenalty,
+                    mcpEnabled: mcpEnabled
                 )
             )
         } catch {
@@ -317,11 +336,32 @@ final class StudioModel: ObservableObject {
     }
 
     func reloadMCPServers() {
-        guard !isGenerating else { return }
-        loadSelectedModel()
+        guard !isGenerating, !mcpUpdating else { return }
+        updateMCPConnection()
+    }
+
+    func setMCPEnabled(_ enabled: Bool) {
+        guard !isGenerating, !mcpUpdating, enabled != mcpEnabled else { return }
+        mcpEnabled = enabled
+        preferences.set(enabled, forKey: "studio.mcpEnabled")
+        mcpErrors = [:]
+        if !enabled { mcpServerCount = 0; mcpToolCount = 0 }
+        if engineState.isReady { updateMCPConnection() }
+    }
+
+    private func updateMCPConnection() {
+        guard !isPreview, bridge.isRunning else { return }
+        mcpUpdating = true
+        do {
+            try bridge.setMCPEnabled(mcpEnabled)
+        } catch {
+            mcpUpdating = false
+            mcpErrors = ["connexion": error.localizedDescription]
+        }
     }
 
     func openMCPConfiguration() {
+        guard !isPreview else { return }
         let url = mcpConfigurationURL
         if !FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.createDirectory(
@@ -359,8 +399,10 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
+        guard !isPreview else { return }
         guard let selectedModelName, selectedModel != nil else { return }
         engineState = .loading(selectedModelName)
+        mcpUpdating = false
         readyInfo = nil
         mcpServerCount = 0
         mcpToolCount = 0
@@ -418,6 +460,12 @@ final class StudioModel: ObservableObject {
                 modules: info.modules,
                 residentGB: info.residentGB
             )
+            if mcpEnabled { updateMCPConnection() }
+        case "mcp_status":
+            mcpUpdating = false
+            mcpServerCount = event.mcpServers ?? 0
+            mcpToolCount = event.mcpTools ?? 0
+            mcpErrors = event.mcpErrors ?? [:]
         case "delta":
             guard event.requestID == activeRequestID,
                   let text = event.text,
@@ -489,6 +537,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func failActiveTurn(_ message: String) {
+        mcpUpdating = false
         activeMessage()?.fail(message)
         activeRequestID = nil
         activeResponseID = nil
