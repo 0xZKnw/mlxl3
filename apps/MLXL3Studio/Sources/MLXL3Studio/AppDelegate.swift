@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private weak var studio: StudioModel?
 
     func applicationWillTerminate(_ notification: Notification) {
+        studio?.modelLibrary.cancelDownload()
         studio?.persistNow()
     }
 
@@ -28,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         let root = MenuBarPanel().environmentObject(studio)
         popover.contentViewController = NSHostingController(rootView: root)
-        popover.contentSize = NSSize(width: 342, height: 420)
+        popover.contentSize = NSSize(width: 360, height: 470)
         popover.behavior = .transient
         popover.animates = true
         popover.delegate = self
@@ -52,33 +53,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private static func menuBarIcon() -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { bounds in
-            NSColor.white.setFill()
-            let tile = NSBezierPath(
-                roundedRect: bounds.insetBy(dx: 1, dy: 1),
-                xRadius: 5,
-                yRadius: 5
-            )
-            tile.fill()
-
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current?.compositingOperation = .destinationOut
-
             let arc = NSBezierPath()
             arc.appendArc(
                 withCenter: NSPoint(x: bounds.midX, y: bounds.midY),
-                radius: 4.8,
+                radius: 6.2,
                 startAngle: 44,
                 endAngle: 322,
                 clockwise: false
             )
-            arc.lineWidth = 2.05
+            arc.lineWidth = 1.8
             arc.lineCapStyle = .round
-            NSColor.black.setStroke()
+            NSColor.white.setStroke()
             arc.stroke()
 
-            NSColor.black.setFill()
+            NSColor.white.setFill()
             NSBezierPath(ovalIn: NSRect(x: bounds.midX - 1.25, y: bounds.midY - 1.25, width: 2.5, height: 2.5)).fill()
-            NSGraphicsContext.restoreGraphicsState()
             return true
         }
         image.isTemplate = true
