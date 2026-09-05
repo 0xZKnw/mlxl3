@@ -15,4 +15,4 @@ __all__ = [
     "unpack_trellis",
 ]
 
-__version__ = "0.4.2"
+__version__ = "0.4.5"

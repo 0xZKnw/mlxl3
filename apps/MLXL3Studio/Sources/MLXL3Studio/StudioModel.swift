@@ -31,6 +31,7 @@ final class StudioModel: ObservableObject {
     @Published private(set) var language: AppLanguage = .fr
 
     let updateManager: UpdateManager
+    let modelLibrary = ModelLibrary()
     let isPreview: Bool
     private let bridge = MLXL3Bridge()
     private let conversationStore: ConversationStore
@@ -136,7 +137,7 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        engineState.isReady && !mcpUpdating && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        engineState.isReady && !mcpUpdating && !modelInstallState.isWorking && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var isGenerating: Bool {
@@ -191,7 +192,7 @@ final class StudioModel: ObservableObject {
         refreshModels()
     }
 
-    func refreshModels() {
+    func refreshModels(autoLoad: Bool = true) {
         guard !isPreview else { return }
         MLXL3Bridge.listModels { [weak self] result in
             guard let self else { return }
@@ -200,13 +201,13 @@ final class StudioModel: ObservableObject {
                 self.models = models
                 guard !models.isEmpty else {
                     self.selectedModelName = nil
-                    self.engineState = .failed(L("Aucun modèle enregistré dans MLXL3.", "No model registered in MLXL3."))
+                    self.engineState = .idle
                     return
                 }
                 if !models.contains(where: { $0.name == self.selectedModelName }) {
                     self.selectedModelName = models[0].name
                 }
-                self.loadSelectedModel()
+                if autoLoad { self.loadSelectedModel() }
             case let .failure(error):
                 self.engineState = .failed(error.localizedDescription)
             }
@@ -214,8 +215,56 @@ final class StudioModel: ObservableObject {
     }
 
     func openModelManager() {
-        modelInstallState = .idle
+        if !modelInstallState.isWorking { modelInstallState = .idle }
         showModelManager = true
+        refreshModels(autoLoad: false)
+    }
+
+    func removeLocalModel(_ model: LocalModel, trashFiles: Bool) {
+        guard !isGenerating, !modelInstallState.isWorking, modelLibrary.downloading == nil else { return }
+        if isPreview {
+            models.removeAll { $0.id == model.id }
+            return
+        }
+        modelInstallState = .working(L("Suppression…", "Removing…"))
+        Task {
+            let source = URL(fileURLWithPath: model.path).standardizedFileURL.resolvingSymlinksInPath()
+            var trashed: NSURL?
+            do {
+                let fresh = try JSONDecoder().decode([LocalModel].self, from: await CLICommand().output(["list", "--json"]))
+                guard fresh.contains(where: { $0.name == model.name && $0.path == model.path }) else {
+                    throw MLXL3BridgeError.commandFailed(L("Le modèle a changé. Actualise la bibliothèque.", "The model changed. Refresh the library."))
+                }
+                if trashFiles {
+                    let home = FileManager.default.homeDirectoryForCurrentUser
+                    let protected = [home.path, "/", "/Applications", "/Users", FileManager.default.currentDirectoryPath]
+                        + ["Documents", "Desktop", "Downloads", "Library", "Applications"].map { home.appendingPathComponent($0).path }
+                    let shared = fresh.contains { $0.name != model.name && ($0.path == source.path || $0.path.hasPrefix(source.path + "/")) }
+                    guard !protected.contains(source.path), !home.path.hasPrefix(source.path + "/"), !shared,
+                          !FileManager.default.fileExists(atPath: source.appendingPathComponent(".git").path),
+                          FileManager.default.fileExists(atPath: source.appendingPathComponent("config.json").path),
+                          FileManager.default.fileExists(atPath: source.appendingPathComponent("quantization_config.json").path) else {
+                        throw MLXL3BridgeError.commandFailed(L("Ce dossier ne peut pas être supprimé depuis l’app. Retire seulement l’entrée de la bibliothèque.", "This folder cannot be deleted from the app. Remove only its library entry."))
+                    }
+                }
+                if selectedModelName == model.name { ejectModel() }
+                if trashFiles { try FileManager.default.trashItem(at: source, resultingItemURL: &trashed) }
+                _ = try await CLICommand().output(["remove", model.name, "--expected-path", model.path])
+                modelInstallState = .succeeded(trashFiles
+                    ? L("Dossier placé dans la Corbeille. Récupérable depuis Finder.", "Folder moved to Trash. Recoverable in Finder.")
+                    : L("Entrée retirée ; fichiers conservés.", "Entry removed; files kept."))
+                refreshModels(autoLoad: false)
+            } catch {
+                if let trashed, !FileManager.default.fileExists(atPath: source.path) {
+                    do { try FileManager.default.moveItem(at: trashed as URL, to: source) }
+                    catch {
+                        modelInstallState = .failed(L("Échec du retrait. Le dossier reste récupérable dans la Corbeille : ", "Removal failed. The folder can still be recovered from Trash: ") + trashed.path!)
+                        return
+                    }
+                }
+                modelInstallState = .failed(error.localizedDescription)
+            }
+        }
     }
 
     func openAppSettings() {

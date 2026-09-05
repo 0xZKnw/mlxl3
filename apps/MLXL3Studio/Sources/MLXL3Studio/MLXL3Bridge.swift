@@ -151,43 +151,9 @@ final class MLXL3Bridge: @unchecked Sendable {
         _ arguments: [String],
         completion: @escaping @MainActor @Sendable (Result<Data, Error>) -> Void
     ) {
-        guard let executable = CLIResolver.executable() else {
-            DispatchQueue.main.async {
-                completion(.failure(MLXL3BridgeError.executableNotFound))
-            }
-            return
-        }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let process = Process()
-            let output = Pipe()
-            let errorURL = FileManager.default.temporaryDirectory
-                .appending(path: "mlxl3-command-\(UUID().uuidString).log")
-            FileManager.default.createFile(atPath: errorURL.path, contents: nil)
-            process.executableURL = executable
-            process.arguments = arguments
-            process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
-            process.standardOutput = output
-            do {
-                let errorHandle = try FileHandle(forWritingTo: errorURL)
-                process.standardError = errorHandle
-                try process.run()
-                process.waitUntilExit()
-                try? errorHandle.close()
-                let data = output.fileHandleForReading.readDataToEndOfFile()
-                if process.terminationStatus != 0 {
-                    let details = String(
-                        data: (try? Data(contentsOf: errorURL)) ?? Data(),
-                        encoding: .utf8
-                    ) ?? L("Échec de la commande MLXL3", "MLXL3 command failed")
-                    throw MLXL3BridgeError.commandFailed(
-                        details.trimmingCharacters(in: .whitespacesAndNewlines)
-                    )
-                }
-                DispatchQueue.main.async { completion(.success(data)) }
-            } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
-            }
-            try? FileManager.default.removeItem(at: errorURL)
+        Task {
+            do { await completion(.success(try await CLICommand().output(arguments))) }
+            catch { await completion(.failure(error)) }
         }
     }
 

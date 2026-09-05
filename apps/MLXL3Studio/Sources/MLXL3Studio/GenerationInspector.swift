@@ -8,7 +8,7 @@ struct GenerationInspector: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L("Génération", "Generation"))
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 23, weight: .regular, design: .serif))
                     Text(L("Paramètres du modèle", "Model settings"))
                         .font(.system(size: 11))
                         .foregroundStyle(StudioTheme.quiet)

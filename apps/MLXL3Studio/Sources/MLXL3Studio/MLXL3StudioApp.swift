@@ -37,8 +37,12 @@ struct MLXL3StudioApp: App {
     }
 
     var body: some Scene {
-        WindowGroup(isPreview ? "MLXL3 — Aperçu" : "MLXL3 Desktop") {
-            StudioView()
+        WindowGroup(isPreview ? "MLXL3 — Aperçu" : "MLXL3 Desktop", id: "studio") {
+            Group {
+                if isPreview && ProcessInfo.processInfo.arguments.contains("--ui-preview-menu") {
+                    MenuBarPanel()
+                } else { StudioView() }
+            }
                 .environmentObject(studio)
                 .preferredColorScheme(.dark)
                 .onAppear {

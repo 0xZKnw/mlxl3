@@ -801,6 +801,13 @@ def _parser() -> argparse.ArgumentParser:
 
     remove = commands.add_parser("remove", aliases=["rm"], help="remove a registry entry")
     remove.add_argument("name")
+    remove.add_argument("--expected-path", help=argparse.SUPPRESS)
+
+    hub = commands.add_parser("hub", help="browse EXL3 checkpoints on Hugging Face")
+    hub.add_argument("action", choices=["search", "details", "download"])
+    hub.add_argument("query")
+    hub.add_argument("--revision")
+    hub.add_argument("--folder", default="")
 
     mcp = commands.add_parser("mcp", help="manage local MCP stdio servers")
     mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
@@ -1685,7 +1692,25 @@ def main(argv: list[str] | None = None) -> int:
                     f"({human_size(entry.size_bytes)})."
                 )
             return 0
+        if args.command == "hub":
+            from mlxl3 import hub
+            try:
+                if args.action == "search":
+                    print(json.dumps(hub.search(args.query)))
+                elif args.action == "details":
+                    print(json.dumps(hub.details(args.query, args.revision)))
+                else:
+                    entry = hub.download(args.query, args.revision or "", args.folder,
+                                         lambda event: print(json.dumps(event), flush=True))
+                    print(json.dumps({"type": "installed", "model": _model_payload(entry)}), flush=True)
+            except Exception as error:
+                raise RegistryError(str(error)) from error
+            return 0
         if args.command in {"remove", "rm"}:
+            if args.expected_path:
+                entry = load_registry().get(args.name)
+                if entry is None or Path(entry.path).resolve() != Path(args.expected_path).resolve():
+                    raise RegistryError("Model location changed; refresh the library before removing it")
             entry = remove_model(args.name)
             print(f"Modèle {entry.name!r} retiré du registre; ses fichiers sont conservés.")
             return 0

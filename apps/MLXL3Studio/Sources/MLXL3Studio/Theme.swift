@@ -39,7 +39,7 @@ struct StudioControlStyle: ButtonStyle {
     }
 }
 
-/// Monochrome in-product signature; the application icon is unchanged.
+/// Monochrome signature shared by the interface and menu bar.
 struct MonogramMark: View {
     var size: CGFloat = 20
 
@@ -130,33 +130,6 @@ struct PrimaryGlassButtonStyle: ButtonStyle {
             .background(StudioTheme.ink.opacity(configuration.isPressed ? 0.7 : 1),
                         in: RoundedRectangle(cornerRadius: 7))
             .opacity(isEnabled ? 1 : 0.35)
-    }
-}
-
-struct LogoMark: View {
-    var size: CGFloat = 32
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: size * 0.31, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white, Color(red: 0.55, green: 0.72, blue: 0.88)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Circle()
-                .trim(from: 0.08, to: 0.78)
-                .stroke(Color.black.opacity(0.9), style: StrokeStyle(lineWidth: size * 0.105, lineCap: .round))
-                .rotationEffect(.degrees(-38))
-                .padding(size * 0.22)
-            Circle()
-                .fill(StudioTheme.canvas)
-                .frame(width: size * 0.16, height: size * 0.16)
-        }
-        .frame(width: size, height: size)
-        .shadow(color: Color.black.opacity(0.18), radius: 6, y: 2)
     }
 }
 
