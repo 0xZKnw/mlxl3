@@ -11,6 +11,16 @@ import pytest
 from mlxl3 import cli, checkpoint, registry, hub
 
 
+def test_truncated_prefilled_thinking_is_not_an_answer_or_tool_call():
+    tool = '<tool_call>{"name":"search","arguments":{}}</tool_call>'
+    for marker in ('<think>', '<|channel>thought'):
+        raw = cli._restore_reasoning_opener(tool, 'assistant\n' + marker + '\n')
+        assert raw.startswith(marker)
+        assert not cli._parse_tool_calls(raw)
+        assert tool not in cli._assistant_context(raw)
+        assert cli._restore_reasoning_opener(raw, marker) == raw
+
+
 def test_failed_prefill_cannot_poison_next_turn():
     class Model:
         calls = 0

@@ -618,6 +618,15 @@ def _prompt_prefills_thinking(prompt: str) -> bool:
     return prompt.rstrip().endswith((ThinkingSplitter._OPEN, '<|channel>thought'))
 
 
+def _restore_reasoning_opener(text: str, prompt: str) -> str:
+    # Templates can consume the opener. Restore it in the stored transcript,
+    # especially when generation stops before emitting the closing marker.
+    for marker in ('<think>', '<|channel>thought'):
+        if prompt.rstrip().endswith(marker) and not text.lstrip().startswith(marker):
+            return marker + '\n' + text
+    return text
+
+
 class ThinkingRenderer:
     """Incrementally render ``<think>`` blocks separately from final text."""
 
@@ -1269,7 +1278,7 @@ def _stream_response(
     finished = time.perf_counter()
     if final is None or first_token_at is None:
         raise RuntimeError("generation returned no response")
-    text = "".join(pieces)
+    text = _restore_reasoning_opener("".join(pieces), prompt)
     context_used = (len(full_prompt_tokens) if full_prompt_tokens is not None else final.prompt_tokens) + final.generation_tokens
     if on_context is not None:
         on_context(context_used, context_limit)

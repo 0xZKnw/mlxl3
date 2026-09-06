@@ -39,7 +39,7 @@ try:
     messages = [{'role': 'user', 'content': 'Remember this exact project code: CEDAR-42. Reply briefly.'}]
     for turn in range(2):
         send({'type': 'generate', 'request_id': str(turn), 'conversation_id': 'release-smoke',
-              'messages': messages, 'mcp_enabled': False, 'max_tokens': 384,
+              'messages': messages, 'mcp_enabled': False, 'max_tokens': 768,
               'temperature': 0, 'top_k': 0, 'repetition_penalty': 1})
         result = until('complete')
         answer = result.get('assistant_context', '')
