@@ -5,14 +5,18 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import re
 import signal
+import statistics
+import subprocess
 import sys
 import threading
 import time
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -823,6 +827,17 @@ def _parser() -> argparse.ArgumentParser:
     mcp_remove = mcp_commands.add_parser("remove", aliases=["rm"], help="remove an MCP server")
     mcp_remove.add_argument("name")
 
+    benchmark = commands.add_parser(
+        "benchmark", aliases=["bench"], help="benchmark local inference without MCP or network"
+    )
+    benchmark.add_argument("models", nargs="+", help="registered model names or local directories")
+    benchmark.add_argument("--prompt-tokens", type=int, default=512)
+    benchmark.add_argument("--max-tokens", type=int, default=128)
+    benchmark.add_argument("--repeats", type=int, default=3)
+    benchmark.add_argument("--warmup-runs", type=int, default=1)
+    benchmark.add_argument("--output", type=Path, help="write raw measurements and environment as JSON")
+    benchmark.add_argument("--json", action="store_true", help="print the complete JSON report")
+
     run = commands.add_parser("run", help="stream a response or start an interactive chat")
     run.add_argument("model", help="registered model name or local model directory")
     run.add_argument("prompt", nargs="?", help="one-shot prompt; omit for interactive chat")
@@ -1341,6 +1356,201 @@ def _run(args) -> int:
     return 0
 
 
+def _percentile(values: list[float], percentile: float) -> float:
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * percentile / 100
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
+def _benchmark_messages(tokenizer: Any, target_tokens: int) -> list[dict[str, str]]:
+    instruction = (
+        "Summarize the reference context, then give three concrete recommendations "
+        "for measuring local language-model inference."
+    )
+    filler = "MLXL3 runs model inference and Metal kernels on this Mac. "
+
+    def messages(repetitions: int) -> list[dict[str, str]]:
+        return [{"role": "user", "content": filler * repetitions + "\n\n" + instruction}]
+
+    def prompt_size(repetitions: int) -> int:
+        prompt = _render_generation_prompt(tokenizer, messages(repetitions), None)
+        return len(tokenizer.encode(prompt, add_special_tokens=False))
+
+    high = 1
+    while prompt_size(high) < target_tokens:
+        high *= 2
+    low = high // 2
+    while low + 1 < high:
+        middle = (low + high) // 2
+        if prompt_size(middle) < target_tokens:
+            low = middle
+        else:
+            high = middle
+    return messages(high)
+
+
+def _benchmark_environment() -> dict[str, Any]:
+    from mlxl3 import __version__
+
+    try:
+        chip = subprocess.check_output(
+            ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        chip = platform.processor() or platform.machine()
+    try:
+        power = subprocess.check_output(["pmset", "-g", "batt"], text=True).strip()
+    except (OSError, subprocess.SubprocessError):
+        power = "unknown"
+    return {
+        "timestamp_utc": datetime.now(UTC).isoformat(),
+        "engine": f"mlxl3 {__version__}",
+        "platform": platform.platform(),
+        "chip": chip,
+        "python": platform.python_version(),
+        "power": power,
+        "boundary": {
+            "inference": "on-device Apple Metal",
+            "mcp": False,
+            "network_used": False,
+        },
+    }
+
+
+def _benchmark_summary(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    def metric(name: str) -> list[float]:
+        return [float(run[name]) for run in runs]
+
+    return {
+        "prompt_tokens": round(statistics.median(metric("prompt_tokens"))),
+        "generated_tokens": round(statistics.median(metric("generated_tokens"))),
+        "ttft_ms_p50": _percentile(metric("ttft_ms"), 50),
+        "ttft_ms_p95": _percentile(metric("ttft_ms"), 95),
+        "prefill_tps_p50": _percentile(metric("prefill_tps"), 50),
+        "decode_tps_p50": _percentile(metric("decode_tps"), 50),
+        "stream_tps_p50": _percentile(metric("stream_tps"), 50),
+        "peak_memory_gb": max(metric("peak_memory_gb")),
+    }
+
+
+def _format_benchmark(report: dict[str, Any]) -> str:
+    headers = ("MODEL", "PROMPT", "OUTPUT", "TTFT P50", "PREFILL", "DECODE", "STREAM", "PEAK")
+    rows = []
+    for result in report["models"]:
+        summary = result["summary"]
+        rows.append((
+            result["name"],
+            str(summary["prompt_tokens"]),
+            str(summary["generated_tokens"]),
+            f'{summary["ttft_ms_p50"]:.0f} ms',
+            f'{summary["prefill_tps_p50"]:.1f} t/s',
+            f'{summary["decode_tps_p50"]:.1f} t/s',
+            f'{summary["stream_tps_p50"]:.1f} t/s',
+            f'{summary["peak_memory_gb"]:.2f} GB',
+        ))
+    widths = [max(len(headers[index]), *(len(row[index]) for row in rows)) for index in range(len(headers))]
+    render = lambda row: "  ".join(value.ljust(widths[index]) for index, value in enumerate(row)).rstrip()
+    return "\n".join([render(headers), *(render(row) for row in rows)])
+
+
+def _benchmark(args) -> int:
+    if args.prompt_tokens < 1 or args.max_tokens < 2:
+        raise RegistryError("--prompt-tokens must be positive and --max-tokens must be at least 2")
+    if args.repeats < 1 or args.warmup_runs < 0:
+        raise RegistryError("--repeats must be positive and --warmup-runs cannot be negative")
+
+    import mlx.core as mx
+
+    report: dict[str, Any] = {
+        "environment": _benchmark_environment(),
+        "settings": {
+            "requested_prompt_tokens": args.prompt_tokens,
+            "max_tokens": args.max_tokens,
+            "warmup_runs": args.warmup_runs,
+            "measured_runs": args.repeats,
+            "sampling": {"temperature": 0, "top_k": 0, "repetition_penalty": 1},
+        },
+        "models": [],
+    }
+    for requested in args.models:
+        name, model_path = resolve_model(requested)
+        if not args.json:
+            print(f"Benchmark local de {name}…", flush=True)
+        model, tokenizer, modules, load_seconds, resident_gb = _load_model(model_path)
+        messages = _benchmark_messages(tokenizer, args.prompt_tokens)
+        rendered_prompt = _render_generation_prompt(tokenizer, messages, None)
+        prompt_tokens = len(tokenizer.encode(rendered_prompt, add_special_tokens=False))
+        if prompt_tokens + args.max_tokens > _model_context_limit(model_path):
+            raise RegistryError(
+                f"benchmark needs {prompt_tokens + args.max_tokens:,} tokens but {name} "
+                f"supports {_model_context_limit(model_path):,}"
+            )
+        for _ in range(args.warmup_runs):
+            _stream_response(
+                model, tokenizer, messages, max_tokens=min(16, args.max_tokens),
+                temperature=0, top_k=0, repetition_penalty=1, on_text=lambda _: None,
+            )
+        runs = []
+        for index in range(args.repeats):
+            mx.reset_peak_memory()
+            started = time.perf_counter()
+            first_delta_at: float | None = None
+            delta_events = 0
+            output_bytes = 0
+
+            def receive(fragment: str) -> None:
+                nonlocal first_delta_at, delta_events, output_bytes
+                if first_delta_at is None:
+                    first_delta_at = time.perf_counter()
+                delta_events += 1
+                if fragment:
+                    output_bytes += len(fragment.encode())
+
+            _, stats = _stream_response(
+                model, tokenizer, messages, max_tokens=args.max_tokens,
+                temperature=0, top_k=0, repetition_penalty=1, on_text=receive,
+            )
+            finished = time.perf_counter()
+            stream_seconds = max(0.0, finished - (first_delta_at or started))
+            runs.append({
+                "run": index + 1,
+                "prompt_tokens": stats.prompt_tokens,
+                "generated_tokens": stats.generated_tokens,
+                "ttft_ms": stats.ttft_seconds * 1000,
+                "first_visible_ms": (
+                    stats.first_visible_text_seconds * 1000
+                    if stats.first_visible_text_seconds is not None else None
+                ),
+                "prefill_tps": stats.prefill_tps,
+                "decode_tps": stats.decode_tps,
+                "stream_tps": max(0, delta_events - 1) / stream_seconds if stream_seconds else 0,
+                "total_seconds": finished - started,
+                "peak_memory_gb": stats.peak_memory_gb,
+                "delta_events": delta_events,
+                "output_bytes": output_bytes,
+            })
+        report["models"].append({
+            "name": name,
+            "path": str(model_path),
+            "size_bytes": sum(file.stat().st_size for file in model_path.rglob("*") if file.is_file()),
+            "modules_exl3": modules,
+            "load_seconds": load_seconds,
+            "resident_gb": resident_gb,
+            "runs": runs,
+            "summary": _benchmark_summary(runs),
+        })
+        del model, tokenizer
+        mx.clear_cache()
+
+    serialized = json.dumps(report, ensure_ascii=False, indent=2)
+    if args.output:
+        args.output.expanduser().write_text(serialized + "\n")
+    print(serialized if args.json else _format_benchmark(report))
+    return 0
+
+
 def _json_event(event_type: str, **payload: Any) -> None:
     print(
         json.dumps({"type": event_type, **payload}, ensure_ascii=False, separators=(",", ":")),
@@ -1706,6 +1916,8 @@ def main(argv: list[str] | None = None) -> int:
             except Exception as error:
                 raise RegistryError(str(error)) from error
             return 0
+        if args.command in {"benchmark", "bench"}:
+            return _benchmark(args)
         if args.command in {"remove", "rm"}:
             if args.expected_path:
                 entry = load_registry().get(args.name)

@@ -45,6 +45,34 @@ struct AppSettingsView: View {
                     .pickerStyle(.segmented)
                     .accessibilityLabel(L("Langue de l’app", "App language"))
                     Divider()
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label(L("Flux de données", "Data flow"), systemImage: "lock.shield")
+                            .font(.system(size: 13, weight: .semibold))
+                        dataFlowRow(
+                            L("Inférence et kernels Metal", "Inference and Metal kernels"),
+                            L("Toujours sur ce Mac", "Always on this Mac"),
+                            "internaldrive"
+                        )
+                        dataFlowRow(
+                            L("Téléchargements et mises à jour", "Downloads and updates"),
+                            L("Réseau · Hugging Face et GitHub", "Network · Hugging Face and GitHub"),
+                            "network"
+                        )
+                        dataFlowRow(
+                            "MCP",
+                            studio.mcpEnabled
+                                ? L("Actif · des données peuvent quitter ce Mac", "On · data may leave this Mac")
+                                : L("Désactivé", "Off"),
+                            studio.mcpEnabled ? "arrow.up.right" : "minus.circle"
+                        )
+                    }
+                    .padding(16)
+                    .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.white.opacity(0.07), lineWidth: 0.7)
+                    }
+                    Divider()
                     UpdateSettingsCard(
                         updater: studio.updateManager,
                         canInstall: !studio.isGenerating,
@@ -75,6 +103,20 @@ struct AppSettingsView: View {
         .frame(width: 650, height: 560)
         .background(StudioTheme.canvas)
         .preferredColorScheme(.dark)
+    }
+
+    private func dataFlowRow(_ title: String, _ detail: String, _ icon: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .frame(width: 17)
+                .foregroundStyle(StudioTheme.quiet)
+            Text(title)
+                .font(.system(size: 11.5, weight: .medium))
+            Spacer()
+            Text(detail)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(StudioTheme.quiet)
+        }
     }
 }
 

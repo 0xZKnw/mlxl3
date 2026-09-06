@@ -182,7 +182,7 @@ struct GenerationInspector: View {
                             .help(L("Recharger les serveurs MCP", "Reload MCP servers"))
                         }
 
-                        Text(L("Les outils des serveurs activés sont proposés au modèle et exécutés localement.", "Tools from enabled servers are offered to the model and executed locally."))
+                        Text(L("Les outils MCP locaux restent sur ce Mac. Exa et les serveurs distants peuvent recevoir ta requête et leur résultat.", "Local MCP tools stay on this Mac. Exa and remote servers may receive your request and return data."))
                             .font(.system(size: 8.5, weight: .medium))
                             .foregroundStyle(StudioTheme.quiet)
                             .fixedSize(horizontal: false, vertical: true)

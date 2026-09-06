@@ -26,6 +26,32 @@ class FakeTokenizer:
         return "rendered prompt"
 
 
+def test_benchmark_summary_and_prompt_target() -> None:
+    class BenchmarkTokenizer:
+        def apply_chat_template(self, messages, **kwargs):
+            return messages[0]["content"]
+
+        def encode(self, prompt, **kwargs):
+            return prompt.split()
+
+    messages = cli._benchmark_messages(BenchmarkTokenizer(), 100)
+    assert len(messages[0]["content"].split()) >= 100
+    summary = cli._benchmark_summary([
+        {"prompt_tokens": 100, "generated_tokens": 10, "ttft_ms": 20,
+         "prefill_tps": 200, "decode_tps": 30, "stream_tps": 29,
+         "peak_memory_gb": 4},
+        {"prompt_tokens": 102, "generated_tokens": 12, "ttft_ms": 40,
+         "prefill_tps": 180, "decode_tps": 32, "stream_tps": 31,
+         "peak_memory_gb": 5},
+    ])
+    assert summary == {
+        "prompt_tokens": 101, "generated_tokens": 11,
+        "ttft_ms_p50": 30, "ttft_ms_p95": 39,
+        "prefill_tps_p50": 190, "decode_tps_p50": 31,
+        "stream_tps_p50": 30, "peak_memory_gb": 5,
+    }
+
+
 def test_context_limit_and_stream_budget(tmp_path, monkeypatch):
     for config, expected in [
         ({"max_position_embeddings": 8192}, 8192),

@@ -58,6 +58,20 @@ List locally registered models:
 mlxl3 list
 ```
 
+Compare local models with the same deterministic workload (MCP and network are
+not used). Warm-up runs are excluded; the optional JSON file keeps every run,
+the Mac/power environment, TTFT, prefill, decode, callback streaming throughput,
+and peak unified memory:
+
+```bash
+mlxl3 benchmark MODEL_A MODEL_B --prompt-tokens 512 --max-tokens 128 \
+  --repeats 3 --output benchmark.json
+```
+
+Inference and Metal kernels always stay on-device. Hugging Face downloads,
+GitHub update checks, and remote MCP servers are separate network paths shown
+explicitly in the Desktop settings. Local stdio MCP servers stay on the Mac.
+
 Start an interactive, streaming terminal chat by model name:
 
 ```bash
