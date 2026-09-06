@@ -6,7 +6,8 @@ repo_dir="${script_dir:h}"
 app_dir="${repo_dir}/dist/MLXL3 Desktop.app"
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
     "${repo_dir}/apps/MLXL3Studio/Resources/Info.plist")"
-dmg_path="${repo_dir}/dist/MLXL3-Desktop-v${version}-Apple-Silicon.dmg"
+build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${repo_dir}/apps/MLXL3Studio/Resources/Info.plist")"
+dmg_path="${repo_dir}/dist/MLXL3-Desktop-v${version}-b${build}-Apple-Silicon.dmg"
 
 "${script_dir}/build-macos-app.sh"
 

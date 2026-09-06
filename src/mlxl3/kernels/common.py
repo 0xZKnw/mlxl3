@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from mlxl3.codec.perm import permutation, permutation_inverse
 
 CODEBOOK_HEADER = r"""
@@ -57,13 +59,20 @@ def specialized_codebook_header(mode: int) -> str:
     return float(values.x + values.y);
 """
     elif mode == 2:
-        body = """
-    uint bits = x * 0x83DCD12Du;
+        byte_sum = """
     uint sum = 0x6400u;
     sum += bits & 0xffu;
     sum += (bits >> 8) & 0xffu;
     sum += (bits >> 16) & 0xffu;
     sum += (bits >> 24) & 0xffu;
+"""
+        if os.environ.get('MLXL3_MUL1_SWAR', '1') != '0':
+            # Each 16-bit lane sums two bytes (at most 510), so neither lane
+            # can carry into the other. Exact for all 65536 trellis states.
+            byte_sum = '''    uint pairs = (bits & 0x00ff00ffu) + ((bits >> 8) & 0x00ff00ffu);
+    uint sum = 0x6400u + (pairs & 0xffffu) + (pairs >> 16);
+'''
+        body = '    uint bits = x * 0x83DCD12Du;\n' + byte_sum + """
     half value = as_type<half>(ushort(sum));
     half inv = as_type<half>(ushort(0x1EEEu));
     half bias = as_type<half>(ushort(0xC931u));

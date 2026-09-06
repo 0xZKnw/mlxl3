@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import fcntl
+import tempfile
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -61,7 +64,7 @@ def load_registry() -> dict[str, ModelEntry]:
         return {}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        if payload.get("version") != 1 or not isinstance(payload.get("models"), dict):
+        if not isinstance(payload, dict) or payload.get("version") != 1 or not isinstance(payload.get("models"), dict):
             raise RegistryError(f"unsupported registry format in {path}")
         return {
             name: ModelEntry.from_dict({"name": name, **metadata})
@@ -69,6 +72,29 @@ def load_registry() -> dict[str, ModelEntry]:
         }
     except (json.JSONDecodeError, TypeError) as error:
         raise RegistryError(f"invalid model registry {path}: {error}") from error
+
+
+@contextmanager
+def registry_lock(path: Path | None = None):
+    path = path or registry_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.with_suffix('.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def atomic_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=path.name + '.', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write('\n')
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(name, path)
+    finally:
+        Path(name).unlink(missing_ok=True)
 
 
 def save_registry(entries: dict[str, ModelEntry]) -> None:
@@ -79,16 +105,11 @@ def save_registry(entries: dict[str, ModelEntry]) -> None:
         metadata = asdict(entry)
         metadata.pop("name")
         models[name] = metadata
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(
-        json.dumps({"version": 1, "models": models}, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    temporary.replace(path)
+    atomic_json(path, {"version": 1, "models": models})
 
 
 def inspect_model(name: str, model_path: str | Path) -> ModelEntry:
-    from mlxl3.checkpoint import list_exl3_modules, quantization_config
+    from mlxl3.checkpoint import list_exl3_modules, quantization_config, validate_checkpoint_files
 
     validate_model_name(name)
     path = Path(model_path).expanduser().resolve()
@@ -101,7 +122,12 @@ def inspect_model(name: str, model_path: str | Path) -> ModelEntry:
         config = json.loads(config_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
         raise RegistryError(f"invalid model config {config_path}: {error}") from error
+    if not isinstance(config, dict):
+        raise RegistryError('model config must be a JSON object')
     quantization = quantization_config(path)
+    validate_checkpoint_files(path)
+    if not any(path.glob('tokenizer*')) and not any(path.glob('*.model')) and not (path / 'vocab.json').exists():
+        raise RegistryError('missing tokenizer files; download the complete checkpoint')
     size_bytes = sum(file.stat().st_size for file in path.iterdir() if file.is_file())
     return ModelEntry(
         name=name,
@@ -116,23 +142,27 @@ def inspect_model(name: str, model_path: str | Path) -> ModelEntry:
 
 
 def register_model(name: str, model_path: str | Path, *, force: bool = False) -> ModelEntry:
-    entries = load_registry()
     entry = inspect_model(name, model_path)
-    existing = entries.get(name)
-    if existing is not None and existing.path != entry.path and not force:
-        raise RegistryError(f"model {name!r} already exists; pass --force to replace it")
-    entries[name] = entry
-    save_registry(entries)
+    with registry_lock():
+        entries = load_registry()
+        existing = entries.get(name)
+        if existing is not None and existing.path != entry.path and not force:
+            raise RegistryError(f"model {name!r} already exists; pass --force to replace it")
+        entries[name] = entry
+        save_registry(entries)
     return entry
 
 
-def remove_model(name: str) -> ModelEntry:
-    entries = load_registry()
-    try:
-        removed = entries.pop(name)
-    except KeyError as error:
-        raise RegistryError(f"unknown model {name!r}") from error
-    save_registry(entries)
+def remove_model(name: str, *, expected_path: str | None = None) -> ModelEntry:
+    with registry_lock():
+        entries = load_registry()
+        try:
+            removed = entries.pop(name)
+        except KeyError as error:
+            raise RegistryError(f"unknown model {name!r}") from error
+        if expected_path is not None and Path(removed.path).resolve() != Path(expected_path).resolve():
+            raise RegistryError("model path changed; refresh the library before removing")
+        save_registry(entries)
     return removed
 
 

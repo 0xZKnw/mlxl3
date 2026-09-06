@@ -1,0 +1,22 @@
+"""Record the exact dependency environment and source revision in a release."""
+import importlib.metadata
+import json
+from pathlib import Path
+import plistlib
+import subprocess
+import sys
+
+from mlxl3 import __version__
+
+root = Path(__file__).resolve().parents[1]
+info = plistlib.loads((root / 'apps/MLXL3Studio/Resources/Info.plist').read_bytes())
+assert info['CFBundleShortVersionString'] == __version__
+packages = {dist.metadata['Name']: dist.version for dist in importlib.metadata.distributions()}
+payload = {
+    'version': __version__, 'build': info['CFBundleVersion'],
+    'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
+    'tracked_changes': bool(subprocess.check_output(['git', 'diff', 'HEAD', '--name-only'], cwd=root)),
+    'python': sys.version.split()[0], 'packages': dict(sorted(packages.items())),
+    'signing': 'ad-hoc; not notarized',
+}
+Path(sys.argv[1]).write_text(json.dumps(payload, indent=2) + '\n')

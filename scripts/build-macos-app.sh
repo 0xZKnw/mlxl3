@@ -49,6 +49,7 @@ install -d "${app_dir}/Contents/MacOS" "${app_dir}/Contents/Resources"
 install -m 755 "${binary_dir}/MLXL3Studio" "${app_dir}/Contents/MacOS/MLXL3Studio"
 install -m 644 "${package_dir}/Resources/Info.plist" "${app_dir}/Contents/Info.plist"
 ditto "${runtime_dist_dir}" "${app_dir}/Contents/Resources/runtime"
+"${python_bin}" "${script_dir}/build_manifest.py" "${app_dir}/Contents/Resources/build-info.json"
 
 icon_work_dir="$(mktemp -d)"
 trap 'rm -rf "${icon_work_dir}"' EXIT

@@ -10,6 +10,10 @@ struct AppUpdateRelease: Sendable, Equatable {
     let notes: String
     let pageURL: URL
     let asset: AppUpdateAsset
+    var build: Int {
+        guard let range = asset.name.range(of: "-b[0-9]+-", options: .regularExpression) else { return 0 }
+        return Int(asset.name[range].dropFirst(2).dropLast()) ?? 0
+    }
 }
 
 struct AppUpdateAsset: Sendable, Equatable {
@@ -58,6 +62,7 @@ struct SemanticVersion: Comparable, Sendable {
             guard !piece.isEmpty, let number = Int(piece), number >= 0 else { return nil }
             parsed.append(number)
         }
+        while parsed.count > 1 && parsed.last == 0 { parsed.removeLast() }
         components = parsed
     }
 
@@ -80,6 +85,7 @@ final class UpdateManager: ObservableObject {
     @Published private(set) var latestRelease: AppUpdateRelease?
 
     let currentVersion: String
+    let currentBuild: Int
     private let releasesURL: URL
     private var updateTask: Task<Void, Never>?
     private var didRunAutomaticCheck = false
@@ -93,6 +99,7 @@ final class UpdateManager: ObservableObject {
         )!
     ) {
         self.currentVersion = currentVersion
+        self.currentBuild = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
         self.releasesURL = releasesURL
     }
 
@@ -109,7 +116,7 @@ final class UpdateManager: ObservableObject {
                   let current = SemanticVersion(currentVersion),
                   let latest = SemanticVersion(latestRelease.version)
             else { return false }
-            return latest > current
+            return latest > current || (latest == current && latestRelease.build > currentBuild)
         }
     }
 
@@ -138,7 +145,7 @@ final class UpdateManager: ObservableObject {
                 else {
                     throw UpdateError.invalidVersion(release.version)
                 }
-                guard latest > current else {
+                guard latest > current || (latest == current && release.build > currentBuild) else {
                     state = .upToDate(checkedAt: Date())
                     return
                 }
@@ -155,17 +162,17 @@ final class UpdateManager: ObservableObject {
         }
     }
 
-    func beginInstallation() -> Bool {
+    func beginInstallation() async -> Bool {
         guard case let .ready(release, diskImage) = state else { return false }
         state = .installing(release)
         let currentApp = Bundle.main.bundleURL
         let currentVersion = currentVersion
+        let currentBuild = currentBuild
         do {
-            try Self.stageInstaller(
-                diskImage: diskImage,
-                currentApp: currentApp,
-                currentVersion: currentVersion
-            )
+            try await Task.detached(priority: .userInitiated) {
+                try Self.stageInstaller(diskImage: diskImage, currentApp: currentApp,
+                                        currentVersion: currentVersion, currentBuild: currentBuild)
+            }.value
             return true
         } catch {
             state = .failed(error.localizedDescription)
@@ -300,7 +307,8 @@ final class UpdateManager: ObservableObject {
     nonisolated private static func stageInstaller(
         diskImage: URL,
         currentApp: URL,
-        currentVersion: String
+        currentVersion: String,
+        currentBuild: Int
     ) throws {
         guard currentApp.pathExtension == "app" else { throw UpdateError.notRunningFromApp }
         let parent = currentApp.deletingLastPathComponent()
@@ -324,7 +332,10 @@ final class UpdateManager: ObservableObject {
         }) ?? entries.first(where: { $0.pathExtension == "app" }) else {
             throw UpdateError.invalidDiskImage
         }
-        try validateApplication(sourceApp, newerThan: currentVersion)
+        try validateApplication(sourceApp, newerThan: currentVersion, currentBuild: currentBuild)
+        // Validate the frozen Python/Metal runtime before stopping the working app.
+        _ = try runProcess(sourceApp.appending(path: "Contents/Resources/runtime/mlxl3").path,
+                           arguments: ["list", "--json"])
 
         let helperRoot = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appending(path: "io.mlxl3.desktop/Installers", directoryHint: .isDirectory)
@@ -385,7 +396,8 @@ final class UpdateManager: ObservableObject {
 
     nonisolated private static func validateApplication(
         _ app: URL,
-        newerThan currentVersion: String
+        newerThan currentVersion: String,
+        currentBuild: Int
     ) throws {
         _ = try runProcess(
             "/usr/bin/codesign",
@@ -401,7 +413,7 @@ final class UpdateManager: ObservableObject {
               let version = info["CFBundleShortVersionString"] as? String,
               let current = SemanticVersion(currentVersion),
               let incoming = SemanticVersion(version),
-              incoming > current
+              incoming > current || (incoming == current && (Int(info["CFBundleVersion"] as? String ?? "0") ?? 0) > currentBuild)
         else { throw UpdateError.invalidApplication }
     }
 
@@ -429,16 +441,30 @@ final class UpdateManager: ObservableObject {
         arguments: [String]
     ) throws -> Data {
         let process = Process()
-        let output = Pipe()
-        let errors = Pipe()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-updater-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let outURL = root.appendingPathComponent("stdout")
+        let errURL = root.appendingPathComponent("stderr")
+        FileManager.default.createFile(atPath: outURL.path, contents: nil)
+        FileManager.default.createFile(atPath: errURL.path, contents: nil)
+        let output = try FileHandle(forWritingTo: outURL)
+        let errors = try FileHandle(forWritingTo: errURL)
+        defer { try? output.close(); try? errors.close() }
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         process.standardOutput = output
         process.standardError = errors
         try process.run()
-        process.waitUntilExit()
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errors.fileHandleForReading.readDataToEndOfFile()
+        if finished.wait(timeout: .now() + 60) == .timedOut {
+            process.terminate()
+            if finished.wait(timeout: .now() + 2) == .timedOut { Darwin.kill(process.processIdentifier, SIGKILL) }
+            throw UpdateError.commandFailed("Update helper timed out")
+        }
+        let data = try Data(contentsOf: outURL)
+        let errorData = try Data(contentsOf: errURL)
         guard process.terminationStatus == 0 else {
             let message = String(data: errorData, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -490,7 +516,7 @@ fi
 if /usr/bin/ditto "$source_app" "$destination_app"; then
     echo "new application copied"
     /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$destination_app/Contents/Info.plist" || true
-    /bin/rm -rf "$backup_app"
+    # Keep the previous version until the next successful installation.
     /usr/bin/hdiutil detach "$mount_path" -quiet >/dev/null 2>&1 || true
     /usr/bin/open -n "$destination_app"
 else

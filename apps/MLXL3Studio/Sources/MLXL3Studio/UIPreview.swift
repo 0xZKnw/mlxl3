@@ -55,6 +55,22 @@ extension StudioModel {
                 response.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-stress") {
+            let response = ChatMessage(role: .assistant, content: "", isStreaming: true)
+            let conversation = Conversation(title: "QA · long streaming", messages: [ChatMessage(role: .user, content: "Generate a large HTML file"), response])
+            studio.conversations = [conversation]
+            studio.selectedConversationID = conversation.id
+            Task { @MainActor in
+                response.append("Stress test: streaming a large file.\n", phase: "thinking")
+                response.append("```html\n", phase: "answer")
+                for _ in 0..<600 {
+                    response.append(String(repeating: "<div>Hello 👋</div>\n", count: 30), phase: "answer")
+                    try? await Task.sleep(for: .milliseconds(30))
+                }
+                response.append("```\n\nFinished.", phase: "answer")
+                response.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+            }
+        }
         return studio
     }
 }

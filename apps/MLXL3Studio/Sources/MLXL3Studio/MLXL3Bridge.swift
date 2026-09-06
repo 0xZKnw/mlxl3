@@ -79,6 +79,7 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var pendingDelta: PendingDelta?
     private var deltaFlushWorkItem: DispatchWorkItem?
     private let displayFlushInterval = 0.05
+    private var generationID = UUID()
 
     var isRunning: Bool { process?.isRunning == true }
 
@@ -153,8 +154,14 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
-    func start(model: String, contextLength: Int = 0) throws {
+    func start(model: String, contextLength: Int = 0) async throws {
+        let previous = process
         stop()
+        let ticket = ioQueue.sync { generationID }
+        if let previous, previous.isRunning {
+            await Task.detached { previous.waitUntilExit() }.value
+        }
+        guard ioQueue.sync(execute: { ticket == generationID }) else { throw CancellationError() }
         guard let executable = CLIResolver.executable() else {
             throw MLXL3BridgeError.executableNotFound
         }
@@ -172,13 +179,7 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
         process.executableURL = executable
         process.arguments = ["bridge", model, "--context-length", String(contextLength)]
-        // Group shared KV heads for Gemma d=512 decode; other cases retain
-        // the reference path. Preserve explicit overrides for comparisons.
-        var environment = ProcessInfo.processInfo.environment
-        if environment["MLXL3_GEMMA_SDPA512"] == nil {
-            environment["MLXL3_GEMMA_SDPA512"] = "grouped"
-        }
-        process.environment = environment
+        process.environment = ProcessInfo.processInfo.environment
         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
         process.standardInput = input
         process.standardOutput = output
@@ -187,14 +188,23 @@ final class MLXL3Bridge: @unchecked Sendable {
         output.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let bridge = self else { return }
-            bridge.ioQueue.async { bridge.consumeOutput(data) }
+            bridge.ioQueue.async {
+                guard bridge.generationID == ticket else { return }
+                bridge.consumeOutput(data)
+            }
         }
         error.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let bridge = self else { return }
-            bridge.ioQueue.async { bridge.stderrBuffer.append(data) }
+            bridge.ioQueue.async {
+                guard bridge.generationID == ticket else { return }
+                bridge.stderrBuffer.append(data)
+                if bridge.stderrBuffer.count > 64_000 { bridge.stderrBuffer = bridge.stderrBuffer.suffix(64_000) }
+            }
         }
         process.terminationHandler = { [weak self] terminatedProcess in
+            output.fileHandleForReading.readabilityHandler = nil
+            error.fileHandleForReading.readabilityHandler = nil
             guard let self else { return }
             self.ioQueue.async {
                 guard let currentProcess = self.process,
@@ -210,13 +220,23 @@ final class MLXL3Bridge: @unchecked Sendable {
                     : L("Le moteur MLXL3 s’est arrêté de façon inattendue.", "The MLXL3 engine stopped unexpectedly.")
                 self.process = nil
                 self.inputPipe = nil
-                DispatchQueue.main.async { self.onExit?(message) }
+                DispatchQueue.main.async {
+                    guard self.ioQueue.sync(execute: { self.generationID == ticket }) else { return }
+                    self.onExit?(message)
+                }
             }
         }
 
-        try process.run()
         self.process = process
         inputPipe = input
+        do { try process.run() }
+        catch let failure {
+            self.process = nil
+            inputPipe = nil
+            output.fileHandleForReading.readabilityHandler = nil
+            error.fileHandleForReading.readabilityHandler = nil
+            throw failure
+        }
     }
 
     func generate(_ request: GenerationRequest) throws {
@@ -243,9 +263,18 @@ final class MLXL3Bridge: @unchecked Sendable {
     }
 
     func stop() {
+        ioQueue.sync {
+            generationID = UUID()
+            deltaFlushWorkItem?.cancel()
+            deltaFlushWorkItem = nil
+            pendingDelta = nil
+        }
         inputPipe?.fileHandleForWriting.closeFile()
-        if process?.isRunning == true {
-            process?.terminate()
+        if let process, process.isRunning {
+            process.terminate()
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+                if process.isRunning { Darwin.kill(process.processIdentifier, SIGKILL) }
+            }
         }
         inputPipe = nil
         process = nil
@@ -352,7 +381,11 @@ final class MLXL3Bridge: @unchecked Sendable {
     }
 
     private func dispatchToMain(_ event: BridgeEvent) {
-        DispatchQueue.main.async { [weak self] in self?.onEvent?(event) }
+        let ticket = generationID
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.ioQueue.sync(execute: { self.generationID == ticket }) else { return }
+            self.onEvent?(event)
+        }
     }
 
     static func memoryFootprintBytes(for pid: pid_t) -> UInt64? {

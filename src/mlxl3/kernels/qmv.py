@@ -700,7 +700,7 @@ def _qmm_tensor_kernel(
 ):
     """EXL3 QMM using M5 TensorOps with on-chip cooperative dequantization."""
 
-    if block_rows not in (8, 16, 32):
+    if block_rows not in (8, 16, 32, 64):
         raise ValueError(f"unsupported TensorOp QMM row block {block_rows}")
     if block_columns not in (16, 32, 64):
         raise ValueError(f"unsupported TensorOp QMM column block {block_columns}")
@@ -1924,12 +1924,19 @@ def qmm_exl3(
     amortizing trellis decode across the batch.
     """
 
+    if (k not in range(1, 9) or trellis.ndim != 3 or trellis.shape[-1] != 16 * k
+        or trellis.dtype not in (mx.int16, mx.uint16) or min(trellis.shape) <= 0):
+        raise ValueError('invalid EXL3 QMM trellis')
+    if suh.shape != (trellis.shape[0] * 16,) or svh.shape != (trellis.shape[1] * 16,):
+        raise ValueError('invalid EXL3 QMM scales')
     if x.ndim < 2:
         raise ValueError(f"QMM expects one or more rows, got {x.shape}")
     input_dims = trellis.shape[0] * 16
     output_dims = trellis.shape[1] * 16
     if x.shape[-1] != input_dims:
         raise ValueError(f"QMM expects width {input_dims}, got {x.shape[-1]}")
+    if x.size == 0:
+        return mx.zeros((*x.shape[:-1], output_dims), dtype=x.dtype)
     rows = x.size // input_dims
     flat = x.reshape(rows, input_dims)
     cb = CodebookMode(mode)

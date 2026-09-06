@@ -51,10 +51,13 @@ struct ChatMessageSnapshot: Codable, Sendable {
     let toolActivities: [ToolActivity]?
     let cacheContext: String?
     var parts: [AssistantPart]? = nil
+    var turnContext: String? = nil
 }
 
-actor ConversationStore {
+final class ConversationStore: @unchecked Sendable {
     let fileURL: URL
+    private let queue = DispatchQueue(label: "io.mlxl3.conversation-writer")
+    private var latestRevision = -1
 
     init(fileURL: URL = ConversationStore.defaultFileURL()) {
         self.fileURL = fileURL
@@ -74,16 +77,22 @@ actor ConversationStore {
             .appending(path: "conversations.json")
     }
 
-    static func load(from fileURL: URL = defaultFileURL()) -> WorkspaceSnapshot? {
-        guard let data = try? Data(contentsOf: fileURL),
-              let snapshot = try? JSONDecoder.mlxl3.decode(WorkspaceSnapshot.self, from: data),
-              snapshot.version == WorkspaceSnapshot.currentVersion
-        else { return nil }
+    static func load(from fileURL: URL = defaultFileURL()) throws -> WorkspaceSnapshot? {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        let data = try Data(contentsOf: fileURL)
+        let snapshot = try JSONDecoder.mlxl3.decode(WorkspaceSnapshot.self, from: data)
+        guard snapshot.version == WorkspaceSnapshot.currentVersion else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
         return snapshot
     }
 
-    func save(_ snapshot: WorkspaceSnapshot) throws {
-        try Self.write(snapshot, to: fileURL)
+    func save(_ snapshot: WorkspaceSnapshot, revision: Int) throws {
+        try queue.sync {
+            guard revision > latestRevision else { return }
+            try Self.write(snapshot, to: fileURL)
+            latestRevision = revision
+        }
     }
 
     static func write(_ snapshot: WorkspaceSnapshot, to fileURL: URL) throws {
@@ -92,6 +101,11 @@ actor ConversationStore {
             withIntermediateDirectories: true
         )
         let data = try JSONEncoder.mlxl3.encode(snapshot)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            // Never overwrite unreadable history, including a future schema.
+            _ = try load(from: fileURL)
+            try Data(contentsOf: fileURL).write(to: fileURL.appendingPathExtension("backup"), options: .atomic)
+        }
         try data.write(to: fileURL, options: [.atomic])
     }
 }
@@ -100,7 +114,6 @@ private extension JSONEncoder {
     static var mlxl3: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
     }
 }

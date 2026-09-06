@@ -1,5 +1,13 @@
 # mlxl3
 
+[Download MLXL3 Desktop v1.0.0](https://github.com/0xZKnw/mlxl3/releases/tag/v1.0.0)
+· [Compatibility and validation](docs/v1-validation.md)
+
+The standalone app requires **Apple Silicon and macOS 26.2+**. This release is
+**ad-hoc signed, not Developer ID signed or notarized**. macOS may block its first
+launch; use the system's explicit **Open Anyway** approval in Privacy & Security
+only if you trust this download. Do not disable Gatekeeper globally.
+
 `mlxl3` is an independent EXL3 inference and conversion engine for Apple Silicon.
 The EXL3 CUDA implementation in ExLlamaV3 is the format and numerical source of
 truth. The runtime is being implemented directly with MLX and custom Metal
@@ -70,7 +78,8 @@ mlxl3 benchmark MODEL_A MODEL_B --prompt-tokens 512 --max-tokens 128 \
 
 Inference and Metal kernels always stay on-device. Hugging Face downloads,
 GitHub update checks, and remote MCP servers are separate network paths shown
-explicitly in the Desktop settings. Local stdio MCP servers stay on the Mac.
+explicitly in the Desktop settings. A stdio MCP process runs on the Mac, but
+can itself access the Internet; local execution is not a network sandbox.
 
 Start an interactive, streaming terminal chat by model name:
 
@@ -251,20 +260,23 @@ On an M1, M2, M3, M4, or M5 Mac running macOS 26.2 or newer:
    **MLXL3 Desktop** into Applications.
 2. Launch the app. No Python, Homebrew, MLX, Hugging Face CLI, or Terminal setup
    is required. The current build is ad-hoc signed rather than Apple-notarized,
-   so macOS may require right-clicking the app and choosing **Open** once.
-3. Open **Models / Modèles**. In v0.4.6, **Discover / Découvrir** searches EXL3
+   so the first launch may require explicit approval in **Privacy & Security**.
+3. Open **Models / Modèles**. **Discover / Découvrir** searches EXL3
    repositories by name or `owner/repository`. Open a result to read its model
    card, select a branch/tag and variant, and see its download size. Download,
    then click **Load / Charger** in **My library / Ma bibliothèque**. You can
    also import an existing EXL3 folder. Earlier versions accept a repository
    and optional revision directly.
 
-The v0.4.6 library downloads only the selected variant at a pinned commit, not
+The library downloads only the selected variant at a pinned commit, not
 every quantization in a repository. Branches, subfolders and separately named
 EXL3 descriptors in one folder are recognized; ambiguous layouts are rejected.
-**Pause** keeps partial files: select the same revision/variant to resume.
+**Pause** keeps partial files. Interrupted downloads appear in My library after
+relaunch, with Resume and Delete partial files actions. **Locate folder** repairs
+a registered model whose directory was moved, without deleting its weights.
 Downloads live under `~/Library/Application Support/io.mlxl3.desktop/Models`.
-Private/gated models use your saved Hugging Face token (`hf auth login`);
+Private/gated models use your saved Hugging Face token (enter it in Settings,
+or use `hf auth login`);
 accept the model's license on Hugging Face first. EXL3 is a file format, not a
 guarantee that every architecture is supported by the engine.
 
@@ -290,7 +302,15 @@ Metal paths.
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[dev,bundle]"
 .venv/bin/pytest
+scripts/check-desktop.sh
 ```
+
+For release builds, install with `-c packaging/constraints-macos.txt`. The bundle
+contains `Contents/Resources/build-info.json` with engine/UI version, build,
+source commit and the complete installed dependency versions. Same-version
+hotfixes increment the build number and use a `-bNUMBER-` DMG filename so the
+updater can detect them. Updates retain the previous app as `.mlxl3-backup`;
+runtime validation happens before the working app is stopped.
 
 Build the redistributable app and DMG with:
 

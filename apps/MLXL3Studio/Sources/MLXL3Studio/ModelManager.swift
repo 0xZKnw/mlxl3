@@ -16,7 +16,7 @@ struct ModelManagerView: View {
                 Button(action: studio.importModelFolder) {
                     Label(L("Importer un dossier", "Import folder"), systemImage: "folder.badge.plus")
                         .padding(.horizontal, 12).padding(.vertical, 9)
-                }.buttonStyle(GlassPillButtonStyle()).disabled(studio.modelInstallState.isWorking)
+                }.buttonStyle(GlassPillButtonStyle()).disabled(studio.modelInstallState.isWorking || studio.isGenerating)
                 Button(action: dismiss.callAsFunction) { Image(systemName: "xmark").frame(width: 32, height: 32) }
                     .buttonStyle(RoundGlassButtonStyle()).accessibilityLabel(L("Fermer", "Close"))
             }.padding(.horizontal, 28).padding(.vertical, 22)
@@ -38,6 +38,7 @@ struct ModelManagerView: View {
             LibraryDownloadView(library: studio.modelLibrary)
         }
         .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+        .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(width: min(1040, (NSScreen.main?.visibleFrame.width ?? 1200) - 60),
                height: min(740, (NSScreen.main?.visibleFrame.height ?? 900) - 90))
         .confirmationDialog(L("Supprimer ce modèle ?", "Remove this model?"), isPresented: Binding(
@@ -77,6 +78,7 @@ struct ModelManagerView: View {
             }
             ScrollView {
                 LazyVStack(spacing: 10) {
+                    PendingDownloadsView(library: studio.modelLibrary)
                     if studio.models.isEmpty {
                         Text(L("Aucun modèle installé. Découvrez les checkpoints EXL3 ou importez un dossier.", "No models installed. Discover EXL3 checkpoints or import a folder."))
                             .foregroundStyle(StudioTheme.quiet).padding(.vertical, 50)
@@ -101,6 +103,8 @@ struct ModelManagerView: View {
                                         .disabled(studio.isGenerating || studio.modelInstallState.isWorking)
                                 }
                                 Spacer()
+                                Button(L("Relocaliser", "Locate folder")) { studio.relocateModel(model) }
+                                    .controlSize(.small).disabled(studio.isGenerating || studio.modelInstallState.isWorking)
                                 Button { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: model.path)]) } label: { Image(systemName: "folder").frame(width: 28, height: 25) }
                                     .buttonStyle(RoundGlassButtonStyle()).help(L("Afficher dans Finder", "Show in Finder"))
                                 Button { removal = model } label: { Image(systemName: "trash").frame(width: 28, height: 25) }
@@ -136,8 +140,12 @@ private struct HubBrowserView: View {
                     if library.searching { ProgressView().controlSize(.small) }
                     Text("EXL3").font(.system(size: 9, weight: .medium)).tracking(1).foregroundStyle(StudioTheme.quiet)
                 }.padding(12).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
-                Text(L("Recherche EXL3 · popularité · 60 résultats maximum. Affinez avec un nom ou collez auteur/dépôt.", "EXL3 search · popularity · up to 60 results. Refine by name or paste owner/repository."))
+                HStack {
+                Text(L("Recherche EXL3 · affinez par nom ou auteur/dépôt.", "EXL3 search · refine by name or owner/repository."))
                     .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
+                    Spacer()
+                    Button(action: library.refresh) { Image(systemName: "arrow.clockwise") }.help(L("Actualiser", "Refresh"))
+                }
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(library.results) { model in
@@ -158,6 +166,10 @@ private struct HubBrowserView: View {
                         if library.results.isEmpty && !library.searching {
                             Text(L("Aucun résultat. Essayez un autre nom ou un dépôt exact.", "No results. Try another name or an exact repository."))
                                 .font(.callout).foregroundStyle(StudioTheme.quiet).padding(.vertical, 40)
+                        }
+                        if library.results.count >= 60 {
+                            Button(L("Afficher plus de résultats", "Show more results"), action: library.moreResults)
+                                .disabled(library.searching || library.results.count >= 600)
                         }
                     }
                 }
@@ -203,7 +215,7 @@ private struct HubBrowserView: View {
                     .font(.caption).foregroundStyle(.orange)
             }
             if detail.gated {
-                Text(L("Dépôt à accès restreint : acceptez sa licence sur Hugging Face et connectez votre compte avec hf auth login.", "Gated repository: accept its license on Hugging Face and sign in with hf auth login."))
+                Text(L("Dépôt à accès restreint : acceptez sa licence sur Hugging Face et connectez votre compte dans les Réglages.", "Gated repository: accept its license on Hugging Face and sign in in Settings."))
                     .font(.caption).foregroundStyle(.orange)
             }
             Text(L("FICHE DU MODÈLE", "MODEL CARD")).font(.system(size: 9, weight: .medium)).tracking(1.4).foregroundStyle(StudioTheme.quiet)
@@ -215,6 +227,28 @@ private struct HubBrowserView: View {
             })
             Text(L("EXL3 indique le format, pas une garantie de compatibilité de l’architecture.", "EXL3 describes the format, not a guarantee of architecture compatibility."))
                 .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
+        }
+    }
+}
+
+private struct PendingDownloadsView: View {
+    @ObservedObject var library: ModelLibrary
+    @EnvironmentObject private var studio: StudioModel
+    @State private var removal: PendingDownload?
+    var body: some View {
+        ForEach(library.pending) { job in
+            VStack(alignment: .leading, spacing: 8) {
+                Text(job.repo).font(.system(size: 12, weight: .medium)).lineLimit(2)
+                HStack {
+                    Text(ByteCountFormatter.string(fromByteCount: job.retained_bytes, countStyle: .file) + " · " + L("interrompu", "interrupted"))
+                    Spacer()
+                    Button(L("Reprendre", "Resume")) { library.resume(job, studio: studio) }.disabled(library.downloading != nil)
+                    Button(L("Supprimer les fichiers partiels", "Delete partial files")) { removal = job }.disabled(library.downloading != nil)
+                }.font(.system(size: 11))
+            }.padding(14).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .confirmationDialog(L("Supprimer le téléchargement incomplet ? Les octets devront être téléchargés à nouveau.", "Delete the incomplete download? These bytes will need to be downloaded again."), isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } })) {
+            Button(L("Supprimer", "Delete"), role: .destructive) { if let removal { library.discard(removal) } }
         }
     }
 }

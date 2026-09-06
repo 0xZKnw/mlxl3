@@ -13,7 +13,7 @@ import mlx.core as mx
 
 from mlxl3.kernels.attention import grouped_sdpa_decode_512, matrix_sdpa_decode_512
 
-_MODE = os.environ.get("MLXL3_GEMMA_SDPA512", "off")
+_MODE = os.environ.get("MLXL3_GEMMA_SDPA512", "grouped")
 _MIN_LENGTH = 2048
 
 

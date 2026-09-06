@@ -37,6 +37,9 @@ struct GenerationStats: Codable, Hashable, Sendable {
     let evaluatedPromptTokens: Int?
     var contextUsed: Int? = nil
     var contextLimit: Int? = nil
+    var elapsedSeconds: Double? = nil
+    var endToEndTTFTSeconds: Double? = nil
+    var toolRounds: Int? = nil
 
     var cacheHitPercent: Double {
         let cached = cachedPromptTokens ?? 0
@@ -56,6 +59,9 @@ struct GenerationStats: Codable, Hashable, Sendable {
         case evaluatedPromptTokens = "evaluated_prompt_tokens"
         case contextUsed = "context_used"
         case contextLimit = "context_limit"
+        case elapsedSeconds = "elapsed_seconds"
+        case endToEndTTFTSeconds = "end_to_end_ttft_seconds"
+        case toolRounds = "tool_rounds"
     }
 }
 
@@ -84,6 +90,7 @@ struct BridgeEvent: Decodable {
     var modelContextLimit: Int? = nil
     var contextFull: Bool? = nil
     var contextMemory: ContextMemoryProfile? = nil
+    var turnContext: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, model, modules, phase, text, stats, message
@@ -104,6 +111,7 @@ struct BridgeEvent: Decodable {
         case modelContextLimit = "model_context_limit"
         case contextFull = "context_full"
         case contextMemory = "context_memory"
+        case turnContext = "turn_context"
     }
 }
 
@@ -151,6 +159,11 @@ struct ToolActivity: Codable, Hashable, Identifiable, Sendable {
 struct PromptMessage: Codable, Hashable {
     let role: String
     let content: String
+    var turnContext: String? = nil
+    enum CodingKeys: String, CodingKey {
+        case role, content
+        case turnContext = "turn_context"
+    }
 }
 
 /// Stable, chronological blocks. Never move later reasoning above a tool call.
@@ -210,6 +223,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     private(set) var error: String?
     private(set) var toolActivities: [ToolActivity]
     private(set) var cacheContext: String?
+    var turnContext: String?
     private(set) var parts: [AssistantPart]
     private(set) var streamRevision = 0
 
@@ -276,6 +290,9 @@ final class ChatMessage: ObservableObject, Identifiable {
         endProcessing(interrupted: true)
         isStreaming = false
         error = message
+        for index in toolActivities.indices where toolActivities[index].state == .running {
+            toolActivities[index].state = .failed
+        }
         streamRevision &+= 1
     }
 
@@ -337,7 +354,8 @@ final class ChatMessage: ObservableObject, Identifiable {
                     saved.interrupted = true
                 }
                 return saved
-            }
+            },
+            turnContext: turnContext
         )
     }
 
@@ -356,6 +374,10 @@ final class ChatMessage: ObservableObject, Identifiable {
             parts: snapshot.parts
         )
         endProcessing(interrupted: snapshot.wasStreaming)
+        turnContext = snapshot.turnContext
+        for index in toolActivities.indices where toolActivities[index].state == .running {
+            toolActivities[index].state = .failed
+        }
     }
 }
 
