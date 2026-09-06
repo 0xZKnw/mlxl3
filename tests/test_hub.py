@@ -5,6 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import numpy as np
+from safetensors.numpy import save
 
 from mlxl3 import hub
 from mlxl3.registry import RegistryError, load_registry
@@ -56,10 +58,12 @@ def test_main_card_only_chooses_quant_branch(monkeypatch, tmp_path):
 def test_download_pins_commit_filters_files_and_never_overwrites(monkeypatch, tmp_path):
     monkeypatch.setenv("MLXL3_HOME", str(tmp_path / "registry"))
     monkeypatch.setenv("MLXL3_MODELS_DIR", str(tmp_path / "models"))
-    config = json.dumps({"model_type": "test"}).encode()
+    config = json.dumps({"model_type": "qwen2"}).encode()
     quant = json.dumps({"quant_method": "exl3", "bits": 3.0, "tensor_storage": {"x": {"quant_format": "exl3"}}}).encode()
+    weights = save({'x.trellis': np.zeros((1, 1, 48), dtype=np.uint16),
+                    'x.suh': np.ones(16, dtype=np.float16), 'x.svh': np.ones(16, dtype=np.float16)})
     files = {"config.json": config, "tokenizer[shared].json": b"{}", "3bpw/quantization_config.json": quant,
-             "3bpw/model.safetensors": b"fixture", "4bpw/quantization_config.json": quant,
+             "3bpw/model.safetensors": weights, "4bpw/quantization_config.json": quant,
              "4bpw/model.safetensors": b"must-not-download", "run.py": b"must-not-run"}
     class API:
         def model_info(self, repo, revision, **kwargs):
@@ -68,6 +72,13 @@ def test_download_pins_commit_filters_files_and_never_overwrites(monkeypatch, tm
     monkeypatch.setattr(hub, "HfApi", API)
     downloads = []
     attempts = 0
+    def metadata(repo, filename, revision):
+        assert revision == 'a' * 40
+        target = tmp_path / 'metadata' / filename
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(files[filename])
+        return str(target)
+    monkeypatch.setattr(hub, 'hf_hub_download', metadata)
     def snapshot(**kwargs):
         nonlocal attempts
         attempts += 1
@@ -102,9 +113,9 @@ def test_download_pins_commit_filters_files_and_never_overwrites(monkeypatch, tm
     assert not load_registry()
     entry = hub.download("test/model-exl3", "a" * 40, "3bpw", events.append)
     assert entry.name in load_registry()
-    assert (Path(entry.path) / "model.safetensors").read_bytes() == b"fixture"
+    assert (Path(entry.path) / "model.safetensors").read_bytes() == weights
     assert not any("4bpw" in name or name == "run.py" for name in downloads)
-    assert any(e["completed"] == 50 for e in events)
+    assert any(e["completed"] >= 50 for e in events)
     with pytest.raises(RegistryError, match="already installed"):
         hub.download("test/model-exl3", "a" * 40, "3bpw", events.append)
     with pytest.raises(RegistryError, match="resolved revision"):

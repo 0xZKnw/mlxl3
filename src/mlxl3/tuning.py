@@ -30,7 +30,7 @@ def validate_tile(tile, input_dims, output_dims):
     if not isinstance(tile, (list, tuple)) or len(tile) != 3:
         return False
     bm, bn, bk = tile
-    return (bm in (8, 16, 32) and bn in (16, 32, 64) and bk in (16, 32, 64)
+    return (bm in (8, 16, 32, 64) and bn in (16, 32, 64) and bk in (16, 32, 64)
             and input_dims % bk == 0 and output_dims % bn == 0)
 
 
@@ -49,6 +49,12 @@ def _profile():
 def tensor_tile(rows, input_dims, output_dims, bits, mode):
     entry = _profile().get(shape_key(rows, input_dims, output_dims, bits, mode))
     if entry is None:
+        # Keep BK=16 and avoid extra padded rows; validated against M32 logits
+        # and recurrent/KV state. Only the M5 TensorOps caller uses this tile.
+        if (os.environ.get('MLXL3_DENSE_PREFILL_M64', '1') == '1'
+                and rows >= 128 and rows % 64 == 0 and int(mode) == 2
+                and input_dims >= 4096 and 4096 <= output_dims < 65536):
+            return 64, 32, 16
         return 32, 32, 16
     tile = entry.get('tile')
     if not entry.get('heldout_checked') or not validate_tile(tile, input_dims, output_dims):

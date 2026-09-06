@@ -20,7 +20,7 @@ final class CLICommand: @unchecked Sendable {
         try process.run()
     }
 
-    func output(_ arguments: [String], onLine: (@MainActor @Sendable (Data) -> Void)? = nil) async throws -> Data {
+    func output(_ arguments: [String], input: Data? = nil, onLine: (@MainActor @Sendable (Data) -> Void)? = nil) async throws -> Data {
         try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await withCheckedThrowingContinuation { continuation in
@@ -38,7 +38,11 @@ final class CLICommand: @unchecked Sendable {
                         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
                         process.standardOutput = pipe
                         process.standardError = errorHandle
+                        let stdin = Pipe()
+                        process.standardInput = stdin
                         try launch()
+                        if let input { try stdin.fileHandleForWriting.write(contentsOf: input) }
+                        try stdin.fileHandleForWriting.close()
                         var result = Data()
                         var pending = Data()
                         // Drain before waiting: README responses can exceed a pipe's capacity.

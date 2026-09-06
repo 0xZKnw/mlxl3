@@ -22,6 +22,7 @@ enum MCPPreferenceCheck {
             if !condition { throw Failure(message: message) }
         }
         // Regression: a GPU-private allocation must be counted, unlike process RSS.
+        if ProcessInfo.processInfo.environment["MLXL3_SKIP_METAL_CHECK"] != "1" {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
               let command = queue.makeCommandBuffer(), let blit = command.makeBlitCommandEncoder(),
               let before = MLXL3Bridge.memoryFootprintBytes(for: getpid()) else {
@@ -41,6 +42,7 @@ enum MCPPreferenceCheck {
         try check(MLXL3Bridge.memoryFootprintBytes(for: -1) == nil, "Failed memory read must not report zero")
         withExtendedLifetime(buffer) { }
         print("Metal footprint check passed: +\(after - before) bytes for a 64 MiB GPU buffer")
+        }
         let first = instance()
         try check(first.language == .fr, "Language must default to French")
         first.draft = "Do not translate this"

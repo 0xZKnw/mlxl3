@@ -9,6 +9,11 @@ final class StudioModel: ObservableObject {
     @Published var conversations: [Conversation] = [Conversation()]
     @Published var selectedConversationID: UUID?
     @Published var draft = ""
+    @Published var storageError: String?
+    private var persistenceBlocked = false
+    private var persistenceRevision = 0
+    private var drafts: [UUID: String] = [:]
+    private var deletedConversation: Conversation?
     @Published var engineState: EngineState = .idle
     @Published var showInspector = false
     @Published var showModelManager = false
@@ -57,7 +62,8 @@ final class StudioModel: ObservableObject {
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
-        if let snapshot = ConversationStore.load(from: conversationFileURL),
+        do {
+        if let snapshot = try ConversationStore.load(from: conversationFileURL),
            !snapshot.conversations.isEmpty {
             conversations = snapshot.conversations.map(Conversation.init(snapshot:))
             selectedConversationID = conversations.contains {
@@ -71,9 +77,15 @@ final class StudioModel: ObservableObject {
         } else {
             selectedConversationID = conversations.first?.id
         }
+        } catch {
+            persistenceBlocked = true
+            storageError = L("Historique illisible : aucune donnée ne sera écrasée. ", "History could not be read: no data will be overwritten. ") + error.localizedDescription
+            selectedConversationID = conversations.first?.id
+        }
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         bridge.onExit = { [weak self] message in
             guard let self, let message, !message.isEmpty else { return }
+            self.readyInfo = nil
             if self.activeRequestID != nil {
                 self.failActiveTurn(message)
             } else {
@@ -137,7 +149,8 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        engineState.isReady && !mcpUpdating && !modelInstallState.isWorking && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if case .installing = updateManager.state { return false }
+        return engineState.isReady && !mcpUpdating && !modelInstallState.isWorking && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var isGenerating: Bool {
@@ -153,11 +166,13 @@ final class StudioModel: ObservableObject {
     }
 
     var loadedModel: LocalModel? {
-        canEject ? selectedModel : nil
+        guard canEject, let name = readyInfo?.model else { return nil }
+        return models.first { $0.name == name }
     }
 
     var latestGenerationStats: GenerationStats? {
-        currentConversation?.messages.reversed().compactMap(\.stats).first
+        guard currentConversation?.contextUsage?.model == readyInfo?.model else { return nil }
+        return currentConversation?.messages.reversed().compactMap(\.stats).first
     }
 
     var engineMemoryFootprintBytes: UInt64? {
@@ -196,14 +211,16 @@ final class StudioModel: ObservableObject {
             case let .success(models):
                 self.models = models
                 guard !models.isEmpty else {
+                    self.ejectModel()
                     self.selectedModelName = nil
                     self.engineState = .idle
                     return
                 }
                 if !models.contains(where: { $0.name == self.selectedModelName }) {
+                    self.ejectModel()
                     self.selectedModelName = models[0].name
                 }
-                if autoLoad { self.loadSelectedModel() }
+                if autoLoad && !self.isGenerating { self.loadSelectedModel() }
             case let .failure(error):
                 self.engineState = .failed(error.localizedDescription)
             }
@@ -270,8 +287,9 @@ final class StudioModel: ObservableObject {
     func installUpdateAndRestart() {
         guard !isPreview else { return }
         guard !isGenerating else { return }
-        persistNow()
-        guard updateManager.beginInstallation() else { return }
+        guard persistNow() else { return }
+        Task {
+        guard await updateManager.beginInstallation() else { return }
         bridge.stop()
         persistNow()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -280,11 +298,20 @@ final class StudioModel: ObservableObject {
         DispatchQueue.main.async {
             NSApplication.shared.terminate(nil)
         }
+        }
     }
 
     func importModelFolder() {
+        chooseModelFolder(replacing: nil)
+    }
+
+    func relocateModel(_ model: LocalModel) {
+        chooseModelFolder(replacing: model.name)
+    }
+
+    private func chooseModelFolder(replacing name: String?) {
         guard !isPreview else { return }
-        guard !modelInstallState.isWorking else { return }
+        guard !modelInstallState.isWorking, !isGenerating else { return }
         let panel = NSOpenPanel()
         panel.title = L("Importer un modèle EXL3", "Import an EXL3 model")
         panel.message = L("Choisis le dossier contenant config.json et les poids EXL3.", "Choose the folder containing config.json and EXL3 weights.")
@@ -295,7 +322,7 @@ final class StudioModel: ObservableObject {
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             Task { @MainActor [weak self] in
-                self?.registerModelFolder(url)
+                self?.registerModelFolder(url, replacing: name)
             }
         }
     }
@@ -325,6 +352,7 @@ final class StudioModel: ObservableObject {
     }
 
     func selectModel(_ name: String) {
+        guard !isGenerating else { return }
         if name == selectedModelName, bridge.isRunning { return }
         selectedModelName = name
         schedulePersistence()
@@ -337,6 +365,10 @@ final class StudioModel: ObservableObject {
         activeRequestID = nil
         activeResponseID = nil
         readyInfo = nil
+        activeContextLimit = nil
+        modelContextLimit = nil
+        contextMemory = nil
+        modelResidentBytes = nil
         bridge.stop()
         engineState = .idle
         mcpUpdating = false
@@ -347,6 +379,7 @@ final class StudioModel: ObservableObject {
     }
 
     func newConversation() {
+        if let id = selectedConversationID { drafts[id] = draft }
         let conversation = Conversation()
         conversations.insert(conversation, at: 0)
         selectedConversationID = conversation.id
@@ -355,6 +388,12 @@ final class StudioModel: ObservableObject {
     }
 
     func deleteConversation(_ id: UUID) {
+        guard let removed = conversations.first(where: { $0.id == id }) else { return }
+        if removed.messages.contains(where: { $0.id == activeResponseID }) {
+            activeMessage()?.fail(L("Conversation supprimée", "Conversation deleted"))
+            _ = bridge.cancelGeneration()
+        }
+        deletedConversation = removed
         guard conversations.count > 1 else {
             if let index = conversations.firstIndex(where: { $0.id == id }) {
                 conversations[index] = Conversation(id: id)
@@ -365,13 +404,14 @@ final class StudioModel: ObservableObject {
         conversations.removeAll { $0.id == id }
         if selectedConversationID == id {
             selectedConversationID = conversations.first?.id
+            draft = selectedConversationID.flatMap { drafts[$0] } ?? ""
         }
         schedulePersistence()
     }
 
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, engineState.isReady, !mcpUpdating, let conversationIndex else { return }
+        guard canSend, let conversationIndex else { return }
 
         draft = ""
         if conversations[conversationIndex].messages.isEmpty {
@@ -399,7 +439,7 @@ final class StudioModel: ObservableObject {
             let context = message.role == .assistant
                 ? (message.cacheContext ?? message.content)
                 : message.content
-            return PromptMessage(role: message.role.rawValue, content: context)
+            return PromptMessage(role: message.role.rawValue, content: context, turnContext: message.turnContext)
         }
 
         do {
@@ -481,14 +521,80 @@ final class StudioModel: ObservableObject {
 
     func selectConversation(_ id: UUID) {
         guard conversations.contains(where: { $0.id == id }) else { return }
+        if let previous = selectedConversationID { drafts[previous] = draft }
         selectedConversationID = id
+        draft = drafts[id] ?? ""
         schedulePersistence()
     }
 
-    func persistNow() {
+    @discardableResult func persistNow() -> Bool {
         persistenceTask?.cancel()
         persistenceTask = nil
-        try? ConversationStore.write(workspaceSnapshot, to: conversationFileURL)
+        guard !persistenceBlocked else { return false }
+        persistenceRevision += 1
+        do {
+            try conversationStore.save(workspaceSnapshot, revision: persistenceRevision)
+            return true
+        } catch {
+            storageError = L("Échec de sauvegarde : ", "Save failed: ") + error.localizedDescription
+            return false
+        }
+    }
+
+    func revealConversations() {
+        NSWorkspace.shared.activateFileViewerSelecting([conversationFileURL])
+    }
+
+    func recoverConversations() {
+        do {
+            if FileManager.default.fileExists(atPath: conversationFileURL.path) {
+                try FileManager.default.moveItem(at: conversationFileURL, to: conversationFileURL.appendingPathExtension("unreadable-" + UUID().uuidString))
+            }
+            let backupURL = conversationFileURL.appendingPathExtension("backup")
+            if let backup = try? ConversationStore.load(from: backupURL) {
+                conversations = backup.conversations.map(Conversation.init(snapshot:))
+                selectedConversationID = conversations.first?.id
+            } else if FileManager.default.fileExists(atPath: backupURL.path) {
+                try FileManager.default.moveItem(at: backupURL, to: backupURL.appendingPathExtension("unreadable-" + UUID().uuidString))
+            }
+            persistenceBlocked = false
+            storageError = nil
+            persistNow()
+        } catch { storageError = error.localizedDescription }
+    }
+
+    func undoDeleteConversation() {
+        guard let restored = deletedConversation else { return }
+        conversations.removeAll { $0.id == restored.id }
+        conversations.insert(restored, at: 0)
+        selectedConversationID = restored.id
+        deletedConversation = nil
+        schedulePersistence()
+    }
+
+    func exportConversations() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "MLXL3-conversations.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            try encoder.encode(workspaceSnapshot).write(to: url, options: .atomic)
+        } catch { storageError = error.localizedDescription }
+    }
+
+    func importConversations() {
+        guard !isGenerating else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            guard let snapshot = try ConversationStore.load(from: url) else { return }
+            let known = Set(conversations.map(\.id))
+            conversations.insert(contentsOf: snapshot.conversations.filter { !known.contains($0.id) }.map(Conversation.init(snapshot:)), at: 0)
+            persistNow()
+        } catch { storageError = error.localizedDescription }
     }
 
     private var conversationIndex: Int? {
@@ -497,6 +603,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
+        guard !isGenerating else { return }
         contextLengthDraft = savedContextLength
         if isPreview {
             modelContextLimit = 262144
@@ -518,16 +625,20 @@ final class StudioModel: ObservableObject {
         mcpErrors = [:]
         activeRequestID = nil
         activeResponseID = nil
-        do {
-            try bridge.start(model: selectedModelName, contextLength: savedContextLength)
-        } catch {
-            engineState = .failed(error.localizedDescription)
+        Task {
+            do {
+                try await bridge.start(model: selectedModelName, contextLength: savedContextLength)
+            } catch is CancellationError { }
+            catch {
+                engineState = .failed(error.localizedDescription)
+            }
         }
     }
 
-    private func registerModelFolder(_ url: URL) {
+    private func registerModelFolder(_ url: URL, replacing existingName: String? = nil) {
+        guard !isGenerating else { return }
         let rawName = url.lastPathComponent
-        let name = rawName.replacingOccurrences(
+        let name = existingName ?? rawName.replacingOccurrences(
             of: "[^A-Za-z0-9._-]+",
             with: "-",
             options: .regularExpression
@@ -623,16 +734,16 @@ final class StudioModel: ObservableObject {
             )
             schedulePersistence()
         case "complete":
-            guard event.requestID == activeRequestID,
-                  let message = activeMessage()
-            else { return }
-            message.finish(
+            guard event.requestID == activeRequestID else { return }
+            let message = activeMessage()
+            message?.turnContext = event.turnContext
+            message?.finish(
                 stats: event.stats,
                 fallbackAnswer: event.assistantContext,
                 cacheContext: event.cacheContext
             )
             if event.contextFull == true {
-                message.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
+                message?.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
             }
             activeRequestID = nil
             activeResponseID = nil
@@ -654,7 +765,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func restoreReadyState() {
-        if let readyInfo {
+        if let readyInfo, bridge.isRunning {
             engineState = .ready(
                 model: readyInfo.model,
                 modules: readyInfo.modules,
@@ -673,7 +784,7 @@ final class StudioModel: ObservableObject {
         activeMessage()?.fail(detail)
         activeRequestID = nil
         activeResponseID = nil
-        if readyInfo == nil {
+        if readyInfo == nil || !bridge.isRunning {
             engineState = .failed(message)
         } else {
             restoreReadyState()
@@ -712,13 +823,18 @@ final class StudioModel: ObservableObject {
     }
 
     private func schedulePersistence() {
-        guard persistenceTask == nil else { return }
+        guard persistenceTask == nil, !persistenceBlocked else { return }
         persistenceTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(1))
+            try? await Task.sleep(for: .seconds(self?.isGenerating == true ? 10 : 1))
             guard !Task.isCancelled, let self else { return }
             persistenceTask = nil
             let snapshot = workspaceSnapshot
-            try? await conversationStore.save(snapshot)
+            persistenceRevision += 1
+            let revision = persistenceRevision
+            let store = conversationStore
+            do {
+                try await Task.detached(priority: .utility) { try store.save(snapshot, revision: revision) }.value
+            } catch { storageError = L("Échec de sauvegarde : ", "Save failed: ") + error.localizedDescription }
         }
     }
 }

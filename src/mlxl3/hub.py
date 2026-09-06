@@ -4,6 +4,7 @@ from __future__ import annotations
 import fcntl
 import glob
 import hashlib
+import json
 from html.parser import HTMLParser
 import os
 from pathlib import Path, PurePosixPath
@@ -15,7 +16,7 @@ import time
 from huggingface_hub import HfApi, hf_hub_download, snapshot_download
 from huggingface_hub.utils import validate_repo_id
 
-from mlxl3.registry import RegistryError, inspect_model, load_registry, managed_models_path, register_model
+from mlxl3.registry import RegistryError, inspect_model, load_registry, managed_models_path, register_model, atomic_json, validate_model_name
 
 
 def _safe_file(name: str) -> bool:
@@ -23,10 +24,12 @@ def _safe_file(name: str) -> bool:
         part not in ("", ".", "..") for part in name.split("/")
     )
 
-def search(query: str) -> list[dict]:
+def search(query: str, limit: int = 60) -> list[dict]:
     query = query.strip()[:160]
     terms = query.lower().split()
-    needle = terms[0] if terms else None
+    # HF name search is a substring, not a multi-keyword search.
+    needle = max((term for term in terms if term != 'exl3'), key=len, default=None)
+    limit = max(60, min(600, limit))
     api = HfApi()
     if "/" in query:
         try:
@@ -40,14 +43,14 @@ def search(query: str) -> list[dict]:
     # Server-side EXL3 filter plus name fallback for repositories missing the tag.
     found = {}
     for kwargs in ({"search": needle, "filter": "exl3"}, {"search": needle or "exl3"}):
-        for model in api.list_models(**kwargs, sort="downloads", limit=100):
+        for model in api.list_models(**kwargs, sort="downloads", limit=100 if limit == 60 else limit * 2):
             if "exl3" not in model.id.lower() and "exl3" not in (model.tags or []):
                 continue
             if not all(term in model.id.lower() for term in terms):
                 continue
             found[model.id] = {"id": model.id, "downloads": model.downloads or 0,
                                "likes": model.likes or 0, "gated": bool(model.gated)}
-    return sorted(found.values(), key=lambda item: (-item["downloads"], item["id"]))[:60]
+    return sorted(found.values(), key=lambda item: (-item["downloads"], item["id"]))[:limit]
 
 
 def variants(files: dict[str, int]) -> list[dict]:
@@ -184,7 +187,7 @@ def details(repo: str, revision: str | None = None) -> dict:
             "downloads": info.downloads or 0, "likes": info.likes or 0}
 
 
-def download(repo: str, commit: str, folder: str, emit) -> object:
+def download(repo: str, commit: str, folder: str, emit, *, name: str | None = None, directory: Path | None = None) -> object:
     validate_repo_id(repo)
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise RegistryError("Select a resolved revision before downloading")
@@ -195,9 +198,11 @@ def download(repo: str, commit: str, folder: str, emit) -> object:
         raise RegistryError("No complete EXL3 checkpoint in the selected folder")
     key = hashlib.sha256(f"{repo}\n{commit}\n{folder}".encode()).hexdigest()[:12]
     label = re.sub(r"[^A-Za-z0-9._-]+", "-", repo.rsplit("/", 1)[-1] + ("-" + folder if folder else ""))[:100]
-    name = f"{label}-{key[:8]}"
+    name = name or f"{label}-{key[:8]}"
+    validate_model_name(name)
     root = managed_models_path().resolve()
-    destination = root / name
+    destination = directory.expanduser().resolve() if directory else root / re.sub(r'[^A-Za-z0-9._-]+', '-', name)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     if name in load_registry() or destination.exists():
         raise RegistryError("This checkpoint is already installed. Import its folder or choose another variant.")
     stage = root / ".downloads" / key
@@ -208,7 +213,61 @@ def download(repo: str, commit: str, folder: str, emit) -> object:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
             raise RegistryError("This variant is already downloading") from error
+        atomic_json(stage / 'request.json', {'id': key, 'repo': repo, 'commit': commit, 'folder': folder,
+                                            'name': name, 'destination': str(destination), 'size_bytes': selected['size_bytes']})
+        emit({'type': 'progress', 'completed': 0, 'total': selected['size_bytes']})
+        preflight(repo, commit, selected, info)
         return _download_selected(repo, commit, selected, stage, destination, name, emit)
+
+
+def preflight(repo: str, commit: str, selected: dict, info) -> None:
+    """Reject unknown architectures/formats before transferring the large shards."""
+    from mlx_lm.utils import _get_classes
+    sizes = {file.rfilename: file.size or 0 for file in info.siblings or []}
+    metadata = {}
+    for name in ('config.json', 'quantization_config.json'):
+        remote = selected['files'][name]
+        if not 0 < sizes.get(remote, 0) <= 64_000_000:
+            raise RegistryError(f'Missing or oversized metadata: {name}')
+        path = hf_hub_download(repo, remote, revision=commit)
+        value = json.loads(Path(path).read_text())
+        if not isinstance(value, dict):
+            raise RegistryError(f'Invalid metadata: {name}')
+        metadata[name] = value
+    if metadata['quantization_config.json'].get('quant_method') != 'exl3':
+        raise RegistryError('Selected checkpoint is not EXL3')
+    try:
+        _get_classes(metadata['config.json'])
+    except (ValueError, ImportError, AttributeError, KeyError) as error:
+        raise RegistryError(f'Architecture is not available in this engine: {error}') from error
+
+
+def pending_downloads() -> list[dict]:
+    results = []
+    for file in (managed_models_path() / '.downloads').glob('*/request.json'):
+        try:
+            record = json.loads(file.read_text())
+            record['retained_bytes'] = sum(p.stat().st_size for p in (file.parent / 'snapshot').rglob('*') if p.is_file())
+            results.append(record)
+        except (OSError, ValueError):
+            continue
+    return results
+
+
+def discard_download(key: str) -> None:
+    if not re.fullmatch(r'[0-9a-f]{12}', key):
+        raise RegistryError('invalid download identifier')
+    root = managed_models_path().resolve() / '.downloads'
+    stage = root / key
+    if stage.is_symlink() or stage.resolve().parent != root:
+        raise RegistryError('invalid download directory')
+    with (root / (key + '.lock')).open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RegistryError('Pause the download before removing its partial files') from error
+        if stage.is_dir():
+            shutil.rmtree(stage)
 
 
 def _download_selected(repo, commit, selected, stage, destination, name, emit):
@@ -217,6 +276,21 @@ def _download_selected(repo, commit, selected, stage, destination, name, emit):
         raise RegistryError("Not enough free disk space for this checkpoint")
     from tqdm.auto import tqdm
     progress_lock = threading.Lock()
+    bars = {}
+    highest = 0
+    last_report = 0.0
+    def report(force=False):
+        nonlocal highest, last_report
+        now = time.monotonic()
+        if not force and now - last_report < 0.15:
+            return
+        last_report = now
+        # Xet reports both transfer and reconstruction; these are parallel views,
+        # not additional bytes. Ordinary HTTP bars are summed per file.
+        http = sum(value for kind, value in bars.values() if kind == 'http')
+        xet = sum(value for kind, value in bars.values() if kind == 'xet')
+        highest = max(highest, min(selected['size_bytes'], max(http, xet)))
+        emit({'type': 'progress', 'completed': highest, 'total': selected['size_bytes']})
 
     class Progress(tqdm):
         def __init__(self, *args, **kwargs):
@@ -225,18 +299,25 @@ def _download_selected(repo, commit, selected, stage, destination, name, emit):
             super().__init__(*args, **kwargs)
             # Disabled tqdm intentionally omits formatting fields. Setting `unit`
             # bypasses its disabled format_dict path and breaks Xet rate callbacks.
-            self.reconstruction = kwargs.get("unit") == "B" and "Reconstruct" in kwargs.get("desc", "")
+            self.progress_kind = ('xet' if 'Reconstruct' in kwargs.get('desc', '') else 'http') if kwargs.get('unit') == 'B' else None
+            if self.progress_kind:
+                self.progress_key = len(bars)
+                bars[self.progress_key] = (self.progress_kind, self.n)
         def update(self, n=1):
             with progress_lock:
                 self.n += n or 0
-                now = time.monotonic()
-                if self.reconstruction and now - self.reported > 0.15:
-                    self.reported = now
-                    emit({"type": "progress", "completed": self.n, "total": selected["size_bytes"]})
+                if self.progress_kind:
+                    bars[self.progress_key] = (self.progress_kind, self.n)
+                    report()
+        def close(self):
+            if getattr(self, 'progress_kind', None):
+                with progress_lock:
+                    report(force=True)
+            super().close()
         def refresh(self, *args, **kwargs):
             pass
 
-    emit({"type": "progress", "completed": 0, "total": selected["size_bytes"]})
+    report(force=True)
     snapshot_download(repo_id=repo, revision=commit, local_dir=stage / "snapshot",
                       allow_patterns=[glob.escape(path) for path in selected["files"].values()],
                       max_workers=4, tqdm_class=Progress)
@@ -251,6 +332,10 @@ def _download_selected(repo, commit, selected, stage, destination, name, emit):
     if destination.exists():
         raise RegistryError("Destination already exists; refusing to overwrite it")
     assembled.rename(destination)
-    entry = register_model(name, destination)
+    try:
+        entry = register_model(name, destination)
+    except BaseException:
+        destination.rename(assembled)
+        raise
     shutil.rmtree(stage, ignore_errors=True)
     return entry

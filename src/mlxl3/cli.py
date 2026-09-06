@@ -327,6 +327,16 @@ class GenerationSession:
         return length
 
     def prepare(
+        self, model: Any, full_tokens: list[int], stable_tokens: list[int], **kwargs,
+    ) -> tuple[list[int], list[Any], int, int]:
+        try:
+            return self._prepare(model, full_tokens, stable_tokens, **kwargs)
+        except BaseException:
+            # A failed chunk may already have mutated recurrent/KV state.
+            self.reset()
+            raise
+
+    def _prepare(
         self,
         model: Any,
         full_tokens: list[int],
@@ -498,6 +508,9 @@ class GenerationSessionPool:
                 self.sessions.move_to_end(oldest)
                 continue
             self.sessions.pop(oldest).reset()
+        active = self.sessions.get(active_id)
+        if active is not None and active.nbytes() > self.budget_bytes:
+            active.reset()
 
 
 def _mlx_memory_guard_bytes() -> int:
@@ -605,6 +618,15 @@ def _prompt_prefills_thinking(prompt: str) -> bool:
     return prompt.rstrip().endswith((ThinkingSplitter._OPEN, '<|channel>thought'))
 
 
+def _restore_reasoning_opener(text: str, prompt: str) -> str:
+    # Templates can consume the opener. Restore it in the stored transcript,
+    # especially when generation stops before emitting the closing marker.
+    for marker in ('<think>', '<|channel>thought'):
+        if prompt.rstrip().endswith(marker) and not text.lstrip().startswith(marker):
+            return marker + '\n' + text
+    return text
+
+
 class ThinkingRenderer:
     """Incrementally render ``<think>`` blocks separately from final text."""
 
@@ -682,25 +704,37 @@ class ToolCallStreamFilter:
     def __init__(self):
         self.buffer = ""
         self.inside_call = False
+        self.passthrough = False
+        self.closer = self._CLOSE
 
     def feed(self, text: str) -> list[str]:
         visible: list[str] = []
         self.buffer += text
         while self.buffer:
-            marker = self._CLOSE if self.inside_call else self._OPEN
-            position = self.buffer.find(marker)
-            if position >= 0:
-                if not self.inside_call and position:
-                    visible.append(self.buffer[:position])
-                self.buffer = self.buffer[position + len(marker) :]
-                self.inside_call = not self.inside_call
+            if self.passthrough:
+                visible.append(self.buffer)
+                self.buffer = ''
+                break
+            if self.inside_call:
+                position = self.buffer.find(self.closer)
+                if position < 0:
+                    self.buffer = self.buffer[-(len(self.closer) - 1):]
+                    break
+                self.buffer = self.buffer[position + len(self.closer):]
+                self.inside_call = False
                 continue
-            keep = ThinkingSplitter._partial_marker_length(self.buffer, marker)
-            emit_until = len(self.buffer) - keep
-            if not self.inside_call and emit_until:
-                visible.append(self.buffer[:emit_until])
-            self.buffer = self.buffer[emit_until:]
-            break
+            stripped = self.buffer.lstrip()
+            markers = {self._OPEN: self._CLOSE, '<|tool_call>': '<tool_call|>'}
+            opener = next((m for m in markers if stripped.startswith(m)), None)
+            if opener:
+                self.closer = markers[opener]
+                self.buffer = stripped[len(opener):]
+                self.inside_call = True
+            elif not stripped or any(m.startswith(stripped) for m in markers):
+                break
+            else:
+                # Once prose/code begins, subsequent marker examples are ordinary text.
+                self.passthrough = True
         return visible
 
     def finish(self) -> list[str]:
@@ -715,6 +749,29 @@ _TOOL_PARAMETER = re.compile(r"<parameter=([^>\n]+)>\s*(.*?)\s*</parameter>", re
 
 
 def _parse_tool_calls(response: str) -> list[ToolCallRequest]:
+    # Only final-channel payloads are executable; examples and reasoning are not.
+    response = _assistant_context(response)
+    if '<think>' in response or '<|channel>thought' in response:
+        return []
+    response = re.sub(r'(?ms)^\s*(`{3,}|~{3,})[^\n]*\n.*?(?:^\s*\1\s*$|\Z)', '', response)
+    native = re.compile(r'<\|tool_call>(.*?)<tool_call\|>', re.S)
+    if native.search(response):
+        from mlx_lm.tool_parsers.gemma4 import parse_tool_call
+        if native.sub('', response).strip():
+            return []
+        calls = []
+        for match in native.finditer(response):
+            try:
+                parsed = parse_tool_call(match.group(1))
+            except (ValueError, TypeError):
+                raise MCPError('Malformed Gemma tool call; nothing executed')
+            for item in parsed if isinstance(parsed, list) else [parsed]:
+                if not isinstance(item.get('arguments'), dict):
+                    raise MCPError('Tool arguments must be an object')
+                calls.append(ToolCallRequest(item['name'], item['arguments']))
+        return calls
+    if _TOOL_BLOCK.sub('', response).strip():
+        return []
     calls: list[ToolCallRequest] = []
     for match in _TOOL_BLOCK.finditer(response):
         body = match.group(1).strip()
@@ -742,8 +799,8 @@ def _parse_tool_calls(response: str) -> list[ToolCallRequest]:
             if isinstance(arguments, str):
                 try:
                     arguments = json.loads(arguments)
-                except json.JSONDecodeError:
-                    arguments = {}
+                except json.JSONDecodeError as error:
+                    raise MCPError('Malformed tool arguments; nothing executed') from error
             if isinstance(name, str) and isinstance(arguments, dict):
                 calls.append(ToolCallRequest(name, arguments))
     return calls
@@ -758,13 +815,13 @@ def _parse_tool_argument(raw: str) -> Any:
 
 
 def _without_tool_calls(response: str) -> str:
-    return _TOOL_BLOCK.sub("", _assistant_context(response)).strip()
+    return re.sub(r'<\|tool_call>.*?<tool_call\|>', '', _TOOL_BLOCK.sub("", _assistant_context(response)), flags=re.S).strip()
 
 
 def _cache_context(response: str) -> str:
     """Keep exact generated reasoning/final bytes for lossless prefix reuse."""
 
-    return _TOOL_BLOCK.sub("", response)
+    return response
 
 
 def _reasoning_context(response: str) -> str:
@@ -800,7 +857,8 @@ def _parser() -> argparse.ArgumentParser:
     download.add_argument("--revision", help="branch, tag, or EXL3 BPW revision")
     download.add_argument("--name", help="local registry name; defaults to the repository name")
     download.add_argument("--directory", type=Path, help="custom destination directory")
-    download.add_argument("--force", action="store_true", help="redownload existing files")
+    download.add_argument("--force", action="store_true", help="deprecated: choose a new name instead of overwriting an installed model")
+    download.add_argument("--folder", help="variant folder/identifier from 'mlxl3 hub details'")
     download.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
 
     remove = commands.add_parser("remove", aliases=["rm"], help="remove a registry entry")
@@ -808,10 +866,11 @@ def _parser() -> argparse.ArgumentParser:
     remove.add_argument("--expected-path", help=argparse.SUPPRESS)
 
     hub = commands.add_parser("hub", help="browse EXL3 checkpoints on Hugging Face")
-    hub.add_argument("action", choices=["search", "details", "download"])
+    hub.add_argument("action", choices=["search", "details", "download", "pending", "resume", "discard", "auth"])
     hub.add_argument("query")
     hub.add_argument("--revision")
     hub.add_argument("--folder", default="")
+    hub.add_argument("--limit", type=int, default=60)
 
     mcp = commands.add_parser("mcp", help="manage local MCP stdio servers")
     mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
@@ -841,7 +900,8 @@ def _parser() -> argparse.ArgumentParser:
     run = commands.add_parser("run", help="stream a response or start an interactive chat")
     run.add_argument("model", help="registered model name or local model directory")
     run.add_argument("prompt", nargs="?", help="one-shot prompt; omit for interactive chat")
-    run.add_argument("--max-tokens", type=int, default=512)
+    run.add_argument("--max-tokens", type=int, default=-1)
+    run.add_argument("--context-length", type=int, default=0, help="0 uses the model's context ceiling")
     run.add_argument("--system", help="optional system message")
     run.add_argument("--temperature", type=float, default=0.2)
     run.add_argument("--top-k", type=int, default=80)
@@ -1218,7 +1278,7 @@ def _stream_response(
     finished = time.perf_counter()
     if final is None or first_token_at is None:
         raise RuntimeError("generation returned no response")
-    text = "".join(pieces)
+    text = _restore_reasoning_opener("".join(pieces), prompt)
     context_used = (len(full_prompt_tokens) if full_prompt_tokens is not None else final.prompt_tokens) + final.generation_tokens
     if on_context is not None:
         on_context(context_used, context_limit)
@@ -1305,6 +1365,7 @@ def _generate_turn(model, tokenizer, messages, user_text, args, session=None) ->
             top_k=args.top_k,
             repetition_penalty=args.repetition_penalty,
             session=session,
+            context_limit=getattr(args, 'context_length', 0),
         )
     except KeyboardInterrupt:
         messages.pop()
@@ -1345,6 +1406,10 @@ def _run(args) -> int:
     if args.temperature < 0:
         raise RegistryError("--temperature must be non-negative")
     name, path = resolve_model(args.model)
+    maximum = _model_context_limit(path)
+    if args.context_length < 0 or args.context_length > maximum:
+        raise RegistryError(f'context length must be between 1 and {maximum}, or 0 for automatic')
+    args.context_length = args.context_length or maximum
     print(f"Chargement de {name} sur Metal…", flush=True)
     model, tokenizer, modules, load_seconds, resident_gb = _load_model(path)
     print(f"Prêt · {modules} modules EXL3 · {load_seconds:.2f} s · {resident_gb:.2f} GB résidents")
@@ -1393,6 +1458,19 @@ def _benchmark_messages(tokenizer: Any, target_tokens: int) -> list[dict[str, st
 
 def _benchmark_environment() -> dict[str, Any]:
     from mlxl3 import __version__
+    from importlib.metadata import version, PackageNotFoundError
+    versions = {}
+    for package in ('mlx', 'mlx-lm', 'mlx-metal', 'numpy', 'huggingface-hub', 'safetensors'):
+        try:
+            versions[package] = version(package)
+        except PackageNotFoundError:
+            versions[package] = 'unavailable'
+    root = Path(__file__).resolve().parents[2]
+    try:
+        commit = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True, stderr=subprocess.DEVNULL).strip()
+        dirty = bool(subprocess.check_output(['git', '-C', str(root), 'status', '--porcelain'], text=True))
+    except (OSError, subprocess.SubprocessError):
+        commit, dirty = None, None
 
     try:
         chip = subprocess.check_output(
@@ -1410,6 +1488,10 @@ def _benchmark_environment() -> dict[str, Any]:
         "platform": platform.platform(),
         "chip": chip,
         "python": platform.python_version(),
+        'packages': versions,
+        'commit': commit,
+        'dirty': dirty,
+        'kernel_overrides': {key: value for key, value in os.environ.items() if key.startswith('MLXL3_') and not any(word in key for word in ('TOKEN', 'KEY', 'SECRET', 'PATH', 'HOME'))},
         "power": power,
         "boundary": {
             "inference": "on-device Apple Metal",
@@ -1540,8 +1622,13 @@ def _benchmark(args) -> int:
             "resident_gb": resident_gb,
             "runs": runs,
             "summary": _benchmark_summary(runs),
+            'metadata_sha256': _model_metadata_hashes(model_path),
         })
         del model, tokenizer
+        # Collect module/reference cycles before the next checkpoint, not
+        # after allocating two complete models in the same Metal process.
+        import gc
+        gc.collect()
         mx.clear_cache()
 
     serialized = json.dumps(report, ensure_ascii=False, indent=2)
@@ -1549,6 +1636,13 @@ def _benchmark(args) -> int:
         args.output.expanduser().write_text(serialized + "\n")
     print(serialized if args.json else _format_benchmark(report))
     return 0
+
+
+def _model_metadata_hashes(root: Path) -> dict[str, str]:
+    import hashlib
+    return {file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+            for file in root.iterdir() if file.is_file()
+            and (file.name in {'config.json', 'quantization_config.json'} or file.name.startswith(('tokenizer', 'chat_template')))}
 
 
 def _json_event(event_type: str, **payload: Any) -> None:
@@ -1571,9 +1665,33 @@ def _bridge_messages(payload: Any) -> list[dict[str, str]]:
             raise TypeError("each message must be an object")
         role = message.get("role")
         content = message.get("content")
-        if role not in {"system", "user", "assistant"} or not isinstance(content, str):
+        if role not in {"system", "user", "assistant", "tool"} or not isinstance(content, str):
             raise ValueError("messages require a valid role and string content")
-        messages.append({"role": role, "content": content})
+        turn = message.get('turn_context')
+        if turn is not None:
+            if role != 'assistant' or not isinstance(turn, str):
+                raise ValueError('invalid tool-turn context')
+            expanded = json.loads(turn)
+            if not isinstance(expanded, list) or any(not isinstance(m, dict) or m.get('role') not in {'assistant', 'tool'} or 'turn_context' in m for m in expanded):
+                raise ValueError('invalid tool-turn transcript')
+            messages.extend(_bridge_messages(expanded))
+            continue
+        clean = {'role': role, 'content': content}
+        for key in ('name', 'reasoning_content'):
+            if key in message:
+                if not isinstance(message[key], str):
+                    raise ValueError(f'{key} must be a string')
+                clean[key] = message[key]
+        if 'tool_calls' in message:
+            tool_calls = message['tool_calls']
+            if role != 'assistant' or not isinstance(tool_calls, list):
+                raise ValueError('invalid historical tool calls')
+            for call in tool_calls:
+                fn = call.get('function') if isinstance(call, dict) else None
+                if not isinstance(fn, dict) or not isinstance(fn.get('name'), str) or not isinstance(fn.get('arguments'), dict):
+                    raise ValueError('invalid historical tool call')
+            clean['tool_calls'] = tool_calls
+        messages.append(clean)
     if not messages:
         raise ValueError("messages cannot be empty")
     return messages
@@ -1611,7 +1729,15 @@ def _bridge_generate(
     dialogue = list(messages)
     session = session or GenerationSession()
     chat_tools = mcp.chat_tools
+    mcp.should_cancel = should_cancel or (lambda: False)
+    started = time.monotonic()
+    first_text: float | None = None
+    def check_cancel():
+        if should_cancel is not None and should_cancel():
+            session.reset()
+            raise GenerationCancelled
     for tool_round in range(5):
+        check_cancel()
         _json_event(
             "generation_status", request_id=request_id, phase="prefill",
             text="Lecture des résultats MCP" if tool_round else "Préparation du contexte",
@@ -1625,6 +1751,9 @@ def _bridge_generate(
             event_id: str = request_id,
             event_filter: ToolCallStreamFilter | None = tool_filter,
         ) -> None:
+            nonlocal first_text
+            if text and first_text is None:
+                first_text = time.monotonic() - started
             for phase, fragment in event_splitter.feed(text):
                 _emit_split_fragment(
                     phase,
@@ -1665,6 +1794,7 @@ def _bridge_generate(
             for visible in tool_filter.finish():
                 _json_event("delta", request_id=request_id, phase="answer", text=visible)
 
+        check_cancel()
         calls = _parse_tool_calls(response) if chat_tools else []
         context_full = context_limit > 0 and stats.context_used >= context_limit
         if not calls or context_full:
@@ -1673,8 +1803,13 @@ def _bridge_generate(
                 request_id=request_id,
                 assistant_context=_without_tool_calls(response),
                 cache_context=_cache_context(response),
-                stats=asdict(stats),
+                stats={**asdict(stats), 'elapsed_seconds': time.monotonic() - started,
+                       'end_to_end_ttft_seconds': first_text, 'tool_rounds': tool_round},
                 context_full=context_full,
+                turn_context=json.dumps(dialogue[len(messages):] + [{'role': 'assistant', 'content': _cache_context(response)}], ensure_ascii=False) if tool_round else None,
+                elapsed_seconds=time.monotonic() - started,
+                first_text_seconds=first_text,
+                tool_rounds=tool_round,
             )
             return
         if tool_round == 4:
@@ -1697,6 +1832,7 @@ def _bridge_generate(
         dialogue.append(assistant_message)
 
         for call in calls:
+            check_cancel()
             tool = mcp.tools.get(call.name)
             call_id = f"mcp-{tool_round}-{len(dialogue)}-{call.name}"
             _json_event(
@@ -1707,20 +1843,28 @@ def _bridge_generate(
                 server_name=tool.server if tool else None,
             )
             result = mcp.call(call.name, call.arguments)
+            check_cancel()
+            # Bound external text before it consumes the model's whole context.
+            result_text = result.text
+            budget = min(8192, max(256, context_limit // 8)) if context_limit else 8192
+            if hasattr(tokenizer, 'encode'):
+                tokens = tokenizer.encode(result_text)
+                if len(tokens) > budget:
+                    result_text = tokenizer.decode(tokens[:budget]) + '\n[Tool output truncated to fit context]'
             _json_event(
                 "tool_result",
                 request_id=request_id,
                 tool_call_id=call_id,
                 tool_name=call.name,
                 server_name=tool.server if tool else None,
-                text=result.text[:4_000],
+                text=result_text,
                 is_error=result.is_error,
             )
             dialogue.append(
                 {
                     "role": "tool",
                     "name": call.name,
-                    "content": result.text,
+                    "content": result_text,
                 }
             )
 
@@ -1759,6 +1903,7 @@ def _bridge(args) -> int:
             if not line.strip():
                 continue
             request_id: str | None = None
+            conversation_id: str | None = None
             try:
                 request = json.loads(line)
                 if not isinstance(request, dict):
@@ -1804,7 +1949,6 @@ def _bridge(args) -> int:
                     should_cancel=cancel_requested.is_set,
                     context_limit=context_limit,
                 )
-                sessions.prune(conversation_id)
             except GenerationCancelled:
                 _json_event("cancelled", request_id=request_id)
             except (ValueError, TypeError, json.JSONDecodeError) as error:
@@ -1816,6 +1960,8 @@ def _bridge(args) -> int:
                     message=f"{type(error).__name__}: {error}",
                 )
             finally:
+                if conversation_id is not None:
+                    sessions.prune(conversation_id)
                 cancel_requested.clear()
     finally:
         signal.signal(signal.SIGUSR1, previous_cancel_handler)
@@ -1830,37 +1976,21 @@ def _download_hugging_face_model(
     name: str | None,
     directory: Path | None,
     force: bool,
+    folder: str | None = None,
 ) -> ModelEntry:
     """Download into app-owned storage and register only a complete model."""
 
-    from huggingface_hub import snapshot_download
-
-    repo = repo.strip()
-    if not repo or repo.startswith("/") or repo.endswith("/"):
-        raise RegistryError("invalid Hugging Face repository name")
-    model_name = (name or repo.rsplit("/", 1)[-1]).strip()
-    validate_model_name(model_name)
-    # The registry accepts slashes for names supplied by advanced CLI users,
-    # but a managed download must never turn them into directory traversal.
-    directory_name = re.sub(r"[^A-Za-z0-9._-]+", "-", model_name).strip(".-")
-    if not directory_name:
-        raise RegistryError("invalid local model name")
-    destination = (
-        directory.expanduser()
-        if directory is not None
-        else managed_models_path() / directory_name
-    ).resolve()
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        downloaded = snapshot_download(
-            repo_id=repo,
-            revision=revision or None,
-            local_dir=destination,
-            force_download=force,
-        )
-    except Exception as error:
-        raise RegistryError(f"Hugging Face download failed: {error}") from error
-    return register_model(model_name, downloaded, force=True)
+    from mlxl3 import hub
+    if force:
+        raise RegistryError('--force is unsafe for installed weights. Use a new name/directory or remove the old entry explicitly.')
+    detail = hub.details(repo.strip(), revision)
+    choices = detail['variants']
+    if folder is None:
+        if len(choices) != 1:
+            raise RegistryError("Select --folder from 'mlxl3 hub details REPO'; multiple or no variants found")
+        folder = choices[0]['id']
+    return hub.download(repo.strip(), detail['commit'], folder, lambda event: None,
+                        name=name or repo.rsplit('/', 1)[-1], directory=directory)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1893,6 +2023,7 @@ def main(argv: list[str] | None = None) -> int:
                 name=args.name,
                 directory=args.directory,
                 force=args.force,
+                folder=args.folder,
             )
             if args.json:
                 print(json.dumps(_model_payload(entry), ensure_ascii=False))
@@ -1906,9 +2037,34 @@ def main(argv: list[str] | None = None) -> int:
             from mlxl3 import hub
             try:
                 if args.action == "search":
-                    print(json.dumps(hub.search(args.query)))
+                    print(json.dumps(hub.search(args.query, args.limit)))
                 elif args.action == "details":
                     print(json.dumps(hub.details(args.query, args.revision)))
+                elif args.action == 'pending':
+                    print(json.dumps(hub.pending_downloads()))
+                elif args.action == 'discard':
+                    hub.discard_download(args.query)
+                    print('{}')
+                elif args.action == 'resume':
+                    job = next((job for job in hub.pending_downloads() if job['id'] == args.query), None)
+                    if not job:
+                        raise RegistryError('interrupted download not found')
+                    entry = hub.download(job['repo'], job['commit'], job['folder'],
+                                         lambda event: print(json.dumps(event), flush=True),
+                                         name=job['name'], directory=Path(job['destination']))
+                    print(json.dumps({'type': 'installed', 'model': _model_payload(entry)}), flush=True)
+                elif args.action == 'auth':
+                    from huggingface_hub import login, logout
+                    if args.query == 'login':
+                        token = sys.stdin.readline(4096).strip()
+                        if not token.startswith('hf_'):
+                            raise RegistryError('invalid Hugging Face token')
+                        login(token=token, add_to_git_credential=False)
+                    elif args.query == 'logout':
+                        logout()
+                    else:
+                        raise RegistryError('expected login or logout')
+                    print('{}')
                 else:
                     entry = hub.download(args.query, args.revision or "", args.folder,
                                          lambda event: print(json.dumps(event), flush=True))
@@ -1923,7 +2079,7 @@ def main(argv: list[str] | None = None) -> int:
                 entry = load_registry().get(args.name)
                 if entry is None or Path(entry.path).resolve() != Path(args.expected_path).resolve():
                     raise RegistryError("Model location changed; refresh the library before removing it")
-            entry = remove_model(args.name)
+            entry = remove_model(args.name, expected_path=args.expected_path)
             print(f"Modèle {entry.name!r} retiré du registre; ses fichiers sont conservés.")
             return 0
         if args.command == "mcp":

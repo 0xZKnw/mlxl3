@@ -435,7 +435,14 @@ def test_tool_call_stream_filter_hides_split_xml_payload() -> None:
         visible.extend(stream_filter.feed(piece))
     visible.extend(stream_filter.finish())
 
-    assert "".join(visible) == "Avant  Après"
+    assert "".join(visible) == "Avant <tool_call><function=demo.echo><parameter=value>hi</parameter></function></tool_call> Après"
+    for opener, closer in [('<tool_call>', '</tool_call>'), ('<|tool_call>', '<tool_call|>')]:
+        stream_filter = cli.ToolCallStreamFilter()
+        visible = []
+        for character in opener + 'payload' + closer:
+            visible.extend(stream_filter.feed(character))
+        visible.extend(stream_filter.finish())
+        assert ''.join(visible) == ''
 
 
 def test_parse_qwen_and_json_tool_calls() -> None:
@@ -644,19 +651,14 @@ def test_download_command_uses_managed_storage_and_registers(monkeypatch, tmp_pa
         added_at="2026-09-04T00:00:00+00:00",
     )
 
-    def fake_download(**kwargs):
+    def fake_download(repo, commit, folder, emit, **kwargs):
         observed.update(kwargs)
-        return str(downloaded)
-
-    def fake_register(name, path, *, force=False):
-        assert name == "qwen-test"
-        assert Path(path) == downloaded
-        assert force
+        assert repo == 'owner/Qwen-EXL3' and commit == 'a' * 40 and folder == ''
         return entry
 
-    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_download)
-    monkeypatch.setattr(cli, "managed_models_path", lambda: destination)
-    monkeypatch.setattr(cli, "register_model", fake_register)
+    from mlxl3 import hub
+    monkeypatch.setattr(hub, 'details', lambda repo, revision: {'commit': 'a' * 40, 'variants': [{'id': ''}]})
+    monkeypatch.setattr(hub, 'download', fake_download)
 
     assert cli.main(
         [
@@ -670,10 +672,8 @@ def test_download_command_uses_managed_storage_and_registers(monkeypatch, tmp_pa
         ]
     ) == 0
     assert observed == {
-        "repo_id": "owner/Qwen-EXL3",
-        "revision": "2.49bpw",
-        "local_dir": downloaded.resolve(),
-        "force_download": False,
+        "name": "qwen-test",
+        "directory": None,
     }
     assert json.loads(capsys.readouterr().out)["name"] == "qwen-test"
 

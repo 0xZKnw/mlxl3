@@ -45,6 +45,12 @@ struct AppSettingsView: View {
                     .pickerStyle(.segmented)
                     .accessibilityLabel(L("Langue de l’app", "App language"))
                     Divider()
+                    HuggingFaceAccountView(library: studio.modelLibrary)
+                    HStack {
+                        Button(L("Exporter les conversations", "Export conversations"), action: studio.exportConversations)
+                        Button(L("Importer des conversations", "Import conversations"), action: studio.importConversations)
+                    }
+                    Divider()
                     VStack(alignment: .leading, spacing: 12) {
                         Label(L("Flux de données", "Data flow"), systemImage: "lock.shield")
                             .font(.system(size: 13, weight: .semibold))
@@ -65,6 +71,8 @@ struct AppSettingsView: View {
                                 : L("Désactivé", "Off"),
                             studio.mcpEnabled ? "arrow.up.right" : "minus.circle"
                         )
+                        Text(L("Un serveur MCP local peut lui-même utiliser Internet. Active uniquement des outils de confiance.", "A local MCP server can itself use the Internet. Enable only tools you trust."))
+                            .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(16)
                     .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
@@ -116,6 +124,25 @@ struct AppSettingsView: View {
             Text(detail)
                 .font(.system(size: 10.5, weight: .medium))
                 .foregroundStyle(StudioTheme.quiet)
+        }
+    }
+}
+
+private struct HuggingFaceAccountView: View {
+    @ObservedObject var library: ModelLibrary
+    @State private var token = ""
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Hugging Face", systemImage: "key")
+            SecureField(L("Token HF pour les modèles privés/gated", "HF token for private/gated models"), text: $token)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Button(L("Connexion", "Sign in")) { library.authenticate(token: token); token = "" }.disabled(!token.hasPrefix("hf_") || token.count > 4000)
+                Button(L("Déconnexion", "Sign out")) { library.authenticate(token: nil) }
+            }
+            Text(L("Token enregistré localement par Hugging Face. Accepte aussi la licence du modèle sur son site si nécessaire.", "Token stored locally by Hugging Face. Accept the model license on its website when required."))
+                .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+            if let message = library.authMessage { Text(message).font(.caption).textSelection(.enabled) }
         }
     }
 }

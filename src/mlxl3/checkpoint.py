@@ -7,6 +7,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from safetensors import safe_open
 
 import mlx.core as mx
 from mlx import nn
@@ -40,6 +41,8 @@ def quantization_config(model_path: str | Path) -> dict:
     path = Path(model_path) / "quantization_config.json"
     with path.open() as handle:
         config = json.load(handle)
+    if not isinstance(config, dict):
+        raise ValueError("EXL3 quantization config must be an object")
     if config.get("quant_method") != "exl3":
         raise ValueError(f"expected quant_method='exl3', got {config.get('quant_method')!r}")
     return config
@@ -47,10 +50,16 @@ def quantization_config(model_path: str | Path) -> dict:
 
 def list_exl3_modules(model_path: str | Path) -> list[str]:
     storage = quantization_config(model_path).get("tensor_storage", {})
-    return sorted(key for key, value in storage.items() if value.get("quant_format") == "exl3")
+    if not isinstance(storage, dict) or not all(isinstance(v, dict) for v in storage.values()):
+        raise ValueError("invalid EXL3 tensor_storage")
+    modules = sorted(key for key, value in storage.items() if value.get("quant_format") == "exl3")
+    if not modules:
+        raise ValueError("checkpoint contains no EXL3 modules")
+    return modules
 
 
 def _load_all_safetensors(model_path: Path) -> dict[str, mx.array]:
+    validate_checkpoint_files(model_path)
     files = sorted(glob.glob(str(model_path / "model*.safetensors")))
     if not files:
         raise FileNotFoundError(f"no model*.safetensors under {model_path}")
@@ -59,8 +68,47 @@ def _load_all_safetensors(model_path: Path) -> dict[str, mx.array]:
         loaded = mx.load(file)
         if not isinstance(loaded, dict):
             raise TypeError(f"expected named safetensors in {file}")
+        duplicates = weights.keys() & loaded.keys()
+        if duplicates:
+            raise ValueError(f"duplicate checkpoint tensors: {sorted(duplicates)[:5]}")
         weights.update(loaded)
     return weights
+
+
+def validate_checkpoint_files(root: str | Path) -> None:
+    """Read headers only: reject incomplete/mixed shards without allocating GPU weights."""
+    root = Path(root)
+    descriptor = quantization_config(root)
+    modules = list_exl3_modules(root)
+    tensors = {}
+    owners = {}
+    files = sorted(root.glob('model*.safetensors'))
+    if not files:
+        raise ValueError('checkpoint has no safetensors weights')
+    for file in files:
+        with safe_open(file, framework='numpy') as handle:
+            for key in handle.keys():
+                if key in tensors:
+                    raise ValueError(f'duplicate tensor {key}')
+                tensors[key] = tuple(handle.get_slice(key).get_shape())
+                owners[key] = file.name
+    for metadata in descriptor['tensor_storage'].values():
+        for key, spec in metadata.get('stored_tensors', {}).items():
+            if key not in tensors or tuple(spec['shape']) != tensors[key]:
+                raise ValueError(f'missing or invalid checkpoint tensor: {key}')
+    for prefix in modules:
+        shape = tensors.get(prefix + '.trellis', ())
+        if len(shape) != 3 or shape[-1] not in range(16, 129, 16) or min(shape) <= 0:
+            raise ValueError(f'invalid or missing EXL3 trellis: {prefix}')
+        for primary, legacy, length in [('suh', 'su', shape[0] * 16), ('svh', 'sv', shape[1] * 16)]:
+            if tensors.get(prefix + '.' + primary, tensors.get(prefix + '.' + legacy)) != (length,):
+                raise ValueError(f'invalid or missing EXL3 scale: {prefix}.{primary}')
+    index = root / 'model.safetensors.index.json'
+    if index.exists():
+        mapping = json.loads(index.read_text()).get('weight_map', {})
+        for key, filename in mapping.items():
+            if not isinstance(filename, str) or Path(filename).name != filename or owners.get(key) != filename:
+                raise ValueError(f'incomplete checkpoint shard: {filename}')
 
 
 def _sanitized_prefix(model: nn.Module, prefix: str) -> str:
@@ -172,6 +220,8 @@ def _stack_moe_experts(
             raise ValueError(
                 f"layer {layer} experts require uniform K/codebook for grouped Metal QMV"
             )
+        if bits == {7}:
+            raise ValueError(f"layer {layer}: K=7 MoE experts are not supported; choose another EXL3 quantization")
 
         gates = [experts[expert]["gate_proj"] for expert in expert_ids]
         ups = [experts[expert]["up_proj"] for expert in expert_ids]
@@ -293,6 +343,12 @@ def _load_exl3_model(
         materialize=not lazy,
         gemma_hidden_dims=config.get('text_config', {}).get('moe_intermediate_size'),
     )
+    original_modules = dict(model.named_modules())
+    for path, replacement in replacements:
+        original = original_modules.get(path)
+        projection = getattr(original, 'gate_proj', None)
+        if projection is None or getattr(projection, 'num_experts', None) != replacement.num_experts:
+            raise ValueError(f'EXL3 expert inventory does not match model architecture: {path}')
     weights = dict(raw_weights)
     if hasattr(model, "sanitize"):
         weights = model.sanitize(weights)
@@ -333,6 +389,16 @@ def _load_exl3_model(
         if mx.issubdtype(value.dtype, mx.floating):
             value = value.astype(mx.float32 if key.endswith("A_log") else mx.float16)
         ordinary_weights.append((key, value))
+    supplied = dict(ordinary_weights)
+    replacement_paths = tuple(path + "." for path, _ in replacements)
+    expected = dict(tree_flatten(model.parameters()))
+    missing = [key for key in expected if key not in supplied
+               and not key.startswith(replacement_paths)]
+    if missing:
+        raise ValueError(f"checkpoint is missing {len(missing)} model tensors: {missing[:8]}")
+    for key, value in ordinary_weights:
+        if key in expected and expected[key].shape != value.shape:
+            raise ValueError(f"checkpoint shape mismatch for {key}: {value.shape} != {expected[key].shape}")
     model.load_weights(ordinary_weights, strict=False)
     fuse_compatible_linear_groups(model)
     fuse_moe_routers(model)

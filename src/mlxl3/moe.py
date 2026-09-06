@@ -572,6 +572,13 @@ class EXL3SwitchGLU(nn.Module):
         self.down_svh = down_svh
         self.bits = int(bits)
         self.mode = CodebookMode(mode)
+        if self.bits == 7:
+            raise ValueError('K=7 MoE experts are not supported; choose another EXL3 quantization')
+        if self.bits not in range(1, 9):
+            raise ValueError('invalid EXL3 expert bit width')
+        for trellis in (self.gu_trellis, self.down_trellis):
+            if trellis.ndim != 3 or trellis.dtype != mx.uint16 or trellis.shape[-1] != 16 * self.bits or min(trellis.shape) <= 0:
+                raise ValueError('invalid EXL3 expert trellis')
         if activation not in ('silu', 'gelu'):
             raise ValueError('unsupported EXL3 expert activation')
         self.activation = activation
@@ -591,6 +598,11 @@ class EXL3SwitchGLU(nn.Module):
         self.hidden_dims = int(gu_svh.shape[2])
         self._hidden_tiles = self.hidden_dims // 16
         self._output_tiles = self.input_dims // 16
+        if (self.gu_trellis.shape[:2] != (self.input_dims // 16, self.num_experts * self.hidden_dims // 8)
+            or self.down_trellis.shape[:2] != (self.hidden_dims // 16, self.num_experts * self.input_dims // 16)
+            or down_suh.shape != (self.num_experts, self.hidden_dims)
+            or down_svh.shape != (self.num_experts, self.input_dims)):
+            raise ValueError('EXL3 expert scale/trellis dimensions disagree')
 
     def _segmented_prefill(
         self,

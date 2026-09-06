@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sys
+import pytest
+from unittest.mock import Mock
 
 from mlxl3.mcp import (
     MCPManager,
@@ -10,7 +12,30 @@ from mlxl3.mcp import (
     load_mcp_servers,
     mcp_config_path,
     remove_mcp_server,
+    MCPStdioClient, MCPError, MCPTool,
 )
+
+
+def test_tool_schema_and_protocol_limits():
+    manager = MCPManager([])
+    client = Mock()
+    manager.clients['local'] = client
+    manager.tools['search'] = MCPTool('local', 'search', 'search', '',
+                                     {'type': 'object', 'required': ['query'], 'properties': {'query': {'type': 'string'}}})
+    assert manager.call('search', {}).is_error
+    client.call_tool.assert_not_called()
+    manager.call('search', {'query': 'test'})
+    client.call_tool.assert_called_once()
+
+    stdio = MCPStdioClient(MCPServerConfig('fake'), timeout=0.001)
+    stdio._send = Mock()
+    stdio._messages.get = Mock(return_value={'method': 'notification'})
+    with pytest.raises(MCPError, match='timed out'):
+        stdio._request('test', {})
+    stdio._request = Mock(side_effect=[{}, {'tools': [], 'nextCursor': 'a'}, {'tools': [], 'nextCursor': 'a'}])
+    stdio._notify = Mock()
+    with pytest.raises(MCPError, match='pagination'):
+        stdio._initialize_and_list_tools()
 
 
 def test_mcp_configuration_round_trip(monkeypatch, tmp_path) -> None:

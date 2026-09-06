@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from functools import cache
+import weakref
+from functools import cache, partial
 from typing import Any
 
 import mlx.core as mx
@@ -62,7 +63,9 @@ def _compiled_stateless_class(base: type[nn.Module]) -> type[nn.Module]:
 
 
 def _compile_stateless_module(module: nn.Module) -> None:
-    original = module.__call__
+    # A compiled callable is held by the module: a bound method here creates
+    # an opaque C++/Python ownership cycle that retains weights after unload.
+    original = partial(type(module).__call__, weakref.proxy(module))
     module._mlxl3_stateless_original_call = original
     module._mlxl3_compiled_stateless = mx.compile(original)
     module.__class__ = _compiled_stateless_class(type(module))
@@ -79,7 +82,7 @@ def compile_recurrent_layers(model: nn.Module) -> int:
         module_type = type(module)
         if (_USE_COMPILED_SHORTCONV and module_type.__module__ == 'mlx_lm.models.lfm2'
                 and module_type.__name__ == 'ShortConv'):
-            original = module.__call__
+            original = partial(type(module).__call__, weakref.proxy(module))
 
             def short_decode(x, state, *, call=original):
                 local_cache = ArraysCache(len(state[0]))
@@ -113,7 +116,7 @@ def compile_recurrent_layers(model: nn.Module) -> int:
             module, "_mlxl3_compiled_decode"
         ):
             continue
-        original = module.__call__
+        original = partial(type(module).__call__, weakref.proxy(module))
 
         def decode(x: mx.array, state: Any, *, call=original):
             local_cache = ArraysCache(len(state[0]))

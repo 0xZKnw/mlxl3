@@ -60,6 +60,7 @@ struct MLXL3StudioApp: App {
             CommandGroup(replacing: .newItem) {
                 Button(L("Nouvelle conversation", "New conversation")) { studio.newConversation() }
                     .keyboardShortcut("n", modifiers: .command)
+                Button(L("Rétablir la conversation supprimée", "Restore deleted conversation")) { studio.undoDeleteConversation() }
             }
             CommandGroup(replacing: .appSettings) {
                 Button(L("Réglages…", "Settings…")) { studio.openAppSettings() }

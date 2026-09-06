@@ -8,6 +8,18 @@ from mlx_lm.models.cache import ArraysCache
 from mlxl3.recurrent import compile_recurrent_layers
 
 
+def test_compiled_module_releases_ownership_after_unload():
+    import gc
+    import weakref
+    for factory in (FakeQwenAttentionLayer, FakeQwenRecurrentLayer):
+        model = factory()
+        refs = [weakref.ref(module) for _, module in model.named_modules()]
+        compile_recurrent_layers(model)
+        del model
+        gc.collect()
+        assert all(ref() is None for ref in refs)
+
+
 class FakeQwenRecurrentLayer(nn.Module):
     is_linear = True
 

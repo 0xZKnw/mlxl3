@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 import pytest
+import numpy as np
+from safetensors.numpy import save_file
 
 from mlxl3.registry import (
     RegistryError,
@@ -27,7 +29,10 @@ def _fake_model(path: Path, *, model_type: str = "lfm2_moe") -> Path:
             }
         )
     )
-    (path / "model.safetensors").write_bytes(b"fixture")
+    save_file({'lm_head.trellis': np.zeros((1, 1, 48), dtype=np.uint16),
+               'lm_head.suh': np.ones(16, dtype=np.float16),
+               'lm_head.svh': np.ones(16, dtype=np.float16)}, path / 'model.safetensors')
+    (path / 'tokenizer.json').write_text('{}')
     return path
 
 

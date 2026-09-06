@@ -21,8 +21,10 @@ from pathlib import Path
 from typing import Any, Self
 
 import certifi
+from jsonschema.validators import validator_for
+from referencing import Registry
 
-from mlxl3.registry import registry_path
+from mlxl3.registry import registry_path, registry_lock, atomic_json
 
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9_.-]+")
 _PROTOCOL_VERSION = "2025-11-25"
@@ -76,13 +78,14 @@ def mcp_config_path() -> Path:
 
 def ensure_mcp_config() -> Path:
     path = mcp_config_path()
-    if not path.exists():
-        _write_config({"version": 1, "mcpServers": {"exa": dict(_BUILTIN_EXA)}})
+    with registry_lock(path):
+        if not path.exists():
+            _write_config({"version": 1, "mcpServers": {"exa": dict(_BUILTIN_EXA)}})
     return path
 
 
-def _read_config() -> dict[str, Any]:
-    path = ensure_mcp_config()
+def _read_config(*, ensure: bool = True) -> dict[str, Any]:
+    path = ensure_mcp_config() if ensure else mcp_config_path()
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
@@ -97,10 +100,7 @@ def _read_config() -> dict[str, Any]:
 
 def _write_config(payload: dict[str, Any]) -> None:
     path = mcp_config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    atomic_json(path, payload)
 
 
 def load_mcp_servers() -> list[MCPServerConfig]:
@@ -162,14 +162,22 @@ def load_mcp_servers() -> list[MCPServerConfig]:
 def add_mcp_server(name: str, command: str, args: list[str]) -> MCPServerConfig:
     if not name or _SAFE_NAME.search(name):
         raise MCPError("MCP server names may contain only letters, digits, '.', '_', and '-'")
-    payload = _read_config()
-    payload["mcpServers"][name] = {"command": command, "args": args, "enabled": True}
-    _write_config(payload)
+    ensure_mcp_config()
+    with registry_lock(mcp_config_path()):
+        payload = _read_config(ensure=False)
+        payload["mcpServers"][name] = {"command": command, "args": args, "enabled": True}
+        _write_config(payload)
     return MCPServerConfig(name=name, command=command, args=tuple(args))
 
 
 def remove_mcp_server(name: str) -> None:
-    payload = _read_config()
+    ensure_mcp_config()
+    with registry_lock(mcp_config_path()):
+        _remove_mcp_server(name)
+
+
+def _remove_mcp_server(name: str) -> None:
+    payload = _read_config(ensure=False)
     if name not in payload["mcpServers"]:
         raise MCPError(f"unknown MCP server {name!r}")
     if name == "exa":
@@ -186,7 +194,9 @@ class MCPStdioClient:
         self.process: subprocess.Popen[str] | None = None
         self._next_id = 1
         self._stderr: deque[str] = deque(maxlen=40)
-        self._messages: queue.Queue[dict[str, Any]] = queue.Queue()
+        self._messages: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=128)
+        self._protocol_error: str | None = None
+        self.should_cancel = lambda: False
         self.protocol_version = _PROTOCOL_VERSION
 
     def connect(self) -> list[dict[str, Any]]:
@@ -230,7 +240,7 @@ class MCPStdioClient:
             {
                 "protocolVersion": _PROTOCOL_VERSION,
                 "capabilities": {},
-                "clientInfo": {"name": "MLXL3 Desktop", "version": "0.4.6"},
+                "clientInfo": {"name": "MLXL3 Desktop", "version": "1.0.0"},
             },
         )
         self.protocol_version = result.get("protocolVersion", _PROTOCOL_VERSION)
@@ -238,6 +248,7 @@ class MCPStdioClient:
 
         tools: list[dict[str, Any]] = []
         cursor: str | None = None
+        seen: set[str] = set()
         while True:
             params = {"cursor": cursor} if cursor else {}
             result = self._request("tools/list", params)
@@ -245,9 +256,14 @@ class MCPStdioClient:
             if not isinstance(page, list):
                 raise MCPError(f"server {self.config.name!r} returned an invalid tools list")
             tools.extend(tool for tool in page if isinstance(tool, dict))
+            if len(tools) > 4096 or len(seen) >= 128:
+                raise MCPError("MCP tool pagination exceeded its limit")
             cursor = result.get("nextCursor")
             if not isinstance(cursor, str) or not cursor:
                 return tools
+            if cursor in seen:
+                raise MCPError("MCP tool pagination exceeded its limit")
+            seen.add(cursor)
 
     def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResult:
         result = self._request("tools/call", {"name": name, "arguments": arguments})
@@ -289,22 +305,33 @@ class MCPStdioClient:
         process = self.process
         if process is None or process.stderr is None:
             return
-        for line in process.stderr:
+        while line := process.stderr.readline(16_384):
             self._stderr.append(line.rstrip())
 
     def _drain_stdout(self) -> None:
         process = self.process
         if process is None or process.stdout is None:
             return
-        for line in process.stdout:
+        while line := process.stdout.readline(8_000_001):
+            if len(line) > 8_000_000:
+                self._protocol_error = "MCP response exceeds 8 MB"
+                process.terminate()
+                return
             try:
                 message = json.loads(line)
             except json.JSONDecodeError:
                 continue
             if isinstance(message, dict):
-                self._messages.put(message)
+                try:
+                    self._messages.put_nowait(message)
+                except queue.Full:
+                    self._protocol_error = "MCP notification queue overflow"
+                    process.terminate()
+                    return
 
     def _send(self, payload: dict[str, Any]) -> None:
+        if self.should_cancel():
+            raise MCPError('Tool request cancelled')
         process = self.process
         if process is None or process.stdin is None or process.poll() is not None:
             details = self._stderr[-1] if self._stderr else "server exited"
@@ -321,11 +348,19 @@ class MCPStdioClient:
         self._send(
             {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}
         )
+        deadline = time.monotonic() + self.timeout
         while True:
-            try:
-                message = self._messages.get(timeout=self.timeout)
-            except queue.Empty:
+            if self.should_cancel():
+                raise MCPError('Tool request cancelled; a remote action already accepted cannot be undone')
+            if self._protocol_error:
+                raise MCPError(self._protocol_error)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
                 raise MCPError(f"MCP server {self.config.name!r} timed out during {method}")
+            try:
+                message = self._messages.get(timeout=min(remaining, 0.25))
+            except queue.Empty:
+                continue
             except Exception as error:
                 raise MCPError(f"MCP server {self.config.name!r} failed during {method}") from error
             if "method" in message and "id" in message:
@@ -379,7 +414,7 @@ class MCPHTTPClient(MCPStdioClient):
         headers.update({
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
-            "User-Agent": "MLXL3-Desktop/0.4.6",
+            "User-Agent": "MLXL3-Desktop/1.0.0",
             "MCP-Protocol-Version": self.protocol_version,
         })
         if self.session_id:
@@ -387,6 +422,9 @@ class MCPHTTPClient(MCPStdioClient):
         return headers
 
     def _exchange(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        if self.should_cancel():
+            raise MCPError('Tool request cancelled')
+        deadline = time.monotonic() + self.timeout
         request = urllib.request.Request(
             self.config.url, data=json.dumps(payload).encode(), headers=self._headers(), method="POST"
         )
@@ -415,6 +453,8 @@ class MCPHTTPClient(MCPStdioClient):
                     if time.monotonic() > deadline:
                         raise MCPError("MCP stream timed out")
                     line = response.readline(limit + 1)
+                    if self.should_cancel() or time.monotonic() >= deadline:
+                        raise MCPError('MCP request cancelled or timed out')
                     consumed += len(line)
                     if consumed > limit:
                         raise MCPError("MCP response exceeds 8 MiB")
@@ -535,6 +575,11 @@ class MCPManager:
         if client is None:
             return MCPToolResult(f"MCP server unavailable: {tool.server}", True)
         try:
+            validator = validator_for(tool.input_schema)
+            validator.check_schema(tool.input_schema)
+            # An empty registry refuses external schema fetches.
+            validator(tool.input_schema, registry=Registry()).validate(arguments)
+            client.should_cancel = getattr(self, 'should_cancel', lambda: False)
             return client.call_tool(tool.name, arguments)
         except Exception as error:  # noqa: BLE001 - tool errors are model-visible results
             return MCPToolResult(str(error), True)

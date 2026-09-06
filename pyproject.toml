@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mlxl3"
-version = "0.4.6"
+version = "1.0.0"
 description = "Independent EXL3 inference and conversion engine for Apple Silicon"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -15,6 +15,7 @@ dependencies = [
   "numpy>=2.0",
   "safetensors>=0.5",
   "certifi>=2025.1.31",
+  "jsonschema>=4.23,<5",
 ]
 
 [project.scripts]

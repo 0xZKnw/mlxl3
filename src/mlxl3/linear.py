@@ -44,6 +44,17 @@ class EXL3Linear(nn.Module):
         self.mode = CodebookMode(mode)
         self.bias = bias
         self.logical_shape = logical_shape
+        if (self.bits not in range(1, 9) or self.trellis.ndim != 3
+            or self.trellis.dtype != mx.uint16
+            or self.trellis.shape[-1] != 16 * self.bits
+            or min(self.trellis.shape) <= 0):
+            raise ValueError('invalid EXL3 trellis shape/dtype/bit width')
+        if (suh.shape != (self.input_dims,) or svh.shape != (self.output_dims,)
+            or suh.dtype not in (mx.float16, mx.bfloat16, mx.float32)
+            or svh.dtype not in (mx.float16, mx.bfloat16, mx.float32)):
+            raise ValueError('EXL3 scales do not match serialized dimensions')
+        if bias is not None and bias.shape != ((logical_shape or (self.output_dims,))[0],):
+            raise ValueError('EXL3 bias does not match output dimensions')
         if logical_shape is not None and (
             len(logical_shape) != 2
             or not 0 < logical_shape[0] <= self.output_dims

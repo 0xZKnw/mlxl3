@@ -21,6 +21,9 @@ for package in (
     "tokenizers",
     "transformers",
     "certifi",
+    "jsonschema",
+    "jsonschema_specifications",
+    "referencing",
 ):
     package_datas, package_binaries, package_hidden = collect_all(package)
     datas += package_datas

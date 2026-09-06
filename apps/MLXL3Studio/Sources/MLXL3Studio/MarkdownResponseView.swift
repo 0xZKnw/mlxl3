@@ -37,6 +37,7 @@ private enum MarkdownParser {
         var paragraph: [String] = []
         var codeLines: [String]?
         var codeLanguage: String?
+        var codeFence = ""
         var mathBlock: OpenMathBlock?
 
         func flushParagraph() {
@@ -52,7 +53,7 @@ private enum MarkdownParser {
             let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
 
             if codeLines != nil {
-                if trimmed.hasPrefix("```") {
+                if trimmed.hasPrefix(codeFence), trimmed.dropFirst(codeFence.count).allSatisfy({ $0 == codeFence.first || $0.isWhitespace }) {
                     kinds.append(.code(language: codeLanguage, text: codeLines!.joined(separator: "\n")))
                     codeLines = nil
                     codeLanguage = nil
@@ -109,9 +110,10 @@ private enum MarkdownParser {
                 continue
             }
 
-            if trimmed.hasPrefix("```") {
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
                 flushParagraph()
-                let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+                codeFence = String(trimmed.prefix(while: { $0 == trimmed.first }))
+                let language = String(trimmed.dropFirst(codeFence.count)).trimmingCharacters(in: .whitespaces)
                 codeLanguage = language.isEmpty ? nil : language
                 codeLines = []
                 lineIndex += 1
@@ -344,27 +346,44 @@ enum StreamingTextChunker {
         var current = ""
         var byteOffset = 0
         var insideCodeFence = false
+        var fence = ""
+        var tableLines: [String] = []
+        var currentCharacters = 0
 
         func flush() {
             guard !current.isEmpty else { return }
             chunks.append(StreamingTextChunk(id: byteOffset, source: current))
             byteOffset += current.utf8.count
             current = ""
+            currentCharacters = 0
         }
 
         for (index, line) in lines.enumerated() {
             let renderedLine = String(line) + (index == lines.count - 1 ? "" : "\n")
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             current += renderedLine
+            currentCharacters += renderedLine.count
 
-            if trimmed.hasPrefix("```") {
-                insideCodeFence.toggle()
+            if !insideCodeFence && (trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")) {
+                fence = String(trimmed.prefix(while: { $0 == trimmed.first }))
+                insideCodeFence = true
+            } else if insideCodeFence && trimmed.hasPrefix(fence) && trimmed.dropFirst(fence.count).allSatisfy({ $0 == fence.first || $0.isWhitespace }) {
+                insideCodeFence = false
+            }
+            if !insideCodeFence {
+                if trimmed.contains("|") {
+                    if tableLines.count < 2 { tableLines.append(renderedLine) }
+                } else { tableLines = [] }
             }
             let isBlankBoundary = trimmed.isEmpty
             if !insideCodeFence,
-               (current.count >= hardLimitCharacters
-                || (current.count >= targetCharacters && isBlankBoundary)) {
+               (currentCharacters >= hardLimitCharacters
+                || (currentCharacters >= targetCharacters && isBlankBoundary)) {
                 flush()
+                if tableLines.count == 2, tableLines[1].contains("---") {
+                    current = tableLines.joined()
+                    currentCharacters = current.count
+                }
             }
         }
         flush()
@@ -510,10 +529,48 @@ private struct MarkdownChunkView: View, Equatable {
 private struct CodeTextChunk: Identifiable, Equatable {
     let id: Int
     let source: String
+    var lexicalPrefix = ""
+    var lexicalSuffix = ""
 }
 
 private enum CodeTextChunker {
     static let targetCharacters = 2_048
+    // Carry multiline lexemes across layout chunks without building one huge
+    // attributed string. This is display highlighting, not a compiler lexer.
+    private static let lexemes = try! NSRegularExpression(pattern: #"<!--[\s\S]*?(?:-->|\z)|/\*[\s\S]*?(?:\*/|\z)|//[^\n]*|#[^\n]*|\"\"\"[\s\S]*?(?:\"\"\"|\z)|'''[\s\S]*?(?:'''|\z)|\"(?:\\.|[^\"\\])*(?:\"|\z)|'(?:\\.|[^'\\])*(?:'|\z)|`(?:\\.|[^`\\])*(?:`|\z)"#)
+
+    static func highlightedChunks(_ source: String) -> [CodeTextChunk] {
+        var output = chunks(source)
+        let text = source as NSString
+        let matches = lexemes.matches(in: source, range: NSRange(location: 0, length: text.length))
+        var offset = 0
+        var matchIndex = 0
+        for index in output.indices {
+            let end = offset + output[index].source.utf16.count
+            while matchIndex < matches.count && NSMaxRange(matches[matchIndex].range) <= offset { matchIndex += 1 }
+            var probe = matchIndex
+            while probe < matches.count && matches[probe].range.location < end {
+                let range = matches[probe].range
+                let head = text.substring(with: NSRange(location: range.location, length: min(4, range.length)))
+                let pair: (String, String)?
+                if head.hasPrefix("<!--") { pair = ("<!--", "-->") }
+                else if head.hasPrefix("/*") { pair = ("/*", "*/") }
+                else if head.hasPrefix("\"\"\"") { pair = ("\"\"\"", "\"\"\"") }
+                else if head.hasPrefix("'''") { pair = ("'''", "'''") }
+                else if head.hasPrefix("//") { pair = ("//", "\n") }
+                else if head.hasPrefix("#") { pair = ("#", "\n") }
+                else if let first = head.first { pair = (String(first), String(first)) }
+                else { pair = nil }
+                if let pair {
+                    if range.location < offset { output[index].lexicalPrefix = pair.0 }
+                    if NSMaxRange(range) >= end { output[index].lexicalSuffix = pair.1 }
+                }
+                probe += 1
+            }
+            offset = end
+        }
+        return output
+    }
 
     static func chunks(_ source: String) -> [CodeTextChunk] {
         guard source.count > targetCharacters else {
@@ -533,20 +590,52 @@ private enum CodeTextChunker {
         }
 
         for (index, line) in lines.enumerated() {
-            var remainder = String(line) + (index == lines.count - 1 ? "" : "\n")
+            let rendered = String(line) + (index == lines.count - 1 ? "" : "\n")
+            var remainder = rendered[...]
             if current.count + remainder.count > targetCharacters, !current.isEmpty {
                 flush()
             }
-            while remainder.count > targetCharacters {
-                let end = remainder.index(remainder.startIndex, offsetBy: targetCharacters)
+            while let end = remainder.index(remainder.startIndex, offsetBy: targetCharacters, limitedBy: remainder.endIndex), end < remainder.endIndex {
                 current = String(remainder[..<end])
                 flush()
-                remainder = String(remainder[end...])
+                remainder = remainder[end...]
             }
-            current += remainder
+            current += String(remainder)
         }
         flush()
         return chunks.isEmpty ? [CodeTextChunk(id: 0, source: source)] : chunks
+    }
+}
+
+@MainActor
+enum MarkdownRegressionCheck {
+    static func run() {
+        for fence in ["```", "````", "~~~"] {
+            let blocks = MarkdownParser.parse("\(fence)html\n<div>test</div>\n\(fence)")
+            precondition(blocks.count == 1)
+            guard case let .code(language, text) = blocks[0].kind else { preconditionFailure("Fence lost") }
+            precondition(language == "html" && text == "<div>test</div>")
+        }
+        let source = String(repeating: "x", count: 300_000)
+        let start = Date()
+        let chunks = CodeTextChunker.chunks(source)
+        precondition(chunks.map(\.source).joined() == source)
+        precondition(chunks.allSatisfy { $0.source.count <= 2048 })
+        let blocks = MarkdownParser.parse("```html\n" + source)
+        precondition(blocks.count == 1)
+        precondition(Date().timeIntervalSince(start) < 3, "Large code processing regressed")
+        let table = "| A | B |\n| --- | --- |\n" + String(repeating: "| hello | world |\n", count: 3000)
+        for chunk in StreamingTextChunker.chunks(table) {
+            guard case .table = MarkdownParser.parse(chunk.source).first?.kind else { preconditionFailure("Table header lost") }
+        }
+        func mathCount(_ text: String) -> Int {
+            InlineMathParser.parse(text).filter { if case .math = $0 { true } else { false } }.count
+        }
+        precondition(mathCount("Costs $5 and $10; `price $x$`") == 0)
+        precondition(mathCount(#"Use $x^2$ and \(y\); ``code ` $z$``"#) == 2)
+        let commentChunks = CodeTextChunker.highlightedChunks("/*\n" + String(repeating: "comment\n", count: 1000) + "*/\nlet x = 1")
+        precondition(commentChunks[1].lexicalPrefix == "/*" && commentChunks[1].lexicalSuffix == "*/")
+        print("Markdown checks passed: fences, 300k code, long tables")
     }
 }
 
@@ -562,7 +651,8 @@ private enum SyntaxHighlighter {
     private static var lexerCache: [String: NSRegularExpression] = [:]
     private static var markupRegexCache: [(NSRegularExpression, NSColor)]?
 
-    static func highlight(_ source: String, language rawLanguage: String?) -> AttributedString {
+    static func highlight(_ text: String, language rawLanguage: String?, prefix: String = "", suffix: String = "") -> AttributedString {
+        let source = prefix + text + suffix
         let result = NSMutableAttributedString(
             string: source,
             attributes: [.foregroundColor: base]
@@ -572,10 +662,10 @@ private enum SyntaxHighlighter {
         let language = normalized(rawLanguage)
         if ["html", "xml", "svg", "vue", "svelte"].contains(language) {
             highlightMarkup(result, source: source)
-            return AttributedString(result)
+            return AttributedString(result.attributedSubstring(from: NSRange(location: prefix.utf16.count, length: text.utf16.count)))
         }
 
-        guard let regex = lexer(for: language) else { return AttributedString(result) }
+        guard let regex = lexer(for: language) else { return AttributedString(text) }
 
         let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
         for match in regex.matches(in: source, range: fullRange) {
@@ -589,7 +679,7 @@ private enum SyntaxHighlighter {
                 break
             }
         }
-        return AttributedString(result)
+        return AttributedString(result.attributedSubstring(from: NSRange(location: prefix.utf16.count, length: text.utf16.count)))
     }
 
     private static func highlightMarkup(_ result: NSMutableAttributedString, source: String) {
@@ -743,9 +833,10 @@ private struct CodeBlockView: View {
     let source: String
     let streaming: Bool
     @State private var copied = false
+    @State private var followsBottom = true
 
     var body: some View {
-        let chunks = CodeTextChunker.chunks(source)
+        let chunks = CodeTextChunker.highlightedChunks(source)
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Text(language ?? "code")
@@ -762,17 +853,40 @@ private struct CodeBlockView: View {
                 .buttonStyle(StudioControlStyle())
                 .help(L("Copier tout le bloc", "Copy entire block"))
             }
+            if chunks.count > 8 {
+                // Bound CoreText layout for generated files, while copy keeps the entire source.
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(chunks) { chunk in
+                                CodeTextChunkView(source: chunk.source, language: language, prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
+                                                  streaming: streaming && chunk.id == chunks.last?.id).equatable()
+                            }
+                            Color.clear.frame(height: 1).id("code-bottom")
+                        }
+                    }
+                    .frame(height: 440)
+                    .onScrollGeometryChange(for: Bool.self) { g in
+                        g.contentSize.height - g.visibleRect.maxY < 60
+                    } action: { _, bottom in followsBottom = bottom }
+                    .onChange(of: source.count) {
+                        if streaming && followsBottom { proxy.scrollTo("code-bottom", anchor: .bottom) }
+                    }
+                }
+            } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(chunks) { chunk in
                     CodeTextChunkView(
                         source: chunk.source,
                         language: language,
+                        prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
                         streaming: streaming && chunk.id == chunks.last?.id
                     )
                     .equatable()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(13)
         .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
@@ -796,14 +910,16 @@ private struct CodeBlockView: View {
 private struct CodeTextChunkView: View, Equatable {
     let source: String
     let language: String?
+    let prefix: String
+    let suffix: String
     let streaming: Bool
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.prefix == rhs.prefix && lhs.suffix == rhs.suffix && lhs.streaming == rhs.streaming
     }
 
     var body: some View {
-        Text(SyntaxHighlighter.highlight(source, language: language))
+        SmoothTokenText(content: Text(SyntaxHighlighter.highlight(source, language: language, prefix: prefix, suffix: suffix)), source: source, streaming: streaming)
             .font(.system(size: 12, weight: .regular, design: .monospaced))
             .opacity(streaming ? 0.94 : 1)
             .fixedSize(horizontal: false, vertical: true)
@@ -947,7 +1063,7 @@ private enum InlineMathParser {
                 index = indexAfterCodeSpan(startingAt: index, in: characters)
                 continue
             }
-            if matches(#"\("#, at: index, in: characters),
+            if matches(#"\("#, at: index, in: characters), !isEscaped(index, in: characters),
                let close = indexOf(#"\)"#, after: index + 2, in: characters) {
                 appendMath(
                     from: index,
@@ -958,7 +1074,7 @@ private enum InlineMathParser {
                 )
                 continue
             }
-            if matches(#"\["#, at: index, in: characters),
+            if matches(#"\["#, at: index, in: characters), !isEscaped(index, in: characters),
                let close = indexOf(#"\]"#, after: index + 2, in: characters) {
                 appendMath(
                     from: index,
@@ -971,6 +1087,10 @@ private enum InlineMathParser {
             }
             if characters[index] == "$", !isEscaped(index, in: characters) {
                 let delimiterLength = index + 1 < characters.count && characters[index + 1] == "$" ? 2 : 1
+                if delimiterLength == 1 && (index + 1 == characters.count || characters[index + 1].isWhitespace) {
+                    index += 1
+                    continue
+                }
                 if let close = dollarCloser(
                     after: index + delimiterLength,
                     length: delimiterLength,
@@ -1021,15 +1141,19 @@ private enum InlineMathParser {
     ) -> Int? {
         var index = start
         while index < characters.count {
+            if length == 1 && (characters[index] == "`" || characters[index] == "\n") { return nil }
             guard characters[index] == "$", !isEscaped(index, in: characters) else {
                 index += 1
                 continue
             }
             if length == 1 {
                 let besideDollar = index + 1 < characters.count && characters[index + 1] == "$"
-                if !besideDollar {
+                let beforeSpace = index == start || characters[index - 1].isWhitespace
+                let afterDigit = index + 1 < characters.count && characters[index + 1].isNumber
+                if !besideDollar && !beforeSpace && !afterDigit {
                     return index
                 }
+                return nil
             } else if index + 1 < characters.count && characters[index + 1] == "$" {
                 return index
             }
@@ -1040,9 +1164,14 @@ private enum InlineMathParser {
 
     private static func indexAfterCodeSpan(startingAt start: Int, in characters: [Character]) -> Int {
         var index = start + 1
+        while index < characters.count && characters[index] == "`" { index += 1 }
+        let length = index - start
         while index < characters.count {
             if characters[index] == "`", !isEscaped(index, in: characters) {
-                return index + 1
+                let run = index
+                while index < characters.count && characters[index] == "`" { index += 1 }
+                if index - run == length { return index }
+                continue
             }
             index += 1
         }
@@ -1064,13 +1193,19 @@ private enum InlineMathParser {
 
 @MainActor
 private enum LatexImageCache {
-    private static let cache = NSCache<NSString, NSImage>()
+    private static let cache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 128
+        cache.totalCostLimit = 32 * 1024 * 1024
+        return cache
+    }()
 
     static func image(
         latex: String,
         fontSize: CGFloat,
         mode: MTMathUILabelMode
     ) -> NSImage? {
+        guard latex.count <= 4096 else { return nil }
         let modeKey = mode == .display ? "display" : "text"
         let key = "\(modeKey)|\(fontSize)|\(latex)" as NSString
         if let cached = cache.object(forKey: key) {
@@ -1086,7 +1221,7 @@ private enum LatexImageCache {
         )
         let (_, rendered) = renderer.asImage()
         guard let rendered else { return nil }
-        cache.setObject(rendered, forKey: key)
+        cache.setObject(rendered, forKey: key, cost: Int(rendered.size.width * rendered.size.height * 4))
         return rendered
     }
 }
@@ -1105,6 +1240,7 @@ private struct LatexBlockView: View {
             ) {
                 ScrollView(.horizontal) {
                     Image(nsImage: image)
+                        .accessibilityLabel(latex)
                         .padding(.horizontal, 16)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -1127,12 +1263,53 @@ private struct LatexBlockView: View {
     }
 }
 
-private struct SmoothTokenText: View {
+struct SmoothTokenText: View {
     let content: Text
     let source: String
     let streaming: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var tail = 0
+    @State private var previousCount = 0
+    @State private var progress: Double = 1
 
     var body: some View {
         content
+            .textRenderer(TokenFadeRenderer(count: streaming && !reduceMotion ? tail : 0, progress: progress))
+            .task(id: source) {
+                let count = source.count
+                tail = min(64, max(0, count - previousCount))
+                previousCount = count
+                guard streaming, !reduceMotion, tail > 0 else { progress = 1; return }
+                progress = 0.15
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                withAnimation(.linear(duration: 0.12)) { progress = 1 }
+            }
+    }
+}
+
+private struct TokenFadeRenderer: TextRenderer {
+    var count: Int
+    var progress: Double
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        let runs = layout.flatMap { $0 }
+        var remaining = runs.reduce(0) { $0 + $1.count }
+        for run in runs {
+            if remaining - run.count >= count || count == 0 {
+                context.draw(run)
+                remaining -= run.count
+            } else {
+                for glyph in run {
+                    var copy = context
+                    if remaining <= count { copy.opacity *= progress }
+                    copy.draw(glyph)
+                    remaining -= 1
+                }
+            }
+        }
     }
 }

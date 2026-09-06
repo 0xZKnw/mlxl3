@@ -57,6 +57,13 @@ struct StudioView: View {
         .sheet(isPresented: $studio.showAppSettings) {
             AppSettingsView().environmentObject(studio)
         }
+        .alert(L("Sauvegarde des conversations", "Conversation storage"), isPresented: Binding(
+            get: { studio.storageError != nil }, set: { if !$0 { studio.storageError = nil } }
+        )) {
+            Button(L("Afficher les fichiers", "Show files")) { studio.revealConversations() }
+            Button(L("Récupérer une sauvegarde", "Recover backup")) { studio.recoverConversations() }
+            Button(L("Fermer", "Close"), role: .cancel) { }
+        } message: { Text(studio.storageError ?? "") }
     }
 }
 
@@ -68,6 +75,7 @@ private struct SidebarView: View {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
         return studio.conversations.filter {
             query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+                || $0.messages.contains { $0.content.localizedCaseInsensitiveContains(query) }
         }
     }
 

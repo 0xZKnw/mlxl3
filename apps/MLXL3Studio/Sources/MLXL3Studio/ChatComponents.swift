@@ -8,7 +8,7 @@ struct MessagesView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 38) {
+                LazyVStack(spacing: 38) {
                     ForEach(messages) { message in
                         MessageView(message: message)
                             .id(message.id)
@@ -374,7 +374,7 @@ private struct ThinkingTextChunk: View, Equatable {
     }
 
     var body: some View {
-        Text(source)
+        SmoothTokenText(content: Text(source), source: source, streaming: streaming)
             .font(.system(size: 11.5, weight: .regular, design: .monospaced))
             .foregroundStyle(StudioTheme.secondary)
             .lineSpacing(3)
@@ -390,7 +390,10 @@ private struct StatsRow: View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), alignment: .leading)], alignment: .leading, spacing: 6) {
             MetricChip(icon: "bolt.fill", value: String(format: "%.1f tok/s", stats.decodeTps), label: "decode")
             MetricChip(icon: "arrow.right.to.line", value: String(format: "%.1f tok/s", stats.prefillTps), label: "prefill")
-            MetricChip(icon: "timer", value: String(format: "%.0f ms", stats.ttftSeconds * 1000), label: "TTFT")
+            MetricChip(icon: "timer", value: String(format: "%.0f ms", stats.ttftSeconds * 1000), label: L("TTFT moteur", "engine TTFT"))
+            if let elapsed = stats.elapsedSeconds {
+                MetricChip(icon: "clock", value: String(format: "%.1f s", elapsed), label: L("total · outils inclus", "total · incl. tools"))
+            }
             MetricChip(icon: "memorychip", value: String(format: "%.2f GB", stats.peakMemoryGB), label: L("pic", "peak"))
             MetricChip(
                 icon: "externaldrive.badge.checkmark",
@@ -442,7 +445,9 @@ struct ComposerView: View {
                     .onSubmit { studio.send() }
                     .onKeyPress(.return, phases: .down) { press in
                         if press.modifiers.contains(.control) {
-                            studio.draft.append("\n")
+                            if let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
+                                editor.insertText("\n", replacementRange: editor.selectedRange())
+                            }
                         } else {
                             studio.send()
                         }
