@@ -1,0 +1,24 @@
+diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
+--- a/ponyexl3/convert/hessian.py
++++ b/ponyexl3/convert/hessian.py
+@@ -618,6 +618,8 @@ def _ldlq_inner_matrix_mlx(
+-        # Materialize this row-buffer's accumulators and hand the freed buffers
+-        # back to the OS, so steady-state memory stays at the live working set
+-        # rather than the running total of every group's discarded scratch.
++        # Materialize this row-buffer so its temporary buffers can be reused
++        # or released, rather than retaining the entire deferred computation.
+         mx.eval(reconstructed, prod_cache)
+-        mx.clear_cache()
++        # Keep a bounded pool for the next buffer instead of reallocating its
++        # identical trellis scratch. Still release excess cache for huge layers.
++        if mx.get_cache_memory() > 512 * 1024 * 1024:
++            mx.clear_cache()
+         j = i
+@@ -1221,5 +1223,6 @@ def ldlq_quantize_group(
+             *[state.reconstructed for state in states],
+             *[state.prod_cache for state in states],
+         )
+-        mx.clear_cache()
++        if mx.get_cache_memory() > 512 * 1024 * 1024:
++            mx.clear_cache()
+         j = i

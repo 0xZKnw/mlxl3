@@ -11,7 +11,8 @@ only if you trust this download. Do not disable Gatekeeper globally.
 `mlxl3` is an independent EXL3 inference and conversion engine for Apple Silicon.
 The EXL3 CUDA implementation in ExLlamaV3 is the format and numerical source of
 truth. The runtime is being implemented directly with MLX and custom Metal
-kernels; PonyExl3 is kept only as a compatibility and performance comparison.
+kernels; PonyExl3 is an optional conversion dependency and comparison reference,
+not an inference dependency.
 
 The working runtime now contains:
 
@@ -325,6 +326,15 @@ models/source/Ling-3.0-tiny-HF/
 models/fixtures/LFM2.5-8B-A1B-EXL3-3.10bpw/
 models/baselines/LFM2.5-8B-A1B-MLX-8bit/
 ```
+
+### Optional EXL3 conversion
+
+The developer converter includes exact Metal search optimizations for K=2–8,
+including 2 bpw. They accelerate quantization, not inference, and retain the
+calibration recipe and float32 error arithmetic. See the
+[LFM conversion guide](docs/lfm26-local-quantization.md) for setup and the
+[measured results](docs/metal-quantization-optimization.md) for limits and A/B tests.
+PonyExl3 is required only for this optional conversion workflow.
 
 See [`docs/kernel-port.md`](docs/kernel-port.md) for the CUDA-to-Metal inventory
 and current implementation status.

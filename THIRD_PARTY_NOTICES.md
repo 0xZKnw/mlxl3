@@ -48,6 +48,13 @@ policy, row crossover, output layout, and integration/tests. PonyExl3 is
 licensed under the Apache License, Version 2.0; a copy is provided in
 `LICENSES/Apache-2.0.txt`.
 
+The optional converter in `src/mlxl3/quantize.py` also adapts PonyExl3's Metal
+trellis-search source. MLXL3 modifies predecessor sharing, exact codebook
+lookups, backpointer storage, search ordering, synchronization and scratch
+batching. The bounded allocator-cache modification is distributed separately
+in `scripts/patches/ponyexl3-bounded-conversion-cache.patch` under the same
+Apache-2.0 terms. These conversion helpers are not used by inference.
+
 ## MLX Swift LM
 
 Source: <https://github.com/ml-explore/mlx-swift-lm>, pinned during development
