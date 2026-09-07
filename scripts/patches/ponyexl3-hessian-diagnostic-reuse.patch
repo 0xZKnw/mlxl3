@@ -1,0 +1,12 @@
+diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
+--- a/ponyexl3/convert/hessian.py
++++ b/ponyexl3/convert/hessian.py
+@@ -172,7 +172,7 @@ def _prepare_activation_hessian(
+     raw_hessian = capture_hessian(inner_activations)
+     raw_offdiag_rel = hessian_offdiag_rel(raw_hessian)
+     hessian = apply_hessian_shrinkage(raw_hessian, shrinkage=hessian_shrinkage)
+-    shrunk_offdiag_rel = hessian_offdiag_rel(hessian)
++    shrunk_offdiag_rel = raw_offdiag_rel if hessian_shrinkage == 0.0 else hessian_offdiag_rel(hessian)
+     prepared = prepare_hessian_for_ldl(hessian, sigma_reg=sigma_reg)
+     return prepared, {
+         "hessian_shrinkage": float(hessian_shrinkage),

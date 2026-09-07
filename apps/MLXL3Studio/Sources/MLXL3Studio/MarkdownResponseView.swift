@@ -337,7 +337,8 @@ enum StreamingTextChunker {
     static let hardLimitCharacters = 16_000
 
     static func chunks(_ source: String) -> [StreamingTextChunk] {
-        guard source.count > targetCharacters else {
+        guard let threshold = source.index(source.startIndex, offsetBy: targetCharacters, limitedBy: source.endIndex),
+              threshold < source.endIndex else {
             return [StreamingTextChunk(id: 0, source: source)]
         }
 
@@ -391,13 +392,17 @@ enum StreamingTextChunker {
     }
 }
 
-struct MarkdownResponseView: View {
+struct MarkdownResponseView: View, Equatable {
     private let source: String
     private let streaming: Bool
 
     init(_ source: String, streaming: Bool = false) {
         self.source = source
         self.streaming = streaming
+    }
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.source == rhs.source && lhs.streaming == rhs.streaming
     }
 
     var body: some View {
@@ -478,6 +483,7 @@ private struct MarkdownChunkView: View, Equatable {
             .padding(.vertical, 2)
         case let .code(language, text):
             CodeBlockView(language: language, source: text, streaming: streaming)
+                .equatable()
         case let .math(latex):
             LatexBlockView(latex: latex, streaming: streaming)
         case let .table(header, alignments, rows):
@@ -526,24 +532,64 @@ private struct MarkdownChunkView: View, Equatable {
 
 }
 
-private struct CodeTextChunk: Identifiable, Equatable {
+struct CodeTextChunk: Identifiable, Equatable {
     let id: Int
     let source: String
     var lexicalPrefix = ""
     var lexicalSuffix = ""
 }
 
-private enum CodeTextChunker {
+enum CodeTextChunker {
     static let targetCharacters = 2_048
     // Carry multiline lexemes across layout chunks without building one huge
     // attributed string. This is display highlighting, not a compiler lexer.
     private static let lexemes = try! NSRegularExpression(pattern: #"<!--[\s\S]*?(?:-->|\z)|/\*[\s\S]*?(?:\*/|\z)|//[^\n]*|#[^\n]*|\"\"\"[\s\S]*?(?:\"\"\"|\z)|'''[\s\S]*?(?:'''|\z)|\"(?:\\.|[^\"\\])*(?:\"|\z)|'(?:\\.|[^'\\])*(?:'|\z)|`(?:\\.|[^`\\])*(?:`|\z)"#)
 
-    static func highlightedChunks(_ source: String) -> [CodeTextChunk] {
+    final class Cache {
+        private var previousSource = ""
+        private var previousChunks: [CodeTextChunk] = []
+
+        func highlightedChunks(_ source: String) -> [CodeTextChunk] {
+            if source.utf8.count == previousSource.utf8.count,
+               source.utf8.elementsEqual(previousSource.utf8), !previousChunks.isEmpty { return previousChunks }
+            defer { previousSource = source }
+            // ponytail: appended escapes use the original full scan; use an incremental lexer if they dominate.
+            guard previousChunks.count > 2, previousSource.utf8.last != 92,
+                  source.utf8.starts(with: previousSource.utf8),
+                  !source.utf8.suffix(source.utf8.count - previousSource.utf8.count).contains(92) else {
+                previousChunks = CodeTextChunker.highlightedChunks(source)
+                return previousChunks
+            }
+            // Keep a full chunk of lookbehind for delimiters split across appends.
+            let stableCount = previousChunks.count - 2
+            let offset = previousChunks[stableCount].id
+            let boundary = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
+            var prefix = previousChunks[stableCount].lexicalPrefix
+            if ["\"", "'", "`"].contains(prefix) {
+                let backslashes = source.utf8[..<boundary].reversed().prefix(while: { $0 == 92 }).count
+                if !backslashes.isMultiple(of: 2) { prefix += "\\" }
+            }
+            let tail = String(source[boundary...])
+            let changed = CodeTextChunker.highlightedChunks(tail, lexicalPrefix: prefix)
+            if !prefix.isEmpty, changed.first?.lexicalPrefix != previousChunks[stableCount].lexicalPrefix {
+                previousChunks = CodeTextChunker.highlightedChunks(source)
+                return previousChunks
+            }
+            previousChunks.removeLast(2)
+            previousChunks += changed.map {
+                CodeTextChunk(id: offset + $0.id, source: $0.source,
+                              lexicalPrefix: $0.lexicalPrefix, lexicalSuffix: $0.lexicalSuffix)
+            }
+            return previousChunks
+        }
+    }
+
+    static func highlightedChunks(_ source: String, lexicalPrefix: String = "") -> [CodeTextChunk] {
         var output = chunks(source)
-        let text = source as NSString
-        let matches = lexemes.matches(in: source, range: NSRange(location: 0, length: text.length))
-        var offset = 0
+        let lexicalSource = lexicalPrefix + source
+        let text = lexicalSource as NSString
+        let matches = lexemes.matches(in: lexicalSource, range: NSRange(location: 0, length: text.length))
+        var offset = lexicalPrefix.utf16.count
         var matchIndex = 0
         for index in output.indices {
             let end = offset + output[index].source.utf16.count
@@ -573,7 +619,8 @@ private enum CodeTextChunker {
     }
 
     static func chunks(_ source: String) -> [CodeTextChunk] {
-        guard source.count > targetCharacters else {
+        guard let threshold = source.index(source.startIndex, offsetBy: targetCharacters, limitedBy: source.endIndex),
+              threshold < source.endIndex else {
             return [CodeTextChunk(id: 0, source: source)]
         }
 
@@ -592,7 +639,9 @@ private enum CodeTextChunker {
         for (index, line) in lines.enumerated() {
             let rendered = String(line) + (index == lines.count - 1 ? "" : "\n")
             var remainder = rendered[...]
-            if current.count + remainder.count > targetCharacters, !current.isEmpty {
+            if !current.isEmpty,
+               let limit = remainder.index(remainder.startIndex, offsetBy: targetCharacters - current.count, limitedBy: remainder.endIndex),
+               limit < remainder.endIndex {
                 flush()
             }
             while let end = remainder.index(remainder.startIndex, offsetBy: targetCharacters, limitedBy: remainder.endIndex), end < remainder.endIndex {
@@ -828,15 +877,20 @@ private struct SyntaxDefinition {
     let types: [String]
 }
 
-private struct CodeBlockView: View {
+private struct CodeBlockView: View, Equatable {
     let language: String?
     let source: String
     let streaming: Bool
     @State private var copied = false
     @State private var followsBottom = true
+    @State private var chunkCache = CodeTextChunker.Cache()
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming
+    }
 
     var body: some View {
-        let chunks = CodeTextChunker.highlightedChunks(source)
+        let chunks = chunkCache.highlightedChunks(source)
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Text(language ?? "code")

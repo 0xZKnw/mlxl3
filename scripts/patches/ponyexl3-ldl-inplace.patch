@@ -1,0 +1,22 @@
+diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
+--- a/ponyexl3/convert/hessian.py
++++ b/ponyexl3/convert/hessian.py
+@@ -215,6 +215,7 @@ def block_ldl(
+     block_size: int = 16,
+     sigma_reg: float = 0.025,
+     max_retries: int = 10,
++    copy_cholesky: bool = False,
+ ) -> BlockLDLResult:
+     """Port of upstream EXL3 ``block_ldl`` using NumPy/Accelerate Cholesky."""
+ 
+@@ -240,7 +241,9 @@ def block_ldl(
+             h[np.diag_indices_from(h)] += np.float32(2.0 * sigma_reg * diag_mean)
+ 
+     m = n // block_size
+-    l_factor = chol.copy()
++    # Each update touches one column block; future diagonal blocks are disjoint.
++    # chol is a private temporary, so normalization cannot mutate the caller's H.
++    l_factor = chol.copy() if copy_cholesky else chol
+     for i in range(m):
+         c0 = i * block_size
+         c1 = c0 + block_size

@@ -81,6 +81,7 @@ def _run_scaled_hadamard(x, scale, input_scale):
         output_shapes=[shape], output_dtypes=[mx.float16])[0]
 _USE_K3_WINDOW_DECODE = os.environ.get("MLXL3_K3_WINDOW_DECODE", "1") != "0"
 _USE_TENSOR_QMM = os.environ.get("MLXL3_TENSOR_QMM", "1") != "0"
+_USE_QMM_ADDRESS_HOIST = os.environ.get('MLXL3_QMM_ADDRESS_HOIST', '1') != '0'
 _USE_TENSOR_SEGMENTED_QMM = (
     os.environ.get("MLXL3_TENSOR_SEGMENTED_QMM", "1") != "0"
 )
@@ -708,10 +709,65 @@ def _qmm_tensor_kernel(
         raise ValueError(f"unsupported TensorOp QMM depth block {block_depth}")
     if input_dims % block_depth or output_dims % block_columns:
         raise ValueError("TensorOp QMM requires exactly tiled matrix dimensions")
+
+    def addressing(depth: str, declare: str = 'uint '):
+        return f'''
+                    auto coordinate = right.get_multidimensional_index(index);
+                    uint output_column = column_block * BN + uint(coordinate[0]);
+                    uint input_row = {depth}uint(coordinate[1]);
+                    uint tile_k = input_row >> 4u;
+                    uint tile_n = (output_column >> 4u) + {weight_tile_offset}u;
+                    uint local = (input_row & 15u) * 16u + (output_column & 15u);
+                    uint source = uint(mlxl3_perm_inv[local]);
+                    uint position = source >> 1u;
+                    int begin = int(position * 2u * K_BITS + K_BITS)
+                        - 16 + int(256u * K_BITS);
+                    int end = begin + int(K_BITS) + 16;
+                    {declare}word0 = uint(begin / 32) % PACKED_U32;
+                    {declare}word1 = uint((end - 1) / 32) % PACKED_U32;
+                    {declare}shift = uint(((end - 1) / 32 + 1) * 32 - end)
+                        + ((source & 1u) ? 0u : K_BITS);
+        '''
+
+    word_pointer = '''trellis
+                        + ulong(tile_k * TILES_N + tile_n) * PACKED_U32'''
+    prepare_addresses = ''
+    load_addresses = addressing('depth + ') + f'const device uint* words = {word_pointer};'
+    if _USE_QMM_ADDRESS_HOIST:
+        # Cooperative capacity is device-dependent. If it exceeds our per-lane
+        # allocation, retain the original addressing and still write all outputs.
+        prepare_addresses = f'''
+            constexpr uint ADDRESS_CAPACITY = BN * BK / 32u;
+            uint offset0[ADDRESS_CAPACITY], offset1[ADDRESS_CAPACITY];
+            uint shifts[ADDRESS_CAPACITY];
+            if (right.get_capacity() <= ADDRESS_CAPACITY) {{
+                for (ushort index = 0; index < right.get_capacity(); ++index) {{
+                    if (!right.is_valid_element(index)) continue;
+                    {addressing('')}
+                    offset0[index] = (tile_k * TILES_N + tile_n) * PACKED_U32 + word0;
+                    offset1[index] = (tile_k * TILES_N + tile_n) * PACKED_U32 + word1;
+                    shifts[index] = shift;
+                }}
+            }}
+        '''
+        load_addresses = f'''
+                    uint word0, word1, shift;
+                    const device uint* words;
+                    if (right.get_capacity() <= ADDRESS_CAPACITY) {{
+                        words = trellis + ulong(depth / 16u) * TILES_N * PACKED_U32;
+                        word0 = offset0[index];
+                        word1 = offset1[index];
+                        shift = shifts[index];
+                    }} else {{
+                        {addressing('depth + ', declare='')}
+                        words = {word_pointer};
+                    }}
+        '''
     return mx.fast.metal_kernel(
         name=(
             f"mlxl3_qmm_tensor_k{k}_cb{mode}_{input_dims}x{output_dims}"
-            f"_m{block_rows}_n{block_columns}_d{block_depth}_s{weight_tiles_n or output_dims // 16}_o{weight_tile_offset}_v2"
+            f"_m{block_rows}_n{block_columns}_d{block_depth}_s{weight_tiles_n or output_dims // 16}_o{weight_tile_offset}"
+            f"_h{int(_USE_QMM_ADDRESS_HOIST)}_v3"
         ),
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
@@ -764,28 +820,13 @@ def _qmm_tensor_kernel(
                 }}
             }}
 
+            {prepare_addresses}
             for (uint depth = 0u; depth < INPUT_DIMS; depth += BK) {{
                 for (ushort index = 0; index < right.get_capacity(); ++index) {{
                     if (!right.is_valid_element(index)) {{
                         continue;
                     }}
-                    auto coordinate = right.get_multidimensional_index(index);
-                    uint output_column = column_block * BN + uint(coordinate[0]);
-                    uint input_row = depth + uint(coordinate[1]);
-                    uint tile_k = input_row >> 4u;
-                    uint tile_n = (output_column >> 4u) + {weight_tile_offset}u;
-                    uint local = (input_row & 15u) * 16u + (output_column & 15u);
-                    uint source = uint(mlxl3_perm_inv[local]);
-                    uint position = source >> 1u;
-                    int begin = int(position * 2u * K_BITS + K_BITS)
-                        - 16 + int(256u * K_BITS);
-                    int end = begin + int(K_BITS) + 16;
-                    uint word0 = uint(begin / 32) % PACKED_U32;
-                    uint word1 = uint((end - 1) / 32) % PACKED_U32;
-                    uint shift = uint(((end - 1) / 32 + 1) * 32 - end)
-                        + ((source & 1u) ? 0u : K_BITS);
-                    const device uint* words = trellis
-                        + ulong(tile_k * TILES_N + tile_n) * PACKED_U32;
+                    {load_addresses}
                     ulong merged = (ulong(words[word0]) << 32) | ulong(words[word1]);
                     uint codeword = uint(merged >> shift) & 0xffffu;
                     right[index] = half(mlxl3_decode_codeword(codeword, 0));

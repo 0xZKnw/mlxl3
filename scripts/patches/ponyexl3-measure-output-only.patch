@@ -1,0 +1,160 @@
+diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
+--- a/ponyexl3/convert/hessian.py
++++ b/ponyexl3/convert/hessian.py
+@@ -673,11 +678,13 @@ def ldlq_quantize_layer(
+     quant_bits: int | None = None,
+     compare_oracle: bool = True,
+     fast_metrics: bool = False,
++    compute_proxy: bool = True,
+ ) -> DirectLayerResult:
+     """Quantize one full linear module with activation-aware LDLQ."""
+ 
+     if fast_metrics and compare_oracle:
+         raise ValueError("fast_metrics requires compare_oracle=False")
++    compute_proxy = not fast_metrics and (compute_proxy or compare_oracle)
+ 
+     reuse_key = None
+     if reuse.active() and calibration_activations is not None:
+@@ -697,7 +704,12 @@ def ldlq_quantize_layer(
+             search_backend=search_backend,
+             acts_fp=reuse.activations_fingerprint(calibration_activations),
+         )
+-        cached = reuse.lookup(reuse_key)
++        cached = reuse.lookup(
++            reuse_key,
++            require_proxy=compute_proxy,
++            require_output=not fast_metrics,
++            require_oracle=compare_oracle,
++        )
+         if cached is not None:
+             return cached
+ 
+@@ -761,7 +773,7 @@ def ldlq_quantize_layer(
+             feedback_rows=feedback_rows,
+             max_pins=max_pins,
+             collect_states=False,
+-            compute_proxy=not fast_metrics,
++            compute_proxy=compute_proxy,
+         )
+ 
+     out_layer = EXL3Layer(
+diff --git a/ponyexl3/convert/measure.py b/ponyexl3/convert/measure.py
+--- a/ponyexl3/convert/measure.py
++++ b/ponyexl3/convert/measure.py
+@@ -98,6 +98,11 @@ def _candidate_from_record(record: Mapping[str, Any], *, score_metric: str) -> _
+     )
+     score = candidate_score(stats, score_metric)
+     if math.isinf(score):
++        if (
++            (score_metric in stats and stats[score_metric] is None)
++            or record.get("score_metric", score_metric) != score_metric
++        ):
++            raise ValueError(f"{module}: metric {score_metric!r} was not computed; measure it before optimizing")
+         score = _as_score(record.get("score"))
+     return _MeasuredCandidate(
+         module=module,
+@@ -574,6 +579,7 @@ def measure_ldlq_candidates(
+     regularization_seed: int = 0,
+     compare_oracle: bool = False,
+     score_metric: str = _DEFAULT_SCORE_METRIC,
++    full_metrics: bool = False,
+     checkpoint_path: str | Path | None = None,
+     resume: bool = False,
+     max_workers: int = 2,
+@@ -581,6 +587,9 @@ def measure_ldlq_candidates(
+ ) -> dict[str, Any]:
+     """Quantize selected modules over candidate K/shrinkage grids and rank them.
+ 
++    Output-only scoring omits the unused Hessian proxy; ``full_metrics=True``
++    retains it for diagnostics. Quantization and output metrics are unchanged.
++
+     ``max_workers`` (default 2) sets how many per-candidate quantizations run at
+     once on a thread pool, so each module's CPU-bound basis/Hessian work overlaps
+     another module's GPU search and fills GPU idle time. Threads share the model
+@@ -591,6 +600,7 @@ def measure_ldlq_candidates(
+     """
+ 
+     cancel.clear()
++    compute_proxy = full_metrics or compare_oracle or score_metric != "output_rel_rms"
+     modules = list(module_keys)
+     shrinkages = [float(item) for item in hessian_shrinkages]
+     if not modules:
+@@ -636,6 +646,13 @@ def measure_ldlq_candidates(
+         )
+         if ident not in planned or ident in seen:
+             continue
++        record_stats = _record_stats(record)
++        if compute_proxy and record_stats.get("hessian_proxy_rel_rms") is None:
++            continue
++        if compare_oracle and record_stats.get("oracle_hessian_proxy_rel_rms") is None:
++            continue
++        if record.get("score_metric", score_metric) != score_metric:
++            record = dict(record, score_metric=score_metric, score=candidate_score(record_stats, score_metric))
+         records.append(record)
+         seen.add(ident)
+     start = time.perf_counter()
+@@ -728,8 +745,15 @@ def measure_ldlq_candidates(
+             quant_bits=item["bits"],
+             compare_oracle=compare_oracle,
+             fast_metrics=False,
++            compute_proxy=compute_proxy,
+         )
+         item_summary = ldlq_layer_summary(result)
++        if not compute_proxy:
++            # Report absent diagnostics as null, never as zero quantization error.
++            item_summary["stats"] = {
++                **dict.fromkeys(("hessian_proxy_sse", "hessian_proxy_mse", "hessian_proxy_rel_rms")),
++                **item_summary["stats"],
++            }
+         score = candidate_score(item_summary["stats"], score_metric)
+         return {
+             "index": item["index"],
+diff --git a/ponyexl3/convert/reuse.py b/ponyexl3/convert/reuse.py
+--- a/ponyexl3/convert/reuse.py
++++ b/ponyexl3/convert/reuse.py
+@@ -149,13 +149,24 @@ def _result_nbytes(result: "DirectLayerResult") -> int:
+     return total
+ 
+ 
+-def lookup(key: tuple[Any, ...] | None) -> "DirectLayerResult | None":
++def lookup(
++    key: tuple[Any, ...] | None,
++    *,
++    require_proxy: bool = False,
++    require_output: bool = False,
++    require_oracle: bool = False,
++) -> DirectLayerResult | None:
+     cache = _CACHE
+     if cache is None or key is None:
+         return None
+     with _LOCK:
+         result = cache.store.get(key)
+-        if result is None:
++        if (
++            result is None
++            or (require_proxy and result.stats.get("hessian_proxy_rel_rms") is None)
++            or (require_output and result.stats.get("fast_metrics"))
++            or (require_oracle and result.stats.get("oracle_hessian_proxy_rel_rms") is None)
++        ):
+             cache.misses += 1
+             return None
+         cache.store.move_to_end(key)
+@@ -175,8 +186,16 @@ def store(key: tuple[Any, ...] | None, result: "DirectLayerResult") -> None:
+     )
+     nbytes = _result_nbytes(result)
+     with _LOCK:
+-        if key in cache.store:
+-            return
++        previous = cache.store.get(key)
++        if previous is not None:
++            upgrades_output = previous.stats.get("fast_metrics") and not result.stats.get("fast_metrics")
++            upgrades_proxy = any(
++                previous.stats.get(name) is None and result.stats.get(name) is not None
++                for name in ("hessian_proxy_rel_rms", "oracle_hessian_proxy_rel_rms")
++            )
++            if not (upgrades_output or upgrades_proxy):
++                return
++            cache.bytes -= _result_nbytes(previous)
+         cache.store[key] = stripped
+         cache.bytes += nbytes
+         cache.store.move_to_end(key)

@@ -12,7 +12,7 @@ import mlx.core as mx
 
 # Bump whenever TensorOps addressing, reductions or codebook arithmetic changes.
 # A profile is not portable merely because the device and MLX match.
-TENSOR_KERNEL_ABI = 1
+TENSOR_KERNEL_ABI = 2
 
 
 def signature():

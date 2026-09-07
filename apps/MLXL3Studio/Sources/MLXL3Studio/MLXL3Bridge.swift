@@ -1,5 +1,6 @@
 import Darwin
 @preconcurrency import Foundation
+import Synchronization
 
 enum MLXL3BridgeError: LocalizedError {
     case executableNotFound
@@ -62,6 +63,7 @@ enum CLIResolver {
 }
 
 private struct PendingDelta {
+    let generationID: UUID
     let requestID: String?
     let phase: String?
     var text: String
@@ -79,7 +81,7 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var pendingDelta: PendingDelta?
     private var deltaFlushWorkItem: DispatchWorkItem?
     private let displayFlushInterval = 0.05
-    private var generationID = UUID()
+    private let generationID = Mutex(UUID())
 
     var isRunning: Bool { process?.isRunning == true }
 
@@ -157,11 +159,11 @@ final class MLXL3Bridge: @unchecked Sendable {
     func start(model: String, contextLength: Int = 0) async throws {
         let previous = process
         stop()
-        let ticket = ioQueue.sync { generationID }
+        let ticket = generationID.withLock { $0 }
         if let previous, previous.isRunning {
             await Task.detached { previous.waitUntilExit() }.value
         }
-        guard ioQueue.sync(execute: { ticket == generationID }) else { throw CancellationError() }
+        guard generationID.withLock({ $0 == ticket }) else { throw CancellationError() }
         guard let executable = CLIResolver.executable() else {
             throw MLXL3BridgeError.executableNotFound
         }
@@ -189,15 +191,15 @@ final class MLXL3Bridge: @unchecked Sendable {
             let data = handle.availableData
             guard !data.isEmpty, let bridge = self else { return }
             bridge.ioQueue.async {
-                guard bridge.generationID == ticket else { return }
-                bridge.consumeOutput(data)
+                guard bridge.generationID.withLock({ $0 == ticket }) else { return }
+                bridge.consumeOutput(data, ticket: ticket)
             }
         }
         error.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let bridge = self else { return }
             bridge.ioQueue.async {
-                guard bridge.generationID == ticket else { return }
+                guard bridge.generationID.withLock({ $0 == ticket }) else { return }
                 bridge.stderrBuffer.append(data)
                 if bridge.stderrBuffer.count > 64_000 { bridge.stderrBuffer = bridge.stderrBuffer.suffix(64_000) }
             }
@@ -221,7 +223,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                 self.process = nil
                 self.inputPipe = nil
                 DispatchQueue.main.async {
-                    guard self.ioQueue.sync(execute: { self.generationID == ticket }) else { return }
+                    guard self.generationID.withLock({ $0 == ticket }) else { return }
                     self.onExit?(message)
                 }
             }
@@ -263,8 +265,10 @@ final class MLXL3Bridge: @unchecked Sendable {
     }
 
     func stop() {
+        // Invalidate before waiting for IO; decoded events keep their process's original ticket.
+        let replacement = UUID()
+        generationID.withLock { $0 = replacement }
         ioQueue.sync {
-            generationID = UUID()
             deltaFlushWorkItem?.cancel()
             deltaFlushWorkItem = nil
             pendingDelta = nil
@@ -280,7 +284,7 @@ final class MLXL3Bridge: @unchecked Sendable {
         process = nil
     }
 
-    private func consumeOutput(_ data: Data) {
+    private func consumeOutput(_ data: Data, ticket: UUID) {
         outputBuffer.append(data)
         let newline = Data([0x0A])
         while let range = outputBuffer.range(of: newline) {
@@ -289,7 +293,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             guard !line.isEmpty else { continue }
             do {
                 let event = try JSONDecoder().decode(BridgeEvent.self, from: line)
-                queueForDisplay(event)
+                queueForDisplay(event, ticket: ticket)
             } catch {
                 let raw = String(data: line, encoding: .utf8) ?? ""
                 let event = BridgeEvent(
@@ -313,23 +317,25 @@ final class MLXL3Bridge: @unchecked Sendable {
                     serverName: nil,
                     isError: nil
                 )
-                queueForDisplay(event)
+                queueForDisplay(event, ticket: ticket)
             }
         }
     }
 
-    private func queueForDisplay(_ event: BridgeEvent) {
+    private func queueForDisplay(_ event: BridgeEvent, ticket: UUID) {
         guard event.type == "delta", let text = event.text else {
             flushPendingDelta()
-            dispatchToMain(event)
+            dispatchToMain(event, ticket: ticket)
             return
         }
 
-        if pendingDelta?.requestID == event.requestID, pendingDelta?.phase == event.phase {
+        if pendingDelta?.generationID == ticket,
+           pendingDelta?.requestID == event.requestID, pendingDelta?.phase == event.phase {
             pendingDelta?.text += text
         } else {
             flushPendingDelta()
             pendingDelta = PendingDelta(
+                generationID: ticket,
                 requestID: event.requestID,
                 phase: event.phase,
                 text: text
@@ -376,14 +382,14 @@ final class MLXL3Bridge: @unchecked Sendable {
                 toolName: nil,
                 serverName: nil,
                 isError: nil
-            )
+            ),
+            ticket: pendingDelta.generationID
         )
     }
 
-    private func dispatchToMain(_ event: BridgeEvent) {
-        let ticket = generationID
+    private func dispatchToMain(_ event: BridgeEvent, ticket: UUID) {
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.ioQueue.sync(execute: { self.generationID == ticket }) else { return }
+            guard let self, self.generationID.withLock({ $0 == ticket }) else { return }
             self.onEvent?(event)
         }
     }

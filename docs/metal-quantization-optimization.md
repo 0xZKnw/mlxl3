@@ -352,3 +352,72 @@ tests pass (139 total)** with the final source, including the K=4 read schedulin
 The local set covers quantization, the LFM adapter, checkpoint perplexity math,
 CLI behavior and the reference codec. The upstream set runs with MLXL3's search
 installed. Ruff and shell syntax checks pass for the published helpers.
+
+## CPU preparation and measurement diagnostics
+
+Four independent converter patches reduce work outside the trellis search:
+
+- Candidate measurement using `output_rel_rms` omits the unused Hessian proxy,
+  avoiding the two CPU matrix products for `H @ error` and `H @ reference`.
+  Output reconstruction and the selected score are unchanged. Omitted proxy
+  fields are `null` in measurement records. Other scores and oracle comparisons
+  retain the proxy; the layer API also retains it by default. The measurement
+  API's `full_metrics=True` restores the complete diagnostics. A reuse-cache
+  entry or resumed record missing required output/proxy/oracle diagnostics is
+  recomputed, and the cache entry is upgraded without changing its
+  weight-determining key. Selecting a different available score on resume
+  refreshes each record's score; requesting an uncomputed metric in the offline
+  plan optimizer raises an error instead of substituting another metric.
+- LDL normalizes its private Cholesky buffer in place. Each column block is
+  independent of the later diagonal blocks, and the input Hessian remains
+  untouched. This removes one float32 `N x N` copy: 462,422,016 bytes at
+  `N=10752`. `block_ldl(..., copy_cholesky=True)` restores the historical copy.
+- Zero Hessian shrinkage reuses the already-computed off-diagonal diagnostic:
+  both statistics describe the same matrix. Nonzero shrinkage still computes
+  both diagnostics. This removes one full-matrix square/reduction, without
+  changing Hessian preparation, LDL or the reported values.
+- Global scale search requests reconstruction without the packed trellis it
+  discards. Its search, reconstructed sample, every score and selected scale
+  remain unchanged. `quantize_inner_matrix_direct` keeps packed output by
+  default; the new `return_packed=False` option is used only by scale search.
+  Round-trip verification still packs and checks when explicitly requested.
+
+These patches are applied to the local converter checkout. On a new checkout,
+apply them after the bounded-cache patch above:
+
+```sh
+git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-measure-output-only.patch
+git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-ldl-inplace.patch
+git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-hessian-diagnostic-reuse.patch
+git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-gss-reconstruction-only.patch
+.venv/bin/python -m pytest -q tests/test_quantize_measure_metrics.py
+.venv/bin/python benchmarks/bench_quantize_workers.py --compare-measure-metrics --workers 1 1 --profile --repeats 3
+.venv/bin/python benchmarks/bench_quantize_workers.py --compare-ldl-copy --workers 1 1 --profile --repeats 3
+.venv/bin/python benchmarks/bench_quantize_workers.py --compare-hessian-diagnostics --workers 1 1 --profile --repeats 3
+.venv/bin/python benchmarks/bench_quantize_workers.py --compare-gss-packing --workers 1 1 --profile --repeats 3
+.venv/bin/python benchmarks/bench_quantize_workers.py --compare-preparation --workers 1 1 --profile --repeats 3
+```
+
+The CPU tests use a small deterministic substitute for trellis search and run
+the actual LDLQ feedback, metrics, plan selection, cache and resume paths. The
+LDL gate covers C/F layouts, retries and absence of aliases with caller-owned
+Hessians. The preparation gates compare zero/nonzero-shrinkage diagnostics and
+every GSS score/selected scale, including a NumPy substitute for Metal arrays.
+These CPU tests do not establish Metal output parity. The separate
+four-projection A/B commands check packed weights, both scale tensors,
+reconstructed calibration outputs and exact candidate scores. The diagnostics
+comparison uses in-place LDL on both sides; the other preparation comparisons
+retain full diagnostics on both sides. Each comparison changes only its named
+optimization and rejects simultaneous comparison modes. The combined
+`--compare-preparation` command instead compares all four historical paths
+(full diagnostics, Cholesky copy, duplicate Hessian diagnostic and GSS packing)
+against all four optimizations, in three alternating pairs with the command
+above. The same exact-output and score gates apply. No new speed claim follows
+from the removed work alone.
+
+Measured on Apple M5, MLX 0.32.2, with four LFM2.5-2.6B projections at K=4:
+the combined comparison took 43.336 → 42.381 s, 43.389 → 42.030 s, and
+43.673 → 42.599 s in three alternating pairs. Median paired time reduction:
+**2.46%**, with identical packed weights, scales, reconstructed outputs and
+scores. Raw local evidence: `build/generic-quant-preparation.jsonl`. This is a
+measurement-stage sample, not an extrapolated full-model conversion time.

@@ -509,6 +509,19 @@ class GenerationSessionPool:
                 continue
             self.sessions.pop(oldest).reset()
         active = self.sessions.get(active_id)
+        if active is not None:
+            while active.block_caches and active.nbytes() > self.budget_bytes:
+                active.block_caches.popitem(last=False)
+            if active.nbytes() > self.budget_bytes:
+                # Prefer the completed turn; its exact prefix can be promoted
+                # by prepare(). Dropping a fallback changes reuse, not tokens.
+                if (active.exact_cache is not None and active.exact_tokens
+                        and _cache_nbytes(active.exact_cache) <= self.budget_bytes):
+                    active.prompt_cache = None
+                    active.tokens = []
+                else:
+                    active.exact_cache = None
+                    active.exact_tokens = []
         if active is not None and active.nbytes() > self.budget_bytes:
             active.reset()
 
@@ -623,7 +636,9 @@ def _restore_reasoning_opener(text: str, prompt: str) -> str:
     # especially when generation stops before emitting the closing marker.
     for marker in ('<think>', '<|channel>thought'):
         if prompt.rstrip().endswith(marker) and not text.lstrip().startswith(marker):
-            return marker + '\n' + text
+            # Preserve the template's exact suffix: inventing a newline breaks
+            # the next turn's prefix match on templates ending in a bare tag.
+            return prompt[prompt.rfind(marker):] + text
     return text
 
 

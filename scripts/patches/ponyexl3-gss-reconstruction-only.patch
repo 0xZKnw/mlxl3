@@ -1,0 +1,63 @@
+diff --git a/ponyexl3/convert/direct.py b/ponyexl3/convert/direct.py
+--- a/ponyexl3/convert/direct.py
++++ b/ponyexl3/convert/direct.py
+@@ -368,6 +368,7 @@ def prepare_layer_quantization_basis(
+                 search_backend=search_backend,
+                 max_pins=max_pins,
+                 return_states=False,
++                return_packed=False,
+             )
+             delta = reconstructed / np.float32(scale) - sample
+             return float(np.mean(delta * delta, dtype=np.float64))
+@@ -501,7 +502,8 @@ def quantize_inner_matrix_direct(
+     max_pins: int = 4,
+     verify_roundtrip: bool = False,
+     return_states: bool = True,
+-) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
++    return_packed: bool = True,
++) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray]:
+     """Quantize an inner-domain matrix tilewise, without LDL error feedback."""
+ 
+     kernel_tiles = _inner_to_kernel_tiles(inner.astype(np.float32, copy=False))
+@@ -528,13 +530,17 @@ def quantize_inner_matrix_direct(
+             decoded_mx, states_mx = quantize_tiles_mlx(kernel_tiles, k=k, cb=cb)
+             in_tiles = inner.shape[0] // 16
+             out_tiles = inner.shape[1] // 16
+-            packed_mx = pack_trellis_mlx(
+-                (states_mx & ((1 << k) - 1)).reshape(in_tiles, out_tiles, 256),
+-                k,
+-            )
+-            mx.eval(decoded_mx, packed_mx)
++            packed_mx = None
++            if return_packed:
++                packed_mx = pack_trellis_mlx(
++                    (states_mx & ((1 << k) - 1)).reshape(in_tiles, out_tiles, 256),
++                    k,
++                )
++                mx.eval(decoded_mx, packed_mx)
++            else:
++                mx.eval(decoded_mx)
+             decoded_tiles = np.array(decoded_mx).astype(np.float32, copy=False)
+-            packed = np.array(packed_mx).astype(np.uint16, copy=False)
++            packed = None if packed_mx is None else np.array(packed_mx).astype(np.uint16, copy=False)
+             reconstructed_inner = _kernel_tiles_to_inner(
+                 decoded_tiles,
+                 inner.shape[0],
+@@ -547,13 +553,15 @@ def quantize_inner_matrix_direct(
+     in_tiles = inner.shape[0] // 16
+     out_tiles = inner.shape[1] // 16
+     states = states_flat.reshape(in_tiles, out_tiles, 256)
+-    packed = pack_trellis((states & ((1 << k) - 1)).astype(np.uint16), k)
++    packed = None
++    if return_packed or verify_roundtrip:
++        packed = pack_trellis((states & ((1 << k) - 1)).astype(np.uint16), k)
+     if verify_roundtrip:
+         roundtrip = unpack_trellis(packed, k)
+         if not np.array_equal(roundtrip.astype(np.uint16), states):
+             raise AssertionError("direct quantization produced non-round-trippable trellis")
+     reconstructed_inner = _kernel_tiles_to_inner(decoded_tiles, inner.shape[0], inner.shape[1])
+-    return packed, states if return_states else None, reconstructed_inner
++    return packed if return_packed else None, states if return_states else None, reconstructed_inner
+ 
+ 
+ def direct_quantize_window(

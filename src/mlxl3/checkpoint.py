@@ -80,6 +80,8 @@ def validate_checkpoint_files(root: str | Path) -> None:
     root = Path(root)
     descriptor = quantization_config(root)
     modules = list_exl3_modules(root)
+    config_path = root / 'config.json'
+    model_type = json.loads(config_path.read_text()).get('model_type') if config_path.is_file() else None
     tensors = {}
     owners = {}
     files = sorted(root.glob('model*.safetensors'))
@@ -94,7 +96,13 @@ def validate_checkpoint_files(root: str | Path) -> None:
                 owners[key] = file.name
     for metadata in descriptor['tensor_storage'].values():
         for key, spec in metadata.get('stored_tensors', {}).items():
-            if key not in tensors or tuple(spec['shape']) != tensors[key]:
+            shape = tensors.get(key)
+            if (shape is None and model_type == 'lfm2_moe'
+                and re.fullmatch(r'model\.layers\.\d+\.feed_forward\.gate\.expert_bias', key)):
+                # Older LFM descriptors nest this ordinary bias under the gate;
+                # the actual checkpoint and MLX architecture keep it beside it.
+                shape = tensors.get(key.replace('.gate.expert_bias', '.expert_bias'))
+            if tuple(spec['shape']) != shape:
                 raise ValueError(f'missing or invalid checkpoint tensor: {key}')
     for prefix in modules:
         shape = tensors.get(prefix + '.trellis', ())

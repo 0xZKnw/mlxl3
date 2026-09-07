@@ -152,8 +152,10 @@ private struct AssistantMessageView: View {
                     switch part.kind {
                     case .thinking:
                         ThinkingBlock(text: part.text, streaming: live)
+                            .equatable()
                     case .answer:
                         MarkdownResponseView(part.text, streaming: live)
+                            .equatable()
                     case .tool:
                         if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
                             MCPToolActivityRow(activity: activity)
@@ -324,10 +326,14 @@ private struct ThinkingPlaceholder: View {
     }
 }
 
-private struct ThinkingBlock: View {
+private struct ThinkingBlock: View, Equatable {
     let text: String
     let streaming: Bool
     @State private var expanded = true
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.text == rhs.text && lhs.streaming == rhs.streaming
+    }
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
