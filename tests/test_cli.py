@@ -436,7 +436,8 @@ def test_tool_call_stream_filter_hides_split_xml_payload() -> None:
     visible.extend(stream_filter.finish())
 
     assert "".join(visible) == "Avant <tool_call><function=demo.echo><parameter=value>hi</parameter></function></tool_call> Après"
-    for opener, closer in [('<tool_call>', '</tool_call>'), ('<|tool_call>', '<tool_call|>')]:
+    for opener, closer in [('<tool_call>', '</tool_call>'), ('<|tool_call>', '<tool_call|>'),
+                           ('<|tool_call_start|>', '<|tool_call_end|>')]:
         stream_filter = cli.ToolCallStreamFilter()
         visible = []
         for character in opener + 'payload' + closer:
@@ -465,13 +466,49 @@ def test_parse_qwen_and_json_tool_calls() -> None:
     ]
 
 
-def test_bridge_generation_executes_mcp_tool_then_returns_answer(monkeypatch, capsys) -> None:
+def test_lfm_python_tool_calls_literals_and_streaming():
+    body = "[exa.web_search_exa(query='GPT-6 Astra statistics performance benchmarks', numResults=10)]"
+    response = '<|tool_call_start|>' + body + '<|tool_call_end|>'
+    assert cli._parse_tool_calls(response) == [cli.ToolCallRequest(
+        'exa.web_search_exa', {'query': 'GPT-6 Astra statistics performance benchmarks', 'numResults': 10})]
+    assert cli._without_tool_calls(response) == ''
+    for split in range(len(response) + 1):
+        stream_filter = cli.ToolCallStreamFilter()
+        visible = stream_filter.feed(response[:split]) + stream_filter.feed(response[split:])
+        assert ''.join(visible + stream_filter.finish()) == ''
+    response = '''<|tool_call_start|>[demo.echo(value={'items': [1, True, None], 'text': "a,b)"}),
+demo.echo(value='')]<|tool_call_end|>'''
+    assert cli._parse_tool_calls(response) == [
+        cli.ToolCallRequest('demo.echo', {'value': {'items': [1, True, None], 'text': 'a,b)'}}),
+        cli.ToolCallRequest('demo.echo', {'value': ''}),
+    ]
+    for wrapped in ['Example: ' + response, '<think>' + response + '</think>',
+                    '```python\n' + response + '\n```', response + ' extra text']:
+        assert cli._parse_tool_calls(wrapped) == []
+
+
+@pytest.mark.parametrize('body', [
+    '[demo.echo(value=other())]', '[demo.echo(**args)]', '[demo.echo(1)]',
+    '[demo.echo(value=1, value=2)]', '[demo.echo(value={1, 2})]',
+    '[demo.echo(value=1e999)]', '[demo.echo(value=x.y)]',
+    '[demo.echo(value=1), demo.echo(value=other())]',
+    '[get_tool()(value=1)]', '[]', '[demo.echo(',
+])
+def test_lfm_python_tool_calls_reject_expressions_and_malformed_batches(body):
+    with pytest.raises(cli.MCPError, match='nothing executed'):
+        cli._parse_tool_calls('<|tool_call_start|>' + body + '<|tool_call_end|>')
+
+
+@pytest.mark.parametrize('payload', [
+    '<tool_call><function=demo.echo><parameter=value>bonjour</parameter></function></tool_call>',
+    "<|tool_call_start|>[demo.echo(value='bonjour')]<|tool_call_end|>",
+])
+def test_bridge_generation_executes_mcp_tool_then_returns_answer(monkeypatch, capsys, payload) -> None:
     stats = cli.GenerationStats(0.1, 20, 30, 5, 6, 4)
     responses = iter(
         (
             (
-                "inspect</think><tool_call><function=demo.echo>"
-                "<parameter=value>bonjour</parameter></function></tool_call>"
+                "inspect</think>" + payload
             ),
             "respond</think>Résultat MCP",
         )

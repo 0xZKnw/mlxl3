@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import platform
@@ -739,7 +740,8 @@ class ToolCallStreamFilter:
                 self.inside_call = False
                 continue
             stripped = self.buffer.lstrip()
-            markers = {self._OPEN: self._CLOSE, '<|tool_call>': '<tool_call|>'}
+            markers = {self._OPEN: self._CLOSE, '<|tool_call>': '<tool_call|>',
+                       '<|tool_call_start|>': '<|tool_call_end|>'}
             opener = next((m for m in markers if stripped.startswith(m)), None)
             if opener:
                 self.closer = markers[opener]
@@ -761,6 +763,38 @@ class ToolCallStreamFilter:
 _TOOL_BLOCK = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL)
 _TOOL_FUNCTION = re.compile(r"<function=([^>\n]+)>\s*(.*?)\s*</function>", re.DOTALL)
 _TOOL_PARAMETER = re.compile(r"<parameter=([^>\n]+)>\s*(.*?)\s*</parameter>", re.DOTALL)
+_PYTHON_TOOL_BLOCK = re.compile(r'<\|tool_call_start\|>(.*?)<\|tool_call_end\|>', re.DOTALL)
+
+
+def _parse_python_tool_block(body: str) -> list[ToolCallRequest]:
+    # Decode literal arguments, never evaluate a model-generated function call.
+    try:
+        if len(body) > 65_536:
+            raise ValueError('tool payload too large')
+        tree = ast.parse(body.strip(), mode='eval').body
+        if not isinstance(tree, ast.List) or not tree.elts:
+            raise ValueError('expected a list of calls')
+        calls = []
+        for call in tree.elts:
+            if not isinstance(call, ast.Call) or call.args:
+                raise ValueError('only keyword arguments are supported')
+            name, node = [], call.func
+            while isinstance(node, ast.Attribute):
+                name.insert(0, node.attr)
+                node = node.value
+            if not isinstance(node, ast.Name):
+                raise ValueError('invalid tool name')
+            name.insert(0, node.id)
+            arguments = {}
+            for keyword in call.keywords:
+                if keyword.arg is None or keyword.arg in arguments:
+                    raise ValueError('unpacking or duplicate arguments')
+                arguments[keyword.arg] = ast.literal_eval(keyword.value)
+            arguments = json.loads(json.dumps(arguments, allow_nan=False))
+            calls.append(ToolCallRequest('.'.join(name), arguments))
+        return calls
+    except (ValueError, TypeError, SyntaxError, RecursionError) as error:
+        raise MCPError('Malformed Python-style tool call; nothing executed') from error
 
 
 def _parse_tool_calls(response: str) -> list[ToolCallRequest]:
@@ -769,6 +803,11 @@ def _parse_tool_calls(response: str) -> list[ToolCallRequest]:
     if '<think>' in response or '<|channel>thought' in response:
         return []
     response = re.sub(r'(?ms)^\s*(`{3,}|~{3,})[^\n]*\n.*?(?:^\s*\1\s*$|\Z)', '', response)
+    if _PYTHON_TOOL_BLOCK.search(response):
+        if _PYTHON_TOOL_BLOCK.sub('', response).strip():
+            return []
+        return [call for match in _PYTHON_TOOL_BLOCK.finditer(response)
+                for call in _parse_python_tool_block(match.group(1))]
     native = re.compile(r'<\|tool_call>(.*?)<tool_call\|>', re.S)
     if native.search(response):
         from mlx_lm.tool_parsers.gemma4 import parse_tool_call
@@ -830,7 +869,8 @@ def _parse_tool_argument(raw: str) -> Any:
 
 
 def _without_tool_calls(response: str) -> str:
-    return re.sub(r'<\|tool_call>.*?<tool_call\|>', '', _TOOL_BLOCK.sub("", _assistant_context(response)), flags=re.S).strip()
+    response = _PYTHON_TOOL_BLOCK.sub('', _assistant_context(response))
+    return re.sub(r'<\|tool_call>.*?<tool_call\|>', '', _TOOL_BLOCK.sub("", response), flags=re.S).strip()
 
 
 def _cache_context(response: str) -> str:
