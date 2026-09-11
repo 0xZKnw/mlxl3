@@ -506,3 +506,20 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   correction du générateur pour donner priorité à la version source embarquée.
   Reconstruction du paquet prévue, moteur/GUI inchangés ; revérifier
   manifeste, signature, DMG et identité du runtime avec celui testé.
+- **Validé et publié** : paquet propre `14061bf320fc0d41f498c2ffcdfe522e3bf49717`,
+  version 1.0.1/build 12, SDK26.5. Manifeste cohérent, signature stricte et
+  self-checks GUI réussis dans l'app puis le DMG monté. Runtime SHA256
+  `2213fd25219b8319ed469fdde15e4f3a17a6a8736d7f95bba8ed9af80f2124bb`
+  identique au runtime testé ; deux tours Qwen montés réussis, warmup activé,
+  CEDAR-42 rappelé, 537 tokens cachés/20 évalués au second tour, stderr vide
+  (`build/release-v101-mounted-smoke.*`). Pas de mesure de gain supplémentaire.
+- Installation locale effectuée dans `dist/MLXL3 Desktop.app`. Ancienne app
+  conservée dans `build/app-backups/MLXL3 Desktop-v1.0.0-before-v1.0.1.app`.
+  Aucun historique/modèle modifié ; l'app n'a pas été relancée automatiquement.
+- `main` et tag `v1.0.1` poussés. Release publique confirmée via `/releases/latest` :
+  https://github.com/0xZKnw/mlxl3/releases/tag/v1.0.1 ; DMG, SHA256, manifeste et
+  `validation-v1.0.1.txt` présents. Empreinte DMG locale/distance identique :
+  `2a98101aec9a4d718e76821f64b7d83885cb660ec9aca7a3ab858be6c08b2de4`.
+  CI du tag réussie : https://github.com/0xZKnw/mlxl3/actions/runs/34637258944.
+  Signature toujours ad-hoc/non notarisée. Volume de test éjecté, aucun moteur
+  de test encore actif. Travaux Ling non publiés préservés hors des commits.
