@@ -13,7 +13,7 @@ import time
 
 process = subprocess.Popen([sys.argv[1], 'bridge', sys.argv[2], '--context-length', '4096'],
                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
-                           env={**os.environ, 'MLXL3_WARM_MODEL_ON_LOAD': '0'})
+                           env=os.environ.copy())
 events = queue.Queue()
 def read():
     for line in process.stdout:

@@ -460,3 +460,16 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   sur `https://github.com/0xZKnw/mlxl3`, branche `main`. Commit distant confirmé
   avec `git ls-remote origin refs/heads/main`. Tests/préuves/journal inclus ;
   changements Ling préservés hors commit. App installée et DMG inchangés.
+
+### REL-2026-09-11 — Desktop v1.0.1 build 12 — en cours
+
+- Demande utilisateur : intégrer le nouveau moteur dans la GUI et publier v1.0.1.
+  Construire depuis un checkout propre du commit de release, sans les travaux
+  Ling non publiés. Versions Python/Swift synchronisées ; signature ad-hoc
+  maintenue, aucun certificat Developer ID disponible.
+- Validation du correctif 10-10/11-04 : moteur gelé dans l'app, warmup réel activé
+  (le smoke existant le désactivait), chargement Qwen, deux tours de chat et
+  prefill long. Puis signature, DMG, empreinte SHA256 et métadonnées du bundle.
+  Il s'agit de validation de distribution, pas d'un nouveau benchmark de gains.
+- Publication prévue : tag GitHub v1.0.1, DMG build 12, manifestes/validation ;
+  conserver une copie de l'app locale précédente avant son remplacement.
