@@ -456,3 +456,7 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   journal. Les modifications Ling/quantification restent locales hors du commit.
 - Aucune release/DMG ni reconstruction de l'app n'est demandée par ce push.
   Le résultat du push sera consigné après vérification du commit distant.
+- Push du code **réussi** : `f7825f49986b31c44a44b225faef3b9586eb0d0d`
+  sur `https://github.com/0xZKnw/mlxl3`, branche `main`. Commit distant confirmé
+  avec `git ls-remote origin refs/heads/main`. Tests/préuves/journal inclus ;
+  changements Ling préservés hors commit. App installée et DMG inchangés.

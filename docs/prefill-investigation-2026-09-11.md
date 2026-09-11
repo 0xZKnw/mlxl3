@@ -62,7 +62,8 @@ Pour le holdout : remplacer `--repeats 512` par
 Le runner compare BM32 sans hoisting à l'auto-tile avec hoisting de production.
 Rollback diagnostic : `MLXL3_SEGMENTED_TENSOR_ROWS=32 MLXL3_SEGMENTED_ADDRESS_HOIST=0`.
 
-Code moteur local, utilisé par le CLI de ce dépôt. Pas de reconstruction de
-l'app installée, de push ni de release. Pas de refonte/changement de langage.
+Code moteur utilisé par le CLI de ce dépôt et poussé sur GitHub `main` dans
+`f7825f4` à la demande de l'utilisateur. Pas de reconstruction de l'app installée
+ni de release. Pas de refonte/changement de langage.
 Gemma, les autres Mac/OS et une comparaison équitable à llama.cpp restent
 non mesurés ; aucune supériorité sur llama.cpp n'est annoncée.
