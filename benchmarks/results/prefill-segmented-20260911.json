@@ -1,0 +1,1203 @@
+{
+  "date": "2026-09-11",
+  "baseline": "BM32 and segmented address hoist disabled; macOS 27 type fix on both sides",
+  "candidate": "Automatic BM64 at >=4096 routed rows, otherwise BM32; segmented address hoist enabled",
+  "protocol": "One excluded warmup pair, then three alternating pairs; CPU wall time, on battery, thermals uncontrolled; same model instance per series, fresh session per request",
+  "quality": "Exact generated text and SHA256 fingerprints of stable-prefix and final cache state; no speculative decoding, quantization or sampling change",
+  "cases": [
+    {
+      "source_log": "build/segmented-final-20260911-qwen.jsonl",
+      "manifest": {
+        "kind": "manifest",
+        "git": "9f273eebb9c6f2e3f36cf85de128597e2331fb15",
+        "dirty": "M benchmarks/eval_checkpoint_perplexity.py\n M scripts/quantize_lfm26.py\n M src/mlxl3/checkpoint.py\n M src/mlxl3/cli.py\n M src/mlxl3/kernels/qmv.py\n M tests/test_checkpoint_perplexity.py\n M tests/test_cli.py\n?? AGENTS.md\n?? benchmarks/bench_prefill_flight.py\n?? benchmarks/bench_topk_scatter.py\n?? benchmarks/eval_ling_source.py\n?? docs/decode-investigation-2026-09-10.md\n?? docs/ling-local-quantization.md\n?? opti.md\n?? scripts/quantize_ling.py\n?? tests/test_ling_conversion_adapter.py\n?? tests/test_segmented_m64.py",
+        "diff_sha256": "9ba6940f6ab0e87bed2755f74d3cd13e01b3461b03eea2763af7fed34d024ef6",
+        "mlx": "0.32.2",
+        "mlx_lm": "0.32.0",
+        "mlx_lm_origin": "{\"url\": \"https://github.com/ml-explore/mlx-lm.git\", \"vcs_info\": {\"commit_id\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"requested_revision\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"vcs\": \"git\"}}",
+        "os": "macOS-27.0-arm64-arm-64bit",
+        "os_build": "26A428",
+        "sdk": "27.0",
+        "device": {
+          "device_name": "Apple M5",
+          "max_recommended_working_set_size": 19069665280,
+          "memory_size": 25769803776,
+          "architecture": "applegpu_g17g",
+          "max_buffer_length": 14302248960,
+          "resource_limit": 499000
+        },
+        "flags": {},
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "metadata_sha256": {
+          "config.json": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51",
+          "configuration.json": "c1b09db419119513247e9b8b912c4b9897106c9b20c6cada7e107d993c5435eb",
+          "generation_config.json": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e",
+          "model.safetensors.index.json": "2bd8127e0d395d375a931c2cbd5e5d1615756b7cbc21958abeabed21eae12b94",
+          "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+          "quantization_config.json": "baf853ee4faea8c8b7e359defff3a4f52ecbba1b0f52e7f037d5c812c3fb25b5",
+          "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+          "tokenizer_config.json": "5186f0defcd7f232382c7f0aebcd2252d073bb921ab240e407b7ae8745d2b29b",
+          "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+          "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+        },
+        "weights_hashed": false,
+        "gpu_time": null,
+        "thermal_state": "unmeasured",
+        "contract": "Q0 addressing/lifetime; no new quantization or sampling change",
+        "benchmark_options": {
+          "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+          "repeats": 512,
+          "pairs": 3,
+          "warmup_pairs": 1,
+          "max_tokens": 96,
+          "share_finished_kv": false,
+          "dense_m64": false,
+          "segmented_m64": true,
+          "segmented_hoist": true
+        }
+      },
+      "rows": [
+        {
+          "pair": -1,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 520.2149987825968,
+          "ttft_seconds": 7.946660958000393,
+          "decode_tps": 35.04155536554037,
+          "peak_memory_gb": 14.05227514,
+          "active_bytes": 12640784200,
+          "process_footprint_bytes": 13246695512,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        },
+        {
+          "pair": -1,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 497.5236354776166,
+          "ttft_seconds": 8.271373917000346,
+          "decode_tps": 34.97778634426814,
+          "peak_memory_gb": 14.052275734,
+          "active_bytes": 12640751432,
+          "process_footprint_bytes": 13249136728,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 487.75235924263706,
+          "ttft_seconds": 8.43976054199993,
+          "decode_tps": 35.23990602450094,
+          "peak_memory_gb": 14.052275734,
+          "active_bytes": 12640751432,
+          "process_footprint_bytes": 13249398872,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 558.0942793733695,
+          "ttft_seconds": 7.37904541700027,
+          "decode_tps": 34.62989166585014,
+          "peak_memory_gb": 14.052275734,
+          "active_bytes": 12640767816,
+          "process_footprint_bytes": 13256869976,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 529.301907375339,
+          "ttft_seconds": 7.776791334000336,
+          "decode_tps": 34.75344550012114,
+          "peak_memory_gb": 14.052275734,
+          "active_bytes": 12640751432,
+          "process_footprint_bytes": 13256788056,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 478.16225916879824,
+          "ttft_seconds": 8.610743041000205,
+          "decode_tps": 33.82705602269101,
+          "peak_memory_gb": 14.064766,
+          "active_bytes": 12640751432,
+          "process_footprint_bytes": 13250545752,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 482.6972808809253,
+          "ttft_seconds": 8.529582500000288,
+          "decode_tps": 34.35076327546509,
+          "peak_memory_gb": 14.052275734,
+          "active_bytes": 12640751432,
+          "process_footprint_bytes": 13250562136,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 542.322947402691,
+          "ttft_seconds": 7.589589749999504,
+          "decode_tps": 34.18440661199967,
+          "peak_memory_gb": 14.052275734,
+          "active_bytes": 12640751432,
+          "process_footprint_bytes": 13256869976,
+          "exact": true,
+          "fingerprint": [
+            "3d48bccca6865f1c3c7e68a1c4502cab096b26c9d4993c540ca87f57810b834e",
+            "7da43a480a80b89584e2df79844c96b3de8df0222b04d45832184e492cffe3d1"
+          ]
+        }
+      ],
+      "summary": {
+        "prefill_gain_percent": 12.352600456532215,
+        "ttft_reduction_percent": 11.020384057493459,
+        "decode_change_percent": -0.4842881135751709,
+        "prefill_before": 482.6972808809253,
+        "prefill_after": 542.322947402691,
+        "ttft_before": 8.529582500000288,
+        "ttft_after": 7.589589749999504
+      }
+    },
+    {
+      "source_log": "build/segmented-final-20260911-lfm8.jsonl",
+      "manifest": {
+        "kind": "manifest",
+        "git": "9f273eebb9c6f2e3f36cf85de128597e2331fb15",
+        "dirty": "M benchmarks/eval_checkpoint_perplexity.py\n M scripts/quantize_lfm26.py\n M src/mlxl3/checkpoint.py\n M src/mlxl3/cli.py\n M src/mlxl3/kernels/qmv.py\n M tests/test_checkpoint_perplexity.py\n M tests/test_cli.py\n?? AGENTS.md\n?? benchmarks/bench_prefill_flight.py\n?? benchmarks/bench_topk_scatter.py\n?? benchmarks/eval_ling_source.py\n?? docs/decode-investigation-2026-09-10.md\n?? docs/ling-local-quantization.md\n?? opti.md\n?? scripts/quantize_ling.py\n?? tests/test_ling_conversion_adapter.py\n?? tests/test_segmented_m64.py",
+        "diff_sha256": "9ba6940f6ab0e87bed2755f74d3cd13e01b3461b03eea2763af7fed34d024ef6",
+        "mlx": "0.32.2",
+        "mlx_lm": "0.32.0",
+        "mlx_lm_origin": "{\"url\": \"https://github.com/ml-explore/mlx-lm.git\", \"vcs_info\": {\"commit_id\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"requested_revision\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"vcs\": \"git\"}}",
+        "os": "macOS-27.0-arm64-arm-64bit",
+        "os_build": "26A428",
+        "sdk": "27.0",
+        "device": {
+          "device_name": "Apple M5",
+          "max_recommended_working_set_size": 19069665280,
+          "memory_size": 25769803776,
+          "architecture": "applegpu_g17g",
+          "max_buffer_length": 14302248960,
+          "resource_limit": 499000
+        },
+        "flags": {},
+        "model": "models/fixtures/LFM2.5-8B-A1B-EXL3-3.10bpw",
+        "metadata_sha256": {
+          "config.json": "a2002d472f433977af8c5085d6c2d62faae6ff46a38a4942297a5b4946acf917",
+          "generation_config.json": "8b9c36bf5e4c8a8254ec8292914834faa69b295a1e98e0fd93e3025a466730a6",
+          "quantization_config.json": "8a1700313b9a98d5ddd4ba3b8dc01dbe22ec3df7ee05d148bc7b90d2b4a7039a",
+          "tokenizer.json": "c4687c0046da6579aba6f9aa713e9bed61e5fd210b0e012028ae57751d028689",
+          "tokenizer_config.json": "20e733ea2a34610118e22a41867b33595df15c26e8318c1c51f08beb79878c26"
+        },
+        "weights_hashed": false,
+        "gpu_time": null,
+        "thermal_state": "unmeasured",
+        "contract": "Q0 addressing/lifetime; no new quantization or sampling change",
+        "benchmark_options": {
+          "model": "models/fixtures/LFM2.5-8B-A1B-EXL3-3.10bpw",
+          "repeats": 512,
+          "pairs": 3,
+          "warmup_pairs": 1,
+          "max_tokens": 96,
+          "prompt_file": null,
+          "share_finished_kv": false,
+          "dense_m64": false,
+          "segmented_m64": true,
+          "segmented_hoist": true
+        },
+        "prompt_sha256": "c83f7eb37588b801a2a2dee09844bc69e6ffa55f6df6c8c7e27ad5d35320cbd1",
+        "runner_sha256": "207d50d873113e3cb8eda01b706649f2c45a4f56a7a6e4def86b9f1bcd647d87"
+      },
+      "rows": [
+        {
+          "pair": -1,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 1355.4524922509024,
+          "ttft_seconds": 3.050457209000342,
+          "decode_tps": 70.91963199327687,
+          "peak_memory_gb": 4.923156264,
+          "active_bytes": 4406483612,
+          "process_footprint_bytes": 4702733824,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        },
+        {
+          "pair": -1,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 1018.4127843342433,
+          "ttft_seconds": 4.044024416999491,
+          "decode_tps": 72.13214911607027,
+          "peak_memory_gb": 4.923172644,
+          "active_bytes": 4406487708,
+          "process_footprint_bytes": 4699932160,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 1001.6217502675008,
+          "ttft_seconds": 4.110621499999979,
+          "decode_tps": 72.03049316151147,
+          "peak_memory_gb": 4.923156264,
+          "active_bytes": 4406506140,
+          "process_footprint_bytes": 4697802240,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 1350.7559245151465,
+          "ttft_seconds": 3.0525224579996575,
+          "decode_tps": 72.81068799587715,
+          "peak_memory_gb": 4.923156264,
+          "active_bytes": 4406504092,
+          "process_footprint_bytes": 4704388608,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 1307.585046694875,
+          "ttft_seconds": 3.1519344999996974,
+          "decode_tps": 70.59642052725349,
+          "peak_memory_gb": 4.923156264,
+          "active_bytes": 4406487708,
+          "process_footprint_bytes": 4704880176,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 955.5299071408443,
+          "ttft_seconds": 4.310720499999661,
+          "decode_tps": 69.52220803251097,
+          "peak_memory_gb": 4.923156264,
+          "active_bytes": 4406524572,
+          "process_footprint_bytes": 4700915248,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": false,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 983.6652123614111,
+          "ttft_seconds": 4.18760683399978,
+          "decode_tps": 68.72806658602926,
+          "peak_memory_gb": 4.923189028,
+          "active_bytes": 4406483612,
+          "process_footprint_bytes": 4698736176,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": true,
+          "prompt_tokens": 4106,
+          "generated_tokens": 96,
+          "prefill_tps": 1287.097875358936,
+          "ttft_seconds": 3.2018387910002275,
+          "decode_tps": 70.38118821971047,
+          "peak_memory_gb": 4.923156264,
+          "active_bytes": 4406508188,
+          "process_footprint_bytes": 4705142320,
+          "exact": true,
+          "fingerprint": [
+            "5c89e60cfaf2d8e5afca075e15c14b7b9408ae62b2f77fb6f001b97fd956c12e",
+            "c4ac1717727dcb0e931138623644558df762bf0c6f0fa0a7b3c3d15a1863546f"
+          ]
+        }
+      ],
+      "summary": {
+        "prefill_gain_percent": 34.85688825690967,
+        "ttft_reduction_percent": 25.740609832365426,
+        "decode_change_percent": 1.5451357561028223,
+        "prefill_before": 983.6652123614111,
+        "prefill_after": 1307.585046694875,
+        "ttft_before": 4.18760683399978,
+        "ttft_after": 3.1519344999996974
+      }
+    },
+    {
+      "source_log": "build/segmented-final-20260911-qwen-short.jsonl",
+      "manifest": {
+        "kind": "manifest",
+        "git": "9f273eebb9c6f2e3f36cf85de128597e2331fb15",
+        "dirty": "M benchmarks/eval_checkpoint_perplexity.py\n M scripts/quantize_lfm26.py\n M src/mlxl3/checkpoint.py\n M src/mlxl3/cli.py\n M src/mlxl3/kernels/qmv.py\n M tests/test_checkpoint_perplexity.py\n M tests/test_cli.py\n?? AGENTS.md\n?? benchmarks/bench_prefill_flight.py\n?? benchmarks/bench_topk_scatter.py\n?? benchmarks/eval_ling_source.py\n?? docs/decode-investigation-2026-09-10.md\n?? docs/ling-local-quantization.md\n?? opti.md\n?? scripts/quantize_ling.py\n?? tests/test_ling_conversion_adapter.py\n?? tests/test_segmented_m64.py",
+        "diff_sha256": "9ba6940f6ab0e87bed2755f74d3cd13e01b3461b03eea2763af7fed34d024ef6",
+        "mlx": "0.32.2",
+        "mlx_lm": "0.32.0",
+        "mlx_lm_origin": "{\"url\": \"https://github.com/ml-explore/mlx-lm.git\", \"vcs_info\": {\"commit_id\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"requested_revision\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"vcs\": \"git\"}}",
+        "os": "macOS-27.0-arm64-arm-64bit",
+        "os_build": "26A428",
+        "sdk": "27.0",
+        "device": {
+          "device_name": "Apple M5",
+          "max_recommended_working_set_size": 19069665280,
+          "memory_size": 25769803776,
+          "architecture": "applegpu_g17g",
+          "max_buffer_length": 14302248960,
+          "resource_limit": 499000
+        },
+        "flags": {},
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "metadata_sha256": {
+          "config.json": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51",
+          "configuration.json": "c1b09db419119513247e9b8b912c4b9897106c9b20c6cada7e107d993c5435eb",
+          "generation_config.json": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e",
+          "model.safetensors.index.json": "2bd8127e0d395d375a931c2cbd5e5d1615756b7cbc21958abeabed21eae12b94",
+          "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+          "quantization_config.json": "baf853ee4faea8c8b7e359defff3a4f52ecbba1b0f52e7f037d5c812c3fb25b5",
+          "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+          "tokenizer_config.json": "5186f0defcd7f232382c7f0aebcd2252d073bb921ab240e407b7ae8745d2b29b",
+          "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+          "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+        },
+        "weights_hashed": false,
+        "gpu_time": null,
+        "thermal_state": "unmeasured",
+        "contract": "Q0 addressing/lifetime; no new quantization or sampling change",
+        "benchmark_options": {
+          "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+          "repeats": 16,
+          "pairs": 3,
+          "warmup_pairs": 1,
+          "max_tokens": 32,
+          "prompt_file": null,
+          "share_finished_kv": false,
+          "dense_m64": false,
+          "segmented_m64": true,
+          "segmented_hoist": true
+        },
+        "prompt_sha256": "f63fdb1963bd9893f8fc1ab407006d6ed5250eabed131a0cbe65cb83a8bfb8a0",
+        "runner_sha256": "207d50d873113e3cb8eda01b706649f2c45a4f56a7a6e4def86b9f1bcd647d87"
+      },
+      "rows": [
+        {
+          "pair": -1,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 211.91411628248576,
+          "ttft_seconds": 0.6736535830004868,
+          "decode_tps": 36.08155126145185,
+          "peak_memory_gb": 12.432700212,
+          "active_bytes": 12218302320,
+          "process_footprint_bytes": 12778391544,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        },
+        {
+          "pair": -1,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 215.14569841290145,
+          "ttft_seconds": 0.6438866670005154,
+          "decode_tps": 36.457024077801826,
+          "peak_memory_gb": 12.432706178,
+          "active_bytes": 12218318704,
+          "process_footprint_bytes": 12790122488,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 210.5476891905674,
+          "ttft_seconds": 0.6577867919995697,
+          "decode_tps": 36.77368996692738,
+          "peak_memory_gb": 12.432702858,
+          "active_bytes": 12218318704,
+          "process_footprint_bytes": 12790319096,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 235.46630112523633,
+          "ttft_seconds": 0.588161042000138,
+          "decode_tps": 37.213050631766635,
+          "peak_memory_gb": 12.432700986,
+          "active_bytes": 12218318704,
+          "process_footprint_bytes": 12791384056,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 237.3199013666952,
+          "ttft_seconds": 0.5866477079998731,
+          "decode_tps": 36.21707577782873,
+          "peak_memory_gb": 12.43270489,
+          "active_bytes": 12218318704,
+          "process_footprint_bytes": 12791269368,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 217.8217235739266,
+          "ttft_seconds": 0.637512291999883,
+          "decode_tps": 36.9241635746054,
+          "peak_memory_gb": 12.432708306,
+          "active_bytes": 12218318704,
+          "process_footprint_bytes": 12791465976,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 215.2724493189937,
+          "ttft_seconds": 0.6434192499991696,
+          "decode_tps": 36.53590872328655,
+          "peak_memory_gb": 12.432705242,
+          "active_bytes": 12218318704,
+          "process_footprint_bytes": 12791826424,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 230.23685654949983,
+          "ttft_seconds": 0.6025325000000521,
+          "decode_tps": 36.0578233863528,
+          "peak_memory_gb": 12.432698602,
+          "active_bytes": 12218318704,
+          "process_footprint_bytes": 12791678968,
+          "exact": true,
+          "fingerprint": [
+            "dab7cd3f6ebbd06fc6fa5f6d6dc81edef260d05e332dac87a4a09cd211db2afa",
+            "5147907a86ecc3393f4e2cd7d499bdd3e52d04ceda1d51eda2c4d8834e0ea44f"
+          ]
+        }
+      ],
+      "summary": {
+        "prefill_gain_percent": 8.951438576855786,
+        "ttft_reduction_percent": 7.9786044345038665,
+        "decode_change_percent": -1.3085355028518486,
+        "prefill_before": 215.2724493189937,
+        "prefill_after": 235.46630112523633,
+        "ttft_before": 0.6434192499991696,
+        "ttft_after": 0.588161042000138
+      }
+    },
+    {
+      "source_log": "build/segmented-final-20260911-lfm8-short.jsonl",
+      "manifest": {
+        "kind": "manifest",
+        "git": "9f273eebb9c6f2e3f36cf85de128597e2331fb15",
+        "dirty": "M benchmarks/eval_checkpoint_perplexity.py\n M scripts/quantize_lfm26.py\n M src/mlxl3/checkpoint.py\n M src/mlxl3/cli.py\n M src/mlxl3/kernels/qmv.py\n M tests/test_checkpoint_perplexity.py\n M tests/test_cli.py\n?? AGENTS.md\n?? benchmarks/bench_prefill_flight.py\n?? benchmarks/bench_topk_scatter.py\n?? benchmarks/eval_ling_source.py\n?? docs/decode-investigation-2026-09-10.md\n?? docs/ling-local-quantization.md\n?? opti.md\n?? scripts/quantize_ling.py\n?? tests/test_ling_conversion_adapter.py\n?? tests/test_segmented_m64.py",
+        "diff_sha256": "9ba6940f6ab0e87bed2755f74d3cd13e01b3461b03eea2763af7fed34d024ef6",
+        "mlx": "0.32.2",
+        "mlx_lm": "0.32.0",
+        "mlx_lm_origin": "{\"url\": \"https://github.com/ml-explore/mlx-lm.git\", \"vcs_info\": {\"commit_id\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"requested_revision\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"vcs\": \"git\"}}",
+        "os": "macOS-27.0-arm64-arm-64bit",
+        "os_build": "26A428",
+        "sdk": "27.0",
+        "device": {
+          "device_name": "Apple M5",
+          "max_recommended_working_set_size": 19069665280,
+          "memory_size": 25769803776,
+          "architecture": "applegpu_g17g",
+          "max_buffer_length": 14302248960,
+          "resource_limit": 499000
+        },
+        "flags": {},
+        "model": "models/fixtures/LFM2.5-8B-A1B-EXL3-3.10bpw",
+        "metadata_sha256": {
+          "config.json": "a2002d472f433977af8c5085d6c2d62faae6ff46a38a4942297a5b4946acf917",
+          "generation_config.json": "8b9c36bf5e4c8a8254ec8292914834faa69b295a1e98e0fd93e3025a466730a6",
+          "quantization_config.json": "8a1700313b9a98d5ddd4ba3b8dc01dbe22ec3df7ee05d148bc7b90d2b4a7039a",
+          "tokenizer.json": "c4687c0046da6579aba6f9aa713e9bed61e5fd210b0e012028ae57751d028689",
+          "tokenizer_config.json": "20e733ea2a34610118e22a41867b33595df15c26e8318c1c51f08beb79878c26"
+        },
+        "weights_hashed": false,
+        "gpu_time": null,
+        "thermal_state": "unmeasured",
+        "contract": "Q0 addressing/lifetime; no new quantization or sampling change",
+        "benchmark_options": {
+          "model": "models/fixtures/LFM2.5-8B-A1B-EXL3-3.10bpw",
+          "repeats": 16,
+          "pairs": 3,
+          "warmup_pairs": 1,
+          "max_tokens": 32,
+          "prompt_file": null,
+          "share_finished_kv": false,
+          "dense_m64": false,
+          "segmented_m64": true,
+          "segmented_hoist": true
+        },
+        "prompt_sha256": "f63fdb1963bd9893f8fc1ab407006d6ed5250eabed131a0cbe65cb83a8bfb8a0",
+        "runner_sha256": "207d50d873113e3cb8eda01b706649f2c45a4f56a7a6e4def86b9f1bcd647d87"
+      },
+      "rows": [
+        {
+          "pair": -1,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 505.51950556582625,
+          "ttft_seconds": 0.28315316600037477,
+          "decode_tps": 74.99643162141399,
+          "peak_memory_gb": 4.109263324,
+          "active_bytes": 3937053596,
+          "process_footprint_bytes": 4227909288,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        },
+        {
+          "pair": -1,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 490.75841973340107,
+          "ttft_seconds": 0.2825812920000317,
+          "decode_tps": 74.89507152174524,
+          "peak_memory_gb": 4.109261414,
+          "active_bytes": 3937065884,
+          "process_footprint_bytes": 4226877120,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 489.6590571395249,
+          "ttft_seconds": 0.28330608299984306,
+          "decode_tps": 74.74663753153816,
+          "peak_memory_gb": 4.109261542,
+          "active_bytes": 3937059740,
+          "process_footprint_bytes": 4226467520,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 568.6949900157987,
+          "ttft_seconds": 0.2466542500005744,
+          "decode_tps": 72.7038981469261,
+          "peak_memory_gb": 4.1092619,
+          "active_bytes": 3937057692,
+          "process_footprint_bytes": 4226467520,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 556.5095819045026,
+          "ttft_seconds": 0.2518213330004073,
+          "decode_tps": 73.66267341167848,
+          "peak_memory_gb": 4.1092619,
+          "active_bytes": 3937059740,
+          "process_footprint_bytes": 4226434752,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 492.5472497197104,
+          "ttft_seconds": 0.282833500000379,
+          "decode_tps": 75.54410789929595,
+          "peak_memory_gb": 4.109261414,
+          "active_bytes": 3937057692,
+          "process_footprint_bytes": 4226451136,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": false,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 490.2757534651567,
+          "ttft_seconds": 0.28406783399987034,
+          "decode_tps": 74.88695252866181,
+          "peak_memory_gb": 4.109261414,
+          "active_bytes": 3937063836,
+          "process_footprint_bytes": 4226451136,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": true,
+          "prompt_tokens": 138,
+          "generated_tokens": 32,
+          "prefill_tps": 575.878817470026,
+          "ttft_seconds": 0.24109533400041983,
+          "decode_tps": 74.52341088774784,
+          "peak_memory_gb": 4.109261414,
+          "active_bytes": 3937057692,
+          "process_footprint_bytes": 4226467520,
+          "exact": true,
+          "fingerprint": [
+            "a90235b0987ffc1b9a7a6c6135edc88e88a3fd93cb5c4b5a7d8df1bf94e7bfd9",
+            "ff1c57e64824379d832f4fe2bbb9aaa33311633d1ba80f7ddd1326c57c2f262c"
+          ]
+        }
+      ],
+      "summary": {
+        "prefill_gain_percent": 16.141013164952646,
+        "ttft_reduction_percent": 12.937185326616852,
+        "decode_change_percent": -2.490511225740488,
+        "prefill_before": 490.2757534651567,
+        "prefill_after": 568.6949900157987,
+        "ttft_before": 0.28330608299984306,
+        "ttft_after": 0.2466542500005744
+      }
+    },
+    {
+      "source_log": "build/segmented-heldout-20260911-qwen.jsonl",
+      "manifest": {
+        "kind": "manifest",
+        "git": "9f273eebb9c6f2e3f36cf85de128597e2331fb15",
+        "dirty": "M benchmarks/eval_checkpoint_perplexity.py\n M scripts/quantize_lfm26.py\n M src/mlxl3/checkpoint.py\n M src/mlxl3/cli.py\n M src/mlxl3/kernels/qmv.py\n M tests/test_checkpoint_perplexity.py\n M tests/test_cli.py\n?? AGENTS.md\n?? benchmarks/bench_prefill_flight.py\n?? benchmarks/bench_topk_scatter.py\n?? benchmarks/eval_ling_source.py\n?? docs/decode-investigation-2026-09-10.md\n?? docs/ling-local-quantization.md\n?? opti.md\n?? scripts/quantize_ling.py\n?? tests/test_ling_conversion_adapter.py\n?? tests/test_segmented_m64.py",
+        "diff_sha256": "9ba6940f6ab0e87bed2755f74d3cd13e01b3461b03eea2763af7fed34d024ef6",
+        "mlx": "0.32.2",
+        "mlx_lm": "0.32.0",
+        "mlx_lm_origin": "{\"url\": \"https://github.com/ml-explore/mlx-lm.git\", \"vcs_info\": {\"commit_id\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"requested_revision\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"vcs\": \"git\"}}",
+        "os": "macOS-27.0-arm64-arm-64bit",
+        "os_build": "26A428",
+        "sdk": "27.0",
+        "device": {
+          "device_name": "Apple M5",
+          "max_recommended_working_set_size": 19069665280,
+          "memory_size": 25769803776,
+          "architecture": "applegpu_g17g",
+          "max_buffer_length": 14302248960,
+          "resource_limit": 499000
+        },
+        "flags": {},
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "metadata_sha256": {
+          "config.json": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51",
+          "configuration.json": "c1b09db419119513247e9b8b912c4b9897106c9b20c6cada7e107d993c5435eb",
+          "generation_config.json": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e",
+          "model.safetensors.index.json": "2bd8127e0d395d375a931c2cbd5e5d1615756b7cbc21958abeabed21eae12b94",
+          "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+          "quantization_config.json": "baf853ee4faea8c8b7e359defff3a4f52ecbba1b0f52e7f037d5c812c3fb25b5",
+          "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+          "tokenizer_config.json": "5186f0defcd7f232382c7f0aebcd2252d073bb921ab240e407b7ae8745d2b29b",
+          "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+          "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+        },
+        "weights_hashed": false,
+        "gpu_time": null,
+        "thermal_state": "unmeasured",
+        "contract": "Q0 addressing/lifetime; no new quantization or sampling change",
+        "benchmark_options": {
+          "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+          "repeats": 512,
+          "pairs": 3,
+          "warmup_pairs": 1,
+          "max_tokens": 32,
+          "prompt_file": "docs/audit-runtime-2026-09-04.md",
+          "share_finished_kv": false,
+          "dense_m64": false,
+          "segmented_m64": true,
+          "segmented_hoist": true
+        },
+        "prompt_sha256": "9722643467a67c9d86e4fee9ab2d36c7447ec24831b210905f65df2dcdcc2e56",
+        "runner_sha256": "207d50d873113e3cb8eda01b706649f2c45a4f56a7a6e4def86b9f1bcd647d87"
+      },
+      "rows": [
+        {
+          "pair": -1,
+          "candidate": true,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 410.26189824127647,
+          "ttft_seconds": 7.558350583999527,
+          "decode_tps": 34.159287155951326,
+          "peak_memory_gb": 13.920596688,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12851775504,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        },
+        {
+          "pair": -1,
+          "candidate": false,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 479.6195041911509,
+          "ttft_seconds": 5.999570042000414,
+          "decode_tps": 34.5519184940809,
+          "peak_memory_gb": 13.91018778,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12866095120,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": false,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 462.4755672709512,
+          "ttft_seconds": 6.227205916999992,
+          "decode_tps": 34.81651371010048,
+          "peak_memory_gb": 13.920595242,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12864538640,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": true,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 493.1391388305831,
+          "ttft_seconds": 5.8335815419995924,
+          "decode_tps": 34.60144210593538,
+          "peak_memory_gb": 13.91018778,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12871895080,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": true,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 504.1974020354823,
+          "ttft_seconds": 5.71410966700023,
+          "decode_tps": 33.74479302874805,
+          "peak_memory_gb": 13.920595242,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12871845928,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": false,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 441.80676581509545,
+          "ttft_seconds": 6.5065867080002135,
+          "decode_tps": 33.910759733658686,
+          "peak_memory_gb": 13.91018778,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12867668008,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": false,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 445.47109065583084,
+          "ttft_seconds": 6.458928083000501,
+          "decode_tps": 34.63061926930507,
+          "peak_memory_gb": 13.91018778,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12865620008,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": true,
+          "prompt_tokens": 2842,
+          "generated_tokens": 32,
+          "prefill_tps": 487.2317710195707,
+          "ttft_seconds": 5.901589500000227,
+          "decode_tps": 33.99310570473047,
+          "peak_memory_gb": 13.920595242,
+          "active_bytes": 12439943220,
+          "process_footprint_bytes": 12871764008,
+          "exact": true,
+          "fingerprint": [
+            "d8835d694ad33386227d623872c773826a113cf649f1f48fcd681f3ea1e690a4",
+            "acd100469a169ffe173d8c256af174cf5b73a4fd23101dd872bfcc5654062651"
+          ]
+        }
+      ],
+      "summary": {
+        "prefill_gain_percent": 9.374498421942267,
+        "ttft_reduction_percent": 8.628964060881161,
+        "decode_change_percent": -0.6177287190667569,
+        "prefill_before": 445.47109065583084,
+        "prefill_after": 493.1391388305831,
+        "ttft_before": 6.458928083000501,
+        "ttft_after": 5.8335815419995924
+      }
+    },
+    {
+      "source_log": "build/segmented-heldout-20260911-lfm8.jsonl",
+      "manifest": {
+        "kind": "manifest",
+        "git": "9f273eebb9c6f2e3f36cf85de128597e2331fb15",
+        "dirty": "M benchmarks/eval_checkpoint_perplexity.py\n M scripts/quantize_lfm26.py\n M src/mlxl3/checkpoint.py\n M src/mlxl3/cli.py\n M src/mlxl3/kernels/qmv.py\n M tests/test_checkpoint_perplexity.py\n M tests/test_cli.py\n?? AGENTS.md\n?? benchmarks/bench_prefill_flight.py\n?? benchmarks/bench_topk_scatter.py\n?? benchmarks/eval_ling_source.py\n?? docs/decode-investigation-2026-09-10.md\n?? docs/ling-local-quantization.md\n?? opti.md\n?? scripts/quantize_ling.py\n?? tests/test_ling_conversion_adapter.py\n?? tests/test_segmented_m64.py",
+        "diff_sha256": "9ba6940f6ab0e87bed2755f74d3cd13e01b3461b03eea2763af7fed34d024ef6",
+        "mlx": "0.32.2",
+        "mlx_lm": "0.32.0",
+        "mlx_lm_origin": "{\"url\": \"https://github.com/ml-explore/mlx-lm.git\", \"vcs_info\": {\"commit_id\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"requested_revision\": \"44b42cc137763309b0662284ce12d7a95b8c5d99\", \"vcs\": \"git\"}}",
+        "os": "macOS-27.0-arm64-arm-64bit",
+        "os_build": "26A428",
+        "sdk": "27.0",
+        "device": {
+          "device_name": "Apple M5",
+          "max_recommended_working_set_size": 19069665280,
+          "memory_size": 25769803776,
+          "architecture": "applegpu_g17g",
+          "max_buffer_length": 14302248960,
+          "resource_limit": 499000
+        },
+        "flags": {},
+        "model": "models/fixtures/LFM2.5-8B-A1B-EXL3-3.10bpw",
+        "metadata_sha256": {
+          "config.json": "a2002d472f433977af8c5085d6c2d62faae6ff46a38a4942297a5b4946acf917",
+          "generation_config.json": "8b9c36bf5e4c8a8254ec8292914834faa69b295a1e98e0fd93e3025a466730a6",
+          "quantization_config.json": "8a1700313b9a98d5ddd4ba3b8dc01dbe22ec3df7ee05d148bc7b90d2b4a7039a",
+          "tokenizer.json": "c4687c0046da6579aba6f9aa713e9bed61e5fd210b0e012028ae57751d028689",
+          "tokenizer_config.json": "20e733ea2a34610118e22a41867b33595df15c26e8318c1c51f08beb79878c26"
+        },
+        "weights_hashed": false,
+        "gpu_time": null,
+        "thermal_state": "unmeasured",
+        "contract": "Q0 addressing/lifetime; no new quantization or sampling change",
+        "benchmark_options": {
+          "model": "models/fixtures/LFM2.5-8B-A1B-EXL3-3.10bpw",
+          "repeats": 512,
+          "pairs": 3,
+          "warmup_pairs": 1,
+          "max_tokens": 32,
+          "prompt_file": "docs/audit-runtime-2026-09-04.md",
+          "share_finished_kv": false,
+          "dense_m64": false,
+          "segmented_m64": true,
+          "segmented_hoist": true
+        },
+        "prompt_sha256": "9722643467a67c9d86e4fee9ab2d36c7447ec24831b210905f65df2dcdcc2e56",
+        "runner_sha256": "207d50d873113e3cb8eda01b706649f2c45a4f56a7a6e4def86b9f1bcd647d87"
+      },
+      "rows": [
+        {
+          "pair": -1,
+          "candidate": true,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 1249.8439214162256,
+          "ttft_seconds": 2.214709292000407,
+          "decode_tps": 71.83477307022694,
+          "peak_memory_gb": 4.721542956,
+          "active_bytes": 4217957040,
+          "process_footprint_bytes": 4513367576,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        },
+        {
+          "pair": -1,
+          "candidate": false,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 997.2721193712304,
+          "ttft_seconds": 2.761971958999311,
+          "decode_tps": 72.94569635750813,
+          "peak_memory_gb": 4.72157574,
+          "active_bytes": 4217959088,
+          "process_footprint_bytes": 4514989592,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": false,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 976.134370621883,
+          "ttft_seconds": 2.8244116669993673,
+          "decode_tps": 71.91784893711126,
+          "peak_memory_gb": 4.721542972,
+          "active_bytes": 4217967280,
+          "process_footprint_bytes": 4510926360,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        },
+        {
+          "pair": 0,
+          "candidate": true,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 1217.9407642136584,
+          "ttft_seconds": 2.26391062500079,
+          "decode_tps": 69.18960104053691,
+          "peak_memory_gb": 4.721542976,
+          "active_bytes": 4217965232,
+          "process_footprint_bytes": 4515071512,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": true,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 1230.2662063548387,
+          "ttft_seconds": 2.2402982909998173,
+          "decode_tps": 69.89540855577134,
+          "peak_memory_gb": 4.721542976,
+          "active_bytes": 4217954992,
+          "process_footprint_bytes": 4515071512,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        },
+        {
+          "pair": 1,
+          "candidate": false,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 977.8339970995132,
+          "ttft_seconds": 2.8161155409998173,
+          "decode_tps": 72.72258094774561,
+          "peak_memory_gb": 4.721542972,
+          "active_bytes": 4217963184,
+          "process_footprint_bytes": 4515120664,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": false,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 987.1693153552515,
+          "ttft_seconds": 2.7939565840006253,
+          "decode_tps": 72.15139457301878,
+          "peak_memory_gb": 4.72157574,
+          "active_bytes": 4217963184,
+          "process_footprint_bytes": 4510909976,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        },
+        {
+          "pair": 2,
+          "candidate": true,
+          "prompt_tokens": 2746,
+          "generated_tokens": 32,
+          "prefill_tps": 1239.8195178736794,
+          "ttft_seconds": 2.2240487079998275,
+          "decode_tps": 72.38301824342834,
+          "peak_memory_gb": 4.721542976,
+          "active_bytes": 4217961136,
+          "process_footprint_bytes": 4515104280,
+          "exact": true,
+          "fingerprint": [
+            "86fcf0b15fe415217388cbc6a16a8e94901b589405539fe7657f71b5fe49df78",
+            "55462df5ffd8801cdbe562ae90dea404aa088cbb85b02ac58e8a27ba9a4e6948"
+          ]
+        }
+      ],
+      "summary": {
+        "prefill_gain_percent": 25.5934011104779,
+        "ttft_reduction_percent": 20.39787873814256,
+        "decode_change_percent": -3.7935615940906,
+        "prefill_before": 977.8339970995132,
+        "prefill_after": 1230.2662063548387,
+        "ttft_before": 2.8161155409998173,
+        "ttft_after": 2.2402982909998173
+      }
+    }
+  ]
+}

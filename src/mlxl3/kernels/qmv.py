@@ -85,11 +85,12 @@ _USE_QMM_ADDRESS_HOIST = os.environ.get('MLXL3_QMM_ADDRESS_HOIST', '1') != '0'
 _USE_TENSOR_SEGMENTED_QMM = (
     os.environ.get("MLXL3_TENSOR_SEGMENTED_QMM", "1") != "0"
 )
-_SEGMENTED_TENSOR_ROWS = int(os.environ.get('MLXL3_SEGMENTED_TENSOR_ROWS', '32'))
+_SEGMENTED_TENSOR_ROWS = int(os.environ.get('MLXL3_SEGMENTED_TENSOR_ROWS', '0'))
+_USE_SEGMENTED_ADDRESS_HOIST = os.environ.get('MLXL3_SEGMENTED_ADDRESS_HOIST', '1') == '1'
 _USE_SEGMENTED_BUCKETS = os.environ.get('MLXL3_SEGMENTED_BUCKETS', '0') == '1'
 _USE_SEGMENTED_LOCALITY = os.environ.get('MLXL3_SEGMENTED_LOCALITY', '0') == '1'
-if _SEGMENTED_TENSOR_ROWS not in (8, 16, 32):
-    raise ValueError('MLXL3_SEGMENTED_TENSOR_ROWS must be 8, 16 or 32')
+if _SEGMENTED_TENSOR_ROWS not in (0, 8, 16, 32, 64):
+    raise ValueError('MLXL3_SEGMENTED_TENSOR_ROWS must be 0 (auto), 8, 16, 32 or 64')
 
 
 @cache
@@ -811,8 +812,10 @@ def _qmm_tensor_kernel(
                 dextents<int, 2>{{int(BK), int(BM)}},
                 array<int, 2>{{1, int(INPUT_DIMS)}}
             );
+            // Explicit operand types avoid macOS 27's thread-qualified decltype.
+            using right_type = tensor_ops::matmul2d<descriptor, execution_simdgroup>::cooperative_tensor_right_input_t<half, half, float>;
             auto accumulator = operation.get_destination_cooperative_tensor<
-                decltype(first_left), decltype(right), float
+                tensor<device half, dextents<int, 2>, tensor_inline>, right_type, float
             >();
             for (ushort index = 0; index < accumulator.get_capacity(); ++index) {{
                 if (accumulator.is_valid_element(index)) {{
@@ -1716,7 +1719,7 @@ def _make_segmented_tensor_kernel(*, bucketed, block_rows, **kwargs):
 
 
 @cache
-def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32, bucketed: bool = False, locality: bool = False):
+def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32, bucketed: bool = False, locality: bool = False, hoist: bool = True):
     """M5 TensorOp QMM over sorted expert rows and EXL3 trellises."""
 
     packed_u32 = k * 256 // 32
@@ -1726,9 +1729,58 @@ def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32,
     # change so a serialized weight tile can stay hot across its consumers.
     row_coordinate = f'threadgroup_position_in_grid.x % {subblocks}u' if locality else 'threadgroup_position_in_grid.z'
     column_coordinate = f'threadgroup_position_in_grid.x / {subblocks}u' if locality else 'threadgroup_position_in_grid.x'
+
+    def addressing(depth, declare='uint '):
+        return f'''
+                    auto coordinate = right.get_multidimensional_index(index);
+                    uint local_column = uint(coordinate[0]);
+                    uint input_row = {depth}uint(coordinate[1]);
+                    uint tile_k = input_row >> 4u;
+                    uint tile_n = output_tile + (local_column >> 4u);
+                    uint local = (input_row & 15u) * 16u + (local_column & 15u);
+                    uint source = uint(mlxl3_perm_inv[local]);
+                    uint position = source >> 1u;
+                    int begin = int(position * 2u * K_BITS + K_BITS)
+                        - 16 + int(256u * K_BITS);
+                    int end = begin + int(K_BITS) + 16;
+                    {declare}word0 = uint(begin / 32) % PACKED_U32;
+                    {declare}word1 = uint((end - 1) / 32) % PACKED_U32;
+                    {declare}shift = uint(((end - 1) / 32 + 1) * 32 - end)
+                        + ((source & 1u) ? 0u : K_BITS);
+        '''
+
+    word_pointer = 'trellis + ulong(tile_k * source_tiles + tile_n) * PACKED_U32'
+    prepare_addresses = ''
+    load_addresses = addressing('depth + ') + f'const device uint* words = {word_pointer};'
+    if hoist:
+        # Same guarded per-lane addressing strategy as the dense TensorOps QMM.
+        prepare_addresses = f'''
+            constexpr uint ADDRESS_CAPACITY = BN * BK / 32u;
+            uint offset0[ADDRESS_CAPACITY], offset1[ADDRESS_CAPACITY], shifts[ADDRESS_CAPACITY];
+            if (right.get_capacity() <= ADDRESS_CAPACITY) {{
+                for (ushort index = 0; index < right.get_capacity(); ++index) {{
+                    if (!right.is_valid_element(index)) continue;
+                    {addressing('')}
+                    offset0[index] = (tile_k * source_tiles + tile_n) * PACKED_U32 + word0;
+                    offset1[index] = (tile_k * source_tiles + tile_n) * PACKED_U32 + word1;
+                    shifts[index] = shift;
+                }}
+            }}
+        '''
+        load_addresses = f'''
+                    uint word0, word1, shift;
+                    const device uint* words;
+                    if (right.get_capacity() <= ADDRESS_CAPACITY) {{
+                        words = trellis + ulong(depth / 16u) * source_tiles * PACKED_U32;
+                        word0 = offset0[index]; word1 = offset1[index]; shift = shifts[index];
+                    }} else {{
+                        {addressing('depth + ', declare='')}
+                        words = {word_pointer};
+                    }}
+        '''
     return _make_segmented_tensor_kernel(
         bucketed=bucketed, block_rows=block_rows,
-        name=f"mlxl3_expert_qmm_tensor_segmented_k{k}_cb{mode}_bm{block_rows}_b{int(bucketed)}_l{int(locality)}_v4",
+        name=f"mlxl3_expert_qmm_tensor_segmented_k{k}_cb{mode}_bm{block_rows}_b{int(bucketed)}_l{int(locality)}_h{int(hoist)}_v5",
         input_names=["xhat", "trellis", "block_table", "block_count", "dims"],
         output_names=["output"],
         header=(
@@ -1790,8 +1842,9 @@ def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32,
                 dextents<int, 2>{{int(BK), int(BM)}},
                 array<int, 2>{{1, int(input_dims)}}
             );
+            using right_type = tensor_ops::matmul2d<descriptor, execution_simdgroup>::cooperative_tensor_right_input_t<half, half, float>;
             auto accumulator = operation.get_destination_cooperative_tensor<
-                decltype(first_left), decltype(right), float
+                tensor<device half, dextents<int, 2>, tensor_inline>, right_type, float
             >();
             for (ushort index = 0; index < accumulator.get_capacity(); ++index) {{
                 if (accumulator.is_valid_element(index)) {{
@@ -1799,28 +1852,13 @@ def _segmented_expert_qmm_tensor_kernel(k: int, mode: int, block_rows: int = 32,
                 }}
             }}
 
+            {prepare_addresses}
             for (uint depth = 0u; depth < input_dims; depth += BK) {{
                 for (ushort index = 0; index < right.get_capacity(); ++index) {{
                     if (!right.is_valid_element(index)) {{
                         continue;
                     }}
-                    auto coordinate = right.get_multidimensional_index(index);
-                    uint local_column = uint(coordinate[0]);
-                    uint input_row = depth + uint(coordinate[1]);
-                    uint tile_k = input_row >> 4u;
-                    uint tile_n = output_tile + (local_column >> 4u);
-                    uint local = (input_row & 15u) * 16u + (local_column & 15u);
-                    uint source = uint(mlxl3_perm_inv[local]);
-                    uint position = source >> 1u;
-                    int begin = int(position * 2u * K_BITS + K_BITS)
-                        - 16 + int(256u * K_BITS);
-                    int end = begin + int(K_BITS) + 16;
-                    uint word0 = uint(begin / 32) % PACKED_U32;
-                    uint word1 = uint((end - 1) / 32) % PACKED_U32;
-                    uint shift = uint(((end - 1) / 32 + 1) * 32 - end)
-                        + ((source & 1u) ? 0u : K_BITS);
-                    const device uint* words = trellis
-                        + ulong(tile_k * source_tiles + tile_n) * PACKED_U32;
+                    {load_addresses}
                     ulong merged = (ulong(words[word0]) << 32) | ulong(words[word1]);
                     uint codeword = uint(merged >> shift) & 0xffffu;
                     right[index] = half(mlxl3_decode_codeword(codeword, 0));
@@ -1873,6 +1911,8 @@ def qmm_exl3_expert_segmented(
         raise ValueError("segmented expert QMM requires 64-aligned matrices")
     cb = CodebookMode(mode)
     max_blocks = int(block_table.shape[1])
+    # Amortize dequantization on large prefills without over-padding short ones.
+    block_rows = _SEGMENTED_TENSOR_ROWS or (64 if rows >= 4096 and not _USE_SEGMENTED_BUCKETS else 32)
     dims = mx.array(
         [
             trellis.shape[0],
@@ -1885,12 +1925,12 @@ def qmm_exl3_expert_segmented(
         dtype=mx.uint32,
     )
     kernel = (
-        _segmented_expert_qmm_tensor_kernel(k, int(cb), _SEGMENTED_TENSOR_ROWS, _USE_SEGMENTED_BUCKETS, _USE_SEGMENTED_LOCALITY)
+        _segmented_expert_qmm_tensor_kernel(k, int(cb), block_rows, _USE_SEGMENTED_BUCKETS, _USE_SEGMENTED_LOCALITY, _USE_SEGMENTED_ADDRESS_HOIST)
         if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
         else _segmented_expert_qmm_kernel(k, int(cb))
     )
     grid = (
-        ((output_dims // 32) * 32, max_blocks, 8 if _USE_SEGMENTED_BUCKETS else 64 // _SEGMENTED_TENSOR_ROWS)
+        ((output_dims // 32) * 32, max_blocks, 8 if _USE_SEGMENTED_BUCKETS else 64 // block_rows)
         if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available()
         else ((output_dims // 64) * 128, max_blocks, 1)
     )
@@ -1909,7 +1949,9 @@ def qmm_exl3_expert_segmented(
             block_count,
             dims,
         ],
-        template=[("T", mx.float16)],
+        # The TensorOps source uses half, not T. An unnecessary function
+        # template also breaks its local descriptor under the macOS 27 SDK.
+        template=[] if _USE_TENSOR_SEGMENTED_QMM and _tensor_ops_available() else [("T", mx.float16)],
         grid=grid,
         threadgroup=threadgroup,
         output_shapes=[(rows, output_dims)],
