@@ -482,3 +482,27 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   au manifeste. Ne pas publier l'artefact incomplet ; log du premier échec
   `build/release-v101-build.log`. L'option `--version` du CLI n'existe pas :
   version vérifiée via manifeste/Info.plist, sans ajouter une commande hors scope.
+- Révision après demande explicite de SDK27 : le build SDK26.5 a terminé
+  (exit 0, `build/release-v101-sdk265-build.log`), mais reste un artefact local
+  non installé et non publié. La publication est suspendue pour résoudre la
+  chaîne SwiftUI27. Le SDK27 contient bien SwiftUI/SwiftUICore et déclare
+  `State()` via `SwiftUIMacros.StateMacro`, mais aucun plugin SwiftUIMacros
+  n'a été trouvé dans `/Library/Developer` ou `/Applications` ; seul
+  CommandLineTools est sélectionné, sans Xcode.app. Aucun SDK ni code SwiftUI
+  contourné/modifié. Installation des outils Xcode27 complets à confirmer.
+- Installation Xcode27 autorisée par l'utilisateur. Espace disponible vérifié
+  (~554 GiB), aucune archive Xcode dans Downloads. Le site officiel Apple
+  redirige les téléchargements Applications vers la connexion Apple Account :
+  page ouverte et laissée à l'utilisateur pour authentification. Aucun
+  téléchargement/installation Xcode ni publication v1.0.1 effectué à ce stade.
+- L'utilisateur choisit finalement SDK26.5. Reprise du paquet propre `4e1fd76`,
+  sans téléchargement Xcode27. Vérification finale prévue : signature et
+  intégrité DMG, self-checks GUI et deux tours Qwen via le runtime de l'app
+  finale (répétition du smoke précédent pour valider la copie embarquée).
+- Contrôles du paquet SDK26.5 réussis : signature stricte, intégrité DMG,
+  self-checks timeline/MCP/mémoire Metal et deux tours Qwen avec warmup réel
+  (`build/release-v101-final-app-smoke.*`). Le manifeste contient toutefois
+  un ancien doublon editable `mlxl3.egg-info` 1.0.0, malgré le code 1.0.1 :
+  correction du générateur pour donner priorité à la version source embarquée.
+  Reconstruction du paquet prévue, moteur/GUI inchangés ; revérifier
+  manifeste, signature, DMG et identité du runtime avec celui testé.
