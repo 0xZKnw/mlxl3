@@ -1,6 +1,7 @@
 """Record the exact dependency environment and source revision in a release."""
 import importlib.metadata
 import json
+import os
 from pathlib import Path
 import plistlib
 import subprocess
@@ -18,5 +19,7 @@ payload = {
     'tracked_changes': bool(subprocess.check_output(['git', 'diff', 'HEAD', '--name-only'], cwd=root)),
     'python': sys.version.split()[0], 'packages': dict(sorted(packages.items())),
     'signing': 'ad-hoc; not notarized',
+    'swift_sdk': os.environ.get('MLXL3_MACOS_SDK') or subprocess.check_output(
+        ['xcrun', '--show-sdk-path'], text=True).strip(),
 }
 Path(sys.argv[1]).write_text(json.dumps(payload, indent=2) + '\n')

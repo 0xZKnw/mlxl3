@@ -473,3 +473,12 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Il s'agit de validation de distribution, pas d'un nouveau benchmark de gains.
 - Publication prévue : tag GitHub v1.0.1, DMG build 12, manifestes/validation ;
   conserver une copie de l'app locale précédente avant son remplacement.
+- Checkout propre `98da8c5` : 177 tests réussis. Runtime PyInstaller : warmup
+  Qwen et deux tours avec rappel CEDAR-42 réussis ; prefill de 4k tokens puis
+  génération réussis. Logs `build/release-v101-{clean-tests,qwen-smoke,qwen-long}*`.
+- Build GUI interrompu : SDK27 fourni par CommandLineTools sans plugin
+  `SwiftUIMacros.StateMacro`. Aucun changement UI nécessaire. Réessayer avec
+  le SDK26.5 déjà installé, sélection explicite `MLXL3_MACOS_SDK` et SDK inscrit
+  au manifeste. Ne pas publier l'artefact incomplet ; log du premier échec
+  `build/release-v101-build.log`. L'option `--version` du CLI n'existe pas :
+  version vérifiée via manifeste/Info.plist, sans ajouter une commande hors scope.

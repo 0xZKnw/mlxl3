@@ -36,8 +36,12 @@ if [[ ! -x "${runtime_dist_dir}/mlxl3" ]]; then
     exit 2
 fi
 
-swift build --configuration release --package-path "${package_dir}"
-binary_dir="$(swift build --configuration release --package-path "${package_dir}" --show-bin-path)"
+swift_args=(--configuration release --package-path "${package_dir}")
+if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
+    swift_args+=(--sdk "${MLXL3_MACOS_SDK}")
+fi
+swift build "${swift_args[@]}"
+binary_dir="$(swift build "${swift_args[@]}" --show-bin-path)"
 
 if [[ "${app_dir}" != "${repo_dir}/dist/MLXL3 Desktop.app" ]]; then
     print -u2 "Refus de remplacer un chemin d’application inattendu."
