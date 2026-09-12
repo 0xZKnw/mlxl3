@@ -246,11 +246,10 @@ Build the signed local application bundle and open it:
 open "dist/MLXL3 Desktop.app"
 ```
 
-Release builds embed their own Python 3.12 interpreter, MLX/Metal libraries,
-MLX-LM model implementations, tokenizers, Hugging Face downloader, and MLXL3
-engine. Development builds still discover the editable project virtual
-environment automatically. A different executable can be selected with
-`MLXL3_EXECUTABLE=/path/to/mlxl3`.
+The Rust-rewrite release bundle contains the native MLXL3 executable,
+MLX/Metal libraries, tokenizer/template runtime, Hugging Face downloader and
+MCP client. It does not contain or launch Python. Development builds can use a
+different native executable with `MLXL3_EXECUTABLE=/path/to/mlxl3-rs`.
 
 ### Install the standalone DMG
 
@@ -306,9 +305,11 @@ python3.12 -m venv .venv
 scripts/check-desktop.sh
 ```
 
-For release builds, install with `-c packaging/constraints-macos.txt`. The bundle
-contains `Contents/Resources/build-info.json` with engine/UI version, build,
-source commit and the complete installed dependency versions. Same-version
+For legacy Python development, install with `-c packaging/constraints-macos.txt`.
+The release app instead bundles the native Rust executable, MLX libraries and
+Metal shaders; no Python interpreter is included. It contains
+`Contents/Resources/build-info.json` with engine/UI version, build and source
+commit. Same-version
 hotfixes increment the build number and use a `-bNUMBER-` DMG filename so the
 updater can detect them. Updates retain the previous app as `.mlxl3-backup`;
 runtime validation happens before the working app is stopped.

@@ -34,19 +34,8 @@ enum CLIResolver {
         var sourceProbe = URL(fileURLWithPath: #filePath)
         for _ in 0..<8 {
             sourceProbe.deleteLastPathComponent()
-            candidates.append(sourceProbe.appending(path: ".venv/bin/mlxl3").path)
-        }
-
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        candidates += [
-            FileManager.default.currentDirectoryPath + "/.venv/bin/mlxl3",
-            home + "/.local/bin/mlxl3",
-            "/opt/homebrew/bin/mlxl3",
-            "/usr/local/bin/mlxl3",
-        ]
-
-        if let path = environment["PATH"] {
-            candidates += path.split(separator: ":").map { String($0) + "/mlxl3" }
+            candidates.append(sourceProbe.appending(path: "target/release/mlxl3-rs").path)
+            candidates.append(sourceProbe.appending(path: "target/debug/mlxl3-rs").path)
         }
         return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
             .map { URL(fileURLWithPath: $0) }
@@ -117,32 +106,6 @@ final class MLXL3Bridge: @unchecked Sendable {
     ) {
         execute(["register", name, path.path, "--force"]) { result in
             completion(result.map { _ in () })
-        }
-    }
-
-    static func downloadModel(
-        repo: String,
-        revision: String?,
-        name: String?,
-        completion: @escaping @MainActor @Sendable (Result<LocalModel, Error>) -> Void
-    ) {
-        var arguments = ["download", repo, "--json"]
-        if let revision, !revision.isEmpty {
-            arguments += ["--revision", revision]
-        }
-        if let name, !name.isEmpty {
-            arguments += ["--name", name]
-        }
-        execute(arguments) { result in
-            completion(
-                result.flatMap { data in
-                    do {
-                        return .success(try JSONDecoder().decode(LocalModel.self, from: data))
-                    } catch {
-                        return .failure(error)
-                    }
-                }
-            )
         }
     }
 
