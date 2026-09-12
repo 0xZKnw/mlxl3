@@ -1432,3 +1432,61 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   ignorés), test sampler passé, **14 contrats passés**, doc-tests passés et
   `git diff --check` propre. État : prêt à pousser sur
   `codex/rust-performance` ; aucune app installée ni release produite.
+
+### OPT-2026-09-12-RUST-PERF-14 — Taille de bloc Qwen QMM — validé
+
+- Hypothèse : le bloc conservateur de 32 tokens laisse du coût de lancement et
+  de routage MoE non amorti. Des blocs de 64 puis 128 peuvent augmenter le
+  prefill sans changer les kernels ni le decode ; arrêter dès régression.
+- Baseline PERF-13, même bridge/prompt 212/32 et trois répétitions : **154,09
+  tok/s prefill**, **49,17 tok/s decode**, **1,3761 s TTFT**, texte SHA256
+  `5aed1d...934c`. Pic **13,0644 GB**.
+- Protocole : changer uniquement la constante de chunk, build release, warmup
+  puis trois répétitions ; contrôler le hash greedy, le pic et le decode. M5,
+  MLX 0.32.2, batterie, thermique non contrôlée. Premier candidat : 64.
+  État : **en cours**, aucun résultat candidat.
+- Bloc 64, trois répétitions : médiane **112,99 tok/s prefill**, **32,81 tok/s
+  decode**, **1,8771 s TTFT**, hash et pic inchangés. Le decode simultanément
+  tombé de 49 à 33 tok/s montre un changement de palier machine ; comparaison
+  brute **non concluante**. Revenir immédiatement à 32 et mesurer sous le même
+  palier avant toute décision ; 128 n'est pas lancé à ce stade.
+- Retour immédiat au bloc 32 sous le même palier bas : médiane **102,29 tok/s
+  prefill**, **32,95 tok/s decode**, **2,0728 s TTFT**, hash/pic inchangés.
+  Comparaison alternée valide donc le bloc 64 à **+10,46 % prefill** et
+  **−9,44 % TTFT**, avec −0,43 % decode (bruit). Tester maintenant 128 sous le
+  même protocole ; 64 est le meilleur candidat conservé jusque-là.
+- Bloc 128 : les trois répétitions passent de **111,92 à 191,25 puis 228,76
+  tok/s prefill**, pendant que le decode remonte de 31,60 à 45,20 tok/s. Hash
+  et pic inchangés. La transition de palier en plein processus empêche une
+  comparaison propre ; résultat provisoirement **non concluant**. Revenir à 64
+  immédiatement pour obtenir une référence au palier remonté.
+- Bloc 64 remesuré au palier haut : médiane **169,26 tok/s prefill**, **48,63
+  tok/s decode**, **1,2528 s TTFT**, hash/pic inchangés. Face au bloc 32 au même
+  palier (154,09/49,17/1,3761), cela confirme **+9,85 % prefill** et **−8,96 %
+  TTFT**, avec −1,10 % decode compatible avec le bruit. Remesurer 128 maintenant
+  que le palier est stable.
+- Bloc 128 au palier haut stable : médiane **235,68 tok/s prefill**, **48,63
+  tok/s decode**, **0,8998 s TTFT**, hash/pic inchangés. Face à 64 : **+39,24 %
+  prefill**, **−28,18 % TTFT**, decode inchangé à <0,01 %. Une cause simple est
+  aussi éliminée : 128 découpe 212 en 128+84, tous deux QMM, tandis que 64 laisse
+  un résidu de 20 sur le chemin token-par-token. Tester 256 (un bloc de 212)
+  avant de figer la valeur.
+- Bloc 256 sur 212 tokens : médiane **242,23 tok/s prefill**, **48,39 tok/s
+  decode**, **0,8755 s TTFT**, hash/pic inchangés, soit encore +2,78 % prefill
+  et −2,70 % TTFT face à 128 (decode −0,49 %, bruit). Sur un second prompt de
+  **1018 tokens**, bloc 256 : médiane **231,93 tok/s prefill**, TTFT 4,3896 s,
+  hash stable et pic inchangé ; le decode court traverse encore un changement
+  de palier et n'est pas utilisé. Tester 512 sur ces 1018 tokens.
+- Bloc 512 sur 1018 tokens : médiane brute **221,93 tok/s prefill**, TTFT
+  4,5875 s, hash/pic inchangés, mais le decode chute simultanément de 43,38 à
+  **27,59 tok/s** (premier run 6,19), signal d'un nouveau changement de palier.
+  Résultat **non concluant** ; revenir à 256 et comparer immédiatement. Le bloc
+  512 n'est pas conservé sans A/B au même palier.
+- Retour bloc 256 sur 1018 tokens : médiane **236,81 tok/s prefill**, **41,31
+  tok/s decode**, **4,2990 s TTFT**, hash/pic inchangés. Malgré les variations
+  de fréquence, 256 dépasse 512 de **+6,71 % prefill** et garde un decode bien
+  supérieur sur cette alternance ; 512 est rejeté.
+- Décision : **bloc 256 validé et intégré**. Sur le prompt court comparable il
+  améliore PERF-13/32 de 154,09 à 242,23 tok/s (**+57,20 %**) et le TTFT de
+  1,3761 à 0,8755 s (**−36,38 %**), sans changement de hash, de pic mémoire ni
+  de chemin decode. Build release validé ; publication encore à faire.
