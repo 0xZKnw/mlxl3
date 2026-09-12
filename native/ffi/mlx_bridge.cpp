@@ -164,6 +164,8 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
           }, true);
           return softcap({a, mx::array(scalar, a.dtype())})[0];
         }
+        case 19: return mx::argmax(a, -1, false);
+        case 20: return mx::broadcast_to(a, shape(args, nargs));
       }
       throw std::invalid_argument("invalid unary operation");
     };

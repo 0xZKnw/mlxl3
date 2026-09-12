@@ -518,21 +518,6 @@ impl Layer {
         }
     }
 
-    fn eval_state(&self) -> Result<()> {
-        match self {
-            Self::Linear(layer) => {
-                let (conv, recurrent) = layer.states()?;
-                conv.eval()?;
-                recurrent.eval()
-            }
-            Self::Attention(layer) => {
-                let (keys, values) = layer.states()?;
-                keys.eval()?;
-                values.eval()
-            }
-        }
-    }
-
     fn reset(&mut self) {
         match self {
             Self::Linear(layer) => layer.reset(),
@@ -675,8 +660,6 @@ impl Qwen35Moe {
         }
         for layer in &mut self.layers {
             hidden = layer.forward(&hidden)?;
-            hidden.eval()?;
-            layer.eval_state()?;
             if trace {
                 layers.push(hidden.to_f16_bits()?);
             }
@@ -686,6 +669,9 @@ impl Qwen35Moe {
             layers.push(normalized.to_f16_bits()?);
         }
         let logits = self.head.forward(&normalized)?;
+        // One token is one Metal graph. Synchronizing hidden/cache arrays in
+        // every layer serialized dozens of otherwise independent dispatches.
+        logits.eval()?;
         self.offset += 1;
         Ok((logits, layers))
     }

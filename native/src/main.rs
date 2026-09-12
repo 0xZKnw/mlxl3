@@ -1313,7 +1313,16 @@ fn select_token(
         repetition_penalty.is_finite() && repetition_penalty > 0.,
         "repetition_penalty must be positive"
     );
-    let mut values = logits.log_probs()?.to_f32()?;
+    let log_probs = logits.log_probs()?;
+    if (temperature == 0. || top_k == 1) && repetition_penalty == 1. {
+        return log_probs
+            .argmax()?
+            .to_u32()?
+            .into_iter()
+            .next()
+            .context("model returned no logits");
+    }
+    let mut values = log_probs.to_f32()?;
     if repetition_penalty != 1. {
         for &token in generated.iter().rev().take(20) {
             if let Some(value) = values.get_mut(token as usize) {

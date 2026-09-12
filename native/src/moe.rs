@@ -483,8 +483,10 @@ impl Exl3SwitchGlu {
         if matches!(self.activation, GluActivation::Gelu) {
             return self.forward_gelu(x, &selected, scores);
         }
-        let copies: Vec<_> = std::iter::repeat_n(x, (self.top_k * 2) as usize).collect();
-        let x_gu = Array::concatenate(&copies, 0)?;
+        let x_gu = x
+            .reshape(&[1, 1, 1, self.input])?
+            .broadcast_to(&[1, self.top_k, 2, self.input])?
+            .reshape(&[self.top_k * 2, self.input])?;
         let gu_input_scales = self
             .gu_suh
             .take(&selected, 0)?
@@ -529,9 +531,10 @@ impl Exl3SwitchGlu {
     }
 
     fn forward_gelu(&self, x: &Array, selected: &Array, scores: &Array) -> Result<Array> {
-        let copies: Vec<_> = std::iter::repeat_n(x, (self.top_k * 2) as usize).collect();
         let gate_up = expert_mapped(
-            &Array::concatenate(&copies, 0)?,
+            &x.reshape(&[1, 1, 1, self.input])?
+                .broadcast_to(&[1, self.top_k, 2, self.input])?
+                .reshape(&[self.top_k * 2, self.input])?,
             &self.gu_trellis,
             Some(
                 &self

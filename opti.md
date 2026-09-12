@@ -935,3 +935,409 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   CI du tag réussie : https://github.com/0xZKnw/mlxl3/actions/runs/34637258944.
   Signature toujours ad-hoc/non notarisée. Volume de test éjecté, aucun moteur
   de test encore actif. Travaux Ling non publiés préservés hors des commits.
+
+### OPT-2026-09-12-RUST-PERF-01 — Synchronisations Qwen Rust par couche — validé, code local
+
+- Hypothèse : le port Rust synchronise actuellement `hidden` puis l'état dans
+  chaque couche Qwen, soit des dizaines de barrières CPU/GPU par token, alors
+  que le moteur Python validé synchronise le graphe complet au point de
+  sampling. Regrouper ces évaluations à la frontière du token doit restaurer
+  une part importante du decode sans changer aucun calcul ni ordre numérique.
+- Antécédents consultés : `src/mlxl3/kernels/qmv.py`, `src/mlxl3/linear.py`,
+  `src/mlxl3/moe.py`, `src/mlxl3/recurrent.py`, ainsi que
+  `docs/decode-investigation-2026-09-10.md`,
+  `docs/general-performance-2026-09-07.md` et
+  `docs/prefill-investigation-2026-09-11.md`. Aucun essai historique ne mesure
+  cette barrière propre au nouveau port Rust.
+- Baseline/candidat : runtime Rust release, checkpoint local
+  `models/Qwen3.6-35B-A3B-EXL3-2.49bpw`, température 0, MCP désactivé, prompt
+  fixe, 32 tokens maximum ; un tour de chauffe puis au moins trois tours
+  mesurés si la stabilité thermique le permet. Comparer texte/token IDs et
+  logits imposés avant/après ; parité requise. Commande orchestrée via le
+  protocole `mlxl3-rs bridge`, preuves sous `build/rust-perf-01-*.jsonl`.
+- Conditions initiales : Apple M5 10 cœurs GPU, Metal 4, macOS local ; batterie
+  100 %, débranchée. Température non mesurée. Le moteur GUI est fermé et aucun
+  autre modèle n'est chargé. État d'intégration : analyse seulement, aucune
+  mesure ni modification de kernel/runtime pour cet essai.
+- Baseline mesurée avec 24 tokens de prompt et 32 générés : tour de compilation
+  decode 8,72 tok/s, prefill 3,83 tok/s, TTFT 6,278 s ; trois tours chauds
+  decode 8,39 / 8,10 / 8,80 tok/s (médiane **8,39**), prefill 6,82 / 5,96 /
+  5,79 tok/s (médiane **5,96**), TTFT 3,519 / 4,029 / 4,149 s (médiane
+  **4,029 s**). Les quatre sorties sont identiques. Pic reporté 13,064 GB,
+  uniquement taille résidente estimée du checkpoint dans ce runtime, pas une
+  mesure du processus. Preuve `build/rust-perf-01-baseline.jsonl`.
+- Première vérification interrompue avant compilation : `cargo` n'est pas dans
+  le `PATH` non interactif de cette session (`command not found`). Aucun test
+  candidat ni résultat de performance ; localiser la toolchain déjà utilisée
+  par le build de release puis relancer exactement les mêmes contrôles.
+- Deuxième lancement encore interrompu avant compilation : le binaire Cargo
+  absolu a été trouvé mais son `rustc` frère n'était toujours pas dans `PATH`.
+  Relance suivante avec le dossier complet de la toolchain stable préfixé ;
+  toujours aucune donnée candidat à ce stade.
+- Troisième lancement a atteint le build script puis s'est arrêté avant les
+  tests : `MLXL3_MLX_ROOT` absent. Aucun binaire candidat produit. Réutiliser
+  exactement le chemin MLX 0.32.2 enregistré par le build d'app, sans installer
+  ni changer de dépendance.
+- Build candidat réussi avec la toolchain stable et MLX 0.32.2. Le filtre de
+  tests `qwen` ne sélectionne actuellement aucun test Rust (0 exécuté) : il ne
+  constitue pas une validation. Contrôle différentiel réel effectué avec
+  l'ancien runtime `build/rust-runtime/mlxl3` et le candidat
+  `target/release/mlxl3-rs`, tokens imposés `1,2` : sorties JSON/logits de
+  2 978 940 octets strictement identiques, SHA256 commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`.
+  Le warning `rust-objcopy` sans `libLLVM.dylib` n'empêche ni le build ni
+  l'exécution ; il concerne uniquement le strip de debug.
+- Candidat, même protocole : tour de compilation decode 28,70 tok/s, prefill
+  13,86 tok/s, TTFT 1,734 s ; trois tours chauds decode 27,38 / 29,50 / 28,93
+  tok/s (médiane **28,93**, **+244,9 %** contre 8,39), prefill 29,41 / 29,69 /
+  29,43 tok/s (médiane **29,43**, **+393,8 %** contre 5,96), TTFT 0,817 /
+  0,809 / 0,816 s (médiane **0,816 s**, **−79,7 %** contre 4,029 s).
+  Sorties identiques entre tous les tours et au runtime baseline ; preuve
+  `build/rust-perf-01-candidate.jsonl`. Batterie toujours débranchée, charge
+  descendante non enregistrée, température non mesurée ; l'amplitude dépasse
+  largement le bruit possible mais les pourcentages restent ceux de ce prompt.
+- Décision : conserver la synchronisation unique sur les logits à la frontière
+  de chaque token et supprimer les synchronisations par couche. Cela ne porte
+  encore ni le QMM TensorOps du Python ni le prefill par séquence ; aucun gain
+  n'est revendiqué pour les autres architectures. App installée inchangée,
+  aucune publication.
+
+### OPT-2026-09-12-RUST-PERF-02 — Sampling greedy entièrement Metal — validé fonctionnel, code local
+
+- Hypothèse : avec température 0/top-k 1 et pénalité neutre, le runtime Rust
+  matérialise aujourd'hui tout le `log_softmax` vocabulaire en FP32 sur CPU puis
+  y cherche le maximum. Le moteur Python calcule le même `log_softmax` et son
+  argmax sur Metal, puis ne lit qu'un index scalaire. Ajouter l'opération MLX
+  native déjà disponible doit réduire le temps decode sans approximation.
+- Baseline : candidat validé de RUST-PERF-01, même Qwen3.6 35B A3B, prompt fixe
+  24 tokens, 32 générés, trois tours chauds : decode médian 28,93 tok/s,
+  prefill 29,43 tok/s, TTFT 0,816 s. Batterie débranchée ; température non
+  mesurée. Protocole identique, preuve candidate prévue
+  `build/rust-perf-02-candidate.jsonl`.
+- Contrôle qualité prévu : argmax Rust unitaire sur GPU, puis sortie complète
+  identique au candidat précédent. Le chemin CPU existant reste utilisé pour
+  sampling non greedy ou pénalité de répétition non neutre. État : aucun code
+  ni résultat pour cet essai.
+- Premier contrôle unitaire : sampling greedy réussi, mais le smoke Array a
+  échoué sur une attente de test incorrecte (`[3]`) : l'argmax est bien réalisé
+  sur le dernier axe d'une matrice 2×2 et retourne donc `[1,1]`, comme MLX-LM.
+  Le code d'opération n'a pas échoué. Corriger uniquement l'oracle du test puis
+  relancer ; aucune mesure modèle candidate avant ce contrôle vert.
+- Après correction de l'oracle, smoke Array GPU et test sampling réussis.
+  Candidat : tour de compilation 29,32 tok/s ; trois tours chauds decode 28,90 /
+  30,00 / 29,53 tok/s (médiane **29,53**, +2,09 % contre RUST-PERF-01),
+  prefill médian 29,69 tok/s et TTFT médian 0,8086 s. Sorties complètes
+  identiques. Preuve `build/rust-perf-02-candidate.jsonl`.
+- La série n'est pas alternée et la machine se réchauffe : le petit écart decode
+  reste **non concluant comme pourcentage**. Décision fonctionnelle validée :
+  conserver le chemin Metal, qui supprime objectivement la copie CPU du
+  vocabulaire entier ; fallback CPU inchangé pour sampling/pénalité non neutres.
+  App installée inchangée, aucune publication.
+
+### OPT-2026-09-12-RUST-PERF-03 — Référence du moteur Python sur le même Mac — validé
+
+- Objectif : mesurer le moteur Python actuel qui contient les kernels validés,
+  au lieu de prendre les anciens chiffres ~50 decode/~500 prefill comme une
+  baseline interchangeable. Cela permettra de porter seulement les chemins
+  manquants du Rust et de comparer sous les mêmes conditions.
+- Protocole Python existant : `mlxl3 benchmark qwen3.6-35b-a3b
+  --prompt-tokens 128 --max-tokens 32 --warmup-runs 1 --repeats 3`, température
+  0, sans MCP/réseau, sortie `build/rust-perf-03-python-reference.json`.
+  Apple M5 sur batterie, niveau/thermique à relever avec le rapport. Aucune
+  modification de moteur dans cet essai ; résultats non mesurés.
+- Résultat à 134 tokens de prompt / 32 générés, après un warmup : prefill
+  322,62 / 323,69 / 321,13 tok/s (médiane **322,62**), decode 53,66 / 53,40 /
+  53,00 tok/s (médiane **53,40**), TTFT médian **416,25 ms**, pic MLX
+  **12,433 GB**. Batterie 95 %, débranchée ; température non mesurée. Preuve
+  `build/rust-perf-03-python-reference.json`.
+- Conclusion : la cible decode ~50 tok/s est confirmée sur le moteur Python,
+  mais le ~500 tok/s prefill n'est pas la valeur comparable de ce prompt court.
+  Le Rust après RUST-PERF-02 reste à ~55 % du decode Python et son prefill
+  token-par-token n'est pas comparable au QMM séquentiel Python.
+
+### OPT-2026-09-12-RUST-PERF-04 — Hadamard/scales EXL3 compilés comme en Python — rejeté
+
+- Hypothèse : le Rust exécute actuellement cast, scale, reshape, Hadamard puis
+  scale de sortie comme opérations MLX séparées autour de chaque QMV. Le chemin
+  Python validé utilise deux fonctions `mx.compile` (`_reference_scaled_hadamard_*`)
+  qui gardent exactement le même ordre/arrondis mais fusionnent ces graphes.
+  Réutiliser ces deux graphes via l'API C++ MLX doit réduire les dispatchs de
+  tous les linéaires EXL3, particulièrement en decode.
+- Baseline : runtime RUST-PERF-02 sauvegardé sous
+  `build/rust-perf-02-runtime` (SHA256
+  `9b23d145c849e01238a555187ec8d35806239f574259debee804d74f282a9e38`),
+  Qwen decode chaud médian 29,53 tok/s. Candidat : mêmes 24/32 tokens, un
+  warmup + trois tours, batterie débranchée, température non mesurée.
+- Qualité prévue : smoke des deux opérations, logits imposés `1,2` strictement
+  comparés au runtime sauvegardé, puis sortie chat identique. Aucun kernel
+  Metal nouveau ni mode rapide ; calculs FP16/Hadamard identiques au Python.
+- Premier build/smoke GPU réussi. `cargo fmt --check` a seulement signalé deux
+  lignes à reformater et le compilateur une variable devenue inutilisée après
+  fusion ; corrections mécaniques appliquées avant le contrôle de logits. Pas
+  encore de résultat modèle candidat.
+- Premier contrôle modèle **rejeté avant benchmark** : le candidat échoue au
+  chargement avec `Cannot reshape array of size 2048 into shape (1,96,128)`.
+  Le smoke de largeur 128 avait tracé le graphe C++ avec `shapeless=true` ; les
+  dimensions calculées dans la lambda ont donc été réutilisées à tort pour les
+  largeurs suivantes. Baseline intacte et aucune mesure de performance issue
+  de ce candidat. Relance prévue avec le mode par défaut sensible aux shapes,
+  identique au décorateur Python `@mx.compile` utilisé comme référence.
+- Relance sensible aux shapes : build réussi, mais le contrôle différentiel a
+  été **interrompu par une erreur de protocole** avant chargement du candidat :
+  `cargo build --release` sans `--features mlx,chat` a remplacé le binaire par
+  la variante minimale qui n'expose pas `forward`. Le filtre de smoke utilisé
+  n'a sélectionné aucun test (0 exécuté), donc aucun succès ne lui est attribué.
+  Relancer build, smoke et `forward` avec les deux features explicites ; aucune
+  donnée de performance candidate à ce stade.
+- Candidat corrigé construit avec `--features mlx,chat`. Le listing confirme
+  l'existence du smoke GPU (il n'était pas exécuté dans la commande précédente).
+  Contrôle modèle Qwen tokens imposés `1,2` désormais **strictement identique**
+  au runtime RUST-PERF-02 : 2 978 940 octets et SHA256 commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`.
+  Benchmark encore non mesuré ; exécuter explicitement le smoke puis la série.
+- Smoke GPU explicitement exécuté avec `--ignored` : réussi. Candidat, un tour
+  de compilation puis trois tours chauds : decode 28,21 / 28,36 / 27,53 tok/s
+  (médiane **28,21**, **−4,49 %** contre 29,53), prefill médian **28,43** tok/s
+  (−4,26 %) et TTFT médian **0,8445 s** (+4,44 %). Sorties identiques ; preuve
+  `build/rust-perf-04-candidate.jsonl`.
+- Décision : **rejet et retrait**. La compilation locale fidèle au Python
+  ralentit le graphe Rust déjà différé entre tokens ; conserver la chaîne MLX
+  primitive et tester ensuite un écart structurel plus haut niveau.
+
+### OPT-2026-09-12-RUST-PERF-05 — Cache de la détection GPU comme le Python — validé, code local
+
+- Hypothèse : le Python protège `_is_m5_gpu()` avec `@cache`, tandis que le
+  Rust recrée un `metal::Device::system_default()` et lit son nom dans chaque
+  `expert_mapped`. Qwen appelle ce chemin deux fois par couche MoE et par token.
+  Mettre en cache ce booléen immuable avec `OnceLock` supprime donc des appels
+  Objective-C/Metal répétés sans toucher au calcul ni aux kernels.
+- Baseline : runtime RUST-PERF-02 sauvegardé, même Qwen 24 tokens prompt / 32
+  générés, decode chaud médian 29,53 tok/s ; un warmup + trois tours candidat,
+  batterie débranchée et température non mesurée. Preuve prévue
+  `build/rust-perf-05-candidate.jsonl`.
+- Qualité prévue : tests Rust, logits `1,2` strictement identiques au binaire
+  sauvegardé, sortie complète identique. État : aucun résultat candidat.
+- Tests Rust réussis et logits imposés `1,2` strictement identiques au runtime
+  sauvegardé (SHA256 commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`).
+  Première série candidate : decode chaud 31,46 / 31,56 / 33,22 tok/s
+  (médiane **31,56**, +6,87 %), prefill médian **32,41** tok/s (+9,18 %) et
+  TTFT médian **0,7407 s** (−8,40 %). Preuve
+  `build/rust-perf-05-candidate.jsonl`; sorties identiques.
+- Le candidat a été exécuté après d'autres séries et la machine est sur batterie :
+  ces pourcentages sont **préliminaires**. Répétition explicite prévue avec le
+  binaire baseline sauvegardé immédiatement dans les mêmes conditions, afin de
+  séparer le gain du cache du bruit/thermique avant décision.
+- Validation alternée baseline puis candidat : baseline chaude decode 29,00 /
+  28,22 / 28,59 tok/s (médiane **28,59**), prefill médian **28,75** tok/s,
+  TTFT médian **0,8351 s** ; candidat chaud 32,52 / 32,50 / 32,85 tok/s
+  (médiane **32,52**, **+13,74 %**), prefill médian **33,30** tok/s
+  (+15,83 %) et TTFT médian **0,7211 s** (−13,65 %). Preuves
+  `build/rust-perf-05-baseline-recheck.jsonl` et
+  `build/rust-perf-05-candidate-recheck.jsonl`.
+- Décision : conserver. C'est le même cache immuable que le Python et il retire
+  des appels Objective-C/Metal du chemin chaud sans changer les sorties. App
+  installée inchangée, aucune publication.
+
+### OPT-2026-09-12-RUST-PERF-06 — Cache de kernels par spécialisation comme le Python — rejeté
+
+- Hypothèse : les factories Python `@cache` retrouvent leur
+  `CustomKernelFunction` par quelques entiers. Le bridge Rust/C++ recrée à
+  chaque dispatch une clé ordonnée qui copie et compare nom, listes d'arguments,
+  header et source Metal entiers. Utiliser le nom de spécialisation déjà unique
+  comme clé évite ces copies dans le chemin chaud ; rendre aussi le nom du seul
+  kernel générique `grouped` dépendant de sa shape garantit l'absence de collision.
+- Baseline : runtime RUST-PERF-05 sauvegardé (SHA256
+  `e673f285514b957a6e9f3b9ec7a5a7379c0b29e4914553c7a80cc859e54c4484`),
+  série alternée précédente decode médian 32,52 tok/s, prefill 33,30 tok/s,
+  TTFT 0,7211 s. Même protocole Qwen 24/32 ; batterie débranchée, thermique non
+  mesuré. Preuve candidate prévue `build/rust-perf-06-candidate.jsonl`.
+- Qualité prévue : smoke GPU, logits `1,2` identiques, sortie complète identique.
+  Aucun shader ni paramètre numérique ne change. État : aucun résultat candidat.
+- Logits Qwen `1,2` strictement identiques au baseline (SHA256 commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`).
+  Première série candidate chaude : decode 32,80 / 33,05 / 33,49 tok/s
+  (médiane **33,05**), prefill médian **33,64** tok/s et TTFT médian
+  **0,7137 s** ; preuve `build/rust-perf-06-candidate.jsonl`. L'écart contre la
+  dernière série PERF-05 n'est qu'environ +1–2 %, donc encore **non concluant**.
+  Répéter immédiatement le binaire PERF-05 sous le même état thermique avant
+  de conserver ou retirer cette simplification.
+- Contrôle alterné avec le binaire PERF-05 exécuté juste après : decode chaud
+  33,97 / 33,82 / 33,95 tok/s (médiane **33,95**), prefill médian
+  **34,28** tok/s et TTFT médian **0,7004 s** ; preuve
+  `build/rust-perf-06-baseline-recheck.jsonl`. Le candidat à 33,05 tok/s est
+  donc **−2,65 %** plus lent, malgré l'ordre thermique qui aurait dû l'avantager.
+- Décision : **rejet et retrait**. La copie de clé n'est pas le bottleneck ;
+  conserver la clé complète qui protège aussi les collisions de métadonnées.
+
+### OPT-2026-09-12-RUST-PERF-07 — Un graphe decode Qwen jusqu'à l'argmax — rejeté
+
+- Hypothèse : le Rust synchronise les logits Qwen puis lance `log_softmax` et
+  `argmax` dans une seconde évaluation. Le générateur Python conserve au
+  contraire le prochain token dans le graphe Metal jusqu'à la frontière de
+  streaming. Exposer un `forward_lazy` uniquement au decode doit fusionner
+  modèle + normalisation + argmax en une seule évaluation, sans modifier le
+  prefill (toujours eager par token pour borner le graphe et la RAM).
+- Baseline : binaire RUST-PERF-05 sauvegardé ; sa dernière série chaude donne
+  decode médian 33,95 tok/s, prefill 34,28 tok/s et TTFT 0,7004 s. Même Qwen,
+  prompt 24 tokens, génération 32, un warmup + trois tours, batterie
+  débranchée, thermique non mesuré. Preuve prévue
+  `build/rust-perf-07-candidate.jsonl`.
+- Qualité prévue : forward eager/différentiel inchangé, test/sortie complète
+  identique. Le chemin lazy n'est utilisé qu'après le premier token sélectionné.
+  État : aucun résultat candidat.
+- Test du sampler réussi et forward eager `1,2` strictement identique au
+  baseline (SHA256 commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`).
+  Première série candidate chaude : decode 47,52 / 48,08 / 47,15 tok/s
+  (médiane **47,52**), prefill médian **48,29** tok/s et TTFT médian
+  **0,4973 s** ; sortie complète identique, preuve
+  `build/rust-perf-07-candidate.jsonl`.
+- Le saut decode est important mais la baseline immédiate a dérivé pendant les
+  séries sur batterie. État encore **préliminaire** : relancer RUST-PERF-05 puis
+  le candidat afin de quantifier le gain alterné avant validation.
+- Première alternance a révélé une dérive majeure indépendante du patch : le
+  binaire PERF-05 est lui aussi monté à **47,99 tok/s** médian, puis le candidat
+  relancé juste après est retombé à **34,25 tok/s**. Batterie 83 %, débranchée ;
+  `pmset -g therm` ne rapporte aucun warning, mais ces deux fenêtres ne sont pas
+  comparables. Preuves `build/rust-perf-07-baseline-recheck.jsonl` et
+  `build/rust-perf-07-candidate-recheck.jsonl`.
+- État **non concluant** : effectuer une seconde mesure PERF-05 sous le régime
+  ralenti actuel. Si elle rejoint ~34 tok/s, ne revendiquer aucun gain PERF-07 ;
+  si elle reste ~48, retirer le lazy decode comme régression.
+- Seconde mesure du binaire PERF-05 sous le même régime : decode chaud 47,23 /
+  47,90 / 46,10 tok/s (médiane **47,23**), prefill médian **48,12** tok/s et
+  TTFT médian **0,4990 s** ; preuve
+  `build/rust-perf-07-baseline-recheck-2.jsonl`. Le baseline reste donc proche
+  de 48 tok/s alors que le candidat relancé était à 34,25 tok/s.
+- Décision : **rejet et retrait** du lazy decode. Construire un graphe modèle
+  jusqu'à l'argmax est instable/coûteux après retrace ; le premier résultat à
+  47,52 tok/s était une coïncidence de la dérive observée aussi sur le baseline.
+  Le meilleur code validé reste RUST-PERF-05.
+
+### OPT-2026-09-12-RUST-PERF-08 — Broadcast MoE sans copies comme le Python — validé, code local
+
+- Hypothèse : le chemin Python forme les activations gate/up routées avec
+  `broadcast_to(...).reshape(...)`, donc une vue sans copie. Le Rust concatène
+  actuellement `2 × top_k` clones du token dans chaque couche MoE, créant une
+  opération et un buffer inutiles avant chaque expert QMV. Porter l'opération
+  MLX native `broadcast_to` doit réduire decode, TTFT et scratch sans changer
+  un calcul numérique.
+- Baseline : binaire RUST-PERF-05 sauvegardé ; dernière série stable decode
+  médian 47,23 tok/s, prefill 48,12 tok/s, TTFT 0,4990 s. Même Qwen 24/32,
+  un warmup + trois tours, batterie 83 % ou moins et débranchée, thermique non
+  mesuré. Preuve candidate prévue `build/rust-perf-08-candidate.jsonl`.
+- Qualité prévue : smoke `broadcast_to`, logits `1,2` strictement identiques et
+  sortie complète identique. État : aucun résultat candidat.
+- Smoke GPU réussi ; logits `1,2` et sortie complète strictement identiques au
+  baseline (SHA256 logits commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`).
+  Première série candidate chaude : decode 47,86 / 45,06 / 47,81 tok/s
+  (médiane **47,81**), prefill médian **46,05** tok/s, TTFT médian
+  **0,5215 s** ; preuve `build/rust-perf-08-candidate.jsonl`.
+- Face à la dernière baseline à 47,23 tok/s le decode ne gagne que 1,24 % et
+  prefill/TTFT baissent d'environ 4 %, donc résultat **non concluant**. Relancer
+  le binaire PERF-05 immédiatement avant décision ; aucun gain mémoire n'est
+  revendiqué sans mesure de scratch MLX.
+- Baseline immédiate suivante a de nouveau changé de régime : decode médian
+  **34,55** tok/s, prefill **34,54** tok/s, TTFT **0,6950 s**, preuve
+  `build/rust-perf-08-baseline-recheck.jsonl`. La machine alterne donc des
+  plateaux ~34 et ~48 tok/s sans warning thermique, rendant la comparaison 32
+  tokens invalide. Protocole complémentaire décidé avant exécution : pour
+  baseline puis candidat, un warmup 64 tokens et une génération mesurée jusqu'à
+  128 tokens, afin de comparer après montée en fréquence sur une fenêtre plus
+  longue.
+- Série soutenue baseline : warmup 64 tokens à 34,31 tok/s, puis 128 tokens à
+  **34,05 tok/s** decode, **33,78 tok/s** prefill et **0,7116 s** TTFT. Série
+  soutenue candidate : warmup 64 tokens à 34,69 tok/s, puis 128 tokens à
+  **34,32 tok/s** decode (**+0,81 %**), **35,35 tok/s** prefill (**+4,64 %**)
+  et **0,6793 s** TTFT (**−4,54 %**). Preuve brute commune
+  `build/rust-perf-08-sustained.jsonl` ; batterie, modèle, prompt et options
+  identiques, baseline immédiatement avant candidat.
+- Décision : **validé, code local**. Conserver la vue MLX employée par le moteur
+  Python : elle supprime une concaténation et ne régresse pas la charge longue.
+  Le gain decode est modeste et aucun gain RAM n'est revendiqué, car la métrique
+  disponible ne mesure pas séparément les buffers scratch. Logits et texte sont
+  strictement identiques. App installée et publication inchangées.
+
+### OPT-2026-09-12-RUST-PERF-09 — Sortie/réduction MoE fusionnée comme le Python — rejeté
+
+- Hypothèse : le Python applique `@mx.compile` à l'ensemble Hadamard de sortie,
+  échelle par expert, pondération de routage et réduction top-k. Le Rust expose
+  ces étapes comme une chaîne d'opérations génériques distinctes dans
+  `finish_and_reduce`. Porter exactement cette frontière de compilation doit
+  réduire les dispatchs et buffers intermédiaires de chaque couche MoE, surtout
+  au decode `M=1`, sans changer les kernels QMV ni le résultat numérique.
+- Baseline : runtime RUST-PERF-08 sauvegardé (SHA256
+  `b9ffd7dcb5f73e9f52db8335e4c3c55f04f2f3d97a2fbb29b3add23c6fc44f3b`),
+  série soutenue 128 tokens à 34,32 tok/s decode, 35,35 tok/s prefill et
+  0,6793 s TTFT. Même Qwen, prompt, options et batterie débranchée ; comparer
+  baseline puis candidat sur 64 tokens de warmup et 128 tokens mesurés.
+- Qualité prévue : tests Rust, logits `1,2` et texte strictement identiques au
+  binaire sauvegardé. État : aucun résultat candidat.
+- Build et smoke GPU réussis ; logits `1,2` strictement identiques au baseline
+  (2 978 940 octets, SHA256 commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`).
+  Série soutenue baseline : warmup 64 à 34,73 tok/s, puis 128 tokens à
+  **34,37 tok/s** decode, **34,97 tok/s** prefill et **0,6872 s** TTFT.
+  Candidat : warmup 64 à 34,37 tok/s, puis 128 tokens à **34,15 tok/s** decode
+  (**−0,65 %**), **34,75 tok/s** prefill (−0,63 %) et **0,6908 s** TTFT
+  (+0,53 %). Texte strictement identique ; preuve
+  `build/rust-perf-09-sustained.jsonl`.
+- Décision : **rejet et retrait**. La compilation explicite de cette chaîne ne
+  réduit pas le coût du graphe Rust déjà différé et ajoute une petite régression.
+
+### OPT-2026-09-12-RUST-PERF-10 — Isoler le gain des blocs récurrents Python compilés — validé, diagnostic
+
+- Hypothèse : les QMV/mapped-QMV, split-K, regroupements et transformations MoE
+  Rust correspondent désormais au chemin Python. La différence structurante
+  restante au decode Qwen est `compile_recurrent_layers`, qui compile chaque
+  bloc Gated DeltaNet avec son état explicite. Mesurer le Python avec puis sans
+  `MLXL3_COMPILED_RECURRENT_LAYERS` quantifie la part réellement récupérable
+  avant tout port complexe.
+- Baseline : référence Python RUST-PERF-03 à **53,40 tok/s** decode, 322,62 tok/s
+  prefill et 416,25 ms TTFT, même Qwen et protocole 134/32. Répéter dans le même
+  processus de benchmark avec compilation activée puis désactivée, batterie
+  débranchée ; aucune modification de poids ni de sampling.
+- Qualité prévue : texte greedy identique ; ce test est diagnostic et ne modifie
+  ni moteur Rust, ni app. État : aucun résultat.
+- Mesure dans les mêmes conditions : Python compilé, decode médian
+  **48,37 tok/s**, prefill **324,70 tok/s**, TTFT **413,72 ms** ; Python sans
+  compilation récurrente, decode **41,51 tok/s**, prefill **285,48 tok/s**,
+  TTFT **470,48 ms**. Pics MLX identiques à 12,43 GB et sorties greedy
+  identiques. Preuves `build/rust-perf-10-python-compiled.json` et
+  `build/rust-perf-10-python-uncompiled.json`.
+- Conclusion diagnostic : la compilation explique **+16,50 %** de decode,
+  +13,74 % de prefill et −12,07 % de TTFT sur cette fenêtre. Le runtime Rust
+  PERF-08 atteint déjà 47–48 tok/s sur son palier rapide, donc son QMV est au
+  niveau du Python compilé actuel ; le goulet massif restant est son prefill
+  token-par-token. État : **validé, diagnostic seulement**, aucun code intégré.
+
+### OPT-2026-09-12-RUST-PERF-11 — Synchronisation Qwen par blocs au prefill — rejeté
+
+- Hypothèse : le Rust synchronise les logits après chaque token de prompt alors
+  que les états GDN/KV créent déjà les dépendances correctes dans le graphe MLX.
+  Ne synchroniser que le dernier logits de petits blocs doit amortir les barrières
+  CPU/GPU sans changer le calcul, avant le port beaucoup plus large du QMM multi-row.
+- Matrice prévue : blocs de 2, 4, 8 puis 16 tokens, même Qwen et prompt de 134
+  tokens, 32 tokens générés, un warmup et trois mesures ; arrêter/retirer une
+  variante si elle régresse, change les logits ou augmente excessivement la RAM.
+  Baseline Rust PERF-08 sauvegardée ; référence soutenue récente 34,37 tok/s
+  decode et 34,97 tok/s prefill, mais le critère principal de cette série est le
+  prefill alterné sous le même état machine.
+- Qualité prévue : logits `1,2`, texte greedy et état final strictement identiques.
+  Prototype piloté par `MLXL3_RUST_PREFILL_CHUNK`, à retirer ou figer après choix.
+  État : aucun résultat candidat.
+- Logits imposés `1,2` strictement identiques au baseline (SHA256 commun
+  `ae5f577e91d448fbb78b8cb88f05a6e6a1eee6bdfc2e88e70958e0990bd48243`).
+  Sur prompt de 212 tokens, bloc 1 chaud : **47,37 tok/s** prefill,
+  **47,13 tok/s** decode et **4,4757 s** TTFT. Bloc 2 : **42,83 tok/s**
+  prefill (−9,58 %), **33,54 tok/s** decode (−28,83 %) et **4,9500 s** TTFT
+  (+10,60 %), sortie greedy identique. Preuve
+  `build/rust-perf-11-matrix.jsonl`.
+- Décision : **rejet et retrait**. Le graphe récurrent inter-token plus grand
+  provoque un retrace coûteux puis fait retomber le GPU sur le palier lent.
+  Les variantes 4/8/16 ont été intentionnellement interrompues avant mesure,
+  puisque leur hypothèse est strictement la même et leur graphe encore plus
+  grand. Le prochain gain prefill exige un vrai chemin QMM multi-row, pas une
+  accumulation de QMV token-par-token.
