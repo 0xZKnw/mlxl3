@@ -422,6 +422,143 @@ impl Exl3Group {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn expert_mapped(
+    x: &Array,
+    trellis: &Array,
+    suh: Option<&Array>,
+    svh: Option<&Array>,
+    selected: &Array,
+    output_dims: i32,
+    projections_per_route: i32,
+    projection_stride_tiles: i32,
+    k: usize,
+    cb: Codebook,
+    input_pretransformed: bool,
+    return_raw: bool,
+) -> Result<Array> {
+    codec::check_k(k)?;
+    ensure!(k != 7, "mapped K=7 is not supported");
+    let [rows, input_dims]: [i32; 2] = x
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("expert QMV input must have rank 2"))?;
+    ensure!(
+        trellis.shape().len() == 3
+            && trellis.shape()[0] * 16 == input_dims
+            && trellis.shape()[2] == (16 * k) as i32,
+        "invalid expert trellis"
+    );
+    ensure!(
+        output_dims > 0 && output_dims % 128 == 0,
+        "expert output width must be 128-aligned"
+    );
+    ensure!(
+        projections_per_route > 0
+            && selected
+                .shape()
+                .iter()
+                .map(|&n| i64::from(n))
+                .product::<i64>()
+                * i64::from(projections_per_route)
+                == i64::from(rows),
+        "expert route count does not match input rows"
+    );
+    ensure!(
+        selected.dtype() == Dtype::UInt32
+            && (input_pretransformed || suh.is_some_and(|s| s.shape() == x.shape())),
+        "invalid expert routes or input scales"
+    );
+    ensure!(
+        return_raw || svh.is_some_and(|s| s.shape() == [rows, output_dims]),
+        "invalid expert output scales"
+    );
+    let xhat = if input_pretransformed {
+        x.astype(Dtype::Float16)?.reshape(&[-1])?
+    } else {
+        x.astype(Dtype::Float16)?
+            .mul(
+                &suh.expect("validated input scales")
+                    .astype(Dtype::Float16)?,
+            )?
+            .reshape(&[rows, input_dims / 128, 128])?
+            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+            .reshape(&[-1])?
+    };
+    let output_tiles = output_dims / 16;
+    let local_tiles = rows
+        .checked_mul(output_tiles)
+        .context("expert tile count overflow")?;
+    let splits = split_count(trellis.shape()[0], local_tiles);
+    let mut nt = if local_tiles >= 1024 {
+        if local_tiles % 2 == 0 { 2 } else { 1 }
+    } else if local_tiles % 4 == 0 {
+        4
+    } else if local_tiles % 2 == 0 {
+        2
+    } else {
+        1
+    };
+    if output_tiles % nt != 0 {
+        nt = 1;
+    }
+    let m5 = array::is_m5_gpu()?;
+    let simdgroups = if m5 && k == 2 {
+        4
+    } else if m5 {
+        8
+    } else {
+        4
+    };
+    let header = codebook_header(cb)
+        + &format!(
+            "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n",
+            u8::from(k == 3),
+            cb as u32,
+            k * 8,
+            trellis.shape()[0],
+            trellis.shape()[1],
+            local_tiles * 16,
+        );
+    let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+    let partials = array::metal_kernel(
+        &format!(
+            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}",
+            input_dims, output_dims, k, cb as u32, nt, simdgroups, splits
+        ),
+        &["xhat", "trellis", "tile_map", "tile_sub"],
+        &["yhat"],
+        &header,
+        include_str!("../shaders/_qmv_mapped_tile_kernel.metal"),
+        &[&xhat, &words, selected, selected],
+        &[vec![splits, rows, output_dims]],
+        &[Dtype::Float32],
+        [
+            (local_tiles / nt)
+                .checked_mul(simdgroups * 32)
+                .context("expert QMV grid overflow")?,
+            1,
+            splits,
+        ],
+        [simdgroups * 32, 1, 1],
+    )?
+    .remove(0);
+    let yhat = if splits == 1 {
+        partials.reshape(&[rows, output_dims])?
+    } else {
+        partials.sum(0, false)?
+    };
+    if return_raw {
+        return Ok(yhat);
+    }
+    yhat.astype(Dtype::Float16)?
+        .reshape(&[rows, output_dims / 128, 128])?
+        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+        .reshape(&[rows, output_dims])?
+        .mul(svh.expect("validated output scales"))?
+        .astype(x.dtype())
+}
+
 fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {
     let target = if output_tiles <= 64 {
         (output_tiles / 2).max(32)

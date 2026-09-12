@@ -74,6 +74,9 @@ enum Command {
 #[derive(Deserialize)]
 struct CodecRequest {
     op: String,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    path: String,
     #[serde(default = "default_k")]
     k: usize,
     #[serde(default)]
@@ -122,6 +125,33 @@ struct CodecRequest {
     #[serde(default)]
     #[cfg(feature = "mlx")]
     normalize: bool,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    selected: Vec<u32>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    projections_per_route: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    projection_stride_tiles: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    return_raw: bool,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    down_data: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    down_suh: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    down_svh: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    layer: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    top_k: usize,
 }
 fn default_k() -> usize {
     4
@@ -290,6 +320,144 @@ fn codec_loop() -> Result<()> {
                         "indices": indices.to_u32()?,
                         "scores": scores.to_f16_bits()?,
                     }))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-expert" => {
+                    use mlxl3_native::{array::Array, linear::expert_mapped};
+                    codec::check_k(request.k)?;
+                    let projections = i32::try_from(request.projections_per_route)?;
+                    anyhow::ensure!(projections > 0, "invalid projection count");
+                    let rows = i32::try_from(
+                        request
+                            .selected
+                            .len()
+                            .checked_mul(request.projections_per_route)
+                            .context("expert row count overflow")?,
+                    )?;
+                    anyhow::ensure!(rows > 0, "missing expert routes");
+                    let input_dims = i32::try_from(request.x.len())?
+                        .checked_div(rows)
+                        .context("invalid expert input dimensions")?;
+                    let output_dims = i32::try_from(request.cols)?;
+                    let input_tiles = input_dims / 16;
+                    let packed_per_tile = i32::try_from(16 * request.k)?;
+                    let source_tiles = i32::try_from(request.data.len())?
+                        .checked_div(
+                            input_tiles
+                                .checked_mul(packed_per_tile)
+                                .context("expert trellis size overflow")?,
+                        )
+                        .context("invalid expert trellis dimensions")?;
+                    let trellis = Array::from_u16(
+                        &request.data,
+                        &[input_tiles, source_tiles, packed_per_tile],
+                    )?;
+                    let x = Array::from_f16_bits(&request.x, &[rows, input_dims])?;
+                    let suh = Array::from_f16_bits(&request.suh, &[rows, input_dims])?;
+                    let svh = (!request.return_raw)
+                        .then(|| Array::from_f16_bits(&request.svh, &[rows, output_dims]))
+                        .transpose()?;
+                    let output = expert_mapped(
+                        &x,
+                        &trellis,
+                        Some(&suh),
+                        svh.as_ref(),
+                        &Array::from_u32(
+                            &request.selected,
+                            &[i32::try_from(request.selected.len())?],
+                        )?,
+                        output_dims,
+                        projections,
+                        i32::try_from(request.projection_stride_tiles)?,
+                        request.k,
+                        cb,
+                        false,
+                        request.return_raw,
+                    )?;
+                    Ok(if request.return_raw {
+                        json!({ "f32": output.to_f32()? })
+                    } else {
+                        json!({ "f16": output.to_f16_bits()? })
+                    })
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-swiglu-prepare" => {
+                    use mlxl3_native::{array::Array, moe};
+                    let hidden = i32::try_from(request.cols)?;
+                    let slots = i32::try_from(request.selected.len())?;
+                    let experts = i32::try_from(request.suh.len())?
+                        .checked_div(2 * hidden)
+                        .context("invalid gate/up scales")?;
+                    let output = moe::swiglu_down_input(
+                        &Array::from_f32(&request.state, &[slots * 2, hidden])?,
+                        &Array::from_f16_bits(&request.suh, &[experts, 2, hidden])?,
+                        &Array::from_f16_bits(&request.svh, &[experts, hidden])?,
+                        &Array::from_u32(&request.selected, &[slots])?,
+                    )?;
+                    Ok(json!(output.to_f16_bits()?))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-expert-reduce" => {
+                    use mlxl3_native::{array::Array, moe};
+                    let width = i32::try_from(request.cols)?;
+                    let slots = i32::try_from(request.beta.len())?;
+                    let output = moe::finish_and_reduce(
+                        &Array::from_f32(&request.state, &[slots, width])?,
+                        &Array::from_f16_bits(&request.svh, &[slots, width])?,
+                        &Array::from_f16_bits(&request.beta, &[1, slots])?,
+                    )?;
+                    Ok(json!(output.to_f16_bits()?))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-switch" => {
+                    use mlxl3_native::{array::Array, moe::Exl3SwitchGlu};
+                    let experts = i32::try_from(request.key_heads)?;
+                    let top_k = i32::try_from(request.selected.len())?;
+                    let input = i32::try_from(request.x.len())?;
+                    let hidden = i32::try_from(request.cols)?;
+                    let gu = Array::from_u16(
+                        &request.data,
+                        &[input / 16, experts * hidden / 8, (16 * request.k) as i32],
+                    )?;
+                    let down = Array::from_u16(
+                        &request.down_data,
+                        &[hidden / 16, experts * input / 16, (16 * request.k) as i32],
+                    )?;
+                    let switch = Exl3SwitchGlu::new(
+                        gu,
+                        Array::from_f16_bits(&request.suh, &[experts, 2, input])?,
+                        Array::from_f16_bits(&request.svh, &[experts, 2, hidden])?,
+                        down,
+                        Array::from_f16_bits(&request.down_suh, &[experts, hidden])?,
+                        Array::from_f16_bits(&request.down_svh, &[experts, input])?,
+                        top_k,
+                        request.k,
+                        cb,
+                    )?;
+                    let output = switch.forward(
+                        &Array::from_f16_bits(&request.x, &[1, input])?,
+                        &Array::from_u32(&request.selected, &[1, top_k])?,
+                        &Array::from_f16_bits(&request.beta, &[1, top_k])?,
+                    )?;
+                    Ok(json!(output.to_f16_bits()?))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-qwen-moe" => {
+                    use mlxl3_native::{array::Array, checkpoint, qwen35::Moe};
+                    let checkpoint = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                    let hidden = i32::try_from(request.cols)?;
+                    let expert_hidden = i32::try_from(request.value_dims)?;
+                    let experts = i32::try_from(request.key_heads)?;
+                    let block = Moe::load(
+                        &checkpoint,
+                        &format!("model.language_model.layers.{}.mlp", request.layer),
+                        hidden,
+                        expert_hidden,
+                        experts,
+                        request.top_k,
+                    )?;
+                    let output = block.forward(&Array::from_f16_bits(&request.x, &[1, hidden])?)?;
+                    Ok(json!(output.to_f16_bits()?))
                 }
                 #[cfg(target_os = "macos")]
                 "metal-pack" | "metal-decode" | "metal-qmv" => {

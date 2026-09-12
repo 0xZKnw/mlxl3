@@ -136,8 +136,37 @@
   --mlx`, 142/142 cas réussis (134 projections existantes + 2 GDN + 6 routeur).
   Le routeur natif restitue exactement indices et scores FP16 avec/sans
   normalisation, y compris égalités, zéros signés et NaN. L'intégration d'une
-  couche Qwen complète reste non réalisée. Intégration : prototype de branche
-  uniquement.
+  couche Qwen complète reste non réalisée. Essai suivant enregistré avant
+  modification : porter le QMV expert mappé déjà utilisé par Python (K=2/3/4,
+  matrices synthétiques, routes répétées gate/up, sortie brute FP32 puis sortie
+  FP16), et exiger la parité bit-à-bit avant le SwiGLU fusionné. Résultat :
+  validé bit-à-bit sur les six variantes ; la matrice globale passe désormais
+  148/148 cas. Le prochain essai sera le prepare SwiGLU+Hadamard puis la
+  réduction pondérée du down, toujours face aux helpers Python inchangés.
+  Première compilation interrompue avant benchmark : le générateur Rust des
+  sept étages Hadamard avait deux références `str` aux durées de vie distinctes
+  lors de leur permutation ; aucune exécution GPU ni mesure. Correction prévue :
+  une durée de vie commune, sans changement du shader.
+  Deuxième exécution validée : prepare SwiGLU/down et réduction pondérée sont
+  bit-à-bit identiques aux helpers MLXL3 Python ; matrice 150/150. Essai suivant
+  enregistré : chaîner les deux QMV mappés et ces transforms dans une structure
+  `Exl3SwitchGlu`, puis comparer sa sortie finale à `EXL3SwitchGLU` sur un bloc
+  synthétique top-2. Résultat : validé bit-à-bit, matrice 151/151 ; le chemin
+  expert complet reste entièrement sur MLX/Metal. Aucun benchmark de vitesse
+  avant la parité d'une couche réelle. Essai réel enregistré avant modification :
+  charger uniquement le MLP MoE de la couche 0 du checkpoint Qwen local, entrée
+  FP16 déterministe `[1,2048]`, et comparer sa sortie au même assemblage Python
+  (gate dense, top-8, experts EXL3, expert partagé) bit-à-bit ; aucune génération
+  ni chargement simultané de deux modèles complets.
+  Première compilation de ce jalon interrompue : référence vers un nom de
+  scale legacy temporaire dans le loader Rust ; aucune donnée modèle chargée
+  et aucune mesure. Correction limitée à posséder la chaîne avant l'appel.
+  Deuxième exécution validée le 12 septembre : `native/check_qwen_moe.py`
+  compare le MLP MoE réel de la couche 0 et obtient une égalité FP16 bit-à-bit.
+  Le script ne matérialise côté Rust qu'une couche d'experts, et aucune mesure
+  de débit n'est revendiquée. Prochaine étape : bloc Gated DeltaNet complet de
+  couche 0 avec état nul/non nul, avant assemblage des 40 couches.
+  Intégration : prototype de branche uniquement.
 
 À lire **avant** toute optimisation ; à mettre à jour **avant et après chaque
 essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).

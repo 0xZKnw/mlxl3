@@ -246,6 +246,12 @@ impl Array {
     pub fn from_u16(data: &[u16], shape: &[i32]) -> Result<Self> {
         Self::from_words(data, shape, Dtype::UInt16)
     }
+    pub fn from_u32(data: &[u32], shape: &[i32]) -> Result<Self> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr().cast(), std::mem::size_of_val(data))
+        };
+        Self::from_bytes(bytes, shape, Dtype::UInt32)
+    }
     fn from_words(data: &[u16], shape: &[i32], dtype: Dtype) -> Result<Self> {
         // u16 has no padding or invalid bit patterns; copying preserves FP16 payload bits.
         let bytes = unsafe {
@@ -387,6 +393,9 @@ impl Array {
     }
     pub fn log_probs(&self) -> Result<Self> {
         self.unary(9, &[], 0., 0)
+    }
+    pub fn softmax_precise(&self) -> Result<Self> {
+        self.unary(10, &[], 0., 0)
     }
     pub fn add(&self, other: &Self) -> Result<Self> {
         self.binary(other, 0, 0, 0.)

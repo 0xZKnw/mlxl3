@@ -11,6 +11,10 @@ pub mod gpu;
 pub mod lfm2;
 #[cfg(feature = "mlx")]
 pub mod linear;
+#[cfg(feature = "mlx")]
+pub mod moe;
+#[cfg(feature = "mlx")]
+pub mod qwen35;
 pub mod registry;
 #[cfg(feature = "mlx")]
 pub mod router;

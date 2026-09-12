@@ -95,8 +95,10 @@ def main():
                         cases += 1
         if args.mlx:
             import mlx.core as mx
-            from mlxl3.moe import router_topk
-            from mlxl3.kernels.qmv import qmv_exl3, qmv_exl3_grouped
+            from mlxl3.moe import EXL3SwitchGLU, router_topk
+            from mlxl3.kernels.qmv import qmv_exl3, qmv_exl3_expert_mapped, qmv_exl3_grouped
+            from mlxl3.kernels.qmv import _scaled_hadamard_output_reduce
+            from mlxl3.moe import _fused_glu_down_prepare
             from mlx_lm.models.gated_delta import gated_delta_kernel
             for rows, cols in [(128, 128), (1024, 512), (2048, 128)]:
                 for k in range(1, 9):
@@ -178,6 +180,91 @@ def main():
                         np.asarray(expected_scores).view(np.uint16).ravel(),
                         err_msg=f"MoE router scores, normalize={normalize}")
                     cases += 1
+            for k in (2, 3, 4):
+                rng = np.random.default_rng(70 + k)
+                experts, top_k, projections = 4, 2, 2
+                input_dims = output_dims = 128
+                output_tiles = output_dims // 16
+                encoded = rng.integers(0, 65536, size=(input_dims // 16,
+                    experts * projections * output_tiles, 256), dtype=np.uint16)
+                packed = trellis.pack_trellis(encoded, k)
+                selected = np.array([3, 1], dtype=np.uint32)
+                rows = top_k * projections
+                x = rng.normal(size=(rows, input_dims)).astype(np.float16)
+                suh = rng.uniform(-0.2, 0.2, size=x.shape).astype(np.float16)
+                svh = rng.uniform(-0.2, 0.2, size=(rows, output_dims)).astype(np.float16)
+                for raw in (False, True):
+                    expected = qmv_exl3_expert_mapped(mx.array(x), mx.array(packed), mx.array(suh),
+                        None if raw else mx.array(svh), mx.array(selected), output_dims=output_dims,
+                        projections_per_route=projections,
+                        projection_stride_tiles=experts * output_tiles, k=k,
+                        input_pretransformed=False, return_raw=raw)
+                    actual = request("mlx-expert", k=k, cols=output_dims,
+                        projections_per_route=projections,
+                        projection_stride_tiles=experts * output_tiles, return_raw=raw,
+                        data=packed.ravel().tolist(), x=x.view(np.uint16).ravel().tolist(),
+                        suh=suh.view(np.uint16).ravel().tolist(),
+                        svh=svh.view(np.uint16).ravel().tolist(), selected=selected.tolist())
+                    if raw:
+                        np.testing.assert_array_equal(np.asarray(actual["f32"], dtype=np.float32).view(np.uint32),
+                            np.asarray(expected).astype(np.float32).ravel().view(np.uint32),
+                            err_msg=f"raw expert mapped K{k}")
+                    else:
+                        np.testing.assert_array_equal(np.asarray(actual["f16"], dtype=np.uint16),
+                            np.asarray(expected).view(np.uint16).ravel(), err_msg=f"expert mapped K{k}")
+                    cases += 1
+            rng = np.random.default_rng(90)
+            experts, slots, hidden = 4, 2, 128
+            gate_up_raw = rng.normal(size=(slots * 2, hidden)).astype(np.float32)
+            gate_up_scales = rng.uniform(-0.2, 0.2, size=(experts, 2, hidden)).astype(np.float16)
+            down_input_scales = rng.uniform(-0.2, 0.2, size=(experts, hidden)).astype(np.float16)
+            selected = np.array([3, 1], dtype=np.uint32)
+            expected = _fused_glu_down_prepare(mx.array(gate_up_raw), mx.array(gate_up_scales),
+                mx.array(down_input_scales), mx.array(selected))
+            actual = request("mlx-swiglu-prepare", cols=hidden, state=gate_up_raw.ravel().tolist(),
+                suh=gate_up_scales.view(np.uint16).ravel().tolist(),
+                svh=down_input_scales.view(np.uint16).ravel().tolist(), selected=selected.tolist())
+            np.testing.assert_array_equal(np.asarray(actual, dtype=np.uint16),
+                np.asarray(expected).view(np.uint16).ravel(), err_msg="fused SwiGLU/down input")
+            cases += 1
+            raw = rng.normal(size=(slots, hidden)).astype(np.float32)
+            output_scales = rng.uniform(-0.2, 0.2, size=(slots, hidden)).astype(np.float16)
+            scores = rng.uniform(0, 1, size=(1, slots)).astype(np.float16)
+            expected = _scaled_hadamard_output_reduce(mx.array(raw), mx.array(output_scales), mx.array(scores))
+            actual = request("mlx-expert-reduce", cols=hidden, state=raw.ravel().tolist(),
+                svh=output_scales.view(np.uint16).ravel().tolist(),
+                beta=scores.view(np.uint16).ravel().tolist())
+            np.testing.assert_array_equal(np.asarray(actual, dtype=np.uint16),
+                np.asarray(expected).view(np.uint16).ravel(), err_msg="expert output reduction")
+            cases += 1
+            rng = np.random.default_rng(101)
+            experts, top_k, input_dims, hidden = 4, 2, 128, 128
+            k = 3
+            gu_packed = trellis.pack_trellis(rng.integers(0, 65536,
+                size=(input_dims // 16, experts * hidden // 8, 256), dtype=np.uint16), k)
+            down_packed = trellis.pack_trellis(rng.integers(0, 65536,
+                size=(hidden // 16, experts * input_dims // 16, 256), dtype=np.uint16), k)
+            gu_suh = rng.uniform(-0.2, 0.2, (experts, 2, input_dims)).astype(np.float16)
+            gu_svh = rng.uniform(-0.2, 0.2, (experts, 2, hidden)).astype(np.float16)
+            down_suh = rng.uniform(-0.2, 0.2, (experts, hidden)).astype(np.float16)
+            down_svh = rng.uniform(-0.2, 0.2, (experts, input_dims)).astype(np.float16)
+            x = rng.normal(size=(1, input_dims)).astype(np.float16)
+            selected = np.array([[3, 1]], dtype=np.uint32)
+            scores = np.array([[0.625, 0.375]], dtype=np.float16)
+            switch = EXL3SwitchGLU(gu_trellis=mx.array(gu_packed), gu_suh=mx.array(gu_suh),
+                gu_svh=mx.array(gu_svh), down_trellis=mx.array(down_packed),
+                down_suh=mx.array(down_suh), down_svh=mx.array(down_svh), bits=k, mode=0)
+            expected = switch(mx.array(x), mx.array(selected), scores=mx.array(scores))
+            actual = request("mlx-switch", k=k, key_heads=experts, cols=hidden,
+                data=gu_packed.ravel().tolist(), suh=gu_suh.view(np.uint16).ravel().tolist(),
+                svh=gu_svh.view(np.uint16).ravel().tolist(), down_data=down_packed.ravel().tolist(),
+                down_suh=down_suh.view(np.uint16).ravel().tolist(),
+                down_svh=down_svh.view(np.uint16).ravel().tolist(),
+                x=x.view(np.uint16).ravel().tolist(), selected=selected.ravel().tolist(),
+                beta=scores.view(np.uint16).ravel().tolist())
+            np.testing.assert_array_equal(np.asarray(actual, dtype=np.uint16),
+                np.asarray(expected).view(np.uint16).ravel(), err_msg="complete SwitchGLU")
+            cases += 1
     finally:
         process.stdin.close()
         try:

@@ -150,6 +150,7 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         case 7: return mx::view(a, dtype(flag));
         case 8: if (nargs == 2) return mx::fast::rope(a, args[0], false, scalar, 1.0f, args[1]); break;
         case 9: return mx::subtract(a, mx::logsumexp(a, -1, true));
+        case 10: return mx::softmax(a, -1, true);
       }
       throw std::invalid_argument("invalid unary operation");
     };

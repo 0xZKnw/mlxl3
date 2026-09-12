@@ -40,7 +40,11 @@ fn default_rope_theta() -> f32 {
     1_000_000.0
 }
 
-fn half_weight(checkpoint: &Checkpoint, name: &str, expected: Option<&[i32]>) -> Result<Array> {
+pub(crate) fn half_weight(
+    checkpoint: &Checkpoint,
+    name: &str,
+    expected: Option<&[i32]>,
+) -> Result<Array> {
     let weight = checkpoint_array(checkpoint, name)?;
     ensure!(
         matches!(
@@ -66,13 +70,13 @@ enum ProjectionWeights {
     Dense(Array),
 }
 
-struct Projection {
+pub(crate) struct Projection {
     weights: ProjectionWeights,
     bias: Option<Array>,
 }
 
 impl Projection {
-    fn load(
+    pub(crate) fn load(
         checkpoint: &Checkpoint,
         prefix: &str,
         input: i32,
@@ -113,7 +117,7 @@ impl Projection {
         Ok(Self { weights, bias })
     }
 
-    fn forward(&self, x: &Array) -> Result<Array> {
+    pub(crate) fn forward(&self, x: &Array) -> Result<Array> {
         let value = match &self.weights {
             ProjectionWeights::Exl3(linear) => linear.forward(x)?,
             ProjectionWeights::Dense(weight) => x.matmul(&weight.transpose(&[1, 0])?)?,
