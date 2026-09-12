@@ -473,24 +473,30 @@ impl Exl3SwitchGlu {
     }
 
     pub fn forward(&self, x: &Array, selected: &Array, scores: &Array) -> Result<Array> {
+        let [rows, input]: [i32; 2] = x
+            .shape()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("SwitchGLU input must have rank 2"))?;
         ensure!(
-            x.shape() == [1, self.input]
-                && selected.shape() == [1, self.top_k]
-                && scores.shape() == [1, self.top_k],
+            rows > 0
+                && input == self.input
+                && selected.shape() == [rows, self.top_k]
+                && scores.shape() == [rows, self.top_k],
             "invalid SwitchGLU input/routes"
         );
-        let selected = selected.reshape(&[self.top_k])?;
+        let slots = rows.checked_mul(self.top_k).context("MoE slot overflow")?;
+        let selected = selected.reshape(&[slots])?;
         if matches!(self.activation, GluActivation::Gelu) {
-            return self.forward_gelu(x, &selected, scores);
+            return self.forward_gelu(x, &selected, scores, rows);
         }
         let x_gu = x
-            .reshape(&[1, 1, 1, self.input])?
-            .broadcast_to(&[1, self.top_k, 2, self.input])?
-            .reshape(&[self.top_k * 2, self.input])?;
+            .reshape(&[rows, 1, 1, self.input])?
+            .broadcast_to(&[rows, self.top_k, 2, self.input])?
+            .reshape(&[slots * 2, self.input])?;
         let gu_input_scales = self
             .gu_suh
             .take(&selected, 0)?
-            .reshape(&[self.top_k * 2, self.input])?;
+            .reshape(&[slots * 2, self.input])?;
         let gate_up = expert_mapped(
             &x_gu,
             &self.gu_trellis,
@@ -530,23 +536,30 @@ impl Exl3SwitchGlu {
         finish_and_reduce(&down, &self.down_svh.take(&selected, 0)?, scores)
     }
 
-    fn forward_gelu(&self, x: &Array, selected: &Array, scores: &Array) -> Result<Array> {
+    fn forward_gelu(
+        &self,
+        x: &Array,
+        selected: &Array,
+        scores: &Array,
+        rows: i32,
+    ) -> Result<Array> {
+        let slots = rows.checked_mul(self.top_k).context("MoE slot overflow")?;
         let gate_up = expert_mapped(
-            &x.reshape(&[1, 1, 1, self.input])?
-                .broadcast_to(&[1, self.top_k, 2, self.input])?
-                .reshape(&[self.top_k * 2, self.input])?,
+            &x.reshape(&[rows, 1, 1, self.input])?
+                .broadcast_to(&[rows, self.top_k, 2, self.input])?
+                .reshape(&[slots * 2, self.input])?,
             &self.gu_trellis,
             Some(
                 &self
                     .gu_suh
                     .take(selected, 0)?
-                    .reshape(&[self.top_k * 2, self.input])?,
+                    .reshape(&[slots * 2, self.input])?,
             ),
             Some(
                 &self
                     .gu_svh
                     .take(selected, 0)?
-                    .reshape(&[self.top_k * 2, self.hidden])?,
+                    .reshape(&[slots * 2, self.hidden])?,
             ),
             selected,
             self.hidden,
@@ -557,20 +570,16 @@ impl Exl3SwitchGlu {
             false,
             false,
         )?
-        .reshape(&[self.top_k, 2, self.hidden])?;
-        let gate = gate_up
-            .slice(1, 0, 1)?
-            .reshape(&[self.top_k, self.hidden])?;
-        let up = gate_up
-            .slice(1, 1, 2)?
-            .reshape(&[self.top_k, self.hidden])?;
+        .reshape(&[slots, 2, self.hidden])?;
+        let gate = gate_up.slice(1, 0, 1)?.reshape(&[slots, self.hidden])?;
+        let up = gate_up.slice(1, 1, 2)?.reshape(&[slots, self.hidden])?;
         let mut hidden = gate.geglu(&up)?;
         if self.logical_hidden < self.hidden {
             hidden = Array::concatenate(
                 &[
                     &hidden.slice(1, 0, self.logical_hidden)?,
                     &Array::zeros_dtype(
-                        &[self.top_k, self.hidden - self.logical_hidden],
+                        &[slots, self.hidden - self.logical_hidden],
                         hidden.dtype(),
                     )?,
                 ],
@@ -591,8 +600,8 @@ impl Exl3SwitchGlu {
             false,
             false,
         )?
-        .mul(&scores.reshape(&[self.top_k, 1])?)?
-        .sum(0, false)?
-        .reshape(&[1, self.input])
+        .reshape(&[rows, self.top_k, self.input])?
+        .mul(&scores.reshape(&[rows, self.top_k, 1])?)?
+        .sum(1, false)
     }
 }

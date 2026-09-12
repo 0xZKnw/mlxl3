@@ -147,12 +147,23 @@ impl Exl3Linear {
     }
 
     pub fn forward(&self, x: &Array) -> Result<Array> {
+        let elements = x
+            .shape()
+            .iter()
+            .try_fold(1i64, |count, &dimension| {
+                count.checked_mul(i64::from(dimension))
+            })
+            .context("linear input size overflow")?;
         ensure!(
-            x.shape().last() == Some(&self.rows)
-                && x.shape().iter().map(|&n| i64::from(n)).product::<i64>() == i64::from(self.rows),
-            "native QMV currently accepts one token with {} inputs",
+            x.shape().last() == Some(&self.rows) && elements % i64::from(self.rows) == 0,
+            "invalid EXL3 linear input for {} inputs",
             self.rows
         );
+        let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
+        if matrix_rows >= 24 {
+            return self.forward_qmm_tensor(x);
+        }
+        ensure!(matrix_rows == 1, "native QMM requires at least 24 rows");
         let xhat = x
             .astype(Dtype::Float16)?
             .reshape(&[1, self.rows])?
@@ -254,6 +265,124 @@ impl Exl3Linear {
             None => Ok(y),
         }
     }
+
+    fn forward_qmm_tensor(&self, x: &Array) -> Result<Array> {
+        let output = qmm_tensor(
+            x,
+            &self.trellis,
+            &self.suh,
+            &self.svh,
+            self.rows,
+            self.cols,
+            self.k,
+            self.cb,
+            self.cols / 16,
+            0,
+        )?;
+        match &self.bias {
+            Some(bias) => output.add(bias),
+            None => Ok(output),
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn qmm_tensor(
+    x: &Array,
+    trellis: &Array,
+    suh: &Array,
+    svh: &Array,
+    input_dims: i32,
+    output_dims: i32,
+    k: usize,
+    cb: Codebook,
+    weight_tiles_n: i32,
+    weight_tile_offset: i32,
+) -> Result<Array> {
+    ensure!(array::is_m5_gpu()?, "TensorOps QMM requires Apple M5");
+    let block_rows = 32;
+    let block_columns = 32;
+    let block_depth = 16;
+    ensure!(
+        input_dims % block_depth == 0
+            && output_dims % block_columns == 0
+            && weight_tile_offset >= 0
+            && weight_tile_offset + output_dims / 16 <= weight_tiles_n,
+        "TensorOps QMM dimensions are not tiled"
+    );
+    let elements = x
+        .shape()
+        .iter()
+        .try_fold(1i64, |count, &dimension| {
+            count.checked_mul(i64::from(dimension))
+        })
+        .context("QMM input size overflow")?;
+    ensure!(
+        x.shape().last() == Some(&input_dims) && elements % i64::from(input_dims) == 0,
+        "invalid TensorOps QMM input"
+    );
+    let matrix_rows = i32::try_from(elements / i64::from(input_dims))?;
+    ensure!(matrix_rows >= 24, "TensorOps QMM requires at least 24 rows");
+    let padded_rows = ((matrix_rows + block_rows - 1) / block_rows) * block_rows;
+    let xhat = x
+        .astype(Dtype::Float16)?
+        .reshape(&[matrix_rows, input_dims])?
+        .mul(&suh.astype(Dtype::Float16)?)?
+        .reshape(&[matrix_rows, input_dims / 128, 128])?
+        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+        .reshape(&[matrix_rows, input_dims])?;
+    let xhat = if matrix_rows == padded_rows {
+        xhat
+    } else {
+        Array::concatenate(
+            &[
+                &xhat,
+                &Array::zeros_dtype(&[padded_rows - matrix_rows, input_dims], Dtype::Float16)?,
+            ],
+            0,
+        )?
+    };
+    let inverse = codec::permutation_inverse()
+        .map(|value| value.to_string())
+        .join(",");
+    let header = format!(
+        "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n{}constant ushort mlxl3_perm_inv[256] = {{{inverse}}};\n#define BM {block_rows}u\n#define BN {block_columns}u\n#define BK {block_depth}u\n#define K_BITS {k}u\n#define PACKED_U32 {}u\n#define INPUT_DIMS {input_dims}u\n#define OUTPUT_DIMS {output_dims}u\n#define TILES_N {weight_tiles_n}u\n#define WEIGHT_TILE_OFFSET {weight_tile_offset}u\n",
+        codebook_header(cb),
+        k * 8,
+    );
+    let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+    let raw = array::metal_kernel(
+            &format!(
+                "mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}",
+                cb as u32
+            ),
+            &["xhat", "trellis"],
+            &["yhat"],
+            &header,
+            include_str!("../shaders/_qmm_tensor_kernel.metal"),
+            &[&xhat, &words],
+            &[vec![padded_rows, output_dims]],
+            &[Dtype::Float16],
+            [
+                (output_dims / block_columns)
+                    .checked_mul(32)
+                    .context("QMM grid overflow")?,
+                padded_rows / block_rows,
+                1,
+            ],
+            [32, 1, 1],
+        )?
+        .remove(0)
+        .slice(0, 0, matrix_rows)?;
+    let output = raw
+        .reshape(&[matrix_rows, output_dims / 128, 128])?
+        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+        .reshape(&[matrix_rows, output_dims])?
+        .mul(&svh.astype(Dtype::Float16)?)?
+        .astype(x.dtype())?;
+    let mut shape = x.shape().to_vec();
+    *shape.last_mut().context("empty QMM input shape")? = output_dims;
+    output.reshape(&shape)
 }
 
 /// Ragged projections with independent input scales, packed once at load time.
@@ -339,11 +468,42 @@ impl Exl3Group {
     }
 
     pub fn forward(&self, x: &Array) -> Result<Vec<Array>> {
+        let elements = x.shape().iter().map(|&n| i64::from(n)).product::<i64>();
         ensure!(
-            x.shape().last() == Some(&self.rows)
-                && x.shape().iter().map(|&n| i64::from(n)).product::<i64>() == i64::from(self.rows),
-            "grouped QMV expects one token"
+            x.shape().last() == Some(&self.rows) && elements % i64::from(self.rows) == 0,
+            "invalid grouped EXL3 input"
         );
+        let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
+        if matrix_rows >= 24 {
+            let mut tile_cursor = 0;
+            let mut scale_cursor = 0;
+            let mut outputs = Vec::with_capacity(self.widths.len());
+            for (index, (width, bias)) in self.widths.iter().zip(&self.biases).enumerate() {
+                let output = qmm_tensor(
+                    x,
+                    &self.trellis,
+                    &self
+                        .suh
+                        .slice(0, index as i32, index as i32 + 1)?
+                        .reshape(&[self.rows])?,
+                    &self.svh.slice(0, scale_cursor, scale_cursor + width)?,
+                    self.rows,
+                    *width,
+                    self.k,
+                    self.cb,
+                    self.cols / 16,
+                    tile_cursor,
+                )?;
+                outputs.push(match bias {
+                    Some(value) => output.add(value)?,
+                    None => output,
+                });
+                tile_cursor += width / 16;
+                scale_cursor += width;
+            }
+            return Ok(outputs);
+        }
+        ensure!(matrix_rows == 1, "grouped QMV expects one token");
         let groups = i32::try_from(self.widths.len())?;
         let xhat = x
             .astype(Dtype::Float16)?

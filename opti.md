@@ -1341,3 +1341,94 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   puisque leur hypothèse est strictement la même et leur graphe encore plus
   grand. Le prochain gain prefill exige un vrai chemin QMM multi-row, pas une
   accumulation de QMV token-par-token.
+
+### OPT-2026-09-12-RUST-PERF-12 — QMM TensorOps EXL3 multi-token en Rust — validé
+
+- Hypothèse : le prefill Rust reste limité à une suite de QMV `M=1` (~47 tok/s)
+  alors que le Python sélectionne son QMM TensorOps M5 à partir de 24 lignes
+  (~325 tok/s end-to-end). Porter d'abord le kernel QMM dense existant, sans
+  réinventer son algorithme, doit fournir la primitive multi-row requise avant
+  la généralisation des couches Qwen et du MoE segmenté.
+- Première portée : `Exl3Linear` dense, lignes multiples, M5/macOS compatible
+  TensorOps ; garder QMV inchangé pour `M=1`. Microbenchmark de matrices réelles
+  Qwen sur M=32/64/128, puis comparaison numérique QMM contre une référence
+  Python/EXL3 et contre les QMV ligne par ligne. Aucun gain end-to-end ne sera
+  revendiqué avant intégration du modèle complet.
+- Baseline : prefill Rust Qwen **47,37 tok/s** sur 212 tokens ; Python actuel
+  **324,70 tok/s** sur 134 tokens. Batterie débranchée, M5, MLX 0.32.2.
+  Contrôles : mêmes formes/dtypes, sorties finies, tolérances FP16 documentées,
+  commandes et mesures brutes conservées. État : aucun code ni résultat.
+- Premier build réussi, mais la validation a été **interrompue avant le kernel
+  candidat** : le nouveau cas du script appelait par erreur l'oracle mono-ligne
+  `qmv_exl3` avec une matrice M32, qui l'a correctement rejetée. Corriger
+  l'import/appel vers `qmm_exl3` puis relancer ; aucune mesure ni conclusion de
+  qualité issue de ce passage.
+- Validation corrigée : `python native/check_parity.py --mlx` passe **178 cas**,
+  dont les nouvelles matrices TensorOps M=32, K=1..8 et codebooks 0..2. Les
+  sorties Rust et Python ont les mêmes motifs binaires FP16 (`uint16`) sur tous
+  ces cas. Le kernel compile et s'exécute donc correctement sur le M5 ; état :
+  **prototype local validé numériquement**, pas encore intégré au prefill Qwen
+  end-to-end et aucun gain modèle revendiqué à ce stade.
+- Intégré ensuite au modèle complet par PERF-13. État final : **validé et
+  intégré localement** ; les gains end-to-end sont consignés ci-dessous.
+
+### OPT-2026-09-12-RUST-PERF-13 — Prefill Qwen multi-token QMM — validé
+
+- Hypothèse : le principal écart restant vient du prefill Rust qui exécute le
+  modèle token par token et ne peut donc jamais sélectionner le QMM TensorOps.
+  Faire traverser un bloc de 32 tokens dans les projections, l'attention, le
+  Gated DeltaNet et le MoE doit supprimer cette sérialisation sans modifier le
+  chemin decode M=1.
+- Changement prévu : réutiliser le QMM TensorOps validé par PERF-12 pour les
+  projections EXL3 groupées et séparées ; généraliser uniquement les formes
+  temporelles déjà supportées par le kernel GDN et les kernels MoE mappés ;
+  conserver le chemin mono-token actuel pour le decode.
+- Baseline end-to-end : Qwen Rust **47,37 tok/s prefill**, **47,13 tok/s
+  decode** sur 212 tokens ; Python actuel **324,70 tok/s prefill**, **48,37
+  tok/s decode** sur son protocole 134 tokens. M5, MLX 0.32.2, batterie.
+- Protocole : build/tests Rust, parité primitive, puis benchmark CLI avec le
+  même modèle et le même prompt 212 tokens. Contrôles : sortie finie, cache
+  causal et états GDN valides, decode non régressé ; mesures alternées si le
+  plateau thermique change. État : **en cours**, aucun résultat.
+- Première commande de contrôle **interrompue avant compilation** : elle visait
+  à tort `native/Cargo.toml`, alors que le manifeste est à la racine. Aucun code
+  ni kernel n'a été exécuté par ce passage ; relancer avec `Cargo.toml`.
+- Le build corrigé passe, avec un avertissement de paramètre devenu inutile
+  après factorisation (retiré aussitôt). La parité n'a pas démarré car la
+  commande remplaçait `PATH` au lieu de le préfixer et ne trouvait plus
+  `python`; aucun résultat kernel supplémentaire issu de ce passage.
+- La vue QMM des poids groupés est maintenant contrôlée elle aussi : build
+  release réussi puis `native/check_parity.py --mlx` passe **187 cas**, dont 9
+  nouveaux cas groupés M=32 (K=2/3/4, trois codebooks), avec égalité bit-à-bit
+  FP16 face aux projections Python contiguës. L'avertissement `rust-objcopy`
+  reste limité au strip optionnel (`libLLVM.dylib` absent) ; le binaire produit
+  et tous les contrôles s'exécutent. État : primitive dense/groupée validée,
+  intégration modèle end-to-end encore en cours.
+- Premier lancement end-to-end après intégration (prompt CLI court, 8 tokens de
+  sortie) : **5,6 tok/s prefill**, **15,5 tok/s decode**, **4297 ms TTFT**. Ce
+  passage inclut la compilation à froid de toutes les nouvelles variantes QMM
+  par forme et n'est donc pas comparable à la baseline chaude ; résultat
+  **non concluant**, à répéter à chaud puis sur le prompt 212 tokens. La sortie
+  est finie et le modèle ne crashe pas.
+- Mesure comparable dans un bridge résident, après warmup, trois répétitions du
+  prompt exact de 212 tokens et 32 tokens greedy : médiane **154,09 tok/s
+  prefill** contre 47,37 (**+225,29 %**), **1,3761 s TTFT** contre 4,4757 s
+  (**−69,25 %**) et **49,17 tok/s decode** contre 47,13 (**+4,33 %**). Les trois
+  répétitions donnent le même SHA256 de texte que la baseline PERF-11 :
+  `5aed1d0102507d0399f27be1efab3b223301bde26a23adcf8ecd537ffe38434c`.
+  Pic MLX inchangé à **13,0644 GB**. Commande :
+  `python3 benchmarks/benchmark_bridge.py <Qwen> --native-binary
+  target/release/mlxl3-rs --max-tokens 32 --repeats 3` avec le filler PERF-11
+  répété 14 fois. M5, MLX 0.32.2, batterie, thermique non contrôlée.
+- Décision : **validé, code local**. Le prefill Qwen utilise des blocs QMM de
+  32 tokens ; les résidus <24 et le decode gardent le chemin QMV mono-token.
+  L'attention causale, les états GDN et le MoE multi-token sont validés par le
+  texte greedy strictement identique. Publication de ce lot encore à faire.
+- Contrôle différentiel étendu après le benchmark : build release réussi et
+  `native/check_parity.py --mlx` passe **189 cas** bit-à-bit, incluant désormais
+  le Gated DeltaNet T=32 avec état initial non nul et le routeur MoE 32×256.
+  L'avertissement de strip `rust-objcopy` reste non bloquant et inchangé.
+- Suite finale locale : **18 tests unitaires passés** (5 GPU explicitement
+  ignorés), test sampler passé, **14 contrats passés**, doc-tests passés et
+  `git diff --check` propre. État : prêt à pousser sur
+  `codex/rust-performance` ; aucune app installée ni release produite.

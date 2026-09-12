@@ -276,7 +276,12 @@ fn codec_loop() -> Result<()> {
                 "mlx-linear" => {
                     use mlxl3_native::{array::Array, linear::Exl3Linear};
                     codec::check_k(request.k)?;
-                    let rows = i32::try_from(request.x.len())?;
+                    let rows = i32::try_from(request.suh.len())?;
+                    anyhow::ensure!(
+                        rows > 0 && request.x.len().is_multiple_of(rows as usize),
+                        "invalid linear input rows"
+                    );
+                    let matrix_rows = i32::try_from(request.x.len() / rows as usize)?;
                     let cols = i32::try_from(request.cols)?;
                     let trellis = Array::from_u16(
                         &request.data,
@@ -290,7 +295,7 @@ fn codec_loop() -> Result<()> {
                         request.k,
                         cb,
                     )?;
-                    let x = Array::from_f16_bits(&request.x, &[1, rows])?;
+                    let x = Array::from_f16_bits(&request.x, &[matrix_rows, rows])?;
                     Ok(json!(layer.forward(&x)?.to_f16_bits()?))
                 }
                 #[cfg(feature = "mlx")]
@@ -300,11 +305,19 @@ fn codec_loop() -> Result<()> {
                         linear::{Exl3Group, Exl3Linear},
                     };
                     codec::check_k(request.k)?;
-                    let rows = request.x.len();
+                    anyhow::ensure!(!request.widths.is_empty(), "missing group widths");
                     anyhow::ensure!(
-                        rows > 0 && rows.is_multiple_of(128),
+                        request.suh.len().is_multiple_of(request.widths.len()),
+                        "invalid grouped input scales"
+                    );
+                    let rows = request.suh.len() / request.widths.len();
+                    anyhow::ensure!(
+                        rows > 0
+                            && rows.is_multiple_of(128)
+                            && request.x.len().is_multiple_of(rows),
                         "invalid grouped input size"
                     );
+                    let matrix_rows = request.x.len() / rows;
                     anyhow::ensure!(
                         request.widths.len() >= 2 && request.k != 7,
                         "unsupported group"
@@ -369,7 +382,7 @@ fn codec_loop() -> Result<()> {
                     let group = Exl3Group::new(linears)?;
                     let outputs = group.forward(&Array::from_f16_bits(
                         &request.x,
-                        &[1, i32::try_from(rows)?],
+                        &[i32::try_from(matrix_rows)?, i32::try_from(rows)?],
                     )?)?;
                     Ok(json!(
                         outputs
@@ -385,15 +398,21 @@ fn codec_loop() -> Result<()> {
                     let key_heads = i32::try_from(request.key_heads)?;
                     let value_heads = i32::try_from(request.value_heads)?;
                     let value_dims = i32::try_from(request.value_dims)?;
-                    let q_shape = [batch, 1, key_heads, 128];
-                    let v_shape = [batch, 1, value_heads, value_dims];
+                    let row_width = usize::try_from(key_heads)? * 128;
+                    anyhow::ensure!(
+                        row_width > 0 && request.q.len().is_multiple_of(row_width),
+                        "invalid GDN time dimension"
+                    );
+                    let time = i32::try_from(request.q.len() / row_width)?;
+                    let q_shape = [batch, time, key_heads, 128];
+                    let v_shape = [batch, time, value_heads, value_dims];
                     let state_shape = [batch, value_heads, value_dims, 128];
                     let (output, state) = gated_delta::step(
                         &Array::from_f16_bits(&request.q, &q_shape)?,
                         &Array::from_f16_bits(&request.x, &q_shape)?,
                         &Array::from_f16_bits(&request.v, &v_shape)?,
-                        &Array::from_f32(&request.g, &[batch, 1, value_heads])?,
-                        &Array::from_f16_bits(&request.beta, &[batch, 1, value_heads])?,
+                        &Array::from_f32(&request.g, &[batch, time, value_heads])?,
+                        &Array::from_f16_bits(&request.beta, &[batch, time, value_heads])?,
                         &Array::from_f32(&request.state, &state_shape)?,
                     )?;
                     Ok(json!({
@@ -423,9 +442,18 @@ fn codec_loop() -> Result<()> {
                 #[cfg(feature = "mlx")]
                 "mlx-router" => {
                     use mlxl3_native::{array::Array, router};
-                    let experts = i32::try_from(request.data.len())?;
+                    let experts = i32::try_from(if request.cols > 0 {
+                        request.cols
+                    } else {
+                        request.data.len()
+                    })?;
+                    anyhow::ensure!(
+                        request.data.len().is_multiple_of(usize::try_from(experts)?),
+                        "invalid router rows"
+                    );
+                    let rows = i32::try_from(request.data.len() / usize::try_from(experts)?)?;
                     let (indices, scores) = router::topk(
-                        &Array::from_f16_bits(&request.data, &[1, experts])?,
+                        &Array::from_f16_bits(&request.data, &[rows, experts])?,
                         request.k,
                         request.normalize,
                     )?;
@@ -556,8 +584,25 @@ fn codec_loop() -> Result<()> {
                 "mlx-switch" => {
                     use mlxl3_native::{array::Array, moe::Exl3SwitchGlu};
                     let experts = i32::try_from(request.key_heads)?;
-                    let top_k = i32::try_from(request.selected.len())?;
-                    let input = i32::try_from(request.x.len())?;
+                    let top_k = i32::try_from(if request.top_k > 0 {
+                        request.top_k
+                    } else {
+                        request.selected.len()
+                    })?;
+                    anyhow::ensure!(
+                        top_k > 0
+                            && request
+                                .selected
+                                .len()
+                                .is_multiple_of(usize::try_from(top_k)?),
+                        "invalid SwitchGLU routes"
+                    );
+                    let rows = i32::try_from(request.selected.len() / usize::try_from(top_k)?)?;
+                    anyhow::ensure!(
+                        request.x.len().is_multiple_of(usize::try_from(rows)?),
+                        "invalid SwitchGLU rows"
+                    );
+                    let input = i32::try_from(request.x.len() / usize::try_from(rows)?)?;
                     let hidden = i32::try_from(request.cols)?;
                     let gu = Array::from_u16(
                         &request.data,
@@ -579,9 +624,9 @@ fn codec_loop() -> Result<()> {
                         cb,
                     )?;
                     let output = switch.forward(
-                        &Array::from_f16_bits(&request.x, &[1, input])?,
-                        &Array::from_u32(&request.selected, &[1, top_k])?,
-                        &Array::from_f16_bits(&request.beta, &[1, top_k])?,
+                        &Array::from_f16_bits(&request.x, &[rows, input])?,
+                        &Array::from_u32(&request.selected, &[rows, top_k])?,
+                        &Array::from_f16_bits(&request.beta, &[rows, top_k])?,
                     )?;
                     Ok(json!(output.to_f16_bits()?))
                 }
@@ -1191,6 +1236,22 @@ impl NativeChatModel {
         }
     }
 
+    fn forward_many(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
+        anyhow::ensure!(!tokens.is_empty(), "empty token batch");
+        if let (Self::Qwen(model), true) = (&mut *self, tokens.len() >= 24) {
+            return model.forward_tokens(tokens);
+        }
+        let mut output = None;
+        for &token in tokens {
+            output = Some(self.forward(token)?);
+        }
+        output.context("empty token batch")
+    }
+
+    fn prefill_chunk_size(&self) -> usize {
+        if matches!(self, Self::Qwen(_)) { 32 } else { 1 }
+    }
+
     fn context_limit(&self) -> i32 {
         match self {
             Self::Gemma4(model) => model.context_limit(),
@@ -1422,12 +1483,12 @@ fn bridge_generate_round(
     model.reset();
     let started = Instant::now();
     let mut logits: Option<Array> = None;
-    for &token in &tokens {
+    for chunk in tokens.chunks(model.prefill_chunk_size()) {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
         }
-        logits = Some(model.forward(token)?);
+        logits = Some(model.forward_many(chunk)?);
         model.eval_state()?;
     }
     let mut logits = logits.context("no prefill output")?;
@@ -1857,14 +1918,13 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         } else {
             max_tokens.min(available)
         };
-        // Prototype replay: correct conversation contents, but prefix reuse and
-        // batched prefill are not ported yet. Evaluate recurrent state per token
-        // so a long prompt cannot retain an unbounded lazy activation graph.
+        // Replay keeps conversation contents exact. Qwen uses bounded QMM chunks;
+        // other architectures retain their established token path.
         model.reset();
         let started = Instant::now();
         let mut last: Option<Array> = None;
-        for token in &tokens {
-            last = Some(model.forward(*token)?);
+        for chunk in tokens.chunks(model.prefill_chunk_size()) {
+            last = Some(model.forward_many(chunk)?);
             model.eval_state()?;
         }
         let mut logits = last.context("no prefill output")?;

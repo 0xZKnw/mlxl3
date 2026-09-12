@@ -1,4 +1,4 @@
-//! Stable one-row MoE top-k through the production MLXL3 Metal kernel.
+//! Stable MoE top-k through the production MLXL3 Metal kernel.
 use crate::array::{self, Array, Dtype};
 use anyhow::{Result, ensure};
 
@@ -8,8 +8,8 @@ pub fn topk(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Arr
         .try_into()
         .map_err(|_| anyhow::anyhow!("router values must have rank 2"))?;
     ensure!(
-        rows == 1 && experts > 0 && experts <= 1024,
-        "native router accepts one row and at most 1024 experts"
+        rows > 0 && experts > 0 && experts <= 1024,
+        "native router accepts positive rows and at most 1024 experts"
     );
     ensure!(
         top_k > 0 && top_k <= experts as usize,
@@ -72,9 +72,9 @@ pub fn topk(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Arr
         "",
         &source,
         &[values, values],
-        &[vec![1, top_k as i32], vec![1, top_k as i32]],
+        &[vec![rows, top_k as i32], vec![rows, top_k as i32]],
         &[Dtype::UInt32, Dtype::Float16],
-        [experts, 1, 1],
+        [experts, rows, 1],
         [experts, 1, 1],
     )?;
     ensure!(

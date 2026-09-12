@@ -96,7 +96,7 @@ def main():
         if args.mlx:
             import mlx.core as mx
             from mlxl3.moe import EXL3SwitchGLU, router_topk, topk_biased
-            from mlxl3.kernels.qmv import qmv_exl3, qmv_exl3_expert_mapped, qmv_exl3_grouped
+            from mlxl3.kernels.qmv import qmm_exl3, qmv_exl3, qmv_exl3_expert_mapped, qmv_exl3_grouped
             from mlxl3.kernels.qmv import _scaled_hadamard_output_reduce
             from mlxl3.moe import _fused_glu_down_prepare
             from mlx_lm.models.gated_delta import gated_delta_kernel
@@ -118,6 +118,23 @@ def main():
                         np.testing.assert_array_equal(actual, expected,
                             err_msg=f"MLX projection {rows}x{cols} K{k} CB{mode}")
                         cases += 1
+            rows, cols, matrix_rows = 128, 128, 32
+            for k in range(1, 9):
+                rng = np.random.default_rng(3200 + k)
+                packed = trellis.pack_trellis(rng.integers(0, 65536,
+                    size=(rows // 16, cols // 16, 256), dtype=np.uint16), k)
+                x = rng.normal(size=(matrix_rows, rows)).astype(np.float16)
+                suh = rng.uniform(-0.2, 0.2, rows).astype(np.float16)
+                svh = rng.uniform(-0.2, 0.2, cols).astype(np.float16)
+                for mode in range(3):
+                    expected = np.asarray(qmm_exl3(mx.array(x), mx.array(packed),
+                        mx.array(suh), mx.array(svh), k, mode)).view(np.uint16).ravel()
+                    actual = request("mlx-linear", k=k, mode=mode, cols=cols,
+                        data=packed.ravel().tolist(), x=x.view(np.uint16).ravel().tolist(),
+                        suh=suh.view(np.uint16).tolist(), svh=svh.view(np.uint16).tolist())
+                    np.testing.assert_array_equal(actual, expected,
+                        err_msg=f"MLX TensorOps projection M{matrix_rows} {rows}x{cols} K{k} CB{mode}")
+                    cases += 1
             for rows, widths in [(2048, (2048, 512, 512)), (1024, (256, 512))]:
                 for k in (1, 2, 3, 4, 5, 6, 8):
                     rng = np.random.default_rng(rows + k)
@@ -137,14 +154,37 @@ def main():
                             np.testing.assert_array_equal(actual[index], np.asarray(reference).view(np.uint16).ravel(),
                                 err_msg=f"MLX grouped {rows}x{widths} K{k} CB{mode}, projection {index}")
                         cases += 1
-            for seed, initial_state in ((41, False), (42, True)):
+            rows, widths, matrix_rows = 128, (128, 256), 32
+            for k in (2, 3, 4):
+                rng = np.random.default_rng(4000 + k)
+                packed = [trellis.pack_trellis(rng.integers(0, 65536,
+                    size=(rows//16, width//16, 256), dtype=np.uint16), k) for width in widths]
+                x = rng.normal(size=(matrix_rows, rows)).astype(np.float16)
+                suh = rng.uniform(-0.2, 0.2, (len(widths), rows)).astype(np.float16)
+                svh = rng.uniform(-0.2, 0.2, sum(widths)).astype(np.float16)
+                for mode in range(3):
+                    expected = []
+                    scale_offset = 0
+                    for index, (weight, width) in enumerate(zip(packed, widths, strict=True)):
+                        expected.append(qmm_exl3(mx.array(x), mx.array(weight), mx.array(suh[index]),
+                            mx.array(svh[scale_offset:scale_offset + width]), k, mode))
+                        scale_offset += width
+                    actual = request("mlx-group", k=k, mode=mode, widths=widths,
+                        data=np.concatenate([p.ravel() for p in packed]).tolist(),
+                        x=x.view(np.uint16).ravel().tolist(),
+                        suh=suh.view(np.uint16).ravel().tolist(), svh=svh.view(np.uint16).tolist())
+                    for index, reference in enumerate(expected):
+                        np.testing.assert_array_equal(actual[index], np.asarray(reference).view(np.uint16).ravel(),
+                            err_msg=f"MLX grouped TensorOps M{matrix_rows} {rows}x{widths} K{k} CB{mode}, projection {index}")
+                    cases += 1
+            for seed, initial_state, time in ((41, False, 1), (42, True, 1), (43, True, 32)):
                 rng = np.random.default_rng(seed)
                 key_heads, value_heads, value_dims = 1, 2, 8
-                q = rng.normal(size=(1, 1, key_heads, 128)).astype(np.float16)
+                q = rng.normal(size=(1, time, key_heads, 128)).astype(np.float16)
                 key = rng.normal(size=q.shape).astype(np.float16)
-                value = rng.normal(size=(1, 1, value_heads, value_dims)).astype(np.float16)
-                decay = rng.uniform(0.01, 0.99, size=(1, 1, value_heads)).astype(np.float32)
-                beta = rng.uniform(0.01, 0.99, size=(1, 1, value_heads)).astype(np.float16)
+                value = rng.normal(size=(1, time, value_heads, value_dims)).astype(np.float16)
+                decay = rng.uniform(0.01, 0.99, size=(1, time, value_heads)).astype(np.float32)
+                beta = rng.uniform(0.01, 0.99, size=(1, time, value_heads)).astype(np.float16)
                 state = (rng.normal(size=(1, value_heads, value_dims, 128)).astype(np.float32)
                          if initial_state else np.zeros((1, value_heads, value_dims, 128), dtype=np.float32))
                 expected_output, expected_state = gated_delta_kernel(
@@ -157,10 +197,10 @@ def main():
                     state=state.ravel().tolist())
                 np.testing.assert_array_equal(np.asarray(actual["output"], dtype=np.uint16),
                     np.asarray(expected_output).view(np.uint16).ravel(),
-                    err_msg=f"Gated DeltaNet output, nonzero state={initial_state}")
+                    err_msg=f"Gated DeltaNet output, nonzero state={initial_state}, time={time}")
                 np.testing.assert_array_equal(np.asarray(actual["state"], dtype=np.float32).view(np.uint32),
                     np.asarray(expected_state).astype(np.float32).ravel().view(np.uint32),
-                    err_msg=f"Gated DeltaNet state, nonzero state={initial_state}")
+                    err_msg=f"Gated DeltaNet state, nonzero state={initial_state}, time={time}")
                 cases += 1
             router_cases = [
                 np.random.default_rng(51).uniform(0, 1, 256).astype(np.float16),
@@ -181,6 +221,15 @@ def main():
                         np.asarray(expected_scores).view(np.uint16).ravel(),
                         err_msg=f"MoE router scores, normalize={normalize}")
                     cases += 1
+            values = np.random.default_rng(511).uniform(0, 1, (32, 256)).astype(np.float16)
+            expected_indices, expected_scores = router_topk(mx.array(values), 8, normalize=True)
+            actual = request("mlx-router", k=8, cols=256, normalize=True,
+                data=values.view(np.uint16).ravel().tolist())
+            np.testing.assert_array_equal(np.asarray(actual["indices"], dtype=np.uint32),
+                np.asarray(expected_indices).astype(np.uint32).ravel(), err_msg="multi-row MoE router indices")
+            np.testing.assert_array_equal(np.asarray(actual["scores"], dtype=np.uint16),
+                np.asarray(expected_scores).view(np.uint16).ravel(), err_msg="multi-row MoE router scores")
+            cases += 1
             rng = np.random.default_rng(52)
             values = rng.uniform(0, 1, 32).astype(np.float16)
             bias = rng.uniform(-0.25, 0.25, 32).astype(np.float16)

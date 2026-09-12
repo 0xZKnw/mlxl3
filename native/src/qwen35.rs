@@ -129,7 +129,10 @@ impl Moe {
     }
 
     pub fn forward(&self, x: &Array) -> Result<Array> {
-        ensure!(x.shape() == [1, self.hidden], "Qwen MoE expects one token");
+        ensure!(
+            x.shape().len() == 2 && x.shape()[0] > 0 && x.shape()[1] == self.hidden,
+            "invalid Qwen MoE input"
+        );
         let probabilities = self.gate.forward(x)?.softmax_precise()?;
         let (selected, scores) = router::topk(&probabilities, self.top_k, true)?;
         let routed = self.experts.forward(x, &selected, &scores)?;
@@ -324,21 +327,29 @@ impl Attention {
     }
 
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("Qwen attention input must have time")?;
+        ensure!(
+            x.shape().len() == 3 && x.shape()[0] == 1 && time > 0,
+            "invalid Qwen attention input"
+        );
         let qkv = self.qkv.forward(x)?;
-        let q_gate = qkv[0].reshape(&[1, 1, self.heads, self.head_dim * 2])?;
+        let q_gate = qkv[0].reshape(&[1, time, self.heads, self.head_dim * 2])?;
         let q = q_gate
             .slice(3, 0, self.head_dim)?
             .rms_norm(&self.q_norm, self.eps)?
             .transpose(&[0, 2, 1, 3])?;
         let gate = q_gate
             .slice(3, self.head_dim, self.head_dim * 2)?
-            .reshape(&[1, 1, self.heads * self.head_dim])?;
+            .reshape(&[1, time, self.heads * self.head_dim])?;
         let k = qkv[1]
-            .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .rms_norm(&self.k_norm, self.eps)?
             .transpose(&[0, 2, 1, 3])?;
         let v = qkv[2]
-            .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .transpose(&[0, 2, 1, 3])?;
         let offset = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
         let q = q.rope(self.rope_dims, self.theta, offset)?;
@@ -351,10 +362,16 @@ impl Attention {
             Some(previous) => Array::concatenate(&[previous, &v], 2)?,
             None => v,
         };
-        let attended = Array::sdpa(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), false)?
-            .transpose(&[0, 2, 1, 3])?
-            .reshape(&[1, 1, self.heads * self.head_dim])?
-            .mul(&gate.sigmoid()?)?;
+        let attended = Array::sdpa(
+            &q,
+            &keys,
+            &values,
+            (self.head_dim as f32).powf(-0.5),
+            time > 1,
+        )?
+        .transpose(&[0, 2, 1, 3])?
+        .reshape(&[1, time, self.heads * self.head_dim])?
+        .mul(&gate.sigmoid()?)?;
         self.keys = Some(keys);
         self.values = Some(values);
         self.output.forward(&attended)
@@ -439,9 +456,13 @@ impl AttentionLayer {
     }
 
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("Qwen layer input must have time")?;
         ensure!(
-            x.shape() == [1, 1, self.hidden],
-            "Qwen layer expects one token"
+            x.shape() == [1, time, self.hidden] && time > 0,
+            "invalid Qwen layer input"
         );
         let attention = self
             .attention
@@ -450,9 +471,9 @@ impl AttentionLayer {
         let mlp = self.mlp.forward(
             &hidden
                 .rms_norm(&self.post_norm, self.eps)?
-                .reshape(&[1, self.hidden])?,
+                .reshape(&[time, self.hidden])?,
         )?;
-        hidden.add(&mlp.reshape(&[1, 1, self.hidden])?)
+        hidden.add(&mlp.reshape(&[1, time, self.hidden])?)
     }
 
     pub fn states(&self) -> Result<(&Array, &Array)> {
@@ -646,13 +667,32 @@ impl Qwen35Moe {
         self.run(token, true)
     }
 
+    pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
+        match self.run_tokens(tokens, false) {
+            Ok((logits, _)) => Ok(logits),
+            Err(error) => {
+                self.reset();
+                Err(error.context("Qwen batched forward failed; its cache was reset"))
+            }
+        }
+    }
+
     fn run(&mut self, token: u32, trace: bool) -> Result<(Array, Vec<Vec<u16>>)> {
+        self.run_tokens(&[token], trace)
+    }
+
+    fn run_tokens(&mut self, tokens: &[u32], trace: bool) -> Result<(Array, Vec<Vec<u16>>)> {
         ensure!(
-            token < self.vocab as u32,
-            "Qwen token is outside vocabulary"
+            !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
+            "Qwen token batch is empty or outside vocabulary"
         );
-        ensure!(self.offset < self.context_limit, "Qwen context is full");
-        let id = Array::from_i32(&[token as i32], &[1, 1])?;
+        let time = i32::try_from(tokens.len())?;
+        ensure!(
+            self.offset + time <= self.context_limit,
+            "Qwen context is full"
+        );
+        let ids = tokens.iter().map(|&token| token as i32).collect::<Vec<_>>();
+        let id = Array::from_i32(&ids, &[1, time])?;
         let mut hidden = self.embeddings.take(&id, 0)?;
         let mut layers = Vec::with_capacity(if trace { self.layers.len() + 2 } else { 0 });
         if trace {
@@ -664,7 +704,8 @@ impl Qwen35Moe {
                 layers.push(hidden.to_f16_bits()?);
             }
         }
-        let normalized = hidden.rms_norm(&self.norm, self.eps)?;
+        let last = hidden.slice(1, time - 1, time)?;
+        let normalized = last.rms_norm(&self.norm, self.eps)?;
         if trace {
             layers.push(normalized.to_f16_bits()?);
         }
@@ -672,7 +713,7 @@ impl Qwen35Moe {
         // One token is one Metal graph. Synchronizing hidden/cache arrays in
         // every layer serialized dozens of otherwise independent dispatches.
         logits.eval()?;
-        self.offset += 1;
+        self.offset += time;
         Ok((logits, layers))
     }
 
@@ -753,9 +794,13 @@ impl LinearLayer {
     }
 
     fn run(&mut self, x: &Array, trace: bool) -> Result<(Array, Vec<Array>)> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("Qwen layer input must have time")?;
         ensure!(
-            x.shape() == [1, 1, self.hidden],
-            "Qwen layer expects one token"
+            x.shape() == [1, time, self.hidden] && time > 0,
+            "invalid Qwen layer input"
         );
         let normalized = x.rms_norm(&self.input_norm, self.eps)?;
         let (attention, inner) = if trace {
@@ -765,8 +810,8 @@ impl LinearLayer {
         };
         let hidden = x.add(&attention)?;
         let post = hidden.rms_norm(&self.post_norm, self.eps)?;
-        let mlp = self.mlp.forward(&post.reshape(&[1, self.hidden])?)?;
-        let mlp = mlp.reshape(&[1, 1, self.hidden])?;
+        let mlp = self.mlp.forward(&post.reshape(&[time, self.hidden])?)?;
+        let mlp = mlp.reshape(&[1, time, self.hidden])?;
         let output = hidden.add(&mlp)?;
         let values = if trace {
             let mut values = vec![normalized];
@@ -911,16 +956,17 @@ impl GatedDelta {
     }
 
     fn run(&mut self, x: &Array, trace: bool) -> Result<(Array, Vec<Array>)> {
+        let time = *x.shape().get(1).context("Qwen GDN input must have time")?;
         ensure!(
-            x.shape() == [1, 1, self.hidden],
-            "Qwen GDN expects one token"
+            x.shape() == [1, time, self.hidden] && time > 0,
+            "invalid Qwen GDN input"
         );
         let keys = self.key_heads * self.key_dim;
         let values = self.value_heads * self.value_dim;
         let conv_dims = 2 * keys + values;
         let inputs = self.inputs.forward(x)?;
         let qkv = inputs[0].try_clone()?;
-        let z = inputs[1].reshape(&[1, 1, self.value_heads, self.value_dim])?;
+        let z = inputs[1].reshape(&[1, time, self.value_heads, self.value_dim])?;
         let b = self.b.forward(x)?;
         let a = self.a.forward(x)?;
         let conv_state = match &self.conv_state {
@@ -928,17 +974,17 @@ impl GatedDelta {
             None => Array::zeros_dtype(&[1, self.conv_length - 1, conv_dims], Dtype::Float16)?,
         };
         let conv_input = Array::concatenate(&[&conv_state, &qkv], 1)?;
-        self.conv_state = Some(conv_input.slice(1, 1, self.conv_length)?);
+        self.conv_state = Some(conv_input.slice(1, time, time + self.conv_length - 1)?);
         let conv = conv_input.conv1d(&self.conv_weight, conv_dims)?.silu()?;
         let q = conv
             .slice(2, 0, keys)?
-            .reshape(&[1, 1, self.key_heads, self.key_dim])?;
+            .reshape(&[1, time, self.key_heads, self.key_dim])?;
         let k = conv
             .slice(2, keys, 2 * keys)?
-            .reshape(&[1, 1, self.key_heads, self.key_dim])?;
+            .reshape(&[1, time, self.key_heads, self.key_dim])?;
         let v = conv.slice(2, 2 * keys, 2 * keys + values)?.reshape(&[
             1,
-            1,
+            time,
             self.value_heads,
             self.value_dim,
         ])?;
@@ -965,7 +1011,7 @@ impl GatedDelta {
         self.recurrent_state = Some(state);
         let normalized = out.rms_norm(&self.norm, self.eps)?;
         let gated = z.precise_swiglu(&normalized)?;
-        let output = self.output.forward(&gated.reshape(&[1, 1, values])?)?;
+        let output = self.output.forward(&gated.reshape(&[1, time, values])?)?;
         let arrays = if trace {
             vec![
                 qkv,

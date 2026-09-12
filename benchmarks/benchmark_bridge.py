@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import statistics
 import subprocess
@@ -55,6 +56,7 @@ def generate(
     first_delta_at = None
     delta_events = 0
     delta_bytes = 0
+    text = ""
     while True:
         event = read_event(process)
         if event.get("request_id") != request_id:
@@ -63,7 +65,9 @@ def generate(
             if first_delta_at is None:
                 first_delta_at = time.perf_counter()
             delta_events += 1
-            delta_bytes += len(event.get("text", "").encode("utf-8"))
+            chunk = event.get("text", "")
+            text += chunk
+            delta_bytes += len(chunk.encode("utf-8"))
         elif event["type"] == "error":
             raise RuntimeError(event["message"])
         elif event["type"] == "complete":
@@ -80,6 +84,8 @@ def generate(
                 "client_decode_tps": client_decode_tps,
                 "delta_events": delta_events,
                 "delta_bytes": delta_bytes,
+                "text_hash": hashlib.sha256(text.encode()).hexdigest(),
+                "text_prefix": text[:115],
             }
 
 
@@ -88,14 +94,20 @@ def main() -> None:
     parser.add_argument("model", type=Path)
     parser.add_argument("--max-tokens", type=int, default=256)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--native-binary", type=Path)
     parser.add_argument(
         "--prompt",
         default="Explique en français, en trois points concis, pourquoi le ciel est bleu.",
     )
     args = parser.parse_args()
 
+    command = (
+        [str(args.native_binary), "bridge", str(args.model), "--context-length", "4096"]
+        if args.native_binary
+        else [sys.executable, "-m", "mlxl3", "bridge", str(args.model)]
+    )
     process = subprocess.Popen(
-        [sys.executable, "-m", "mlxl3", "bridge", str(args.model)],
+        command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
