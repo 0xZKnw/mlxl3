@@ -366,6 +366,23 @@ def main():
             np.testing.assert_array_equal(np.asarray(actual, dtype=np.uint16),
                 np.asarray(expected).view(np.uint16).ravel(), err_msg="complete SwitchGLU")
             cases += 1
+            rows = 64
+            x = rng.normal(size=(rows, input_dims)).astype(np.float16)
+            row_ids = np.arange(rows, dtype=np.uint32)
+            selected = np.stack([row_ids % experts, (row_ids + 1) % experts], axis=1)
+            scores = rng.uniform(0.1, 1.0, size=(rows, top_k)).astype(np.float16)
+            scores /= scores.sum(axis=1, keepdims=True)
+            expected = switch(mx.array(x), mx.array(selected), scores=mx.array(scores))
+            actual = request("mlx-switch", k=k, key_heads=experts, top_k=top_k, cols=hidden,
+                data=gu_packed.ravel().tolist(), suh=gu_suh.view(np.uint16).ravel().tolist(),
+                svh=gu_svh.view(np.uint16).ravel().tolist(), down_data=down_packed.ravel().tolist(),
+                down_suh=down_suh.view(np.uint16).ravel().tolist(),
+                down_svh=down_svh.view(np.uint16).ravel().tolist(),
+                x=x.view(np.uint16).ravel().tolist(), selected=selected.ravel().tolist(),
+                beta=scores.view(np.uint16).ravel().tolist())
+            np.testing.assert_array_equal(np.asarray(actual, dtype=np.uint16),
+                np.asarray(expected).view(np.uint16).ravel(), err_msg="segmented prefill SwitchGLU")
+            cases += 1
     finally:
         process.stdin.close()
         try:

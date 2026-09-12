@@ -2,8 +2,8 @@
 use crate::{
     array::{self, Array, Dtype},
     checkpoint::Checkpoint,
-    codec::Codebook,
-    linear::{checkpoint_array, expert_mapped},
+    codec::{self, Codebook},
+    linear::{checkpoint_array, codebook_header, expert_mapped},
 };
 use anyhow::{Context, Result, ensure};
 
@@ -33,6 +33,250 @@ fn butterfly<'a>(mut source: &'a str, mut target: &'a str, round_after_four: boo
 enum GluActivation {
     Silu,
     Gelu,
+}
+
+struct RoutePlan {
+    experts: Array,
+    tokens: Array,
+    inverse: Array,
+    table: Array,
+    count: Array,
+    slots: i32,
+    padded: i32,
+    max_blocks: i32,
+}
+
+fn route_plan(selected: &Array, rows: i32, top_k: i32, experts: i32) -> Result<RoutePlan> {
+    let slots = rows.checked_mul(top_k).context("MoE slot overflow")?;
+    ensure!(
+        selected.shape() == [slots]
+            && selected.dtype() == Dtype::UInt32
+            && experts > 0
+            && experts <= 256,
+        "invalid segmented MoE routes"
+    );
+    let padded = slots.checked_add(64).context("MoE padding overflow")?;
+    let max_blocks = slots
+        .checked_div(64)
+        .and_then(|n| n.checked_add(experts + 1))
+        .context("MoE block table overflow")?;
+    let order = selected.argsort()?;
+    let source = format!(
+        r#"
+            constexpr uint SLOTS = {slots}u;
+            constexpr uint PADDED = {padded}u;
+            constexpr uint TOP_K = {top_k}u;
+            constexpr uint EXPERTS = {experts}u;
+            constexpr uint MAX_BLOCKS = {max_blocks}u;
+            uint tid = thread_position_in_threadgroup.x;
+
+            for (uint i = tid; i < SLOTS; i += 256u) {{
+                uint original = order[i];
+                sorted_experts[i] = selected[original];
+                token_rows[i] = original / TOP_K;
+                inverse[original] = i;
+            }}
+            for (uint i = SLOTS + tid; i < PADDED; i += 256u) {{
+                sorted_experts[i] = 0u;
+                token_rows[i] = 0u;
+            }}
+
+            if (tid == 0u) {{
+                uint next_block = 0u;
+                for (uint expert = 0u; expert < EXPERTS; ++expert) {{
+                    uint lo = 0u, hi = SLOTS;
+                    while (lo < hi) {{
+                        uint mid = (lo + hi) >> 1u;
+                        if (selected[order[mid]] < expert) lo = mid + 1u;
+                        else hi = mid;
+                    }}
+                    uint begin = lo;
+                    hi = SLOTS;
+                    while (lo < hi) {{
+                        uint mid = (lo + hi) >> 1u;
+                        if (selected[order[mid]] <= expert) lo = mid + 1u;
+                        else hi = mid;
+                    }}
+                    uint count = lo - begin;
+                    for (uint offset = 0u; offset < count; offset += 64u) {{
+                        block_table[next_block] = expert;
+                        block_table[MAX_BLOCKS + next_block] = begin + offset;
+                        block_table[2u * MAX_BLOCKS + next_block] = min(64u, count - offset);
+                        ++next_block;
+                    }}
+                }}
+                block_count[0] = next_block;
+            }}
+        "#
+    );
+    let mut outputs = array::metal_kernel(
+        &format!("mlxl3_rs_route_plan_r{rows}_k{top_k}_e{experts}_v1"),
+        &["selected", "order"],
+        &[
+            "sorted_experts",
+            "token_rows",
+            "inverse",
+            "block_table",
+            "block_count",
+        ],
+        "",
+        &source,
+        &[selected, &order],
+        &[
+            vec![padded],
+            vec![padded],
+            vec![slots],
+            vec![3, max_blocks],
+            vec![1],
+        ],
+        &[
+            Dtype::UInt32,
+            Dtype::UInt32,
+            Dtype::UInt32,
+            Dtype::UInt32,
+            Dtype::UInt32,
+        ],
+        [256, 1, 1],
+        [256, 1, 1],
+    )?;
+    Ok(RoutePlan {
+        experts: outputs.remove(0),
+        tokens: outputs.remove(0),
+        inverse: outputs.remove(0),
+        table: outputs.remove(0),
+        count: outputs.remove(0),
+        slots,
+        padded,
+        max_blocks,
+    })
+}
+
+fn routed_inputs(x: &Array, scales: &Array, plan: &RoutePlan, input: i32) -> Result<Array> {
+    ensure!(
+        x.shape().len() == 2
+            && x.shape()[1] == input
+            && scales.shape().len() == 3
+            && scales.shape()[1..] == [2, input]
+            && input % 128 == 0,
+        "invalid routed prefill input"
+    );
+    let source = format!(
+        r#"
+            constexpr uint INPUT_DIMS = {input}u;
+            uint tid = thread_position_in_threadgroup.x;
+            uint block = threadgroup_position_in_grid.x;
+            uint route = threadgroup_position_in_grid.y;
+            uint projection = threadgroup_position_in_grid.z;
+            uint token = tokens[route];
+            uint expert = experts[route];
+            uint base = block * 128u + tid * 4u;
+            float v[4];
+            for (uint r = 0u; r < 4u; ++r) {{
+                uint column = base + r;
+                v[r] = float(half(half(x[token * INPUT_DIMS + column]) *
+                    half(scales[(expert * 2u + projection) * INPUT_DIMS + column])));
+            }}
+            for (uint h = 1u; h < 4u; h *= 2u) {{
+                for (uint i = 0u; i < 2u; ++i) {{
+                    uint k = i & (h - 1u);
+                    uint j = ((i - k) << 1u) + k;
+                    float a = v[j], b = v[j + h];
+                    v[j] = a + b;
+                    v[j + h] = a - b;
+                }}
+            }}
+            for (uint h = 1u; h < 4u; h *= 2u) {{
+                for (uint r = 0u; r < 4u; ++r) {{
+                    float peer = simd_shuffle_xor(v[r], h);
+                    v[r] = (tid & h) ? peer - v[r] : v[r] + peer;
+                }}
+            }}
+            for (uint r = 0u; r < 4u; ++r) v[r] = float(half(v[r]));
+            for (uint h = 4u; h < 32u; h *= 2u) {{
+                for (uint r = 0u; r < 4u; ++r) {{
+                    float peer = simd_shuffle_xor(v[r], h);
+                    v[r] = (tid & h) ? peer - v[r] : v[r] + peer;
+                }}
+            }}
+            for (uint r = 0u; r < 4u; ++r) {{
+                out[(projection * uint(tokens_shape[0]) + route) * INPUT_DIMS + base + r] =
+                    half(float(half(v[r])) * 0.08838834764831845f);
+            }}
+        "#
+    );
+    Ok(array::metal_kernel(
+        &format!("mlxl3_rs_routed_input_d{input}_v1"),
+        &["x", "scales", "tokens", "experts"],
+        &["out"],
+        "",
+        &source,
+        &[x, scales, &plan.tokens, &plan.experts],
+        &[vec![2, plan.padded, input]],
+        &[Dtype::Float16],
+        [input / 4, plan.padded, 2],
+        [32, 1, 1],
+    )?
+    .remove(0))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn expert_segmented_qmm(
+    xhat: &Array,
+    trellis: &Array,
+    plan: &RoutePlan,
+    input: i32,
+    output: i32,
+    experts: i32,
+    tile_offset: i32,
+    k: usize,
+    cb: Codebook,
+) -> Result<Array> {
+    ensure!(
+        array::is_m5_gpu()?
+            && k != 7
+            && input % 16 == 0
+            && output % 32 == 0
+            && xhat.shape() == [plan.padded, input]
+            && trellis.shape()[0] * 16 == input
+            && trellis.shape()[2] == (16 * k) as i32,
+        "invalid segmented expert QMM"
+    );
+    let tiles_per_expert = output / 16;
+    let tiles_n = trellis.shape()[1];
+    ensure!(
+        tile_offset >= 0 && tile_offset + experts * tiles_per_expert <= tiles_n,
+        "segmented expert QMM weight view exceeds trellis"
+    );
+    let inverse = codec::permutation_inverse()
+        .map(|value| value.to_string())
+        .join(",");
+    let header = format!(
+        "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n{}constant ushort mlxl3_perm_inv[256] = {{{inverse}}};\n#define BM 32u\n#define BN 32u\n#define BK 16u\n#define K_BITS {k}u\n#define PACKED_U32 {}u\n#define INPUT_DIMS {input}u\n#define OUTPUT_DIMS {output}u\n#define TILES_PER_EXPERT {tiles_per_expert}u\n#define TILES_N {tiles_n}u\n#define WEIGHT_TILE_OFFSET {tile_offset}u\n#define MAX_BLOCKS {}u\n",
+        codebook_header(cb),
+        k * 8,
+        plan.max_blocks,
+    );
+    Ok(array::metal_kernel(
+        &format!(
+            "mlxl3_rs_expert_qmm_segmented_{input}_{output}_{experts}_{k}_{}_o{tile_offset}_v1",
+            cb as u32
+        ),
+        &["xhat", "trellis", "block_table", "block_count"],
+        &["yhat"],
+        &header,
+        include_str!("../shaders/_expert_qmm_tensor_kernel.metal"),
+        &[
+            xhat,
+            &trellis.reshape(&[-1])?.view(Dtype::UInt32)?,
+            &plan.table,
+            &plan.count,
+        ],
+        &[vec![plan.slots, output]],
+        &[Dtype::Float16],
+        [(output / 32) * 32, plan.max_blocks, 2],
+        [32, 1, 1],
+    )?
+    .remove(0))
 }
 
 fn glu_down_input(
@@ -489,6 +733,9 @@ impl Exl3SwitchGlu {
         if matches!(self.activation, GluActivation::Gelu) {
             return self.forward_gelu(x, &selected, scores, rows);
         }
+        if rows >= 64 && self.experts <= 256 && self.k != 7 && array::is_m5_gpu()? {
+            return self.forward_segmented(x, &selected, scores, rows);
+        }
         let x_gu = x
             .reshape(&[rows, 1, 1, self.input])?
             .broadcast_to(&[rows, self.top_k, 2, self.input])?
@@ -534,6 +781,82 @@ impl Exl3SwitchGlu {
             true,
         )?;
         finish_and_reduce(&down, &self.down_svh.take(&selected, 0)?, scores)
+    }
+
+    fn forward_segmented(
+        &self,
+        x: &Array,
+        selected: &Array,
+        scores: &Array,
+        rows: i32,
+    ) -> Result<Array> {
+        let plan = route_plan(selected, rows, self.top_k, self.experts)?;
+        let prepared = routed_inputs(x, &self.gu_suh, &plan, self.input)?;
+        let gate = expert_segmented_qmm(
+            &prepared
+                .slice(0, 0, 1)?
+                .reshape(&[plan.padded, self.input])?,
+            &self.gu_trellis,
+            &plan,
+            self.input,
+            self.hidden,
+            self.experts,
+            0,
+            self.k,
+            self.cb,
+        )?;
+        let up = expert_segmented_qmm(
+            &prepared
+                .slice(0, 1, 2)?
+                .reshape(&[plan.padded, self.input])?,
+            &self.gu_trellis,
+            &plan,
+            self.input,
+            self.hidden,
+            self.experts,
+            self.experts * self.hidden / 16,
+            self.k,
+            self.cb,
+        )?;
+        let sorted = plan.experts.slice(0, 0, plan.slots)?;
+        let gate_up = Array::concatenate(
+            &[
+                &gate.reshape(&[plan.slots, 1, self.hidden])?,
+                &up.reshape(&[plan.slots, 1, self.hidden])?,
+            ],
+            1,
+        )?
+        .reshape(&[plan.slots * 2, self.hidden])?;
+        let down_input = glu_down_input(
+            &gate_up,
+            &self.gu_svh,
+            &self.down_suh,
+            &sorted,
+            self.activation,
+            self.logical_hidden,
+        )?;
+        let down = expert_segmented_qmm(
+            &Array::concatenate(
+                &[
+                    &down_input,
+                    &Array::zeros_dtype(&[64, self.hidden], Dtype::Float16)?,
+                ],
+                0,
+            )?,
+            &self.down_trellis,
+            &plan,
+            self.hidden,
+            self.input,
+            self.experts,
+            0,
+            self.k,
+            self.cb,
+        )?;
+        finish_and_reduce(
+            &down.take(&plan.inverse, 0)?,
+            &self.down_svh.take(selected, 0)?,
+            scores,
+        )
     }
 
     fn forward_gelu(

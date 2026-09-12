@@ -1249,7 +1249,11 @@ impl NativeChatModel {
     }
 
     fn prefill_chunk_size(&self) -> usize {
-        if matches!(self, Self::Qwen(_)) { 256 } else { 1 }
+        if matches!(self, Self::Qwen(_)) {
+            256
+        } else {
+            1
+        }
     }
 
     fn context_limit(&self) -> i32 {

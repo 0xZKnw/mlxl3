@@ -473,6 +473,9 @@ impl Array {
         ensure!(shape.iter().all(|&x| x >= 0), "invalid broadcast shape");
         self.unary(20, shape, 0., 0)
     }
+    pub fn argsort(&self) -> Result<Self> {
+        self.unary(21, &[], 0., 0)
+    }
     pub fn add(&self, other: &Self) -> Result<Self> {
         self.binary(other, 0, 0, 0.)
     }
@@ -639,6 +642,10 @@ mod tests {
         assert!((geglu[1] - 2.5236).abs() < 0.001);
         assert!((gate.scalar_mul(2.)?.tanh()?.to_f32()?[1] - 0.964).abs() < 0.001);
         assert_eq!(a.argmax()?.to_u32()?, vec![1, 1]);
+        assert_eq!(
+            Array::from_u32(&[2, 0, 1], &[3])?.argsort()?.to_u32()?,
+            vec![1, 2, 0]
+        );
         assert_eq!(
             Array::from_f32(&[1., 2.], &[1, 2])?
                 .broadcast_to(&[2, 2])?

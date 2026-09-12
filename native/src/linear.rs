@@ -732,7 +732,7 @@ fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {
     splits
 }
 
-fn codebook_header(cb: Codebook) -> String {
+pub(crate) fn codebook_header(cb: Codebook) -> String {
     let body = match cb {
         Codebook::Default => {
             "uint bits=x*89226354u+64248484u; bits=0x3B603B60u^(bits&0x8FFF8FFFu); half2 v=as_type<half2>(bits); return float(v.x+v.y);"

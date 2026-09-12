@@ -166,6 +166,7 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         }
         case 19: return mx::argmax(a, -1, false);
         case 20: return mx::broadcast_to(a, shape(args, nargs));
+        case 21: return mx::argsort(a, -1);
       }
       throw std::invalid_argument("invalid unary operation");
     };

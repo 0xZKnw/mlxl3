@@ -1490,3 +1490,77 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   améliore PERF-13/32 de 154,09 à 242,23 tok/s (**+57,20 %**) et le TTFT de
   1,3761 à 0,8755 s (**−36,38 %**), sans changement de hash, de pic mémoire ni
   de chemin decode. Build release validé ; publication encore à faire.
+
+### OPT-2026-09-12-RUST-PERF-15 — QMM MoE segmenté par expert — en cours
+
+- Hypothèse : le prefill Rust trie déjà implicitement les mêmes routes mais
+  exécute encore un QMV expert par slot. Le moteur Python trie les routes par
+  expert et réutilise chaque tuile de poids décodée pour toutes les lignes du
+  segment. Porter ce chemin existant doit fermer une partie de l'écart entre
+  **242,23 tok/s Rust** et **324,70 tok/s Python**, sans modifier le decode M=1.
+- Changement prévu : réutiliser le kernel TensorOps segmenté Python, construire
+  sur GPU l'ordre, son inverse et la table de segments, puis appliquer gate/up
+  et down aux routes triées. Aucun aller-retour CPU et aucun nouvel algorithme.
+- Baseline : bloc 256, prompt exact de 212 tokens, 32 tokens greedy, trois
+  répétitions chaudes : **242,23 tok/s prefill**, **48,39 tok/s decode**,
+  **0,8755 s TTFT**, pic **13,0644 GB**, hash texte
+  `5aed1d0102507d0399f27be1efab3b223301bde26a23adcf8ecd537ffe38434c`.
+- Protocole : parité primitive bit-à-bit avec le chemin Python segmenté sur
+  routes répétées, puis build/tests et benchmark résident identique. Garder le
+  chemin mappé actuel pour moins de 24 lignes et pour tout M=1 ; retirer le
+  candidat s'il change le texte, le pic ou régresse le prefill alterné.
+- Environnement : Apple M5, MLX 0.32.2, batterie, thermique non contrôlée.
+  État : **en cours**, aucun résultat candidat.
+- Premier contrôle interrompu avant compilation : `cargo fmt --check` a détecté
+  uniquement la mise en forme de la constante de bloc 256 déjà intégrée dans
+  `main.rs`. Aucun kernel candidat ni benchmark n'a été exécuté. Appliquer le
+  formateur officiel puis reprendre le même build ; protocole inchangé.
+- Build release après formatage : réussi. L'avertissement `rust-objcopy` reste
+  le strip optionnel déjà documenté (`libLLVM.dylib` absent) ; le binaire est
+  produit. Aucun résultat numérique ni débit n'est encore attribué au kernel.
+- Parité primitive réussie : `native/check_parity.py --mlx` passe **190 cas**,
+  dont le nouveau SwitchGLU segmenté sur 64 tokens, quatre experts et top-2.
+  La sortie complète est identique bit-à-bit FP16 au moteur Python segmenté ;
+  les 189 cas antérieurs restent exacts. Passer au benchmark modèle résident.
+- Premier benchmark modèle 212/32, trois répétitions : la première inclut la
+  compilation des nouvelles variantes (**124,00 tok/s**), puis les deux tours
+  chauds atteignent **450,02** et **449,59 tok/s prefill**. Médiane **449,59
+  tok/s**, soit **+85,61 %** face au bloc 256 à 242,23 tok/s ; TTFT médian
+  **0,4718 s** contre 0,8755 s (**−46,11 %**). Texte strictement identique,
+  hash `5aed1d...934c`, et pic MLX inchangé à **13,0644 GB**. Decode médian
+  **45,14 tok/s** ; le chemin M=1 n'appelle aucun nouveau code, et la baisse
+  brute face à 48,39 suit les paliers machine déjà documentés, sans causalité
+  attribuable. Preuve `build/rust-perf-15-candidate.json`.
+- Contrôle suivant enregistré avant exécution : prompt de **1018 tokens**
+  (filler PERF-14 répété 76 fois), mêmes 32 tokens greedy et trois répétitions
+  résidentes. Exiger hash constant et comparer au bloc 256 à **236,81 tok/s** ;
+  cela vérifie quatre blocs successifs et l'absence de gain limité au petit cas.
+- Contexte 1018/32 : après le premier tour de compilation à 260,80 tok/s, les
+  deux tours chauds atteignent **530,74** et **531,29 tok/s prefill** ; médiane
+  **530,74 tok/s**, soit **+124,12 %** face au bloc 256 à 236,81. TTFT médian
+  **1,9183 s** contre 4,2990 s (**−55,38 %**), decode médian 46,58 tok/s et pic
+  inchangé. Les trois hashes 32 tokens sont identiques entre eux
+  (`af6d4bf5...e8770fb`), mais l'ancien contrôle avait seulement 8 tokens :
+  comparaison directe impossible. Preuve `build/rust-perf-15-long.json`.
+- Contrôle qualité complémentaire enregistré : relancer exactement le même
+  prompt avec 8 tokens ; le hash doit rester `8e004879...d19cf` avant de valider.
+- Contrôle 1018/8 réussi : trois tours à **528,17 / 529,45 / 529,38 tok/s
+  prefill**, hash exact historique `8e0048794f2135a30e5dd2736936612464d9eadba035d5748aa535ce4f4d19cf`
+  à chaque fois, pic inchangé et decode médian **46,69 tok/s**. Preuve
+  `build/rust-perf-15-long-quality.json`.
+- Décision : **validé, code local**. Le prefill chaud atteint **449,59 tok/s**
+  sur 212 tokens et **529,38 tok/s** sur 1018 tokens, contre respectivement
+  242,23 et 236,81 avant segmentation. Le decode M=1 reste inchangé dans le
+  code, la parité primitive et les hashes end-to-end passent, et la RAM poids
+  rapportée ne bouge pas. Lancer la suite complète avant publication.
+- Suite Rust réussie : **18 tests unitaires passés**, 5 GPU ignorés comme
+  prévu, sampler passé, **14 contrats passés**, doc-tests et clippy strict
+  réussis. La commande composée s'est ensuite arrêtée sur un ancien nom de
+  script `native/check_sampler.py` qui n'existe pas ; aucun test réel n'a
+  échoué et les contrôles sampler/contrats venaient déjà de Cargo. Reprendre
+  seulement format/diff puis publier le lot validé.
+- Contrôle final après garde de compatibilité (>256 experts conserve le chemin
+  mappé) : build release réussi, parité **190/190** bit-à-bit et `git diff
+  --check` propre. Le warning de strip optionnel reste inchangé. État final :
+  **validé, prêt à publier** sur `codex/rust-performance` ; app installée et
+  release inchangées.
