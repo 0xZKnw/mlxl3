@@ -1,0 +1,44 @@
+[package]
+name = "mlxl3-native"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+description = "Native Rust/Metal port of MLXL3 (experimental)"
+
+[features]
+default = []
+mlx = []
+chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib"]
+
+[lib]
+path = "native/src/lib.rs"
+
+[[bin]]
+name = "mlxl3-rs"
+path = "native/src/main.rs"
+
+[[test]]
+name = "contracts"
+path = "native/tests/contracts.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+fs2 = "0.4"
+half = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+time = { version = "0.3", features = ["formatting"] }
+tokenizers = { version = "0.23.1", optional = true }
+minijinja = { version = "2.24", optional = true }
+minijinja-contrib = { version = "2.24", features = ["pycompat"], optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+metal = "0.33"
+objc = "0.2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -600,6 +600,9 @@ class ThinkingSplitter:
         fragments: list[tuple[str, str]] = []
         self.buffer += text
         while self.buffer:
+            # Wait for a possible LF; finish() still preserves a lone CR.
+            if self.drop_leading_newline and self.buffer == "\r":
+                break
             markers = (self._CLOSE, '<channel|>') if self.mode == 'thinking' else (self._OPEN, '<|channel>thought')
             matches = [(self.buffer.find(m), m) for m in markers if m in self.buffer]
             position, marker = min(matches) if matches else (-1, markers[0])

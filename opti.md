@@ -1,5 +1,118 @@
 # MLXL3 — journal des optimisations
 
+### OPT-2026-09-12-RUST-01 — Port natif Rust/Metal — socle validé, migration en cours
+
+- Demande : réécriture Rust sur une nouvelle branche GitHub. Branche
+  `codex/rust-rewrite`, base `de318a8`, checkout isolé `../mlxl3-rust`.
+- Hypothèse : une orchestration native peut réduire le coût CPU ; aucun gain
+  de decode, prefill, TTFT ou RAM n'est établi par le changement de langage.
+- Antécédents lus : journal complet, audit-runtime-2026-09-04 et roadmap decode.
+  Les shaders MSL existants restent la référence ; ne pas changer leur calcul
+  et leur ordonnanceur simultanément pour revendiquer un gain.
+- Premier contrôle : codec CPU Rust (K=1..8, trois codebooks), lecture des
+  checkpoints sans allocation GPU, registre compatible, découpage thinking,
+  puis packing/décodage/QMV Metal appelés directement par Rust sans Python.
+- Protocole : tests CPU déterministes, parité différentielle Python/Rust,
+  tests Metal sur M5 avec erreurs propagées, tests CLI en dossiers temporaires.
+  Aucun benchmark modèle complet avant les architectures et caches natifs.
+- Environnement : M5/macOS local, Rust stable installé sans changer le PATH
+  du shell. Versions exactes et résultats à consigner après exécution.
+- Résultats/performance : non mesurés. Intégration : chantier de branche ;
+  moteur de production, modèles et app installée inchangés.
+- Première validation : cinq tests unitaires CPU puis test GPU exhaustif des
+  196 608 codewords, K=1..8 pack/unpack réussis. Release compilée Rust 1.98.1.
+  Douze contrats checkpoint/registre/CLI supplémentaires réussis. Pas de mesure
+  de débit. Le test différentiel Python+Metal suivant est interrompu au premier
+  accès GPU par le nouveau sandbox (`no Metal device`) ; relance hors sandbox
+  nécessaire pour cette validation matérielle, mêmes données et même code.
+- Checkout déplacé dans `work/mlxl3-rust` pour respecter les droits d'écriture
+  actuels, branche inchangée. Route native MLX étudiée : libmlx 0.32.2 déjà
+  installée, aucune dépendance Python du dylib. FFI mince Rust/C++ en cours
+  pour conserver les kernels/fusions de production lors du portage modèle.
+- Contrôle différentiel direct Metal, relancé avec accès GPU : **124 cas
+  réussis**, comprenant 196 608 codewords CPU, tous K pack/unpack, codecs GPU
+  et 72 QMV non nuls en FP16. Comparaison bit-à-bit avec les références Python.
+  Le risque de différence FMA MUL1 trouvé à la lecture n'est pas reproduit dans
+  cette matrice exécutée avec le compilateur Metal actuel. Pas un test modèle.
+- Port du registre : parent relatif/override vide corrigés, CRLF coupé entre
+  fragments corrigé dans Rust et dans la référence Python sur cette branche.
+  **14 contrats Rust** et **10 parités de streaming Python/Rust** réussis.
+
+### OPT-2026-09-12-RUST-02 — Couches et LFM2 via MLX natif — parité LFM2 validée
+
+- Objectif : supprimer Python de l'orchestration, réutiliser les sources QMV
+  de production à l'identique via libmlx 0.32.2 et une FFI Rust/C++ limitée.
+  Aucun nouveau kernel mathématique pour revendiquer artificiellement un gain.
+- Baseline : branche Python de `de318a8`, mêmes poids/sources MSL/MLX local.
+  Candidat : feature Rust `mlx`, couches EXL3 sérialisées et architecture LFM2
+  dense. Qwen, Gemma, quantification et GUI ne sont pas encore portés.
+- Protocole : comparaison bit-à-bit de projections synthétiques tous K/CB,
+  puis tokens imposés LFM2.5-1.2B-Thinking EXL3 4bpw, logits et caches à chaque
+  étape. Première vérification token-par-token des deux côtés ; ce n'est pas
+  une comparaison du prefill groupé Python à un nouveau prefill Rust.
+- Conditions : même M5/macOS/MLX ; les tests matériels exigent accès Metal hors
+  sandbox. Contexte/longueur imposés dans les commandes de preuve. Aucun gain
+  de performance et aucune parité modèle encore établis à cette étape.
+- Smoke GPU FFI `array::tests::native_array_and_kernel_smoke` : réussi,
+  incluant transpose non contiguë, matmul, conversion FP16, kernel et erreurs.
+  Build complet ensuite bloqué par `metal::device_info` non exporté du dylib ;
+  détection M5 déplacée vers Metal natif. Validation complète à reprendre.
+- Build `mlx,chat` réussi avec cible macOS 26.2. `check_parity.py --mlx`
+  réussit **92 cas exacts** : 20 codecs CPU et 72 projections complètes
+  (128×128, 1024×512, 2048×128 ; K1..8 × CB0..2, split-K inclus).
+  Cinq tests tokenizer réussis dont prompt, IDs et décodage strictement égaux
+  à Transformers pour une conversation LFM2.5-1.2B multilingue de quatre tours.
+  Prochaine validation : modèle complet, huit tokens imposés du protocole.
+- Première parité modèle : **rejetée**, step 0, cache couche 10 (7 octets
+  différents sur 1024, écarts d'un bit). L'ordre lexicographique visitait 10
+  avant 2 : correction du diagnostic pour identifier la première couche
+  divergente en ordre d'exécution. Ce n'est pas une tolérance assouplie.
+- Tri corrigé : couches 0..9 exactes, première divergence confirmée couche 10.
+  Hypothèse : QKV groupé Python choisit un split-K différent des projections
+  Rust séparées (512 sorties K/V vs 3072 groupées). Diagnostic une fois avec
+  groupement Python désactivé ; son succès ne vaudrait pas parité production.
+- Diagnostic confirmé : tous les logits et caches exacts au premier token
+  sans groupement Python. Port du groupement QKV et de son shader mapped
+  inchangé ; même split-K et même profondeur SIMD que la baseline groupée.
+  Revalidation prévue des huit tokens contre production (groupement actif).
+- **Validé numériquement** : groupement QKV natif intégré, huit tokens
+  `1,2,3,19,225,4096,17,7`, tous logits et états KV/ShortConv bit-à-bit égaux
+  au moteur Python de production. `cargo clippy --features mlx,chat
+  --all-targets -- -D warnings` réussi. Preuve reproductible :
+  `PYTHONPATH=src .venv/bin/python native/check_model_parity.py MODEL
+  --binary target/debug/mlxl3-rs` (Python du dépôt parent pour ce worktree).
+- Prochain contrôle fonctionnel : build release, génération greedy CLI sur
+  le même LFM2, conversation suivie et `/clear`. Timing affiché expérimental,
+  pas de benchmark comparable ni de gain revendiqué (prefill séquentiel).
+- Chat réel : première réponse achevée « Bonjour. », 180 tokens, streaming
+  thinking/réponse correct. Deux tours puis `/clear` et `/exit` réussis ; le
+  second tour mentionne le prénom du premier mais atteint la limite 256.
+  26 tests Rust passés (12 unitaires + 14 contrats), 11 checks Python passés.
+  Le garde de provenance avait d'abord échoué sur un seul saut de ligne final ;
+  ignore désormais uniquement les espaces/sauts finaux, pas le contenu des shaders.
+- Extension de validation : 42 projections groupées K1..6/8 × trois CB × deux
+  formes (dont QKV 2048/512/512) contre production ; 72 projections simples
+  répétées pour vérifier l'intégration. Contrôle des arrêts Unicode ajouté au
+  tokenizer ; génération CLI vidant le suffixe UTF-8 à la limite de tokens.
+- Matrice étendue **validée : 134 cas exacts** (20 CPU + 72 projections
+  simples + 42 groupes, chacun comprenant deux/trois sorties). Arrêts Unicode
+  testés à chaque position d'une chaîne accentuée avec emoji : réussite.
+  Inspection I16 de trellis ajoutée comme dans Python, avec contrat dédié ;
+  bornes de grilles Metal protégées contre l'overflow.
+- Contrôle de généralisation prévu : LFM2.5-2.6B EXL3 4bpw, mêmes huit tokens
+  imposés, mêmes checks logits/caches, pour ne pas valider une seule taille.
+- Généralisation **validée** : LFM2.5-2.6B EXL3 4bpw, huit étapes, tous les
+  logits et tous les états bit-à-bit exacts contre production. Aucun changement
+  spécifique de modèle requis. Clippy complet revalidé après les derniers
+  gardes de bornes et d'I16. État : moteur Rust expérimental local, pas installé
+  dans l'app et aucun gain temporel comparatif revendiqué.
+- Vérification finale : 26 tests Rust réussis, lint sans warnings de notre
+  code, tests de tokenizer/Unicode et provenance MSL réussis. Dépendance
+  `block 0.1.6` signale une incompatibilité future Rust (pas une erreur actuelle).
+  Build release actualisé et arrêt borné CLI revalidés avant publication.
+  Aucun benchmark GPU ou quantificateur ne reste en cours. Les prochains ports
+  (Qwen/Gemma/MoE, prefill groupé, quantification, GUI) restent à réaliser.
+
 À lire **avant** toute optimisation ; à mettre à jour **avant et après chaque
 essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 
