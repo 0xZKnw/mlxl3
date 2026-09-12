@@ -306,9 +306,11 @@ python3.12 -m venv .venv
 scripts/check-desktop.sh
 ```
 
-For release builds, install with `-c packaging/constraints-macos.txt`. The bundle
-contains `Contents/Resources/build-info.json` with engine/UI version, build,
-source commit and the complete installed dependency versions. Same-version
+For legacy Python development, install with `-c packaging/constraints-macos.txt`.
+The release app instead bundles the native Rust executable, MLX libraries and
+Metal shaders; no Python interpreter is included. It contains
+`Contents/Resources/build-info.json` with engine/UI version, build and source
+commit. Same-version
 hotfixes increment the build number and use a `-bNUMBER-` DMG filename so the
 updater can detect them. Updates retain the previous app as `.mlxl3-backup`;
 runtime validation happens before the working app is stopped.

@@ -69,6 +69,7 @@ fn main() {
     println!("cargo:rustc-link-lib=static=mlxl3_mlx_bridge");
     println!("cargo:rustc-link-lib=dylib=mlx");
     println!("cargo:rustc-link-lib=dylib=c++");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
     println!(
         "cargo:rustc-link-arg=-Wl,-rpath,{}",
         root.join("lib").display()

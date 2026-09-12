@@ -24,9 +24,9 @@ speedup is established by changing languages.
 - Native Hugging Face catalogue, resumable downloads and authentication, plus
   native stdio/HTTP MCP discovery, tool execution and multi-round bridge events.
 
-The GUI still packages the Python runtime; switching its bundled executable is
-deferred until its native bundle is self-contained. The full quantization
-pipeline has not been migrated. Gemma and Ling architectures are not supported by the Rust
+The SwiftUI GUI now packages this Rust executable, `libmlx`, `libjaccl` and the
+MLX metallib as a self-contained runtime. The full quantization pipeline has
+not been migrated. Gemma and Ling architectures are not supported by the Rust
 inference path yet. It rejects unsupported architectures explicitly and never
 silently invokes Python. Existing Python/SwiftUI production remains available.
 
@@ -108,14 +108,15 @@ work instead of paths. `--max-tokens 0` generates until EOS or the context limit
 the experimental default is 128. Desktop bridge sampling and MCP are native;
 the interactive CLI remains greedy.
 
-The MLX headers and dynamic library must both be **0.32.2**. The development
-binary links to that local library path; it is not a self-contained app bundle.
+The MLX headers and dynamic library must both be **0.32.2**. Development builds
+can link to that local path; `scripts/build-macos-app.sh` copies the required
+libraries and metallib beside the Rust executable for a self-contained bundle.
 The tested wheel requires macOS 26.2 or later and Apple Silicon. A Metal-capable
 SDK is also needed to build the shim and compile shaders at runtime.
 
 Prefill currently replays the rendered conversation **one token at a time**.
-Prefix reuse, batched QMM, capacity-managed KV storage and GUI integration are
-not ported. Displayed timings are diagnostic, not a claimed improvement over
+Prefix reuse, batched QMM and capacity-managed KV storage are not ported.
+Displayed timings are diagnostic, not a claimed improvement over
 production. No quantization pipeline or full app rewrite is complete yet.
 
 ## Numerical validation

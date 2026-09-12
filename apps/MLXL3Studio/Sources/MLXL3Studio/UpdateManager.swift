@@ -333,7 +333,7 @@ final class UpdateManager: ObservableObject {
             throw UpdateError.invalidDiskImage
         }
         try validateApplication(sourceApp, newerThan: currentVersion, currentBuild: currentBuild)
-        // Validate the frozen Python/Metal runtime before stopping the working app.
+        // Validate the bundled Rust/Metal runtime before stopping the working app.
         _ = try runProcess(sourceApp.appending(path: "Contents/Resources/runtime/mlxl3").path,
                            arguments: ["list", "--json"])
 
