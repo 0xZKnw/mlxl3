@@ -155,6 +155,15 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         case 12: return mx::exp(a);
         case 13: return mx::fast::rms_norm(a, std::nullopt, scalar);
         case 14: return mx::multiply(a, mx::sigmoid(a));
+        case 15: return mx::tanh(a);
+        case 16: return mx::multiply(a, mx::array(scalar, a.dtype()));
+        case 17: return mx::softmax(a, -1, false);
+        case 18: {
+          thread_local auto softcap = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(mx::tanh(mx::divide(x[0], x[1])), x[1])};
+          }, true);
+          return softcap({a, mx::array(scalar, a.dtype())})[0];
+        }
       }
       throw std::invalid_argument("invalid unary operation");
     };
@@ -189,6 +198,19 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           return mx::astype(mx::multiply(gate, value), a.dtype());
         }
         case 9: return mx::divide(a, b);
+        case 10: {
+          thread_local auto geglu = mx::compile([](const std::vector<mx::array>& x) {
+            auto gate = x[0];
+            auto dtype = gate.dtype();
+            auto cube = mx::power(gate, mx::array(3, dtype));
+            auto inner = mx::multiply(mx::array(0.7978845608028654f, dtype),
+              mx::add(gate, mx::multiply(mx::array(0.044715f, dtype), cube)));
+            auto gelu = mx::multiply(mx::multiply(mx::array(0.5f, dtype), gate),
+              mx::add(mx::array(1.0f, dtype), mx::tanh(inner)));
+            return std::vector<mx::array>{mx::multiply(gelu, x[1])};
+          }, true);
+          return geglu({a, b})[0];
+        }
       }
       throw std::invalid_argument("invalid binary operation");
     };
@@ -201,6 +223,16 @@ int mlxl3_array_concatenate(void* const* inputs, size_t count, int axis, void** 
 int mlxl3_array_sdpa(void* q, void* k, void* v, float scale, int causal, void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::fast::scaled_dot_product_attention(
     arr(q), arr(k), arr(v), scale, causal ? "causal" : "")); });
+}
+int mlxl3_array_sdpa_mask(void* q, void* k, void* v, void* mask, float scale,
+                          void** out) noexcept {
+  return protect([&] { *out = new mx::array(mx::fast::scaled_dot_product_attention(
+    arr(q), arr(k), arr(v), scale, "", arr(mask))); });
+}
+int mlxl3_array_rope_freqs(void* input, void* freqs, int dims, int offset,
+                           void** out) noexcept {
+  return protect([&] { *out = new mx::array(mx::fast::rope(
+    arr(input), dims, false, std::nullopt, 1.0f, offset, arr(freqs))); });
 }
 int mlxl3_metal_kernel(const char* name, const char* const* input_names,
                       const char* const* output_names, const char* header, const char* source,

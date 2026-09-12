@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 
-fn butterfly<'a>(mut source: &'a str, mut target: &'a str) -> String {
+fn butterfly<'a>(mut source: &'a str, mut target: &'a str, round_after_four: bool) -> String {
     let mut stages = String::new();
     for shift in 0..7 {
         let step = 1 << shift;
@@ -21,16 +21,27 @@ fn butterfly<'a>(mut source: &'a str, mut target: &'a str) -> String {
                 : {source}_value_{shift} + {source}_peer_{shift};
             "#
         );
+        if round_after_four && shift == 3 {
+            stages += &format!("{target}[tid] = float(half({target}[tid]));\n");
+        }
         std::mem::swap(&mut source, &mut target);
     }
     stages
 }
 
-pub fn swiglu_down_input(
+#[derive(Clone, Copy)]
+enum GluActivation {
+    Silu,
+    Gelu,
+}
+
+fn glu_down_input(
     gate_up_raw: &Array,
     gate_up_output_scales: &Array,
     down_input_scales: &Array,
     selected: &Array,
+    activation: GluActivation,
+    logical_hidden: i32,
 ) -> Result<Array> {
     let [rows, hidden]: [i32; 2] = gate_up_raw
         .shape()
@@ -52,9 +63,34 @@ pub fn swiglu_down_input(
             && down_input_scales.shape() == [gate_up_output_scales.shape()[0], hidden],
         "invalid fused SwiGLU scales/routes"
     );
-    let gate = butterfly("gate_a", "gate_b");
-    let up = butterfly("up_a", "up_b");
-    let down = butterfly("down_a", "down_b");
+    ensure!(
+        logical_hidden > 0 && logical_hidden <= hidden,
+        "invalid logical GLU width"
+    );
+    let gelu = matches!(activation, GluActivation::Gelu);
+    let gate = butterfly("gate_a", "gate_b", gelu);
+    let up = butterfly("up_a", "up_b", gelu);
+    let down = butterfly("down_a", "down_b", gelu);
+    let gate_finish = if gelu {
+        "float(half(float(half(gate_b[tid])) * HAD_SCALE))"
+    } else {
+        "gate_b[tid] * HAD_SCALE"
+    };
+    let up_finish = if gelu {
+        "float(half(float(half(up_b[tid])) * HAD_SCALE))"
+    } else {
+        "up_b[tid] * HAD_SCALE"
+    };
+    let activated = if gelu {
+        "float(half(half(0.5f * gate_value * (1.0f + tanh(0.7978845608028654f * (gate_value + 0.044715f * gate_value * gate_value * gate_value)))) * half(up_value)))"
+    } else {
+        "float(half((gate_value / (1.0f + exp(-gate_value))) * up_value))"
+    };
+    let down_finish = if gelu {
+        "float(half(down_b[tid]))"
+    } else {
+        "down_b[tid]"
+    };
     let source = format!(
         r#"
             constexpr uint HIDDEN = {hidden}u;
@@ -80,26 +116,28 @@ pub fn swiglu_down_input(
             {up}
             threadgroup_barrier(mem_flags::mem_threadgroup);
             float gate_value = float(half(
-                gate_b[tid] * HAD_SCALE
+                {gate_finish}
                 * float(gu_svh[(expert * 2u) * HIDDEN + column])
             ));
             float up_value = float(half(
-                up_b[tid] * HAD_SCALE
+                {up_finish}
                 * float(gu_svh[(expert * 2u + 1u) * HIDDEN + column])
             ));
-            float activated = float(half(
-                (gate_value / (1.0f + exp(-gate_value))) * up_value
-            ));
+            float activated = {activated};
+            if (column >= {logical_hidden}u) activated = 0.0f;
             down_a[tid] = float(half(
                 activated * float(down_suh[expert * HIDDEN + column])
             ));
             {down}
             threadgroup_barrier(mem_flags::mem_threadgroup);
-            xhat[slot * HIDDEN + column] = half(down_b[tid] * HAD_SCALE);
+            xhat[slot * HIDDEN + column] = half({down_finish} * HAD_SCALE);
         "#
     );
     Ok(array::metal_kernel(
-        &format!("mlxl3_rs_moe_swiglu_down_h{hidden}_v2"),
+        &format!(
+            "mlxl3_rs_moe_glu_down_h{hidden}_{}_l{logical_hidden}_v2",
+            if gelu { "gelu" } else { "silu" }
+        ),
         &["ygu", "gu_svh", "down_suh", "selected"],
         &["xhat"],
         "",
@@ -123,6 +161,26 @@ pub fn swiglu_down_input(
         [128, 1, 1],
     )?
     .remove(0))
+}
+
+pub fn swiglu_down_input(
+    gate_up_raw: &Array,
+    gate_up_output_scales: &Array,
+    down_input_scales: &Array,
+    selected: &Array,
+) -> Result<Array> {
+    let hidden = *gate_up_raw
+        .shape()
+        .last()
+        .context("gate/up output must have dimensions")?;
+    glu_down_input(
+        gate_up_raw,
+        gate_up_output_scales,
+        down_input_scales,
+        selected,
+        GluActivation::Silu,
+        hidden,
+    )
 }
 
 pub fn finish_and_reduce(raw: &Array, output_scales: &Array, scores: &Array) -> Result<Array> {
@@ -163,6 +221,8 @@ pub struct Exl3SwitchGlu {
     top_k: i32,
     k: usize,
     cb: Codebook,
+    activation: GluActivation,
+    logical_hidden: i32,
 }
 
 impl Exl3SwitchGlu {
@@ -178,6 +238,8 @@ impl Exl3SwitchGlu {
             experts,
             top_k,
             ["gate_proj", "up_proj", "down_proj"],
+            GluActivation::Silu,
+            None,
         )
     }
 
@@ -187,7 +249,33 @@ impl Exl3SwitchGlu {
         experts: i32,
         top_k: i32,
     ) -> Result<Self> {
-        Self::from_checkpoint_names(checkpoint, prefix, experts, top_k, ["w1", "w3", "w2"])
+        Self::from_checkpoint_names(
+            checkpoint,
+            prefix,
+            experts,
+            top_k,
+            ["w1", "w3", "w2"],
+            GluActivation::Silu,
+            None,
+        )
+    }
+
+    pub fn from_gemma_checkpoint(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        experts: i32,
+        top_k: i32,
+        logical_hidden: i32,
+    ) -> Result<Self> {
+        Self::from_checkpoint_names(
+            checkpoint,
+            prefix,
+            experts,
+            top_k,
+            ["gate_proj", "up_proj", "down_proj"],
+            GluActivation::Gelu,
+            Some(logical_hidden),
+        )
     }
 
     fn from_checkpoint_names(
@@ -196,6 +284,8 @@ impl Exl3SwitchGlu {
         experts: i32,
         top_k: i32,
         [gate, up, down]: [&str; 3],
+        activation: GluActivation,
+        logical_hidden: Option<i32>,
     ) -> Result<Self> {
         ensure!(experts > 0, "invalid expert count");
         let names = |projection: &str| {
@@ -272,7 +362,7 @@ impl Exl3SwitchGlu {
                 .collect::<Result<Vec<_>>>()?;
             Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)
         };
-        Self::new(
+        Self::new_with_activation(
             gu_trellis,
             paired(&gates, &ups, "suh", "su")?,
             paired(&gates, &ups, "svh", "sv")?,
@@ -282,6 +372,8 @@ impl Exl3SwitchGlu {
             top_k,
             k.context("checkpoint has no experts")?,
             cb.context("checkpoint has no expert codebook")?,
+            activation,
+            logical_hidden,
         )
     }
 
@@ -296,6 +388,35 @@ impl Exl3SwitchGlu {
         top_k: i32,
         k: usize,
         cb: Codebook,
+    ) -> Result<Self> {
+        Self::new_with_activation(
+            gu_trellis,
+            gu_suh,
+            gu_svh,
+            down_trellis,
+            down_suh,
+            down_svh,
+            top_k,
+            k,
+            cb,
+            GluActivation::Silu,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_with_activation(
+        gu_trellis: Array,
+        gu_suh: Array,
+        gu_svh: Array,
+        down_trellis: Array,
+        down_suh: Array,
+        down_svh: Array,
+        top_k: i32,
+        k: usize,
+        cb: Codebook,
+        activation: GluActivation,
+        logical_hidden: Option<i32>,
     ) -> Result<Self> {
         let [experts, projections, input]: [i32; 3] = gu_suh
             .shape()
@@ -346,6 +467,8 @@ impl Exl3SwitchGlu {
             top_k,
             k,
             cb,
+            activation,
+            logical_hidden: logical_hidden.unwrap_or(hidden),
         })
     }
 
@@ -357,6 +480,9 @@ impl Exl3SwitchGlu {
             "invalid SwitchGLU input/routes"
         );
         let selected = selected.reshape(&[self.top_k])?;
+        if matches!(self.activation, GluActivation::Gelu) {
+            return self.forward_gelu(x, &selected, scores);
+        }
         let copies: Vec<_> = std::iter::repeat_n(x, (self.top_k * 2) as usize).collect();
         let x_gu = Array::concatenate(&copies, 0)?;
         let gu_input_scales = self
@@ -377,7 +503,14 @@ impl Exl3SwitchGlu {
             false,
             true,
         )?;
-        let down_input = swiglu_down_input(&gate_up, &self.gu_svh, &self.down_suh, &selected)?;
+        let down_input = glu_down_input(
+            &gate_up,
+            &self.gu_svh,
+            &self.down_suh,
+            &selected,
+            self.activation,
+            self.logical_hidden,
+        )?;
         let down = expert_mapped(
             &down_input,
             &self.down_trellis,
@@ -393,5 +526,70 @@ impl Exl3SwitchGlu {
             true,
         )?;
         finish_and_reduce(&down, &self.down_svh.take(&selected, 0)?, scores)
+    }
+
+    fn forward_gelu(&self, x: &Array, selected: &Array, scores: &Array) -> Result<Array> {
+        let copies: Vec<_> = std::iter::repeat_n(x, (self.top_k * 2) as usize).collect();
+        let gate_up = expert_mapped(
+            &Array::concatenate(&copies, 0)?,
+            &self.gu_trellis,
+            Some(
+                &self
+                    .gu_suh
+                    .take(selected, 0)?
+                    .reshape(&[self.top_k * 2, self.input])?,
+            ),
+            Some(
+                &self
+                    .gu_svh
+                    .take(selected, 0)?
+                    .reshape(&[self.top_k * 2, self.hidden])?,
+            ),
+            selected,
+            self.hidden,
+            2,
+            self.experts * self.hidden / 16,
+            self.k,
+            self.cb,
+            false,
+            false,
+        )?
+        .reshape(&[self.top_k, 2, self.hidden])?;
+        let gate = gate_up
+            .slice(1, 0, 1)?
+            .reshape(&[self.top_k, self.hidden])?;
+        let up = gate_up
+            .slice(1, 1, 2)?
+            .reshape(&[self.top_k, self.hidden])?;
+        let mut hidden = gate.geglu(&up)?;
+        if self.logical_hidden < self.hidden {
+            hidden = Array::concatenate(
+                &[
+                    &hidden.slice(1, 0, self.logical_hidden)?,
+                    &Array::zeros_dtype(
+                        &[self.top_k, self.hidden - self.logical_hidden],
+                        hidden.dtype(),
+                    )?,
+                ],
+                1,
+            )?;
+        }
+        expert_mapped(
+            &hidden,
+            &self.down_trellis,
+            Some(&self.down_suh.take(selected, 0)?),
+            Some(&self.down_svh.take(selected, 0)?),
+            selected,
+            self.input,
+            1,
+            0,
+            self.k,
+            self.cb,
+            false,
+            false,
+        )?
+        .mul(&scores.reshape(&[self.top_k, 1])?)?
+        .sum(0, false)?
+        .reshape(&[1, self.input])
     }
 }

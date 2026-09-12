@@ -1,8 +1,9 @@
 # Native Rust port
 
-Experimental work on `codex/rust-rewrite`. This is an incomplete migration,
-not a replacement for the installed MLXL3 CLI or Desktop app. No model-level
-speedup is established by changing languages.
+Work on `codex/rust-rewrite`. The shipped CLI, Desktop bridge and inference
+runtime are native Rust/C++/Metal and do not start or embed Python. This branch
+is not merged or installed by building it. No model-level speedup is implied by
+the language change alone.
 
 ## Current scope
 
@@ -14,21 +15,22 @@ speedup is established by changing languages.
 - macOS: direct Metal ownership and reference EXL3 GPU kernels, without a
   Python interpreter. These are correctness references, not yet a complete
   optimized inference engine.
-- Optional `mlx,chat` integration: native LFM2 dense/MoE and Qwen3.5 dense/MoE
-  inference, grouped projections, recurrent/KV states, local Hugging Face
-  tokenizer and Jinja chat templates, greedy streaming chat with
-  per-conversation history and thinking separation.
+- Optional `mlx,chat` integration: native LFM2 dense/MoE, Qwen3.5/3.8
+  dense/MoE, Gemma 4 and Ling 3/Bailing V3 inference; grouped projections;
+  attention, recurrent and convolution states; local tokenizer and Jinja chat
+  templates; streaming chat with per-conversation history and thinking
+  separation.
 - Resident JSON-lines bridge compatible with the SwiftUI event transport:
   loading/readiness, context usage, streaming phases, sampling controls,
   completion statistics, ping/shutdown and cooperative `SIGUSR1` cancellation.
 - Native Hugging Face catalogue, resumable downloads and authentication, plus
   native stdio/HTTP MCP discovery, tool execution and multi-round bridge events.
 
-The SwiftUI GUI now packages this Rust executable, `libmlx`, `libjaccl` and the
-MLX metallib as a self-contained runtime. The full quantization pipeline has
-not been migrated. Gemma and Ling architectures are not supported by the Rust
-inference path yet. It rejects unsupported architectures explicitly and never
-silently invokes Python. Existing Python/SwiftUI production remains available.
+The SwiftUI GUI packages this Rust executable, `libmlx`, `libjaccl` and the MLX
+metallib as a self-contained runtime. It rejects unsupported architectures
+explicitly and never silently invokes Python. Model conversion remains a
+separate developer workflow backed by PonyExl3; the installed app only consumes
+EXL3 checkpoints and does not bundle a converter.
 
 ## Build and try the standalone CLI
 
@@ -57,9 +59,9 @@ registry to experiment without changing your app's library:
 
 ```sh
 cargo fmt --check
-cargo clippy --locked --all-targets --features chat -- -D warnings
-cargo test --locked --features chat
-cargo build --locked --features chat
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+cargo build --locked
 python3 -m pip install numpy pytest
 python3 native/check_parity.py --binary target/debug/mlxl3-rs
 python3 -m pytest -q native/test_streaming_parity.py native/test_kernel_sources.py
@@ -99,8 +101,9 @@ cargo build --release --locked --features mlx,chat
 ./target/release/mlxl3-rs run /path/to/LFM2-EXL3 --max-tokens 256
 ./target/release/mlxl3-rs run /path/to/LFM2-EXL3 --prompt 'Bonjour !' --max-tokens 256
 ./target/release/mlxl3-rs run /path/to/LFM2-MoE-EXL3 --prompt 'Bonjour !' --max-tokens 256
-./target/release/mlxl3-rs run /path/to/Qwen3.5-Dense-EXL3 --prompt 'Bonjour !' --max-tokens 256
-./target/release/mlxl3-rs run /path/to/Qwen3.5-MoE-EXL3 --prompt 'Bonjour !' --max-tokens 256
+./target/release/mlxl3-rs run /path/to/Qwen3.8-EXL3 --prompt 'Bonjour !' --max-tokens 256
+./target/release/mlxl3-rs run /path/to/Gemma4-EXL3 --prompt 'Bonjour !' --max-tokens 256
+./target/release/mlxl3-rs run /path/to/Ling3-EXL3 --prompt 'Bonjour !' --max-tokens 256
 ```
 
 Use `/clear` to reset the conversation, `/exit` to quit. Model registry names
@@ -116,25 +119,33 @@ SDK is also needed to build the shim and compile shaders at runtime.
 
 Prefill currently replays the rendered conversation **one token at a time**.
 Prefix reuse, batched QMM and capacity-managed KV storage are not ported.
-Displayed timings are diagnostic, not a claimed improvement over
-production. No quantization pipeline or full app rewrite is complete yet.
+Displayed timings are diagnostic, not a claimed improvement over the existing
+engine. The optional offline PonyExl3 converter is outside the installed
+runtime and remains Python-based.
 
 ## Numerical validation
 
-On the development M5, 152 differential checks pass bit-for-bit: CPU codecs,
+On the development M5, 154 differential checks pass bit-for-bit: CPU codecs,
 72 complete projections across K1–8 and all three codebooks, plus 42 ragged
 projection groups across K1–6/8. The direct-Metal path separately passed 124
 checks. These counts overlap in their CPU cases and should not be added.
 LFM2.5-1.2B-Thinking and LFM2.5-2.6B EXL3 4bpw pass **every logit and every
-recurrent/KV value** on eight imposed tokens each against the production Python engine, including QKV
-grouping. Chat template strings, token IDs and decoding match Transformers
+recurrent/KV value** on eight imposed tokens each against the production Python
+engine, including QKV grouping. Chat template strings, token IDs and decoding match Transformers
 on a multilingual four-message conversation. LFM2.5-8B-A1B EXL3 3.10bpw also
 passes every logit and cache on the same eight-token sequence. Qwen3.5-MoE
 passes all 40 layers, 248,320 output logits and every recurrent/KV state
 bit-for-bit on a three-token sequence; both MoE native chat/reset paths pass
 local smoke tests. Qwen3.8-27B dense likewise passes 248,320 logits bit-for-bit
-on three stateful tokens plus chat/reset smokes. These are bounded correctness
-checks, not a complete model-quality evaluation or throughput benchmark.
+on three stateful tokens plus chat/reset smokes. Gemma 4 passes all 30
+intermediate layer states bit-for-bit across three cached tokens; cached output
+logits retain the same top-1 with max absolute error below 0.5 and KL below
+0.005, and native chat produces the expected response. Ling's grouped router
+and vector Gated DeltaNet primitives pass exact differential checks. A full
+Ling model check is blocked by the absence of a completed local Ling EXL3
+checkpoint; the stopped multi-hour conversion was not restarted. These are
+bounded correctness checks, not a complete model-quality evaluation or
+throughput benchmark.
 
 ```sh
 PYTHONPATH=src .venv/bin/python native/check_parity.py --binary target/release/mlxl3-rs --mlx

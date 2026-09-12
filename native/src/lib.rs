@@ -5,6 +5,8 @@ pub mod checkpoint;
 pub mod codec;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
+#[cfg(feature = "mlx")]
+pub mod gemma4;
 #[cfg(target_os = "macos")]
 pub mod gpu;
 pub mod hub;
@@ -12,6 +14,8 @@ pub mod hub;
 pub mod lfm2;
 #[cfg(feature = "mlx")]
 pub mod linear;
+#[cfg(feature = "mlx")]
+pub mod ling;
 pub mod mcp;
 #[cfg(feature = "mlx")]
 pub mod moe;

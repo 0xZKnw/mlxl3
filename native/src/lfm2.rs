@@ -95,10 +95,22 @@ enum ProjectionWeights {
 pub(crate) struct Projection {
     weights: ProjectionWeights,
     bias: Option<Array>,
+    logical_input: i32,
+    logical_output: i32,
 }
 
 impl Projection {
     pub(crate) fn load(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        input: i32,
+        output: i32,
+        bias: bool,
+    ) -> Result<Self> {
+        Self::load_logical(checkpoint, prefix, input, output, bias)
+    }
+
+    pub(crate) fn load_logical(
         checkpoint: &Checkpoint,
         prefix: &str,
         input: i32,
@@ -115,7 +127,10 @@ impl Projection {
         let weights = if is_exl3 {
             let quantized = Exl3Linear::from_checkpoint(checkpoint, prefix)?;
             ensure!(
-                quantized.input_dims() == input && quantized.output_dims() == output,
+                quantized.input_dims() >= input
+                    && quantized.input_dims() - input < 128
+                    && quantized.output_dims() >= output
+                    && quantized.output_dims() - output < 128,
                 "{prefix}: invalid EXL3 projection dimensions"
             );
             ProjectionWeights::Exl3(quantized)
@@ -136,12 +151,40 @@ impl Projection {
         } else {
             None
         };
-        Ok(Self { weights, bias })
+        Ok(Self {
+            weights,
+            bias,
+            logical_input: input,
+            logical_output: output,
+        })
     }
 
     pub(crate) fn forward(&self, x: &Array) -> Result<Array> {
+        ensure!(
+            x.shape().last() == Some(&self.logical_input),
+            "projection expects {} logical inputs",
+            self.logical_input
+        );
         let value = match &self.weights {
-            ProjectionWeights::Exl3(linear) => linear.forward(x)?,
+            ProjectionWeights::Exl3(linear) => {
+                let padded = if linear.input_dims() == self.logical_input {
+                    x.try_clone()?
+                } else {
+                    let mut shape = x.shape().to_vec();
+                    *shape
+                        .last_mut()
+                        .context("projection input must have rank")? =
+                        linear.input_dims() - self.logical_input;
+                    let zeros = Array::zeros_dtype(&shape, x.dtype())?;
+                    Array::concatenate(&[x, &zeros], x.shape().len() as i32 - 1)?
+                };
+                let value = linear.forward(&padded)?;
+                if linear.output_dims() == self.logical_output {
+                    value
+                } else {
+                    value.slice(value.shape().len() as i32 - 1, 0, self.logical_output)?
+                }
+            }
             ProjectionWeights::Dense(weight) => x.matmul(&weight.transpose(&[1, 0])?)?,
         };
         match &self.bias {

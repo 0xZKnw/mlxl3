@@ -327,30 +327,6 @@ final class StudioModel: ObservableObject {
         }
     }
 
-    func downloadModel(repo: String, revision: String, name: String) {
-        guard !isPreview else { return }
-        let repository = repo.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !repository.isEmpty, !modelInstallState.isWorking else { return }
-        let cleanRevision = revision.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        modelInstallState = .working(L("Téléchargement de \(repository)…", "Downloading \(repository)…"))
-        MLXL3Bridge.downloadModel(
-            repo: repository,
-            revision: cleanRevision.isEmpty ? nil : cleanRevision,
-            name: cleanName.isEmpty ? nil : cleanName
-        ) { [weak self] result in
-            guard let self else { return }
-            switch result {
-            case let .success(model):
-                self.selectedModelName = model.name
-                self.modelInstallState = .succeeded(L("\(model.name) est prêt.", "\(model.name) is ready."))
-                self.refreshModels()
-            case let .failure(error):
-                self.modelInstallState = .failed(error.localizedDescription)
-            }
-        }
-    }
-
     func selectModel(_ name: String) {
         guard !isGenerating else { return }
         if name == selectedModelName, bridge.isRunning { return }

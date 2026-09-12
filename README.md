@@ -246,11 +246,10 @@ Build the signed local application bundle and open it:
 open "dist/MLXL3 Desktop.app"
 ```
 
-Release builds embed their own Python 3.12 interpreter, MLX/Metal libraries,
-MLX-LM model implementations, tokenizers, Hugging Face downloader, and MLXL3
-engine. Development builds still discover the editable project virtual
-environment automatically. A different executable can be selected with
-`MLXL3_EXECUTABLE=/path/to/mlxl3`.
+The Rust-rewrite release bundle contains the native MLXL3 executable,
+MLX/Metal libraries, tokenizer/template runtime, Hugging Face downloader and
+MCP client. It does not contain or launch Python. Development builds can use a
+different native executable with `MLXL3_EXECUTABLE=/path/to/mlxl3-rs`.
 
 ### Install the standalone DMG
 

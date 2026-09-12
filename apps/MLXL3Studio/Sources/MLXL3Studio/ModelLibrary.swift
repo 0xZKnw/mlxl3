@@ -138,10 +138,11 @@ final class ModelLibrary: ObservableObject {
         completed = 0
         total = Double(size)
         downloadMessage = nil
-        downloadTask = Task {
+        downloadTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                let data = try await CLICommand().output(arguments) { [weak self] line in
-                    guard let self, let event = try? JSONDecoder().decode(HubDownloadEvent.self, from: line), event.type == "progress" else { return }
+                let data = try await CLICommand().output(arguments) { line in
+                    guard let event = try? JSONDecoder().decode(HubDownloadEvent.self, from: line), event.type == "progress" else { return }
                     self.completed = event.completed ?? self.completed
                     self.total = event.total ?? self.total
                 }

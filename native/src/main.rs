@@ -24,7 +24,7 @@ use std::{
 };
 
 #[derive(Parser)]
-#[command(version, about = "Experimental native MLXL3 Rust/Metal port")]
+#[command(version, about = "Native MLXL3 Rust/Metal runtime")]
 struct Cli {
     #[arg(long, global = true)]
     registry: Option<PathBuf>,
@@ -62,7 +62,7 @@ enum Command {
         #[arg(long, default_value = "")]
         prompt: String,
     },
-    /// Experimental native LFM2/Qwen chat through MLX (requires mlx,chat features).
+    /// Native LFM2, Qwen, Gemma 4 and Ling 3 chat through MLX.
     Run {
         model: String,
         #[arg(short, long)]
@@ -94,7 +94,7 @@ enum Command {
         action: McpAction,
     },
     /// Emit logits for an imposed token sequence (native parity check).
-    #[cfg(feature = "mlx")]
+    #[cfg(all(feature = "mlx", feature = "chat"))]
     Forward {
         model: PathBuf,
         #[arg(long, value_delimiter = ',', required = true)]
@@ -192,6 +192,15 @@ struct CodecRequest {
     #[serde(default)]
     #[cfg(feature = "mlx")]
     normalize: bool,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    groups: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    top_groups: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    scale: f32,
     #[serde(default)]
     #[cfg(feature = "mlx")]
     selected: Vec<u32>,
@@ -393,6 +402,25 @@ fn codec_loop() -> Result<()> {
                     }))
                 }
                 #[cfg(feature = "mlx")]
+                "mlx-gdn-vector" => {
+                    use mlxl3_native::{array::Array, gated_delta};
+                    let heads = i32::try_from(request.key_heads)?;
+                    let shape = [1, 1, heads, 128];
+                    let state_shape = [1, heads, 128, 128];
+                    let (output, state) = gated_delta::step_vector(
+                        &Array::from_f16_bits(&request.q, &shape)?,
+                        &Array::from_f16_bits(&request.x, &shape)?,
+                        &Array::from_f16_bits(&request.v, &shape)?,
+                        &Array::from_f32(&request.g, &shape)?,
+                        &Array::from_f16_bits(&request.beta, &[1, 1, heads])?,
+                        &Array::from_f32(&request.state, &state_shape)?,
+                    )?;
+                    Ok(json!({
+                        "output": output.to_f16_bits()?,
+                        "state": state.to_f32()?,
+                    }))
+                }
+                #[cfg(feature = "mlx")]
                 "mlx-router" => {
                     use mlxl3_native::{array::Array, router};
                     let experts = i32::try_from(request.data.len())?;
@@ -418,6 +446,23 @@ fn codec_loop() -> Result<()> {
                     Ok(json!({
                         "indices": indices.to_u32()?,
                         "scores": scores.to_f16_bits()?,
+                    }))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-router-grouped" => {
+                    use mlxl3_native::{array::Array, router};
+                    let experts = i32::try_from(request.g.len())?;
+                    let (indices, scores) = router::grouped_topk_biased(
+                        &Array::from_f32(&request.g, &[1, experts])?,
+                        &Array::from_f32(&request.state, &[experts])?,
+                        request.k,
+                        request.groups,
+                        request.top_groups,
+                        request.scale,
+                    )?;
+                    Ok(json!({
+                        "indices": indices.to_u32()?,
+                        "scores": scores.to_f32()?,
                     }))
                 }
                 #[cfg(feature = "mlx")]
@@ -850,23 +895,34 @@ fn run(cli: Cli) -> Result<()> {
             result.extend(splitter.finish());
             println!("{}", serde_json::to_string(&result)?);
         }
-        #[cfg(feature = "mlx")]
+        #[cfg(all(feature = "mlx", feature = "chat"))]
         Command::Forward {
             model,
             tokens,
             states,
         } => {
-            let mut model = mlxl3_native::lfm2::Lfm2::load(&model)?;
+            let mut model = NativeChatModel::load(&model)?;
             let mut out = io::stdout().lock();
             for token in tokens {
-                let logits = model.forward(&[token])?;
-                let state = if states {
-                    model.state_arrays().into_iter().map(|(name, array)| -> Result<_> {
-                        Ok(json!({"name": name, "shape": array.shape(), "data": array.to_bytes()?}))
-                    }).collect::<Result<Vec<_>>>()?
-                } else {
-                    Vec::new()
+                let (logits, arrays) = match (&mut model, states) {
+                    (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
+                    (NativeChatModel::Lfm2(model), true) => {
+                        let logits = model.forward(&[token])?;
+                        let arrays = model
+                            .state_arrays()
+                            .into_iter()
+                            .map(|(name, array)| Ok((name, array.try_clone()?)))
+                            .collect::<Result<Vec<_>>>()?;
+                        (logits, arrays)
+                    }
+                    _ => (model.forward(token)?, Vec::new()),
                 };
+                let state = arrays
+                    .into_iter()
+                    .map(|(name, array)| -> Result<_> {
+                        Ok(json!({"name": name, "shape": array.shape(), "data": array.to_bytes()?}))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
                 serde_json::to_writer(
                     &mut out,
                     &json!({"token":token,"logits":logits.to_f16_bits()?,"states":state}),
@@ -1104,7 +1160,9 @@ fn model_payload(name: &str, entry: &registry::ModelEntry) -> Result<Value> {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 enum NativeChatModel {
+    Gemma4(mlxl3_native::gemma4::Gemma4),
     Lfm2(mlxl3_native::lfm2::Lfm2),
+    Ling(mlxl3_native::ling::Ling),
     Qwen(mlxl3_native::qwen35::Qwen35Moe),
 }
 
@@ -1114,6 +1172,8 @@ impl NativeChatModel {
         let config: serde_json::Value =
             serde_json::from_reader(std::fs::File::open(path.join("config.json"))?)?;
         match config["model_type"].as_str() {
+            Some("gemma4") => Ok(Self::Gemma4(mlxl3_native::gemma4::Gemma4::load(path)?)),
+            Some("bailing_hybrid") => Ok(Self::Ling(mlxl3_native::ling::Ling::load(path)?)),
             Some("lfm2" | "lfm2_moe") => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::load(path)?)),
             Some("qwen3_5" | "qwen3_5_moe") => {
                 Ok(Self::Qwen(mlxl3_native::qwen35::Qwen35Moe::load(path)?))
@@ -1124,37 +1184,48 @@ impl NativeChatModel {
 
     fn forward(&mut self, token: u32) -> Result<mlxl3_native::array::Array> {
         match self {
+            Self::Gemma4(model) => model.forward(token),
             Self::Lfm2(model) => model.forward(&[token]),
+            Self::Ling(model) => model.forward(token),
             Self::Qwen(model) => model.forward(token),
         }
     }
 
     fn context_limit(&self) -> i32 {
         match self {
+            Self::Gemma4(model) => model.context_limit(),
             Self::Lfm2(model) => model.context_limit(),
+            Self::Ling(model) => model.context_limit(),
             Self::Qwen(model) => model.context_limit(),
         }
     }
 
     fn reset(&mut self) {
         match self {
+            Self::Gemma4(model) => model.reset(),
             Self::Lfm2(model) => model.reset(),
+            Self::Ling(model) => model.reset(),
             Self::Qwen(model) => model.reset(),
         }
     }
 
     fn eval_state(&self) -> Result<()> {
-        if let Self::Lfm2(model) = self {
-            for (_, state) in model.state_arrays() {
-                state.eval()?;
+        match self {
+            Self::Lfm2(model) => {
+                for (_, state) in model.state_arrays() {
+                    state.eval()?;
+                }
             }
+            Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) => {}
         }
         Ok(())
     }
 
     fn name(&self) -> &'static str {
         match self {
+            Self::Gemma4(_) => "Gemma 4",
             Self::Lfm2(_) => "LFM2",
+            Self::Ling(_) => "Ling 3",
             Self::Qwen(_) => "Qwen3.5",
         }
     }

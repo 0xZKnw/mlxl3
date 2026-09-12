@@ -100,6 +100,7 @@ def main():
             from mlxl3.kernels.qmv import _scaled_hadamard_output_reduce
             from mlxl3.moe import _fused_glu_down_prepare
             from mlx_lm.models.gated_delta import gated_delta_kernel
+            from mlx_lm.models.bailing_moe_v3 import _group_expert_select
             for rows, cols in [(128, 128), (1024, 512), (2048, 128)]:
                 for k in range(1, 9):
                     rng = np.random.default_rng(rows + cols + k)
@@ -193,6 +194,43 @@ def main():
             np.testing.assert_array_equal(np.asarray(actual["scores"], dtype=np.uint16),
                 np.asarray(expected_scores).view(np.uint16).ravel(),
                 err_msg="biased MoE router scores")
+            cases += 1
+            rng = np.random.default_rng(53)
+            logits = rng.normal(size=128).astype(np.float32)
+            bias = rng.uniform(-0.25, 0.25, 128).astype(np.float32)
+            expected_indices, expected_scores = _group_expert_select(
+                mx.array(logits[None]), mx.array(bias), 8, 8, 4, 2.5)
+            actual = request("mlx-router-grouped", k=8, groups=8, top_groups=4, scale=2.5,
+                g=logits.tolist(), state=bias.tolist())
+            np.testing.assert_array_equal(np.asarray(actual["indices"], dtype=np.uint32),
+                np.asarray(expected_indices).astype(np.uint32).ravel(),
+                err_msg="Ling grouped MoE router indices")
+            np.testing.assert_array_equal(np.asarray(actual["scores"], dtype=np.float32).view(np.uint32),
+                np.asarray(expected_scores).astype(np.float32).ravel().view(np.uint32),
+                err_msg="Ling grouped MoE router scores")
+            cases += 1
+            rng = np.random.default_rng(54)
+            heads = 2
+            shape = (1, 1, heads, 128)
+            q = rng.normal(size=shape).astype(np.float16)
+            key = rng.normal(size=shape).astype(np.float16)
+            value = rng.normal(size=shape).astype(np.float16)
+            decay = rng.uniform(0.01, 0.99, size=shape).astype(np.float32)
+            beta = rng.uniform(0.01, 0.99, size=(1, 1, heads)).astype(np.float16)
+            state = rng.normal(size=(1, heads, 128, 128)).astype(np.float32)
+            expected_output, expected_state = gated_delta_kernel(
+                mx.array(q), mx.array(key), mx.array(value), mx.array(decay),
+                mx.array(beta), state=mx.array(state))
+            actual = request("mlx-gdn-vector", key_heads=heads,
+                q=q.view(np.uint16).ravel().tolist(), x=key.view(np.uint16).ravel().tolist(),
+                v=value.view(np.uint16).ravel().tolist(), g=decay.ravel().tolist(),
+                beta=beta.view(np.uint16).ravel().tolist(), state=state.ravel().tolist())
+            np.testing.assert_array_equal(np.asarray(actual["output"], dtype=np.uint16),
+                np.asarray(expected_output).view(np.uint16).ravel(),
+                err_msg="Ling vector Gated DeltaNet output")
+            np.testing.assert_array_equal(np.asarray(actual["state"], dtype=np.float32).view(np.uint32),
+                np.asarray(expected_state).astype(np.float32).ravel().view(np.uint32),
+                err_msg="Ling vector Gated DeltaNet state")
             cases += 1
             for k in (2, 3, 4):
                 rng = np.random.default_rng(70 + k)

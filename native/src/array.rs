@@ -108,6 +108,21 @@ unsafe extern "C" {
         causal: i32,
         out: *mut *mut c_void,
     ) -> i32;
+    fn mlxl3_array_sdpa_mask(
+        q: *mut c_void,
+        k: *mut c_void,
+        v: *mut c_void,
+        mask: *mut c_void,
+        scale: f32,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_array_rope_freqs(
+        input: *mut c_void,
+        freqs: *mut c_void,
+        dims: i32,
+        offset: i32,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_metal_kernel(
         name: *const c_char,
         input_names: *const *const c_char,
@@ -148,8 +163,7 @@ fn initialize() -> Result<()> {
         .filter(|path| path.is_file())
         .or_else(|| bundled.filter(|path| path.is_file()))
         .unwrap_or_else(|| {
-            std::path::Path::new(env!("MLXL3_MLX_BUILD_ROOT"))
-                .join("lib/mlx.metallib")
+            std::path::Path::new(env!("MLXL3_MLX_BUILD_ROOT")).join("lib/mlx.metallib")
         });
     ensure!(
         library.is_file(),
@@ -399,11 +413,29 @@ impl Array {
     pub fn rope(&self, dims: i32, base: f32, offset: i32) -> Result<Self> {
         self.unary(8, &[dims, offset], base, 0)
     }
+    pub fn rope_with_freqs(&self, dims: i32, offset: i32, freqs: &Self) -> Result<Self> {
+        ensure!(
+            dims > 0 && dims % 2 == 0 && freqs.shape() == [dims / 2],
+            "invalid RoPE frequency dimensions"
+        );
+        Self::output(|out| unsafe {
+            mlxl3_array_rope_freqs(
+                self.handle.as_ptr(),
+                freqs.handle.as_ptr(),
+                dims,
+                offset,
+                out,
+            )
+        })
+    }
     pub fn log_probs(&self) -> Result<Self> {
         self.unary(9, &[], 0., 0)
     }
     pub fn softmax_precise(&self) -> Result<Self> {
         self.unary(10, &[], 0., 0)
+    }
+    pub fn softmax(&self) -> Result<Self> {
+        self.unary(17, &[], 0., 0)
     }
     pub fn negative(&self) -> Result<Self> {
         self.unary(11, &[], 0., 0)
@@ -416,6 +448,17 @@ impl Array {
     }
     pub fn silu(&self) -> Result<Self> {
         self.unary(14, &[], 0., 0)
+    }
+    pub fn tanh(&self) -> Result<Self> {
+        self.unary(15, &[], 0., 0)
+    }
+    pub fn scalar_mul(&self, scalar: f32) -> Result<Self> {
+        ensure!(scalar.is_finite(), "array scalar must be finite");
+        self.unary(16, &[], scalar, 0)
+    }
+    pub fn softcap(&self, scalar: f32) -> Result<Self> {
+        ensure!(scalar.is_finite() && scalar > 0.0, "invalid softcap");
+        self.unary(18, &[], scalar, 0)
     }
     pub fn add(&self, other: &Self) -> Result<Self> {
         self.binary(other, 0, 0, 0.)
@@ -447,6 +490,9 @@ impl Array {
     pub fn div(&self, other: &Self) -> Result<Self> {
         self.binary(other, 9, 0, 0.)
     }
+    pub fn geglu(&self, up: &Self) -> Result<Self> {
+        self.binary(up, 10, 0, 0.)
+    }
     pub fn concatenate(inputs: &[&Self], axis: i32) -> Result<Self> {
         ensure!(!inputs.is_empty(), "concatenate requires an input");
         let pointers: Vec<_> = inputs.iter().map(|x| x.handle.as_ptr()).collect();
@@ -462,6 +508,18 @@ impl Array {
                 v.handle.as_ptr(),
                 scale,
                 i32::from(causal),
+                out,
+            )
+        })
+    }
+    pub fn sdpa_mask(q: &Self, k: &Self, v: &Self, scale: f32, mask: &Self) -> Result<Self> {
+        Self::output(|out| unsafe {
+            mlxl3_array_sdpa_mask(
+                q.handle.as_ptr(),
+                k.handle.as_ptr(),
+                v.handle.as_ptr(),
+                mask.handle.as_ptr(),
+                scale,
                 out,
             )
         })
@@ -561,6 +619,22 @@ mod tests {
         let b = a.transpose(&[1, 0])?;
         assert_eq!(b.to_f32()?, vec![1., 3., 2., 4.]);
         assert_eq!(a.matmul(&b)?.to_f32()?, vec![5., 11., 11., 25.]);
+        let gate = Array::from_f32(&[0., 1.], &[2])?;
+        let value = Array::from_f32(&[2., 3.], &[2])?;
+        let geglu = gate.geglu(&value)?.to_f32()?;
+        assert_eq!(geglu[0], 0.);
+        assert!((geglu[1] - 2.5236).abs() < 0.001);
+        assert!((gate.scalar_mul(2.)?.tanh()?.to_f32()?[1] - 0.964).abs() < 0.001);
+        let rope_input = Array::from_f32(&[1., 2., 3., 4.], &[1, 1, 1, 4])?;
+        let frequencies = Array::from_f32(&[1., 100.], &[2])?;
+        let regular = rope_input.rope(4, 10_000., 3)?.to_f32()?;
+        let explicit = rope_input.rope_with_freqs(4, 3, &frequencies)?.to_f32()?;
+        assert!(
+            regular
+                .iter()
+                .zip(explicit)
+                .all(|(left, right)| (left - right).abs() < 1e-6)
+        );
         let half = Array::from_f16_bits(&[0x3c00, 0x8000, 0x7e01, 0x7c00], &[4])?;
         assert_eq!(
             half.clone().to_f16_bits()?,
