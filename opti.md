@@ -365,6 +365,53 @@
   de performance. Intégration : moteur/CLI Rust de branche seulement ; GUI,
   quantification et app installée inchangées.
 
+### OPT-2026-09-12-RUST-05 — Qwen3.5 dense natif — en cours
+
+- Hypothèse / changement : accepter le `qwen3_5` dense du checkpoint local
+  Qwen3.8-27B 2.75 bpw en réutilisant intégralement attention, Gated DeltaNet,
+  caches, normes et head du port Qwen MoE exact. Seul le MLP devient une variante
+  gate/up groupée + SwiGLU + down ; aucune logique vision ni MTP.
+- Antécédents consultés : `mlx_lm.models.qwen3_5`, Qwen3NextMLP, RUST-03 et
+  inventaire réel du checkpoint. Les 64 couches ont le même cycle trois GDN/
+  une attention et les poids conv non sanitisés exigent le même `weight + 1`
+  déjà corrigé. Le checkpoint Gemma n'est plus présent, donc aucun port Gemma
+  non vérifiable n'est tenté maintenant.
+- Baseline / candidat : production Python du commit `ecf73a4`, même checkpoint
+  local de 12 GB, contre moteur Rust sur cette branche. Protocole prévu : oracle
+  Python écrit sur disque puis processus libéré, Rust ensuite, afin de ne pas
+  garder deux modèles de 12+ GB simultanément. Token 1 puis séquence 1/2/3,
+  logits FP16 bit-à-bit ; chat seulement après succès. Performance non mesurée.
+- Premier contrôle réussi : oracle Python écrit en processus séparé, puis
+  248 320/248 320 logits Rust exacts pour le token 1. Aucun modèle concurrent
+  ni comparaison de temps (le candidat était un build debug). Prochaine
+  répétition enregistrée : séquence imposée 1/2/3 dans une instance de chaque
+  moteur, toujours séquentiellement, pour exercer caches GDN/KV et offsets.
+- Séquence stateful réussie : trois fois 248 320 logits FP16 exacts. Les caches
+  GDN/KV et offsets du Qwen3.8 dense sont donc validés indirectement à chaque
+  étape sans conserver deux modèles en RAM. Étape suivante enregistrée : lint,
+  tests, build release, chat court et reset ; aucune mesure comparative.
+- Première chaîne finale interrompue par Clippy avant tests/build : la variante
+  MoE de l'enum MLP est ~984 octets contre ~248 pour la dense. Boxer uniquement
+  la variante MoE comme recommandé, puis relancer la même chaîne ; aucun modèle
+  ni benchmark exécuté pendant cet échec.
+- Deuxième lint encore interrompu : après ce box, la variante dense de 248 octets
+  dépasse à son tour la petite variante. Boxer aussi la dense, comme pour l'enum
+  de couches Qwen déjà validé ; aucun changement du graphe MLX.
+- Après les deux boxes : Clippy strict, 26 tests Rust et build release réussis.
+  Chat Qwen3.8 dense borné à quatre tokens terminé avec streaming thinking.
+  Mesures indicatives défavorables : 7,1 tok/s prefill séquentiel, 5,4 tok/s
+  decode, TTFT 45,2 s lors de cette première compilation/instance. Ce n'est pas
+  un gain ; le port est correct mais pas encore performant face au moteur Python.
+  Dernier contrôle fonctionnel prévu : deux prompts d'un token avec `/clear`.
+- `/clear` validé : deux générations d'un token terminées dans le même processus,
+  sans crash ni état résiduel observable. TTFT 43,1 puis 47,0 s, confirmant que
+  le reset invalide/reconstruit aujourd'hui des graphes coûteux ; aucun benchmark
+  comparable. Avant publication du jalon, répéter la séquence Qwen MoE 1/2/3
+  avec son oracle conservé pour vérifier que l'enum MLP partagé ne régresse pas.
+- Régression Qwen MoE réussie : trois étapes et tous les logits bit-à-bit exacts
+  avec le build release. État : Qwen dense intégré au moteur/CLI Rust de branche,
+  GUI et app installée inchangées ; aucune optimisation de ses temps encore faite.
+
 À lire **avant** toute optimisation ; à mettre à jour **avant et après chaque
 essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 

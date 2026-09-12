@@ -1,4 +1,4 @@
-//! Native Qwen3.5 MoE feed-forward block, used to validate the model port layerwise.
+//! Native Qwen3.5 dense/MoE inference, validated against MLXL3 layerwise.
 use crate::{
     array::{Array, Dtype},
     checkpoint::Checkpoint,
@@ -141,6 +141,66 @@ impl Moe {
     }
 }
 
+struct DenseMlp {
+    inputs: ProjectionBundle,
+    down: Projection,
+}
+
+enum Mlp {
+    Dense(Box<DenseMlp>),
+    Moe(Box<Moe>),
+}
+
+impl Mlp {
+    fn load(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        hidden: i32,
+        intermediate: i32,
+        experts: i32,
+        top_k: usize,
+    ) -> Result<Self> {
+        if experts > 0 {
+            return Ok(Self::Moe(Box::new(Moe::load(
+                checkpoint,
+                prefix,
+                hidden,
+                intermediate,
+                experts,
+                top_k,
+            )?)));
+        }
+        ensure!(top_k == 0, "dense Qwen MLP cannot route experts");
+        Ok(Self::Dense(Box::new(DenseMlp {
+            inputs: ProjectionBundle::load(
+                checkpoint,
+                hidden,
+                vec![
+                    (format!("{prefix}.gate_proj"), intermediate),
+                    (format!("{prefix}.up_proj"), intermediate),
+                ],
+            )?,
+            down: Projection::load(
+                checkpoint,
+                &format!("{prefix}.down_proj"),
+                intermediate,
+                hidden,
+                false,
+            )?,
+        })))
+    }
+
+    fn forward(&self, x: &Array) -> Result<Array> {
+        match self {
+            Self::Dense(mlp) => {
+                let inputs = mlp.inputs.forward(x)?;
+                mlp.down.forward(&inputs[0].swiglu(&inputs[1])?)
+            }
+            Self::Moe(mlp) => mlp.forward(x),
+        }
+    }
+}
+
 pub struct GatedDelta {
     inputs: ProjectionBundle,
     b: Projection,
@@ -165,7 +225,7 @@ pub struct LinearLayer {
     input_norm: Array,
     post_norm: Array,
     attention: GatedDelta,
-    mlp: Moe,
+    mlp: Mlp,
     hidden: i32,
     eps: f32,
 }
@@ -317,7 +377,7 @@ pub struct AttentionLayer {
     input_norm: Array,
     post_norm: Array,
     attention: Attention,
-    mlp: Moe,
+    mlp: Mlp,
     hidden: i32,
     eps: f32,
 }
@@ -361,7 +421,7 @@ impl AttentionLayer {
                 theta,
                 eps,
             )?,
-            mlp: Moe::load(
+            mlp: Mlp::load(
                 checkpoint,
                 &format!("{prefix}.mlp"),
                 hidden,
@@ -422,9 +482,14 @@ struct Config {
     linear_key_head_dim: i32,
     linear_value_head_dim: i32,
     linear_conv_kernel_dim: i32,
+    intermediate_size: Option<i32>,
+    #[serde(default)]
     num_experts: i32,
+    #[serde(default)]
     num_experts_per_tok: usize,
+    #[serde(default)]
     shared_expert_intermediate_size: i32,
+    #[serde(default)]
     moe_intermediate_size: i32,
     vocab_size: i32,
     max_position_embeddings: i32,
@@ -491,7 +556,10 @@ impl Qwen35Moe {
     pub fn load(path: &Path) -> Result<Self> {
         let root: RootConfig = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         let config = root.text_config;
-        ensure!(root.model_type == "qwen3_5_moe", "expected qwen3_5_moe");
+        ensure!(
+            root.model_type == "qwen3_5" || root.model_type == "qwen3_5_moe",
+            "expected qwen3_5 or qwen3_5_moe"
+        );
         ensure!(
             config.hidden_size > 0
                 && config.vocab_size > 0
@@ -502,12 +570,27 @@ impl Qwen35Moe {
                 && config.partial_rotary_factor > 0.
                 && config.partial_rotary_factor <= 1.
                 && !config.tie_word_embeddings,
-            "unsupported Qwen3.5 MoE configuration"
+            "unsupported Qwen3.5 configuration"
         );
-        ensure!(
-            config.moe_intermediate_size == config.shared_expert_intermediate_size,
-            "different routed/shared expert widths are not yet supported"
-        );
+        let mlp_hidden = if config.num_experts > 0 {
+            ensure!(
+                config.num_experts_per_tok > 0
+                    && config.num_experts_per_tok <= config.num_experts as usize
+                    && config.moe_intermediate_size > 0
+                    && config.moe_intermediate_size == config.shared_expert_intermediate_size,
+                "unsupported Qwen3.5 MoE configuration"
+            );
+            config.moe_intermediate_size
+        } else {
+            ensure!(
+                config.num_experts_per_tok == 0,
+                "invalid dense Qwen routing"
+            );
+            config
+                .intermediate_size
+                .filter(|&size| size > 0)
+                .context("missing dense Qwen intermediate size")?
+        };
         let checkpoint = crate::checkpoint::inspect(path)?;
         let hidden = config.hidden_size;
         let embeddings = half_weight(
@@ -530,7 +613,7 @@ impl Qwen35Moe {
                     config.linear_key_head_dim,
                     config.linear_value_head_dim,
                     config.linear_conv_kernel_dim,
-                    config.moe_intermediate_size,
+                    mlp_hidden,
                     config.num_experts,
                     config.num_experts_per_tok,
                     config.rms_norm_eps,
@@ -544,7 +627,7 @@ impl Qwen35Moe {
                     config.head_dim,
                     rope_dims,
                     config.rope_parameters.rope_theta,
-                    config.moe_intermediate_size,
+                    mlp_hidden,
                     config.num_experts,
                     config.num_experts_per_tok,
                     config.rms_norm_eps,
@@ -658,7 +741,7 @@ impl LinearLayer {
                 conv_length,
                 eps,
             )?,
-            mlp: Moe::load(
+            mlp: Mlp::load(
                 checkpoint,
                 &format!("{prefix}.mlp"),
                 hidden,

@@ -872,7 +872,9 @@ impl NativeChatModel {
             serde_json::from_reader(std::fs::File::open(path.join("config.json"))?)?;
         match config["model_type"].as_str() {
             Some("lfm2" | "lfm2_moe") => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::load(path)?)),
-            Some("qwen3_5_moe") => Ok(Self::Qwen(mlxl3_native::qwen35::Qwen35Moe::load(path)?)),
+            Some("qwen3_5" | "qwen3_5_moe") => {
+                Ok(Self::Qwen(mlxl3_native::qwen35::Qwen35Moe::load(path)?))
+            }
             other => bail!("native chat does not support model type {other:?}"),
         }
     }
@@ -910,7 +912,7 @@ impl NativeChatModel {
     fn name(&self) -> &'static str {
         match self {
             Self::Lfm2(_) => "LFM2",
-            Self::Qwen(_) => "Qwen3.5 MoE",
+            Self::Qwen(_) => "Qwen3.5",
         }
     }
 }

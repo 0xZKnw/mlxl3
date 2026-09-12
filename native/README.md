@@ -14,7 +14,7 @@ speedup is established by changing languages.
 - macOS: direct Metal ownership and reference EXL3 GPU kernels, without a
   Python interpreter. These are correctness references, not yet a complete
   optimized inference engine.
-- Optional `mlx,chat` integration: native LFM2 dense, LFM2-MoE and Qwen3.5-MoE
+- Optional `mlx,chat` integration: native LFM2 dense/MoE and Qwen3.5 dense/MoE
   inference, grouped projections, recurrent/KV states, local Hugging Face
   tokenizer and Jinja chat templates, greedy streaming chat with
   per-conversation history and thinking separation.
@@ -93,6 +93,7 @@ cargo build --release --locked --features mlx,chat
 ./target/release/mlxl3-rs run /path/to/LFM2-EXL3 --max-tokens 256
 ./target/release/mlxl3-rs run /path/to/LFM2-EXL3 --prompt 'Bonjour !' --max-tokens 256
 ./target/release/mlxl3-rs run /path/to/LFM2-MoE-EXL3 --prompt 'Bonjour !' --max-tokens 256
+./target/release/mlxl3-rs run /path/to/Qwen3.5-Dense-EXL3 --prompt 'Bonjour !' --max-tokens 256
 ./target/release/mlxl3-rs run /path/to/Qwen3.5-MoE-EXL3 --prompt 'Bonjour !' --max-tokens 256
 ```
 
@@ -123,8 +124,9 @@ on a multilingual four-message conversation. LFM2.5-8B-A1B EXL3 3.10bpw also
 passes every logit and cache on the same eight-token sequence. Qwen3.5-MoE
 passes all 40 layers, 248,320 output logits and every recurrent/KV state
 bit-for-bit on a three-token sequence; both MoE native chat/reset paths pass
-local smoke tests. These are bounded correctness checks, not a complete
-model-quality evaluation or throughput benchmark.
+local smoke tests. Qwen3.8-27B dense likewise passes 248,320 logits bit-for-bit
+on three stateful tokens plus chat/reset smokes. These are bounded correctness
+checks, not a complete model-quality evaluation or throughput benchmark.
 
 ```sh
 PYTHONPATH=src .venv/bin/python native/check_parity.py --binary target/release/mlxl3-rs --mlx
