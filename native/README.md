@@ -14,13 +14,13 @@ speedup is established by changing languages.
 - macOS: direct Metal ownership and reference EXL3 GPU kernels, without a
   Python interpreter. These are correctness references, not yet a complete
   optimized inference engine.
-- Optional `mlx,chat` integration: native LFM2 dense and Qwen3.5-MoE inference,
-  grouped projections, recurrent/KV states, local Hugging Face tokenizer and
-  Jinja chat templates, greedy streaming chat with per-conversation history and
-  thinking separation.
+- Optional `mlx,chat` integration: native LFM2 dense, LFM2-MoE and Qwen3.5-MoE
+  inference, grouped projections, recurrent/KV states, local Hugging Face
+  tokenizer and Jinja chat templates, greedy streaming chat with
+  per-conversation history and thinking separation.
 
 The GUI, MCP, model downloads and the full quantization pipeline have not been
-migrated. Gemma, Ling and LFM MoE architectures are not supported by the Rust
+migrated. Gemma and Ling architectures are not supported by the Rust
 inference path yet. It rejects unsupported architectures explicitly and never
 silently invokes Python. Existing Python/SwiftUI production remains available.
 
@@ -92,6 +92,7 @@ export MACOSX_DEPLOYMENT_TARGET=26.2
 cargo build --release --locked --features mlx,chat
 ./target/release/mlxl3-rs run /path/to/LFM2-EXL3 --max-tokens 256
 ./target/release/mlxl3-rs run /path/to/LFM2-EXL3 --prompt 'Bonjour !' --max-tokens 256
+./target/release/mlxl3-rs run /path/to/LFM2-MoE-EXL3 --prompt 'Bonjour !' --max-tokens 256
 ./target/release/mlxl3-rs run /path/to/Qwen3.5-MoE-EXL3 --prompt 'Bonjour !' --max-tokens 256
 ```
 
@@ -111,18 +112,19 @@ production. No quantization pipeline or full app rewrite is complete yet.
 
 ## Numerical validation
 
-On the development M5, 151 differential checks pass bit-for-bit: CPU codecs,
+On the development M5, 152 differential checks pass bit-for-bit: CPU codecs,
 72 complete projections across K1–8 and all three codebooks, plus 42 ragged
 projection groups across K1–6/8. The direct-Metal path separately passed 124
 checks. These counts overlap in their CPU cases and should not be added.
 LFM2.5-1.2B-Thinking and LFM2.5-2.6B EXL3 4bpw pass **every logit and every
 recurrent/KV value** on eight imposed tokens each against the production Python engine, including QKV
 grouping. Chat template strings, token IDs and decoding match Transformers
-on a multilingual four-message conversation. Qwen3.5-MoE passes all 40 layers,
-248,320 output logits and every recurrent/KV state bit-for-bit on a three-token
-sequence; its native chat and reset path also pass local smoke tests. These are
-bounded correctness checks, not a complete model-quality evaluation or
-throughput benchmark.
+on a multilingual four-message conversation. LFM2.5-8B-A1B EXL3 3.10bpw also
+passes every logit and cache on the same eight-token sequence. Qwen3.5-MoE
+passes all 40 layers, 248,320 output logits and every recurrent/KV state
+bit-for-bit on a three-token sequence; both MoE native chat/reset paths pass
+local smoke tests. These are bounded correctness checks, not a complete
+model-quality evaluation or throughput benchmark.
 
 ```sh
 PYTHONPATH=src .venv/bin/python native/check_parity.py --binary target/release/mlxl3-rs --mlx

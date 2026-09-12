@@ -340,6 +340,20 @@ fn codec_loop() -> Result<()> {
                     }))
                 }
                 #[cfg(feature = "mlx")]
+                "mlx-router-biased" => {
+                    use mlxl3_native::{array::Array, router};
+                    let experts = i32::try_from(request.data.len())?;
+                    let (indices, scores) = router::topk_biased(
+                        &Array::from_f16_bits(&request.data, &[1, experts])?,
+                        &Array::from_f16_bits(&request.beta, &[experts])?,
+                        request.k,
+                    )?;
+                    Ok(json!({
+                        "indices": indices.to_u32()?,
+                        "scores": scores.to_f16_bits()?,
+                    }))
+                }
+                #[cfg(feature = "mlx")]
                 "mlx-expert" => {
                     use mlxl3_native::{array::Array, linear::expert_mapped};
                     codec::check_k(request.k)?;
@@ -857,7 +871,7 @@ impl NativeChatModel {
         let config: serde_json::Value =
             serde_json::from_reader(std::fs::File::open(path.join("config.json"))?)?;
         match config["model_type"].as_str() {
-            Some("lfm2") => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::load(path)?)),
+            Some("lfm2" | "lfm2_moe") => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::load(path)?)),
             Some("qwen3_5_moe") => Ok(Self::Qwen(mlxl3_native::qwen35::Qwen35Moe::load(path)?)),
             other => bail!("native chat does not support model type {other:?}"),
         }

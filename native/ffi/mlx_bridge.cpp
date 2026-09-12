@@ -188,6 +188,7 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           auto value = mx::astype(b, mx::float32);
           return mx::astype(mx::multiply(gate, value), a.dtype());
         }
+        case 9: return mx::divide(a, b);
       }
       throw std::invalid_argument("invalid binary operation");
     };

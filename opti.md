@@ -319,6 +319,52 @@
   Python de production inchangés. Prefill Rust encore séquentiel, aucun gain de
   vitesse revendiqué ni comparé au moteur existant.
 
+### OPT-2026-09-12-RUST-04 — LFM2 MoE natif — en cours
+
+- Hypothèse / changement : étendre l'unique implémentation LFM2 Rust au type
+  `lfm2_moe`, en conservant opérateurs, caches, chat et couches denses existants.
+  Réutiliser `Exl3SwitchGlu` pour les couches expertes ; ajouter seulement les
+  noms LFM `w1/w3/w2` et la sélection top-k biaisée requise par l'architecture.
+- Antécédents consultés : `mlx_lm.models.lfm2_moe`, `src/mlxl3/moe.py`, port
+  LFM dense validé dans RUST-02 et primitives MoE exactes de RUST-03. Le modèle
+  local est LFM2.5-8B-A1B, 24 couches, 32 experts/top-4, deux couches denses,
+  biais expert et normalisation des scores.
+- Baseline / candidat : moteur Python de `a654a64` contre branche Rust au même
+  commit, checkpoint EXL3 3.10 bpw local. Aucun kernel expert nouveau : même
+  chemin Metal déjà validé sur Qwen, avec routeur biaisé 32 voies.
+- Protocole prévu : d'abord bloc MoE réel couche 2 (routes, scores et sortie
+  FP16 exacts), puis token imposé couche par couche et enfin plusieurs tokens
+  avec tous caches. Build/chat seulement après parité ; aucun benchmark ni gain
+  revendiqué pendant ce port. Environnement : M5/macOS, MLX 0.32.2, alimentation
+  et thermique non contrôlées puisque seules des comparaisons exactes sont prévues.
+- Première primitive validée : routeur biaisé LFM 32 voies/top-4, indices et
+  scores FP16 bruts bit-à-bit identiques au kernel Python. La matrice MLX passe
+  **152/152** cas. Le bloc LFM utilise ensuite les primitives expertes déjà
+  validées, avec normalisation et facteur effectués dans le même ordre MLX ;
+  prochaine preuve : MoE réel couche 2 avant toute exécution du modèle complet.
+- Révision du protocole avant exécution : ne pas ajouter un codec de diagnostic
+  permanent uniquement pour ce bloc. Le checker LFM complet existant exerce le
+  même chemin et compare tous logits/caches ; commencer par un seul token. En
+  cas d'écart seulement, ajouter une trace éphémère couche 2 pour localiser la
+  divergence, puis la retirer. Cela réduit le code de test sans relâcher le
+  critère bit-à-bit.
+- Premier modèle complet réussi : token imposé `1`, tous les logits FP16 et
+  tous les caches conv/KV du LFM2.5-8B-A1B EXL3 3.10 bpw sont bit-à-bit égaux
+  au moteur Python. Aucune trace supplémentaire n'est donc ajoutée. Répétition
+  suivante enregistrée : huit tokens du protocole LFM dense, même instance et
+  états conservés, afin de valider routing changeant et progression des caches.
+- Séquence complète réussie : `1,2,3,19,225,4096,17,7`, huit sorties vocabulaire
+  et tous les états des 24 couches bit-à-bit exacts. Le port LFM MoE est donc
+  validé numériquement sur ce checkpoint. Étape suivante enregistrée : Clippy,
+  build release, chat borné puis `/clear`; timings purement indicatifs puisque
+  le prefill natif reste token-par-token.
+- Validation fonctionnelle réussie : Clippy strict, 26 tests Rust et build
+  release passent. Chat LFM MoE borné à 4 tokens puis deux prompts séparés par
+  `/clear` terminent proprement. Le smoke isolé a affiché ~64,8 tok/s decode et
+  548 ms TTFT ; séquences trop courtes, sans paire Python, donc aucune conclusion
+  de performance. Intégration : moteur/CLI Rust de branche seulement ; GUI,
+  quantification et app installée inchangées.
+
 À lire **avant** toute optimisation ; à mettre à jour **avant et après chaque
 essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 

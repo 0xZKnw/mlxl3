@@ -95,7 +95,7 @@ def main():
                         cases += 1
         if args.mlx:
             import mlx.core as mx
-            from mlxl3.moe import EXL3SwitchGLU, router_topk
+            from mlxl3.moe import EXL3SwitchGLU, router_topk, topk_biased
             from mlxl3.kernels.qmv import qmv_exl3, qmv_exl3_expert_mapped, qmv_exl3_grouped
             from mlxl3.kernels.qmv import _scaled_hadamard_output_reduce
             from mlxl3.moe import _fused_glu_down_prepare
@@ -180,6 +180,20 @@ def main():
                         np.asarray(expected_scores).view(np.uint16).ravel(),
                         err_msg=f"MoE router scores, normalize={normalize}")
                     cases += 1
+            rng = np.random.default_rng(52)
+            values = rng.uniform(0, 1, 32).astype(np.float16)
+            bias = rng.uniform(-0.25, 0.25, 32).astype(np.float16)
+            expected_indices, expected_scores = topk_biased(
+                mx.array(values[None]), mx.array(bias), 4)
+            actual = request("mlx-router-biased", k=4,
+                data=values.view(np.uint16).tolist(), beta=bias.view(np.uint16).tolist())
+            np.testing.assert_array_equal(np.asarray(actual["indices"], dtype=np.uint32),
+                np.asarray(expected_indices).astype(np.uint32).ravel(),
+                err_msg="biased MoE router indices")
+            np.testing.assert_array_equal(np.asarray(actual["scores"], dtype=np.uint16),
+                np.asarray(expected_scores).view(np.uint16).ravel(),
+                err_msg="biased MoE router scores")
+            cases += 1
             for k in (2, 3, 4):
                 rng = np.random.default_rng(70 + k)
                 experts, top_k, projections = 4, 2, 2

@@ -1,12 +1,15 @@
-//! Batch-one, token-by-token LFM2 dense inference using MLX arrays.
-//! Weights and operation order follow mlx-lm's `models/lfm2.py`.
+//! Batch-one, token-by-token LFM2 dense/MoE inference using MLX arrays.
+//! Weights and operation order follow mlx-lm's `lfm2` implementations.
 // Architecture adapted from mlx-lm, Copyright © 2025 Apple Inc. (MIT).
 use crate::{
     array::{Array, Dtype},
     checkpoint::{self, Checkpoint},
     linear::{Exl3Group, Exl3Linear, checkpoint_array},
+    moe::Exl3SwitchGlu,
+    router,
 };
 use anyhow::{Context, Result, ensure};
+use half::f16;
 use serde::Deserialize;
 use std::{collections::BTreeSet, fs::File, path::Path};
 
@@ -23,12 +26,27 @@ struct Config {
     conv_bias: bool,
     #[serde(rename = "conv_L_cache")]
     conv_length: i32,
-    block_dim: i32,
+    block_dim: Option<i32>,
     block_ff_dim: Option<i32>,
     intermediate_size: Option<i32>,
-    block_multiple_of: i32,
+    block_multiple_of: Option<i32>,
+    #[serde(default)]
     block_auto_adjust_ff_dim: bool,
     block_ffn_dim_multiplier: Option<f64>,
+    #[serde(default)]
+    moe_intermediate_size: i32,
+    #[serde(default)]
+    num_experts: i32,
+    #[serde(default)]
+    num_experts_per_tok: usize,
+    #[serde(default)]
+    num_dense_layers: usize,
+    #[serde(default)]
+    norm_topk_prob: bool,
+    #[serde(default)]
+    use_expert_bias: bool,
+    #[serde(default = "default_routed_scaling_factor")]
+    routed_scaling_factor: f32,
     #[serde(default = "default_rope_theta")]
     rope_theta: f32,
     rope_parameters: Option<serde_json::Value>,
@@ -38,6 +56,10 @@ struct Config {
 
 fn default_rope_theta() -> f32 {
     1_000_000.0
+}
+
+fn default_routed_scaling_factor() -> f32 {
+    1.0
 }
 
 pub(crate) fn half_weight(
@@ -351,10 +373,64 @@ struct Layer {
     operator_norm: Array,
     ffn_norm: Array,
     operator: Operator,
-    w1: Projection,
-    w3: Projection,
-    w2: Projection,
+    feed_forward: FeedForward,
     eps: f32,
+}
+
+enum FeedForward {
+    Dense {
+        w1: Projection,
+        w3: Projection,
+        w2: Projection,
+    },
+    Moe {
+        gate: Projection,
+        expert_bias: Option<Array>,
+        experts: Exl3SwitchGlu,
+        top_k: usize,
+        normalize: bool,
+        epsilon: Array,
+        scale: Option<Array>,
+        dim: i32,
+    },
+}
+
+impl FeedForward {
+    fn forward(&self, x: &Array) -> Result<Array> {
+        match self {
+            Self::Dense { w1, w3, w2 } => {
+                let gate = w1.forward(x)?;
+                let up = w3.forward(x)?;
+                w2.forward(&gate.swiglu(&up)?)
+            }
+            Self::Moe {
+                gate,
+                expert_bias,
+                experts,
+                top_k,
+                normalize,
+                epsilon,
+                scale,
+                dim,
+            } => {
+                let x = x.reshape(&[1, *dim])?;
+                let probabilities = gate.forward(&x)?.sigmoid()?;
+                let (selected, mut scores) = match expert_bias {
+                    Some(bias) => router::topk_biased(&probabilities, bias, *top_k)?,
+                    None => router::topk(&probabilities, *top_k, false)?,
+                };
+                if *normalize {
+                    scores = scores.div(&scores.sum(-1, true)?.add(epsilon)?)?;
+                }
+                if let Some(scale) = scale {
+                    scores = scores.mul(scale)?;
+                }
+                experts
+                    .forward(&x, &selected, &scores)?
+                    .reshape(&[1, 1, *dim])
+            }
+        }
+    }
 }
 
 impl Layer {
@@ -393,27 +469,70 @@ impl Layer {
                     config,
                 )?)
             },
-            w1: Projection::load(
-                checkpoint,
-                &format!("{prefix}.feed_forward.w1"),
-                dim,
-                ff_dim,
-                false,
-            )?,
-            w3: Projection::load(
-                checkpoint,
-                &format!("{prefix}.feed_forward.w3"),
-                dim,
-                ff_dim,
-                false,
-            )?,
-            w2: Projection::load(
-                checkpoint,
-                &format!("{prefix}.feed_forward.w2"),
-                ff_dim,
-                dim,
-                false,
-            )?,
+            feed_forward: if config.model_type == "lfm2_moe" && index >= config.num_dense_layers {
+                let ffn = format!("{prefix}.feed_forward");
+                FeedForward::Moe {
+                    gate: Projection::load(
+                        checkpoint,
+                        &format!("{ffn}.gate"),
+                        dim,
+                        config.num_experts,
+                        false,
+                    )?,
+                    expert_bias: config
+                        .use_expert_bias
+                        .then(|| {
+                            half_weight(
+                                checkpoint,
+                                &format!("{ffn}.expert_bias"),
+                                Some(&[config.num_experts]),
+                            )
+                        })
+                        .transpose()?,
+                    experts: Exl3SwitchGlu::from_lfm_checkpoint(
+                        checkpoint,
+                        &format!("{ffn}.experts"),
+                        config.num_experts,
+                        config.num_experts_per_tok as i32,
+                    )?,
+                    top_k: config.num_experts_per_tok,
+                    normalize: config.norm_topk_prob,
+                    epsilon: Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()], &[])?,
+                    scale: (config.routed_scaling_factor != 1.0)
+                        .then(|| {
+                            Array::from_f16_bits(
+                                &[f16::from_f32(config.routed_scaling_factor).to_bits()],
+                                &[],
+                            )
+                        })
+                        .transpose()?,
+                    dim,
+                }
+            } else {
+                FeedForward::Dense {
+                    w1: Projection::load(
+                        checkpoint,
+                        &format!("{prefix}.feed_forward.w1"),
+                        dim,
+                        ff_dim,
+                        false,
+                    )?,
+                    w3: Projection::load(
+                        checkpoint,
+                        &format!("{prefix}.feed_forward.w3"),
+                        dim,
+                        ff_dim,
+                        false,
+                    )?,
+                    w2: Projection::load(
+                        checkpoint,
+                        &format!("{prefix}.feed_forward.w2"),
+                        ff_dim,
+                        dim,
+                        false,
+                    )?,
+                }
+            },
             eps: config.norm_eps,
         })
     }
@@ -426,10 +545,7 @@ impl Layer {
         };
         let h = x.add(&mixed)?;
         let normalized = h.rms_norm(&self.ffn_norm, self.eps)?;
-        let gate = self.w1.forward(&normalized)?;
-        let up = self.w3.forward(&normalized)?;
-        let activated = gate.swiglu(&up)?;
-        h.add(&self.w2.forward(&activated)?)
+        h.add(&self.feed_forward.forward(&normalized)?)
     }
 }
 
@@ -448,8 +564,8 @@ impl Lfm2 {
     pub fn load(path: &Path) -> Result<Self> {
         let config: Config = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         ensure!(
-            config.model_type == "lfm2",
-            "expected dense LFM2, got {}",
+            config.model_type == "lfm2" || config.model_type == "lfm2_moe",
+            "expected LFM2, got {}",
             config.model_type
         );
         ensure!(
@@ -476,10 +592,24 @@ impl Lfm2 {
             kv_heads > 0 && config.num_attention_heads % kv_heads == 0,
             "invalid LFM2 KV head count"
         );
-        ensure!(
-            config.conv_length > 0 && config.block_dim == config.hidden_size,
-            "invalid LFM2 convolution/block dimensions"
-        );
+        ensure!(config.conv_length > 0, "invalid LFM2 convolution length");
+        if config.model_type == "lfm2" {
+            ensure!(
+                config.block_dim == Some(config.hidden_size),
+                "invalid LFM2 block dimensions"
+            );
+        } else {
+            ensure!(
+                config.moe_intermediate_size > 0
+                    && config.num_experts > 0
+                    && config.num_experts_per_tok > 0
+                    && config.num_experts_per_tok <= config.num_experts as usize
+                    && config.num_dense_layers <= config.num_hidden_layers
+                    && config.routed_scaling_factor.is_finite()
+                    && config.routed_scaling_factor > 0.,
+                "invalid LFM2 MoE dimensions"
+            );
+        }
         ensure!(
             config.norm_eps.is_finite() && config.norm_eps > 0.,
             "invalid LFM2 norm epsilon"
@@ -511,10 +641,10 @@ impl Lfm2 {
                 ff_dim = (multiplier * ff_dim as f64) as i64;
             }
             ensure!(
-                config.block_multiple_of > 0,
+                config.block_multiple_of.is_some_and(|value| value > 0),
                 "invalid LFM2 feed-forward multiple"
             );
-            let multiple = i64::from(config.block_multiple_of);
+            let multiple = i64::from(config.block_multiple_of.expect("checked above"));
             ff_dim = multiple * ((ff_dim + multiple - 1) / multiple);
         }
         let ff_dim = i32::try_from(ff_dim).context("LFM2 feed-forward size overflow")?;

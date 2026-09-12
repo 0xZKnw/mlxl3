@@ -172,15 +172,40 @@ impl Exl3SwitchGlu {
         experts: i32,
         top_k: i32,
     ) -> Result<Self> {
+        Self::from_checkpoint_names(
+            checkpoint,
+            prefix,
+            experts,
+            top_k,
+            ["gate_proj", "up_proj", "down_proj"],
+        )
+    }
+
+    pub fn from_lfm_checkpoint(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        experts: i32,
+        top_k: i32,
+    ) -> Result<Self> {
+        Self::from_checkpoint_names(checkpoint, prefix, experts, top_k, ["w1", "w3", "w2"])
+    }
+
+    fn from_checkpoint_names(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        experts: i32,
+        top_k: i32,
+        [gate, up, down]: [&str; 3],
+    ) -> Result<Self> {
         ensure!(experts > 0, "invalid expert count");
         let names = |projection: &str| {
             (0..experts)
                 .map(|expert| format!("{prefix}.{expert}.{projection}"))
                 .collect::<Vec<_>>()
         };
-        let gates = names("gate_proj");
-        let ups = names("up_proj");
-        let downs = names("down_proj");
+        let gates = names(gate);
+        let ups = names(up);
+        let downs = names(down);
         let all = gates.iter().chain(&ups).chain(&downs);
         let mut k = None;
         let mut cb = None;

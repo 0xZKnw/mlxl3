@@ -436,6 +436,9 @@ impl Array {
     pub fn precise_swiglu(&self, value: &Self) -> Result<Self> {
         self.binary(value, 8, 0, 0.)
     }
+    pub fn div(&self, other: &Self) -> Result<Self> {
+        self.binary(other, 9, 0, 0.)
+    }
     pub fn concatenate(inputs: &[&Self], axis: i32) -> Result<Self> {
         ensure!(!inputs.is_empty(), "concatenate requires an input");
         let pointers: Vec<_> = inputs.iter().map(|x| x.handle.as_ptr()).collect();
