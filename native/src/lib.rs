@@ -3,6 +3,8 @@
 pub mod array;
 pub mod checkpoint;
 pub mod codec;
+#[cfg(feature = "mlx")]
+pub mod gated_delta;
 #[cfg(target_os = "macos")]
 pub mod gpu;
 #[cfg(feature = "mlx")]
@@ -10,6 +12,8 @@ pub mod lfm2;
 #[cfg(feature = "mlx")]
 pub mod linear;
 pub mod registry;
+#[cfg(feature = "mlx")]
+pub mod router;
 pub mod streaming;
 #[cfg(feature = "chat")]
 pub mod tokenizer;

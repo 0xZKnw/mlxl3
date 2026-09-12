@@ -307,6 +307,16 @@ impl Array {
             .map(|x| f32::from_ne_bytes(*x))
             .collect())
     }
+    pub fn to_u32(&self) -> Result<Vec<u32>> {
+        ensure!(self.dtype == Dtype::UInt32, "tensor is not UInt32");
+        Ok(self
+            .to_bytes()?
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|x| u32::from_ne_bytes(*x))
+            .collect())
+    }
     pub fn to_f16_bits(&self) -> Result<Vec<u16>> {
         let bytes = if self.dtype == Dtype::Float16 {
             self.to_bytes()?

@@ -113,6 +113,32 @@
   Aucun benchmark GPU ou quantificateur ne reste en cours. Les prochains ports
   (Qwen/Gemma/MoE, prefill groupé, quantification, GUI) restent à réaliser.
 
+### OPT-2026-09-12-RUST-03 — Primitives Qwen3.5 MoE — en cours
+
+- Hypothèse / changement : porter d'abord les deux primitives qui structurent
+  le checkpoint local `Qwen3.6-35B-A3B-EXL3-2.49bpw` : mise à jour récurrente
+  Gated DeltaNet Dk/Dv=128 et routeur 256→top-8. Réutiliser les shaders de
+  production et la FFI MLX existante, sans nouveau backend ni copie CPU.
+- Antécédents : `src/mlxl3/recurrent.py`, `src/mlxl3/moe.py`, implémentations
+  `mlx_lm.models.qwen3_5` et `gated_delta.py` relues. Le checkpoint est bien
+  Qwen3.5-MoE texte : 40 couches (30 linéaires, 10 attention), 256 experts,
+  top-8, état récurrent FP32. MTP exclu conformément aux choix précédents.
+- Baseline / candidat : Python `load_exl3_model` commit `de318a8` contre
+  branche Rust `59ecef4`, mêmes entrées déterministes et même libmlx 0.32.2.
+- Protocole prévu : parité bit-à-bit sortie + état GDN sur état nul et non nul,
+  puis indices/scores du routeur y compris égalités/NaN ; enfin intégration
+  token imposé et comparaison couche par couche. Aucun benchmark avant parité.
+- Environnement : M5, macOS 27.0/SDK cible 26.2, GPU local. Résultats : non
+  mesurés côté performance. Première étape validée le 12 septembre : le shader
+  Gated DeltaNet empaqueté compile via libmlx 0.32.2 et ses sorties FP16 ainsi
+  que son état FP32 sont bit-à-bit identiques à `mlx_lm` sur état nul et non
+  nul. Commande : `native/check_parity.py --binary target/debug/mlxl3-rs
+  --mlx`, 142/142 cas réussis (134 projections existantes + 2 GDN + 6 routeur).
+  Le routeur natif restitue exactement indices et scores FP16 avec/sans
+  normalisation, y compris égalités, zéros signés et NaN. L'intégration d'une
+  couche Qwen complète reste non réalisée. Intégration : prototype de branche
+  uniquement.
+
 À lire **avant** toute optimisation ; à mettre à jour **avant et après chaque
 essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 

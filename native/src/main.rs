@@ -95,6 +95,33 @@ struct CodecRequest {
     #[serde(default)]
     #[cfg(feature = "mlx")]
     widths: Vec<usize>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    q: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    v: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    g: Vec<f32>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    beta: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    state: Vec<f32>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    key_heads: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    value_heads: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    value_dims: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    normalize: bool,
 }
 fn default_k() -> usize {
     4
@@ -226,6 +253,43 @@ fn codec_loop() -> Result<()> {
                             .map(Array::to_f16_bits)
                             .collect::<Result<Vec<_>>>()?
                     ))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-gdn" => {
+                    use mlxl3_native::{array::Array, gated_delta};
+                    let batch = 1;
+                    let key_heads = i32::try_from(request.key_heads)?;
+                    let value_heads = i32::try_from(request.value_heads)?;
+                    let value_dims = i32::try_from(request.value_dims)?;
+                    let q_shape = [batch, 1, key_heads, 128];
+                    let v_shape = [batch, 1, value_heads, value_dims];
+                    let state_shape = [batch, value_heads, value_dims, 128];
+                    let (output, state) = gated_delta::step(
+                        &Array::from_f16_bits(&request.q, &q_shape)?,
+                        &Array::from_f16_bits(&request.x, &q_shape)?,
+                        &Array::from_f16_bits(&request.v, &v_shape)?,
+                        &Array::from_f32(&request.g, &[batch, 1, value_heads])?,
+                        &Array::from_f16_bits(&request.beta, &[batch, 1, value_heads])?,
+                        &Array::from_f32(&request.state, &state_shape)?,
+                    )?;
+                    Ok(json!({
+                        "output": output.to_f16_bits()?,
+                        "state": state.to_f32()?,
+                    }))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-router" => {
+                    use mlxl3_native::{array::Array, router};
+                    let experts = i32::try_from(request.data.len())?;
+                    let (indices, scores) = router::topk(
+                        &Array::from_f16_bits(&request.data, &[1, experts])?,
+                        request.k,
+                        request.normalize,
+                    )?;
+                    Ok(json!({
+                        "indices": indices.to_u32()?,
+                        "scores": scores.to_f16_bits()?,
+                    }))
                 }
                 #[cfg(target_os = "macos")]
                 "metal-pack" | "metal-decode" | "metal-qmv" => {

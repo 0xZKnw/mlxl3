@@ -95,7 +95,9 @@ def main():
                         cases += 1
         if args.mlx:
             import mlx.core as mx
+            from mlxl3.moe import router_topk
             from mlxl3.kernels.qmv import qmv_exl3, qmv_exl3_grouped
+            from mlx_lm.models.gated_delta import gated_delta_kernel
             for rows, cols in [(128, 128), (1024, 512), (2048, 128)]:
                 for k in range(1, 9):
                     rng = np.random.default_rng(rows + cols + k)
@@ -132,6 +134,50 @@ def main():
                             np.testing.assert_array_equal(actual[index], np.asarray(reference).view(np.uint16).ravel(),
                                 err_msg=f"MLX grouped {rows}x{widths} K{k} CB{mode}, projection {index}")
                         cases += 1
+            for seed, initial_state in ((41, False), (42, True)):
+                rng = np.random.default_rng(seed)
+                key_heads, value_heads, value_dims = 1, 2, 8
+                q = rng.normal(size=(1, 1, key_heads, 128)).astype(np.float16)
+                key = rng.normal(size=q.shape).astype(np.float16)
+                value = rng.normal(size=(1, 1, value_heads, value_dims)).astype(np.float16)
+                decay = rng.uniform(0.01, 0.99, size=(1, 1, value_heads)).astype(np.float32)
+                beta = rng.uniform(0.01, 0.99, size=(1, 1, value_heads)).astype(np.float16)
+                state = (rng.normal(size=(1, value_heads, value_dims, 128)).astype(np.float32)
+                         if initial_state else np.zeros((1, value_heads, value_dims, 128), dtype=np.float32))
+                expected_output, expected_state = gated_delta_kernel(
+                    mx.array(q), mx.array(key), mx.array(value), mx.array(decay),
+                    mx.array(beta), state=mx.array(state))
+                actual = request("mlx-gdn", key_heads=key_heads, value_heads=value_heads,
+                    value_dims=value_dims, q=q.view(np.uint16).ravel().tolist(),
+                    x=key.view(np.uint16).ravel().tolist(), v=value.view(np.uint16).ravel().tolist(),
+                    g=decay.ravel().tolist(), beta=beta.view(np.uint16).ravel().tolist(),
+                    state=state.ravel().tolist())
+                np.testing.assert_array_equal(np.asarray(actual["output"], dtype=np.uint16),
+                    np.asarray(expected_output).view(np.uint16).ravel(),
+                    err_msg=f"Gated DeltaNet output, nonzero state={initial_state}")
+                np.testing.assert_array_equal(np.asarray(actual["state"], dtype=np.float32).view(np.uint32),
+                    np.asarray(expected_state).astype(np.float32).ravel().view(np.uint32),
+                    err_msg=f"Gated DeltaNet state, nonzero state={initial_state}")
+                cases += 1
+            router_cases = [
+                np.random.default_rng(51).uniform(0, 1, 256).astype(np.float16),
+                np.array([0.5] * 4 + [0.25] * 4 + [0.0] * 8, dtype=np.float16),
+                np.array([np.nan, -1.0, 0.0, -0.0, 1.0, 1.0, 0.5, 0.5], dtype=np.float16),
+            ]
+            for values in router_cases:
+                for normalize in (False, True):
+                    top_k = min(8, values.size)
+                    expected_indices, expected_scores = router_topk(
+                        mx.array(values[None]), top_k, normalize=normalize)
+                    actual = request("mlx-router", k=top_k, normalize=normalize,
+                        data=values.view(np.uint16).tolist())
+                    np.testing.assert_array_equal(np.asarray(actual["indices"], dtype=np.uint32),
+                        np.asarray(expected_indices).astype(np.uint32).ravel(),
+                        err_msg=f"MoE router indices, normalize={normalize}")
+                    np.testing.assert_array_equal(np.asarray(actual["scores"], dtype=np.uint16),
+                        np.asarray(expected_scores).view(np.uint16).ravel(),
+                        err_msg=f"MoE router scores, normalize={normalize}")
+                    cases += 1
     finally:
         process.stdin.close()
         try:
