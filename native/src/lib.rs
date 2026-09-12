@@ -12,6 +12,7 @@ pub mod hub;
 pub mod lfm2;
 #[cfg(feature = "mlx")]
 pub mod linear;
+pub mod mcp;
 #[cfg(feature = "mlx")]
 pub mod moe;
 #[cfg(feature = "mlx")]
@@ -22,3 +23,4 @@ pub mod router;
 pub mod streaming;
 #[cfg(feature = "chat")]
 pub mod tokenizer;
+pub mod tool_call;

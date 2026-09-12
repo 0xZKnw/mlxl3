@@ -21,11 +21,12 @@ speedup is established by changing languages.
 - Resident JSON-lines bridge compatible with the SwiftUI event transport:
   loading/readiness, context usage, streaming phases, sampling controls,
   completion statistics, ping/shutdown and cooperative `SIGUSR1` cancellation.
+- Native Hugging Face catalogue, resumable downloads and authentication, plus
+  native stdio/HTTP MCP discovery, tool execution and multi-round bridge events.
 
 The GUI still packages the Python runtime; switching its bundled executable is
-deferred until the Rust bridge also covers its catalogue and MCP commands. MCP,
-model downloads and the full quantization pipeline have not been migrated.
-Gemma and Ling architectures are not supported by the Rust
+deferred until its native bundle is self-contained. The full quantization
+pipeline has not been migrated. Gemma and Ling architectures are not supported by the Rust
 inference path yet. It rejects unsupported architectures explicitly and never
 silently invokes Python. Existing Python/SwiftUI production remains available.
 
@@ -104,7 +105,8 @@ cargo build --release --locked --features mlx,chat
 
 Use `/clear` to reset the conversation, `/exit` to quit. Model registry names
 work instead of paths. `--max-tokens 0` generates until EOS or the context limit;
-the experimental default is 128. No tools or stochastic sampling yet.
+the experimental default is 128. Desktop bridge sampling and MCP are native;
+the interactive CLI remains greedy.
 
 The MLX headers and dynamic library must both be **0.32.2**. The development
 binary links to that local library path; it is not a self-contained app bundle.

@@ -88,6 +88,11 @@ enum Command {
         #[arg(long, default_value_t = 60)]
         limit: usize,
     },
+    /// Configure and inspect Model Context Protocol servers.
+    Mcp {
+        #[command(subcommand)]
+        action: McpAction,
+    },
     /// Emit logits for an imposed token sequence (native parity check).
     #[cfg(feature = "mlx")]
     Forward {
@@ -108,6 +113,29 @@ enum HubAction {
     Resume,
     Discard,
     Auth,
+}
+
+#[derive(Subcommand)]
+enum McpAction {
+    #[command(alias = "ls")]
+    List {
+        #[arg(long)]
+        json: bool,
+    },
+    Check {
+        #[arg(long)]
+        json: bool,
+    },
+    Config,
+    Add {
+        name: String,
+        command: String,
+        args: Vec<String>,
+    },
+    #[command(alias = "rm")]
+    Remove {
+        name: String,
+    },
 }
 
 #[derive(Deserialize)]
@@ -964,6 +992,72 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
+        Command::Mcp { action } => {
+            let registry_path = cli
+                .registry
+                .map(Ok)
+                .unwrap_or_else(registry::default_path)?;
+            match action {
+                McpAction::List { json: as_json } => {
+                    let servers = mlxl3_native::mcp::list_servers(&registry_path)?;
+                    if as_json {
+                        println!("{}", serde_json::to_string(&servers)?);
+                    } else {
+                        for (name, server) in servers {
+                            println!(
+                                "{name}\t{}\t{}",
+                                if server.enabled {
+                                    "enabled"
+                                } else {
+                                    "disabled"
+                                },
+                                server.url.as_deref().unwrap_or(&server.command)
+                            );
+                        }
+                    }
+                }
+                McpAction::Check { json: as_json } => {
+                    let mut manager = mlxl3_native::mcp::Manager::disabled();
+                    manager.set_enabled(&registry_path, true, true);
+                    let result = json!({
+                        "servers":manager.server_count(),
+                        "tools":manager.chat_tools(),
+                        "errors":manager.errors,
+                    });
+                    if as_json {
+                        println!("{result}");
+                    } else {
+                        println!(
+                            "{} server(s), {} tool(s)",
+                            manager.server_count(),
+                            manager.tools.len()
+                        );
+                        for name in manager.tools.keys() {
+                            println!("- {name}");
+                        }
+                        for (name, error) in &manager.errors {
+                            eprintln!("{name}: {error}");
+                        }
+                    }
+                }
+                McpAction::Config => println!(
+                    "{}",
+                    mlxl3_native::mcp::config_path(&registry_path).display()
+                ),
+                McpAction::Add {
+                    name,
+                    command,
+                    args,
+                } => {
+                    mlxl3_native::mcp::add_server(&registry_path, &name, &command, args)?;
+                    println!("Added {name}");
+                }
+                McpAction::Remove { name } => {
+                    mlxl3_native::mcp::remove_server(&registry_path, &name)?;
+                    println!("Removed {name}");
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -1068,20 +1162,13 @@ impl NativeChatModel {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 #[derive(Deserialize)]
-struct BridgeMessage {
-    role: String,
-    content: String,
-}
-
-#[cfg(all(feature = "mlx", feature = "chat"))]
-#[derive(Deserialize)]
 struct BridgeRequest {
     #[serde(rename = "type")]
     kind: String,
     #[serde(default)]
     request_id: String,
     #[serde(default)]
-    messages: Vec<BridgeMessage>,
+    messages: Vec<Value>,
     #[serde(default = "unlimited_tokens")]
     max_tokens: i64,
     #[serde(default)]
@@ -1092,6 +1179,8 @@ struct BridgeRequest {
     repetition_penalty: f32,
     #[serde(default)]
     enabled: bool,
+    #[serde(default)]
+    mcp_enabled: bool,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1118,6 +1207,13 @@ struct NativeStats {
     context_used: usize,
     context_limit: usize,
     elapsed_seconds: f64,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct RoundOutput {
+    raw: String,
+    stats: NativeStats,
+    first_text_seconds: Option<f64>,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1211,11 +1307,12 @@ fn select_token(
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 #[allow(clippy::too_many_arguments)]
-fn bridge_generate(
+fn bridge_generate_round(
     model: &mut NativeChatModel,
     tokenizer: &mlxl3_native::tokenizer::ChatTokenizer,
     request_id: &str,
-    messages: Vec<BridgeMessage>,
+    messages: &[Value],
+    tools: &[Value],
     max_tokens: i64,
     temperature: f32,
     top_k: usize,
@@ -1224,21 +1321,14 @@ fn bridge_generate(
     resident_gb: f64,
     cancelled: &AtomicBool,
     random: &mut u64,
-) -> Result<()> {
-    use mlxl3_native::{array::Array, streaming::Channel, tokenizer::Message};
+) -> Result<RoundOutput> {
+    use mlxl3_native::{array::Array, streaming::Channel, tool_call::StreamFilter};
     anyhow::ensure!(!messages.is_empty(), "messages cannot be empty");
     anyhow::ensure!(
         max_tokens == -1 || max_tokens > 0,
         "max_tokens must be positive, or -1"
     );
-    let messages: Vec<_> = messages
-        .into_iter()
-        .map(|message| Message {
-            role: message.role,
-            content: message.content,
-        })
-        .collect();
-    let rendered = tokenizer.render(&messages)?;
+    let rendered = tokenizer.render_values(&Value::Array(messages.to_vec()), Some(tools))?;
     let tokens = tokenizer.encode(&rendered)?;
     anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
     anyhow::ensure!(
@@ -1249,11 +1339,6 @@ fn bridge_generate(
         "type":"context_usage", "request_id":request_id,
         "used_tokens":tokens.len(), "context_limit":context_limit
     }))?;
-    emit_event(json!({
-        "type":"generation_status", "request_id":request_id,
-        "phase":"prefill", "text":"Preparing context"
-    }))?;
-
     model.reset();
     let started = Instant::now();
     let mut logits: Option<Array> = None;
@@ -1276,8 +1361,7 @@ fn bridge_generate(
     };
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
-    let mut raw = String::new();
-    let mut answer = String::new();
+    let mut filter = (!tools.is_empty()).then(StreamFilter::new);
     let mut decoded = String::new();
     let mut generated = Vec::new();
     let mut first_token = None;
@@ -1305,14 +1389,20 @@ fn bridge_generate(
         {
             decoded.push_str(&text);
             for fragment in splitter.feed(&text) {
-                if fragment.channel == Channel::Answer {
-                    answer.push_str(&fragment.text);
+                let visible = if fragment.channel == Channel::Thinking {
+                    vec![fragment.text]
+                } else if let Some(filter) = &mut filter {
+                    filter.feed(&fragment.text)
+                } else {
+                    vec![fragment.text]
+                };
+                for text in visible {
+                    emit_event(json!({
+                        "type":"delta", "request_id":request_id,
+                        "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
+                        "text":text
+                    }))?;
                 }
-                emit_event(json!({
-                    "type":"delta", "request_id":request_id,
-                    "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
-                    "text":fragment.text
-                }))?;
             }
         }
         if generated.len() < budget {
@@ -1324,16 +1414,29 @@ fn bridge_generate(
         .strip_prefix(&decoded)
         .context("incremental tokenizer output differs from full decoding")?;
     for fragment in splitter.feed(tail).into_iter().chain(splitter.finish()) {
-        if fragment.channel == Channel::Answer {
-            answer.push_str(&fragment.text);
+        let visible = if fragment.channel == Channel::Thinking {
+            vec![fragment.text]
+        } else if let Some(filter) = &mut filter {
+            filter.feed(&fragment.text)
+        } else {
+            vec![fragment.text]
+        };
+        for text in visible {
+            emit_event(json!({
+                "type":"delta", "request_id":request_id,
+                "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
+                "text":text
+            }))?;
         }
-        emit_event(json!({
-            "type":"delta", "request_id":request_id,
-            "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
-            "text":fragment.text
-        }))?;
     }
-    raw.push_str(&complete);
+    if let Some(filter) = &mut filter {
+        for text in filter.finish() {
+            emit_event(json!({
+                "type":"delta", "request_id":request_id,
+                "phase":"answer", "text":text
+            }))?;
+        }
+    }
     let elapsed = started.elapsed().as_secs_f64();
     let ttft = first_token.unwrap_or(elapsed);
     let stats = NativeStats {
@@ -1349,13 +1452,168 @@ fn bridge_generate(
         context_limit,
         elapsed_seconds: elapsed,
     };
-    emit_event(json!({
-        "type":"complete", "request_id":request_id,
-        "assistant_context":answer.trim(), "cache_context":raw,
-        "stats":stats, "context_full":tokens.len() + generated.len() >= context_limit,
-        "elapsed_seconds":elapsed, "first_text_seconds":first_token,
-        "tool_rounds":0
-    }))
+    Ok(RoundOutput {
+        raw: complete,
+        stats,
+        first_text_seconds: first_token,
+    })
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn validated_bridge_messages(messages: Vec<Value>) -> Result<Vec<Value>> {
+    let mut output = Vec::new();
+    for mut message in messages {
+        let object = message
+            .as_object_mut()
+            .context("each message must be an object")?;
+        let role = object
+            .get("role")
+            .and_then(Value::as_str)
+            .context("message requires a role")?
+            .to_owned();
+        anyhow::ensure!(
+            matches!(role.as_str(), "system" | "user" | "assistant" | "tool"),
+            "invalid message role"
+        );
+        anyhow::ensure!(
+            object.get("content").is_some_and(Value::is_string),
+            "message requires string content"
+        );
+        if let Some(turn) = object.remove("turn_context") {
+            anyhow::ensure!(
+                role == "assistant",
+                "only assistant messages can contain tool history"
+            );
+            let encoded = turn.as_str().context("turn_context must be a string")?;
+            let expanded: Vec<Value> =
+                serde_json::from_str(encoded).context("invalid tool history")?;
+            let expanded = validated_bridge_messages(expanded)?;
+            anyhow::ensure!(
+                expanded
+                    .iter()
+                    .all(|value| matches!(value["role"].as_str(), Some("assistant" | "tool"))),
+                "tool history contains an invalid role"
+            );
+            output.extend(expanded);
+        } else {
+            output.push(message);
+        }
+    }
+    anyhow::ensure!(!output.is_empty(), "messages cannot be empty");
+    Ok(output)
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[allow(clippy::too_many_arguments)]
+fn bridge_generate(
+    model: &mut NativeChatModel,
+    tokenizer: &mlxl3_native::tokenizer::ChatTokenizer,
+    request_id: &str,
+    messages: Vec<Value>,
+    max_tokens: i64,
+    temperature: f32,
+    top_k: usize,
+    repetition_penalty: f32,
+    context_limit: usize,
+    resident_gb: f64,
+    cancelled: &AtomicBool,
+    random: &mut u64,
+    mcp: &mut mlxl3_native::mcp::Manager,
+) -> Result<()> {
+    let mut dialogue = validated_bridge_messages(messages)?;
+    let original_length = dialogue.len();
+    let tools = mcp.chat_tools();
+    let started = Instant::now();
+    let mut first_text = None;
+    for round in 0..5 {
+        emit_event(json!({
+            "type":"generation_status", "request_id":request_id,
+            "phase":"prefill", "text":if round == 0 { "Preparing context" } else { "Reading MCP results" }
+        }))?;
+        let output = bridge_generate_round(
+            model,
+            tokenizer,
+            request_id,
+            &dialogue,
+            &tools,
+            max_tokens,
+            temperature,
+            top_k,
+            repetition_penalty,
+            context_limit,
+            resident_gb,
+            cancelled,
+            random,
+        )?;
+        first_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
+        let calls = if tools.is_empty() {
+            Vec::new()
+        } else {
+            mlxl3_native::tool_call::parse(&output.raw)?
+        };
+        let context_full = output.stats.context_used >= context_limit;
+        if calls.is_empty() || context_full {
+            let assistant = mlxl3_native::tool_call::without_calls(&output.raw);
+            let turn_context = if round == 0 {
+                None
+            } else {
+                let mut transcript = dialogue[original_length..].to_vec();
+                transcript.push(json!({"role":"assistant", "content":output.raw}));
+                Some(serde_json::to_string(&transcript)?)
+            };
+            return emit_event(json!({
+                "type":"complete", "request_id":request_id,
+                "assistant_context":assistant, "cache_context":output.raw,
+                "stats":output.stats, "context_full":context_full,
+                "turn_context":turn_context,
+                "elapsed_seconds":started.elapsed().as_secs_f64(),
+                "first_text_seconds":first_text.or(output.first_text_seconds),
+                "tool_rounds":round
+            }));
+        }
+        let tool_calls: Vec<_> = calls
+            .iter()
+            .map(|call| json!({"type":"function", "function":{"name":call.name, "arguments":call.arguments}}))
+            .collect();
+        dialogue.push(json!({
+            "role":"assistant",
+            "content":mlxl3_native::tool_call::without_calls(&output.raw),
+            "tool_calls":tool_calls
+        }));
+        for call in calls {
+            if cancelled.load(Ordering::Relaxed) {
+                model.reset();
+                bail!("generation cancelled");
+            }
+            let tool = mcp.tools.get(&call.name);
+            let server = tool.map(|tool| tool.server.clone());
+            let call_id = format!("mcp-{round}-{}-{}", dialogue.len(), call.name);
+            emit_event(json!({
+                "type":"tool_start", "request_id":request_id,
+                "tool_call_id":call_id, "tool_name":call.name,
+                "server_name":server
+            }))?;
+            let mut result = mcp.call(&call.name, call.arguments);
+            let budget = 8192usize.min((context_limit / 8).max(256));
+            let result_tokens = tokenizer.encode(&result.text)?;
+            if result_tokens.len() > budget {
+                result.text = format!(
+                    "{}\n[Tool output truncated to fit context]",
+                    tokenizer.decode(&result_tokens[..budget])?
+                );
+            }
+            emit_event(json!({
+                "type":"tool_result", "request_id":request_id,
+                "tool_call_id":call_id, "tool_name":call.name,
+                "server_name":server, "text":result.text,
+                "is_error":result.is_error
+            }))?;
+            dialogue.push(json!({
+                "role":"tool", "name":call.name, "content":result.text
+            }));
+        }
+    }
+    bail!("the model exceeded the limit of 5 consecutive MCP tool rounds")
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1365,7 +1623,11 @@ fn native_bridge(
     requested: i32,
 ) -> Result<()> {
     use mlxl3_native::tokenizer::ChatTokenizer;
-    let path = resolve_model_path(registry_path, name)?;
+    let registry_path = registry_path
+        .map(PathBuf::from)
+        .map(Ok)
+        .unwrap_or_else(registry::default_path)?;
+    let path = resolve_model_path(Some(&registry_path), name)?;
     let checkpoint = checkpoint::inspect(&path)?;
     emit_event(json!({"type":"loading", "model":name}))?;
     let started = Instant::now();
@@ -1395,6 +1657,7 @@ fn native_bridge(
         .unwrap_or_default()
         .as_nanos() as u64
         | 1;
+    let mut mcp = mlxl3_native::mcp::Manager::disabled();
     for line in io::stdin().lock().lines() {
         let line = line?;
         if line.trim().is_empty() {
@@ -1412,12 +1675,16 @@ fn native_bridge(
         match request.kind.as_str() {
             "shutdown" => break,
             "ping" => emit_event(json!({"type":"pong", "request_id":request.request_id}))?,
-            "set_mcp" => emit_event(json!({
-                "type":"mcp_status", "mcp_servers":0, "mcp_tools":0,
-                "mcp_errors":if request.enabled { json!({"native":"MCP migration is not complete"}) } else { json!({}) }
-            }))?,
+            "set_mcp" => {
+                mcp.set_enabled(&registry_path, request.enabled, true);
+                emit_event(json!({
+                    "type":"mcp_status", "mcp_servers":mcp.server_count(),
+                    "mcp_tools":mcp.tools.len(), "mcp_errors":mcp.errors
+                }))?;
+            }
             "generate" => {
                 cancelled.store(false, Ordering::Relaxed);
+                mcp.set_enabled(&registry_path, request.mcp_enabled, false);
                 let request_id = request.request_id.clone();
                 if let Err(error) = bridge_generate(
                     &mut model,
@@ -1432,6 +1699,7 @@ fn native_bridge(
                     resident_gb,
                     &cancelled,
                     &mut random,
+                    &mut mcp,
                 ) {
                     if cancelled.swap(false, Ordering::Relaxed) {
                         emit_event(json!({"type":"cancelled", "request_id":request_id}))?;

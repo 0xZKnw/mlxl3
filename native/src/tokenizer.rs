@@ -1,5 +1,5 @@
 //! Local tokenizer and text-only chat templates. Never downloads model assets.
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use minijinja::{Environment, Error, ErrorKind, context};
 use serde::Serialize;
 use serde_json::Value;
@@ -211,6 +211,16 @@ impl ChatTokenizer {
             serde_json::to_string(&value)
                 .map_err(|error| Error::new(ErrorKind::InvalidOperation, error.to_string()))
         });
+        environment.add_function("strftime_now", |format: String| {
+            if format == "%Y-%m-%d" {
+                Ok(time::OffsetDateTime::now_utc().date().to_string())
+            } else {
+                Err(Error::new(
+                    ErrorKind::InvalidOperation,
+                    "unsupported date format",
+                ))
+            }
+        });
         environment
             .add_template_owned("chat", inference_template(&template))
             .context("compiling chat template")?;
@@ -224,14 +234,27 @@ impl ChatTokenizer {
     }
 
     pub fn render(&self, messages: &[Message]) -> Result<String> {
+        self.render_values(&serde_json::to_value(messages)?, None)
+    }
+
+    pub fn render_values(&self, messages: &Value, tools: Option<&[Value]>) -> Result<String> {
+        let messages = messages.as_array().context("messages must be an array")?;
         ensure!(!messages.is_empty(), "chat requires at least one message");
         for message in messages {
-            if !matches!(message.role.as_str(), "system" | "user" | "assistant") {
-                bail!(
-                    "unsupported role {:?}: native chat currently supports text messages without tools",
-                    message.role
-                );
-            }
+            let role = message
+                .get("role")
+                .and_then(Value::as_str)
+                .context("chat message requires a role")?;
+            ensure!(
+                matches!(role, "system" | "user" | "assistant" | "tool"),
+                "unsupported role {role:?}"
+            );
+            ensure!(
+                message
+                    .get("content")
+                    .is_some_and(|content| content.is_string()),
+                "chat message requires string content"
+            );
         }
         self.environment
             .get_template("chat")?
@@ -241,7 +264,7 @@ impl ChatTokenizer {
                 eos_token => &self.eos_token,
                 add_generation_prompt => true,
                 preserve_thinking => true,
-                tools => Option::<bool>::None,
+                tools => tools,
                 documents => Option::<bool>::None,
             })
             .context("rendering chat template")
@@ -321,11 +344,27 @@ mod tests {
         assert!(
             tokenizer
                 .render(&[Message {
-                    role: "tool".into(),
+                    role: "invalid".into(),
                     content: "result".into()
                 }])
                 .is_err()
         );
+    }
+
+    #[test]
+    fn renders_tools_and_tool_results() {
+        let root = fixture(
+            "{{ strftime_now('%Y-%m-%d') }}|{{ tools | tojson }}|{{ messages[1].role }}:{{ messages[1].content }}",
+        );
+        let tokenizer = ChatTokenizer::load(root.path()).unwrap();
+        let messages = json!([
+            {"role":"user","content":"search"},
+            {"role":"tool","name":"exa.search","content":"result"}
+        ]);
+        let tools = vec![json!({"type":"function","function":{"name":"exa.search"}})];
+        let rendered = tokenizer.render_values(&messages, Some(&tools)).unwrap();
+        assert!(rendered.contains("exa.search"));
+        assert!(rendered.ends_with("tool:result"));
     }
 
     #[test]
