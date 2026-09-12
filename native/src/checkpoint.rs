@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::{
     collections::BTreeMap,
     fs::{self, File},
-    io::Read,
+    io::{BufReader, Read},
     os::unix::fs::FileExt,
     path::{Path, PathBuf},
     sync::Arc,
@@ -144,9 +144,12 @@ pub fn inspect(path: &Path) -> Result<Checkpoint> {
     let path = path
         .canonicalize()
         .with_context(|| format!("model directory {}", path.display()))?;
-    let config: Value = serde_json::from_reader(File::open(path.join("config.json"))?)?;
+    let config: Value =
+        serde_json::from_reader(BufReader::new(File::open(path.join("config.json"))?))?;
     ensure!(config.is_object(), "model config must be an object");
-    let quant: Value = serde_json::from_reader(File::open(path.join("quantization_config.json"))?)?;
+    let quant: Value = serde_json::from_reader(BufReader::new(File::open(
+        path.join("quantization_config.json"),
+    )?))?;
     ensure!(
         quant["quant_method"] == "exl3",
         "expected quant_method='exl3'"
@@ -250,7 +253,7 @@ pub fn inspect(path: &Path) -> Result<Checkpoint> {
     modules.sort();
     let index = path.join("model.safetensors.index.json");
     if index.exists() {
-        let value: Value = serde_json::from_reader(File::open(index)?)?;
+        let value: Value = serde_json::from_reader(BufReader::new(File::open(index)?))?;
         for (name, shard) in value["weight_map"]
             .as_object()
             .context("invalid shard index")?

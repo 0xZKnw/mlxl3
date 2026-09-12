@@ -106,6 +106,7 @@ def main() -> None:
         if args.native_binary
         else [sys.executable, "-m", "mlxl3", "bridge", str(args.model)]
     )
+    process_started = time.perf_counter()
     process = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
@@ -115,8 +116,9 @@ def main() -> None:
         bufsize=1,
     )
     try:
-        wait_for(process, "ready")
-        generate(process, "Dis simplement bonjour.", 8, -1)
+        ready = wait_for(process, "ready")
+        client_ready_seconds = time.perf_counter() - process_started
+        warmup = generate(process, "Dis simplement bonjour.", 8, -1)
         runs = [
             generate(process, args.prompt, args.max_tokens, repeat)
             for repeat in range(args.repeats)
@@ -124,6 +126,9 @@ def main() -> None:
         print(
             json.dumps(
                 {
+                    "ready": ready,
+                    "client_ready_seconds": client_ready_seconds,
+                    "first_generation": warmup,
                     "repeats": args.repeats,
                     "median_engine_decode_tps": statistics.median(
                         run["decode_tps"] for run in runs

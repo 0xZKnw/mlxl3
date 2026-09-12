@@ -1564,3 +1564,164 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   --check` propre. Le warning de strip optionnel reste inchangé. État final :
   **validé, prêt à publier** sur `codex/rust-performance` ; app installée et
   release inchangées.
+
+### OPT-2026-09-12-RUST-LOAD-01 — Chargement et premier token natifs — en cours
+
+- Hypothèse : le chargement Rust Qwen paie `read_exact_at → Vec → memcpy` pour
+  chaque tenseur, puis des matérialisations/concaténations séparées pour les
+  experts ; le premier prompt paie en plus la compilation des spécialisations
+  Metal. Ces coûts doivent être mesurés séparément avant toute modification.
+- Antécédents consultés : journal complet, `audit-runtime-2026-09-04.md`,
+  `general-performance-2026-09-07.md` et `qwen38-decode-local.md`. Aucun essai
+  précédent n'isole le temps de chargement du nouveau runtime Rust ; les TTFT
+  chaudes PERF-13/15 excluent explicitement le premier tour de compilation.
+- Baseline / candidat : commit `26bf6e2`, moteur Rust release avec MLX 0.32.2,
+  checkpoint Qwen3.6-35B-A3B EXL3 2.49 bpw. Aucun changement de poids, kernel,
+  sampling ou contexte. Le binaire installé est fermé pendant les mesures.
+- Environnement : Apple M5, macOS local, secteur, batterie 100 %, aucun warning
+  thermique signalé par `pmset`; cache fichiers macOS non contrôlé.
+- Protocole : mesurer le délai processus→`ready`, le `load_seconds` moteur et
+  le TTFT du premier prompt puis d'un prompt chaud dans le même bridge. Ajouter
+  seulement ces champs au benchmark résident existant ; conserver stdout brut,
+  texte/hash, prefill/decode et pic rapporté sous `build/rust-load-01-*.json`.
+- Résultats baseline : `ready.load_seconds` **24,756 s**, délai processus→ready
+  **40,981 s**, soit **16,225 s avant le chrono interne**. Le premier prompt
+  de 15 tokens prend **1,335 s TTFT** à 11,28 tok/s prefill ; le suivant,
+  après compilation, **0,683 s** à 39,55 tok/s. Temps processus total 43,54 s,
+  CPU 10,09 s utilisateur + 25,65 s système. Hashes enregistrés dans
+  `build/rust-load-01-baseline.json`, temps dans `*.time`.
+- Isolation de l'inspection via un registre temporaire : **15,96 s** mur,
+  4,40 s utilisateur + 11,47 s système, 348 MB RSS max
+  (`rust-load-01-inspect.*`). Le bridge inspecte actuellement le checkpoint
+  une fois avant son chrono puis le chargeur de modèle l'inspecte une seconde
+  fois : le double scan explique la quasi-totalité des 40,98 s.
+- Qualité : sorties greedy finies ; hash du prompt chaud historique exact
+  `8e004879...d19cf`. Aucune modification du moteur dans cette mesure.
+- Intégration : instrumentation locale du benchmark uniquement ; app et GitHub
+  inchangés. Conclusion : **validé, diagnostic**.
+
+### OPT-2026-09-12-RUST-LOAD-02 — Index checkpoint en table de hachage — en cours
+
+- Hypothèse : les 124 579 tenseurs et les 31 243 entrées de stockage sont
+  désérialisés/consultés dans des `BTreeMap`, alors que l'ordre n'est utilisé
+  ni par le loader ni par les kernels. Une `HashMap` standard doit supprimer
+  les insertions et recherches logarithmiques sans relâcher les validations.
+- Baseline : inspection isolée **15,96 s** et bridge→ready **40,98 s** sur
+  Qwen3.6 2.49 bpw, commit `26bf6e2`, mêmes conditions secteur/M5.
+- Protocole : changer uniquement les tables du header et du checkpoint ; tests
+  contrats, inspection isolée deux fois puis bridge froid identique. Garder le
+  tri explicite des plages et des modules, ainsi que toutes les erreurs de
+  doublon/index/forme. La sortie greedy et le hash doivent rester identiques.
+- Résultats : contrats 14/14 et build release réussis, mais inspections isolées
+  **16,59 s** puis **16,16 s**, contre 15,96 s baseline. CPU pratiquement
+  identique (~4,5 s utilisateur, ~11,6 s système) et RSS plus haute
+  (~396 MB contre 348 MB). Aucun gain ; sortie `register` identique.
+- Conclusion : **rejeté et retiré**. Le coût n'est pas la structure d'index.
+  Étape diagnostic enregistrée avant exécution : échantillonner le processus
+  d'inspection et chronométrer parsing header, validation stockage et index,
+  sans modifier le résultat ni désactiver un contrôle.
+- Échantillonnage 5 s : 3 643/3 643 échantillons du thread principal sont dans
+  `serde_json::from_reader(File)` lors de la lecture du gros JSON de
+  quantification, majoritairement bloqués dans des appels `read`. Preuve
+  `build/rust-load-02-inspect.sample.txt`. Le lecteur `File` non bufferisé,
+  pas la validation EXL3, est donc le goulet établi.
+
+### OPT-2026-09-12-RUST-LOAD-03 — JSON checkpoint bufferisé — en cours
+
+- Hypothèse : entourer les trois lectures JSON du checkpoint d'un `BufReader`
+  standard évite les appels système minuscules observés, sans changer le parseur,
+  les structures ni une seule validation.
+- Baseline : inspection **15,96 s** ; bridge processus→ready **40,98 s** dont
+  `load_seconds` 24,76 s. Profil LOAD-02 : 100 % des échantillons dans la
+  désérialisation `File` non bufferisée du manifeste de quantification.
+- Protocole : modification standard-library limitée à `checkpoint::inspect`,
+  contrats 14/14, build release, deux inspections isolées puis bridge complet.
+  Comparer premier TTFT et hash greedy ; aucune modification kernels/poids.
+- Résultats : contrats **14/14** et build release réussis. L'inspection isolée
+  tombe à **0,66 s** puis **0,32 s**, contre **15,96 s** (−95,9 à −98,0 %).
+  Le bridge complet atteint `ready` en **10,865 s** contre **40,981 s**
+  (−73,5 %), avec `load_seconds` **10,533 s** contre 24,756 s. Le premier
+  prompt après un build release froid révèle toutefois la compilation Metal :
+  **7,728 s TTFT** à 1,94 tok/s, puis **0,226 s** et 119,79 tok/s au second
+  prompt. Hash chaud exact `8e004879...d19cf`; premier hash
+  `620a...2877`, inchangé. Preuves `build/rust-load-03-inspect-{1,2}.*` et
+  `build/rust-load-03-bridge.{json,time}`.
+- Décision : **validé, code local** pour le chargement. Le buffering standard
+  supprime le goulet sans modifier les poids, kernels ou sorties. Le TTFT froid
+  est maintenant le coût dominant et doit être traité séparément.
+
+### OPT-2026-09-12-RUST-LOAD-04 — Warmup Metal avant `ready` — en cours
+
+- Hypothèse : le runtime Rust ne précompile aucun graphe, donc le premier prompt
+  utilisateur paie les spécialisations Metal. Un passage synthétique remis à
+  zéro avant `ready` doit déplacer ce coût dans le chargement et réduire le TTFT
+  sans conserver de KV ni changer le texte.
+- Baseline après LOAD-03 : processus→ready **10,865 s**, premier TTFT froid
+  **7,728 s**, deuxième TTFT **0,226 s**. Qwen utilise QMM à partir de 24
+  tokens et le chemin MoE segmenté à partir de 64 ; les autres architectures
+  n'ont pas de prefill batch natif dans ce dispatcher.
+- Changement prévu : warmup Qwen de 64 tokens puis un token M=1 ; un seul token
+  M=1 pour Gemma/LFM/Ling. Évaluer logits/état, puis appeler le reset existant,
+  y compris après erreur. Aucun cache, kernel ou poids supplémentaire.
+- Protocole : build/tests, bridge Qwen froid identique, comparer
+  processus→ready + premier TTFT et le hash greedy. Le premier TTFT doit se
+  rapprocher du tour chaud ; le coût total lancement→premier token ne doit pas
+  régresser. Intégration : prototype local, résultats non mesurés.
+- Premier contrôle interrompu avant exécution : `cargo` n'est pas présent dans
+  le `PATH` de cette session (`command not found`). Aucun test ni benchmark n'a
+  démarré ; reprendre avec le toolchain local explicite, protocole inchangé.
+- Deuxième contrôle interrompu avant compilation : le toolchain explicite est
+  disponible, mais le dépôt utilise le manifeste racine et non
+  `native/Cargo.toml`. Le formatage officiel a été appliqué ; aucun test n'a
+  démarré. Reprendre depuis `Cargo.toml` sans changer le candidat.
+- Troisième contrôle interrompu par le build script avant compilation C++ :
+  `MLXL3_MLX_ROOT` n'était pas défini dans ce worktree isolé. Aucun test n'a
+  démarré. Reprendre avec l'installation MLX 0.32.2 locale explicite ; code et
+  protocole inchangés.
+- Première compilation réelle rejetée par Rust avant link : le type d'erreur
+  de la closure de reset n'était pas inférable (`E0282/E0283`). Aucun binaire
+  ni benchmark candidat. Ajouter l'annotation `Result<()>` demandée par le
+  compilateur, sans changer le comportement prévu.
+- Build et contrats **14/14** réussis. Candidat Qwen 64+1 : processus→ready
+  **28,376 s** (`load_seconds` 27,781 s), premier TTFT **0,470 s** à
+  32,01 tok/s, puis **0,200 s** à 136,26 tok/s. Le warmup supprime 7,26 s du
+  premier TTFT mais ajoute 17,51 s au chargement ; lancement→premier token
+  passe d'environ **18,59 s à 28,85 s**. Pic poids inchangé 13,0644 GB.
+  Preuve `build/rust-load-04-bridge.{json,time}`.
+- Décision : **rejeté**. Précompiler QMM et MoE segmenté pour 64 tokens au
+  démarrage dégrade nettement le temps utilisateur total. Remplacer par un
+  essai M=1 séparé, qui ne compile que le chemin decode/petit prefill.
+
+### OPT-2026-09-12-RUST-LOAD-05 — Warmup Metal M=1 — en cours
+
+- Hypothèse : un token synthétique compile les kernels communs au decode et au
+  petit prefill, qui dominaient le premier prompt de 15 tokens, sans payer les
+  spécialisations QMM/segmented du warmup LOAD-04.
+- Baseline LOAD-03 : ready **10,865 s**, premier TTFT **7,728 s**, total
+  **18,59 s**. Candidat LOAD-04 rejeté : ready 28,376 s, TTFT 0,470 s.
+- Changement prévu : réutiliser exactement le helper et son reset, mais faire
+  un seul `forward(0)` pour toutes les architectures. Build/14 contrats, bridge
+  froid, hash/output et pic obligatoires. Valider seulement si le total
+  lancement→premier token baisse et si le TTFT se rapproche du chaud.
+- Résultats : build release et contrats **14/14** réussis. Processus→ready
+  **19,423 s**, premier TTFT **0,907 s** à 16,57 tok/s, puis **0,255 s** à
+  105,85 tok/s. Le warmup M=1 ajoute 8,56 s au ready et retire 6,82 s du
+  premier TTFT ; lancement→premier token monte de **18,59 s à 20,33 s**.
+  Pic poids inchangé 13,0644 GB. Preuve
+  `build/rust-load-05-bridge.{json,time}`.
+- Décision : **rejeté** selon le critère annoncé. Le TTFT affiché est meilleur,
+  mais le délai réel utilisateur régresse. Retirer entièrement le helper et
+  valider une baseline contemporaine LOAD-03 : cette répétition vérifie que la
+  comparaison ne dépend pas d'un palier thermique/cache entre builds.
+- Arrêt demandé avant la répétition de baseline : le helper et son appel ont
+  été **entièrement retirés**. Contrats **14/14**, build release, `py_compile`,
+  formatage et `git diff --check` réussis. Aucun warmup n'est intégré ni publié.
+  État final : **rejeté et retiré**.
+
+### État de publication du lot chargement — 2026-09-12
+
+- LOAD-03 bufferisé est **validé et prêt à publier** : inspection 15,96 s →
+  0,32–0,66 s, processus→ready 40,98 s → 10,87 s, hashes conservés.
+- L'instrumentation benchmark processus→ready/première génération accompagne
+  le changement. LOAD-04/05 restent documentés comme essais négatifs, sans
+  code runtime résiduel. App installée et release inchangées à cet instant.
