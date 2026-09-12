@@ -1,16 +1,21 @@
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use mlxl3_native::{
     checkpoint,
     codec::{self, Codebook},
     registry,
     streaming::ThinkingSplitter,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+#[cfg(all(feature = "mlx", feature = "chat"))]
+use serde::Serialize;
 use serde_json::{Value, json};
 use std::{
-    io::{self, BufRead, Write},
+    io::{self, BufRead, Read, Write},
     path::PathBuf,
+};
+#[cfg(all(feature = "mlx", feature = "chat"))]
+use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -71,6 +76,18 @@ enum Command {
         #[arg(long, default_value_t = 0)]
         context_length: i32,
     },
+    /// Browse EXL3 repositories on Hugging Face.
+    Hub {
+        #[arg(value_enum)]
+        action: HubAction,
+        query: String,
+        #[arg(long)]
+        revision: Option<String>,
+        #[arg(long, default_value = "")]
+        folder: String,
+        #[arg(long, default_value_t = 60)]
+        limit: usize,
+    },
     /// Emit logits for an imposed token sequence (native parity check).
     #[cfg(feature = "mlx")]
     Forward {
@@ -80,6 +97,17 @@ enum Command {
         #[arg(long)]
         states: bool,
     },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum HubAction {
+    Search,
+    Details,
+    Download,
+    Pending,
+    Resume,
+    Discard,
+    Auth,
 }
 
 #[derive(Deserialize)]
@@ -863,6 +891,79 @@ fn run(cli: Cli) -> Result<()> {
                 bail!("the Desktop bridge requires a build with --features mlx,chat");
             }
         }
+        Command::Hub {
+            action,
+            query,
+            revision,
+            folder,
+            limit,
+        } => {
+            let registry_path = cli
+                .registry
+                .map(Ok)
+                .unwrap_or_else(registry::default_path)?;
+            let progress = |completed, total| {
+                println!(
+                    "{}",
+                    json!({"type":"progress", "completed":completed, "total":total})
+                );
+                let _ = io::stdout().flush();
+            };
+            match action {
+                HubAction::Search => println!(
+                    "{}",
+                    serde_json::to_string(&mlxl3_native::hub::search(&query, limit)?)?
+                ),
+                HubAction::Details => println!(
+                    "{}",
+                    serde_json::to_string(&mlxl3_native::hub::details(
+                        &query,
+                        revision.as_deref()
+                    )?)?
+                ),
+                HubAction::Download => {
+                    let (name, entry) = mlxl3_native::hub::download(
+                        &query,
+                        revision.as_deref().context("--revision is required")?,
+                        &folder,
+                        &registry_path,
+                        progress,
+                    )?;
+                    println!(
+                        "{}",
+                        json!({"type":"installed", "model":model_payload(&name, &entry)?})
+                    );
+                }
+                HubAction::Pending => println!(
+                    "{}",
+                    serde_json::to_string(&mlxl3_native::hub::pending_downloads()?)?
+                ),
+                HubAction::Resume => {
+                    let (name, entry) =
+                        mlxl3_native::hub::resume(&query, &registry_path, progress)?;
+                    println!(
+                        "{}",
+                        json!({"type":"installed", "model":model_payload(&name, &entry)?})
+                    );
+                }
+                HubAction::Discard => {
+                    mlxl3_native::hub::discard(&query)?;
+                    println!("{{}}");
+                }
+                HubAction::Auth => {
+                    match query.as_str() {
+                        "login" => {
+                            let mut token = String::new();
+                            io::stdin().take(4096).read_to_string(&mut token)?;
+                            mlxl3_native::hub::login(token.trim())?;
+                        }
+                        "logout" => mlxl3_native::hub::logout()?,
+                        _ => bail!("expected login or logout"),
+                    }
+                    println!("{{}}");
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -898,6 +999,13 @@ fn human_size(size: u64) -> String {
         value /= 1000.0;
     }
     unreachable!()
+}
+
+fn model_payload(name: &str, entry: &registry::ModelEntry) -> Result<Value> {
+    let mut value = serde_json::to_value(entry)?;
+    value["name"] = json!(name);
+    value["size"] = json!(human_size(entry.size_bytes));
+    Ok(value)
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]

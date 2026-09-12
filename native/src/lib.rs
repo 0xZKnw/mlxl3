@@ -7,6 +7,7 @@ pub mod codec;
 pub mod gated_delta;
 #[cfg(target_os = "macos")]
 pub mod gpu;
+pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
 #[cfg(feature = "mlx")]
