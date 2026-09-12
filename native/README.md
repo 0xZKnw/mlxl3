@@ -18,9 +18,14 @@ speedup is established by changing languages.
   inference, grouped projections, recurrent/KV states, local Hugging Face
   tokenizer and Jinja chat templates, greedy streaming chat with
   per-conversation history and thinking separation.
+- Resident JSON-lines bridge compatible with the SwiftUI event transport:
+  loading/readiness, context usage, streaming phases, sampling controls,
+  completion statistics, ping/shutdown and cooperative `SIGUSR1` cancellation.
 
-The GUI, MCP, model downloads and the full quantization pipeline have not been
-migrated. Gemma and Ling architectures are not supported by the Rust
+The GUI still packages the Python runtime; switching its bundled executable is
+deferred until the Rust bridge also covers its catalogue and MCP commands. MCP,
+model downloads and the full quantization pipeline have not been migrated.
+Gemma and Ling architectures are not supported by the Rust
 inference path yet. It rejects unsupported architectures explicitly and never
 silently invokes Python. Existing Python/SwiftUI production remains available.
 

@@ -6,11 +6,16 @@ use mlxl3_native::{
     registry,
     streaming::ThinkingSplitter,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     io::{self, BufRead, Write},
     path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 #[derive(Parser)]
@@ -59,6 +64,12 @@ enum Command {
         prompt: Option<String>,
         #[arg(long, default_value_t = 128)]
         max_tokens: usize,
+    },
+    /// Resident JSON-lines bridge consumed by MLXL3 Desktop.
+    Bridge {
+        model: String,
+        #[arg(long, default_value_t = 0)]
+        context_length: i32,
     },
     /// Emit logits for an imposed token sequence (native parity check).
     #[cfg(feature = "mlx")]
@@ -840,8 +851,38 @@ fn run(cli: Cli) -> Result<()> {
                 );
             }
         }
+        Command::Bridge {
+            model,
+            context_length,
+        } => {
+            #[cfg(all(feature = "mlx", feature = "chat"))]
+            native_bridge(cli.registry.as_deref(), &model, context_length)?;
+            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            {
+                let _ = (model, context_length);
+                bail!("the Desktop bridge requires a build with --features mlx,chat");
+            }
+        }
     }
     Ok(())
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn resolve_model_path(registry_path: Option<&std::path::Path>, model: &str) -> Result<PathBuf> {
+    let candidate = registry::expand_home(&PathBuf::from(model))?;
+    if candidate.is_dir() {
+        return Ok(candidate);
+    }
+    let path = registry_path
+        .map(PathBuf::from)
+        .map(Ok)
+        .unwrap_or_else(registry::default_path)?;
+    Ok(PathBuf::from(
+        &registry::load(&path)?
+            .get(model)
+            .context("unknown registered model")?
+            .path,
+    ))
 }
 
 fn human_size(size: u64) -> String {
@@ -918,13 +959,397 @@ impl NativeChatModel {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+#[derive(Deserialize)]
+struct BridgeMessage {
+    role: String,
+    content: String,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[derive(Deserialize)]
+struct BridgeRequest {
+    #[serde(rename = "type")]
+    kind: String,
+    #[serde(default)]
+    request_id: String,
+    #[serde(default)]
+    messages: Vec<BridgeMessage>,
+    #[serde(default = "unlimited_tokens")]
+    max_tokens: i64,
+    #[serde(default)]
+    temperature: f32,
+    #[serde(default)]
+    top_k: usize,
+    #[serde(default = "unit_penalty")]
+    repetition_penalty: f32,
+    #[serde(default)]
+    enabled: bool,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn unlimited_tokens() -> i64 {
+    -1
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn unit_penalty() -> f32 {
+    1.0
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[derive(Serialize)]
+struct NativeStats {
+    ttft_seconds: f64,
+    prefill_tps: f64,
+    decode_tps: f64,
+    prompt_tokens: usize,
+    generated_tokens: usize,
+    peak_memory_gb: f64,
+    cached_prompt_tokens: usize,
+    evaluated_prompt_tokens: usize,
+    context_used: usize,
+    context_limit: usize,
+    elapsed_seconds: f64,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn emit_event(value: Value) -> Result<()> {
+    let mut stdout = io::stdout().lock();
+    serde_json::to_writer(&mut stdout, &value)?;
+    writeln!(stdout)?;
+    stdout.flush()?;
+    Ok(())
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn select_token(
+    logits: &mlxl3_native::array::Array,
+    generated: &[u32],
+    temperature: f32,
+    top_k: usize,
+    repetition_penalty: f32,
+    random: &mut u64,
+) -> Result<u32> {
+    anyhow::ensure!(
+        temperature.is_finite() && temperature >= 0.,
+        "temperature must be non-negative"
+    );
+    anyhow::ensure!(
+        repetition_penalty.is_finite() && repetition_penalty > 0.,
+        "repetition_penalty must be positive"
+    );
+    let mut values = logits.log_probs()?.to_f32()?;
+    if repetition_penalty != 1. {
+        for &token in generated.iter().rev().take(20) {
+            if let Some(value) = values.get_mut(token as usize) {
+                *value = if *value < 0. {
+                    *value * repetition_penalty
+                } else {
+                    *value / repetition_penalty
+                };
+            }
+        }
+    }
+    if temperature == 0. || top_k == 1 {
+        return values
+            .iter()
+            .enumerate()
+            .filter(|(_, value)| value.is_finite())
+            .max_by(|left, right| left.1.total_cmp(right.1))
+            .map(|(index, _)| index as u32)
+            .context("model returned no finite logits");
+    }
+    let keep = if top_k == 0 {
+        values.len()
+    } else {
+        top_k.min(values.len())
+    };
+    let mut candidates: Vec<_> = values.into_iter().enumerate().collect();
+    if keep < candidates.len() {
+        candidates.select_nth_unstable_by(keep, |left, right| right.1.total_cmp(&left.1));
+        candidates.truncate(keep);
+    }
+    candidates.retain(|(_, value)| value.is_finite());
+    let maximum = candidates
+        .iter()
+        .map(|(_, value)| *value)
+        .max_by(f32::total_cmp)
+        .context("model returned no finite logits")?;
+    let mut total = 0f64;
+    let weights: Vec<_> = candidates
+        .iter()
+        .map(|(_, value)| {
+            let weight = (((*value - maximum) / temperature) as f64).exp();
+            total += weight;
+            weight
+        })
+        .collect();
+    anyhow::ensure!(
+        total.is_finite() && total > 0.,
+        "invalid sampling distribution"
+    );
+    *random ^= *random << 13;
+    *random ^= *random >> 7;
+    *random ^= *random << 17;
+    let mut target = (*random as f64 / u64::MAX as f64) * total;
+    for ((index, _), weight) in candidates.iter().zip(weights) {
+        if target <= weight {
+            return Ok(*index as u32);
+        }
+        target -= weight;
+    }
+    Ok(candidates.last().expect("nonempty candidates").0 as u32)
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[allow(clippy::too_many_arguments)]
+fn bridge_generate(
+    model: &mut NativeChatModel,
+    tokenizer: &mlxl3_native::tokenizer::ChatTokenizer,
+    request_id: &str,
+    messages: Vec<BridgeMessage>,
+    max_tokens: i64,
+    temperature: f32,
+    top_k: usize,
+    repetition_penalty: f32,
+    context_limit: usize,
+    resident_gb: f64,
+    cancelled: &AtomicBool,
+    random: &mut u64,
+) -> Result<()> {
+    use mlxl3_native::{array::Array, streaming::Channel, tokenizer::Message};
+    anyhow::ensure!(!messages.is_empty(), "messages cannot be empty");
+    anyhow::ensure!(
+        max_tokens == -1 || max_tokens > 0,
+        "max_tokens must be positive, or -1"
+    );
+    let messages: Vec<_> = messages
+        .into_iter()
+        .map(|message| Message {
+            role: message.role,
+            content: message.content,
+        })
+        .collect();
+    let rendered = tokenizer.render(&messages)?;
+    let tokens = tokenizer.encode(&rendered)?;
+    anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
+    anyhow::ensure!(
+        tokens.len() < context_limit,
+        "conversation exceeds model context"
+    );
+    emit_event(json!({
+        "type":"context_usage", "request_id":request_id,
+        "used_tokens":tokens.len(), "context_limit":context_limit
+    }))?;
+    emit_event(json!({
+        "type":"generation_status", "request_id":request_id,
+        "phase":"prefill", "text":"Preparing context"
+    }))?;
+
+    model.reset();
+    let started = Instant::now();
+    let mut logits: Option<Array> = None;
+    for &token in &tokens {
+        if cancelled.load(Ordering::Relaxed) {
+            model.reset();
+            bail!("generation cancelled");
+        }
+        logits = Some(model.forward(token)?);
+        model.eval_state()?;
+    }
+    let mut logits = logits.context("no prefill output")?;
+    logits.eval()?;
+    let prefill_seconds = started.elapsed().as_secs_f64();
+    let available = context_limit - tokens.len();
+    let budget = if max_tokens == -1 {
+        available
+    } else {
+        usize::try_from(max_tokens)?.min(available)
+    };
+    let mut decoder = tokenizer.tokenizer().decode_stream(false);
+    let mut splitter = ThinkingSplitter::new(&rendered);
+    let mut raw = String::new();
+    let mut answer = String::new();
+    let mut decoded = String::new();
+    let mut generated = Vec::new();
+    let mut first_token = None;
+    for _ in 0..budget {
+        if cancelled.load(Ordering::Relaxed) {
+            model.reset();
+            bail!("generation cancelled");
+        }
+        let next = select_token(
+            &logits,
+            &generated,
+            temperature,
+            top_k,
+            repetition_penalty,
+            random,
+        )?;
+        if tokenizer.eos_ids().contains(&next) {
+            break;
+        }
+        first_token.get_or_insert_with(|| started.elapsed().as_secs_f64());
+        generated.push(next);
+        if let Some(text) = decoder
+            .step(next)
+            .map_err(|error| anyhow::anyhow!("token decode failed: {error}"))?
+        {
+            decoded.push_str(&text);
+            for fragment in splitter.feed(&text) {
+                if fragment.channel == Channel::Answer {
+                    answer.push_str(&fragment.text);
+                }
+                emit_event(json!({
+                    "type":"delta", "request_id":request_id,
+                    "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
+                    "text":fragment.text
+                }))?;
+            }
+        }
+        if generated.len() < budget {
+            logits = model.forward(next)?;
+        }
+    }
+    let complete = tokenizer.decode(&generated)?;
+    let tail = complete
+        .strip_prefix(&decoded)
+        .context("incremental tokenizer output differs from full decoding")?;
+    for fragment in splitter.feed(tail).into_iter().chain(splitter.finish()) {
+        if fragment.channel == Channel::Answer {
+            answer.push_str(&fragment.text);
+        }
+        emit_event(json!({
+            "type":"delta", "request_id":request_id,
+            "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
+            "text":fragment.text
+        }))?;
+    }
+    raw.push_str(&complete);
+    let elapsed = started.elapsed().as_secs_f64();
+    let ttft = first_token.unwrap_or(elapsed);
+    let stats = NativeStats {
+        ttft_seconds: ttft,
+        prefill_tps: tokens.len() as f64 / prefill_seconds.max(1e-9),
+        decode_tps: generated.len().saturating_sub(1) as f64 / (elapsed - ttft).max(1e-9),
+        prompt_tokens: tokens.len(),
+        generated_tokens: generated.len(),
+        peak_memory_gb: resident_gb,
+        cached_prompt_tokens: 0,
+        evaluated_prompt_tokens: tokens.len(),
+        context_used: tokens.len() + generated.len(),
+        context_limit,
+        elapsed_seconds: elapsed,
+    };
+    emit_event(json!({
+        "type":"complete", "request_id":request_id,
+        "assistant_context":answer.trim(), "cache_context":raw,
+        "stats":stats, "context_full":tokens.len() + generated.len() >= context_limit,
+        "elapsed_seconds":elapsed, "first_text_seconds":first_token,
+        "tool_rounds":0
+    }))
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn native_bridge(
+    registry_path: Option<&std::path::Path>,
+    name: &str,
+    requested: i32,
+) -> Result<()> {
+    use mlxl3_native::tokenizer::ChatTokenizer;
+    let path = resolve_model_path(registry_path, name)?;
+    let checkpoint = checkpoint::inspect(&path)?;
+    emit_event(json!({"type":"loading", "model":name}))?;
+    let started = Instant::now();
+    let tokenizer = ChatTokenizer::load(&path)?;
+    let mut model = NativeChatModel::load(&path)?;
+    let model_limit = model.context_limit();
+    anyhow::ensure!(
+        requested >= 0 && requested <= model_limit,
+        "context length must be between 1 and {model_limit}, or 0 for automatic"
+    );
+    let context_limit = if requested == 0 {
+        model_limit
+    } else {
+        requested
+    } as usize;
+    let resident_gb = checkpoint.size_bytes as f64 / 1e9;
+    emit_event(json!({
+        "type":"ready", "model":name, "modules":checkpoint.modules.len(),
+        "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
+        "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},
+        "context_limit":context_limit, "model_context_limit":model_limit
+    }))?;
+    let cancelled = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGUSR1, Arc::clone(&cancelled))?;
+    let mut random = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64
+        | 1;
+    for line in io::stdin().lock().lines() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let parsed: Result<BridgeRequest> =
+            serde_json::from_str(&line).context("invalid bridge request");
+        let request = match parsed {
+            Ok(request) => request,
+            Err(error) => {
+                emit_event(json!({"type":"error", "request_id":"", "message":error.to_string()}))?;
+                continue;
+            }
+        };
+        match request.kind.as_str() {
+            "shutdown" => break,
+            "ping" => emit_event(json!({"type":"pong", "request_id":request.request_id}))?,
+            "set_mcp" => emit_event(json!({
+                "type":"mcp_status", "mcp_servers":0, "mcp_tools":0,
+                "mcp_errors":if request.enabled { json!({"native":"MCP migration is not complete"}) } else { json!({}) }
+            }))?,
+            "generate" => {
+                cancelled.store(false, Ordering::Relaxed);
+                let request_id = request.request_id.clone();
+                if let Err(error) = bridge_generate(
+                    &mut model,
+                    &tokenizer,
+                    &request.request_id,
+                    request.messages,
+                    request.max_tokens,
+                    request.temperature,
+                    request.top_k,
+                    request.repetition_penalty,
+                    context_limit,
+                    resident_gb,
+                    &cancelled,
+                    &mut random,
+                ) {
+                    if cancelled.swap(false, Ordering::Relaxed) {
+                        emit_event(json!({"type":"cancelled", "request_id":request_id}))?;
+                    } else {
+                        emit_event(
+                            json!({"type":"error", "request_id":request_id, "message":error.to_string()}),
+                        )?;
+                    }
+                }
+            }
+            other => emit_event(json!({
+                "type":"error", "request_id":request.request_id,
+                "message":format!("unsupported request type: {other}")
+            }))?,
+        }
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize) -> Result<()> {
     use mlxl3_native::{
         array::Array,
         streaming::Channel,
         tokenizer::{ChatTokenizer, Message},
     };
-    use std::time::Instant;
     let tokenizer = ChatTokenizer::load(path)?;
     let mut model = NativeChatModel::load(path)?;
     eprintln!(
@@ -1083,4 +1508,19 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         }
     }
     Ok(())
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_sampler_respects_greedy_argmax() {
+        let logits = mlxl3_native::array::Array::from_f32(&[1., 4., 2.], &[1, 3]).unwrap();
+        let mut random = 1;
+        assert_eq!(
+            select_token(&logits, &[], 0., 0, 1., &mut random).unwrap(),
+            1
+        );
+    }
 }
