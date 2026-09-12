@@ -52,7 +52,7 @@ enum Command {
         #[arg(long, default_value = "")]
         prompt: String,
     },
-    /// Experimental LFM2 chat through native MLX (requires mlx,chat features).
+    /// Experimental native LFM2/Qwen chat through MLX (requires mlx,chat features).
     Run {
         model: String,
         #[arg(short, long)]
@@ -152,6 +152,24 @@ struct CodecRequest {
     #[serde(default)]
     #[cfg(feature = "mlx")]
     top_k: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    conv_length: usize,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    conv_state: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    keys: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    values: Vec<u16>,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    token: u32,
+    #[serde(default)]
+    #[cfg(feature = "mlx")]
+    tokens: Vec<u32>,
 }
 fn default_k() -> usize {
     4
@@ -459,6 +477,187 @@ fn codec_loop() -> Result<()> {
                     let output = block.forward(&Array::from_f16_bits(&request.x, &[1, hidden])?)?;
                     Ok(json!(output.to_f16_bits()?))
                 }
+                #[cfg(feature = "mlx")]
+                "mlx-qwen-gdn" => {
+                    use mlxl3_native::{array::Array, checkpoint, qwen35::GatedDelta};
+                    let checkpoint = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                    let hidden = i32::try_from(request.cols)?;
+                    let key_heads = i32::try_from(request.key_heads)?;
+                    let value_heads = i32::try_from(request.value_heads)?;
+                    let value_dims = i32::try_from(request.value_dims)?;
+                    let conv_length = i32::try_from(request.conv_length)?;
+                    let key_dims = 128;
+                    let conv_dims = 2 * key_heads * key_dims + value_heads * value_dims;
+                    let mut block = GatedDelta::load(
+                        &checkpoint,
+                        &format!("model.language_model.layers.{}.linear_attn", request.layer),
+                        hidden,
+                        key_heads,
+                        value_heads,
+                        key_dims,
+                        value_dims,
+                        conv_length,
+                        1e-6,
+                    )?;
+                    block.set_state(
+                        (!request.conv_state.is_empty())
+                            .then(|| {
+                                Array::from_f16_bits(
+                                    &request.conv_state,
+                                    &[1, conv_length - 1, conv_dims],
+                                )
+                            })
+                            .transpose()?,
+                        (!request.state.is_empty())
+                            .then(|| {
+                                Array::from_f32(
+                                    &request.state,
+                                    &[1, value_heads, value_dims, key_dims],
+                                )
+                            })
+                            .transpose()?,
+                    )?;
+                    let output =
+                        block.forward(&Array::from_f16_bits(&request.x, &[1, 1, hidden])?)?;
+                    let (conv, recurrent) = block.states()?;
+                    Ok(json!({
+                        "output": output.to_f16_bits()?,
+                        "conv_state": conv.to_f16_bits()?,
+                        "state": recurrent.to_f32()?,
+                    }))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-qwen-layer" => {
+                    use mlxl3_native::{array::Array, checkpoint, qwen35::LinearLayer};
+                    let checkpoint = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                    let hidden = i32::try_from(request.cols)?;
+                    let key_heads = i32::try_from(request.key_heads)?;
+                    let value_heads = i32::try_from(request.value_heads)?;
+                    let value_dims = i32::try_from(request.value_dims)?;
+                    let conv_length = i32::try_from(request.conv_length)?;
+                    let conv_dims = 2 * key_heads * 128 + value_heads * value_dims;
+                    let mut layer = LinearLayer::load(
+                        &checkpoint,
+                        request.layer,
+                        hidden,
+                        key_heads,
+                        value_heads,
+                        128,
+                        value_dims,
+                        conv_length,
+                        512,
+                        256,
+                        request.top_k,
+                        1e-6,
+                    )?;
+                    layer.set_state(
+                        (!request.conv_state.is_empty())
+                            .then(|| {
+                                Array::from_f16_bits(
+                                    &request.conv_state,
+                                    &[1, conv_length - 1, conv_dims],
+                                )
+                            })
+                            .transpose()?,
+                        (!request.state.is_empty())
+                            .then(|| {
+                                Array::from_f32(&request.state, &[1, value_heads, value_dims, 128])
+                            })
+                            .transpose()?,
+                    )?;
+                    let (output, trace) =
+                        layer.trace(&Array::from_f16_bits(&request.x, &[1, 1, hidden])?)?;
+                    let (conv, recurrent) = layer.states()?;
+                    Ok(json!({
+                        "output": output.to_f16_bits()?,
+                        "trace": trace.iter().map(Array::to_f16_bits).collect::<Result<Vec<_>>>()?,
+                        "conv_state": conv.to_f16_bits()?,
+                        "state": recurrent.to_f32()?,
+                    }))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-qwen-attn-layer" => {
+                    use mlxl3_native::{array::Array, checkpoint, qwen35::AttentionLayer};
+                    let checkpoint = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                    let hidden = i32::try_from(request.cols)?;
+                    let heads = i32::try_from(request.key_heads)?;
+                    let kv_heads = i32::try_from(request.value_heads)?;
+                    let head_dim = i32::try_from(request.value_dims)?;
+                    anyhow::ensure!(
+                        request.keys.len() == request.values.len(),
+                        "KV cache lengths differ"
+                    );
+                    let cache_tokens = if request.keys.is_empty() {
+                        0
+                    } else {
+                        i32::try_from(request.keys.len())?
+                            .checked_div(kv_heads * head_dim)
+                            .context("invalid KV cache size")?
+                    };
+                    let mut layer = AttentionLayer::load(
+                        &checkpoint,
+                        request.layer,
+                        hidden,
+                        heads,
+                        kv_heads,
+                        head_dim,
+                        64,
+                        10_000_000.,
+                        512,
+                        256,
+                        request.top_k,
+                        1e-6,
+                    )?;
+                    layer.set_state(
+                        (!request.keys.is_empty())
+                            .then(|| {
+                                Array::from_f16_bits(
+                                    &request.keys,
+                                    &[1, kv_heads, cache_tokens, head_dim],
+                                )
+                            })
+                            .transpose()?,
+                        (!request.values.is_empty())
+                            .then(|| {
+                                Array::from_f16_bits(
+                                    &request.values,
+                                    &[1, kv_heads, cache_tokens, head_dim],
+                                )
+                            })
+                            .transpose()?,
+                    )?;
+                    let output =
+                        layer.forward(&Array::from_f16_bits(&request.x, &[1, 1, hidden])?)?;
+                    let (keys, values) = layer.states()?;
+                    Ok(json!({
+                        "output": output.to_f16_bits()?,
+                        "keys": keys.to_f16_bits()?,
+                        "values": values.to_f16_bits()?,
+                    }))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-qwen-model" => {
+                    use mlxl3_native::qwen35::Qwen35Moe;
+                    let mut model = Qwen35Moe::load(std::path::Path::new(&request.path))?;
+                    let tokens = if request.tokens.is_empty() {
+                        vec![request.token]
+                    } else {
+                        request.tokens
+                    };
+                    Ok(json!(
+                        tokens
+                            .into_iter()
+                            .map(|token| model.forward(token)?.to_f16_bits())
+                            .collect::<Result<Vec<_>>>()?
+                    ))
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-qwen-trace" => {
+                    use mlxl3_native::qwen35::Qwen35Moe;
+                    let mut model = Qwen35Moe::load(std::path::Path::new(&request.path))?;
+                    let (logits, layers) = model.trace(request.token)?;
+                    Ok(json!({ "layers": layers, "logits": logits.to_f16_bits()? }))
+                }
                 #[cfg(target_os = "macos")]
                 "metal-pack" | "metal-decode" | "metal-qmv" => {
                     if gpu.is_none() {
@@ -647,17 +846,75 @@ fn human_size(size: u64) -> String {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+enum NativeChatModel {
+    Lfm2(mlxl3_native::lfm2::Lfm2),
+    Qwen(mlxl3_native::qwen35::Qwen35Moe),
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl NativeChatModel {
+    fn load(path: &std::path::Path) -> Result<Self> {
+        let config: serde_json::Value =
+            serde_json::from_reader(std::fs::File::open(path.join("config.json"))?)?;
+        match config["model_type"].as_str() {
+            Some("lfm2") => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::load(path)?)),
+            Some("qwen3_5_moe") => Ok(Self::Qwen(mlxl3_native::qwen35::Qwen35Moe::load(path)?)),
+            other => bail!("native chat does not support model type {other:?}"),
+        }
+    }
+
+    fn forward(&mut self, token: u32) -> Result<mlxl3_native::array::Array> {
+        match self {
+            Self::Lfm2(model) => model.forward(&[token]),
+            Self::Qwen(model) => model.forward(token),
+        }
+    }
+
+    fn context_limit(&self) -> i32 {
+        match self {
+            Self::Lfm2(model) => model.context_limit(),
+            Self::Qwen(model) => model.context_limit(),
+        }
+    }
+
+    fn reset(&mut self) {
+        match self {
+            Self::Lfm2(model) => model.reset(),
+            Self::Qwen(model) => model.reset(),
+        }
+    }
+
+    fn eval_state(&self) -> Result<()> {
+        if let Self::Lfm2(model) = self {
+            for (_, state) in model.state_arrays() {
+                state.eval()?;
+            }
+        }
+        Ok(())
+    }
+
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Lfm2(_) => "LFM2",
+            Self::Qwen(_) => "Qwen3.5 MoE",
+        }
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize) -> Result<()> {
     use mlxl3_native::{
         array::Array,
-        lfm2::Lfm2,
         streaming::Channel,
         tokenizer::{ChatTokenizer, Message},
     };
     use std::time::Instant;
     let tokenizer = ChatTokenizer::load(path)?;
-    eprintln!("Loading native LFM2 engine… (experimental, greedy sampling)");
-    let mut model = Lfm2::load(path)?;
+    let mut model = NativeChatModel::load(path)?;
+    eprintln!(
+        "Loaded native {} engine (experimental, greedy sampling)",
+        model.name()
+    );
     let mut messages = Vec::new();
     let interactive = prompt.is_none();
     let mut one_prompt = prompt;
@@ -710,10 +967,8 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         let started = Instant::now();
         let mut last: Option<Array> = None;
         for token in &tokens {
-            last = Some(model.forward(&[*token])?);
-            for (_, state) in model.state_arrays() {
-                state.eval()?;
-            }
+            last = Some(model.forward(*token)?);
+            model.eval_state()?;
         }
         let mut logits = last.context("no prefill output")?;
         logits.eval()?;
@@ -778,7 +1033,7 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
                 emit(split.feed(&text))?;
             }
             if count < budget {
-                logits = model.forward(&[next])?;
+                logits = model.forward(next)?;
             }
         }
         // A token limit can cut a byte-fallback character. Flush the tokenizer's

@@ -397,6 +397,18 @@ impl Array {
     pub fn softmax_precise(&self) -> Result<Self> {
         self.unary(10, &[], 0., 0)
     }
+    pub fn negative(&self) -> Result<Self> {
+        self.unary(11, &[], 0., 0)
+    }
+    pub fn exp(&self) -> Result<Self> {
+        self.unary(12, &[], 0., 0)
+    }
+    pub fn rms_norm_without_weight(&self, eps: f32) -> Result<Self> {
+        self.unary(13, &[], eps, 0)
+    }
+    pub fn silu(&self) -> Result<Self> {
+        self.unary(14, &[], 0., 0)
+    }
     pub fn add(&self, other: &Self) -> Result<Self> {
         self.binary(other, 0, 0, 0.)
     }
@@ -417,6 +429,12 @@ impl Array {
     }
     pub fn swiglu(&self, up: &Self) -> Result<Self> {
         self.binary(up, 6, 0, 0.)
+    }
+    pub fn logaddexp(&self, other: &Self) -> Result<Self> {
+        self.binary(other, 7, 0, 0.)
+    }
+    pub fn precise_swiglu(&self, value: &Self) -> Result<Self> {
+        self.binary(value, 8, 0, 0.)
     }
     pub fn concatenate(inputs: &[&Self], axis: i32) -> Result<Self> {
         ensure!(!inputs.is_empty(), "concatenate requires an input");

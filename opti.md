@@ -165,8 +165,159 @@
   compare le MLP MoE réel de la couche 0 et obtient une égalité FP16 bit-à-bit.
   Le script ne matérialise côté Rust qu'une couche d'experts, et aucune mesure
   de débit n'est revendiquée. Prochaine étape : bloc Gated DeltaNet complet de
-  couche 0 avec état nul/non nul, avant assemblage des 40 couches.
-  Intégration : prototype de branche uniquement.
+  couche 0 avec état nul/non nul, avant assemblage des 40 couches. Protocole
+  enregistré : deux entrées FP16 déterministes `[1,1,2048]`, mêmes poids réels,
+  comparaison bit-à-bit des sorties, du cache convolutionnel FP16 et de l'état
+  récurrent FP32 après chaque token ; arrêt au premier désaccord.
+  Résultat : validé sur les deux tokens avec égalité bit-à-bit de la sortie et
+  des deux caches (`native/check_qwen_gdn.py`). Essai suivant enregistré :
+  assembler la couche linéaire 0 complète avec les deux RMSNorm corrigées par
+  le sanitizer Qwen (`weight + 1`), les résidus et le MLP MoE déjà validé ; une
+  entrée réelle déterministe, comparaison FP16 exacte avant tout benchmark.
+  Résultat : couche linéaire 0 validée bit-à-bit, sortie et deux caches inclus
+  (`native/check_qwen_layer.py`). Essai suivant enregistré : couche attention
+  complète 3 sur deux tokens, RoPE partiel 64/256 à offsets 0 puis 1, caches KV,
+  résidus et son MLP MoE ; égalité bit-à-bit requise, débit non mesuré.
+  Première exécution interrompue dans l'oracle Python avant calcul : l'API
+  `mx.fast.rope` 0.32.2 exige `scale=1.0` explicite. Aucun résultat candidat ;
+  protocole inchangé après correction de l'appel de référence.
+  Deuxième exécution validée : couche attention 3 exacte sur deux tokens,
+  sorties FP16 et caches K/V compris (`native/check_qwen_attention.py`). Les
+  deux types de couche du modèle sont donc couverts isolément. Essai suivant
+  enregistré : assemblage des 40 couches, embedding/norm/head puis comparaison
+  couche par couche et logits pour un token imposé ; surveiller la RAM processus
+  pendant le chargement et ne pas lancer de benchmark de vitesse avant parité.
+  Premier essai complet rejeté : oracle Python produit en 7,57 s avec empreinte
+  mémoire pic rapportée 12,95 GB ; candidat Rust contrôlé en 66,32 s via le
+  processus Python de comparaison, mais 239045/248320 logits FP16 diffèrent.
+  Les chiffres mémoire du wrapper ne couvrent pas correctement tous les enfants
+  et ne sont pas comparables. Aucune conclusion de performance. Diagnostic
+  enregistré : tracer les sorties après chaque couche dans deux processus
+  successifs et identifier la première divergence, sans modifier les tolérances.
+  Une relance du diagnostic a été interrompue avant chargement : `python`
+  n'est pas présent dans le `PATH` de ce worktree. Aucun calcul ni résultat ;
+  relance inchangée avec l'interpréteur `.venv` absolu du dépôt parent. Cette
+  relance localise la première divergence dès `layer_0` : 1 923/2 048 valeurs
+  FP16 diffèrent, première valeur 40979 contre 40981 en représentation brute.
+  Le test isolé de cette même couche étant exact, la prochaine vérification
+  compare son entrée et les chemins exacts des deux oracles avant tout patch.
+  Essai enregistré avant modification : inclure l'embedding du token 1 dans
+  les deux traces, exiger son égalité bit-à-bit, puis conserver le diagnostic
+  couche par couche inchangé. Si l'embedding est exact, comparer les états de
+  couche 0 et l'effet des frontières d'évaluation, sans toucher aux kernels.
+  Résultat : embedding exact ; la première divergence reste `layer_0` avec
+  les mêmes 1 923/2 048 valeurs. Le loader et la sélection de token sont donc
+  écartés. Prochaine comparaison : appel réel de `Qwen3_5MoeDecoderLayer`
+  contre l'oracle manuel isolé, en inspectant notamment le masque SSM et les
+  conversions de dtype ; aucun changement de tolérance ni benchmark prévu.
+  Inspection terminée : le masque initial est bien `None` et les dtypes sont
+  FP16, mais `fuse_compatible_linear_groups` groupe en production Q/K/V,
+  GDN QKV/Z et gate/up partagé. Les oracles isolés et le candidat Rust les
+  exécutaient séparément, ce qui explique qu'ils soient exacts entre eux mais
+  pas face au modèle chargé. Candidat enregistré : réutiliser `Exl3Group` via
+  un seul helper de projections groupées/fallback, puis rerun de la trace dès
+  la couche 0 ; exiger ensuite les 40 couches et logits exacts. Premier rerun
+  après groupement toujours rejeté, avec exactement 1 923 divergences dès la
+  couche 0. Vérification suivante enregistrée : rejouer l'ancien oracle manuel
+  sur entrée aléatoire pour confirmer que le groupement Rust est réellement
+  sélectionné, puis tracer les sorties internes QKV/Z/MLP face au modèle Python.
+  L'oracle aléatoire reste exact après le patch, donc le helper groupé ne casse
+  pas ce cas. Sa variante avec l'embedding réel s'est arrêtée avant calcul GPU :
+  NumPy ne sait pas importer directement le buffer BF16 brut. Aucun résultat ;
+  convertir explicitement par MLX en FP16 comme le loader de production.
+  Relance corrigée : sortie et caches de couche 0 toujours exacts sur l'embedding
+  réel face à l'oracle manuel. Essai diagnostic suivant enregistré : générer une
+  trace Python production avec seulement le groupement GDN QKV/Z désactivé par
+  son option existante, puis comparer au même Rust. Cela isole cette fusion sans
+  charger deux modèles simultanément ni modifier le candidat. Résultat : même
+  divergence couche 0 ; cette fusion est écartée. Un diagnostic ponctuel des
+  poids de norme a ensuite trouvé la cause : 1 723/2 048 coefficients de la
+  norme d'entrée et 1 576/2 048 de la post-norme diffèrent. Le sanitizer Python
+  calcule `BF16 + 1` puis convertit en FP16 ; l'oracle manuel et Rust faisaient
+  `BF16 -> FP16` puis `+1`. Candidat enregistré : helper Qwen unique reproduisant
+  l'ordre du sanitizer sur toutes les normes concernées (entrée/post, Q/K et
+  finale), puis trace complète et logits bit-à-bit ; garder les groupes EXL3
+  puisqu'ils reproduisent le graphe de production. Résultat après correction :
+  embedding et couches 0 à 4 exacts ; première divergence déplacée à la couche
+  linéaire 5, 1 013/2 048 valeurs, première 8974 contre 8972. Le correctif de
+  sanitizer est donc validé sur les deux types de couche. Essai suivant
+  enregistré : charger seulement la couche 5 Rust, lui fournir exactement la
+  sortie Python de la couche 4 et comparer à `layer_5`, puis inventorier K/CB
+  de ses projections contre les couches exactes ; caches initiaux nuls.
+  Résultat ciblé : même divergence 1 013/2 048, donc l'état des couches
+  précédentes est écarté. L'inventaire couche 0/1/2/4/5/6 est identique sur
+  les projections structurantes (GDN et partagé K4/MCG, experts K3/MCG).
+  Essai suivant enregistré : exposer seulement dans l'opération codec de
+  diagnostic les cinq frontières de la couche 5 (norme entrée, GDN, résidu,
+  post-norme, MLP), produire les mêmes frontières Python et arrêter à la
+  première divergence. Le chemin normal conserve une seule implémentation.
+  Première compilation interrompue : la méthode de trace a été insérée sur
+  l'autre type de couche portant le même `forward`, donc `LinearLayer::trace`
+  est absent. Aucun modèle ni GPU exécuté. Déplacer ce refactor dans
+  `LinearLayer` et restaurer l'autre couche, sans changer le protocole.
+  Deuxième compilation et trace ciblée réussies : norme d'entrée couche 5
+  exacte ; première divergence dans la sortie Gated DeltaNet, 977/2 048
+  valeurs (première position 7). Résidu/MLP non interprétés après ce point.
+  Essai suivant enregistré : comparer les références Python groupée/non
+  groupée déjà produites et tracer QKV/Z, convolution puis update récurrente
+  de la GDN couche 5. Cela départage projection, convolution et kernel d'état.
+  Résultat : QKV, Z, A/B, convolution, Q/K/V normalisés, beta, softplus, decay,
+  sortie récurrente et RMSNorm sont tous exacts. Première divergence à la
+  sortie finale de la GDN. Essai suivant enregistré : tracer le produit gated
+  FP16 juste avant `out_proj`; s'il est exact, isoler `out_proj`, sinon corriger
+  l'ordre précis SwiGLU. Pas de modification du calcul avant ce résultat.
+  Résultat : une seule valeur gated diffère sur 4 096 (index 3 242), puis son
+  amplification par `out_proj` explique les 977 écarts. Essai suivant enregistré :
+  rejouer sur Z/RMS exacts l'expression MLX inline, `nn.silu` compilé et le helper
+  Qwen compilé, comparer leurs bits à la référence et au Rust. Corriger ensuite
+  la frontière de compilation, pas le QMV déjà établi exact. Résultat diagnostic :
+  expression inline 43383 contre référence 43382 à l'index 3 242 ; `nn.silu`
+  compilé et helper Qwen tous deux exacts. Le bridge utilise désormais cette
+  frontière compilée ; la couche 5 ciblée repasse entièrement bit-à-bit exacte.
+  Essai suivant enregistré : trace complète des 40 couches et logits avec ces
+  deux corrections, arrêt au premier écart ; aucune mesure de performance.
+  Résultat : embedding, 40 couches, norme finale et 248 320 logits sont tous
+  bit-à-bit exacts (`native/diagnose_qwen_trace.py`). Répétition finale prévue
+  avec `native/check_qwen_model.py`, oracle logits indépendant déjà produit,
+  pour vérifier le contrat public sans données de diagnostic additionnelles.
+  Répétition réussie : 248 320/248 320 logits FP16 exacts pour le token 1,
+  66,85 s de temps mur en build debug ; ce temps inclut le chargement et n'est
+  pas un benchmark d'inférence. Essai suivant enregistré : séquence imposée
+  `1,2,3` dans une seule instance Python puis Rust, logits exacts à chaque pas,
+  afin de valider caches GDN/KV et offsets avant branchement au chat natif.
+  Résultat : trois étapes, chacune 248 320 logits FP16, toutes exactes. Les
+  caches GDN/KV et offsets natifs sont validés sur cette séquence courte.
+  Étape fonctionnelle enregistrée : ajouter `reset` aux caches Qwen et choisir
+  LFM2/Qwen par `model_type` dans l'unique boucle de chat existante, sans dupliquer
+  tokenizer/streaming/sampling. Smoke release Qwen borné à quelques tokens,
+  puis `/clear` seulement si le smoke non interactif réussit. Première validation :
+  26 tests Rust réussis, mais Clippy interrompt la chaîne avant build release sur
+  deux variantes d'enum trop grandes (`ProjectionBundle`, `Layer`). Aucun smoke
+  modèle lancé. Correction prévue : boxer seulement les variantes lourdes comme
+  indiqué par le lint, puis relancer lint/build/tests sans changer le graphe MLX.
+  Deuxième lint encore interrompu avant build : après avoir boxé la variante
+  linéaire, la variante attention est devenue la plus grande. Boxer les deux
+  variantes de `Layer`; aucune exécution modèle ni mesure entre ces deux lints.
+  Lint strict et build release réussis après les deux boxes. Smoke non interactif
+  Qwen réussi : prompt « Salut », 4 tokens générés, streaming thinking actif,
+  fin propre. Mesures indicatives seulement (prefill séquentiel) : 2,4 tok/s,
+  decode 10,2 tok/s, TTFT 5 094 ms après chargement ; un seul run, aucune
+  comparaison Python. Dernier contrôle fonctionnel prévu : `/clear` entre deux
+  prompts courts dans le même processus, pour vérifier le reset des 40 caches.
+  Contrôle réussi : deux prompts de 2 tokens générés séparés par `/clear`, puis
+  `/exit`; aucun crash, état résiduel ni erreur. Les débits courts 8,3/8,5 tok/s
+  ne constituent pas un benchmark. Avant publication du jalon : corriger les
+  anciens oracles ciblés qui reproduisaient l'ancien ordre FP16/+1, relancer
+  leurs parités, tests Rust, Clippy et provenance.
+  Validation finale réussie : anciens oracles corrigés pour l'ordre BF16/+1 et
+  le SwiGLU précis ; GDN couche 0 sur deux pas, couche linéaire 0, attention
+  couche 3 sur deux pas et MoE couche 0 tous bit-à-bit exacts. Suite codec/MLX
+  **151/151**, tests Python **11/11**, tests Rust **26/26** (plus 3 tests matériel/
+  tokenizer ignorés explicitement), Clippy strict et build release réussis.
+  Le chat Qwen natif, son streaming et `/clear` sont donc validés localement.
+  Intégration : prototype de branche uniquement ; GUI/app installée et moteur
+  Python de production inchangés. Prefill Rust encore séquentiel, aucun gain de
+  vitesse revendiqué ni comparé au moteur existant.
 
 À lire **avant** toute optimisation ; à mettre à jour **avant et après chaque
 essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).

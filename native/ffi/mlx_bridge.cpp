@@ -151,6 +151,10 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         case 8: if (nargs == 2) return mx::fast::rope(a, args[0], false, scalar, 1.0f, args[1]); break;
         case 9: return mx::subtract(a, mx::logsumexp(a, -1, true));
         case 10: return mx::softmax(a, -1, true);
+        case 11: return mx::negative(a);
+        case 12: return mx::exp(a);
+        case 13: return mx::fast::rms_norm(a, std::nullopt, scalar);
+        case 14: return mx::multiply(a, mx::sigmoid(a));
       }
       throw std::invalid_argument("invalid unary operation");
     };
@@ -174,6 +178,15 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
             return std::vector<mx::array>{mx::multiply(mx::multiply(x[0], mx::sigmoid(x[0])), x[1])};
           }, true);
           return swiglu({a, b})[0];
+        }
+        case 7: return mx::logaddexp(a, b);
+        case 8: {
+          thread_local auto silu = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(x[0], mx::sigmoid(x[0]))};
+          }, true);
+          auto gate = silu({mx::astype(a, mx::float32)})[0];
+          auto value = mx::astype(b, mx::float32);
+          return mx::astype(mx::multiply(gate, value), a.dtype());
         }
       }
       throw std::invalid_argument("invalid binary operation");
