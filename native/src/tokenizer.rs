@@ -31,6 +31,44 @@ fn json_object(path: &Path) -> Result<Value> {
     Ok(value)
 }
 
+fn python_json(value: &Value) -> Result<String> {
+    Ok(match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) => serde_json::to_string(value)?,
+        Value::String(value) => serde_json::to_string(value)?
+            .chars()
+            .flat_map(|character| match character {
+                '<' => "\\u003c".chars().collect::<Vec<_>>(),
+                '>' => "\\u003e".chars().collect(),
+                '&' => "\\u0026".chars().collect(),
+                '\'' => "\\u0027".chars().collect(),
+                character => vec![character],
+            })
+            .collect(),
+        Value::Array(values) => format!(
+            "[{}]",
+            values
+                .iter()
+                .map(python_json)
+                .collect::<Result<Vec<_>>>()?
+                .join(", ")
+        ),
+        Value::Object(values) => format!(
+            "{{{}}}",
+            values
+                .iter()
+                .map(|(key, value)| {
+                    Ok(format!(
+                        "{}: {}",
+                        python_json(&Value::String(key.clone()))?,
+                        python_json(value)?
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?
+                .join(", ")
+        ),
+    })
+}
+
 fn special_token(config: &Value, name: &str, tokenizer: &Tokenizer) -> Result<Option<String>> {
     let Some(value) = config.get(name).filter(|value| !value.is_null()) else {
         return Ok(None);
@@ -208,8 +246,11 @@ impl ChatTokenizer {
             },
         );
         environment.add_filter("tojson", |value: minijinja::Value| {
-            serde_json::to_string(&value)
-                .map_err(|error| Error::new(ErrorKind::InvalidOperation, error.to_string()))
+            python_json(
+                &serde_json::to_value(value)
+                    .map_err(|error| Error::new(ErrorKind::InvalidOperation, error.to_string()))?,
+            )
+            .map_err(|error| Error::new(ErrorKind::InvalidOperation, error.to_string()))
         });
         environment.add_function("strftime_now", |format: String| {
             if format == "%Y-%m-%d" {
@@ -238,6 +279,23 @@ impl ChatTokenizer {
     }
 
     pub fn render_values(&self, messages: &Value, tools: Option<&[Value]>) -> Result<String> {
+        self.render_values_with_prompt(messages, tools, true)
+    }
+
+    pub fn render_prefix_values(
+        &self,
+        messages: &Value,
+        tools: Option<&[Value]>,
+    ) -> Result<String> {
+        self.render_values_with_prompt(messages, tools, false)
+    }
+
+    fn render_values_with_prompt(
+        &self,
+        messages: &Value,
+        tools: Option<&[Value]>,
+        add_generation_prompt: bool,
+    ) -> Result<String> {
         let messages = messages.as_array().context("messages must be an array")?;
         ensure!(!messages.is_empty(), "chat requires at least one message");
         for message in messages {
@@ -262,7 +320,7 @@ impl ChatTokenizer {
                 messages => messages,
                 bos_token => &self.bos_token,
                 eos_token => &self.eos_token,
-                add_generation_prompt => true,
+                add_generation_prompt => add_generation_prompt,
                 preserve_thinking => true,
                 tools => tools,
                 documents => Option::<bool>::None,
@@ -456,22 +514,34 @@ mod tests {
                 content: "Et 2 + 2 ?".into(),
             },
         ];
-        let output = std::process::Command::new(std::env::var("MLXL3_TEST_PYTHON").unwrap_or("python3".into()))
-            .env("HF_HUB_OFFLINE", "1").env("TRANSFORMERS_OFFLINE", "1")
-            .arg("-c").arg(r#"
+        let python_reference = |messages: &Value, tools: Option<&[Value]>| -> Result<Value> {
+            let output = std::process::Command::new(
+                std::env::var("MLXL3_TEST_PYTHON").unwrap_or("python3".into()),
+            )
+            .env("HF_HUB_OFFLINE", "1")
+            .env("TRANSFORMERS_OFFLINE", "1")
+            .arg("-c")
+            .arg(r#"
 import json, sys
 from transformers import AutoTokenizer
 t = AutoTokenizer.from_pretrained(sys.argv[1], local_files_only=True, trust_remote_code=False)
-prompt = t.apply_chat_template(json.loads(sys.argv[2]), tokenize=False, add_generation_prompt=True, preserve_thinking=True)
+prompt = t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads(sys.argv[3]), tokenize=False, add_generation_prompt=True, preserve_thinking=True)
 ids = t.encode(prompt, add_special_tokens=False)
 print(json.dumps({'prompt': prompt, 'ids': ids, 'decoded': t.decode(ids, skip_special_tokens=False, clean_up_tokenization_spaces=False)}))
-"#).arg(&model).arg(serde_json::to_string(&messages)?).output()?;
-        ensure!(
-            output.status.success(),
-            "transformers failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let reference: Value = serde_json::from_slice(&output.stdout)?;
+"#)
+            .arg(&model)
+            .arg(serde_json::to_string(messages)?)
+            .arg(serde_json::to_string(&tools)?)
+            .output()?;
+            ensure!(
+                output.status.success(),
+                "transformers failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            Ok(serde_json::from_slice(&output.stdout)?)
+        };
+        let message_values = serde_json::to_value(&messages)?;
+        let reference = python_reference(&message_values, None)?;
         let prompt = tokenizer.render(&messages)?;
         let ids = tokenizer.encode(&prompt)?;
         assert_eq!(prompt, reference["prompt"].as_str().unwrap());
@@ -480,6 +550,21 @@ print(json.dumps({'prompt': prompt, 'ids': ids, 'decoded': t.decode(ids, skip_sp
             tokenizer.decode(&ids)?,
             reference["decoded"].as_str().unwrap()
         );
+        let tool_messages = json!([
+            {"role":"user","content":"Cherche MLXL3."},
+            {"role":"assistant","content":"<think>Je cherche.</think>","tool_calls":[{
+                "type":"function","function":{"name":"exa.web_search_exa","arguments":{"query":"MLXL3"}}
+            }]},
+            {"role":"tool","name":"exa.web_search_exa","content":"Title: MLXL3\nURL: https://example.com\nLocal inference."}
+        ]);
+        let tools = vec![json!({"type":"function","function":{
+            "name":"exa.web_search_exa","description":"Recherche privée 🦀","parameters":{"type":"object"}
+        }})];
+        let tool_reference = python_reference(&tool_messages, Some(&tools))?;
+        let tool_prompt = tokenizer.render_values(&tool_messages, Some(&tools))?;
+        let tool_ids = tokenizer.encode(&tool_prompt)?;
+        assert_eq!(tool_prompt, tool_reference["prompt"].as_str().unwrap());
+        assert_eq!(json!(tool_ids), tool_reference["ids"]);
         // Check every stopping position, including partial byte-fallback emoji.
         let ids = tokenizer.encode("Voilà 🦀 !")?;
         let mut stream = tokenizer.tokenizer().decode_stream(false);

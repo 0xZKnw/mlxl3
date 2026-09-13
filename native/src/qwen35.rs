@@ -531,6 +531,11 @@ enum Layer {
     Attention(Box<AttentionLayer>),
 }
 
+pub struct State {
+    offset: i32,
+    layers: Vec<(Array, Array)>,
+}
+
 impl Layer {
     fn forward(&mut self, x: &Array) -> Result<Array> {
         match self {
@@ -543,6 +548,20 @@ impl Layer {
         match self {
             Self::Linear(layer) => layer.reset(),
             Self::Attention(layer) => layer.reset(),
+        }
+    }
+
+    fn states(&self) -> Result<(&Array, &Array)> {
+        match self {
+            Self::Linear(layer) => layer.states(),
+            Self::Attention(layer) => layer.states(),
+        }
+    }
+
+    fn set_state(&mut self, first: Array, second: Array) -> Result<()> {
+        match self {
+            Self::Linear(layer) => layer.set_state(Some(first), Some(second)),
+            Self::Attention(layer) => layer.set_state(Some(first), Some(second)),
         }
     }
 }
@@ -724,6 +743,33 @@ impl Qwen35Moe {
 
     pub fn context_limit(&self) -> i32 {
         self.context_limit
+    }
+
+    pub fn snapshot(&self) -> Result<State> {
+        let layers = self
+            .layers
+            .iter()
+            .map(|layer| {
+                let (first, second) = layer.states()?;
+                Ok((first.try_clone()?, second.try_clone()?))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(State {
+            offset: self.offset,
+            layers,
+        })
+    }
+
+    pub fn restore(&mut self, state: State) -> Result<()> {
+        ensure!(
+            state.layers.len() == self.layers.len(),
+            "Qwen snapshot layer count mismatch"
+        );
+        self.offset = state.offset;
+        for (layer, (first, second)) in self.layers.iter_mut().zip(state.layers) {
+            layer.set_state(first, second)?;
+        }
+        Ok(())
     }
 
     pub fn reset(&mut self) {

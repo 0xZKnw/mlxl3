@@ -2169,3 +2169,256 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   récupérable sous
   `build/app-backups/MLXL3 Desktop-v1.0.1-before-v1.0.2.app`. Application laissée
   fermée. État final : **validé, publié et installé**.
+
+### OPT-2026-09-13-RUST-QWEN-18 — Qualité Qwen après appel MCP — validé localement
+
+- Symptôme utilisateur : Qwen3.6-35B-A3B EXL3 2,49 bpw boucle dans son second
+  raisonnement après une recherche Exa. La conversation persistée
+  `52D7F8CF-9735-49D6-A52F-D57BDA184B5F` contient 9 003 tokens de contexte et
+  répète ensuite « I will mention… » jusqu'à l'arrêt manuel. Aucun texte du
+  document joint n'est traité comme instruction.
+- Antécédents consultés : journal complet, rapports decode/Qwen/runtime et
+  prefill MCP. Le moteur Rust a déjà passé les continuations forcées Qwen
+  bit-à-bit et les hashes greedy, mais aucune parité du template avec outils ni
+  du sampler non-greedy Rust n'est documentée. Le modèle reste inchangé ; pas de
+  spéculation, requantification ni relâchement des contrôles qualité.
+- Baseline : v1.0.2 commit moteur `55eb7461`, modèle local 2,49 bpw, réglages GUI
+  température 0,2, top-k 80, pénalité 1,05/fenêtre 20. Diagnostic initial : le
+  Rust applique aujourd'hui la pénalité aux log-probabilités, alors que MLX-LM
+  l'applique aux logits avant normalisation ; c'est un écart logiciel plausible.
+- Protocole prévu : comparer prompt rendu et IDs natifs à Transformers sur un
+  tour assistant/tool réel, puis comparer le processeur de répétition sur des
+  logits déterministes et une continuation forcée. Rejouer hors réseau le
+  résultat MCP capturé, d'abord greedy puis avec les réglages GUI ; contrôler
+  finitude, absence de boucle, tokens et caches. Toute correction du sampler
+  doit précéder les benchmarks decode/prefill/TTFT/RAM.
+- Environnement : Apple M5 24 Gio, macOS local, MLX 0.32.2 ; alimentation,
+  température et fréquences à relever avant les mesures. Preuves prévues sous
+  `build/rust-qwen-18-*`. État : **en cours**, diagnostic seulement ; app,
+  GitHub et release inchangés.
+- Premier contrôle interrompu avant compilation : `cargo` est absent du `PATH`
+  non interactif. Aucun tokenizer, modèle ni GPU exécuté. Reprendre exactement
+  le test de parité avec le dossier de la toolchain Rust locale préfixé au
+  `PATH` ; le protocole et le candidat restent inchangés.
+- Deuxième commande compilée mais a sélectionné **0 test** : le module tokenizer
+  est derrière la feature Cargo `chat`, omise par la commande. Aucun succès ne
+  lui est attribué. Relancer le même test avec `--features chat`.
+- Le contrôle étendu `cargo test --features chat --lib
+  tokenizer::tests::local_transformers_prompt_and_ids_match -- --ignored
+  --exact` passe toujours sans outil, mais échoue dès que `tools` est fourni.
+  Écart isolé : le filtre natif sérialise le schéma en JSON compact
+  (`{"function":{"description":...`) alors que Transformers/Jinja insère les
+  séparateurs Python (`{"function": {"description": ...`). Le reste du prompt
+  est identique. Les IDs divergent donc avant même l'inférence. Résultat :
+  **échec diagnostique utile**, aucun modèle/GPU exécuté ; corriger le filtre
+  partagé puis conserver ce cas comme test de non-régression.
+- Correction locale du filtre `tojson` : reproduction des séparateurs, de
+  `ensure_ascii` et des échappements HTML de `json.dumps`/Jinja au lieu du JSON
+  compact Serde. Le même test avec historique assistant/tool réel passe
+  désormais prompt et IDs exactement, sans modèle/GPU. Un schéma Unicode est
+  ajouté au contrôle pour couvrir aussi les descriptions MCP non ASCII. État
+  de ce sous-écart : **validé localement**, non publié/non installé.
+- Révision du contrôle Unicode : l'assertion révèle que l'environnement Jinja
+  de Transformers force `ensure_ascii=False`, contrairement au `json.dumps`
+  Python nu. La première correction échappe donc à tort `é` et l'emoji, et ce
+  statut remplace le « validé » précédent : **rejeté sur schéma Unicode**. Les
+  séparateurs restent corrects. Retirer uniquement cet échappement puis relancer
+  le même oracle ; aucun modèle/GPU exécuté.
+- Après retrait ciblé de `ensure_ascii`, le même oracle réel Qwen passe **1/1**
+  sur prompt et IDs, outils inclus, avec espaces JSON Python, Unicode et
+  échappements HTML. La divergence de template MCP est donc **validée corrigée
+  localement** ; code non publié/non installé.
+- Essai qualité sampler prévu — **en cours** : déplacer la pénalité 1,05 des
+  log-probabilités vers les logits bruts, comme MLX-LM, et dédupliquer la fenêtre
+  de 20 tokens (l'affectation indexée MLX ne pénalise qu'une fois les doublons).
+  Baseline déterministe : logits `[4, 3]`, token 0, pénalité 2 ; l'ordre MLX doit
+  choisir 1 alors que le Rust actuel choisit 0. Contrôle doublon : `[4.2, 3]`,
+  tokens `[0, 0]`, pénalité 1,2 doit encore choisir 0. Conserver le chemin argmax
+  GPU sans pénalité ; comparer aussi le résultat FP16. Aucun benchmark de débit
+  ne sera attribué à cette correction avant mesure séparée.
+- Première commande de test sampler invalide : la cible binaire Cargo s'appelle
+  `mlxl3-rs`, pas `mlxl3`. Aucun test ni GPU exécuté ; relancer la même assertion
+  avec le nom de cible déclaré, sans changer le candidat.
+- Deuxième commande sampler bloquée avant compilation : la feature `mlx` exige
+  `MLXL3_MLX_ROOT`, absent de cet environnement non interactif. Aucun test/GPU
+  exécuté. Reprendre avec le runtime MLX 0.32.2 local déjà utilisé par les
+  scripts de build.
+- Troisième commande compile avec MLX 0.32.2 mais sélectionne **0 test** : le
+  filtre `--exact` doit inclure le module `tests::`. Aucun succès attribué ;
+  relancer l'assertion qualifiée.
+- L'assertion qualifiée passe **1/1** : ordre logits→pénalité, doublons pénalisés
+  une seule fois et argmax neutre sont conformes sur Float32. Le correctif évite
+  aussi le `logsumexp` inutile pour l'échantillonnage, dont soustraire une
+  constante ne change pas la distribution. Contrôle Float16 ajouté avant la
+  validation finale. État : correction qualité **validée partiellement**, débit
+  non mesuré, code non publié/non installé.
+- Contrôle final Float16 inclus : **1/1 passé** sur MLX 0.32.2. L'arrondi de la
+  valeur pénalisée suit bien le dtype du logits, comme l'affectation MLX-LM.
+  Sous-correctif sampler : **validé localement** ; aucun chiffre performance ne
+  lui est encore attribué, app/GitHub/release inchangés.
+- Relecture finale du replay MCP capturé : candidat et baseline restent cohérents
+  pendant 512 tokens et ne reproduisent pas la boucle de façon déterministe.
+  Conclusion limitée mais vérifiable : parité exacte du prompt/IDs avec outils
+  **1/1**, sampler logits/déduplication Float32+Float16 **1/1**, et sortie longue
+  finie/non répétitive. Les affirmations factuelles étranges visibles dans la
+  capture proviennent aussi du résultat Exa injecté ; ce correctif élimine les
+  deux écarts logiciels établis sans prétendre corriger une source externe.
+  État final : **validé localement**, publication demandée mais pas encore faite.
+
+### OPT-2026-09-13-RUST-QWEN-19 — Chemin sampler GUI réel — non concluant
+
+- Hypothèse : sur le chemin Desktop température 0,2/top-k 80/pénalité 1,05, la
+  normalisation `logsumexp` GPU puis la copie CPU de tout le vocabulaire ajoutent
+  du travail absent du greedy. Le correctif QWEN-18 supprime déjà la normalisation
+  mathématiquement constante après avoir corrigé la pénalité ; mesurer son gain
+  isolé avant tout kernel sampler plus ambitieux.
+- Baseline : binaire v1.0.2 SHA-256
+  `de4299204bc7e844e95c812ca65e294ebf57bc23bb6284835f3ab868fd406c7c`
+  archivé sous `build/rust-qwen-18/mlxl3-rs-baseline`. Candidat : arbre local
+  QWEN-18. Modèle Qwen3.6-35B-A3B EXL3 2,49 bpw ; bridge natif, même prompt,
+  64 tokens, paramètres GUI exacts, 3 répétitions après chauffe, ordre alterné.
+  Mesurer load, TTFT, prefill, decode et RSS via les événements + `/usr/bin/time
+  -l`; vérifier finitude et absence de répétition triviale. Alimentation et état
+  batterie relevés avec `pmset`. Aucun chiffre compatible antérieur ne sera
+  additionné. État : **en cours**, app/GitHub/release inchangés.
+- Smoke candidat, à froid, 31 tokens de prompt/32 générés : load 5,230 s,
+  prefill 12,03 tok/s, TTFT 2,601 s, decode 12,76 tok/s. Cette mesure inclut la
+  compilation Metal et n'est pas une comparaison chaude ; elle confirme surtout
+  que le chemin sampler GUI reste très loin du greedy. Sortie finie et cohérente
+  sur la fenêtre courte.
+- Première matrice alternée interrompue immédiatement : expression `jq` invalide
+  (`;` au lieu d'une union de filtres), puis broken pipe avant génération.
+  Aucun chiffre. Batterie 70 %, non branchée. Corriger seulement le filtre et
+  relancer exactement la matrice.
+- Matrice GUI relancée, batterie 70 % non branchée. Baseline chaude (runs 2–3) :
+  prefill 195,27/195,80 tok/s, TTFT 159,3/158,9 ms, decode 48,13/48,29
+  tok/s. Candidat exécuté ensuite : prefill 137,85/137,34, TTFT 225,4/226,3 ms,
+  decode 34,81/35,09 tok/s. Les textes stochastiques et donc routes MoE diffèrent,
+  et les deux plateaux decode 35/48 sont déjà documentés ; l'ordre fixe avec Mac
+  chauffant contamine aussi prefill. Résultat : **non concluant**, ne pas publier
+  comme régression ni gain. Prochain contrôle : température 0/pénalité 1, séquence
+  identique, ordre inversé, puis sampler GUI déterministe si nécessaire.
+- Contrôle greedy déterministe, ordre candidat puis baseline, 31 prompt/128
+  générés, batterie 69 % non branchée. Candidat chaud : prefill 138,13/137,87,
+  TTFT 224,6/225,1 ms, decode 36,10/35,69 tok/s. Baseline chaude : prefill
+  137,51/138,07, TTFT 225,7/224,7 ms, decode 35,45/35,73 tok/s. Médianes dans
+  **0,7 %** : retirer `logsumexp` seul n'apporte pas de gain modèle mesurable ;
+  qualité conservée, tentative performance **non concluante**. Le goulot GUI
+  restant est la copie CPU du vocabulaire, pas cette normalisation.
+
+### OPT-2026-09-13-RUST-QWEN-20 — Sampling top-k natif Metal — rejeté
+
+- Hypothèse : le Desktop copie actuellement les ~248k logits sur CPU à chaque
+  token dès que température/pénalité sont actives. MLX-LM exécute pénalité,
+  argpartition top-k et categorical sur Metal puis ne lit qu'un index. Porter
+  exactement ces primitives MLX 0.32.2 derrière l'ABI existante doit supprimer
+  ~1 MB de transfert/synchronisation par token sans approximation ni nouveau
+  kernel. Les essais top-k 2026-09-10-07/08 optimisaient l'implémentation Python
+  déjà GPU ; ils ne testaient pas ce fallback CPU propre au moteur Rust.
+- Baseline réelle : QWEN-19, paramètres GUI 0,2/80/1,05, deux plateaux MoE
+  observés 35 et 48 tok/s ; comparaison stochastique isolée non fiable. Protocole :
+  test déterministe du sampler (seed identique, sortie dans le top-k, pénalité),
+  tests Cargo complets, puis au moins 5 générations GUI et médiane avec mêmes
+  longueurs ; rapporter routes/thermique comme limite. Contrôler absence de NaN,
+  prompt de replay MCP et sortie non répétitive. Aucun changement greedy.
+  Mesurer aussi TTFT/prefill et RSS séparément ; ne pas leur attribuer un gain si
+  non affectés. État : **en cours**, code/app/GitHub/release inchangés.
+- ABI minimal ajouté avec les primitives MLX natives : gather/where/scatter de
+  pénalité, argpartition top-k, categorical avec clé explicite et lecture d'un
+  seul index. Le test GPU passe **1/1** : seed répétable, résultat limité au
+  top-k, doublons dédupliqués et token pénalisé exclu du top-k attendu ; les cas
+  greedy restent verts. Candidat fonctionnel local, benchmark modèle à faire.
+- Baseline modèle, batterie 67–69 % non branchée, 31 prompt/128 générés : après
+  chauffe, decode `[43,96; 45,12; 33,58; 33,56; 33,83]` tok/s, soit médiane
+  **33,83** avec bascule thermique/routes déjà connue ; prefill médian **179,39**
+  tok/s et TTFT médian **173,7 ms**. Le candidat n'a produit aucun tour : smoke
+  explicite `MLX: sampling expects [1, vocab] logits`. Le modèle remet un vecteur
+  1-D tandis que l'oracle utilisait `[1,V]`. Résultat candidat : **échec avant
+  génération**, aucun gain ; accepter un préfixe singleton/1-D en aplatissant
+  vers `[1,V]`, et transformer l'oracle pour reproduire la forme réelle.
+- Après correction de forme, smoke 8 tokens réussi. Série chaude de 5 tours :
+  decode `[33,09; 33,14; 33,14; 33,19; 33,16]`, médiane **33,14 tok/s**,
+  contre 33,83 pour la baseline thermique la plus proche (−2,0 %) ; prefill
+  médian **132,55 tok/s**, TTFT **234,6 ms**, également exécutés après la
+  baseline sur un Mac plus chaud. Aucun gain observable. Replays sauvegardés du
+  tour MCP, 9,7k prompt/512 générés : candidat 25,70 tok/s et 301,17 prefill,
+  baseline 26,60 et 292,36 ; les deux restent cohérents jusqu'à la limite sans
+  reproduire la boucle. Les routes, prompts et thermique diffèrent, donc aucun
+  pourcentage qualité/performance n'est revendiqué.
+- Décision : **rejeté et retiré**. Sur la mémoire unifiée M5, l'argpartition GPU
+  MLX annule le transfert évité ; garder cet ABI augmenterait le code sans gain.
+  Les corrections QWEN-18 de template et pénalité restent. App/GitHub/release
+  inchangés.
+
+### OPT-2026-09-13-RUST-QWEN-21 — Réutilisation exacte intra-tour MCP — validé localement
+
+- Hypothèse : chaque retour MCP appelle aujourd'hui `model.reset()` puis rejoue
+  tout le prompt, bien que le cache actif contienne déjà le prompt initial et
+  les tokens de l'appel d'outil. Réutiliser cet état uniquement lorsque les IDs
+  rendus commencent exactement par les IDs déjà évalués évite ce préfixe sans
+  copie de cache, perte, ni RAM persistante supplémentaire ; sinon fallback
+  immédiat au reset actuel. Cela cible le TTFT après Exa, pas le decode.
+- Antécédents : cache Python exact/block validé en 2026-09-05/07, mais le bridge
+  Rust v1.0.2 annonce toujours `cached_prompt_tokens: 0` et remet le modèle à
+  zéro par round. Aucun port natif de cette réutilisation n'est documenté.
+- Baseline prévue : binaire QWEN-18 après retrait de QWEN-20, archivé avant
+  modification. Qwen3.6 2,49 bpw, tool call Exa borné, mêmes paramètres GUI ;
+  comparer `cached/evaluated`, TTFT/prefill, sortie finie et transcript. Test
+  unitaire minimal du choix exact (match/mismatch), puis smoke réel. Mesurer
+  Qwen en priorité et un smoke LFM si le chemin partagé est retenu. Batterie
+  66 %, non branchée, Mac chaud ; pourcentages thermiques faibles non fiables.
+  État : **en cours**, app/GitHub/release inchangés.
+- Première commande de contrôle invalide : Cargo n'accepte qu'un filtre de test
+  positionnel, deux noms avaient été fournis. Aucun test exécuté. Relancer le
+  module `tests::` entier pour couvrir cache et sampler sans changer le code.
+- Contrôles Rust ciblés : **2/2 passés**. Le cache n'est accepté que pour un
+  préfixe strict, exact et non vide ; mismatch, égalité complète et cache vide
+  retombent au reset. Sampler qualité QWEN-18 toujours vert. Smoke modèle et
+  métriques de réutilisation restent à exécuter.
+- Premier smoke MCP réel non exploitable : le prompt artificiel « Call ... then
+  summarize » fait rappeler Exa à chaque round ; le garde-fou arrête correctement
+  après 5 appels avec l'erreur attendue. Contextes successifs 812/2 950/5 085/
+  7 223/9 361 tokens, mais aucune métrique `complete`, donc aucun gain attribué.
+  Le modèle/bridge ne crashe pas. Reprendre avec la requête naturelle sauvegardée,
+  qui n'avait déclenché qu'un appel, plutôt que modifier le garde-fou.
+- Requête naturelle, un appel Exa, 805 puis 2 963 tokens : génération finie mais
+  `cached_prompt_tokens=0`, TTFT second round 9,075 s, prefill 326,54 tok/s,
+  decode 30,09 tok/s. Diagnostic : le snapshot après prompt contient aussi le
+  suffixe `add_generation_prompt` (`<|im_start|>assistant...`) ; au round suivant
+  ce suffixe est remplacé par le message assistant historique, donc le préfixe
+  ne peut jamais être exact. Première implantation : **fonctionnelle mais sans
+  hit, rejetée en l'état**. Correction minimale prévue : rendre le même template
+  sans suffixe de génération, snapshotter ce préfixe stable, puis évaluer le
+  petit suffixe avant génération ; oracle `starts_with` obligatoire.
+- Snapshot déplacé avant le suffixe de génération. Tests ciblés **2/2** et
+  tokenizer outil **1/1** passent. Smoke naturel : 800 tokens réutilisés sur
+  2 952, 2 152 évalués (−27,1 %), sortie finie sans boucle ; TTFT 7,989 s,
+  prefill effectif 269,41 tok/s. Baseline qualité QWEN-18 lancée ensuite, résultat
+  Exa comparable 2 966 tokens : 0 cache, TTFT **7,116 s**, prefill 416,84 tok/s.
+  Le candidat est donc 12,3 % plus lent malgré moins de tokens sur cette paire :
+  **régression provisoire**, probablement compilation de nouvelles formes et
+  découpe du petit suffixe ; ne pas intégrer sur ce seul résultat. Batterie
+  tombée à 57 %, Mac chaud. Refaire deux requêtes par processus pour exclure la
+  compilation de forme ; retirer si la médiane chaude ne gagne pas.
+- Comparaison chaude terminée, même requête naturelle deux fois par processus,
+  modèle Qwen3.6 2,49 bpw, 256 tokens générés, température 0,2/top-k 80/pénalité
+  1,05, batterie 55 % non branchée. Candidat : 800 tokens réutilisés par second
+  round, 2 145/2 144 évalués, TTFT 7,960/6,703 s, médiane **7,331 s** ; baseline
+  sans cache : 2 966/2 954 évalués, TTFT 8,851/10,427 s, médiane **9,639 s**.
+  Gain TTFT chaud observé : **−23,9 %** ; decode candidat 31,01/31,14 tok/s et
+  baseline 30,89/29,92 tok/s, sans régression apparente mais sans attribution de
+  gain decode. Les réponses ont toutes fini avec un seul round outil et 256
+  tokens. Limite : contenu Exa et routage MoE variables, Mac chaud sur batterie ;
+  le signal retenu est surtout la baisse exacte des tokens évalués (~27 %), le
+  pourcentage de temps doit rester spécifique à ce test. Décision : **validé
+  localement et conservé** pour Qwen ; aucun cache n'est activé pour les autres
+  architectures faute de snapshot natif. App/release inchangées, push demandé.
+- Validation finale : `cargo fmt --check`, `cargo test --locked` (**24 passés**),
+  `--features chat` (**29 passés**), `--features mlx,chat` (**34 passés**, dont
+  cache et sampler) et Clippy `-D warnings` passent ; l'oracle local Transformers
+  prompt+IDs+outils passe **1/1**. Une première exécution Desktop sans SDK
+  explicite a échoué sur les macros SwiftUI du SDK 27 installé : aucun test E2E
+  n'avait commencé et aucun code n'a changé. Reprise avec le SDK macOS 26.5 du
+  projet : tous les contrôles E2E passent (lifecycle, bridge, streaming/Markdown,
+  MCP, annulation et transport CLI). État final : **validé localement, prêt à
+  committer/pousser** ; app installée et release inchangées.

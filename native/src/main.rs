@@ -1240,6 +1240,12 @@ enum NativeChatModel {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+struct PromptCache {
+    tokens: Vec<u32>,
+    state: mlxl3_native::qwen35::State,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 impl NativeChatModel {
     fn load(path: &std::path::Path) -> Result<Self> {
         let checkpoint = checkpoint::inspect(path)?;
@@ -1323,6 +1329,29 @@ impl NativeChatModel {
         }
     }
 
+    fn snapshot(&self, tokens: &[u32]) -> Result<Option<PromptCache>> {
+        match self {
+            Self::Qwen(model) => Ok(Some(PromptCache {
+                tokens: tokens.to_vec(),
+                state: model.snapshot()?,
+            })),
+            Self::Gemma4(_) | Self::Lfm2(_) | Self::Ling(_) => Ok(None),
+        }
+    }
+
+    fn supports_snapshot(&self) -> bool {
+        matches!(self, Self::Qwen(_))
+    }
+
+    fn restore(&mut self, cache: PromptCache) -> Result<()> {
+        match self {
+            Self::Qwen(model) => model.restore(cache.state),
+            Self::Gemma4(_) | Self::Lfm2(_) | Self::Ling(_) => {
+                anyhow::bail!("prompt cache model mismatch")
+            }
+        }
+    }
+
     fn eval_state(&self) -> Result<()> {
         match self {
             Self::Lfm2(model) => {
@@ -1402,6 +1431,12 @@ struct RoundOutput {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn reusable_suffix<'a>(tokens: &'a [u32], evaluated: &[u32]) -> Option<&'a [u32]> {
+    (!evaluated.is_empty() && evaluated.len() < tokens.len() && tokens.starts_with(evaluated))
+        .then(|| &tokens[evaluated.len()..])
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn emit_event(value: Value) -> Result<()> {
     let mut stdout = io::stdout().lock();
     serde_json::to_writer(&mut stdout, &value)?;
@@ -1427,23 +1462,32 @@ fn select_token(
         repetition_penalty.is_finite() && repetition_penalty > 0.,
         "repetition_penalty must be positive"
     );
-    let log_probs = logits.log_probs()?;
     if (temperature == 0. || top_k == 1) && repetition_penalty == 1. {
-        return log_probs
+        return logits
             .argmax()?
             .to_u32()?
             .into_iter()
             .next()
             .context("model returned no logits");
     }
-    let mut values = log_probs.to_f32()?;
+    let mut values = logits.to_f32()?;
     if repetition_penalty != 1. {
+        let mut seen = Vec::with_capacity(20);
         for &token in generated.iter().rev().take(20) {
+            if seen.contains(&token) {
+                continue;
+            }
+            seen.push(token);
             if let Some(value) = values.get_mut(token as usize) {
-                *value = if *value < 0. {
+                let adjusted = if *value < 0. {
                     *value * repetition_penalty
                 } else {
                     *value / repetition_penalty
+                };
+                *value = match logits.dtype() {
+                    mlxl3_native::array::Dtype::Float16 => half::f16::from_f32(adjusted).to_f32(),
+                    mlxl3_native::array::Dtype::BFloat16 => half::bf16::from_f32(adjusted).to_f32(),
+                    _ => adjusted,
                 };
             }
         }
@@ -1515,6 +1559,7 @@ fn bridge_generate_round(
     resident_gb: f64,
     cancelled: &AtomicBool,
     random: &mut u64,
+    cache: &mut Option<PromptCache>,
 ) -> Result<RoundOutput> {
     use mlxl3_native::{array::Array, streaming::Channel, tool_call::StreamFilter};
     anyhow::ensure!(!messages.is_empty(), "messages cannot be empty");
@@ -1533,12 +1578,45 @@ fn bridge_generate_round(
         "type":"context_usage", "request_id":request_id,
         "used_tokens":tokens.len(), "context_limit":context_limit
     }))?;
-    model.reset();
+    let stable_tokens = if model.supports_snapshot() {
+        let stable =
+            tokenizer.render_prefix_values(&Value::Array(messages.to_vec()), Some(tools))?;
+        let stable = tokenizer.encode(&stable)?;
+        anyhow::ensure!(
+            !stable.is_empty() && stable.len() < tokens.len() && tokens.starts_with(&stable),
+            "chat generation prompt is not an exact suffix"
+        );
+        stable
+    } else {
+        tokens.clone()
+    };
+    let cached_prompt_tokens = cache
+        .as_ref()
+        .and_then(|cache| reusable_suffix(&stable_tokens, &cache.tokens))
+        .map(|suffix| stable_tokens.len() - suffix.len())
+        .unwrap_or(0);
+    if cached_prompt_tokens == 0 {
+        model.reset();
+        *cache = None;
+    } else {
+        model.restore(cache.take().expect("checked cache"))?;
+    }
     let started = Instant::now();
     let mut logits: Option<Array> = None;
-    for chunk in tokens.chunks(model.prefill_chunk_size()) {
+    for chunk in stable_tokens[cached_prompt_tokens..].chunks(model.prefill_chunk_size()) {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
+            *cache = None;
+            bail!("generation cancelled");
+        }
+        logits = Some(model.forward_many(chunk)?);
+        model.eval_state()?;
+    }
+    *cache = model.snapshot(&stable_tokens)?;
+    for chunk in tokens[stable_tokens.len()..].chunks(model.prefill_chunk_size()) {
+        if cancelled.load(Ordering::Relaxed) {
+            model.reset();
+            *cache = None;
             bail!("generation cancelled");
         }
         logits = Some(model.forward_many(chunk)?);
@@ -1562,6 +1640,7 @@ fn bridge_generate_round(
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
+            *cache = None;
             bail!("generation cancelled");
         }
         let next = select_token(
@@ -1635,13 +1714,13 @@ fn bridge_generate_round(
     let ttft = first_token.unwrap_or(elapsed);
     let stats = NativeStats {
         ttft_seconds: ttft,
-        prefill_tps: tokens.len() as f64 / prefill_seconds.max(1e-9),
+        prefill_tps: (tokens.len() - cached_prompt_tokens) as f64 / prefill_seconds.max(1e-9),
         decode_tps: generated.len().saturating_sub(1) as f64 / (elapsed - ttft).max(1e-9),
         prompt_tokens: tokens.len(),
         generated_tokens: generated.len(),
         peak_memory_gb: resident_gb,
-        cached_prompt_tokens: 0,
-        evaluated_prompt_tokens: tokens.len(),
+        cached_prompt_tokens,
+        evaluated_prompt_tokens: tokens.len() - cached_prompt_tokens,
         context_used: tokens.len() + generated.len(),
         context_limit,
         elapsed_seconds: elapsed,
@@ -1719,6 +1798,7 @@ fn bridge_generate(
     let tools = mcp.chat_tools();
     let started = Instant::now();
     let mut first_text = None;
+    let mut cache = None;
     for round in 0..5 {
         emit_event(json!({
             "type":"generation_status", "request_id":request_id,
@@ -1738,6 +1818,7 @@ fn bridge_generate(
             resident_gb,
             cancelled,
             random,
+            &mut cache,
         )?;
         first_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
         let calls = if tools.is_empty() {
@@ -2084,11 +2165,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn cached_prefix_must_match_exactly() {
+        assert_eq!(reusable_suffix(&[1, 2, 3, 4], &[1, 2]), Some(&[3, 4][..]));
+        assert_eq!(reusable_suffix(&[1, 9, 3], &[1, 2]), None);
+        assert_eq!(reusable_suffix(&[1, 2], &[1, 2]), None);
+        assert_eq!(reusable_suffix(&[1, 2], &[]), None);
+    }
+
+    #[test]
     fn native_sampler_respects_greedy_argmax() {
         let logits = mlxl3_native::array::Array::from_f32(&[1., 4., 2.], &[1, 3]).unwrap();
         let mut random = 1;
         assert_eq!(
             select_token(&logits, &[], 0., 0, 1., &mut random).unwrap(),
+            1
+        );
+        let logits = mlxl3_native::array::Array::from_f32(&[4., 3.], &[1, 2]).unwrap();
+        assert_eq!(
+            select_token(&logits, &[0], 0., 0, 2., &mut random).unwrap(),
+            1
+        );
+        let logits = mlxl3_native::array::Array::from_f32(&[4.2, 3.], &[1, 2]).unwrap();
+        assert_eq!(
+            select_token(&logits, &[0, 0], 0., 0, 1.2, &mut random).unwrap(),
+            0
+        );
+        let logits = mlxl3_native::array::Array::from_f16_bits(
+            &[
+                half::f16::from_f32(4.).to_bits(),
+                half::f16::from_f32(3.).to_bits(),
+            ],
+            &[1, 2],
+        )
+        .unwrap();
+        assert_eq!(
+            select_token(&logits, &[0], 0., 0, 2., &mut random).unwrap(),
             1
         );
     }
