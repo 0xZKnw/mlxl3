@@ -2108,7 +2108,7 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
 - État d'intégration : **code local uniquement** sur `codex/rust-performance` ;
   app installée et GitHub inchangés, aucun push/release demandé.
 
-### REL-2026-09-13 — Desktop v1.0.2 build 13 — en cours
+### REL-2026-09-13 — Desktop v1.0.2 build 13 — validé et publié
 
 - Demande utilisateur : embarquer le moteur Rust optimisé courant dans la GUI,
   pousser la nouvelle version, publier la release GitHub v1.0.2 et remplacer
@@ -2142,3 +2142,30 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
 - Reprise Python 3.12 réussie : Info.plist, `pyproject.toml` et
   `src/mlxl3/__init__.py` annoncent tous **1.0.2**, build **13** ; plist valide
   et `git diff --check` propre.
+- Source figée au commit `55eb7461a925dafda5401938efc3dedb30bcf128`.
+  Le build SDK26.5 est propre, le manifeste confirme le moteur Rust avec MLX
+  0.32.2 et l'absence de Python embarqué. `codesign --verify --deep --strict`
+  passe ; signature ad-hoc, sans notarisation, conformément à la limite acceptée.
+- Artefact validé : `dist/MLXL3-Desktop-v1.0.2-b13-Apple-Silicon.dmg`,
+  71 181 400 octets, SHA-256
+  `5f1b87bb5d9e7ef6af53161a226f83e2ac0c10077170967cac8d610373e4339d`.
+  Le runtime monté correspond au runtime source, SHA-256
+  `de4299204bc7e844e95c812ca65e294ebf57bc23bb6284835f3ab868fd406c7c`.
+- Validation depuis le DMG monté : signature, timeline, Metal et MCP passent ;
+  deux tours réels LFM2 passent avec continuité CEDAR-42. Le second tour chaud
+  mesure 2 066,83 tok/s prefill, 125,14 tok/s decode et 148,8 ms TTFT. Preuves
+  `build/release-v102-build.log` et `build/release-v102-mounted-smoke.log`.
+- Publication réussie : `main`, `codex/rust-performance` et le tag annoté
+  `v1.0.2` pointent sur la source publiée ; release GitHub
+  `https://github.com/0xZKnw/mlxl3/releases/tag/v1.0.2`, déclarée latest, avec
+  DMG, checksum, manifeste et rapport de validation. L'empreinte de l'asset
+  GitHub est identique à l'empreinte locale.
+- CI finale : les trois exécutions `Native Rust checks` et les trois
+  `Regression checks` déclenchées par branche, `main` et tag sont **réussies**.
+  Une première requête de statut a utilisé le champ `isLatest`, absent de cette
+  version de `gh` ; la vérification a été reprise via l'API `releases/latest`.
+- Installation locale validée dans `/Applications/MLXL3 Desktop.app`, version
+  **1.0.2 (13)**, même runtime et mêmes self-checks. L'ancienne 1.0.1 reste
+  récupérable sous
+  `build/app-backups/MLXL3 Desktop-v1.0.1-before-v1.0.2.app`. Application laissée
+  fermée. État final : **validé, publié et installé**.
