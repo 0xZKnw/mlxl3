@@ -560,6 +560,12 @@ pub struct Qwen35Moe {
 
 impl Qwen35Moe {
     pub fn load(path: &Path) -> Result<Self> {
+        let checkpoint = crate::checkpoint::inspect(path)?;
+        Self::from_checkpoint(&checkpoint)
+    }
+
+    pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
+        let path = &checkpoint.path;
         let root: RootConfig = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         let config = root.text_config;
         ensure!(
@@ -597,21 +603,20 @@ impl Qwen35Moe {
                 .filter(|&size| size > 0)
                 .context("missing dense Qwen intermediate size")?
         };
-        let checkpoint = crate::checkpoint::inspect(path)?;
         let hidden = config.hidden_size;
         let embeddings = half_weight(
-            &checkpoint,
+            checkpoint,
             "model.language_model.embed_tokens.weight",
             Some(&[config.vocab_size, hidden]),
         )?;
-        let norm = sanitized_norm(&checkpoint, "model.language_model.norm.weight", &[hidden])?;
-        let head = Projection::load(&checkpoint, "lm_head", hidden, config.vocab_size, false)?;
+        let norm = sanitized_norm(checkpoint, "model.language_model.norm.weight", &[hidden])?;
+        let head = Projection::load(checkpoint, "lm_head", hidden, config.vocab_size, false)?;
         let rope_dims = (config.head_dim as f32 * config.partial_rotary_factor) as i32;
         let mut layers = Vec::with_capacity(config.num_hidden_layers);
         for (index, kind) in config.layer_types.iter().enumerate() {
             layers.push(match kind.as_str() {
                 "linear_attention" => Layer::Linear(Box::new(LinearLayer::load(
-                    &checkpoint,
+                    checkpoint,
                     index,
                     hidden,
                     config.linear_num_key_heads,
@@ -625,7 +630,7 @@ impl Qwen35Moe {
                     config.rms_norm_eps,
                 )?)),
                 "full_attention" => Layer::Attention(Box::new(AttentionLayer::load(
-                    &checkpoint,
+                    checkpoint,
                     index,
                     hidden,
                     config.num_attention_heads,

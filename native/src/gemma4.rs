@@ -184,9 +184,13 @@ impl Moe {
         expert_x: &Array,
         trace: Option<&mut Vec<(String, Array)>>,
     ) -> Result<Array> {
+        let [rows, hidden]: [i32; 2] = router_x
+            .shape()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Gemma router input must have rank 2"))?;
         ensure!(
-            router_x.shape() == [1, self.hidden] && expert_x.shape() == [1, self.hidden],
-            "Gemma MoE expects one token"
+            rows > 0 && hidden == self.hidden && expert_x.shape() == [rows, self.hidden],
+            "invalid Gemma MoE inputs"
         );
         let router_input = router_x.rms_norm(&self.router_norm, self.eps)?;
         let logits = self.router.forward(&router_input)?;
@@ -327,17 +331,18 @@ impl Attention {
     }
 
     fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+        let time = x.shape()[1];
         let q = self
             .q
             .forward(x)?
-            .reshape(&[1, 1, self.heads, self.head_dim])?
+            .reshape(&[1, time, self.heads, self.head_dim])?
             .rms_norm(&self.q_norm, self.eps)?
             .transpose(&[0, 2, 1, 3])?;
         let q = self.apply_rope(&q, offset)?;
         let raw_k = self
             .k
             .forward(x)?
-            .reshape(&[1, 1, self.kv_heads, self.head_dim])?;
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?;
         let k = raw_k
             .rms_norm(&self.k_norm, self.eps)?
             .transpose(&[0, 2, 1, 3])?;
@@ -345,7 +350,7 @@ impl Attention {
         let v = match &self.v {
             Some(value) => value
                 .forward(x)?
-                .reshape(&[1, 1, self.kv_heads, self.head_dim])?,
+                .reshape(&[1, time, self.kv_heads, self.head_dim])?,
             None => raw_k,
         }
         .rms_norm_without_weight(self.eps)?
@@ -365,9 +370,9 @@ impl Attention {
             keys = keys.slice(2, start, keys.shape()[2])?;
             values = values.slice(2, start, values.shape()[2])?;
         }
-        let attended = Array::sdpa(&q, &keys, &values, 1.0, false)?
+        let attended = Array::sdpa(&q, &keys, &values, 1.0, time > 1)?
             .transpose(&[0, 2, 1, 3])?
-            .reshape(&[1, 1, self.heads * self.head_dim])?;
+            .reshape(&[1, time, self.heads * self.head_dim])?;
         self.keys = Some(keys);
         self.values = Some(values);
         self.output.forward(&attended)
@@ -500,9 +505,10 @@ impl Layer {
             Ok(())
         }
 
+        let time = x.shape()[1];
         ensure!(
-            x.shape() == [1, 1, self.hidden],
-            "Gemma layer expects one token"
+            x.shape() == [1, time, self.hidden],
+            "invalid Gemma layer input"
         );
         let input_norm = x.rms_norm(&self.input_norm, self.eps)?;
         capture(&mut trace, "layer0.input_norm", &input_norm)?;
@@ -523,14 +529,14 @@ impl Layer {
         capture(&mut trace, "layer0.dense_norm", &dense)?;
         let routed_input = hidden
             .rms_norm(&self.pre_ff_norm_2, self.eps)?
-            .reshape(&[1, self.hidden])?;
+            .reshape(&[time, self.hidden])?;
         capture(&mut trace, "layer0.routed_input", &routed_input)?;
-        let router_x = hidden.reshape(&[1, self.hidden])?;
+        let router_x = hidden.reshape(&[time, self.hidden])?;
         let routed = match trace.as_deref_mut() {
             Some(trace) => self.moe.forward_trace(&router_x, &routed_input, trace)?,
             None => self.moe.forward(&router_x, &routed_input)?,
         }
-        .reshape(&[1, 1, self.hidden])?;
+        .reshape(&[1, time, self.hidden])?;
         capture(&mut trace, "layer0.routed_raw", &routed)?;
         let routed = routed.rms_norm(&self.post_ff_norm_2, self.eps)?;
         capture(&mut trace, "layer0.routed_norm", &routed)?;
@@ -557,11 +563,18 @@ pub struct Gemma4 {
     context_limit: i32,
     eps: f32,
     softcap: f32,
+    batch_limit: i32,
     offset: i32,
 }
 
 impl Gemma4 {
     pub fn load(path: &Path) -> Result<Self> {
+        let checkpoint = checkpoint::inspect(path)?;
+        Self::from_checkpoint(&checkpoint)
+    }
+
+    pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
+        let path = &checkpoint.path;
         let root: RootConfig = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         let config = root.text_config;
         ensure!(root.model_type == "gemma4", "expected Gemma 4");
@@ -584,19 +597,18 @@ impl Gemma4 {
                 && !config.rope_traditional,
             "unsupported Gemma 4 configuration"
         );
-        let checkpoint = checkpoint::inspect(path)?;
         let embeddings = half_weight(
-            &checkpoint,
+            checkpoint,
             "model.language_model.embed_tokens.weight",
             Some(&[config.vocab_size, config.hidden_size]),
         )?;
         let norm = norm(
-            &checkpoint,
+            checkpoint,
             "model.language_model.norm.weight",
             config.hidden_size,
         )?;
         let head = Projection::load_logical(
-            &checkpoint,
+            checkpoint,
             "lm_head",
             config.hidden_size,
             config.vocab_size,
@@ -604,7 +616,7 @@ impl Gemma4 {
         )?;
         let mut layers = Vec::with_capacity(config.num_hidden_layers);
         for index in 0..config.num_hidden_layers {
-            layers.push(Layer::load(&checkpoint, index, &config)?);
+            layers.push(Layer::load(checkpoint, index, &config)?);
         }
         Ok(Self {
             embeddings,
@@ -616,12 +628,25 @@ impl Gemma4 {
             context_limit: config.max_position_embeddings,
             eps: config.rms_norm_eps,
             softcap: config.final_logit_softcapping,
+            batch_limit: config.sliding_window,
             offset: 0,
         })
     }
 
     pub fn forward(&mut self, token: u32) -> Result<Array> {
-        match self.run(token, None) {
+        self.forward_tokens(&[token])
+    }
+
+    pub fn can_batch(&self, tokens: usize) -> bool {
+        tokens >= 24
+            && i32::try_from(tokens)
+                .ok()
+                .and_then(|time| self.offset.checked_add(time))
+                .is_some_and(|end| end <= self.batch_limit)
+    }
+
+    pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
+        match self.run(tokens, None) {
             Ok(logits) => Ok(logits),
             Err(error) => {
                 self.reset();
@@ -632,7 +657,7 @@ impl Gemma4 {
 
     pub fn forward_trace(&mut self, token: u32) -> Result<(Array, Vec<(String, Array)>)> {
         let mut trace = Vec::with_capacity(self.layers.len() + 1);
-        match self.run(token, Some(&mut trace)) {
+        match self.run(&[token], Some(&mut trace)) {
             Ok(logits) => Ok((logits, trace)),
             Err(error) => {
                 self.reset();
@@ -641,16 +666,36 @@ impl Gemma4 {
         }
     }
 
-    fn run(&mut self, token: u32, mut trace: Option<&mut Vec<(String, Array)>>) -> Result<Array> {
+    fn run(
+        &mut self,
+        tokens: &[u32],
+        mut trace: Option<&mut Vec<(String, Array)>>,
+    ) -> Result<Array> {
         ensure!(
-            token < self.vocab as u32,
+            tokens.len() == 1 || self.can_batch(tokens.len()),
+            "Gemma batches must contain one token or fit the sliding-attention window"
+        );
+        ensure!(
+            tokens.iter().all(|&token| token < self.vocab as u32),
             "Gemma token is outside vocabulary"
         );
-        ensure!(self.offset < self.context_limit, "Gemma context is full");
-        let id = Array::from_i32(&[token as i32], &[1, 1])?;
+        ensure!(
+            trace.is_none() || tokens.len() == 1,
+            "Gemma batch tracing is unsupported"
+        );
+        let time = i32::try_from(tokens.len()).context("Gemma batch is too large")?;
+        let next_offset = self
+            .offset
+            .checked_add(time)
+            .context("Gemma position overflow")?;
+        ensure!(next_offset <= self.context_limit, "Gemma context is full");
+        let ids = Array::from_i32(
+            &tokens.iter().map(|&token| token as i32).collect::<Vec<_>>(),
+            &[1, time],
+        )?;
         let mut hidden = self
             .embeddings
-            .take(&id, 0)?
+            .take(&ids, 0)?
             .scalar_mul((self.hidden as f32).sqrt())?;
         if let Some(trace) = trace.as_deref_mut() {
             trace.push(("model.embedding".into(), hidden.try_clone()?));
@@ -678,8 +723,8 @@ impl Gemma4 {
         if let Some(trace) = trace {
             trace.push(("model.raw_logits".into(), raw_logits.try_clone()?));
         }
-        let logits = raw_logits.softcap(self.softcap)?;
-        self.offset += 1;
+        let logits = raw_logits.slice(1, time - 1, time)?.softcap(self.softcap)?;
+        self.offset = next_offset;
         Ok(logits)
     }
 

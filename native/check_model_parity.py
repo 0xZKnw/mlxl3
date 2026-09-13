@@ -2,8 +2,8 @@
 
 Run only on a physical Apple GPU, with the same libmlx and checkpoint. Compares
 every logit, plus live recurrent/KV values when the native model exports them.
-Token-wise prefill on both sides isolates the architecture port; no speed claim
-is made.
+Token-wise execution is the default; ``--batch`` validates supported prefill paths.
+No speed claim is made.
 """
 from __future__ import annotations
 import argparse
@@ -23,6 +23,7 @@ def main():
     parser.add_argument("model", type=Path)
     parser.add_argument("--binary", type=Path, default=Path("target/release/mlxl3-rs"))
     parser.add_argument("--tokens", default="1,2,3,19,225,4096,17,7")
+    parser.add_argument("--batch", action="store_true")
     parser.add_argument("--ungrouped-reference", action="store_true",
         help="diagnostic only: disables Python QKV grouping, not production parity")
     args = parser.parse_args()
@@ -32,6 +33,10 @@ def main():
     tokens = [int(token) for token in args.tokens.split(",")]
     config = json.loads((args.model / "config.json").read_text())
     model_type = config["model_type"]
+    if args.batch:
+        assert model_type in ("gemma4", "lfm2", "lfm2_moe"), "unsupported batch parity model"
+        assert len(tokens) >= 24, "TensorOps batches need at least 24 tokens"
+    sequences = [tokens] if args.batch else [[token] for token in tokens]
     exact = model_type != "gemma4"
     compared = 0
     with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryFile(mode="w+") as errors:
@@ -39,8 +44,8 @@ def main():
         model, _, _ = load_exl3_model(args.model, lazy=False)
         cache = model.make_cache()
         state_names: list[list[str]] = []
-        for step, token in enumerate(tokens):
-            expected = model(mx.array([[token]], dtype=mx.int32), cache=cache)
+        for step, sequence in enumerate(sequences):
+            expected = model(mx.array([sequence], dtype=mx.int32), cache=cache)[:, -1:, :]
             mx.eval(expected)
             np.save(directory / f"logits-{step}.npy", np.asarray(expected))
             names = []
@@ -63,9 +68,12 @@ def main():
         command = [str(args.binary.resolve()), "forward", str(args.model), "--tokens", args.tokens]
         if model_type in ("lfm2", "lfm2_moe"):
             command.append("--states")
+        if args.batch:
+            command.append("--batch")
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors, text=True)
         try:
-            for step, token in enumerate(tokens):
+            for step, sequence in enumerate(sequences):
+                token = sequence[-1]
                 line = process.stdout.readline()
                 if not line:
                     errors.seek(0)

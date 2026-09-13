@@ -290,19 +290,24 @@ impl Attention {
     }
 
     fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("LFM2 attention input must have time")?;
+        ensure!(time > 0, "empty LFM2 attention input");
         let projections = self.qkv.forward(x)?;
         let q = projections[0]
-            .reshape(&[1, 1, self.heads, self.head_dim])?
+            .reshape(&[1, time, self.heads, self.head_dim])?
             .rms_norm(&self.q_norm, self.eps)?
             .transpose(&[0, 2, 1, 3])?
             .rope(self.head_dim, self.theta, offset)?;
         let k = projections[1]
-            .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .rms_norm(&self.k_norm, self.eps)?
             .transpose(&[0, 2, 1, 3])?
             .rope(self.head_dim, self.theta, offset)?;
         let v = projections[2]
-            .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .transpose(&[0, 2, 1, 3])?;
         let keys = match &self.keys {
             Some(previous) => Array::concatenate(&[previous, &k], 2)?,
@@ -312,10 +317,15 @@ impl Attention {
             Some(previous) => Array::concatenate(&[previous, &v], 2)?,
             None => v,
         };
-        // One query token can attend every cached position, including itself.
-        let out = Array::sdpa(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), false)?
-            .transpose(&[0, 2, 1, 3])?
-            .reshape(&[1, 1, self.heads * self.head_dim])?;
+        let out = Array::sdpa(
+            &q,
+            &keys,
+            &values,
+            (self.head_dim as f32).powf(-0.5),
+            time > 1,
+        )?
+        .transpose(&[0, 2, 1, 3])?
+        .reshape(&[1, time, self.heads * self.head_dim])?;
         self.keys = Some(keys);
         self.values = Some(values);
         self.output.forward(&out)
@@ -386,6 +396,11 @@ impl ShortConv {
     }
 
     fn forward(&mut self, x: &Array) -> Result<Array> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("LFM2 convolution input must have time")?;
+        ensure!(time > 0, "empty LFM2 convolution input");
         let bcx = self.input.forward(x)?;
         let b = bcx.slice(2, 0, self.dim)?;
         let c = bcx.slice(2, self.dim, 2 * self.dim)?;
@@ -400,7 +415,7 @@ impl ShortConv {
         if let Some(bias) = &self.bias {
             conv = conv.add(bias)?;
         }
-        self.state = Some(bx.slice(1, 1, self.length)?);
+        self.state = Some(bx.slice(1, time, time + self.length - 1)?);
         self.output.forward(&c.mul(&conv)?)
     }
 }
@@ -456,7 +471,8 @@ impl FeedForward {
                 scale,
                 dim,
             } => {
-                let x = x.reshape(&[1, *dim])?;
+                let time = *x.shape().get(1).context("LFM2 MoE input must have time")?;
+                let x = x.reshape(&[time, *dim])?;
                 let probabilities = gate.forward(&x)?.sigmoid()?;
                 let (selected, mut scores) = match expert_bias {
                     Some(bias) => router::topk_biased(&probabilities, bias, *top_k)?,
@@ -470,7 +486,7 @@ impl FeedForward {
                 }
                 experts
                     .forward(&x, &selected, &scores)?
-                    .reshape(&[1, 1, *dim])
+                    .reshape(&[1, time, *dim])
             }
         }
     }
@@ -605,6 +621,12 @@ pub struct Lfm2 {
 
 impl Lfm2 {
     pub fn load(path: &Path) -> Result<Self> {
+        let checkpoint = checkpoint::inspect(path)?;
+        Self::from_checkpoint(&checkpoint)
+    }
+
+    pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
+        let path = &checkpoint.path;
         let config: Config = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         ensure!(
             config.model_type == "lfm2" || config.model_type == "lfm2_moe",
@@ -719,19 +741,18 @@ impl Lfm2 {
             attention.iter().all(|&i| i < config.num_hidden_layers),
             "invalid LFM2 attention index"
         );
-        let checkpoint = checkpoint::inspect(path)?;
         let dim = config.hidden_size;
         let embeddings = half_weight(
-            &checkpoint,
+            checkpoint,
             "model.embed_tokens.weight",
             Some(&[config.vocab_size, dim]),
         )?;
-        let norm = half_weight(&checkpoint, "model.embedding_norm.weight", Some(&[dim]))?;
+        let norm = half_weight(checkpoint, "model.embedding_norm.weight", Some(&[dim]))?;
         let head = if checkpoint.modules.iter().any(|name| name == "lm_head")
             || checkpoint.tensors.contains_key("lm_head.weight")
         {
             Some(Projection::load(
-                &checkpoint,
+                checkpoint,
                 "lm_head",
                 dim,
                 config.vocab_size,
@@ -743,7 +764,7 @@ impl Lfm2 {
         let mut layers = Vec::with_capacity(config.num_hidden_layers);
         for index in 0..config.num_hidden_layers {
             layers.push(Layer::load(
-                &checkpoint,
+                checkpoint,
                 index,
                 &config,
                 attention.contains(&index),
@@ -763,28 +784,41 @@ impl Lfm2 {
         })
     }
 
-    /// Consumes one token and returns logits shaped [1, 1, vocabulary].
-    /// Call repeatedly for prompt ingestion; batched prefill is not implemented.
+    pub fn supports_batched_prefill(&self) -> bool {
+        self.layers
+            .iter()
+            .all(|layer| matches!(&layer.feed_forward, FeedForward::Dense { .. }))
+    }
+
+    /// Consumes one token for decode, or at least 24 tokens for dense TensorOps prefill.
     pub fn forward(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(
-            tokens.len() == 1,
-            "native LFM2 currently accepts exactly one token per forward"
+            tokens.len() == 1 || tokens.len() >= 24,
+            "LFM2 batches must contain one token or at least 24 tokens"
         );
         ensure!(
-            tokens[0] < self.vocab_size as u32,
+            tokens.len() == 1 || self.supports_batched_prefill(),
+            "batched LFM2 prefill currently requires dense feed-forward layers"
+        );
+        ensure!(
+            tokens.iter().all(|&token| token < self.vocab_size as u32),
             "LFM2 token is outside vocabulary"
         );
+        let time = i32::try_from(tokens.len()).context("LFM2 batch is too large")?;
         ensure!(
-            self.offset < self.context_limit,
+            self.offset <= self.context_limit - time,
             "LFM2 context is full ({} tokens); reset the model cache before continuing",
             self.context_limit
         );
         let result = (|| -> Result<Array> {
             let next_offset = self
                 .offset
-                .checked_add(1)
+                .checked_add(time)
                 .context("LFM2 position overflow")?;
-            let ids = Array::from_i32(&[tokens[0] as i32], &[1, 1])?;
+            let ids = Array::from_i32(
+                &tokens.iter().map(|&token| token as i32).collect::<Vec<_>>(),
+                &[1, time],
+            )?;
             let mut hidden = self.embeddings.take(&ids, 0)?;
             for layer in &mut self.layers {
                 hidden = layer.forward(&hidden, self.offset)?;
@@ -793,7 +827,8 @@ impl Lfm2 {
             let logits = match &self.head {
                 Some(head) => head.forward(&hidden)?,
                 None => hidden.matmul(&self.embeddings.transpose(&[1, 0])?)?,
-            };
+            }
+            .slice(1, time - 1, time)?;
             self.offset = next_offset;
             Ok(logits)
         })();

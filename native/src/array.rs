@@ -2,7 +2,9 @@
 use anyhow::{Context, Result, bail, ensure};
 use std::{
     ffi::{CStr, CString, c_char, c_void},
+    fs::File,
     marker::PhantomData,
+    os::fd::AsRawFd,
     ptr::NonNull,
     rc::Rc,
     sync::OnceLock,
@@ -73,6 +75,24 @@ unsafe extern "C" {
         dims: *const i32,
         rank: usize,
         dtype: i32,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_array_from_file(
+        fd: i32,
+        offset: u64,
+        dims: *const i32,
+        rank: usize,
+        dtype: i32,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_arrays_from_files(
+        fds: *const i32,
+        offsets: *const u64,
+        dims: *const i32,
+        ranks: *const usize,
+        dtypes: *const i32,
+        count: usize,
+        workers: usize,
         out: *mut *mut c_void,
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
@@ -267,6 +287,77 @@ impl Array {
                 out,
             )
         })
+    }
+    pub fn from_file(file: &File, offset: u64, shape: &[i32], dtype: Dtype) -> Result<Self> {
+        bytes_for(shape, dtype)?;
+        initialize()?;
+        Self::output(|out| unsafe {
+            mlxl3_array_from_file(
+                file.as_raw_fd(),
+                offset,
+                shape.as_ptr(),
+                shape.len(),
+                dtype as i32,
+                out,
+            )
+        })
+    }
+    pub fn from_files(
+        files: &[&File],
+        offsets: &[u64],
+        shapes: &[Vec<i32>],
+        dtypes: &[Dtype],
+        workers: usize,
+    ) -> Result<Vec<Self>> {
+        let count = files.len();
+        ensure!(
+            count == offsets.len() && count == shapes.len() && count == dtypes.len(),
+            "batched tensor metadata length mismatch"
+        );
+        if count == 0 {
+            return Ok(Vec::new());
+        }
+        let fds = files
+            .iter()
+            .map(|file| file.as_raw_fd())
+            .collect::<Vec<_>>();
+        let ranks = shapes.iter().map(Vec::len).collect::<Vec<_>>();
+        let dims = shapes.iter().flatten().copied().collect::<Vec<_>>();
+        let types = dtypes.iter().map(|&dtype| dtype as i32).collect::<Vec<_>>();
+        for (shape, &dtype) in shapes.iter().zip(dtypes) {
+            bytes_for(shape, dtype)?;
+            ensure!(
+                dtype != Dtype::Bool,
+                "batched boolean tensors are unsupported"
+            );
+        }
+        initialize()?;
+        let mut pointers = vec![std::ptr::null_mut(); count];
+        checked(unsafe {
+            mlxl3_arrays_from_files(
+                fds.as_ptr(),
+                offsets.as_ptr(),
+                dims.as_ptr(),
+                ranks.as_ptr(),
+                types.as_ptr(),
+                count,
+                workers,
+                pointers.as_mut_ptr(),
+            )
+        })?;
+        let mut arrays = Vec::with_capacity(count);
+        for (index, pointer) in pointers.iter().copied().enumerate() {
+            match Self::owned(pointer) {
+                Ok(array) => arrays.push(array),
+                Err(error) => {
+                    for &remaining in &pointers[index + 1..] {
+                        unsafe { mlxl3_array_free(remaining) };
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        Ok(arrays)
     }
     pub fn from_f16_bits(data: &[u16], shape: &[i32]) -> Result<Self> {
         Self::from_words(data, shape, Dtype::Float16)
@@ -631,6 +722,23 @@ mod tests {
     #[test]
     #[ignore = "requires Apple GPU; run explicitly outside sandbox"]
     fn native_array_and_kernel_smoke() -> Result<()> {
+        use std::io::Write;
+
+        let mut file = tempfile::tempfile()?;
+        file.write_all(&[9, 9, 1, 0, 0, 0, 2, 0, 0, 0])?;
+        assert_eq!(
+            Array::from_file(&file, 2, &[2], Dtype::UInt32)?.to_u32()?,
+            vec![1, 2]
+        );
+        let arrays = Array::from_files(
+            &[&file, &file],
+            &[2, 6],
+            &[vec![1], vec![1]],
+            &[Dtype::UInt32, Dtype::UInt32],
+            2,
+        )?;
+        assert_eq!(arrays[0].to_u32()?, vec![1]);
+        assert_eq!(arrays[1].to_u32()?, vec![2]);
         let a = Array::from_f32(&[1., 2., 3., 4.], &[2, 2])?;
         let b = a.transpose(&[1, 0])?;
         assert_eq!(b.to_f32()?, vec![1., 3., 2., 4.]);

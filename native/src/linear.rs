@@ -6,12 +6,8 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 
-pub fn checkpoint_array(checkpoint: &Checkpoint, name: &str) -> Result<Array> {
-    let info = checkpoint
-        .tensors
-        .get(name)
-        .with_context(|| format!("missing tensor {name}"))?;
-    let dtype = match info.dtype.as_str() {
+fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
+    Ok(match dtype {
         "F16" => Dtype::Float16,
         "BF16" => Dtype::BFloat16,
         "F32" => Dtype::Float32,
@@ -21,13 +17,70 @@ pub fn checkpoint_array(checkpoint: &Checkpoint, name: &str) -> Result<Array> {
         "I32" => Dtype::Int32,
         "BOOL" => Dtype::Bool,
         other => anyhow::bail!("unsupported model tensor dtype {other} ({name})"),
-    };
+    })
+}
+
+pub fn checkpoint_array(checkpoint: &Checkpoint, name: &str) -> Result<Array> {
+    let info = checkpoint
+        .tensors
+        .get(name)
+        .with_context(|| format!("missing tensor {name}"))?;
+    let dtype = checkpoint_dtype(&info.dtype, name)?;
     let shape = info
         .shape
         .iter()
         .map(|&n| i32::try_from(n))
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    Array::from_bytes(&info.read_bytes()?, &shape, dtype)
+    if dtype == Dtype::Bool {
+        return Array::from_bytes(&info.read_bytes()?, &shape, dtype);
+    }
+    let (file, offset) = info.source()?;
+    Array::from_file(file, offset, &shape, dtype)
+}
+
+pub fn checkpoint_arrays(
+    checkpoint: &Checkpoint,
+    names: &[String],
+    workers: usize,
+) -> Result<Vec<Array>> {
+    let infos = names
+        .iter()
+        .map(|name| {
+            checkpoint
+                .tensors
+                .get(name)
+                .with_context(|| format!("missing tensor {name}"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let dtypes = infos
+        .iter()
+        .zip(names)
+        .map(|(info, name)| checkpoint_dtype(&info.dtype, name))
+        .collect::<Result<Vec<_>>>()?;
+    ensure!(
+        dtypes.iter().all(|&dtype| dtype != Dtype::Bool),
+        "batched boolean tensors are unsupported"
+    );
+    let shapes = infos
+        .iter()
+        .map(|info| {
+            info.shape
+                .iter()
+                .map(|&n| i32::try_from(n))
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(Into::into)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let sources = infos
+        .iter()
+        .map(|info| info.source())
+        .collect::<Result<Vec<_>>>()?;
+    let files = sources.iter().map(|&(file, _)| file).collect::<Vec<_>>();
+    let offsets = sources
+        .iter()
+        .map(|&(_, offset)| offset)
+        .collect::<Vec<_>>();
+    Array::from_files(&files, &offsets, &shapes, &dtypes, workers)
 }
 
 pub struct Exl3Linear {

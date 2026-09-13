@@ -3,9 +3,26 @@ use crate::{
     array::{self, Array, Dtype},
     checkpoint::Checkpoint,
     codec::{self, Codebook},
-    linear::{checkpoint_array, codebook_header, expert_mapped},
+    linear::{checkpoint_arrays, codebook_header, expert_mapped},
 };
 use anyhow::{Context, Result, ensure};
+
+fn load_workers() -> Result<usize> {
+    if let Ok(value) = std::env::var("MLXL3_LOAD_THREADS") {
+        let workers = value
+            .parse::<usize>()
+            .context("MLXL3_LOAD_THREADS must be an integer")?;
+        ensure!(
+            (1..=32).contains(&workers),
+            "MLXL3_LOAD_THREADS must be 1..=32"
+        );
+        return Ok(workers);
+    }
+    Ok(std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .min(8))
+}
 
 fn butterfly<'a>(mut source: &'a str, mut target: &'a str, round_after_four: bool) -> String {
     let mut stages = String::new();
@@ -567,20 +584,21 @@ impl Exl3SwitchGlu {
             );
             cb = Some(mode);
         }
-        let scale = |name: &str, primary: &str, legacy: &str| {
+        let scale_name = |name: &str, primary: &str, legacy: &str| {
             let key = format!("{name}.{primary}");
-            let key = if checkpoint.tensors.contains_key(&key) {
+            if checkpoint.tensors.contains_key(&key) {
                 key
             } else {
                 format!("{name}.{legacy}")
-            };
-            checkpoint_array(checkpoint, &key)
+            }
         };
+        let workers = load_workers()?;
         let trellises = |names: &[String]| -> Result<Vec<Array>> {
-            names
+            let keys = names
                 .iter()
-                .map(|name| checkpoint_array(checkpoint, &format!("{name}.trellis")))
-                .collect()
+                .map(|name| format!("{name}.trellis"))
+                .collect::<Vec<_>>();
+            checkpoint_arrays(checkpoint, &keys, workers)
         };
         let mut gu_trellises = trellises(&gates)?;
         gu_trellises.extend(trellises(&ups)?);
@@ -588,21 +606,34 @@ impl Exl3SwitchGlu {
         let down_trellises = trellises(&downs)?;
         let down_trellis = Array::concatenate(&down_trellises.iter().collect::<Vec<_>>(), 1)?;
         let paired = |left: &[String], right: &[String], primary, legacy| -> Result<Array> {
+            let keys = left
+                .iter()
+                .zip(right)
+                .flat_map(|(a, b)| {
+                    [
+                        scale_name(a, primary, legacy),
+                        scale_name(b, primary, legacy),
+                    ]
+                })
+                .collect::<Vec<_>>();
+            let scales = checkpoint_arrays(checkpoint, &keys, workers)?;
             let mut rows = Vec::with_capacity(left.len());
-            for (a, b) in left.iter().zip(right) {
-                rows.push(Array::concatenate(
-                    &[&scale(a, primary, legacy)?, &scale(b, primary, legacy)?],
-                    0,
-                )?);
+            for pair in scales.as_chunks::<2>().0 {
+                rows.push(Array::concatenate(&[&pair[0], &pair[1]], 0)?);
             }
             let joined = Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?;
             let width = joined.shape()[0] / (experts * 2);
             joined.reshape(&[experts, 2, width])
         };
         let stacked = |names: &[String], primary, legacy| -> Result<Array> {
-            let rows = names
+            let keys = names
                 .iter()
-                .map(|name| scale(name, primary, legacy)?.reshape(&[1, -1]))
+                .map(|name| scale_name(name, primary, legacy))
+                .collect::<Vec<_>>();
+            let scales = checkpoint_arrays(checkpoint, &keys, workers)?;
+            let rows = scales
+                .iter()
+                .map(|scale| scale.reshape(&[1, -1]))
                 .collect::<Result<Vec<_>>>()?;
             Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)
         };

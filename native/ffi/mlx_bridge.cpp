@@ -1,6 +1,9 @@
 // Thin, exception-contained C ABI over the same MLX backend as the reference.
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <cerrno>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <map>
@@ -8,8 +11,10 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <tuple>
 #include <vector>
+#include <unistd.h>
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -63,6 +68,32 @@ size_t byte_count(const mx::Shape& s, mx::Dtype dt) {
   }
   return bytes;
 }
+std::unique_ptr<mx::array> allocated_array(mx::Shape s, mx::Dtype dt) {
+  auto buffer = mx::allocator::malloc(byte_count(s, dt));
+  try {
+    return std::make_unique<mx::array>(buffer, std::move(s), dt);
+  } catch (...) {
+    mx::allocator::free(buffer);
+    throw;
+  }
+}
+void pread_exact(int fd, uint64_t offset, mx::array& output) {
+  auto count = output.nbytes();
+  auto max_offset = uint64_t(std::numeric_limits<off_t>::max());
+  if (offset > max_offset || count > max_offset - offset)
+    throw std::overflow_error("tensor file offset overflow");
+  size_t done = 0;
+  while (done < count) {
+    auto read = ::pread(fd, output.data<uint8_t>() + done, count - done,
+                        off_t(offset + done));
+    if (read < 0 && errno == EINTR) continue;
+    if (read < 0)
+      throw std::runtime_error(std::string("pread failed: ") + std::strerror(errno));
+    if (read == 0)
+      throw std::runtime_error("checkpoint was truncated during tensor read");
+    done += size_t(read);
+  }
+}
 std::vector<mx::array> arrays(void* const* p, size_t n) {
   std::vector<mx::array> result;
   result.reserve(n);
@@ -104,15 +135,57 @@ int mlxl3_array_from_bytes(const uint8_t* bytes, size_t count, const int32_t* di
   return protect([&] {
     auto s = shape(dims, rank); auto dt = dtype(type);
     if (byte_count(s, dt) != count) throw std::invalid_argument("tensor byte count mismatch");
-    // Copy into MLX-owned storage; the Rust input slice may be freed immediately.
-    struct OwnedBuffer {
-      mx::allocator::Buffer value;
-      bool transferred = false;
-      ~OwnedBuffer() { if (!transferred) mx::allocator::free(value); }
-    } buffer{mx::allocator::malloc(count)};
-    if (count) std::memcpy(buffer.value.raw_ptr(), bytes, count);
-    *out = new mx::array(buffer.value, std::move(s), dt);
-    buffer.transferred = true;
+    auto output = allocated_array(std::move(s), dt);
+    if (count) std::memcpy(output->data<uint8_t>(), bytes, count);
+    *out = output.release();
+  });
+}
+int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
+                         size_t rank, int type, void** out) noexcept {
+  return protect([&] {
+    auto output = allocated_array(shape(dims, rank), dtype(type));
+    pread_exact(fd, offset, *output);
+    *out = output.release();
+  });
+}
+int mlxl3_arrays_from_files(const int* fds, const uint64_t* offsets,
+                            const int32_t* dims, const size_t* ranks,
+                            const int* types, size_t count, size_t workers,
+                            void** out) noexcept {
+  return protect([&] {
+    if ((!fds || !offsets || !ranks || !types || !out) && count)
+      throw std::invalid_argument("null batched tensor metadata");
+    std::vector<std::unique_ptr<mx::array>> outputs;
+    outputs.reserve(count);
+    size_t dim_offset = 0;
+    for (size_t i = 0; i < count; ++i) {
+      outputs.push_back(allocated_array(shape(dims + dim_offset, ranks[i]), dtype(types[i])));
+      dim_offset += ranks[i];
+    }
+    std::atomic<size_t> next{0};
+    std::atomic<bool> stopped{false};
+    std::mutex error_mutex;
+    std::exception_ptr error;
+    auto read_next = [&] {
+      while (!stopped.load(std::memory_order_relaxed)) {
+        auto i = next.fetch_add(1, std::memory_order_relaxed);
+        if (i >= count) return;
+        try {
+          pread_exact(fds[i], offsets[i], *outputs[i]);
+        } catch (...) {
+          stopped.store(true, std::memory_order_relaxed);
+          std::lock_guard lock(error_mutex);
+          if (!error) error = std::current_exception();
+        }
+      }
+    };
+    auto thread_count = std::min(count, std::max<size_t>(1, workers));
+    std::vector<std::jthread> threads;
+    threads.reserve(thread_count);
+    for (size_t i = 0; i < thread_count; ++i) threads.emplace_back(read_next);
+    threads.clear();
+    if (error) std::rethrow_exception(error);
+    for (size_t i = 0; i < count; ++i) out[i] = outputs[i].release();
   });
 }
 int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) noexcept {

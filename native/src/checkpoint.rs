@@ -98,23 +98,33 @@ pub fn read_header(path: &Path) -> Result<BTreeMap<String, TensorInfo>> {
 }
 
 impl TensorInfo {
-    pub fn read_bytes(&self) -> Result<Vec<u8>> {
+    pub fn source(&self) -> Result<(&File, u64)> {
         let [start, end] = self.data_offsets;
         let file = self
             .handle
-            .as_ref()
+            .as_deref()
             .context("tensor has no inspected shard handle")?;
+        let absolute_end = self
+            .payload_offset
+            .checked_add(end)
+            .context("tensor file offset overflow")?;
         ensure!(
-            file.metadata()?.len() >= self.payload_offset + end,
+            file.metadata()?.len() >= absolute_end,
             "checkpoint was truncated after inspection"
         );
+        Ok((file, self.payload_offset + start))
+    }
+
+    pub fn read_bytes(&self) -> Result<Vec<u8>> {
+        let [start, end] = self.data_offsets;
+        let (file, offset) = self.source()?;
         let size = usize::try_from(end - start).context("tensor does not fit address space")?;
         let mut bytes = Vec::new();
         bytes
             .try_reserve_exact(size)
             .context("not enough memory for tensor")?;
         bytes.resize(size, 0);
-        file.read_exact_at(&mut bytes, self.payload_offset + start)?;
+        file.read_exact_at(&mut bytes, offset)?;
         Ok(bytes)
     }
 

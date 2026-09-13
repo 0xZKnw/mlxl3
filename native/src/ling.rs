@@ -676,6 +676,12 @@ pub struct Ling {
 
 impl Ling {
     pub fn load(path: &Path) -> Result<Self> {
+        let checkpoint = checkpoint::inspect(path)?;
+        Self::from_checkpoint(&checkpoint)
+    }
+
+    pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
+        let path = &checkpoint.path;
         let config: Config = serde_json::from_reader(File::open(path.join("config.json"))?)?;
         ensure!(
             config.model_type == "bailing_hybrid"
@@ -701,15 +707,14 @@ impl Ling {
                 && config.num_experts_per_tok <= config.num_experts as usize,
             "unsupported Ling/Bailing V3 configuration"
         );
-        let checkpoint = checkpoint::inspect(path)?;
         let embeddings = half_weight(
-            &checkpoint,
+            checkpoint,
             "model.word_embeddings.weight",
             Some(&[config.vocab_size, config.hidden_size]),
         )?;
-        let norm = norm(&checkpoint, "model.norm.weight", config.hidden_size)?;
+        let norm = norm(checkpoint, "model.norm.weight", config.hidden_size)?;
         let head = Projection::load(
-            &checkpoint,
+            checkpoint,
             "lm_head",
             config.hidden_size,
             config.vocab_size,
@@ -717,7 +722,7 @@ impl Ling {
         )?;
         let mut layers = Vec::with_capacity(config.num_hidden_layers);
         for index in 0..config.num_hidden_layers {
-            layers.push(Layer::load(&checkpoint, index, &config)?);
+            layers.push(Layer::load(checkpoint, index, &config)?);
         }
         Ok(Self {
             embeddings,

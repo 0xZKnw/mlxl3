@@ -1725,3 +1725,420 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
 - L'instrumentation benchmark processus→ready/première génération accompagne
   le changement. LOAD-04/05 restent documentés comme essais négatifs, sans
   code runtime résiduel. App installée et release inchangées à cet instant.
+
+### OPT-2026-09-13-RUST-LOAD-06 — Chargement commun sans copie intermédiaire — en cours
+
+- Demande : poursuivre les optimisations chargement/TTFT pour toutes les
+  architectures, pas uniquement Qwen. Le point commun réel est
+  `checkpoint_array`: chaque tenseur fait actuellement fichier → `Vec<u8>`
+  Rust → allocation MLX → `memcpy`, pour Gemma 4, LFM2/LFM2-MoE, Ling 3 et
+  Qwen3.5 dense/MoE.
+- Antécédents consultés : journal complet jusqu'à LOAD-05, rapports chargement
+  cités, diagnostic/production du skill inference-engineering. Les warmups
+  globaux LOAD-04/05 sont rejetés car ils déplacent plus de temps qu'ils n'en
+  retirent. Aucun essai historique trouvé pour une lecture directe dans le
+  buffer MLX natif.
+- Baseline/candidat : commit publié `f544027` (JSON déjà bufferisé). Modèles
+  locaux disponibles pour mesures : LFM2.5 1.2B Thinking 4 bpw, LFM2.5 2.6B
+  4 bpw et Qwen3.6 35B-A3B 2.49 bpw. Aucun checkpoint Gemma/Ling local : leur
+  chemin partagé sera couvert par tests/compilation mais aucun pourcentage ne
+  leur sera inventé.
+- Protocole baseline : bridge release, processus→ready, `load_seconds`, premier
+  TTFT puis tour chaud, un processus par modèle ; AC/thermique à relever.
+  Candidat prévu seulement après ces mesures : `pread` robuste directement
+  dans une allocation MLX avec la même validation de taille/inode/offset,
+  sans mmap, lazy loading ni changement de dtype. Parité octets/checkpoints,
+  14 contrats, build, puis mêmes trois bridges. Preuves sous
+  `build/rust-load-06-*`.
+- Baselines locales, batterie 85 % débranchée, aucun warning thermique :
+  LFM1.2 ready **0,719 s**, `load_seconds` **0,399 s**, premier TTFT 0,179 s,
+  chaud 0,254 s ; LFM2.6 ready **0,658 s**, `load_seconds` **0,644 s**,
+  premier TTFT 0,465 s, chaud 0,537 s. Pics poids rapportés 0,793/1,764 GB.
+  Qwen réutilise la mesure LOAD-03 au même code : ready 10,865 s,
+  `load_seconds` 10,533 s. Preuves `build/rust-load-06-lfm{12,26}-baseline.*`.
+- Lecture : les petits LFM sont déjà sous une seconde ; tout candidat commun
+  doit donc éviter une régression mesurable chez eux. Le surcoût Qwen n'est pas
+  uniquement proportionnel aux octets et inclut l'assemblage de ses experts.
+- Premier contrôle candidat : formatage, contrats **14/14** et build release
+  réussis. La commande du smoke GPU a sélectionné **0 test** car `--exact`
+  recevait le nom court et non le chemin de module ; aucun succès matériel ne
+  lui est attribué. Relancer seulement `array::tests::native_array_and_kernel_smoke`
+  avec `--lib`, puis benchmarker si la lecture offset/longueur est exacte.
+- Smoke GPU corrigé : **1/1 réussi**, y compris lecture de deux UInt32 à un
+  offset non nul depuis un fichier réel. Candidat LFM1.2 : ready **0,719 →
+  0,562 s** (−21,9 %), load **0,399 → 0,257 s** (−35,6 %). LFM2.6 : ready
+  **0,658 → 0,518 s** (−21,3 %), load **0,644 → 0,509 s** (−21,0 %).
+  Événements/textes des deux générations identiques. Les TTFT courtes fluctuent
+  dans les deux sens et aucun gain d'inférence n'est attribué à cette lecture.
+- Qwen face à la mesure de la veille : ready **10,865 → 11,166 s** et load
+  **10,533 → 10,816 s** (+2,7 %), tandis que TTFT/decode changent fortement de
+  palier sans changement de hash. Cette comparaison non alternée ne permet pas
+  d'attribuer la petite régression au candidat. Construire le commit `f544027`
+  dans un worktree/target séparé et mesurer baseline puis candidat immédiatement,
+  avant décision. Preuves `build/rust-load-06-*-candidate.*`.
+- A/B Qwen contemporain, baseline puis candidat : ready **9,145 → 7,625 s**
+  (**−16,61 %**) et load **8,469 → 7,251 s** (**−14,38 %**). Temps processus
+  total **13,34 → 9,70 s**, CPU système 3,13 → 2,66 s, RSS max hôte
+  3,742 → 2,549 GB. Hashes premier/chaud exacts respectivement
+  `620a...2877` et `8e004879...d19cf`; le TTFT change de palier et n'est pas
+  attribué à la lecture. Preuves `rust-load-06-qwen-{baseline,candidate}-recheck.*`.
+- Contrôle final enregistré avant décision : refaire le même A/B contemporain
+  sur les deux LFM rapides, où 0,1 s peut être sensible au cache de fichiers.
+  Conserver uniquement si ready/load restent non régressifs et hashes identiques.
+- A/B LFM contemporain réussi : LFM1.2 ready **0,304 → 0,144 s** (−52,7 %),
+  load **0,289 → 0,137 s** (−52,5 %) ; LFM2.6 ready **0,597 → 0,291 s**
+  (−51,3 %), load **0,588 → 0,284 s** (−51,8 %). Hashes premier prompt et
+  tour chaud strictement identiques pour les deux modèles. Preuves
+  `rust-load-06-lfm{12,26}-{baseline,candidate}-recheck.json`.
+- Décision : **validé, code local**. La lecture directe supprime une allocation
+  hôte et une copie de chaque tenseur, réduit le chargement sur trois tailles et
+  deux familles mesurées, et conserve le fallback validant les tenseurs BOOL.
+  Gemma/Ling compilent le même `checkpoint_array`, mais restent **non mesurés**
+  faute de checkpoint local. App installée et GitHub inchangés.
+
+### OPT-2026-09-13-RUST-LOAD-07 — Inspection unique du checkpoint — en cours
+
+- Hypothèse : le bridge inspecte le checkpoint pour ses métriques, puis chaque
+  loader d'architecture répète la même inspection avant les poids. LOAD-03 a
+  réduit ce scan à 0,32–0,66 s sur Qwen, mais il reste entièrement évitable et
+  concerne Gemma, LFM, Ling et Qwen.
+- Antécédents : LOAD-01 a établi le double appel ; LOAD-03 l'a bufferisé sans
+  le supprimer. Pas de cache global/stale : passer explicitement le
+  `Checkpoint` déjà validé aux loaders et garder leurs `load(path)` publics
+  comme wrappers pour les autres commandes/tests.
+- Baseline : code LOAD-06, A/B récents : Qwen ready 7,625 s/load 7,251 s ;
+  LFM1.2 0,144/0,137 s ; LFM2.6 0,291/0,284 s. Candidat : aucune modification
+  de poids, dtype, ordre de chargement ou kernels.
+- Protocole : 14 contrats, build, parités existantes si le chargement passe,
+  bridge des trois checkpoints, hashes exacts. Mesurer surtout Qwen ; sur les
+  LFM sub-seconde, marquer le résultat bruité plutôt que revendiquer des ms.
+- Build et contrats **14/14** réussis, trois checkpoints chargés et hashes
+  exacts. Mesure non alternée contre LOAD-06 : LFM1.2 ready 0,144 → 0,455 s,
+  LFM2.6 0,291 → 0,344 s, Qwen 7,625 → 8,422 s. Ces régressions contredisent
+  le travail supprimé et suivent un changement global de palier/cache ; elles
+  sont **non concluantes**.
+- Diagnostic enregistré avant exécution : ajouter temporairement au même
+  binaire un drapeau privé qui force l'ancienne seconde inspection, puis lancer
+  ancien/nouveau dans la même fenêtre sur les trois modèles. Retirer le drapeau
+  après mesure. Cela isole le seul changement sans reconstruire deux moteurs ni
+  conserver une option de production.
+- A/B dans le même binaire réussi : LFM1.2 double→simple inspection ready
+  **0,556 → 0,144 s**, load **0,243 → 0,137 s** ; LFM2.6 **0,492 → 0,298 s**,
+  load **0,484 → 0,290 s** ; Qwen **7,964 → 7,160 s**, load **7,640 →
+  6,841 s**. Les hashes premier/chaud restent exacts pour les trois modèles.
+  Preuves `build/rust-load-07-*-{repeat,single}-inspect.json`.
+- Décision : **validé, code local**. Le drapeau diagnostic a été entièrement
+  retiré ; le bridge passe désormais l'unique checkpoint aux quatre loaders.
+  Leurs API `load(path)` conservent inspection+validation pour tous les autres
+  appels. Gemma/Ling compilés mais non mesurés faute de poids locaux. App et
+  GitHub inchangés.
+
+### OPT-2026-09-13-RUST-LOAD-08 — Assemblage des poids MoE — diagnostic en cours
+
+- Hypothèse : après lecture directe et inspection unique, Qwen charge encore
+  en 6,84 s alors que les LFM denses sont sous 0,3 s. Le loader commun
+  `Exl3SwitchGlu` crée une Array MLX par tenseur de chaque expert, puis plusieurs
+  concaténations et matérialisations par couche ; Qwen répète cela pour 256
+  experts. Le même loader est utilisé par les MoE Qwen, LFM, Gemma et Ling.
+- Antécédents : LOAD-06 prouve que les copies fichier→Vec dominaient les modèles
+  denses mais pas tout Qwen. Les essais historiques MoE concernent les kernels
+  d'inférence, pas l'assemblage des poids au chargement.
+- Protocole diagnostic : échantillonner 5 s du bridge Qwen pendant le chargement
+  final LOAD-07, puis ne prototyper un pack direct qu'en présence de temps
+  significatif dans `concatenate`/allocations/copies. Aucune modification des
+  layouts ou du calcul avant cette preuve. Modèles Gemma/Ling non disponibles.
+- État intermédiaire : une première tentative de rebuild du binaire de profil
+  a été interrompue avant compilation, car `MLXL3_MLX_ROOT` n'était pas fourni.
+  Aucune mesure n'a été produite ; relance prévue avec MLX 0.32.2 explicite.
+- Résultat du diagnostic : bridge Qwen terminé correctement en **7,521 s**
+  (`build/rust-load-08-profile.out`). L'échantillonnage 5 s place `pread` en
+  tête avec **2 615** échantillons au sommet de pile ; les trois lectures des
+  treillis experts dans `Exl3SwitchGlu::from_checkpoint_names` représentent à
+  elles seules 607 + 594 + 576 échantillons visibles. Les concaténations et
+  attentes GPU restent très minoritaires devant les lectures fichier
+  (`build/rust-load-08-profile.sample.txt`).
+- Décision : **rejeté** pour le prototype de pack/concat demandé par
+  l'hypothèse initiale : il déplacerait les mêmes octets et ajouterait un
+  buffer hôte. Prochaine piste à documenter séparément : supprimer la copie
+  fichier→allocation MLX par mapping/chargement natif, si l'API MLX permet de
+  conserver correctement la durée de vie du stockage.
+- État d'intégration : diagnostic seulement ; aucun changement MoE appliqué.
+
+### OPT-2026-09-13-RUST-LOAD-09 — Poids mappés sans copie — en cours
+
+- Hypothèse : le chemin commun alloue une Array MLX puis copie chaque plage
+  safetensors avec `pread`. Sur les MoE à milliers de tenseurs, ces copies
+  dominent le chargement. Une vue MLX adossée à un mapping fichier pourrait
+  supprimer la copie et rendre le coût initial proportionnel aux pages
+  réellement touchées, sans changer les poids ni les kernels d'inférence.
+- Périmètre : loader EXL3 natif partagé par Qwen, LFM, Gemma et Ling ; aucun
+  chemin spécifique à une architecture.
+- Baseline : LOAD-07/08, Qwen ready **7,16–7,52 s**, LFM dense **0,14–0,30 s**.
+- Protocole : vérifier d'abord les constructeurs et garanties de durée de vie
+  de MLX 0.32.2. Si une API publique sûre existe, prototyper derrière le même
+  `checkpoint_array`, puis comparer A/B mêmes poids avec hashes de sortie,
+  temps ready/load, RAM processus et tests de contrat. Sinon marquer bloqué,
+  sans créer une abstraction propriétaire.
+- Résultat : **bloqué/rejeté sans prototype**. MLX expose bien un constructeur
+  de `array` sur pointeur utilisateur, mais son allocator Metal exige un buffer
+  externe réutilisable et les offsets safetensors ne donnent pas directement
+  un buffer page-aligné par tenseur. La discussion officielle MLX #615 décrit
+  le même conflit mmap/offset Metal et le déplacement imprévisible du coût vers
+  les page faults d'inférence. Notre chemin direct `pread` écrit déjà dans
+  l'allocation unifiée finale ; le mapping ajouterait ici durée de vie, vues et
+  risque de régression TTFT sans preuve d'un gain global.
+- Preuves : headers MLX 0.32.2 locaux `mlx/array.h`, `mlx/allocator.h` et source
+  allocator officielle `ml-explore/mlx`; discussion officielle
+  https://github.com/ml-explore/mlx/discussions/615.
+- État d'intégration : aucune modification mmap appliquée.
+
+### OPT-2026-09-13-RUST-LOAD-10 — Lecture MoE concurrente — validé
+
+- Hypothèse : LOAD-08 mesure un loader MoE essentiellement bloqué dans des
+  `pread` indépendants, exécutés aujourd'hui strictement en série. Quelques
+  workers stdlib peuvent maintenir plusieurs lectures SSD en vol et mieux
+  alimenter la mémoire unifiée, sans modifier les layouts ni les valeurs.
+- Périmètre : `Exl3SwitchGlu`, donc MoE Qwen, LFM, Gemma et Ling. Les modèles
+  denses conservent le loader direct LOAD-06.
+- Baseline : Qwen ready **7,16–7,52 s**, load **6,84–7,52 s** ; hashes de sortie
+  LOAD-07 exacts. Conditions thermiques non garanties, donc variantes alternées.
+- Protocole : helper local utilisant `std::thread::scope`, ordre de sortie
+  déterministe, calibration 1/2/4/8 workers via `MLXL3_LOAD_THREADS`. Comparer
+  au moins deux répétitions Qwen par variante, vérifier hashes first/warm,
+  contrats, smoke GPU et RAM. Garder uniquement un gain robuste ; 1 worker doit
+  rester un oracle fonctionnel.
+- Résultat matrice alternée (médiane de 2 lancements par variante) :
+  - 1 worker : ready **7,954 s**, load **7,446 s** ;
+  - 2 workers : ready **5,130 s**, load **4,738 s** ;
+  - 4 workers : ready **4,100 s**, load **3,716 s** ;
+  - 8 workers : ready **3,970 s**, load **3,568 s**.
+  Les 8 workers donnent **−50,09 % ready** et **−52,09 % load** face à
+  l'oracle 1 worker ; même 4→8 reste favorable (−3,16 % ready). Les hashes
+  first et warm sont identiques sur les 8 exécutions et la RAM moteur annoncée
+  reste identique à **13,064 GB**.
+- Preuves : `build/rust-load-10-qwen-{1,2,4,8}-{a,b}.json`. Les 14 contrats et
+  le smoke GPU batched/direct passent avant la matrice.
+- État intermédiaire : gain Qwen validé ; contrôle RSS hôte 1/8 workers et
+  non-régression des modèles locaux LFM encore à effectuer avant décision.
+- Contrôle `/usr/bin/time -l` : 1 worker **7,65 s**, **2 407 940 096 B** RSS
+  max ; 8 workers **3,90 s**, **2 439 561 216 B** RSS max. Le parallélisme
+  ajoute **31,6 MB / 1,31 %** de RSS hôte mesuré, sans modifier la RAM moteur,
+  pour −49,0 % de temps mur sur ce contrôle
+  (`build/rust-load-10-qwen-time-{1,8}.{out,txt}`).
+- Limite locale : les deux LFM disponibles sont denses ; ils vérifient le
+  chemin commun LOAD-06/07 mais n'exercent pas `Exl3SwitchGlu`. Gemma/Ling MoE
+  ne sont pas présents localement, donc leur bénéfice reste **non mesuré** et
+  ne doit pas être chiffré malgré le partage exact du loader.
+- Validation intermédiaire : suite Rust complète **33 tests passés**, 5 GPU/
+  tokenizer explicitement ignorés. Le premier `clippy -D warnings` a échoué
+  uniquement sur la préférence mécanique `chunks_exact(2)` →
+  `as_chunks::<2>()`; aucune exécution ou mesure affectée, correction prévue
+  avant relance.
+- Validation finale : défaut fixé à `min(cœurs disponibles, 8)`, surcharge
+  possible avec `MLXL3_LOAD_THREADS=1..32`. Qwen par défaut : ready **4,288 s**,
+  load **3,611 s**, hashes first/warm identiques à la matrice. LFM 1.2B et 2.6B
+  denses chargent et génèrent avec le même hash first que LOAD-07
+  (`build/rust-load-10-{qwen,lfm12,lfm26}-default.json`).
+- Contrôles finaux : `cargo fmt --check`, `clippy --all-targets -D warnings`,
+  build release, suite Rust **33 passés / 5 ignorés / 0 échec**, smoke GPU
+  direct+batché **1/1**, et parité MLX **190/190** bit-à-bit.
+- Décision : **validé**. Le gain mesuré porte sur Qwen MoE ; la même primitive
+  est intégrée aux loaders MoE LFM/Gemma/Ling mais reste non mesurée faute de
+  checkpoints locaux. Aucun gain n'est revendiqué pour leurs variantes denses.
+- État d'intégration : **code local uniquement** sur `codex/rust-performance` ;
+  app installée et GitHub inchangés, aucun push demandé à ce stade.
+
+### OPT-2026-09-13-RUST-PERF-16 — Prefill LFM2 multi-token — validé
+
+- Hypothèse : les LFM2 dense et MoE passent encore chaque token du prompt dans
+  le modèle séparément, alors que les projections QMM, l'attention causale,
+  ShortConv et le SwitchGLU segmenté acceptent déjà plusieurs lignes. Faire
+  traverser un bloc complet doit amortir les poids et les dispatchs sans toucher
+  au decode `M=1`, aux poids, au sampling ni à la précision.
+- Antécédents consultés : journal complet jusqu'à LOAD-10, rapports decode,
+  runtime et prefill cités à sa racine, ainsi que l'implémentation LFM2/LMF2-MoE
+  de MLX-LM 0.32.0. PERF-11 a rejeté l'accumulation paresseuse de QMV ; le présent
+  essai utilise le QMM multi-row validé par PERF-12/13 et ne le répète pas.
+- Baseline/candidat : branche locale `codex/rust-performance`, HEAD `f544027`
+  plus LOAD-06/07/10 validés non commités. Modèles locaux LFM2.5 1.2B Thinking
+  4 bpw, LFM2.5 2.6B 4 bpw et LFM2.5 8B-A1B MoE 3.10 bpw. Baseline = chunks de
+  1 ; candidat = même chemin par blocs, avec QMV conservé pour le decode.
+- Environnement : Apple M5 24 Gio, macOS local, MLX 0.32.2, batterie 96 %
+  débranchée, aucun avertissement thermique/performance ; fréquences non
+  instrumentées. Aucun autre moteur MLXL3 actif au départ.
+- Protocole : bridge résident, prompt français fixe répété, 64 tokens greedy,
+  un warmup exclu puis trois répétitions. Relever tokens réels, prefill, TTFT,
+  decode, hash et pic pour les trois modèles. Avant le benchmark candidat,
+  comparer une continuation forcée sérielle/batchée, logits et tous caches
+  bit-à-bit ; tester notamment le décalage causal attention et la fenêtre
+  ShortConv. Preuves sous `build/rust-perf-16-*`.
+- Baselines, trois tours chauds : LFM1.2, 217 tokens de prompt, **91,87 tok/s
+  prefill**, **2,3622 s TTFT**, **107,40 tok/s decode**, pic 0,793 GB ; LFM2.6,
+  202 tokens, **46,62 tok/s**, **4,3336 s**, **54,89 tok/s**, pic 1,764 GB ;
+  LFM8 MoE, 201 tokens, **73,29 tok/s**, **2,7427 s**, **102,96 tok/s**, pic
+  3,942 GB. Les trois hashes sont stables entre répétitions pour chaque modèle.
+  Preuves `build/rust-perf-16-lfm{12,26,8}-baseline.json`.
+- État : **en cours**. Baseline validée ; aucun candidat encore compilé.
+  Intégration : essai local ; app et GitHub inchangés.
+- Premier contrôle interrompu avant compilation : `cargo fmt --check` demande
+  uniquement la mise en forme standard de deux chaînes d'appels LFM. Aucun
+  test, modèle ou benchmark candidat n'a été exécuté. Appliquer le formateur
+  officiel puis reprendre le même build, sans changement du protocole.
+- Build release candidat réussi. Premier contrôle batch LFM1.2 face au modèle
+  Python batché : tous les caches exportés passent bit-à-bit, mais 118/65 536
+  logits finaux diffèrent d'un bit FP16. Le Python projette les 32 positions du
+  head puis sélectionne la dernière ; le Rust sélectionne d'abord la dernière
+  activation et garde le head QMV, ce qui change la partition QMM sans changer
+  le decode. Résultat **non concluant**, aucun benchmark candidat : comparer
+  maintenant batch Rust et référence Rust sérielle, logits et caches complets.
+- En projetant le head sur le bloc comme la production, LFM1.2 puis LFM2.6
+  passent chacun logits et tous caches bit-à-bit face au Python batché. LFM8
+  s'arrête avant calcul expert : le routeur biaisé Metal est artificiellement
+  limité à une ligne, bien que chaque SIMD group soit indépendant. Aucun
+  benchmark candidat. Étendre ce même kernel à une grille de lignes, puis
+  ajouter un cas multi-row à la matrice de parité avant de relancer LFM8.
+- Routeur biaisé multi-row validé bit-à-bit dans la matrice MLX, qui passe
+  désormais **191/191** cas. LFM8 batch 32 franchit le routeur mais diverge au
+  premier cache observé de la couche attention 10 (296/32 768 octets), après
+  plusieurs couches MoE ; aucun benchmark lancé. Tester 64 tokens, seuil exact
+  du SwitchGLU segmenté déjà validé, afin de distinguer le fallback mappé
+  multi-row du chemin QMM segmenté avant toute modification supplémentaire.
+- Première commande 64 tokens interrompue avant chargement : `seq -s,` de BSD
+  a produit une liste avec séparateur final, refusée par le parseur du checker.
+  Aucun modèle/GPU exécuté et aucun résultat ; reconstruire la liste sans virgule
+  terminale puis reprendre strictement le même contrôle.
+- LFM8 à 64 tokens franchit le chemin segmenté mais diverge plus tard, au
+  cache attention de la couche 14 (9 309/65 536 octets). Le routage multi-row
+  est exact isolément ; la chaîne experte complète ne satisfait donc pas le
+  contrat batch strict de ce checkpoint. Décision : ne pas activer le batch
+  sur `lfm2_moe`, retirer l'extension de routeur devenue sans consommateur, et
+  mesurer seulement les LFM denses 1.2B/2.6B dont la parité complète passe.
+- Nettoyage appliqué : extension multi-row du routeur biaisé et son cas de test
+  retirés ; le batch est maintenant exposé uniquement si toutes les couches
+  feed-forward du LFM sont denses. Le LFM8 MoE reste sur les chunks de 1.
+- Contrôles après garde dense : LFM1.2 et LFM2.6, bloc de 32 tokens, logits et
+  tous caches **bit-à-bit** face à la production Python batchée ; LFM8 MoE,
+  huit étapes sérielles, logits et tous caches **bit-à-bit**. Build release
+  réussi ; seul l'avertissement `rust-objcopy`/`libLLVM.dylib` déjà connu reste.
+  Prochaine étape : benchmark candidat trois tours, puis contrôle long >256.
+- Benchmark candidat, même prompt/tokens/hashes et trois tours : LFM1.2
+  **91,87 → 2 059,59 tok/s prefill (+2 141,8 %)**, TTFT médian **2,3622 →
+  0,1055 s (-95,5 %)** ; LFM2.6 **46,62 → 836,59 tok/s (+1 694,6 %)**,
+  TTFT **4,3336 → 0,2417 s (-94,4 %)**. Les hashes des trois sorties de chaque
+  modèle sont identiques à la baseline. Decode observé +15,1 %/+7,4 %, mais
+  non revendiqué car le chemin decode n'a pas changé et les tours sont courts.
+- Contrôle LFM8 MoE non batché : même hash sur les trois tours ; prefill
+  **73,29 → 75,78 tok/s (+3,4 %)**, TTFT **2,7427 → 2,6526 s (-3,3 %)** et
+  decode +2,8 %, tous traités comme bruit/conditions. Pic inchangé pour les
+  trois modèles (0,793 / 1,764 / 3,942 GB). Preuves
+  `build/rust-perf-16-lfm{12,26,8}-{baseline,candidate}.json`.
+- Premier contrôle long interrompu avant tout chargement : la variable locale
+  `path` a écrasé le tableau spécial `$path` de zsh, rendant `python3`
+  introuvable. Aucun modèle, GPU ou résultat exécuté. Renommer cette variable
+  en `model_dir`, conserver strictement le prompt et relancer.
+- Contrôle long validé face au binaire baseline sauvegardé avant PERF-16 :
+  LFM1.2, 633 tokens donc trois chunks (256/256/121), **103,37 → 2 246,77
+  tok/s**, TTFT **6,1241 → 0,2820 s**, hash greedy identique ; LFM2.6, 586
+  tokens (256/256/74), **50,36 → 974,53 tok/s**, TTFT **11,6366 →
+  0,6016 s**, hash identique. Preuves
+  `build/rust-perf-16-lfm{12,26}-long-{baseline,candidate}.json`.
+- Contrôles finaux : `cargo fmt --check`, `clippy --all-targets -D warnings`,
+  suite Rust **33 passés / 5 ignorés / 0 échec**, matrice MLX **190/190**
+  bit-à-bit, `git diff --check`. Décision : **validé** pour LFM2 dense ; rejeté
+  explicitement pour LFM2-MoE faute de parité batch stricte. Le prefill/TTFT
+  dense bénéficie du QMM multi-token ; decode, sampling et poids sont inchangés.
+- État d'intégration : **code local uniquement** sur `codex/rust-performance` ;
+  CLI/app installée et GitHub inchangés, aucun push ni rebuild GUI demandé.
+
+### OPT-2026-09-13-RUST-PERF-17 — Prefill multi-token des architectures encore sérielles — validé Gemma
+
+- Hypothèse : Gemma4 et Ling passent encore les prompts token par token dans le
+  bridge. Au moins un de leurs chemins peut probablement réutiliser le QMM
+  multi-row, l'attention causale et les primitives récurrentes déjà présentes,
+  comme Qwen et LFM dense, sans nouveau format ni perte numérique.
+- Antécédents : journal complet relu ; PERF-12/13 ont validé QMM/Qwen et PERF-16
+  LFM dense, tandis que le batch LFM-MoE a été rejeté faute de parité de chaîne.
+  Aucun essai Gemma/Ling multi-token n'est documenté. Chercher d'abord les
+  contrats shape/state dans les deux runtimes et leur référence Python.
+- Baseline/candidat prévu : binaire release sauvegardé avant PERF-16 contre
+  branche locale courante ; premier checkpoint local compatible trouvé, prompt
+  fixe >256 tokens, greedy, un warmup et trois répétitions si le coût le permet.
+  Contrôle obligatoire avant mesure : logits et tous états bit-à-bit face à la
+  production Python ; abandon immédiat de toute architecture non exacte.
+- Environnement : Apple M5 24 Gio, MLX 0.32.2, batterie débranchée ; température
+  et fréquences non instrumentées. État : **en cours**, recherche de chemin
+  seulement ; aucune modification PERF-17 ni mesure à ce stade.
+- Checkpoints : Ling EXL3 complet absent (sources/plans seulement) ; Gemma4
+  26B-A4B EXL3 3,54 bpw disponible dans le cache de validation, 15,1 GB
+  résidents. Baseline Gemma, prompt fixe 82 tokens, 16 tokens greedy, un warmup
+  exclu puis trois tours : **39,84 tok/s prefill**, **2,0587 s TTFT**,
+  **32,85 tok/s decode**, hashes stables, chargement 4,748 s. Preuve
+  `build/rust-perf-17-gemma-baseline.json`.
+- Lecture du chemin : les projections, le routeur standard et le SwitchGLU
+  acceptent déjà plusieurs lignes ; les seules limites artificielles sont les
+  reshapes `time=1`, le masque SDPA, et le head final. Ling exige en revanche
+  un scan KDA récurrent multi-token absent : ne pas le refactorer dans cet essai.
+- Prototype Gemma limité à la fenêtre glissante (batch seulement tant que la
+  fin du bloc reste ≤1 024) : bloc de 32 tokens accepté par la référence de
+  production, même top-1, erreur absolue max ≤0,5 et KL ≤0,005 selon le contrat
+  Gemma existant. Le modèle a déjà une tolérance non bit-à-bit à cause du
+  groupement QKV ; aucun seuil n'a été relâché.
+- Benchmark candidat Gemma, mêmes 82 tokens, trois tours : **39,84 → 142,36
+  tok/s prefill (+257,4 %)**, TTFT **2,0587 → 0,5763 s (-72,0 %)**, decode
+  **32,85 → 32,66 tok/s (-0,6 %, bruit)**, pic inchangé 15,108 GB et les trois
+  hashes greedy sont identiques à la baseline. Preuve
+  `build/rust-perf-17-gemma-{baseline,candidate}.json`.
+- Contrôle long Gemma, 565 tokens (256/256/53), un tour : **35,59 → 126,51
+  tok/s prefill (+255,5 %)**, TTFT **15,8748 → 4,4663 s (-71,9 %)**, hash
+  greedy identique et pic inchangé. Preuves
+  `build/rust-perf-17-gemma-long-{baseline,candidate}.json`. Le batch est
+  volontairement plafonné à 1 024 tokens ; au-delà, le fallback sériel garde
+  la sémantique exacte de sliding attention sans ajouter un masque dédié.
+- Contrôle de frontière sliding, 1 117 tokens : les quatre premiers blocs sont
+  batchés puis les 93 derniers tokens repassent en sériel ; **32,39 → 68,02
+  tok/s prefill (+110,0 %)**, TTFT **34,4830 → 16,4225 s (-52,4 %)**, hash
+  greedy identique, pic inchangé. Preuves
+  `build/rust-perf-17-gemma-window-{baseline,candidate}.json`.
+- Contrôles finaux : parité Gemma batch 32 puis decode sériel 8 étapes contre
+  production (même top-1, max abs ≤0,5, KL ≤0,005), `cargo fmt --check`, clippy
+  strict, suite Rust **33 passés / 5 ignorés / 0 échec**, matrice MLX **190/190**
+  bit-à-bit et `git diff --check`. Décision : **validé pour Gemma4**. Ling reste
+  inchangé et non mesuré : aucun checkpoint EXL3 complet et son KDA exige un
+  scan causal dédié, donc aucun refactor spéculatif n'a été ajouté.
+- État d'intégration : **code local uniquement** sur `codex/rust-performance` ;
+  app installée et GitHub inchangés, aucun push/release demandé.
+
+### REL-2026-09-13 — Desktop v1.0.2 build 13 — en cours
+
+- Demande utilisateur : embarquer le moteur Rust optimisé courant dans la GUI,
+  pousser la nouvelle version, publier la release GitHub v1.0.2 et remplacer
+  l'application locale. Signature ad-hoc maintenue comme v1.0.1 ; aucun
+  certificat Developer ID/notarisation disponible.
+- Source prévue : branche `codex/rust-performance`, commits PERF-01 à LOAD-10,
+  PERF-16 LFM dense et PERF-17 Gemma validés. Versions Python/Info.plist/README
+  synchronisées sur 1.0.2, build 13. Le DMG doit embarquer le binaire Rust et
+  MLX 0.32.2, sans poids de modèle.
+- Validation prévue : contrôles Rust/MLX déjà verts, E2E protocole/Desktop,
+  build SDK26.5, manifeste sans changements suivis, signature stricte, montage
+  DMG, self-checks GUI et smoke réel via le runtime monté. Conserver l'app
+  installée précédente avant remplacement ; vérifier commit/tag/release et
+  empreintes locales/distantes. État : **en cours**, non publié/non installé.
+- Premier E2E local : tests Python **521 passés / 6 ignorés**, puis build Swift
+  interrompu par le SDK27 actif sans plugin `SwiftUIMacros.StateMacro`, défaut
+  de toolchain déjà documenté lors de v1.0.1. Aucun test Desktop n'a été exécuté
+  après cet échec et aucun artefact publié. Relancer le même E2E avec
+  `MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk`,
+  présent sur ce Mac ; aucune modification UI de contournement.
+- Reprise SDK26.5 réussie : build Swift, checks hardening/timeline/MCP/mémoire
+  Metal, callback bridge, rendu Markdown/code Unicode et transport CLI tous
+  passés. Les avertissements SwiftMath dépréciés et chemins framework CLT déjà
+  connus restent non bloquants. E2E source complet : **521 Python passés / 6
+  ignorés**, puis tous les contrôles Desktop passés. Publication toujours non
+  démarrée ; prochaine étape commit propre puis build du paquet final.
+- Le premier mini-check de cohérence de version a été interrompu avant lecture
+  des fichiers : le `python3` système ne fournit pas `tomllib`. `plutil` est
+  néanmoins passé. Aucun artefact/commit affecté ; relancer le même assert avec
+  la venv Python 3.12 déjà utilisée par la suite de tests.
+- Reprise Python 3.12 réussie : Info.plist, `pyproject.toml` et
+  `src/mlxl3/__init__.py` annoncent tous **1.0.2**, build **13** ; plist valide
+  et `git diff --check` propre.

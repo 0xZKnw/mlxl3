@@ -101,6 +101,8 @@ enum Command {
         tokens: Vec<u32>,
         #[arg(long)]
         states: bool,
+        #[arg(long)]
+        batch: bool,
     },
 }
 
@@ -945,9 +947,35 @@ fn run(cli: Cli) -> Result<()> {
             model,
             tokens,
             states,
+            batch,
         } => {
             let mut model = NativeChatModel::load(&model)?;
             let mut out = io::stdout().lock();
+            if batch {
+                let token = *tokens.last().context("empty token batch")?;
+                let logits = model.forward_many(&tokens)?;
+                let arrays = match (&model, states) {
+                    (NativeChatModel::Lfm2(model), true) => model
+                        .state_arrays()
+                        .into_iter()
+                        .map(|(name, array)| Ok((name, array.try_clone()?)))
+                        .collect::<Result<Vec<_>>>()?,
+                    _ => Vec::new(),
+                };
+                let state = arrays
+                    .into_iter()
+                    .map(|(name, array)| -> Result<_> {
+                        Ok(json!({"name": name, "shape": array.shape(), "data": array.to_bytes()?}))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                serde_json::to_writer(
+                    &mut out,
+                    &json!({"token":token,"logits":logits.to_f16_bits()?,"states":state}),
+                )?;
+                writeln!(out)?;
+                out.flush()?;
+                return Ok(());
+            }
             for token in tokens {
                 let (logits, arrays) = match (&mut model, states) {
                     (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
@@ -1214,15 +1242,24 @@ enum NativeChatModel {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 impl NativeChatModel {
     fn load(path: &std::path::Path) -> Result<Self> {
-        let config: serde_json::Value =
-            serde_json::from_reader(std::fs::File::open(path.join("config.json"))?)?;
-        match config["model_type"].as_str() {
-            Some("gemma4") => Ok(Self::Gemma4(mlxl3_native::gemma4::Gemma4::load(path)?)),
-            Some("bailing_hybrid") => Ok(Self::Ling(mlxl3_native::ling::Ling::load(path)?)),
-            Some("lfm2" | "lfm2_moe") => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::load(path)?)),
-            Some("qwen3_5" | "qwen3_5_moe") => {
-                Ok(Self::Qwen(mlxl3_native::qwen35::Qwen35Moe::load(path)?))
-            }
+        let checkpoint = checkpoint::inspect(path)?;
+        Self::from_checkpoint(&checkpoint)
+    }
+
+    fn from_checkpoint(checkpoint: &checkpoint::Checkpoint) -> Result<Self> {
+        match checkpoint.model_type.as_str() {
+            "gemma4" => Ok(Self::Gemma4(mlxl3_native::gemma4::Gemma4::from_checkpoint(
+                checkpoint,
+            )?)),
+            "bailing_hybrid" => Ok(Self::Ling(mlxl3_native::ling::Ling::from_checkpoint(
+                checkpoint,
+            )?)),
+            "lfm2" | "lfm2_moe" => Ok(Self::Lfm2(mlxl3_native::lfm2::Lfm2::from_checkpoint(
+                checkpoint,
+            )?)),
+            "qwen3_5" | "qwen3_5_moe" => Ok(Self::Qwen(
+                mlxl3_native::qwen35::Qwen35Moe::from_checkpoint(checkpoint)?,
+            )),
             other => bail!("native chat does not support model type {other:?}"),
         }
     }
@@ -1238,9 +1275,20 @@ impl NativeChatModel {
 
     fn forward_many(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         anyhow::ensure!(!tokens.is_empty(), "empty token batch");
-        if let (Self::Qwen(model), true) = (&mut *self, tokens.len() >= 24) {
-            return model.forward_tokens(tokens);
+        if tokens.len() >= 24 {
+            return match self {
+                Self::Gemma4(model) if model.can_batch(tokens.len()) => {
+                    model.forward_tokens(tokens)
+                }
+                Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
+                Self::Qwen(model) => model.forward_tokens(tokens),
+                Self::Gemma4(_) | Self::Lfm2(_) | Self::Ling(_) => self.forward_many_serial(tokens),
+            };
         }
+        self.forward_many_serial(tokens)
+    }
+
+    fn forward_many_serial(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         let mut output = None;
         for &token in tokens {
             output = Some(self.forward(token)?);
@@ -1249,10 +1297,11 @@ impl NativeChatModel {
     }
 
     fn prefill_chunk_size(&self) -> usize {
-        if matches!(self, Self::Qwen(_)) {
-            256
-        } else {
-            1
+        match self {
+            Self::Gemma4(_) => 256,
+            Self::Lfm2(model) if model.supports_batched_prefill() => 256,
+            Self::Qwen(_) => 256,
+            Self::Lfm2(_) | Self::Ling(_) => 1,
         }
     }
 
@@ -1777,7 +1826,7 @@ fn native_bridge(
     emit_event(json!({"type":"loading", "model":name}))?;
     let started = Instant::now();
     let tokenizer = ChatTokenizer::load(&path)?;
-    let mut model = NativeChatModel::load(&path)?;
+    let mut model = NativeChatModel::from_checkpoint(&checkpoint)?;
     let model_limit = model.context_limit();
     anyhow::ensure!(
         requested >= 0 && requested <= model_limit,
