@@ -1,6 +1,6 @@
 # mlxl3
 
-[Download MLXL3 Desktop v1.0.1](https://github.com/0xZKnw/mlxl3/releases/tag/v1.0.1)
+[Download MLXL3 Desktop v1.0.2](https://github.com/0xZKnw/mlxl3/releases/tag/v1.0.2)
 · [Compatibility and validation](docs/v1-validation.md)
 
 The standalone app requires **Apple Silicon and macOS 26.2+**. This release is
