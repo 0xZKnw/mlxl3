@@ -3,6 +3,7 @@ from pathlib import Path
 
 import mlx.core as mx
 import numpy as np
+import pytest
 
 
 def test_ling_expert_calibration_uses_each_experts_own_weights(tmp_path):
@@ -36,6 +37,7 @@ def test_ling_expert_calibration_uses_each_experts_own_weights(tmp_path):
 
 
 def test_measurement_groups_preserve_all_candidates(tmp_path):
+    pytest.importorskip("ponyexl3.convert.measure")
     adapter = runpy.run_path(str(Path(__file__).parents[1] / "scripts/quantize_ling.py"))
     groups = []
     def measure(source, plan, modules, **kwargs):
