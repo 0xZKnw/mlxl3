@@ -2169,3 +2169,446 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   récupérable sous
   `build/app-backups/MLXL3 Desktop-v1.0.1-before-v1.0.2.app`. Application laissée
   fermée. État final : **validé, publié et installé**.
+
+### CONV-2026-09-15-LING3-TINY-4BPW — reprise locale — validé localement
+
+- Demande : produire localement Ling 3.0 Tiny en EXL3 uniforme 4 bpw, sans QAT.
+  Source déjà complète : `models/source/Ling-3.0-tiny-HF`, révision documentée
+  `e3a47d5b986e7141b6efd62597d598ebb392060d`; sortie
+  `models/Ling-3.0-tiny-EXL3-4bpw`, travail `build/ling-4bpw`.
+- Reprise vérifiée avant lancement : 1 600/9 031 projections mesurées dans 50
+  checkpoints, 7 431 restantes. Les activations de calibration avaient été
+  nettoyées (18 fichiers seulement, aucun `complete.json`) et seront donc
+  régénérées ; les mesures existantes restent reprises par groupe exact de 32.
+- Protocole : recette documentée `scripts/quantize_ling.py`, K=4/MCG, 2 048
+  lignes réelles, deux séquences de 1 024 tokens, deux workers, backend Metal.
+  Après conversion : inventaire strict, chargement EXL3, perplexité tenue à
+  part contre BF16 sur les mêmes tokens, puis génération CLI. Aucun push HF
+  n'est demandé à ce stade.
+- ETA avant reprise : calibration ~15 min observées ; mesure restante ~108 min
+  d'après la médiane des 20 derniers groupes (0,871 s/projection), puis émission,
+  finalisation et validation estimées 45–90 min selon la réutilisation du cache
+  quantifié 6 Gio. Total annoncé **2 h 45 à 3 h 30**. Apple M5 24 Gio, environ
+  580 Gio libres ; `pmset` annonce alimentation secteur, batterie 83 % avec le
+  sous-état « discharging ». État : **en cours**, chiffres à remplacer par les
+  temps réels ; modèle final absent au lancement.
+- Premier lancement bloqué avant import MLX par le sandbox sans GPU ; aucun
+  calcul. Reprise hors sandbox autorisée, puis arrêt manuel à la demande après
+  6/24 couches de calibration pour chercher un chemin plus court. Aucun poids
+  final émis ; les checkpoints existants sont conservés.
+- Reprise du 16 septembre, **en cours avant lancement** : recette identique
+  ci-dessus avec bypass uniforme OPT-01, capture OPT-11 et scale expert 0,908
+  OPT-12, sur la révision source épinglée. Baseline de qualité BF16 déjà
+  mesurée : WikiText-2 test, 2 048 tokens, fenêtres 256, PPL 21,05421
+  (`build/ling-4bpw/source-perplexity.json`). Mesurer le temps de conversion
+  complet, puis inventaire strict, PPL EXL3 sur les mêmes données/fenêtres,
+  chargement et génération CLI. Estimation pilote ~55–60 min, **non mesurée**
+  sur modèle entier. M5/24 Gio, macOS local, ~557 Gio libres et secteur annoncé
+  (`pmset` indique toutefois « discharging » à 83 %) ; état thermique inconnu.
+  Commande : `.venv/bin/python scripts/quantize_ling.py --in-dir
+  models/source/Ling-3.0-tiny-HF --out-dir
+  models/Ling-3.0-tiny-EXL3-4bpw --work-dir build/ling-4bpw --bits 4
+  --head-bits 4 --calibration-rows 2048 --calibration-seq-len 1024
+  --max-workers 2 --search-backend metal`. Aucune publication demandée.
+- Résultat du 16 septembre : conversion complète **9 031/9 031 modules EXL3
+  K4/MCG**, aucun module omis, un shard HF standard, inventaire strict et
+  validation du checkpoint réussis. Modèle final :
+  `models/Ling-3.0-tiny-EXL3-4bpw` (4,1 Gio sur disque, ~4,4 Go décimaux) ;
+  travail/reprise : `build/ling-4bpw`. Durée murale observée **environ 92 min**
+  de lancement à la fin, contre 55–60 min estimées du pilote. Le Mac était
+  initialement en décharge malgré « AC Power » (83 → 35 %), puis en charge ;
+  état thermique non mesuré. Ne pas présenter la durée comme représentative
+  d'un Mac stable sur secteur ou additionner des gains pilotes.
+- Qualité tenue à part, mêmes 2 048 tokens WikiText-2 test, SHA256 de corpus
+  `173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08`,
+  fenêtres 256 et chunks d'exécution 128 : PPL BF16 **21,05421** → EXL3
+  **21,66936** (+2,92 %). Preuves : `build/ling-4bpw/source-perplexity.json`,
+  `build/ling-4bpw/exl3-perplexity.json`, `pipeline_summary.json` et
+  `pipeline_state.json`. KL et capacités larges non mesurés ; cette PPL ne
+  permet pas d'isoler l'effet du scale fixe OPT-12 par rapport à une autre
+  conversion K4.
+- Chargement CLI strict réussi (9 031 modules, 4,38 GB résidents dans ce run)
+  et génération de la réponse finale correcte « 7 + 5 égale 12. » ;
+  87,8 tok/s decode sur **un seul** prompt court, pas un benchmark comparatif.
+  Les limites 96/256 tokens tronquaient la réflexion avant la réponse ; le
+  test à 1 024 tokens s'est terminé naturellement après 424 tokens. Une
+  alerte `transformers` sur `bailing_hybrid` apparaît au chargement du
+  tokenizer mais n'empêche ni PPL ni génération. Enregistré dans le registre
+  local comme `ling3.0-tiny-4bpw` et visible dans `mlxl3 list` ; GUI non testé.
+  GitHub/HF inchangés. Quatre tests ciblés adaptateur/PPL réussis après run.
+
+### OPT-2026-09-15-QUANT-01 — plan uniforme sans mesure redondante — en cours
+
+- Hypothèse : avec `candidate_bits=[4]`, tête K=4 et unique shrinkage 0, la
+  phase `measure_ldlq_candidates` ne peut choisir aucun autre plan. Elle
+  quantifie pourtant 9 031 projections avant `convert_module_set`. Construire
+  directement le plan K=4 conserve exactement recette, activations, Hessienne,
+  LDLQ, codebook et poids, tout en laissant la passe d'émission quantifier une
+  seule fois et utiliser le groupement Metal gate/up existant.
+- Antécédents : optimisations Metal K=4 et préparation déjà intégrées ; ne pas
+  les retester. Aucun bypass uniforme trouvé dans le converter. La mesure Ling
+  interrompue avait 1 600 projections, médiane récente 0,871 s/projection ; son
+  score ne sert pas à une décision avec un seul candidat.
+- Baseline/candidat prévus : pipeline actuel contre détection automatique du
+  cas strictement uniforme entier, sur les 18 mêmes premières projections,
+  nouvelles sorties/work dirs, M5 24 Gio, secteur annoncé, backend Metal, deux
+  workers, mêmes 2 048 lignes. Contrôler K=4, tenseurs EXL3 valides et comparer
+  les empreintes d'une projection entre chemin mesuré et chemin direct. Si ce
+  garde qualité échoue, retirer. ETA complète révisée seulement après le pilote.
+- Une optimisation indépendante de stockage sera évaluée séparément : les
+  gate/up des 128 experts reçoivent exactement le même tableau d'activation ;
+  des hardlinks peuvent éviter les copies disque sans changer un octet lu. Ne
+  pas cumuler son gain avec le bypass avant mesure séparée.
+- Premier pilote direct, 18 projections (`build/ling-uniform-direct`,
+  `models/Ling-3.0-tiny-pilot-direct`) : plan `fixed_uniform`, **0 candidat
+  mesuré**, K=4 sur 18/18, calibration 12 s et pipeline 55 s d'après les mtimes.
+  Le pipeline a bien émis les 18 shards ; le processus a ensuite échoué au
+  validateur parce que le pilote demandait volontairement `--no-finalize`
+  (shards Pony incrémentaux, pas de shards HF standard). Ce n'est pas un crash
+  de quantification, mais le protocole sera relancé avec finalisation pour le
+  garde bout-en-bout. Tests du garde : **2 réussis** avec Metal ; compilation
+  et `diff --check` réussis.
+- Le triplet expert observé prend ~2,78 s (down 0,94 s, gate/up groupés 1,84 s),
+  mesuré par mtimes des shards. Extrapoler naïvement 2 944 experts donnerait
+  ~136 min : le bypass retire la mesure redondante mais ne suffit pas seul pour
+  viser <1 h. L'ancienne estimation d'émission 45–90 min est donc invalidée par
+  ce pilote et ne doit plus être citée.
+- Hardlinks gate/up implémentés localement, pas encore mesurés : un seul inode
+  par couche remplace jusqu'à 256 copies strictement identiques. Les 6 couches
+  interrompues occupent actuellement 10 Gio/2 200 fichiers et prouvent que le
+  coût disque est matériel. Validation prévue : test d'identité octet/inode et
+  nouveau pilote ; aucun gain temps n'est encore annoncé.
+- Contrôle hardlinks terminé : **2 tests réussis** (`test_ling_conversion_adapter`),
+  valeurs gate/up strictement égales et inode unique vérifié. Statut : validé
+  fonctionnellement, gain disque théorique/temps complet encore non mesuré.
+
+### OPT-2026-09-15-QUANT-02 — batch multi-experts Ling — en cours
+
+- Hypothèse : le coût dominant est désormais l'enchaînement de 2 944 minuscules
+  triplets experts, pas le calcul utile. `ldlq_quantize_group` sait déjà préparer
+  et chercher plusieurs matrices Metal ; évaluer des lots de plusieurs experts
+  de même shape/activation doit amortir dispatchs, synchronisations et lectures
+  de Hessienne sans changer K, codebook, ordre LDLQ ni sorties par module.
+- Baseline : expert 0 couche 1, K4, 2 048 lignes : 2,78 s pour down+gate+up sur
+  le pilote direct ci-dessus. Protocole prévu : lots 1/2/4 experts sur la même
+  couche et mêmes activations, empreintes exactes des tenseurs EXL3 contre lot 1,
+  mémoire processus surveillée ; conserver uniquement un lot strictement égal
+  et plus rapide. Aucun cumul/ETA <1 h avant ce contrôle.
+- Premier lot 4 experts (`build/ling-expert-batched`, limite 33 modules) : 10,20 s
+  pour down(4)+gate/up(8), soit **2,55 s/expert contre 2,78 s**, gain ~8,3 %.
+  Le reliquat de 2 experts donne 2,61 s/expert. Les tenseurs EXL3 de l'expert 0
+  sont **bit-identiques** au chemin lot 1 pour down/gate/up. Calibration 12 s,
+  émission+écriture 56 s, total 68 s ; fin attendue en erreur uniquement parce
+  que `--no-finalize` n'est pas accepté par le validateur MLXL3 post-pilote.
+- Hardlinks sur ce pilote : 199 Mo de tailles logiques mais **124 Mo occupés** ;
+  calibration toujours 12 s ici car seulement six experts. Gain stockage validé,
+  gain temps à mesurer à l'échelle complète. Le batching seul est conservable
+  mais ne suffit pas à <1 h ; prochaine piste : paralléliser la préparation/GSS
+  actuellement forcée à un seul worker pour `scale_mode=computed`, avec même
+  comparaison bit-à-bit et retour arrière si instable/régressif.
+- Variante préparation 4 workers : pilote identique limite 33 dans
+  `build/ling-expert-parallel`. Protocole complémentaire prévu après résultat :
+  profiler un expert isolé avec `PONYEXL3_CONVERT_TIMING=1` pour attribuer le
+  temps entre basis/GSS, Hessienne, LDL et boucle LDLQ avant tout nouveau kernel.
+- Résultat 4 workers : 14,84 s pour six experts contre 15,42 s, soit **+3,8 %**
+  sur le segment expert et 67,18 s contre 67,97 s bout-en-bout (**+1,2 %**).
+  Les 18 projections expert (six triplets) sont bit-identiques. Deux tests LDLQ
+  groupés réussis. Gain réel mais trop faible ; le profilage isolé décidera si
+  cette concurrence reste intégrée ou si elle doit être retirée.
+- Profil isolé K4 MCG : down 0,90 s (basis/GSS 0,48, LDLQ 0,38), gate 0,97 s
+  (basis/GSS 0,43, LDLQ 0,50) ; GPU actif 84–85 %, 45/109 appels. Les deux
+  moitiés sont donc matérielles. Prochain microbenchmark strict : 256 tiles K4
+  MCG, scratch 256 contre 512 MiB, 7 paires alternées, même entrée et parité
+  exacte. Motif nouveau malgré l'essai historique K6 négatif : les lots Ling
+  K4 font exactement 256 tiles, donc 512 MiB peut supprimer un dispatch sur
+  deux ; K6/shape lm_head ne validait pas cette géométrie.
+- Résultat 256 tiles, 7 paires : médiane 256 MiB 24,793 ms, 512 MiB
+  22,875 ms, soit **+8,38 %** sur le search microbenchmark ; sorties décodées
+  et états bit-identiques. Variante complémentaire prévue sur 384 tiles
+  (géométrie du lot down) à 256/512/768 MiB avant choix du budget ; aucun gain
+  projection/complet encore revendiqué.
+- Résultat 384 tiles, 6 paires : 256/512/768 MiB = 41,084/35,801/34,905 ms ;
+  **+15,0 %** à 768 MiB contre 256, parité exacte. Décision de test : conserver
+  256 MiB pour les modules seuls, autoriser 768 MiB uniquement dans le chemin
+  groupé multi-experts, puis relancer le pilote six experts. Le surcoût actif
+  maximal attendu est +512 MiB pendant le search groupé ; mesurer projection
+  complète avant intégration définitive.
+- Projection complète scratch 768 MiB : 14,709 s pour six experts contre
+  14,839 s, **+0,88 %** seulement, malgré parité bit-à-bit et deux tests Metal
+  réussis. Rejeté : +512 MiB actif ne vaut pas ce gain ; revenir au budget
+  256 MiB. Nouvelle piste exacte : vectoriser le GSS des membres d'un groupe.
+  Les 13 évaluations restent identiques par module, mais chaque ronde concatène
+  les échantillons en un appel Metal et re-sépare les MSE. Garde prévu : GSS
+  multi vs scalaire sur fonctions déterministes, puis 18 projections expert
+  bit-identiques contre `ling-expert-parallel` et timing du même pilote.
+- GSS vectorisé : 4 tests unitaires/Metal réussis et les 18 projections expert
+  sont bit-identiques, mais six experts prennent **15,459 s contre 14,839 s**
+  (−4,18 %) et le pilote 69,87 s contre 67,18 s. Rejeté et à retirer : la
+  concaténation agrandit les batches sans réduire assez le calcul par tile.
+  Ne pas cumuler ce résultat avec le batching multi-experts positif.
+
+### OPT-2026-09-15-QUANT-03 — récursion LDLQ Metal réellement batchée — en cours
+
+- Hypothèse : le lot actuel concatène la recherche treillis, mais exécute encore
+  compensation, mise à jour et `matmul` LDLQ dans une boucle Python par expert.
+  Le chemin officiel ExLlamaV3 `ldlq_batched` empile au contraire poids et
+  facteurs L de tenseurs de même forme et remplace ces produits par des BMM.
+  Porter uniquement ce chemin homogène vers `mx.matmul` batched doit réduire les
+  dispatchs sans changer l'algorithme, K, codebook, ordre de feedback ni qualité.
+- Baseline : `build/ling-expert-parallel`, six experts complets, **14,839 s**
+  entre premier et dernier shard expert ; pipeline pilote 67,18 s. Candidat :
+  mêmes 33 modules, activations, K4/MCG, 2 048 lignes, M5 24 Gio, backend Metal.
+  Contrôles requis : les 18 treillis/suh/svh experts bit-identiques, tests groupés,
+  mémoire MLX et temps du segment. Rejet immédiat si divergence ou régression.
+  Ce test ne promet pas encore <1 h ; l'ETA ne sera révisée qu'après mesure.
+- Résultat batch LDLQ empilé, six experts : **12,582 s** contre 14,839 s,
+  soit **−15,2 %** sur le segment (9,828 s entre premier et dernier shard).
+  Les 72 tenseurs expert comparés sont bit-identiques ; trois tests ciblés
+  Metal/driver réussissent. L'extrapolation des 2 944 experts reste ~103 min,
+  donc le chemin est validé mais ne suffit pas à l'objectif <1 h.
+- Variante suivante, avant essai : augmenter le lot homogène de 4 à 8 experts
+  (8 down, 16 gate/up) sur les 16 premiers experts de la même couche. Baseline
+  conservée ci-dessus ; contrôler la parité des six experts communs, le temps
+  par expert et l'absence d'explosion mémoire. Revenir aux petits lots si la
+  latence moyenne ne baisse pas.
+- Résultat lot 8 sur 16 experts : **33,956 s**, soit 2,122 s/expert contre
+  2,097 s/expert avec les petits lots (régression ~1,2 %). Les 72 tenseurs
+  communs restent bit-identiques. Variante rejetée ; limites revenues à 4 down
+  et 8 gate/up. Prochaine hypothèse : partager le calcul de Hessienne brute entre
+  gate/up qui lisent exactement les mêmes activations, puis appliquer la
+  transformation de signes propre à chaque `suh` sans refaire `X.T @ X`.
+- Variante ordonnancement, avant essai : le lot gate/up contient huit matrices
+  mais la préparation est plafonnée à quatre workers. Tester huit workers sur
+  le même pilote six experts et le même batch LDLQ empilé ; conserver seulement
+  si le segment bat 12,582 s avec 72 tenseurs identiques. Ce contrôle rapide
+  précède la refonte Hessienne, plus invasive.
+- Résultat huit workers : **14,696 s** contre 12,582 s (régression 16,8 %),
+  malgré 72 tenseurs bit-identiques. Rejeté et plafond remis à quatre : les
+  threads supplémentaires saturent la même file Metal au lieu de la remplir.
+
+### OPT-2026-09-15-QUANT-04 — recherche g-scale groupée en deux passes — en cours
+
+- Hypothèse : la préparation est dominée par la recherche dorée séquentielle,
+  13 recherches treillis et synchronisations par projection. Le quantificateur
+  ExLlamaV3 actuel remplace cela, pour les groupes homogènes, par une grille
+  grossière sous-échantillonnée puis une grille fine complète : deux lots Metal
+  pour tout le groupe. Porter ce schéma uniquement aux experts doit supprimer
+  la majorité des barrières sans QAT ni réduction de calibration.
+- Baseline : batch LDLQ empilé, six experts, **12,582 s**. Protocole candidat :
+  mêmes 33 modules/activations/K4, quatre experts par lot, grille amont 10+5,
+  comparer les métriques `inner_mse` module par module et les tenseurs/scales.
+  Puis, seulement si l'erreur agrégée n'augmente pas matériellement, estimer le
+  modèle complet. Ce chemin n'est pas censé rester bit-identique car il choisit
+  le minimum sur une grille globale plutôt qu'un minimum local de la recherche
+  dorée ; retour arrière si le gain qualité/temps n'est pas simultanément établi.
+- Résultat grille groupée : **11,862 s**, soit −5,7 % contre le batch LDLQ seul
+  et −20,1 % contre la baseline 14,839 s. `inner_rel_rms` moyen passe de
+  0,0883233 à 0,0883052 ; 8/18 projections s'améliorent, pire variation
+  individuelle +0,103 %. Statut provisoire : gain réel et métrique agrégée non
+  dégradée, mais tenseurs différents ; perplexité complète requise avant validation.
+- Variante suivante, avant essai : avec seulement deux barrières g-scale par
+  groupe, retester 8 experts (8 down, 16 gate/up) sur 16 experts. Le précédent
+  essai à gros lots utilisait encore la recherche dorée par module et ne répond
+  donc pas à cette nouvelle hypothèse. Comparer temps/expert et métriques aux
+  petits lots ; retour à 4/8 si la moyenne ne baisse pas.
+- Résultat gros lots avec grille : 16 experts en **31,857 s**, soit 1,991 s/expert
+  contre 1,977 s/expert en petits lots (régression 0,7 %). Rejeté ; limites
+  revenues à 4/8. La métrique moyenne sur ces 16 experts reste du même ordre
+  (0,0883553), mais les populations diffèrent donc elle ne sert pas de gain.
+
+### OPT-2026-09-15-QUANT-05 — attribution du temps groupé — en cours
+
+- Avant nouvel essai d'optimisation, mesurer séparément préparation (poids,
+  régularisation, Hessienne/LDL), g-scale groupé, allocation et récursion LDLQ
+  sur le pilote six experts désormais à 11,862 s. Ajouter uniquement quatre
+  compteurs de durée aux stats existantes, sans changer le calcul, puis retirer
+  ou conserver ces compteurs selon leur utilité. Cette mesure choisira le prochain
+  kernel ; aucune estimation <1 h ne sera faite sans identifier le poste dominant.
+- Résultat six experts, quatre groupes : préparation cumulée 0,312 s, g-scale
+  **4,983 s**, allocation 0,012 s, récursion LDLQ **6,513 s**. Les deux postes
+  Metal expliquent presque tout le segment 11,86 s ; la piste Hessienne/CPU est
+  abandonnée faute de plafond utile. Les compteurs restent locaux pour vérifier
+  les prochains essais et seront retirés si non nécessaires à la fin.
+
+### OPT-2026-09-15-QUANT-06 — g-scale sans packing jeté — en cours
+
+- Hypothèse : la grille g-scale appelle le chemin de conversion complet, qui
+  transforme les tiles, exécute la recherche, compacte les états en treillis puis
+  inverse la permutation ; seul le MSE est utilisé. Appeler directement le kernel
+  de recherche sur les tiles déjà permutées supprime packing et aller-retour sans
+  changer le score (la permutation préserve exactement la somme des carrés).
+- Baseline : g-scale cumulé 4,983 s, segment 11,862 s. Protocole : même pilote,
+  vérifier mêmes `regularize_g_scale`, mêmes 72 tenseurs expert et temps. Rejet
+  si un seul tenseur diffère ou si le g-scale ne baisse pas au-delà du bruit.
+- Résultat : g-scale **5,553 s** contre 4,983 s (+11,4 %), segment 12,513 s
+  contre 11,982 s sur la répétition instrumentée, et 6/72 tenseurs diffèrent
+  à cause de l'ordre numérique du scale/permutation. Rejeté ; chemin direct
+  précédent restauré. Ce résultat ne doit pas être cumulé avec les gains validés.
+
+### OPT-2026-09-16-QUANT-07 — supprimer les barrières LDLQ par feedback — validé en pilote
+
+- Hypothèse : le chemin empilé appelle `mx.eval` après chaque tranche de 16 rangs,
+  soit jusqu'à 96 barrières CPU/GPU pour un groupe gate/up de 1 536 rangs. Cette
+  barrière protège les très grandes matrices d'un graphe différé géant, mais les
+  experts empilés ne gardent que huit étapes dans le bloc borné de 128 rangs.
+  Évaluer une fois par bloc, comme la récursion device-side amont, doit supprimer
+  7/8 des synchronisations sans changer une opération ni son ordre de dépendance.
+- Baseline instrumentée : LDLQ cumulé **6,513 s**, segment 11,982 s sur la
+  répétition. Protocole : déplacer uniquement `mx.eval(packed,b_reconstructed)`
+  hors de la boucle feedback du chemin homogène ; mêmes 72 tenseurs bit-identiques,
+  mêmes scales et mémoire sous le seuil existant. Rejet à la moindre divergence.
+- Résultat : segment **10,988 s** contre 11,982 s (−8,3 %), LDLQ cumulé
+  5,940 s contre 6,513 s (−8,8 %), et **72/72 tenseurs bit-identiques**.
+  Trois tests ciblés Metal/driver passent. Validé sur le pilote ; estimation
+  experts complets ~90 min, donc l'objectif <1 h n'est pas encore atteint.
+
+### OPT-2026-09-16-QUANT-08 — barrière LDLQ tous les quatre blocs — rejeté
+
+- Hypothèse : après OPT-07, il reste une barrière par bloc de 128 rangs (4 pour
+  down, 12 pour gate/up). Les matrices expert empilées sont petites ; différer
+  quatre blocs conserve le même graphe/opérations et borne les temporaires à
+  quelques centaines de Mo, tout en divisant encore les synchronisations par 4.
+- Baseline : LDLQ 5,940 s, segment 10,988 s. Protocole identique, 72 tenseurs
+  exacts requis ; surveiller cache Metal et revenir à un bloc si mémoire ou
+  temps régressent. Aucun changement de `buf_size_rows` ni d'association matmul.
+- Résultat : **11,521 s** contre 10,988 s (+4,9 %), avec tenseurs exacts.
+  LDLQ 6,055 s contre 5,940 s et g-scale 4,923 s contre 4,575 s ; différer
+  davantage agrandit le graphe MLX sans accélérer le kernel. Rejeté, retour à
+  une barrière par bloc de 128 rangs.
+
+### OPT-2026-09-16-QUANT-09 — arithmétique K4 alignée sur CUDA — rejeté
+
+- Hypothèse : après les gains d'orchestration, g-scale (4,575 s) et LDLQ
+  (5,940 s) passent presque tout leur temps dans le même treillis K4. Le kernel
+  CUDA officiel charge la cible en FP16 et effectue différences/FMA/comparaisons
+  en `half2`, tandis que le port Metal conserve ces calculs en `float2`. Une
+  variante Metal K4/MCG strictement calée sur cette arithmétique amont peut
+  exploiter le débit FP16 du M5 et viser les ~1,5x encore nécessaires.
+- Antécédents : les variantes exactes de lookup, vecteurs, threadgroups,
+  compactage et scratch du rapport Metal sont déjà épuisées et ne seront pas
+  répétées. Le mode `fast math` avait divergé et reste exclu. Cette variante est
+  nouvelle mais ne promet pas la bit-identité avec le chemin Metal FP32 ; elle
+  doit d'abord égaler le comportement numérique du quantificateur CUDA officiel.
+- Baseline : noyau local K4/MCG actuel, puis pilote Ling six experts à
+  **10,988 s** (72 tenseurs exacts contre son propre chemin scalaire). Candidat :
+  même lookup/codebook, tail-biting, tie-break et calibration, seuls target,
+  erreur et coûts passent par l'arithmétique half2 de l'amont.
+- Protocole : microbenchmark 256/384 tiles en paires alternées, puis le même
+  pilote 33 modules. Comparer `inner_rel_rms` par projection et agrégé ; ne pas
+  intégrer ni annoncer une absence de perte avant perplexité BF16/EXL3 sur les
+  mêmes tokens. Rejet si le débit ne permet pas plausiblement <1 h ou si les
+  métriques se dégradent matériellement. M5 24 Gio, MLX 0.32.2, conditions
+  thermiques non contrôlées ; aucune publication.
+- Résultat microbenchmark, sept paires alternées : 256 tiles
+  **25,161 → 23,757 ms** (+5,9 %) ; 384 tiles **38,039 → 37,146 ms** (+2,4 %).
+  Le MSE synthétique est quasi inchangé/légèrement meilleur, mais seulement
+  93,8 % des états correspondent au chemin FP32. Le plafond de 2–6 % sur le
+  search ne peut pas faire passer l'estimation complète de ~90 à <60 min et
+  imposerait tout de même une validation perplexité complète. Variante rejetée
+  avant le pilote modèle ; aucun poids produit, chemin FP32 restauré.
+
+### OPT-2026-09-16-QUANT-10 — scale représentatif par lot expert — remplacé
+
+- Hypothèse : les 18 experts du pilote choisissent des g-scales très proches
+  (0,8981–0,9148, moyenne 0,9070, écart-type 0,0048). Chercher 15 candidats sur
+  le premier membre de chaque lot homogène puis réutiliser son scale pour les
+  3/7 autres membres réduirait de 75–87,5 % le poste g-scale, actuellement 42 %
+  du segment. Le treillis LDLQ final, Hessienne et calibration restent complets.
+- Antécédents : ce n'est ni `skip_g_scale=1` (scale fixe 1,0), ni la grille
+  groupée OPT-04 qui cherche encore 15 candidats par projection. Aucun essai de
+  scale représentatif trouvé. Les scales observés justifient un pilote, pas une
+  conclusion de qualité.
+- Baseline/candidat : mêmes six experts et 33 modules que OPT-07, baseline
+  **10,988 s**, `inner_rel_rms` moyen expert à recalculer depuis le résumé.
+  Candidat expérimental activé uniquement par environnement ; premier scale du
+  lot appliqué aux autres bases, diagnostics de recherche marqués non mesurés.
+- Protocole : mesurer segment/g-scale/LDLQ et comparer `inner_rel_rms` des 18
+  projections à OPT-07. Si la moyenne/pire dérivent matériellement, rejeter. Si
+  le temps rend <1 h plausible, conserver seulement après perplexité complète
+  BF16/EXL3 identique en corpus/tokens. M5 24 Gio, aucune publication.
+- Résultat pilote : sommes des quatre groupes préparation/g-scale/LDLQ
+  **0,304/4,575/5,940 → 0,269/0,944/5,363 s**, soit **10,83 → 6,58 s
+  (−39,2 %)** sur ces postes. La moyenne `inner_rel_rms` passe de 0,08830522 à
+  0,08830839 (**+0,0036 % relatif**) ; pire projection +0,224 %, meilleure
+  −0,127 %. Les écritures des 18 shards couvrent 8,58 → 5,26 s, cohérent mais
+  ne couvrent pas le premier groupe. Estimation experts seuls : ~54 min.
+- Statut : gain prometteur mais **qualité provisoire**, car les treillis changent
+  et aucune perplexité complète n'existe encore. Le mode reste expérimental par
+  variable d'environnement ; ne pas l'utiliser pour la conversion finale avant
+  un garde sur davantage d'experts puis la perplexité du modèle complet.
+- Intégration : prototype retiré au profit du scale pré-calibré OPT-12, plus
+  rapide et meilleur sur la population étendue ; aucun chemin partagé actif.
+
+### OPT-2026-09-16-QUANT-11 — calibration down experts batchée — validé localement
+
+- Hypothèse : `capture_experts` lance séparément gate et up pour chacun des 128
+  experts afin de fabriquer les 2 048 entrées de down, soit 256 petits matmuls
+  par couche. Empiler huit experts et utiliser `mx.matmul` batched supprime la
+  majorité des dispatchs, sans changer poids, lignes, SwiGLU ni fichiers.
+- Antécédents : aucun essai de batching de la capture Ling trouvé. Les anciens
+  hardlinks ne concernent que gate/up et n'accélèrent pas ces matmuls down.
+- Baseline : six experts sélectionnés dans le pilote précédent et leurs `.npy`
+  issus du chemin scalaire ; le run complet interrompu avait annoncé ~15 min de
+  calibration pour les 128 experts/couche. Candidat : lots de huit, pic Metal
+  surveillé, comparaison bit-à-bit après cast FP16 contre les fichiers baseline.
+- Protocole : recapturer le même pilote 33 modules dans un dossier neuf, mesurer
+  calibration, comparer chaque activation down, puis microbenchmark 128 experts
+  d'une couche seulement si la parité tient. Rejeter si divergence matérielle ou
+  mémoire excessive. Aucun poids/publication.
+- Résultat : les six activations du pilote sont bit-identiques mais 12,85 s
+  contre 11,07 s de capture totale, car six experts n'amortissent pas le batch.
+  Sur le cas réel de **128 experts**, les 128 fichiers FP16 sont bit-identiques
+  et leur plage d'écriture/calcul tombe de **1,125 à 0,205 s (5,48x)**. La
+  capture candidate complète des 24 couches, avec une seule couche expert
+  sélectionnée, termine en 13,9 s. Le batching par huit est retenu ; pic mémoire
+  processus non mesuré séparément, aucune erreur d'allocation observée.
+
+### OPT-2026-09-16-QUANT-12 — scale expert Ling pré-calibré — validé en pilote
+
+- Hypothèse : les 1 552 recherches déjà terminées sur les couches 1–5 donnent
+  un g-scale expert global très stable autour de 0,908 (écarts-types par
+  couche/projection 0,010–0,013). Pour **ce checkpoint et cette recette**, fixer
+  0,908 réutilise une calibration déjà payée au lieu de refaire 15 treillis par
+  projection/lot. Cela retire les ~7,7 min de g-scale encore estimées après
+  OPT-10 et place les experts vers 46 min.
+- Antécédents : différent de `skip_g_scale` à 1,0 et du scale représentatif par
+  lot. Les résultats historiques viennent du même source, K4/MCG, 2 048 lignes
+  et sigma ; ils ne généralisent pas à un autre modèle/recipe et ne doivent pas
+  devenir une valeur globale du moteur.
+- Baseline/candidat : OPT-10 à 6,58 s de postes groupés et moyenne
+  `inner_rel_rms` 0,08830839 ; candidat expérimental 0,908 sur les mêmes six
+  experts, aucune recherche g-scale. Comparer les 18 erreurs et temps ; garder
+  uniquement derrière l'adaptateur Ling exact (révision source/recette), puis
+  exiger la perplexité complète avant publication.
+- Protocole : nouveau pilote 33 modules, activation par environnement, mêmes
+  poids/calibration/Metal. Rejet si l'erreur moyenne ou le pire module dérivent
+  matériellement. Aucun modèle final ni publication.
+- Résultat six experts : postes groupés **10,830 → 5,769 s (−46,7 %)** contre
+  la baseline OPT-07 ; g-scale 4,575 → 0,003 s. `inner_rel_rms` moyen
+  0,08830522 → 0,08831060 (**+0,0061 % relatif**), pire projection +0,158 %,
+  plusieurs projections meilleures. Estimation experts seuls ~47,2 min.
+- Extension déclarée avant essai : quantifier les 128 experts complets de la
+  couche 1 (384 projections, mêmes 2 048 activations) et comparer leurs erreurs
+  à la mesure historique per-projection disponible. Cette population couvre la
+  plage de g-scales optimale 0,874–0,940 absente du petit pilote. Mesurer temps,
+  pic et dispersion ; la perplexité modèle reste ensuite obligatoire.
+- Résultat couche complète : **384/384 projections** produites en 127,25 s de
+  plage d'écriture ; sommes des 64 groupes : préparation 5,71 s, g-scale
+  0,06 s, états 0,26 s, LDLQ 117,47 s. Face aux 384 mesures historiques avec
+  recherche individuelle, `inner_rel_rms` moyen **0,08835081 → 0,08833356
+  (−0,0195 % relatif)** ; pire projection +0,332 %, p95 +0,169 %, meilleure
+  −0,348 %. Le processus pilote complet (capture, 15 denses, 384 experts,
+  copie/écriture) prend 177,1 s.
+- Décision : retenir 0,908 uniquement dans l'adaptateur Ling K4/MCG avec cette
+  recette ; estimation 23 couches experts ~48,8 min, modèle complet **~55–60
+  min** sous conditions similaires. Qualité modèle encore provisoire jusqu'à
+  perplexité BF16/EXL3 complète ; aucune publication ni modèle final à ce stade.
+- Intégration : code local activé automatiquement par `quantize_ling.py` pour
+  K4/MCG seulement ; autres modèles/bpw/codebooks inchangés. Batching calibration
+  intégré au même adaptateur. **86 tests réussis, 1 ignoré** (fixture MiniCPM
+  absente), compilation et `diff --check` réussis. App, GitHub et HF inchangés.
+- Révision du 16 septembre : le checkpoint complet avec cette option s'est
+  converti en ~92 min, PPL BF16 21,05421 → EXL3 21,66936 (mêmes tokens).
+  Ce résultat valide l'utilisabilité de cette conversion mais ne démontre pas
+  la non-infériorité du scale 0,908 contre une conversion complète avec recherche
+  individuelle des scales. Le temps pilote 55–60 min était trop optimiste.

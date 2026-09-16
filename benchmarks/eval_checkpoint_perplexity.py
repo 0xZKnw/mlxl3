@@ -17,6 +17,20 @@ def mean_nll(logits, targets):
     return mx.mean(mx.logsumexp(logits, axis=-1) - chosen)
 
 
+def window_nll(model, tokens, chunk_size=0):
+    if not chunk_size:
+        return float(mean_nll(model(tokens[:, :-1]), tokens[:, 1:]))
+    from mlx_lm.models.cache import make_prompt_cache
+    cache = make_prompt_cache(model)
+    total = 0.0
+    length = tokens.shape[-1] - 1
+    for start in range(0, length, chunk_size):
+        end = min(start + chunk_size, length)
+        logits = model(tokens[:, start:end], cache=cache)
+        total += float(mean_nll(logits, tokens[:, start + 1:end + 1])) * (end - start)
+    return total / length
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", type=Path)
@@ -25,9 +39,10 @@ def main():
     )
     parser.add_argument("--tokens", type=int, default=2048)
     parser.add_argument("--window", type=int, default=256)
+    parser.add_argument("--chunk-size", type=int, default=0, help="0: full window; otherwise preserve cache between chunks")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.tokens < 1 or args.window < 1:
+    if args.tokens < 1 or args.window < 1 or args.chunk_size < 0:
         parser.error("tokens and window must be positive")
     if (args.model / "quantization_config.json").exists():
         from mlx_lm.utils import load_tokenizer
@@ -49,12 +64,11 @@ def main():
     total_nll = 0.0
     for start in range(0, args.tokens, args.window):
         tokens = mx.array(ids[start : min(start + args.window, args.tokens) + 1])[None]
-        logits = model(tokens[:, :-1])
-        loss = float(mean_nll(logits, tokens[:, 1:]))
+        loss = window_nll(model, tokens, args.chunk_size)
         if not math.isfinite(loss):
             raise ValueError("Non-finite evaluation loss")
         total_nll += loss * (tokens.size - 1)
-        del logits, tokens
+        del tokens
         mx.clear_cache()
     result = {
         "model": args.model.name,
@@ -62,6 +76,7 @@ def main():
         "dataset_sha256": hashlib.sha256(corpus).hexdigest(),
         "tokens": args.tokens,
         "window": args.window,
+        "chunk_size": args.chunk_size,
         "mean_nll": total_nll / args.tokens,
         "perplexity": math.exp(total_nll / args.tokens),
     }

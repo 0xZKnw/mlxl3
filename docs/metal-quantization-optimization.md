@@ -1,5 +1,12 @@
 # Exact Metal quantization optimization
 
+For a fresh converter checkout, use the current consolidated
+`scripts/patches/ponyexl3-mlxl3-conversion.patch` on pinned PonyExl3 commit
+`8e7fa6b1556f59fc669e25087903b279b9b0346f`. The incremental patches below
+document historical rounds and must not be stacked on top of the consolidated
+patch. Ling's pinned K4 recipe additionally reuses a calibrated expert scale;
+its measured result and quality caveat are in [the Ling guide](ling-local-quantization.md).
+
 This accelerates **conversion**, not inference. It keeps the calibration data,
 LDLQ feedback order, regularization, scale search, codebooks, K and tail-biting
 passes unchanged. No QAT, fewer calibration rows, or reduced search is involved.

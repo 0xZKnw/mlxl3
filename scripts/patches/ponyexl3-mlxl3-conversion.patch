@@ -1,0 +1,1716 @@
+diff --git a/ponyexl3/cli/convert.py b/ponyexl3/cli/convert.py
+index c216fd2..584c042 100644
+--- a/ponyexl3/cli/convert.py
++++ b/ponyexl3/cli/convert.py
+@@ -73,6 +73,44 @@ def _default_candidate_bits(bits: float, head_bits: int) -> list[int]:
+     return sorted(bits for bits in out if 1 <= bits <= 8)
+ 
+ 
++def _fixed_uniform_bits(
++    target_bpw: float,
++    head_bits: int,
++    candidate_bits: list[int],
++    candidate_bits_by_module: dict[str, list[int]],
++    shrinkages: list[float],
++) -> int | None:
++    """Return K when measurement cannot change a strictly uniform plan."""
++
++    k = int(round(target_bpw))
++    if not math.isclose(target_bpw, float(k), rel_tol=0.0, abs_tol=1e-9):
++        return None
++    if head_bits != k or candidate_bits != [k] or shrinkages != [0.0]:
++        return None
++    if any(bits != [k] for bits in candidate_bits_by_module.values()):
++        return None
++    return k
++
++
++def _fixed_uniform_plan(module_keys: list[str], k: int, score_metric: str) -> dict[str, Any]:
++    bit_plan = {key: k for key in module_keys}
++    return {
++        "mode": "fixed_uniform",
++        "target_bpw": float(k),
++        "score_metric": score_metric,
++        "hessian_shrinkage": 0.0,
++        "module_count": len(module_keys),
++        "candidate_count": 0,
++        "average_bits": float(k),
++        "average_bits_delta": 0.0,
++        "feasible": True,
++        "objective": None,
++        "bit_plan": bit_plan,
++        "layer_bits": [f"^{key}$:{k}" for key in module_keys],
++        "upgrades": [],
++    }
++
++
+ def _parse_csv_ints(value: str | None, *, default: list[int]) -> list[int]:
+     if value is None:
+         return list(default)
+@@ -449,33 +487,42 @@ def main() -> int:
+             },
+         )
+ 
+-        # Reuse the measurement's quantized layers in the convert/emit pass: the
+-        # winning (K, shrinkage) candidate is bit-identical to what convert would
+-        # re-quantize, so this skips the redundant second pass (~2x on the
+-        # measure+convert span). Opt out with PONYEXL3_E2E_NO_REUSE=1.
+-        if os.environ.get("PONYEXL3_E2E_NO_REUSE", "") in ("", "0", "false", "no"):
+-            reuse.enable()
+         activations = load_calibration_activations_map(calibration_path)
+-        measurement = measure_ldlq_candidates(
+-            args.in_dir,
+-            plan_dir,
+-            module_keys,
+-            candidate_bits=candidate_bits,
+-            candidate_bits_by_module=candidate_bits_by_module,
+-            hessian_shrinkages=shrinkages,
+-            search_backend=search_backend,  # type: ignore[arg-type]
+-            scale_mode="computed",
+-            sigma_reg=args.sigma_reg,
+-            buf_size_rows=args.buf_size_rows,
+-            feedback_rows=args.ldlq_feedback_rows,
+-            calibration_activations_by_module=activations,
+-            compare_oracle=False,
+-            score_metric=args.measure_score,
+-            checkpoint_path=measurement_path,
+-            resume=bool(args.resume),
+-            max_workers=args.max_workers,
+-            progress=None if args.json else _measurement_progress,
++        fixed_k = _fixed_uniform_bits(
++            args.bits, args.head_bits, candidate_bits, candidate_bits_by_module, shrinkages
+         )
++        if fixed_k is None:
++            # Reuse the measurement's winning layers in the emit pass.
++            if os.environ.get("PONYEXL3_E2E_NO_REUSE", "") in ("", "0", "false", "no"):
++                reuse.enable()
++            measurement = measure_ldlq_candidates(
++                args.in_dir,
++                plan_dir,
++                module_keys,
++                candidate_bits=candidate_bits,
++                candidate_bits_by_module=candidate_bits_by_module,
++                hessian_shrinkages=shrinkages,
++                search_backend=search_backend,  # type: ignore[arg-type]
++                scale_mode="computed",
++                sigma_reg=args.sigma_reg,
++                buf_size_rows=args.buf_size_rows,
++                feedback_rows=args.ldlq_feedback_rows,
++                calibration_activations_by_module=activations,
++                compare_oracle=False,
++                score_metric=args.measure_score,
++                checkpoint_path=measurement_path,
++                resume=bool(args.resume),
++                max_workers=args.max_workers,
++                progress=None if args.json else _measurement_progress,
++            )
++        else:
++            measurement = {
++                "mode": "fixed_uniform",
++                "module_count": len(module_keys),
++                "candidate_count": 0,
++                "records": [],
++                "elapsed_s": 0.0,
++            }
+         measurement["scope"] = "e2e"
+         measurement["selected_total"] = len(module_keys) + len(pre_skipped)
+         measurement["pre_skipped"] = pre_skipped
+@@ -496,12 +543,16 @@ def main() -> int:
+         _write_json_atomic(measurement_path, measurement)
+         _stage(state_path, "measurement", {"measurement_path": str(measurement_path)})
+ 
+-        measurement_plan = optimize_measurement_plan(
+-            measurement,
+-            target_bpw=args.bits,
+-            score_metric=args.measure_score,
+-            fixed_bits={key: args.head_bits for key in module_keys if is_output_head(key)},
+-            uniform_sibling_k=args.uniform_sibling_k,
++        measurement_plan = (
++            _fixed_uniform_plan(module_keys, fixed_k, args.measure_score)
++            if fixed_k is not None
++            else optimize_measurement_plan(
++                measurement,
++                target_bpw=args.bits,
++                score_metric=args.measure_score,
++                fixed_bits={key: args.head_bits for key in module_keys if is_output_head(key)},
++                uniform_sibling_k=args.uniform_sibling_k,
++            )
+         )
+         _write_json_atomic(measurement_plan_path, measurement_plan)
+         _stage(
+diff --git a/ponyexl3/convert/capture.py b/ponyexl3/convert/capture.py
+index 7acf70c..66e0932 100644
+--- a/ponyexl3/convert/capture.py
++++ b/ponyexl3/convert/capture.py
+@@ -4,6 +4,7 @@ from __future__ import annotations
+ 
+ from dataclasses import dataclass
+ from pathlib import Path
++import re
+ from typing import Any, Literal, Sequence
+ 
+ import mlx.core as mx
+@@ -13,6 +14,11 @@ import numpy as np
+ 
+ CaptureDType = Literal["float16", "float32"]
+ 
++_INDIVIDUAL_EXPERT_RE = re.compile(
++    r"^(?P<prefix>model\.layers\.\d+\.mlp)\.experts\."
++    r"(?P<expert>\d+)\.(?P<projection>gate_proj|up_proj|down_proj)$"
++)
++
+ 
+ def default_calibration_text() -> Path:
+     """Path to the bundled default calibration corpus (a WikiText-2 excerpt).
+@@ -39,6 +45,7 @@ class CalibrationCaptureSummary:
+     seqs_run: int
+     dtype: CaptureDType
+     missing: list[str]
++    expert_fallback: list[str]
+ 
+ 
+ class _ActivationCollector:
+@@ -74,7 +81,7 @@ class _ActivationCollector:
+             self.chunks[key].append(np.array(arr))
+         self.pending.clear()
+ 
+-    def arrays(self) -> tuple[dict[str, np.ndarray], list[str]]:
++    def arrays(self) -> tuple[dict[str, np.ndarray], list[str], list[str]]:
+         out: dict[str, np.ndarray] = {}
+         missing: list[str] = []
+         for key, chunks in self.chunks.items():
+@@ -87,7 +94,34 @@ class _ActivationCollector:
+                 continue
+             dtype = np.float16 if self.dtype == "float16" else np.float32
+             out[key] = np.ascontiguousarray(arr.astype(dtype, copy=False))
+-        return out, missing
++
++        # A short corpus may never route tokens to a cold expert.  Reusing a
++        # fully captured peer projection from the same layer preserves the
++        # correct hidden-state distribution and feature dimension, and is a
++        # considerably better Hessian fallback than synthetic Gaussian rows.
++        # Frequently selected experts still retain their own conditional rows.
++        templates: dict[tuple[str, str], np.ndarray] = {}
++        for key, arr in out.items():
++            match = _INDIVIDUAL_EXPERT_RE.match(key)
++            if match is not None:
++                group = (match.group("prefix"), match.group("projection"))
++                templates.setdefault(group, arr)
++
++        expert_fallback: list[str] = []
++        unresolved: list[str] = []
++        for key in missing:
++            match = _INDIVIDUAL_EXPERT_RE.match(key)
++            if match is None:
++                unresolved.append(key)
++                continue
++            group = (match.group("prefix"), match.group("projection"))
++            template = templates.get(group)
++            if template is None:
++                unresolved.append(key)
++                continue
++            out[key] = template
++            expert_fallback.append(key)
++        return out, unresolved, expert_fallback
+ 
+ 
+ def _candidate_mlx_paths(module_key: str) -> list[str]:
+@@ -129,6 +163,16 @@ def _resolve_linear_module(root: Any, module_key: str) -> Any:
+     raise KeyError(f"cannot resolve {module_key!r} in MLX model ({'; '.join(errors)})")
+ 
+ 
++def _resolve_switch_projection(root: Any, module_key: str) -> tuple[Any, int] | None:
++    """Resolve a logical per-expert Bailing weight to its stacked MLX module."""
++
++    match = _INDIVIDUAL_EXPERT_RE.match(module_key)
++    if match is None:
++        return None
++    path = f"{match.group('prefix')}.switch_mlp.{match.group('projection')}"
++    return _resolve_path(root, path), int(match.group("expert"))
++
++
+ def _load_text_tokens(tokenizer: Any, text_path: str | Path, *, min_tokens: int) -> list[int]:
+     text = Path(text_path).read_text(encoding="utf-8")
+     ids = list(tokenizer.encode(text))
+@@ -186,14 +230,30 @@ def capture_calibration_activations(
+     if not selected:
+         raise ValueError("no module keys selected for calibration capture")
+ 
+-    model, tokenizer = load(str(source_dir))
++    # Ling ships an AutoConfig mapping even though the tokenizer itself is a
++    # regular fast tokenizer.  Transformers otherwise prompts on stdin during
++    # an unattended conversion.  Model execution still uses MLX-LM's native
++    # Bailing implementation.
++    model, tokenizer = load(
++        str(source_dir),
++        tokenizer_config={"trust_remote_code": True},
++    )
+     if hasattr(model, "eval"):
+         model.eval()
+ 
+     linear_keys = [key for key in selected if key != "lm_head"]
+     keys_by_id: dict[int, list[str]] = {}
++    switch_keys_by_id: dict[int, list[tuple[str, int]]] = {}
+     skipped_resolution: list[str] = []
+     for key in linear_keys:
++        try:
++            switch_projection = _resolve_switch_projection(model, key)
++        except (AttributeError, IndexError, TypeError, KeyError):
++            switch_projection = None
++        if switch_projection is not None:
++            mod, expert = switch_projection
++            switch_keys_by_id.setdefault(id(mod), []).append((key, expert))
++            continue
+         try:
+             mod = _resolve_linear_module(model, key)
+         except KeyError:
+@@ -216,13 +276,57 @@ def capture_calibration_activations(
+ 
+     original_linear_call: Any = nn.Linear.__call__
+ 
++    from mlx_lm.models.switch_layers import SwitchLinear
++
++    original_switch_linear_call: Any = SwitchLinear.__call__
++
+     def wrapped_linear(mod: Any, x: Any) -> Any:
+         for key in keys_by_id.get(id(mod), []):
+             collector.add(key, x)
+         return original_linear_call(mod, x)
+ 
++    def wrapped_switch_linear(
++        mod: Any,
++        x: Any,
++        indices: Any,
++        sorted_indices: bool = False,
++    ) -> Any:
++        logical = switch_keys_by_id.get(id(mod), [])
++        if logical:
++            flat_x = x.reshape(-1, x.shape[-1])
++            flat_indices = indices.reshape(-1)
++            if flat_x.shape[0] != flat_indices.size:
++                if flat_indices.size % flat_x.shape[0] != 0:
++                    raise ValueError(
++                        "cannot align SwitchLinear inputs with expert indices: "
++                        f"x={flat_x.shape}, indices={flat_indices.shape}"
++                    )
++                flat_x = mx.repeat(
++                    flat_x,
++                    flat_indices.size // flat_x.shape[0],
++                    axis=0,
++                )
++            # Routing indices are tiny compared with the activations.  Reading
++            # them once lets us gather only the rows needed by each expert,
++            # rather than materializing 128 full boolean masks on Metal.
++            index_values = np.asarray(flat_indices)
++            for key, expert in logical:
++                need = collector.rows - collector.counts.get(key, 0)
++                if need <= 0:
++                    continue
++                positions = np.flatnonzero(index_values == expert)[:need]
++                if positions.size:
++                    collector.add(key, mx.take(flat_x, mx.array(positions), axis=0))
++        return original_switch_linear_call(
++            mod,
++            x,
++            indices,
++            sorted_indices=sorted_indices,
++        )
++
+     seqs_run = 0
+     nn.Linear.__call__ = wrapped_linear  # type: ignore[method-assign]
++    SwitchLinear.__call__ = wrapped_switch_linear  # type: ignore[method-assign]
+     try:
+         for start in range(0, len(tokens), seq_len):
+             if seqs_run >= max_seqs or collector.complete():
+@@ -251,8 +355,9 @@ def capture_calibration_activations(
+                 )
+     finally:
+         nn.Linear.__call__ = original_linear_call  # type: ignore[method-assign]
++        SwitchLinear.__call__ = original_switch_linear_call  # type: ignore[method-assign]
+ 
+-    arrays, missing = collector.arrays()
++    arrays, missing, expert_fallback = collector.arrays()
+     missing.extend(key for key in skipped_resolution if key not in missing)
+     metadata = {
+         "source_dir": str(source_dir),
+@@ -273,4 +378,5 @@ def capture_calibration_activations(
+         seqs_run=seqs_run,
+         dtype=dtype,
+         missing=sorted(missing),
++        expert_fallback=sorted(expert_fallback),
+     )
+diff --git a/ponyexl3/convert/direct.py b/ponyexl3/convert/direct.py
+index 4c272ec..9699e91 100644
+--- a/ponyexl3/convert/direct.py
++++ b/ponyexl3/convert/direct.py
+@@ -368,6 +368,7 @@ def prepare_layer_quantization_basis(
+                 search_backend=search_backend,
+                 max_pins=max_pins,
+                 return_states=False,
++                return_packed=False,
+             )
+             delta = reconstructed / np.float32(scale) - sample
+             return float(np.mean(delta * delta, dtype=np.float64))
+@@ -501,7 +502,8 @@ def quantize_inner_matrix_direct(
+     max_pins: int = 4,
+     verify_roundtrip: bool = False,
+     return_states: bool = True,
+-) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
++    return_packed: bool = True,
++) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray]:
+     """Quantize an inner-domain matrix tilewise, without LDL error feedback."""
+ 
+     kernel_tiles = _inner_to_kernel_tiles(inner.astype(np.float32, copy=False))
+@@ -528,13 +530,17 @@ def quantize_inner_matrix_direct(
+             decoded_mx, states_mx = quantize_tiles_mlx(kernel_tiles, k=k, cb=cb)
+             in_tiles = inner.shape[0] // 16
+             out_tiles = inner.shape[1] // 16
+-            packed_mx = pack_trellis_mlx(
+-                (states_mx & ((1 << k) - 1)).reshape(in_tiles, out_tiles, 256),
+-                k,
+-            )
+-            mx.eval(decoded_mx, packed_mx)
++            packed_mx = None
++            if return_packed:
++                packed_mx = pack_trellis_mlx(
++                    (states_mx & ((1 << k) - 1)).reshape(in_tiles, out_tiles, 256),
++                    k,
++                )
++                mx.eval(decoded_mx, packed_mx)
++            else:
++                mx.eval(decoded_mx)
+             decoded_tiles = np.array(decoded_mx).astype(np.float32, copy=False)
+-            packed = np.array(packed_mx).astype(np.uint16, copy=False)
++            packed = None if packed_mx is None else np.array(packed_mx).astype(np.uint16, copy=False)
+             reconstructed_inner = _kernel_tiles_to_inner(
+                 decoded_tiles,
+                 inner.shape[0],
+@@ -547,13 +553,15 @@ def quantize_inner_matrix_direct(
+     in_tiles = inner.shape[0] // 16
+     out_tiles = inner.shape[1] // 16
+     states = states_flat.reshape(in_tiles, out_tiles, 256)
+-    packed = pack_trellis((states & ((1 << k) - 1)).astype(np.uint16), k)
++    packed = None
++    if return_packed or verify_roundtrip:
++        packed = pack_trellis((states & ((1 << k) - 1)).astype(np.uint16), k)
+     if verify_roundtrip:
+         roundtrip = unpack_trellis(packed, k)
+         if not np.array_equal(roundtrip.astype(np.uint16), states):
+             raise AssertionError("direct quantization produced non-round-trippable trellis")
+     reconstructed_inner = _kernel_tiles_to_inner(decoded_tiles, inner.shape[0], inner.shape[1])
+-    return packed, states if return_states else None, reconstructed_inner
++    return packed if return_packed else None, states if return_states else None, reconstructed_inner
+ 
+ 
+ def direct_quantize_window(
+diff --git a/ponyexl3/convert/discovery.py b/ponyexl3/convert/discovery.py
+index 4118a42..c9b05ae 100644
+--- a/ponyexl3/convert/discovery.py
++++ b/ponyexl3/convert/discovery.py
+@@ -38,9 +38,25 @@ def _is_exl3_linear_key(module_key: str) -> bool:
+         return True
+     if ".embed_" in module_key:
+         return False
++    # Bailing's router is named ``mlp.gate`` but is not an MLP projection.
++    # Keeping this small, routing-sensitive tensor in FP16 also avoids changing
++    # the selected expert set for negligible memory cost.
++    if module_key.endswith(".mlp.gate"):
++        return False
++    # Bailing stores one fused MLA ``kv_b_proj`` matrix in HF, while MLX-LM
++    # sanitizes it into two rank-3 MultiLinear tensors (embed_q/unembed_out).
++    # It cannot be replaced by one EXL3Linear without changing the attention
++    # graph, and costs little enough to keep in FP16 for this first engine.
++    if module_key.endswith(".attention.kv_b_proj"):
++        return False
+     if ".experts." in module_key:
+         return True
+-    return ".self_attn." in module_key or ".mlp." in module_key or ".linear_attn." in module_key
++    return (
++        ".self_attn." in module_key
++        or ".attention." in module_key
++        or ".mlp." in module_key
++        or ".linear_attn." in module_key
++    )
+ 
+ 
+ def _natural_key(key: str) -> tuple[Any, ...]:
+diff --git a/ponyexl3/convert/driver.py b/ponyexl3/convert/driver.py
+index 6305152..c817567 100644
+--- a/ponyexl3/convert/driver.py
++++ b/ponyexl3/convert/driver.py
+@@ -346,7 +346,24 @@ def _candidate_sibling_group(
+     processed: set[str],
+     existing: dict[str, EXL3Layer],
+ ) -> list[str]:
+-    signature = _sibling_group_signature(key)
++    expert = re.match(r"^(.*\.experts)\.\d+\.(down_proj|gate_proj|up_proj)$", key)
++    if expert is not None:
++        kind = "down" if expert.group(2) == "down_proj" else "gate_up"
++        signature = f"{expert.group(1)}._{kind}"
++        limit = 4 if kind == "down" else 8
++
++        def matches(item: str) -> bool:
++            candidate = re.match(r"^(.*\.experts)\.\d+\.(down_proj|gate_proj|up_proj)$", item)
++            if candidate is None or candidate.group(1) != expert.group(1):
++                return False
++            candidate_kind = "down" if candidate.group(2) == "down_proj" else "gate_up"
++            return candidate_kind == kind
++    else:
++        signature = _sibling_group_signature(key)
++        limit = 3
++
++        def matches(item: str) -> bool:
++            return _sibling_group_signature(item) == signature
+     if signature is None:
+         return [key]
+     group = [
+@@ -354,9 +371,9 @@ def _candidate_sibling_group(
+         for item in requested
+         if item not in processed
+         and item not in existing
+-        and _sibling_group_signature(item) == signature
++        and matches(item)
+     ]
+-    return group if len(group) >= 2 else [key]
++    return group[:limit] if len(group) >= 2 else [key]
+ 
+ 
+ def _grouping_enabled(
+diff --git a/ponyexl3/convert/fixtures.py b/ponyexl3/convert/fixtures.py
+index 84dd204..d8ec745 100644
+--- a/ponyexl3/convert/fixtures.py
++++ b/ponyexl3/convert/fixtures.py
+@@ -9,6 +9,7 @@ existing CPU Viterbi search and compares against the oracle tile.
+ from __future__ import annotations
+ 
+ from dataclasses import dataclass
++from functools import cache
+ import json
+ from pathlib import Path
+ import re
+@@ -38,6 +39,21 @@ _QWEN_EXPERT_RE = re.compile(
+ )
+ 
+ 
++@cache
++def _cached_weight_map(index_path: str) -> dict[str, str]:
++    with open(index_path, encoding="utf-8") as handle:
++        weight_map = json.load(handle)["weight_map"]
++    return {str(key): str(value) for key, value in weight_map.items()}
++
++
++@cache
++def _cached_safetensors_header(shard_path: str) -> tuple[int, dict[str, Any]]:
++    with open(shard_path, "rb") as handle:
++        header_len = struct.unpack("<Q", handle.read(8))[0]
++        header = json.loads(handle.read(header_len))
++    return int(header_len), header
++
++
+ @dataclass(frozen=True)
+ class TensorInfo:
+     """Safetensors metadata for one tensor."""
+@@ -154,19 +170,14 @@ class SafetensorIndex:
+     def __init__(self, model_dir: str | Path):
+         self.model_dir = Path(model_dir)
+         index_path = self.model_dir / "model.safetensors.index.json"
+-        with index_path.open(encoding="utf-8") as f:
+-            weight_map = json.load(f)["weight_map"]
+-        self.weight_map = {str(k): str(v) for k, v in weight_map.items()}
++        self.weight_map = _cached_weight_map(str(index_path.resolve()))
+         self._headers: dict[Path, tuple[int, dict[str, Any]]] = {}
+ 
+     def _header(self, shard: Path) -> tuple[int, dict[str, Any]]:
+         cached = self._headers.get(shard)
+         if cached is not None:
+             return cached
+-        with shard.open("rb") as f:
+-            header_len = struct.unpack("<Q", f.read(8))[0]
+-            header = json.loads(f.read(header_len))
+-        out = int(header_len), header
++        out = _cached_safetensors_header(str(shard.resolve()))
+         self._headers[shard] = out
+         return out
+ 
+@@ -243,6 +254,24 @@ def resolve_source_linear(model_dir: str | Path, module_key: str) -> SourceLinea
+     """Resolve a supported HF source tensor for an EXL3 module key."""
+ 
+     index = SafetensorIndex(model_dir)
++    # Some MoE checkpoints (Bailing/Ling among them) serialize every expert
++    # projection as an ordinary rank-2 tensor.  Prefer that canonical layout
++    # before applying the Qwen packed-expert adapter below.  Qwen checkpoints
++    # do not contain these logical per-expert keys, so their existing path is
++    # unchanged.
++    source_key = f"{module_key}.weight"
++    if source_key in index.weight_map:
++        info = index.tensor_info(source_key)
++        if len(info.shape) != 2:
++            raise ValueError(f"{source_key} must be 2D, got {info.shape}")
++        return SourceLinear(
++            key=module_key,
++            source_tensor_key=source_key,
++            layout="linear_t",
++            in_features=info.shape[1],
++            out_features=info.shape[0],
++        )
++
+     expert_match = _QWEN_EXPERT_RE.match(module_key)
+     if expert_match is not None:
+         prefix = expert_match.group("prefix")
+@@ -276,7 +305,6 @@ def resolve_source_linear(model_dir: str | Path, module_key: str) -> SourceLinea
+             expert=expert,
+         )
+ 
+-    source_key = f"{module_key}.weight"
+     info = index.tensor_info(source_key)
+     if len(info.shape) != 2:
+         raise ValueError(f"{source_key} must be 2D, got {info.shape}")
+diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
+index d79e192..deae1ad 100644
+--- a/ponyexl3/convert/hessian.py
++++ b/ponyexl3/convert/hessian.py
+@@ -4,14 +4,17 @@ from __future__ import annotations
+ 
+ from collections.abc import Mapping, Sequence
+ from concurrent.futures import ThreadPoolExecutor
+-from dataclasses import dataclass
++from dataclasses import dataclass, replace
++import os
+ from pathlib import Path
++import time
+ from typing import Any
+ 
+ import numpy as np
+ 
+ from ponyexl3.convert.direct import (
+     DirectLayerResult,
++    LayerQuantizationBasis,
+     ScaleMode,
+     direct_layer_summary,
+     inner_matrix_to_public,
+@@ -24,6 +27,12 @@ from ponyexl3.convert.direct import (
+ )
+ from ponyexl3.convert import reuse, timing
+ from ponyexl3.convert.fixtures import SearchBackend, build_layer_fixture
++from ponyexl3.convert.regularize import (
++    GlobalScaleSearchResult,
++    RegularizedWeights,
++    apply_global_scale,
++    sample_tile_matrix,
++)
+ from ponyexl3.ref.codebook import CodebookMode
+ from ponyexl3.ref.hadamard import HAD_DIM, had_r_128, preapply_had_left, preapply_had_right
+ from ponyexl3.ref.layer import EXL3Layer
+@@ -172,7 +181,7 @@ def _prepare_activation_hessian(
+     raw_hessian = capture_hessian(inner_activations)
+     raw_offdiag_rel = hessian_offdiag_rel(raw_hessian)
+     hessian = apply_hessian_shrinkage(raw_hessian, shrinkage=hessian_shrinkage)
+-    shrunk_offdiag_rel = hessian_offdiag_rel(hessian)
++    shrunk_offdiag_rel = raw_offdiag_rel if hessian_shrinkage == 0.0 else hessian_offdiag_rel(hessian)
+     prepared = prepare_hessian_for_ldl(hessian, sigma_reg=sigma_reg)
+     return prepared, {
+         "hessian_shrinkage": float(hessian_shrinkage),
+@@ -215,6 +224,7 @@ def block_ldl(
+     block_size: int = 16,
+     sigma_reg: float = 0.025,
+     max_retries: int = 10,
++    copy_cholesky: bool = False,
+ ) -> BlockLDLResult:
+     """Port of upstream EXL3 ``block_ldl`` using NumPy/Accelerate Cholesky."""
+ 
+@@ -240,7 +250,9 @@ def block_ldl(
+             h[np.diag_indices_from(h)] += np.float32(2.0 * sigma_reg * diag_mean)
+ 
+     m = n // block_size
+-    l_factor = chol.copy()
++    # Each update touches one column block; future diagonal blocks are disjoint.
++    # chol is a private temporary, so normalization cannot mutate the caller's H.
++    l_factor = chol.copy() if copy_cholesky else chol
+     for i in range(m):
+         c0 = i * block_size
+         c1 = c0 + block_size
+@@ -615,11 +627,13 @@ def _ldlq_inner_matrix_mlx(
+                 start_indices=mx.array([0, 0], dtype=mx.int32),
+                 axes=(0, 1),
+             )
+-        # Materialize this row-buffer's accumulators and hand the freed buffers
+-        # back to the OS, so steady-state memory stays at the live working set
+-        # rather than the running total of every group's discarded scratch.
++        # Materialize this row-buffer so its temporary buffers can be reused
++        # or released, rather than retaining the entire deferred computation.
+         mx.eval(reconstructed, prod_cache)
+-        mx.clear_cache()
++        # Keep a bounded pool for the next buffer instead of reallocating its
++        # identical trellis scratch. Still release excess cache for huge layers.
++        if mx.get_cache_memory() > 512 * 1024 * 1024:
++            mx.clear_cache()
+         j = i
+ 
+     mx.eval(reconstructed, packed_mx)
+@@ -673,11 +687,13 @@ def ldlq_quantize_layer(
+     quant_bits: int | None = None,
+     compare_oracle: bool = True,
+     fast_metrics: bool = False,
++    compute_proxy: bool = True,
+ ) -> DirectLayerResult:
+     """Quantize one full linear module with activation-aware LDLQ."""
+ 
+     if fast_metrics and compare_oracle:
+         raise ValueError("fast_metrics requires compare_oracle=False")
++    compute_proxy = not fast_metrics and (compute_proxy or compare_oracle)
+ 
+     reuse_key = None
+     if reuse.active() and calibration_activations is not None:
+@@ -697,7 +713,12 @@ def ldlq_quantize_layer(
+             search_backend=search_backend,
+             acts_fp=reuse.activations_fingerprint(calibration_activations),
+         )
+-        cached = reuse.lookup(reuse_key)
++        cached = reuse.lookup(
++            reuse_key,
++            require_proxy=compute_proxy,
++            require_output=not fast_metrics,
++            require_oracle=compare_oracle,
++        )
+         if cached is not None:
+             return cached
+ 
+@@ -761,7 +782,7 @@ def ldlq_quantize_layer(
+             feedback_rows=feedback_rows,
+             max_pins=max_pins,
+             collect_states=False,
+-            compute_proxy=not fast_metrics,
++            compute_proxy=compute_proxy,
+         )
+ 
+     out_layer = EXL3Layer(
+@@ -902,8 +923,6 @@ def _group_prep_worker_count(
+     # paths serial so worker threads do not compete for the same GPU queue.
+     if search_backend == "metal" and scale_mode in ("oracle", "oracle_safe"):
+         return 1
+-    if search_backend == "metal" and scale_mode == "computed" and not skip_g_scale:
+-        return 1
+     return min(group_size, 4)
+ 
+ 
+@@ -970,6 +989,111 @@ def _prepare_ldlq_group_member(
+     )
+ 
+ 
++def _batch_group_global_scales(
++    bases: Sequence[LayerQuantizationBasis],
++    *,
++    k: int,
++    cb: CodebookMode,
++) -> list[LayerQuantizationBasis]:
++    """Choose expert global scales with two Metal batches instead of 13 syncs each."""
++
++    import mlx.core as mx
++
++    fixed_scale = os.environ.get("PONYEXL3_FIXED_EXPERT_SCALE")
++    if fixed_scale is not None:
++        result = GlobalScaleSearchResult(
++            scale=float(fixed_scale), mse=float("nan"), evaluations=0
++        )
++        out = []
++        for basis in bases:
++            regularized = apply_global_scale(
++                RegularizedWeights(
++                    inner=basis.target_inner,
++                    suh=basis.suh,
++                    svh=basis.svh,
++                    stats=basis.stats,
++                ),
++                result,
++            )
++            stats = dict(regularized.stats)
++            stats["regularize_g_scale_skipped"] = False
++            out.append(
++                LayerQuantizationBasis(
++                    source_public=basis.source_public,
++                    target_inner=regularized.inner,
++                    suh=regularized.suh,
++                    svh=regularized.svh,
++                    stats=stats,
++                )
++            )
++        return out
++
++    samples = [sample_tile_matrix(basis.target_inner).reshape(-1, 16) for basis in bases]
++    if len({sample.shape for sample in samples}) != 1:
++        raise LDLQGroupIncompatible("batched global-scale samples differ in shape")
++
++    def evaluate(scales: list[list[float]], tile_sets: list[np.ndarray]) -> np.ndarray:
++        pairs = [(index, scale) for index, values in enumerate(scales) for scale in values]
++        source = mx.array(
++            np.stack([tile_sets[index] for index, _scale in pairs]), dtype=mx.float32
++        )
++        factors = mx.array([scale for _index, scale in pairs], dtype=mx.float32).reshape(-1, 1, 1)
++        rows = source.shape[1]
++        scaled = (source * factors).reshape(len(pairs) * rows, 16)
++        _packed, reconstructed = quantize_inner_matrix_direct_mlx(scaled, k=k, cb=cb)
++        reconstructed = reconstructed.reshape(len(pairs), rows, 16)
++        mse = mx.mean((reconstructed / factors - source) ** 2, axis=(1, 2))
++        mx.eval(mse)
++        return np.array(mse).astype(np.float64, copy=False)
++
++    coarse = [[0.1 + 0.2 * index for index in range(10)] for _basis in bases]
++    subsamples = [
++        sample.reshape(-1, 16, 16)[::3].reshape(-1, 16) for sample in samples
++    ]
++    coarse_mse = evaluate(coarse, subsamples).reshape(len(bases), 10)
++    centers = [coarse[int(np.argmin(row))] for coarse, row in zip(coarse, coarse_mse)]
++    fine = [[center + 0.075 * (index - 2) for index in range(5)] for center in centers]
++    fine_mse = evaluate(fine, samples).reshape(len(bases), 5)
++
++    results: list[GlobalScaleSearchResult] = []
++    for scales, errors in zip(fine, fine_mse):
++        best = int(np.argmin(errors))
++        offset = 0.0
++        if 0 < best < 4:
++            y0, y1, y2 = (float(errors[best - 1]), float(errors[best]), float(errors[best + 1]))
++            denom = y0 - 2.0 * y1 + y2
++            if denom > 0.0:
++                offset = max(-0.5, min(0.5, 0.5 * (y0 - y2) / denom))
++        results.append(GlobalScaleSearchResult(
++            scale=max(scales[best] + offset * 0.075, 0.01),
++            mse=float(errors[best]),
++            evaluations=15,
++        ))
++    out: list[LayerQuantizationBasis] = []
++    for basis, result in zip(bases, results):
++        regularized = apply_global_scale(
++            RegularizedWeights(
++                inner=basis.target_inner,
++                suh=basis.suh,
++                svh=basis.svh,
++                stats=basis.stats,
++            ),
++            result,
++        )
++        stats = dict(regularized.stats)
++        stats["regularize_g_scale_skipped"] = False
++        out.append(
++            LayerQuantizationBasis(
++                source_public=basis.source_public,
++                target_inner=regularized.inner,
++                suh=regularized.suh,
++                svh=regularized.svh,
++                stats=stats,
++            )
++        )
++    return out
++
++
+ def ldlq_quantize_group(
+     source_dir: str | Path,
+     oracle_dir: str | Path,
+@@ -1047,6 +1171,30 @@ def ldlq_quantize_group(
+         planned_k = None if quant_bits_by_module is None else quant_bits_by_module.get(key)
+         prep_inputs.append((key, acts, planned_k))
+ 
++    batch_g_scale = (
++        scale_mode == "computed"
++        and not skip_g_scale
++        and all(".experts." in key for key in keys)
++    )
++
++    def prepare(item: tuple[str, np.ndarray | None, int | None]) -> _LDLQGroupPrepared:
++        key, acts, planned_k = item
++        return _prepare_ldlq_group_member(
++            source_dir,
++            oracle_dir,
++            key,
++            activations=acts,
++            scale_mode=scale_mode,
++            search_backend=search_backend,
++            sigma_reg=sigma_reg,
++            hessian_shrinkage=hessian_shrinkage,
++            max_pins=max_pins,
++            skip_g_scale=skip_g_scale or batch_g_scale,
++            regularization_seed=regularization_seed,
++            quant_bits=planned_k,
++        )
++
++    prep_started = time.perf_counter()
+     prep_workers = _group_prep_worker_count(
+         len(keys),
+         search_backend=search_backend,
+@@ -1054,48 +1202,29 @@ def ldlq_quantize_group(
+         skip_g_scale=skip_g_scale,
+     )
+     if prep_workers <= 1:
+-        prepared_members = [
+-            _prepare_ldlq_group_member(
+-                source_dir,
+-                oracle_dir,
+-                key,
+-                activations=acts,
+-                scale_mode=scale_mode,
+-                search_backend=search_backend,
+-                sigma_reg=sigma_reg,
+-                hessian_shrinkage=hessian_shrinkage,
+-                max_pins=max_pins,
+-                skip_g_scale=skip_g_scale,
+-                regularization_seed=regularization_seed,
+-                quant_bits=planned_k,
+-            )
+-            for key, acts, planned_k in prep_inputs
+-        ]
++        prepared_members = [prepare(item) for item in prep_inputs]
+     else:
+         with ThreadPoolExecutor(
+             max_workers=prep_workers,
+             thread_name_prefix="ponyexl3-ldlq-prep",
+         ) as executor:
+-            futures = [
+-                executor.submit(
+-                    _prepare_ldlq_group_member,
+-                    source_dir,
+-                    oracle_dir,
+-                    key,
+-                    activations=acts,
+-                    scale_mode=scale_mode,
+-                    search_backend=search_backend,
+-                    sigma_reg=sigma_reg,
+-                    hessian_shrinkage=hessian_shrinkage,
+-                    max_pins=max_pins,
+-                    skip_g_scale=skip_g_scale,
+-                    regularization_seed=regularization_seed,
+-                    quant_bits=planned_k,
+-                )
+-                for key, acts, planned_k in prep_inputs
+-            ]
+-            prepared_members = [future.result() for future in futures]
++            prepared_members = list(executor.map(prepare, prep_inputs))
++    prep_s = time.perf_counter() - prep_started
++
++    g_scale_started = time.perf_counter()
++    if batch_g_scale:
++        scaled_bases = _batch_group_global_scales(
++            [member.basis for member in prepared_members],
++            k=prepared_members[0].k,
++            cb=prepared_members[0].cb,
++        )
++        prepared_members = [
++            replace(member, basis=basis)
++            for member, basis in zip(prepared_members, scaled_bases)
++        ]
++    g_scale_s = time.perf_counter() - g_scale_started
+ 
++    state_started = time.perf_counter()
+     states: list[_LDLQGroupState] = []
+     first_cb: CodebookMode | None = None
+     first_rows: int | None = None
+@@ -1142,88 +1271,178 @@ def ldlq_quantize_group(
+         raise LDLQGroupIncompatible("empty grouped LDLQ request")
+     if first_cb is None or first_rows is None or first_k is None:
+         raise LDLQGroupIncompatible("invalid grouped LDLQ request")
++    state_s = time.perf_counter() - state_started
+ 
+     rows = first_rows
+     total_out = sum(int(state.ref_layer.out_features) for state in states)
+-    j = rows
+-    while j > 0:
+-        i = max(0, j - buf_size_rows)
+-        if (j - i) % 16 != 0:
+-            raise ValueError("LDLQ row chunks must stay 16-aligned")
+-        chunk_rows = j - i
+-        b_weights = [state.weight[i:j] for state in states]
+-        b_reconstructed = [state.reconstructed[i:j] for state in states]
+-        b_prod_cache = [state.prod_cache[i:j] for state in states]
+-        b_l = [state.l_factor[i:j] for state in states]
+-
+-        for bj in range(chunk_rows, 0, -feedback_rows):
+-            bi = max(0, bj - feedback_rows)
+-            if (bj - bi) % 16 != 0:
+-                raise ValueError("LDLQ feedback groups must stay 16-aligned")
+-            rows_to_quantize = []
+-            for index, state in enumerate(states):
+-                bb_err = b_weights[index][bj:] - b_reconstructed[index][bj:]
+-                compensation = b_prod_cache[index][bi:bj]
++    ldlq_started = time.perf_counter()
++    same_out = len({int(state.ref_layer.out_features) for state in states}) == 1
++    if same_out:
++        out_features = int(states[0].ref_layer.out_features)
++        out_tiles = out_features // 16
++        batch = len(states)
++        weights = mx.stack([state.weight for state in states])
++        l_factors = mx.stack([state.l_factor for state in states])
++        reconstructed = mx.zeros_like(weights)
++        prod_cache = mx.zeros_like(weights)
++        packed = mx.stack([state.packed for state in states])
++        packed_size = packed.shape[-1]
++
++        j = rows
++        while j > 0:
++            i = max(0, j - buf_size_rows)
++            if (j - i) % 16 != 0:
++                raise ValueError("LDLQ row chunks must stay 16-aligned")
++            chunk_rows = j - i
++            b_weights = weights[:, i:j]
++            b_reconstructed = reconstructed[:, i:j]
++            b_prod_cache = prod_cache[:, i:j]
++            b_l = l_factors[:, i:j]
++
++            for bj in range(chunk_rows, 0, -feedback_rows):
++                bi = max(0, bj - feedback_rows)
++                if (bj - bi) % 16 != 0:
++                    raise ValueError("LDLQ feedback groups must stay 16-aligned")
++                bb_err = b_weights[:, bj:] - b_reconstructed[:, bj:]
++                compensation = b_prod_cache[:, bi:bj]
+                 if bb_err.size:
+-                    bb_l = b_l[index][bj:, i + bi : i + bj]
+-                    compensation = compensation + mx.matmul(bb_l.T, bb_err)
+-                rows_to_quantize.append(b_weights[index][bi:bj] + compensation)
+-
+-            search_input = mx.concatenate(rows_to_quantize, axis=1)
+-            block_packed_mx, block_reconstructed_cat = quantize_inner_matrix_direct_mlx(
+-                search_input,
+-                k=first_k,
+-                cb=first_cb,
+-            )
+-            tk = (i + bi) // 16
+-            col = 0
+-            tile_col = 0
+-            for index, state in enumerate(states):
+-                out_features = int(state.ref_layer.out_features)
+-                out_tiles = out_features // 16
+-                block_reconstructed = block_reconstructed_cat[:, col : col + out_features]
+-                b_reconstructed[index] = mx.slice_update(
+-                    b_reconstructed[index],
+-                    block_reconstructed,
+-                    start_indices=mx.array([bi, 0], dtype=mx.int32),
+-                    axes=(0, 1),
++                    bb_l = b_l[:, bj:, i + bi : i + bj]
++                    compensation = compensation + mx.matmul(
++                        bb_l.transpose(0, 2, 1), bb_err
++                    )
++                rows_to_quantize = b_weights[:, bi:bj] + compensation
++                feedback = bj - bi
++                search_input = rows_to_quantize.transpose(1, 0, 2).reshape(
++                    feedback, batch * out_features
+                 )
+-                state.packed = mx.slice_update(
+-                    state.packed,
+-                    block_packed_mx[:, tile_col : tile_col + out_tiles],
+-                    start_indices=mx.array([tk, 0, 0], dtype=mx.int32),
++                block_packed_mx, block_reconstructed_cat = quantize_inner_matrix_direct_mlx(
++                    search_input,
++                    k=first_k,
++                    cb=first_cb,
++                )
++                block_reconstructed = block_reconstructed_cat.reshape(
++                    feedback, batch, out_features
++                ).transpose(1, 0, 2)
++                block_packed = block_packed_mx.reshape(
++                    feedback // 16, batch, out_tiles, packed_size
++                ).transpose(1, 0, 2, 3)
++                tk = (i + bi) // 16
++                b_reconstructed = mx.slice_update(
++                    b_reconstructed,
++                    block_reconstructed,
++                    start_indices=mx.array([0, bi, 0], dtype=mx.int32),
+                     axes=(0, 1, 2),
+                 )
+-                col += out_features
+-                tile_col += out_tiles
+-            # Force per feedback group so the per-state packed slice_updates don't
+-            # defer into one giant final eval that balloons the buffer pool.
+-            mx.eval(*[state.packed for state in states], *b_reconstructed)
++                packed = mx.slice_update(
++                    packed,
++                    block_packed,
++                    start_indices=mx.array([0, tk, 0, 0], dtype=mx.int32),
++                    axes=(0, 1, 2, 3),
++                )
+ 
+-        for index, state in enumerate(states):
+-            b_err = b_weights[index] - b_reconstructed[index]
+-            state.reconstructed = mx.slice_update(
+-                state.reconstructed,
+-                b_reconstructed[index],
+-                start_indices=mx.array([i, 0], dtype=mx.int32),
+-                axes=(0, 1),
++            b_err = b_weights - b_reconstructed
++            reconstructed = mx.slice_update(
++                reconstructed,
++                b_reconstructed,
++                start_indices=mx.array([0, i, 0], dtype=mx.int32),
++                axes=(0, 1, 2),
+             )
+             if i > 0:
+-                prod_update = mx.matmul(b_l[index][:, :i].T, b_err)
+-                state.prod_cache = mx.slice_update(
+-                    state.prod_cache,
+-                    state.prod_cache[:i] + prod_update,
+-                    start_indices=mx.array([0, 0], dtype=mx.int32),
++                prod_update = mx.matmul(b_l[:, :, :i].transpose(0, 2, 1), b_err)
++                prod_cache = mx.slice_update(
++                    prod_cache,
++                    prod_cache[:, :i] + prod_update,
++                    start_indices=mx.array([0, 0, 0], dtype=mx.int32),
++                    axes=(0, 1, 2),
++                )
++            mx.eval(reconstructed, prod_cache, packed)
++            if mx.get_cache_memory() > 512 * 1024 * 1024:
++                mx.clear_cache()
++            j = i
++
++        mx.eval(reconstructed, packed)
++        for index, state in enumerate(states):
++            state.reconstructed = reconstructed[index]
++            state.packed = packed[index]
++    else:
++        j = rows
++        while j > 0:
++            i = max(0, j - buf_size_rows)
++            if (j - i) % 16 != 0:
++                raise ValueError("LDLQ row chunks must stay 16-aligned")
++            chunk_rows = j - i
++            b_weights = [state.weight[i:j] for state in states]
++            b_reconstructed = [state.reconstructed[i:j] for state in states]
++            b_prod_cache = [state.prod_cache[i:j] for state in states]
++            b_l = [state.l_factor[i:j] for state in states]
++
++            for bj in range(chunk_rows, 0, -feedback_rows):
++                bi = max(0, bj - feedback_rows)
++                if (bj - bi) % 16 != 0:
++                    raise ValueError("LDLQ feedback groups must stay 16-aligned")
++                rows_to_quantize = []
++                for index, state in enumerate(states):
++                    bb_err = b_weights[index][bj:] - b_reconstructed[index][bj:]
++                    compensation = b_prod_cache[index][bi:bj]
++                    if bb_err.size:
++                        bb_l = b_l[index][bj:, i + bi : i + bj]
++                        compensation = compensation + mx.matmul(bb_l.T, bb_err)
++                    rows_to_quantize.append(b_weights[index][bi:bj] + compensation)
++
++                search_input = mx.concatenate(rows_to_quantize, axis=1)
++                block_packed_mx, block_reconstructed_cat = quantize_inner_matrix_direct_mlx(
++                    search_input,
++                    k=first_k,
++                    cb=first_cb,
++                )
++                tk = (i + bi) // 16
++                col = 0
++                tile_col = 0
++                for index, state in enumerate(states):
++                    member_out = int(state.ref_layer.out_features)
++                    member_tiles = member_out // 16
++                    block_reconstructed = block_reconstructed_cat[:, col : col + member_out]
++                    b_reconstructed[index] = mx.slice_update(
++                        b_reconstructed[index],
++                        block_reconstructed,
++                        start_indices=mx.array([bi, 0], dtype=mx.int32),
++                        axes=(0, 1),
++                    )
++                    state.packed = mx.slice_update(
++                        state.packed,
++                        block_packed_mx[:, tile_col : tile_col + member_tiles],
++                        start_indices=mx.array([tk, 0, 0], dtype=mx.int32),
++                        axes=(0, 1, 2),
++                    )
++                    col += member_out
++                    tile_col += member_tiles
++                mx.eval(*[state.packed for state in states], *b_reconstructed)
++
++            for index, state in enumerate(states):
++                b_err = b_weights[index] - b_reconstructed[index]
++                state.reconstructed = mx.slice_update(
++                    state.reconstructed,
++                    b_reconstructed[index],
++                    start_indices=mx.array([i, 0], dtype=mx.int32),
+                     axes=(0, 1),
+                 )
+-        # Materialize this row-buffer's accumulators and release the freed pool.
+-        mx.eval(
+-            *[state.reconstructed for state in states],
+-            *[state.prod_cache for state in states],
+-        )
+-        mx.clear_cache()
+-        j = i
++                if i > 0:
++                    prod_update = mx.matmul(b_l[index][:, :i].T, b_err)
++                    state.prod_cache = mx.slice_update(
++                        state.prod_cache,
++                        state.prod_cache[:i] + prod_update,
++                        start_indices=mx.array([0, 0], dtype=mx.int32),
++                        axes=(0, 1),
++                    )
++            mx.eval(
++                *[state.reconstructed for state in states],
++                *[state.prod_cache for state in states],
++            )
++            if mx.get_cache_memory() > 512 * 1024 * 1024:
++                mx.clear_cache()
++            j = i
+ 
++    ldlq_s = time.perf_counter() - ldlq_started
+     mx.eval(*[state.reconstructed for state in states], *[state.packed for state in states])
+     out: list[DirectLayerResult] = []
+     for state in states:
+@@ -1252,6 +1471,10 @@ def ldlq_quantize_group(
+                 "batched_search_group_size": float(len(keys)),
+                 "batched_search_group_out_features": float(total_out),
+                 "batched_prep_workers": float(prep_workers),
++                "batched_prep_s": prep_s,
++                "batched_g_scale_s": g_scale_s,
++                "batched_state_s": state_s,
++                "batched_ldlq_s": ldlq_s,
+                 "mlx_packed_deferred": True,
+                 "public_mse": float("nan"),
+                 "public_rel_rms": float("nan"),
+diff --git a/ponyexl3/convert/measure.py b/ponyexl3/convert/measure.py
+index db1c546..df51c7c 100644
+--- a/ponyexl3/convert/measure.py
++++ b/ponyexl3/convert/measure.py
+@@ -98,6 +98,11 @@ def _candidate_from_record(record: Mapping[str, Any], *, score_metric: str) -> _
+     )
+     score = candidate_score(stats, score_metric)
+     if math.isinf(score):
++        if (
++            (score_metric in stats and stats[score_metric] is None)
++            or record.get("score_metric", score_metric) != score_metric
++        ):
++            raise ValueError(f"{module}: metric {score_metric!r} was not computed; measure it before optimizing")
+         score = _as_score(record.get("score"))
+     return _MeasuredCandidate(
+         module=module,
+@@ -574,6 +579,7 @@ def measure_ldlq_candidates(
+     regularization_seed: int = 0,
+     compare_oracle: bool = False,
+     score_metric: str = _DEFAULT_SCORE_METRIC,
++    full_metrics: bool = False,
+     checkpoint_path: str | Path | None = None,
+     resume: bool = False,
+     max_workers: int = 2,
+@@ -581,6 +587,9 @@ def measure_ldlq_candidates(
+ ) -> dict[str, Any]:
+     """Quantize selected modules over candidate K/shrinkage grids and rank them.
+ 
++    Output-only scoring omits the unused Hessian proxy; ``full_metrics=True``
++    retains it for diagnostics. Quantization and output metrics are unchanged.
++
+     ``max_workers`` (default 2) sets how many per-candidate quantizations run at
+     once on a thread pool, so each module's CPU-bound basis/Hessian work overlaps
+     another module's GPU search and fills GPU idle time. Threads share the model
+@@ -591,6 +600,7 @@ def measure_ldlq_candidates(
+     """
+ 
+     cancel.clear()
++    compute_proxy = full_metrics or compare_oracle or score_metric != "output_rel_rms"
+     modules = list(module_keys)
+     shrinkages = [float(item) for item in hessian_shrinkages]
+     if not modules:
+@@ -636,6 +646,13 @@ def measure_ldlq_candidates(
+         )
+         if ident not in planned or ident in seen:
+             continue
++        record_stats = _record_stats(record)
++        if compute_proxy and record_stats.get("hessian_proxy_rel_rms") is None:
++            continue
++        if compare_oracle and record_stats.get("oracle_hessian_proxy_rel_rms") is None:
++            continue
++        if record.get("score_metric", score_metric) != score_metric:
++            record = dict(record, score_metric=score_metric, score=candidate_score(record_stats, score_metric))
+         records.append(record)
+         seen.add(ident)
+     start = time.perf_counter()
+@@ -728,8 +745,15 @@ def measure_ldlq_candidates(
+             quant_bits=item["bits"],
+             compare_oracle=compare_oracle,
+             fast_metrics=False,
++            compute_proxy=compute_proxy,
+         )
+         item_summary = ldlq_layer_summary(result)
++        if not compute_proxy:
++            # Report absent diagnostics as null, never as zero quantization error.
++            item_summary["stats"] = {
++                **dict.fromkeys(("hessian_proxy_sse", "hessian_proxy_mse", "hessian_proxy_rel_rms")),
++                **item_summary["stats"],
++            }
+         score = candidate_score(item_summary["stats"], score_metric)
+         return {
+             "index": item["index"],
+diff --git a/ponyexl3/convert/reuse.py b/ponyexl3/convert/reuse.py
+index 3ae0033..1218b6f 100644
+--- a/ponyexl3/convert/reuse.py
++++ b/ponyexl3/convert/reuse.py
+@@ -149,13 +149,24 @@ def _result_nbytes(result: "DirectLayerResult") -> int:
+     return total
+ 
+ 
+-def lookup(key: tuple[Any, ...] | None) -> "DirectLayerResult | None":
++def lookup(
++    key: tuple[Any, ...] | None,
++    *,
++    require_proxy: bool = False,
++    require_output: bool = False,
++    require_oracle: bool = False,
++) -> DirectLayerResult | None:
+     cache = _CACHE
+     if cache is None or key is None:
+         return None
+     with _LOCK:
+         result = cache.store.get(key)
+-        if result is None:
++        if (
++            result is None
++            or (require_proxy and result.stats.get("hessian_proxy_rel_rms") is None)
++            or (require_output and result.stats.get("fast_metrics"))
++            or (require_oracle and result.stats.get("oracle_hessian_proxy_rel_rms") is None)
++        ):
+             cache.misses += 1
+             return None
+         cache.store.move_to_end(key)
+@@ -175,8 +186,16 @@ def store(key: tuple[Any, ...] | None, result: "DirectLayerResult") -> None:
+     )
+     nbytes = _result_nbytes(result)
+     with _LOCK:
+-        if key in cache.store:
+-            return
++        previous = cache.store.get(key)
++        if previous is not None:
++            upgrades_output = previous.stats.get("fast_metrics") and not result.stats.get("fast_metrics")
++            upgrades_proxy = any(
++                previous.stats.get(name) is None and result.stats.get(name) is not None
++                for name in ("hessian_proxy_rel_rms", "oracle_hessian_proxy_rel_rms")
++            )
++            if not (upgrades_output or upgrades_proxy):
++                return
++            cache.bytes -= _result_nbytes(previous)
+         cache.store[key] = stripped
+         cache.bytes += nbytes
+         cache.store.move_to_end(key)
+diff --git a/ponyexl3/mlx/model.py b/ponyexl3/mlx/model.py
+index 44a15ee..14227a1 100644
+--- a/ponyexl3/mlx/model.py
++++ b/ponyexl3/mlx/model.py
+@@ -20,8 +20,9 @@ import sys
+ from glob import glob
+ from typing import Any
+ 
+-import numpy as np
+ import mlx.core as mx
++import numpy as np
++from mlx import nn
+ from mlx.utils import tree_flatten
+ 
+ from ponyexl3.mlx.exl3_linear import EXL3Linear
+@@ -41,6 +42,7 @@ _ARCHITECTURES = {
+     "gemma4": "gemma4",
+     "gemma4_text": "gemma4_text",
+     "llama": "llama",
++    "lfm2_moe": "lfm2_moe",
+ }
+ 
+ _QWEN_ARCHES = frozenset({"qwen3_5", "qwen3_5_text", "qwen3_5_moe", "qwen3_5_moe_text"})
+@@ -48,6 +50,7 @@ _GEMMA4_ARCHES = frozenset({"gemma4", "gemma4_text"})
+ 
+ _qwen_expert_re: re.Pattern[str] | None = None
+ _gemma4_expert_re: re.Pattern[str] | None = None
++_lfm_expert_re: re.Pattern[str] | None = None
+ 
+ 
+ def _qwen_expert_match(key: str) -> re.Match[str] | None:
+@@ -70,8 +73,22 @@ def _gemma4_expert_match(key: str) -> re.Match[str] | None:
+     return _gemma4_expert_re.match(key)
+ 
+ 
++def _lfm_expert_match(key: str) -> re.Match[str] | None:
++    global _lfm_expert_re
++    if _lfm_expert_re is None:
++        _lfm_expert_re = re.compile(
++            r"model\.layers\.(\d+)\.feed_forward\.experts\.(\d+)\."
++            r"(w1|w2|w3)$"
++        )
++    return _lfm_expert_re.match(key)
++
++
+ def _is_routed_expert_key(key: str) -> bool:
+-    return _qwen_expert_match(key) is not None or _gemma4_expert_match(key) is not None
++    return (
++        _qwen_expert_match(key) is not None
++        or _gemma4_expert_match(key) is not None
++        or _lfm_expert_match(key) is not None
++    )
+ 
+ 
+ def _stack_expert_switch_glu(
+@@ -80,12 +97,14 @@ def _stack_expert_switch_glu(
+     weights: dict[str, mx.array],
+     *,
+     activation: str = "silu",
++    projection_names: tuple[str, str, str] = ("gate_proj", "up_proj", "down_proj"),
+ ) -> tuple[Any, set[str], int]:
+     """Stack per-expert gate/up/down EXL3 tensors into one EXL3SwitchGLU."""
+     from ponyexl3.mlx.exl3_moe import EXL3SwitchGLU
+     from ponyexl3.ref.codebook import codebook_mode_from_flags
+ 
+-    sample = f"{expert_pres[0]}.gate_proj"
++    gate_name, up_name, down_name = projection_names
++    sample = f"{expert_pres[0]}.{gate_name}"
+     info = storage[sample]
+     sh = info["stored_tensors"][f"{sample}.trellis"]["shape"]
+     k = sh[2] * 16 // 256
+@@ -98,7 +117,7 @@ def _stack_expert_switch_glu(
+     up_parts = []
+     consumed: set[str] = set()
+     for ep in expert_pres:
+-        g, u, d = f"{ep}.gate_proj", f"{ep}.up_proj", f"{ep}.down_proj"
++        g, u, d = f"{ep}.{gate_name}", f"{ep}.{up_name}", f"{ep}.{down_name}"
+         gu_parts.append(weights[f"{g}.trellis"])
+         up_parts.append(weights[f"{u}.trellis"])
+         gu_suh.append(mx.stack([weights[f"{g}.suh"], weights[f"{u}.suh"]]))
+@@ -121,8 +140,12 @@ def _stack_expert_switch_glu(
+         activation=activation,
+     )
+     mx.eval(
+-        mod._gu_trellis, mod._gu_suh, mod._gu_svh,  # pyright: ignore[reportPrivateUsage]
+-        mod._dn_trellis, mod._dn_suh, mod._dn_svh,  # pyright: ignore[reportPrivateUsage]
++        mod._gu_trellis,
++        mod._gu_suh,
++        mod._gu_svh,  # pyright: ignore[reportPrivateUsage]
++        mod._dn_trellis,
++        mod._dn_suh,
++        mod._dn_svh,  # pyright: ignore[reportPrivateUsage]
+     )
+     return mod, consumed, k
+ 
+@@ -157,15 +180,11 @@ def _build_gemma4_moe_experts(
+     for li, E in sorted(layers.items()):
+         pre = f"model.language_model.layers.{li}.experts"
+         expert_pres = [f"{pre}.{e}" for e in range(E)]
+-        mod, used, k = _stack_expert_switch_glu(
+-            expert_pres, storage, weights, activation="gelu"
+-        )
++        mod, used, k = _stack_expert_switch_glu(expert_pres, storage, weights, activation="gelu")
+         consumed |= used
+         layer = model.layers[li]
+         if legacy:
+-            _set_module(
+-                model, f"language_model.model.layers.{li}.experts.switch_glu", mod
+-            )
++            _set_module(model, f"language_model.model.layers.{li}.experts.switch_glu", mod)
+             if verbose:
+                 print(f"  gemma4 moe layer {li}: {E} routed experts, k={k}")
+             continue
+@@ -200,9 +219,42 @@ def _build_moe_experts(
+     """Stack routed experts for Qwen3.5 or Gemma4 MoE checkpoints."""
+     if any(_gemma4_expert_match(k) for k in storage):
+         return _build_gemma4_moe_experts(model, storage, weights, verbose)
++    if any(_lfm_expert_match(k) for k in storage):
++        return _build_lfm_moe_experts(model, storage, weights, verbose)
+     return _build_qwen_moe_experts(model, storage, weights, verbose)
+ 
+ 
++def _build_lfm_moe_experts(
++    model: MlxLmModel,
++    storage: dict[str, JsonDict],
++    weights: dict[str, mx.array],
++    verbose: bool,
++) -> set[str]:
++    """Stack official LFM2.5 EXL3 experts into MLX-LM's SwitchGLU slots."""
++
++    layers: dict[int, int] = {}
++    for key in storage:
++        match = _lfm_expert_match(key)
++        if match:
++            layer, expert = int(match.group(1)), int(match.group(2))
++            layers[layer] = max(layers.get(layer, 0), expert + 1)
++    consumed: set[str] = set()
++    for layer, count in sorted(layers.items()):
++        prefix = f"model.layers.{layer}.feed_forward.experts"
++        expert_prefixes = [f"{prefix}.{expert}" for expert in range(count)]
++        module, used, bits = _stack_expert_switch_glu(
++            expert_prefixes,
++            storage,
++            weights,
++            projection_names=("w1", "w3", "w2"),
++        )
++        consumed |= used
++        _set_module(model, f"model.layers.{layer}.feed_forward.switch_mlp", module)
++        if verbose:
++            print(f"  lfm2 moe layer {layer}: {count} experts, k={bits}")
++    return consumed
++
++
+ def _build_qwen_moe_experts(
+     model: MlxLmModel,
+     storage: dict[str, JsonDict],
+@@ -309,20 +361,25 @@ def _build_exl3_layer(key: str, info: JsonDict, weights: dict[str, mx.array]) ->
+ 
+ def _module_path(checkpoint_key: str, *, language_model_wrapper: bool = True) -> str:
+     """Translate a checkpoint module key to the mlx_lm attribute path."""
++    checkpoint_key = (
++        checkpoint_key.replace(".w1", ".gate_proj")
++        .replace(".w2", ".down_proj")
++        .replace(".w3", ".up_proj")
++    )
+     if not language_model_wrapper:
+         if checkpoint_key == "lm_head":
+             return "lm_head"
+         if checkpoint_key.startswith("model."):
+             return checkpoint_key
+         if checkpoint_key.startswith("model.language_model."):
+-            return "model." + checkpoint_key[len("model.language_model."):]
++            return "model." + checkpoint_key[len("model.language_model.") :]
+         return checkpoint_key
+ 
+     if checkpoint_key == "lm_head":
+         return "language_model.lm_head"
+     for prefix in ("model.language_model.", "model."):
+         if checkpoint_key.startswith(prefix):
+-            return "language_model.model." + checkpoint_key[len(prefix):]
++            return "language_model.model." + checkpoint_key[len(prefix) :]
+     return "language_model." + checkpoint_key
+ 
+ 
+@@ -339,11 +396,7 @@ def _set_module(root: MlxLmModel, path: str, module: Any) -> None:
+ 
+ 
+ def exl3_linears(model: MlxLmModel) -> list[tuple[str, EXL3Linear]]:
+-    return [
+-        (path, m)
+-        for path, m in model.named_modules()
+-        if isinstance(m, EXL3Linear)
+-    ]
++    return [(path, m) for path, m in model.named_modules() if isinstance(m, EXL3Linear)]
+ 
+ 
+ ENGINES = ("exl3", "fold16", "w8a16", "w4a16", "w4gptq")
+@@ -482,7 +535,7 @@ def convert_engine(
+         for path, mod in exl3_linears(model):
+             key = path
+             if key.startswith("language_model."):
+-                key = key[len("language_model."):]
++                key = key[len("language_model.") :]
+             if f"{key}.weight" not in side:
+                 continue
+             new_mod = _ql_from_parts(
+@@ -584,7 +637,10 @@ def load_model(
+     _apply_device_memory_limit()
+     config = _read_json(model_dir, "config.json")
+     qcfg = _read_json(model_dir, "quantization_config.json")
+-    if qcfg.get("quant_method", config.get("quantization_config", {}).get("quant_method")) != "exl3":
++    if (
++        qcfg.get("quant_method", config.get("quantization_config", {}).get("quant_method"))
++        != "exl3"
++    ):
+         raise ValueError(f"{model_dir} is not an EXL3 checkpoint")
+ 
+     model_type = config["model_type"]
+@@ -602,11 +658,35 @@ def load_model(
+         cfg["text_config"] = text_cfg
+     else:
+         cfg["tie_word_embeddings"] = False
+-    model = arch.Model(arch.ModelArgs.from_dict(cfg))
++    model_args = arch.ModelArgs.from_dict(cfg)
++    model_class = arch.Model
++    storage = _exl3_storage(qcfg)
++
++    # mlx_lm's LFM2-MoE skeleton always projects with the token embedding,
++    # while the official EXL3 checkpoint carries a separately quantized head.
++    # Expose that slot so the checkpoint weights, rather than the skeleton's
++    # hard-coded tie, determine the output logits.
++    if model_type == "lfm2_moe" and "lm_head" in storage:
++
++        class LFM2MoeWithOutputHead(model_class):
++            def __init__(self, args):
++                super().__init__(args)
++                self.lm_head = nn.Linear(
++                    args.hidden_size,
++                    args.vocab_size,
++                    bias=False,
++                )
++
++            def __call__(self, inputs, cache=None, input_embeddings=None):
++                hidden = self.model(inputs, cache, input_embeddings)
++                return self.lm_head(hidden)
++
++        model_class = LFM2MoeWithOutputHead
++
++    model = model_class(model_args)
+     language_model_wrapper = hasattr(model, "language_model")
+ 
+     weights = _load_all_tensors(model_dir)
+-    storage = _exl3_storage(qcfg)
+ 
+     # 1) Swap each quantized linear for EXL3Linear (MoE experts are stacked
+     #    into EXL3SwitchGLU modules instead).
+@@ -658,14 +738,11 @@ def load_model(
+ 
+     # 2) Everything that is not an EXL3 tensor loads as a plain weight.
+     #    (EXL3 source tensors were popped above; this filter is a backstop.)
+-    exl3_tensor_keys = {
+-        f"{key}.{sfx}" for key in storage for sfx in _EXL3_SUFFIXES
+-    }
++    exl3_tensor_keys = {f"{key}.{sfx}" for key in storage for sfx in _EXL3_SUFFIXES}
+     plain = {k: v for k, v in weights.items() if k not in exl3_tensor_keys}
+     plain = model.sanitize(plain)
+     plain = {
+-        k: v.astype(mx.float32 if k.endswith("A_log") else mx.float16)
+-        for k, v in plain.items()
++        k: v.astype(mx.float32 if k.endswith("A_log") else mx.float16) for k, v in plain.items()
+     }
+     model.load_weights(list(plain.items()), strict=True)
+ 
+@@ -742,9 +819,7 @@ def describe(model: MlxLmModel) -> str:
+     """One-line summary of the loaded engine mix."""
+     exl3 = exl3_linears(model)
+     converted = [
+-        (p, m)
+-        for p, m in model.named_modules()
+-        if getattr(m, "_exl3_engine", None) is not None
++        (p, m) for p, m in model.named_modules() if getattr(m, "_exl3_engine", None) is not None
+     ]
+     n_params = sum(v.size for _, v in tree_flatten(model.parameters()))
+     parts = []
+diff --git a/ponyexl3/ref/loader.py b/ponyexl3/ref/loader.py
+index 863f67f..8f889f4 100644
+--- a/ponyexl3/ref/loader.py
++++ b/ponyexl3/ref/loader.py
+@@ -14,12 +14,16 @@ from ponyexl3.ref.layer import EXL3Layer
+ from ponyexl3.types import Exl3LayerInfo, LayerMeta
+ 
+ _WEIGHT_INDEX_CACHE: dict[str, dict[str, str] | None] = {}
++_LAYER_INFO_CACHE: dict[str, list[Exl3LayerInfo]] = {}
++_LAYER_META_CACHE: dict[str, dict[str, Exl3LayerInfo]] = {}
+ 
+ 
+ def clear_weight_index_cache(model_dir: str) -> None:
+     """Drop the cached safetensors index for a model directory."""
+ 
+     _WEIGHT_INDEX_CACHE.pop(model_dir, None)
++    _LAYER_INFO_CACHE.pop(model_dir, None)
++    _LAYER_META_CACHE.pop(model_dir, None)
+ 
+ 
+ def _read_tensor(st: Any, key: str) -> np.ndarray:
+@@ -40,7 +44,10 @@ def _weight_index(model_dir: str) -> dict[str, str] | None:
+ 
+ def layer_meta_from_config(model_dir: str, module_key: str) -> LayerMeta:
+     """Layer dimensions and on-disk sizes without loading weight tensors."""
+-    meta = {x["key"]: x for x in list_exl3_layers(model_dir)}
++    meta = _LAYER_META_CACHE.get(model_dir)
++    if meta is None:
++        meta = {x["key"]: x for x in list_exl3_layers(model_dir)}
++        _LAYER_META_CACHE[model_dir] = meta
+     if module_key not in meta:
+         raise KeyError(f"{module_key!r} not in quantization_config tensor_storage")
+ 
+@@ -83,6 +90,9 @@ def layer_meta_from_config(model_dir: str, module_key: str) -> LayerMeta:
+ 
+ def list_exl3_layers(model_dir: str) -> list[Exl3LayerInfo]:
+     """List EXL3 linear modules from quantization_config.json."""
++    cached = _LAYER_INFO_CACHE.get(model_dir)
++    if cached is not None:
++        return cached
+     qpath = os.path.join(model_dir, "quantization_config.json")
+     if not os.path.isfile(qpath):
+         raise FileNotFoundError(f"missing {qpath}")
+@@ -102,7 +112,9 @@ def list_exl3_layers(model_dir: str) -> list[Exl3LayerInfo]:
+                 "mul1": bool(info.get("mul1_multiplier")),
+             }
+         )
+-    return sorted(layers, key=lambda x: x["key"])
++    layers = sorted(layers, key=lambda x: x["key"])
++    _LAYER_INFO_CACHE[model_dir] = layers
++    return layers
+ 
+ 
+ def _find_shard(model_dir: str, tensor_key: str) -> str:
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+index bd36e82..2a0bc43 100644
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -10,7 +10,7 @@ import pytest
+ 
+ from ponyexl3.cli._generate_common import build_prefill_prompt_ids, resolve_prompt_file
+ from ponyexl3.cli.convert_advanced import _load_measurement_plan, _parse_layer_bit_overrides
+-from ponyexl3.cli.convert import _default_candidate_bits
++from ponyexl3.cli.convert import _default_candidate_bits, _fixed_uniform_bits
+ 
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+@@ -252,6 +252,13 @@ def test_convert_e2e_default_candidate_bits_are_global_body_bits():
+     assert _default_candidate_bits(4.0, 6) == [4]
+ 
+ 
++def test_convert_e2e_skips_measurement_only_for_strict_uniform_plan():
++    assert _fixed_uniform_bits(4.0, 4, [4], {"lm_head": [4]}, [0.0]) == 4
++    assert _fixed_uniform_bits(4.1, 4, [4, 5], {"lm_head": [4]}, [0.0]) is None
++    assert _fixed_uniform_bits(4.0, 6, [4], {"lm_head": [6]}, [0.0]) is None
++    assert _fixed_uniform_bits(4.0, 4, [4], {}, [0.05]) is None
++
++
+ def test_convert_e2e_rejects_bad_bits():
+     proc = subprocess.run(
+         [
+diff --git a/tests/test_convert_driver.py b/tests/test_convert_driver.py
+index ad5c0c2..1b2de7e 100644
+--- a/tests/test_convert_driver.py
++++ b/tests/test_convert_driver.py
+@@ -328,6 +328,21 @@ def test_module_set_batches_fast_ldlq_siblings(tmp_path: Path, monkeypatch: pyte
+     assert all(item["stats"]["batched_group_size"] == 3.0 for item in result.completed)
+ 
+ 
++def test_module_set_batches_routed_experts_without_crossing_layers():
++    keys = [
++        f"model.layers.{layer}.mlp.experts.{expert}.{proj}"
++        for layer in range(2)
++        for expert in range(6)
++        for proj in ("down_proj", "gate_proj", "up_proj")
++    ]
++    down = convert_driver._candidate_sibling_group(keys, keys[0], set(), {})
++    gate_up = convert_driver._candidate_sibling_group(keys, keys[1], set(), {})
++    assert len(down) == 4
++    assert len(gate_up) == 8
++    assert all("layers.0" in key and key.endswith("down_proj") for key in down)
++    assert all("layers.0" in key and key.endswith(("gate_proj", "up_proj")) for key in gate_up)
++
++
+ _EXL3_DIR = Path(
+     os.environ.get("PONYEXL3_MODELS_DIR", Path.home() / "llm/models/exl3")
+ )
+diff --git a/tests/test_convert_hessian.py b/tests/test_convert_hessian.py
+index 1ee2486..638fb1d 100644
+--- a/tests/test_convert_hessian.py
++++ b/tests/test_convert_hessian.py
+@@ -9,8 +9,13 @@ import numpy as np
+ import pytest
+ from safetensors.numpy import save_file
+ 
+-from ponyexl3.convert.direct import quantize_inner_matrix_direct, write_direct_layer_bundle
++from ponyexl3.convert.direct import (
++    LayerQuantizationBasis,
++    quantize_inner_matrix_direct,
++    write_direct_layer_bundle,
++)
+ from ponyexl3.convert.hessian import (
++    _batch_group_global_scales,
+     _public_activations_to_inner_for_backend,
+     apply_hessian_shrinkage,
+     block_ldl,
+@@ -34,6 +39,20 @@ from ponyexl3.ref.trellis import unpack_trellis
+ PILOT_MODULE = "model.language_model.layers.0.linear_attn.in_proj_qkv"
+ 
+ 
++def test_fixed_expert_scale_bypasses_search(monkeypatch):
++    monkeypatch.setenv("PONYEXL3_FIXED_EXPERT_SCALE", "0.908")
++    basis = LayerQuantizationBasis(
++        source_public=np.ones((16, 16), dtype=np.float32),
++        target_inner=np.ones((16, 16), dtype=np.float32),
++        suh=np.ones(16, dtype=np.float32),
++        svh=np.ones(16, dtype=np.float32),
++        stats={},
++    )
++    results = _batch_group_global_scales([basis, basis], k=4, cb=CodebookMode.MCG)
++    assert [result.stats["regularize_g_scale"] for result in results] == [0.908, 0.908]
++    assert [result.stats["regularize_g_scale_evals"] for result in results] == [0.0, 0.0]
++
++
+ def _metal_available() -> bool:
+     try:
+         import mlx.core as mx

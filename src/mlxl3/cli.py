@@ -767,6 +767,8 @@ _TOOL_BLOCK = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL)
 _TOOL_FUNCTION = re.compile(r"<function=([^>\n]+)>\s*(.*?)\s*</function>", re.DOTALL)
 _TOOL_PARAMETER = re.compile(r"<parameter=([^>\n]+)>\s*(.*?)\s*</parameter>", re.DOTALL)
 _PYTHON_TOOL_BLOCK = re.compile(r'<\|tool_call_start\|>(.*?)<\|tool_call_end\|>', re.DOTALL)
+_LING_TOOL = re.compile(r'([A-Za-z_][A-Za-z0-9_.:-]{0,255})\s*(.*)', re.DOTALL)
+_LING_ARGUMENT = re.compile(r'\s*<arg_key>([^<>]+)</arg_key>\s*<arg_value>(.*?)</arg_value>', re.DOTALL)
 
 
 def _parse_python_tool_block(body: str) -> list[ToolCallRequest]:
@@ -839,6 +841,20 @@ def _parse_tool_calls(response: str) -> list[ToolCallRequest]:
                 for parameter in _TOOL_PARAMETER.finditer(function.group(2))
             }
             calls.append(ToolCallRequest(function.group(1).strip(), arguments))
+            continue
+        ling = _LING_TOOL.fullmatch(body)
+        if ling is not None:
+            if len(body) > 65_536:
+                raise MCPError('Ling tool payload too large; nothing executed')
+            arguments, offset = {}, 0
+            parameters = ling.group(2)
+            while parameters[offset:].strip():
+                parameter = _LING_ARGUMENT.match(parameters, offset)
+                if parameter is None or parameter.group(1).strip() in arguments:
+                    raise MCPError('Malformed Ling tool arguments; nothing executed')
+                arguments[parameter.group(1).strip()] = _parse_tool_argument(parameter.group(2))
+                offset = parameter.end()
+            calls.append(ToolCallRequest(ling.group(1), arguments))
             continue
         try:
             payload = json.loads(body)

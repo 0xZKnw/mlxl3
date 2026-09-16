@@ -466,6 +466,22 @@ def test_parse_qwen_and_json_tool_calls() -> None:
     ]
 
 
+def test_ling_tool_calls_and_streaming():
+    text = '<tool_call>exa.web_search_exa\n<arg_key>query</arg_key>\n<arg_value>MLX & Metal</arg_value>\n<arg_key>numResults</arg_key><arg_value>3</arg_value></tool_call>'
+    assert cli._parse_tool_calls(text) == [cli.ToolCallRequest(
+        'exa.web_search_exa', {'query': 'MLX & Metal', 'numResults': 3})]
+    assert cli._parse_tool_calls('<tool_call>clock.now</tool_call>') == [cli.ToolCallRequest('clock.now', {})]
+    for wrapped in ('Example: ' + text, '<think>' + text + '</think>', '```\n' + text + '\n```'):
+        assert cli._parse_tool_calls(wrapped) == []
+    for body in ('demo.echo<arg_key>x</arg_key>',
+                 'demo.echo<arg_key>x</arg_key><arg_value>1</arg_value>junk',
+                 'demo.echo' + '<arg_key>x</arg_key><arg_value>1</arg_value>' * 2):
+        with pytest.raises(cli.MCPError):
+            cli._parse_tool_calls('<tool_call>' + body + '</tool_call>')
+    stream = cli.ToolCallStreamFilter()
+    assert ''.join(part for char in text for part in stream.feed(char)) + ''.join(stream.finish()) == ''
+
+
 def test_lfm_python_tool_calls_literals_and_streaming():
     body = "[exa.web_search_exa(query='GPT-6 Astra statistics performance benchmarks', numResults=10)]"
     response = '<|tool_call_start|>' + body + '<|tool_call_end|>'

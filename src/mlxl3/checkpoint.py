@@ -395,7 +395,10 @@ def _load_exl3_model(
         if key.endswith(_SERIALIZED_SUFFIXES):
             continue
         if mx.issubdtype(value.dtype, mx.floating):
-            value = value.astype(mx.float32 if key.endswith("A_log") else mx.float16)
+            preserve_f32 = key.endswith("A_log") or (
+                config.get("model_type") == "bailing_hybrid" and value.dtype == mx.float32
+            )
+            value = value.astype(mx.float32 if preserve_f32 else mx.float16)
         ordinary_weights.append((key, value))
     supplied = dict(ordinary_weights)
     replacement_paths = tuple(path + "." for path, _ in replacements)

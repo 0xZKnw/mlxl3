@@ -27,12 +27,14 @@ requires the pinned PonyExl3 checkout in addition to MLXL3's normal environment:
 ```sh
 git clone https://github.com/beamivalice/PonyExl3.git references/PonyExl3
 git -C references/PonyExl3 checkout 8e7fa6b1556f59fc669e25087903b279b9b0346f
-git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-bounded-conversion-cache.patch
+git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-mlxl3-conversion.patch
 ```
 
 Do not reapply the patch to an already patched checkout or replace an existing
 development checkout. The LFM adapter installs the optimized search itself;
 it does not require changes to Desktop or the inference runtime.
+The consolidated patch includes the earlier incremental patches; do not apply
+those again on top of it.
 
 ## Original four-variant recipe (paused)
 

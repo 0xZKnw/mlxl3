@@ -1,4 +1,4 @@
-"""LFM2.5-2.6B adapter for the checked-out PonyExl3 Metal LDLQ converter.
+"""Dense LFM2 adapter for the checked-out PonyExl3 Metal LDLQ converter.
 
 Run with the same arguments as ponyexl3.cli.convert; --module-limit is for pilots.
 Leaves embeddings tied and unquantized (FP16 export). Target bpw refers to quantized linear weights;
@@ -82,7 +82,7 @@ def main():
     )
     args, _ = parser.parse_known_args()
     config = json.loads((args.in_dir / "config.json").read_text())
-    if config.get("model_type") != "lfm2" or not config.get("tie_word_embeddings"):
+    if config.get("model_type") != "lfm2" or not config.get("tie_word_embeddings", config.get("tie_embedding")):
         raise ValueError("This adapter expects a native LFM2 checkpoint with tied embeddings")
     patch_converter()
     if args.reference_metal_search:
