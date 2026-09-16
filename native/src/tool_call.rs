@@ -83,9 +83,65 @@ fn parse_json_calls(body: &str) -> Result<Vec<ToolCall>> {
     if let Some(function) = body.trim().strip_prefix("<function=") {
         return parse_xml_call(function);
     }
+    if !body.trim().starts_with('{') && !body.trim().starts_with('[') {
+        return parse_ling_call(body);
+    }
     let value: Value = serde_json::from_str(body.trim()).context("malformed JSON tool call")?;
     let values = value.as_array().cloned().unwrap_or_else(|| vec![value]);
     values.into_iter().map(tool_from_json).collect()
+}
+
+fn parse_ling_call(body: &str) -> Result<Vec<ToolCall>> {
+    let body = body.trim();
+    let name_end = body
+        .find(|c: char| c.is_whitespace() || c == '<')
+        .unwrap_or(body.len());
+    let name = &body[..name_end];
+    ensure!(
+        !name.is_empty()
+            && name.len() <= 256
+            && name
+                .bytes()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
+            && name
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || b"_.:-".contains(&c)),
+        "invalid Ling tool name"
+    );
+    let mut remaining = body[name_end..].trim();
+    let mut arguments = Map::new();
+    while !remaining.is_empty() {
+        let key_body = remaining
+            .strip_prefix("<arg_key>")
+            .context("malformed Ling tool argument")?;
+        let (key, rest) = key_body
+            .split_once("</arg_key>")
+            .context("unfinished Ling tool argument key")?;
+        let key = key.trim();
+        ensure!(
+            !key.is_empty() && !key.contains('<') && !key.contains('>'),
+            "invalid Ling tool argument key"
+        );
+        let value_body = rest
+            .trim_start()
+            .strip_prefix("<arg_value>")
+            .context("missing Ling tool argument value")?;
+        let (raw, rest) = value_body
+            .split_once("</arg_value>")
+            .context("unfinished Ling tool argument value")?;
+        let raw = raw.trim();
+        let value = serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.into()));
+        ensure!(
+            arguments.insert(key.into(), value).is_none(),
+            "duplicate Ling tool argument"
+        );
+        remaining = rest.trim();
+    }
+    Ok(vec![ToolCall {
+        name: name.into(),
+        arguments: Value::Object(arguments),
+    }])
 }
 
 fn tool_from_json(value: Value) -> Result<ToolCall> {
@@ -512,6 +568,36 @@ mod tests {
         assert!(filter.feed("<|tool_call_sta").is_empty());
         assert!(filter.feed("rt|>[search(q='x')]").is_empty());
         assert!(filter.feed("<|tool_call_end|>").is_empty());
+        assert!(filter.finish().is_empty());
+    }
+
+    #[test]
+    fn parses_ling_calls_and_rejects_malformed_arguments() {
+        let response = "<think>searching</think><tool_call>exa.web_search_exa\n<arg_key>query</arg_key>\n<arg_value>GPT-6 Astra statistics</arg_value><arg_key>numResults</arg_key>\n<arg_value>10</arg_value>\n</tool_call>";
+        assert_eq!(
+            parse(response).unwrap(),
+            [ToolCall {
+                name: "exa.web_search_exa".into(),
+                arguments: json!({"query":"GPT-6 Astra statistics","numResults":10}),
+            }]
+        );
+        assert_eq!(without_calls(response), "");
+        assert!(parse("<tool_call>exa.search<arg_key>q</arg_key><arg_value>x</arg_value><arg_key>q</arg_key><arg_value>y</arg_value></tool_call>").is_err());
+        assert!(parse("<tool_call>exa.search<arg_key>q</arg_key></tool_call>").is_err());
+        assert!(
+            parse("prose <tool_call>exa.search</tool_call>")
+                .unwrap()
+                .is_empty()
+        );
+
+        let mut filter = StreamFilter::new();
+        assert!(filter.feed("<tool_ca").is_empty());
+        assert!(filter.feed("ll>exa.search<arg_key>q</arg_key>").is_empty());
+        assert!(
+            filter
+                .feed("<arg_value>x</arg_value></tool_call>")
+                .is_empty()
+        );
         assert!(filter.finish().is_empty());
     }
 }

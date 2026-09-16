@@ -1,7 +1,9 @@
 # mlxl3
 
-[Download MLXL3 Desktop v1.0.2](https://github.com/0xZKnw/mlxl3/releases/tag/v1.0.2)
+[Download MLXL3 Desktop v1.0.3](https://github.com/0xZKnw/mlxl3/releases/tag/v1.0.3)
 · [Compatibility and validation](docs/v1-validation.md)
+
+v1.0.3 adds Ling 3.0 Tiny compatibility with MCP tool calls in Desktop.
 
 The standalone app requires **Apple Silicon and macOS 26.2+**. This release is
 **ad-hoc signed, not Developer ID signed or notarized**. macOS may block its first
@@ -28,8 +30,8 @@ The working runtime now contains:
 
 The current end-to-end target is the official LFM2.5-8B-A1B EXL3 checkpoint at
 3.10 bpw. MLXL3 loads all 2,179 quantized modules, including 2,112 routed expert
-projections, and runs the model entirely through MLX/Metal. Ling conversion is
-paused because a full no-training EXL3 conversion is much slower to iterate on.
+projections, and runs the model entirely through MLX/Metal. Ling 3.0 Tiny EXL3
+4 bpw is also available on Hugging Face and runs through the native Rust engine.
 
 Gemma 4 26B-A4B EXL3 is also supported for text chat. The loader maps its
 individual experts to grouped Metal projections, applies GeGLU, respects padded
