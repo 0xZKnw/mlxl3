@@ -2612,3 +2612,11 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Ce résultat valide l'utilisabilité de cette conversion mais ne démontre pas
   la non-infériorité du scale 0,908 contre une conversion complète avec recherche
   individuelle des scales. Le temps pilote 55–60 min était trop optimiste.
+- Publication du 16 septembre : le code et le patch PonyExl3 sont sur `main`
+  (`cc2049c`) ; les tests après rebase passent (112/112). Le checkpoint public
+  est sur https://huggingface.co/0xzknw/Ling-3.0-tiny-EXL3-4bpw, commit
+  `45a71f6ce370ca4cde4f1eff50583090ec8e31d8`, avec ses 12 fichiers
+  et sa carte. Smoke natif Rust avec l'app installée : chargement Ling réussi,
+  réponse finale `12` à « Combien font 7 + 5 ? Réponds directement. » ; 146
+  tokens, TTFT 927 ms, decode 33,1 tok/s sur un seul essai non comparatif.
+  Le GUI lui-même n'a pas été mis à jour ni testé pour ce modèle.

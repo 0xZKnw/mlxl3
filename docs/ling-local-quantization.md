@@ -47,7 +47,9 @@ model took about **92 minutes** on the measured M5 under changing power/thermal
 conditions, rather than the earlier 55–60 minute pilot estimate. Its held-out
 WikiText-2 perplexity was **21.66936** versus **21.05421** for BF16 on the same
 2,048 tokens and 256-token windows. The model was registered locally as
-`ling3.0-tiny-4bpw`; it has not been published. The scale shortcut's own
+`ling3.0-tiny-4bpw` and published as
+[0xzknw/Ling-3.0-tiny-EXL3-4bpw](https://huggingface.co/0xzknw/Ling-3.0-tiny-EXL3-4bpw).
+The scale shortcut's own
 quality effect cannot be isolated without a full comparison against individual
 scale searches.
 
@@ -60,6 +62,9 @@ conversion and validation are complete so interrupted stages can resume.
 Validation before publication: complete tensor inventory, strict EXL3 load,
 held-out perplexity versus BF16 on identical tokens, and CLI generation.
 Conversion success alone is not a quality result.
+The installed Rust engine also loaded the published checkpoint and answered
+`12` to `Combien font 7 + 5 ? Réponds directement.` in a local smoke test;
+this is not a broad quality or performance benchmark.
 
 The layerwise BF16 baseline uses `benchmarks/eval_ling_source.py`. Compare with
 `benchmarks/eval_checkpoint_perplexity.py --chunk-size 128` on the EXL3 model,
