@@ -3,6 +3,16 @@
 MLXL3 is an independent implementation that adapts algorithms and kernel
 structures from the following projects.
 
+## IncoAI Splash
+
+Source: <https://github.com/inco-ai/splash>.
+
+MLXL3 reads Splash's public DFlash 2 draft package ABI and uses its published
+geometry as a compatibility reference. Runtime kernels remain independently
+benchmarked MLXL3 implementations and may differ from Splash. Splash is
+licensed under the Apache License, Version 2.0; a copy is provided in
+`LICENSES/Apache-2.0.txt`.
+
 ## ExLlamaV3
 
 Source: <https://github.com/turboderp-org/exllamav3>, pinned during development

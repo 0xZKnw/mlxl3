@@ -3948,3 +3948,43 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   il ne prouve ni les graphes MLX, ni Metal, ni les états Qwen ; leur parité est
   couverte par les différentiels physiques bornés décrits ci-dessus. Statut :
   **validé et intégré comme primitive inactive**.
+
+### OPT-2026-09-19-RUST-PERF-48 — DFlash 2 : package Splash et Q4 — en cours
+
+- Hypothèse : réutiliser le format public Apache-2.0 et les géométries exactes
+  de `incoai/Qwen3.6-35B-A3B-Splash` évite de reconvertir ou réentraîner le
+  drafter. Seul le sous-répertoire `draft/` est requis ; les poids cible Q4 de
+  Splash ne seront pas téléchargés ni utilisés par la cible EXL3 MLXL3.
+- Géométrie issue du manifeste officiel : 6 couches, hidden 2048, dynamique
+  512, QKV 6144, attention 4096, MLP 6144, vocabulaire 248320, projection de
+  contexte 16384→2048 et sélecteur rank 256. Q4 affine, groupes de 64,
+  StorageN=256. Taille déclarée : six fichiers de 34 324 480 octets et un
+  `model.bin` de 273 498 112 octets, soit ~457 MiB de poids draft.
+- Changement prévu : téléchargement ciblé, chargeur Rust strict (magic
+  `MDFD0004`, layer/type, alignement 16 KiB, arithmétique vérifiée, consommation
+  exacte), puis port minimal des kernels Q4 officiels avant le graphe draft.
+- Protocole : refuser header, taille, offset ou section incorrect ; comparer les
+  offsets calculés à `layout.json` ; test réel du package, tests négatifs
+  synthétiques et Kani pour l'arithmétique pure. Aucun débit n'est revendiqué
+  avant que le drafter produise et que la cible accepte des tokens. Statut :
+  **en cours**, journalisé avant code.
+- Jalon chargeur : **validé**. Le lecteur Rust refuse les mauvais magic/type/id,
+  les fichiers non réguliers, toute taille inattendue, tout dépassement et tout
+  offset non aligné. Les offsets calculés correspondent au manifeste publié
+  (`layer qkv=638 976`, `layer down=27 246 592`, codebooks modèle
+  `19 218 432/146 358 272`) et les sept fichiers réels du package local sont
+  acceptés ; le runtime ne dépend d'aucun poids cible Splash.
+- Contrôles : tests synthétiques et package réel réussis, Clippy strict avec
+  tous les features réussi. Kani 0.68 / CBMC 6.11 vérifie les 11 propriétés
+  d'alignement sur tout `u64` et les 49 propriétés de géométrie/taille Q4 sur
+  tout couple `u16`, avec 2/2 couvertures atteintes. Un ICE Kani causé par
+  `is_multiple_of` a été éliminé en conservant l'équivalent `%`, puis les deux
+  harnesses ont réussi. La passe complète vérifie **17/17 harnesses**, zéro
+  échec (un chemin standard inaccessible), dont 162 propriétés pour le plus
+  gros contrat et 2/2 couvertures. Cela ne vérifie ni les octets de poids, ni
+  Metal.
+- Étape suivante, journalisée avant essai : mapper une projection Q4 réelle et
+  comparer sur M5 plusieurs kernels compatibles (Splash MPP servant de
+  référence, kernel MLXL3 retenu s'il gagne), d'abord en exactitude puis en
+  temps chaud. Aucun gain d'inférence n'est encore revendiqué. Statut global :
+  **en cours**, chargeur prêt à intégrer.

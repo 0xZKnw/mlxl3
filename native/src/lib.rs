@@ -4,6 +4,7 @@ pub mod array;
 pub mod checkpoint;
 pub mod codec;
 mod contracts;
+pub mod dflash;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(feature = "mlx")]
