@@ -1,4 +1,4 @@
-// EXL3 format and reduction order ported from src/mlxl3/kernels/{common,trellis,qmv}.py.
+// EXL3 format and reduction order ported from MLXL3's former Python prototype.
 // Upstream attribution: ../../THIRD_PARTY_NOTICES.md.
 #include <metal_stdlib>
 using namespace metal;

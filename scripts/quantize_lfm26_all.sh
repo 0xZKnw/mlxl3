@@ -21,7 +21,7 @@ for lfm_bits in 4.1 5 3 8; do
     .venv/bin/python benchmarks/eval_winogrande.py mlxl3 "$lfm_output" \
         --limit 64 --output "$lfm_work/winogrande64.json" \
         > "$lfm_work/evaluation.log" 2>&1
-    .venv/bin/mlxl3 run "$lfm_output" 'Salut ! Combien font deux plus deux ?' \
+    target/release/mlxl3-rs run "$lfm_output" 'Salut ! Combien font deux plus deux ?' \
         --temperature 0 --max-tokens 256 > "$lfm_work/chat.log" 2>&1
     echo "Completed LFM2.5-2.6B ${lfm_bits} bpw: $(date -u)"
 done

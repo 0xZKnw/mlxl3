@@ -307,9 +307,9 @@ python3.12 -m venv .venv
 scripts/check-desktop.sh
 ```
 
-For legacy Python development, install with `-c packaging/constraints-macos.txt`.
-The release app instead bundles the native Rust executable, MLX libraries and
-Metal shaders; no Python interpreter is included. It contains
+Python is used only by the optional developer quantization workflow. The app
+and CLI use the native Rust executable; the release bundle contains MLX
+libraries and Metal shaders, but no Python interpreter. It contains
 `Contents/Resources/build-info.json` with engine/UI version, build and source
 commit. Same-version
 hotfixes increment the build number and use a `-bNUMBER-` DMG filename so the

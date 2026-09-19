@@ -256,7 +256,7 @@ def main():
     patch_converter()
     from ponyexl3.convert import capture, direct, driver, metal_search, reuse
     from ponyexl3.convert.fixtures import SafetensorIndex
-    from mlxl3.quantize import quantize_tiles_mlx
+    from mlxl3_quantizer import quantize_tiles_mlx
     capture.capture_calibration_activations = capture_ling
     original_plain = direct.read_source_plain_tensors
     def read_plain(source, keys):
@@ -279,7 +279,7 @@ def main():
         if Path(path).is_dir() else original_load(path))
     result = convert.main()
     if result == 0:
-        from mlxl3.checkpoint import validate_checkpoint_files, list_exl3_modules
+        from mlxl3_quantizer import list_exl3_modules, validate_checkpoint_files
         from ponyexl3.convert.discovery import discover_exl3_module_keys
         metadata_path = args.out_dir / "quantization_config.json"
         metadata = json.loads(metadata_path.read_text())

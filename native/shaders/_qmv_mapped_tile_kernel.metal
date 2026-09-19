@@ -1,4 +1,4 @@
-// Verbatim source body from src/mlxl3/kernels/qmv.py.
+// Ported from MLXL3's former Python/Metal prototype.
 // See THIRD_PARTY_NOTICES.md for attribution and licenses.
 
             uint tid = thread_position_in_threadgroup.x;

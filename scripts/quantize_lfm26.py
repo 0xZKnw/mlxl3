@@ -90,7 +90,7 @@ def main():
     else:
         from ponyexl3.convert import metal_search
 
-        from mlxl3.quantize import quantize_tiles_mlx
+        from mlxl3_quantizer import quantize_tiles_mlx
 
         metal_search.quantize_tiles_mlx = quantize_tiles_mlx
     from ponyexl3.convert.discovery import discover_exl3_module_keys

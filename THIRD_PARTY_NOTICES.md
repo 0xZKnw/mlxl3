@@ -41,14 +41,14 @@ Source: <https://github.com/beamivalice/PonyExl3>, pinned during development at
 
 Copyright 2026 Theinruj Toranavikrai
 
-The Metal QMV/QMM work in `src/mlxl3/kernels/qmv.py` incorporates modified and
-independently integrated kernel structures from PonyExl3. MLXL3 changes the
+The native Metal QMV/QMM shaders incorporate modified and independently
+integrated kernel structures from PonyExl3. MLXL3 changes the
 dispatch API, compile-time specialization, permutation embedding, split-K
 policy, row crossover, output layout, and integration/tests. PonyExl3 is
 licensed under the Apache License, Version 2.0; a copy is provided in
 `LICENSES/Apache-2.0.txt`.
 
-The optional converter in `src/mlxl3/quantize.py` also adapts PonyExl3's Metal
+The optional converter in `src/mlxl3_quantizer/metal.py` also adapts PonyExl3's Metal
 trellis-search source. MLXL3 modifies predecessor sharing, exact codebook
 lookups, backpointer storage, search ordering, synchronization and scratch
 batching. The bounded allocator-cache modification is distributed separately
@@ -60,8 +60,8 @@ Apache-2.0 terms. These conversion helpers are not used by inference.
 Source: <https://github.com/ml-explore/mlx-swift-lm>, pinned during development
 at `5694a2f6705f7c8b9cf195f29ec6d05938d42d22`.
 
-The stable single-row MoE router top-k algorithm in `src/mlxl3/moe.py` is a
-Metal/Python adaptation of MLX Swift LM's `MoERouterTopK.swift`. MLXL3 adds its
+The stable single-row MoE router top-k algorithm in the native Metal runtime is
+an adaptation of MLX Swift LM's `MoERouterTopK.swift`. MLXL3 adds its
 own runtime dispatch and EXL3 integration. MLX Swift LM is licensed under the
 MIT License.
 
