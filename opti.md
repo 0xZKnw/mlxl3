@@ -3807,3 +3807,42 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Kani ne couvre toujours ni MLX, ni Metal, ni leur FFI ; les kernels sont
   contrôlés par différentiel physique, pas formellement prouvés. Preuve
   `build/perf-44/final-kani.log`.
+
+### OPT-2026-09-19-RUST-PERF-45 — DFlash 2 Qwen3.6-35B-A3B — en cours
+
+- Demande : intégrer le drafter DFlash 2 officiel à la cible locale
+  `Qwen3.6-35B-A3B-EXL3-2.49bpw`, sans modifier la distribution du modèle
+  cible, puis viser **100 tok/s** en decode. Le package Apache-2.0
+  `incoai/Qwen3.6-35B-A3B-Splash` contient un drafter Q4 de six couches
+  (capture des couches cible 1/6/11/16/22/27/32/37), sept propositions et une
+  vérification cible de huit lignes.
+- Baseline production pertinente : PERF-42/43 mesure le moteur Qwen actuel à
+  **44,3–47,0 tok/s** decode, **172,9–181,7 tok/s** prefill chaud et
+  **148,8–156,4 ms** TTFT sur Apple M5 24 Go, avec forte dérive batterie et
+  thermique. Une nouvelle baseline secteur/thermique stabilisée sera mesurée
+  avant toute revendication DFlash.
+- Blocages confirmés avant code : le chemin EXL3 natif accepte aujourd'hui
+  seulement `M=1` ou `M>=24`, tandis que DFlash vérifie `M=8`; Qwen ne calcule
+  le `lm_head` que sur la dernière ligne et fait avancer immédiatement ses 30
+  états GDN/convolution et ses 10 caches KV. Le drafter officiel est fourni en
+  format fixe `splash-packed-q4-moe`, pas en EXL3/safetensors.
+- Plan d'essais indépendants : (1) contrôleur d'acceptation exact et borné,
+  vérifié par tests/Kani ; (2) QMM EXL3 `M=8` et logits cible par ligne, avec
+  parité autoregressive ; (3) états Qwen transactionnels commit/rollback ;
+  (4) chargeur et exécution du drafter Q4 officiel ; (5) boucle greedy exacte,
+  puis rejection sampling exact ; (6) A/B/A long avec taux d'acceptation,
+  coût draft/verify/commit, decode, prefill, TTFT, pic et hash de sortie.
+- Garde-fous : chaque jalon doit rester inactif ou revenir au decode normal si
+  le drafter manque ; aucune mesure Splash M5 Pro n'est reprise comme résultat
+  MLXL3. Le jalon est rejeté à la moindre divergence greedy, distribution
+  sampling invalide, corruption d'état ou régression stable. Statut initial :
+  **en cours**, aucun code DFlash publié et aucun gain revendiqué.
+- Jalon 1 : contrôleur greedy exact ajouté, sans branchement au moteur. Il
+  accepte uniquement le plus long préfixe identique aux choix de la cible et
+  termine toujours le cycle par le token cible suivant ; les longueurs
+  incohérentes sont rejetées. Test Rust ciblé réussi, Clippy strict réussi.
+  Kani 0.68 / CBMC 6.11 vérifie exhaustivement les longueurs 0 à 7 et des
+  tokens `u32` symboliques : préfixe maximal, borne d'acceptation et token
+  final cible, **216 propriétés réussies**, 2/2 couvertures atteintes, aucun
+  échec (une branche standard inaccessible). Ce contrôle ne prouve ni Metal,
+  ni les logits, ni les caches ; ceux-ci restent à implémenter et valider.

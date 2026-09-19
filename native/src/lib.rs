@@ -25,6 +25,7 @@ pub mod qwen35;
 pub mod registry;
 #[cfg(feature = "mlx")]
 pub mod router;
+pub mod speculative;
 pub mod streaming;
 #[cfg(feature = "chat")]
 pub mod tokenizer;
