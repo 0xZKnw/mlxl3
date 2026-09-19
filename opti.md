@@ -3652,3 +3652,158 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   shader, MLX ou leur FFI ; leur contrôle est différentiel sur GPU physique.
   Preuve `build/perf-39/ling-gates-kani.log`. Intégration : commit dédié pour
   `main`, sans rebuild de l'app ni release dans cet essai.
+
+### OPT-2026-09-19-RUST-PERF-40 — Ling KDA : bloc récurrent partagé/fusionné — rejeté
+
+- Suite de PERF-39 et de l'architecture Splash/Inco : la géométrie actuelle
+  relit q/k pour chacune des 128 lignes d'état. Le candidat decode `T=1`
+  charge q/k une fois en mémoire threadgroup, calcule les 128 decay une fois
+  par groupe à partir du gate brut, puis chaque thread traite plusieurs lignes
+  avec le même ordre FP32 de réduction et de mise à jour. Beta brut reste
+  intégré comme dans PERF-39. Huit groupes par head sont prévus afin de garder
+  de l'occupation sans répéter 128 fois les transcendantes.
+- `exp(A_log)` sera matérialisé une fois au chargement et réutilisé. Le chemin
+  multi-token reste inchangé. Aucun poids, quantification, cache, sampler ou
+  approximation mathématique n'est modifié ; les opérateurs Metal doivent
+  reproduire exactement sigmoid/exp MLX.
+- Baseline : commit `4c87e3d`, à archiver avant modification ; dernier A/B/A/B
+  PERF-39 candidat **101,697–102,008 tok/s** decode, prefill chaud
+  **104,589–104,652 tok/s**, TTFT **802,88–803,41 ms**, pic 4,428371 GB.
+- Protocole : test GPU synthétique sortie/état bit-à-bit, huit tokens Ling
+  imposés contre le binaire archivé, puis A/B/A/B 84/128 à cinq runs. Rejet
+  immédiat pour divergence ou gain non reproduit. Apple M5 24 Go sur batterie,
+  température non instrumentée. Statut : **en cours**, journalisé avant code ;
+  aucune publication.
+- Premier prototype full-decay : test nul puis état non nul synthétique
+  réussis, mais le modèle réel diverge dans l'état récurrent dès le deuxième
+  token (couche 0, 4 578 floats, erreur max 3,73e-9), puis dans les logits au
+  troisième token. Cause : les élémentaires du decay fusionné ne reproduisent
+  pas tous les arrondis des kernels MLX séparés. Décision : variante
+  **rejetée avant benchmark** malgré son faible écart ; les transcendantes et
+  le `A_log` pré-évalué sont retirés.
+- Variante corrigée en cours : conserver le decay MLX exact, mais utiliser la
+  nouvelle géométrie partagée pour charger q/k/decay huit fois par head au lieu
+  de 128, tout en gardant beta fusionné. Ce changement isolera le gain mémoire
+  de la réorganisation sans modifier le calcul des gates.
+- La variante corrigée est bit-à-bit exacte sur le test GPU avec état non nul
+  et sur huit tokens réels (SHA256 logits identique
+  `7bfec320150e5c307ecf2fec425fd4a22e06035c91cbaa68de8a193a400d7446`).
+  Mesures B/A/B, cinq runs : decode **98,970 / 99,972 / 99,908 tok/s**,
+  prefill chaud **99,522 / 103,228 / 101,841 tok/s**, TTFT **844,31 / 813,92 /
+  825,03 ms**. Un run candidat à 89,50 tok/s est un outlier, mais même sans
+  lui le second candidat reste au niveau du contrôle, pas au-dessus. Batterie
+  43 %, en décharge. Preuves `build/perf-40/ling-shared-*.json`.
+- Décision finale : **rejeté**. La baisse des lectures q/k ne compense pas la
+  perte d'occupation due aux boucles de lignes ; code partagé et test retirés.
+  PERF-39 reste le chemin production. Aucun commit/push de ce prototype.
+
+### OPT-2026-09-19-RUST-PERF-41 — Ling KDA : pré-évaluation de A — rejeté
+
+- Variante minimale issue du plan fixe Splash, distincte du full-decay rejeté
+  en PERF-40 : calculer `exp(A_log)` une fois au chargement, puis fournir
+  exactement cet array FP32 au graphe MLX de decay inchangé. Aucun élémentaire
+  sigmoid/exp n'est déplacé dans Metal et la récurrence reste celle de PERF-39.
+- PERF-36 a déjà rejeté une idée voisine sur Qwen ; Ling diffère car son decay
+  vectoriel est construit dans chaque couche KDA. Ce nouvel essai ne sera gardé
+  que s'il est bit-à-bit et reproduit un gain A/B/A ou B/A/B.
+- Baseline : binaire production `4c87e3d`, mesures récentes PERF-40 contrôle
+  **99,972 tok/s** decode, **103,228 tok/s** prefill chaud, **813,92 ms** TTFT.
+  Protocole 84/128 cinq runs, huit tokens imposés, pic et hashes suivis. Apple
+  M5 24 Go sur batterie 43 %. Statut : **en cours**, journalisé avant code.
+- Parité : huit tokens imposés bit-à-bit, hash commun
+  `7bfec320150e5c307ecf2fec425fd4a22e06035c91cbaa68de8a193a400d7446`.
+  B/A/B cinq runs : decode **98,814 / 102,873 / 97,558 tok/s**, prefill chaud
+  **100,934 / 105,524 / 99,210 tok/s**, TTFT **832,43 / 796,23 / 847,01 ms**,
+  pic identique 4,428371 GB. Batterie 41 %. Preuves
+  `build/perf-41/ling-ascale-*.json`.
+- Décision : **rejeté** et code retiré. L'évaluation anticipée brise la fusion
+  paresseuse de la chaîne élémentaire MLX et ajoute une lecture intermédiaire ;
+  la suppression d'un `exp` apparent régresse de 3,9 à 5,2 %. Aucun push.
+
+### OPT-2026-09-19-RUST-PERF-42 — Qwen GDN : gates partagées par threadgroup — rejeté
+
+- Suite de PERF-38 : dans le kernel récurrent Qwen `T=1`, chaque thread
+  recalcule actuellement le même sigmoid beta et le même decay scalaire du
+  head. Avec 64 threads par groupe et huit groupes par head, cela répète les
+  transcendantes 512 fois. Le candidat les calcule une fois par threadgroup,
+  les place dans 6 octets de mémoire partagée puis synchronise avant la boucle
+  récurrente. Équations, arrondis et ordre des FMA restent identiques.
+- Hypothèse : le coût d'une barrière est inférieur aux exponentielles répétées.
+  Le chemin non fusionné et le prefill restent inchangés. Baseline production
+  commit `4c87e3d`, binaire archivé
+  `build/perf-40/ling-beta-fused-baseline-bin`; mesures fraîches à faire car
+  batterie 41 % et température non instrumentée.
+- Protocole : test kernel/GDN et huit tokens Qwen bit-à-bit, puis B/A/B 27/512
+  cinq runs ; decode, prefill, TTFT, pic et hashes. Rejet si la barrière
+  régresse ou si le gain ne se reproduit pas. Statut : **en cours**, journalisé
+  avant modification ; aucune publication.
+- Parité GPU et huit tokens Qwen bit-à-bit, hash commun
+  `c06b13baecf5d4b0eb189418e974f63a5259a8732a16d29badb47b85dd69d373`.
+  B/A/B cinq runs : decode **45,721 / 46,973 / 44,945 tok/s**, prefill chaud
+  **173,488 / 181,680 / 172,943 tok/s**, TTFT **155,85 / 148,83 / 156,36 ms**,
+  pic identique 13,064372 GB. Batterie 39→36 %. Preuves
+  `build/perf-42/qwen-shared-gates-*.json`.
+- Décision : **rejeté**, shader restauré. La barrière threadgroup coûte plus
+  que les calculs redondants sur M5 et dégrade aussi TTFT/prefill. Aucun push.
+
+### OPT-2026-09-19-RUST-PERF-43 — Qwen GDN : gates diffusées dans le SIMDgroup — rejeté
+
+- Révision motivée par PERF-42 : supprimer la barrière coûteuse. Seule la lane
+  0 de chacun des deux SIMDgroups calcule beta/decay, puis
+  `simd_broadcast_first` diffuse leurs bits aux 31 autres lanes. Cela réduit
+  les transcendantes 32×, sans mémoire threadgroup ni synchronisation entre
+  SIMDgroups ; chaque groupe traite déjà des lignes indépendantes avec les
+  mêmes gates.
+- Baseline production `4c87e3d`, contrôle frais PERF-42 **46,973 tok/s**,
+  prefill **181,680 tok/s**, TTFT **148,83 ms**, pic 13,064372 GB ; batterie
+  36 %, dérive forte donc B/A/B obligatoire. Parité kernel/GDN et huit tokens
+  Qwen bit-à-bit avant benchmark. Statut : **en cours**, journalisé avant code.
+- Parité kernel et huit tokens bit-à-bit, hash commun
+  `c06b13baecf5d4b0eb189418e974f63a5259a8732a16d29badb47b85dd69d373`.
+  B/A/B cinq runs : decode **45,767 / 45,910 / 44,306 tok/s**, prefill chaud
+  **178,343 / 178,054 / 174,429 tok/s**, TTFT **151,59 / 151,85 / 155,01 ms**,
+  pic identique 13,064372 GB. Batterie 32 % puis secteur reconnecté en fin de
+  série ; forte dérive sur B2. Preuves `build/perf-43/qwen-simd-gates-*.json`.
+- Décision : **rejeté**, shader restauré. B1 est dans le bruit du contrôle et
+  B2 régresse ; même sans barrière, masquer les transcendantes aux lanes
+  inactives n'apporte pas de gain modèle. Aucun push.
+
+### OPT-2026-09-19-RUST-PERF-44 — Ling KDA : boucle de lignes sans barrière — rejeté
+
+- Révision de PERF-40 selon les résultats PERF-42/43 : garder le decay MLX
+  exact et supprimer toute mémoire/barrière threadgroup. Pour `T=1`, chaque
+  SIMDgroup charge q/k/decay une fois dans ses registres puis traite plusieurs
+  lignes d'état. Beta est calculé par lane 0 et diffusé avec
+  `simd_broadcast_first`. La grille conserve huit threadgroups par head, soit
+  assez d'occupation, et réduit les lectures q/k/decay de 4×.
+- Baseline production `4c87e3d`, dernier contrôle Ling **102,873 tok/s** decode,
+  **105,524 tok/s** prefill chaud, **796,23 ms** TTFT ; secteur maintenant
+  attaché, batterie 32 % non chargée. Test état non nul et huit tokens exacts,
+  puis B/A/B cinq runs. Statut : **en cours**, journalisé avant code.
+- Test GPU état non nul et huit tokens réels bit-à-bit, hash commun
+  `7bfec320150e5c307ecf2fec425fd4a22e06035c91cbaa68de8a193a400d7446`.
+  B/A/B cinq runs : decode **100,715 / 102,305 / 98,984 tok/s**, prefill chaud
+  **102,347 / 106,027 / 100,027 tok/s**, TTFT **820,96 / 792,45 / 839,98 ms**,
+  pic identique 4,428371 GB. Secteur attaché puis batterie en charge 32→36 %.
+  Preuves `build/perf-44/ling-looped-*.json`.
+- Décision : **rejeté**, code retiré. Réduire les threadgroups et boucler les
+  lignes perd davantage en occupation qu'il ne gagne en lectures répétées.
+  PERF-39 reste la meilleure géométrie Ling. Aucun push du prototype.
+
+### Clôture de la passe Splash/Inco — 2026-09-19
+
+- Conservé et publié : PERF-38, gates Qwen intégrées au kernel récurrent,
+  commit `b7de3f8`, **+1,37 à +1,65 % decode** ; PERF-39, beta Ling intégré,
+  commit `4c87e3d`, **+1,32 à +4,44 % decode**. Sorties forcées exactes et pic
+  déclaré inchangé pour les deux.
+- Rejeté et absent du code final : adressage QMV, invariants pré-évalués,
+  kernel gates séparé, decay Ling fusionné, géométries partagées/bouclées et
+  diffusion Qwen. Les mesures PERF-35–44 empêchent de les retester sans
+  nouvelle géométrie ou nouveau matériel.
+- Le test PERF-39 est renforcé avec un état récurrent non nul. Vérification
+  finale : 20 tests lib, 1 test CLI et 14 contrats réussis ; test GPU ciblé
+  réussi ; format, Clippy strict et `git diff --check` réussis. Kani 0.68 /
+  CBMC 6.11 : **14/14 harnesses**, zéro échec, cœur Rust sans features MLX.
+  Kani ne couvre toujours ni MLX, ni Metal, ni leur FFI ; les kernels sont
+  contrôlés par différentiel physique, pas formellement prouvés. Preuve
+  `build/perf-44/final-kani.log`.

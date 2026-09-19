@@ -356,7 +356,7 @@ mod tests {
         let g = Array::from_f32(&[1.0; 128], &[1, 1, 1, 128])?;
         let beta_raw = Array::from_f32(&[0.625], &[1, 1, 1])?;
         let beta = beta_raw.sigmoid()?.astype(Dtype::Float16)?;
-        let state = Array::zeros_dtype(&[1, 1, 128, 128], Dtype::Float32)?;
+        let state = Array::from_f32(&[0.25; 128 * 128], &[1, 1, 128, 128])?;
         let (expected, expected_state) = step_vector(&q, &q, &q, &g, &beta, &state)?;
         let (actual, actual_state) = step_vector_with_beta(&q, &q, &q, &g, &beta_raw, &state)?;
         assert_eq!(actual.to_f16_bits()?, expected.to_f16_bits()?);
