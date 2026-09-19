@@ -4056,3 +4056,70 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   et 49 propriétés Q4 avec 2/2 couvertures ; il ne couvre pas MLX/Metal, validés
   ici uniquement par différentiel physique. Statut d'intégration : code local
   validé, push du jalon suivant.
+
+### OPT-2026-09-19-RUST-PERF-50 — DFlash 2 : graphe draft MLXL3 — en cours
+
+- Hypothèse : conserver le format et l'arithmétique du drafter Splash, mais
+  sélectionner séparément chaque primitive sur M5, permet d'obtenir un graphe
+  plus rapide sans lier MLXL3 à l'ordonnanceur Splash. Une primitive MLX native
+  ou MLXL3 sera retenue seulement si elle bat le kernel Splash à sortie BF16
+  identique ; Splash reste l'oracle de compatibilité, pas une contrainte
+  d'implémentation.
+- Premier sous-essai : charger strictement les treize sections de chacune des
+  six couches et les sections globales, puis implémenter les deux phases de la
+  convolution dynamique 8×2048. Comparer le kernel Metal au calcul CPU BF16
+  indépendant sur toutes les 16 384 sorties, balayer les groupes persistants et
+  mesurer après warmup sur le M5. Rejet de toute variante qui diverge ou plante.
+- Baseline utile : Q4 QKV 2048→6144 M=8 validé dans PERF-49 à **0,289–0,291
+  ms** médiane pour N128 pipeliné g48. Le débit DFlash complet et le taux
+  d'acceptation restent **non mesurés** ; il est interdit d'extrapoler ce timing
+  isolé à des tok/s.
+- Étapes suivantes déjà bornées : Q/K RMS+RoPE, attention glissante 2048,
+  gate/up+SwiGLU fusionné, six couches, sélecteur, puis boucle strictement
+  lossless verify/rollback. Chaque alternative sera comparée sur le même graphe
+  et le même état. Statut : **en cours**, journalisé avant code ; aucune
+  publication de ce jalon.
+- Chargeur complet : **validé** sur les 457 MiB officiels. Les six couches et
+  les 13 sections par couche, les projections globales, les deux normes et les
+  codebooks 248320×256 sont chargés avec les formes attendues en **0,14 s** de
+  test (processus complet **0,23 s**). `/usr/bin/time -l` rapporte un RSS max de
+  **502 349 824 octets** ; la mesure mélange mappings et runtime de test et ne
+  constitue pas encore la RAM incrémentale de l'app.
+- Première exécution convolution : **corrigée avant timing**. Le grid MLX avait
+  été exprimé en groupes au lieu de threads (`groups×256`) : seules quelques
+  sorties étaient écrites. Le différentiel exhaustif l'a détecté ; aucune
+  performance n'est attribuée à ce lancement.
+- Convolution corrigée : les phases prepare et residual, pour g8/12/16/24/32/
+  48/64, donnent les mêmes **32 768 octets BF16** que la référence CPU
+  indépendante (16 384 sorties chacune). Après 100 warmups, 50 échantillons :
+  médianes **183,375–185,834 µs** ; g24 est nominalement premier à **183,375
+  µs**, mais tout l'intervalle est du bruit. Décision provisoire : g24, sans
+  supprimer les autres possibilités avant le benchmark du graphe enchaîné.
+- Les valeurs ci-dessus incluent `eval()` et la synchronisation par primitive ;
+  le vrai graphe draft différé doit amortir ce coût. Étape suivante : Q/K
+  RMS+RoPE et attention avec état, puis comparaison primitive MLX versus kernel
+  spécialisé. Statut PERF-50 : **en cours**, chargeur et convolution validés
+  localement, pas encore publiés.
+- Premier graphe des six couches, contexte vide : **validé fonctionnellement**.
+  Il enchaîne normes, projections Q4, convolutions, Q/K RMS+RoPE, SDPA GQA,
+  gate/up+SwiGLU, down, norme finale et sélecteur. Deux exécutions donnent des
+  sorties hidden 8×2048 et selector 8×256 identiques bit-à-bit, sans BF16 non
+  fini. Après 20 warmups et 30 mesures : médiane **4,621 ms**, p10 **4,559
+  ms**, p90 **4,898 ms** pour les six couches et le sélecteur, hors lm_head,
+  sélection, vérification cible, acceptation et commit.
+- Diagnostic : ce draft n'est déjà plus le facteur limitant. La vérification
+  cible lossless PERF-47 prend **153,829 ms / 8 positions** ; même sept drafts
+  tous acceptés donnent un plafond d'environ **50,5 tok/s** avant les autres
+  frais. Atteindre 100 tok/s exige donc d'abord une vérification cible M=8 sous
+  ~75 ms, sans l'écart numérique du QMM paddé rejeté. Prochain essai : kernel
+  Qwen M=8 séquentiel-fusé/streamé qui conserve l'ordre M=1 et supprime les
+  relectures et dispatchs inutiles ; le taux d'acceptation sera mesuré seulement
+  après la boucle complète. Statut : **en cours**.
+- Contrôles du jalon : format et Clippy strict tous targets/features réussis ;
+  23 tests lib, 1 test CLI et 14 contrats réussis. Les trois tests GPU réels
+  ignorés par défaut valident le chargement officiel, la convolution exhaustive
+  et le graphe six couches. Kani 0.68 vérifie **17/17 harnesses**, 0 échec ; il
+  couvre le lecteur/planificateur pur mais pas MLX ni Metal, contrôlés ici par
+  les différentiels et exécutions physiques. Décision : publier ce jalon draft
+  mesuré, tout en gardant PERF-50 **en cours** jusqu'à la boucle lossless et au
+  débit DFlash end-to-end.
