@@ -3988,3 +3988,71 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   référence, kernel MLXL3 retenu s'il gagne), d'abord en exactitude puis en
   temps chaud. Aucun gain d'inférence n'est encore revendiqué. Statut global :
   **en cours**, chargeur prêt à intégrer.
+
+### OPT-2026-09-19-RUST-PERF-49 — DFlash Q4 M=8 : sélection kernel M5 — en cours
+
+- Hypothèse : le MPP TensorOps Q4 affine, groupe 64 et StorageN=256 est une
+  bonne référence pour les huit lignes du draft, mais sa tuile et son nombre de
+  groupes persistants ne sont pas supposés optimaux pour le M5 testé. Comparer
+  au minimum N128 séquentiel, N128 pipeliné et N256, avec plusieurs grilles.
+- Projection réelle : `draft/layer-0.bin:qkv`, forme 2048→6144, huit entrées
+  BF16 déterministes. Baseline externe : kernel Splash ; baseline MLXL3 : aucun
+  kernel DFlash Q4 avant cet essai. Deux warmups de compilation puis au moins
+  cinq mesures chaudes synchronisées par candidat, ordre alterné si la durée le
+  permet. Conditions secteur/thermique consignées au résultat.
+- Validité : toutes les variantes retenues doivent donner les mêmes octets BF16
+  que la référence MPP séquentielle sur le tenseur complet ; un contrôle CPU
+  indépendant sur un sous-ensemble vérifiera aussi le décodage affine Q4. Une
+  variante divergente ou plus lente est rejetée et ne reste pas dans le chemin
+  production. Mesurer séparément compilation/chargement et exécution chaude.
+- Ce microbenchmark ne prédit pas encore le débit DFlash complet : attention,
+  convolutions, sélecteur, vocabulaire et acceptation restent absents. Statut :
+  **en cours**, journalisé avant code.
+- Essai de compilation 1 : **rejeté/corrigé avant mesure**. Les constantes de
+  forme étaient émises après le corps helper dans le header MLX, donc Metal ne
+  pouvait pas résoudre `DFLASH_INPUT`. Aucun kernel n'a été exécuté et aucune
+  mesure n'est issue de cet essai. Les `#define` sont désormais placés avant le
+  helper ; le nouveau build doit encore être validé.
+- Premier passage GPU réel, secteur, M5 10 cœurs/Metal 4 : tous les candidats
+  N128/N128-pipeliné/N256 rendent exactement les mêmes **98 304 octets BF16**.
+  Le contrôle CPU indépendant sur 512 sorties distingue bien l'ordre des
+  nibbles : erreur basse `(max=0, moyenne=0)` contre ordre inversé
+  `(max=6,9648438, moyenne=1,636845)`.
+- Les chronos ne sont pas encore stabilisés : le premier processus a mesuré
+  N128 g48 **0,807 ms**, pipeliné g48 **0,776 ms**, N256 g24 **1,136 ms** ; le
+  rejeu chaud immédiatement après donne respectivement **0,367/0,337/0,326
+  ms**. Cette dérive dépasse les écarts entre variantes : résultat
+  **non concluant** pour le choix final. La prochaine passe alternera l'ordre,
+  augmentera le warmup et mesurera plusieurs cycles A/B/A avant intégration.
+- Passe alternée, 100 warmups puis 30 échantillons/candidat, répétée deux fois
+  sur secteur : N128-pipeliné g40/g48 tient **0,290–0,297 ms**, N128 g40
+  **0,294–0,296 ms**, N256 g24 **0,309–0,310 ms**. Le pipelinage apporte donc
+  seulement ~1,7–2,0 % sur cette projection ; g40 et g48 sont dans le bruit.
+  Les sorties restent identiques. Prochain essai journalisé : enlever les tests
+  `is_valid_element` internes lorsque la capacité coopérative couvre exactement
+  les 8×N éléments, tout en gardant une variante gardée comme oracle. Comparer
+  N128 pipeliné et N256, mêmes 30 échantillons ; rejet si un octet change.
+- Essai traversal direct : **rejeté**. Sur le vrai QKV, la suppression des
+  gardes provoque un `kIOGPUCommandBufferCallbackErrorPageFault` avant toute
+  mesure : la capacité coopérative contient bien des emplacements invalides
+  avec ce compilateur/descriptor. Aucune sortie ni performance n'est attribuée
+  à cette variante. Les variantes `Fast` sont retirées ; le kernel conservé
+  continue d'appeler `is_valid_element`, comme le fallback sûr publié.
+- Revalidation après retrait, même protocole : N128-pipeliné g48 **0,290 ms**
+  médiane (p10 0,265, p90 0,319), N128 g48 **0,298 ms**, N128 g40 **0,298
+  ms**, N256 g24 **0,306 ms**. Sur trois passes chaudes, le choix pipeliné g48
+  reste entre **0,289 et 0,291 ms**, soit ~2–3 % devant le N128 gardé non
+  pipeliné et ~5–7 % devant N256 g24 ; 98 304/98 304 octets restent identiques.
+  **Validé pour cette forme 2048→6144**, sans extrapoler aux autres formes.
+- Décision : conserver les trois implémentations sûres pour l'autotuning, avec
+  N128-pipeliné/full-grid comme choix provisoire de la forme QKV M5. La mesure
+  est un microbenchmark de projection, pas encore un gain de decode du modèle.
+  Statut PERF-49 : **validé et prêt à intégrer**, publication après contrôles
+  Rust/Metal complets.
+- Contrôles finaux du jalon : Clippy strict tous targets/features ; 23 tests
+  lib, 1 CLI et 14 contrats réussis. Le test GPU ignoré exécute le QKV réel,
+  le contrôle CPU et 15 géométries Metal ; toutes les variantes conservées
+  sont bit-à-bit identiques. Kani vérifie séparément 11 propriétés d'alignement
+  et 49 propriétés Q4 avec 2/2 couvertures ; il ne couvre pas MLX/Metal, validés
+  ici uniquement par différentiel physique. Statut d'intégration : code local
+  validé, push du jalon suivant.
