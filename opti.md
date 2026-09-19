@@ -3846,3 +3846,38 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   final cible, **216 propriétés réussies**, 2/2 couvertures atteintes, aucun
   échec (une branche standard inaccessible). Ce contrôle ne prouve ni Metal,
   ni les logits, ni les caches ; ceux-ci restent à implémenter et valider.
+
+### OPT-2026-09-19-RUST-PERF-46 — Qwen : transaction d'état DFlash — en cours
+
+- Hypothèse : les arrays MLX sont fonctionnels et leur clonage duplique le
+  handle, pas les données. Une transaction légère peut donc capturer l'offset,
+  les 30 couples convolution/récurrence GDN et les 10 couples KV, puis les
+  restaurer sans copie GPU. C'est requis pour rejeter un suffixe spéculatif
+  sans laisser le modèle cible dans un état futur invalide.
+- Changement prévu : un snapshot opaque et typé, avec validation stricte du
+  nombre/type de couches à la restauration. Aucun branchement au decode normal
+  et aucune allocation de tenseur supplémentaire hors clonage de handles.
+- Baseline fonctionnelle : après un préfixe fixé, `snapshot → tokens d'essai →
+  restore → mêmes tokens` doit produire exactement les mêmes logits et états
+  que le premier passage ; un snapshot d'un autre modèle/état doit être rejeté.
+  Baseline performance : decode Qwen PERF-42/43 **44,3–47,0 tok/s** ; ce jalon
+  ne doit pas modifier ce chemin et aucun gain de decode n'est revendiqué.
+- Protocole : test réel Qwen sur quelques tokens avec comparaison bit-à-bit des
+  logits et de chaque état restauré ; tests négatifs de structure ; build,
+  Clippy strict et Kani sur les invariants Rust qui n'appellent pas MLX. Le coût
+  snapshot/restore sera mesuré séparément avant intégration. Statut : **en
+  cours**, journalisé avant code ; aucune publication.
+- Résultat : **validé et intégré comme primitive inactive**. Sur le vrai
+  Qwen3.6-35B-A3B EXL3 2.49 bpw, après le préfixe `[1,2,3]`, une branche
+  `[4,5]`, un rollback puis le rejeu produisent exactement les mêmes logits
+  FP16 aux deux pas et les mêmes octets pour les **80 tenseurs** conv/GDN/KV.
+  Le test GPU ciblé réussit en 11,97 s, chargement du modèle compris.
+- Vérification : format et Clippy strict réussis ; tests Rust complets et E2E
+  Desktop réussis lors du jalon de nettoyage adjacent. Kani 0.68 / CBMC 6.11
+  vérifie 15/15 harnesses, zéro échec (`build/dflash-cleanup-kani.log`), mais
+  ne compile pas le feature MLX : le clonage de handles, Metal et ce rollback
+  sont donc validés par différentiel physique, pas formellement prouvés.
+- Le chemin autoregressif existant n'appelle jamais `snapshot`/`restore` : coût
+  normal nul. La mesure microsecondes et le coût sous spéculation seront faits
+  avec le contrôleur complet, afin de ne pas présenter un timing isolé comme
+  un gain de decode. Publication prévue dans le jalon DFlash suivant.

@@ -535,6 +535,26 @@ enum Layer {
     Attention(Box<AttentionLayer>),
 }
 
+enum LayerSnapshot {
+    Linear {
+        conv: Option<Array>,
+        recurrent: Option<Array>,
+    },
+    Attention {
+        keys: Option<Array>,
+        values: Option<Array>,
+    },
+}
+
+/// Opaque, cheap checkpoint of the mutable Qwen decode state.
+///
+/// Arrays are immutable MLX graph handles, so taking a snapshot retains the
+/// current state without copying its GPU storage.
+pub struct QwenSnapshot {
+    offset: i32,
+    layers: Vec<LayerSnapshot>,
+}
+
 impl Layer {
     fn forward(&mut self, x: &Array) -> Result<Array> {
         match self {
@@ -547,6 +567,51 @@ impl Layer {
         match self {
             Self::Linear(layer) => layer.reset(),
             Self::Attention(layer) => layer.reset(),
+        }
+    }
+
+    fn snapshot(&self) -> Result<LayerSnapshot> {
+        Ok(match self {
+            Self::Linear(layer) => LayerSnapshot::Linear {
+                conv: layer
+                    .attention
+                    .conv_state
+                    .as_ref()
+                    .map(Array::try_clone)
+                    .transpose()?,
+                recurrent: layer
+                    .attention
+                    .recurrent_state
+                    .as_ref()
+                    .map(Array::try_clone)
+                    .transpose()?,
+            },
+            Self::Attention(layer) => LayerSnapshot::Attention {
+                keys: layer
+                    .attention
+                    .keys
+                    .as_ref()
+                    .map(Array::try_clone)
+                    .transpose()?,
+                values: layer
+                    .attention
+                    .values
+                    .as_ref()
+                    .map(Array::try_clone)
+                    .transpose()?,
+            },
+        })
+    }
+
+    fn restore(&mut self, snapshot: LayerSnapshot) -> Result<()> {
+        match (self, snapshot) {
+            (Self::Linear(layer), LayerSnapshot::Linear { conv, recurrent }) => {
+                layer.set_state(conv, recurrent)
+            }
+            (Self::Attention(layer), LayerSnapshot::Attention { keys, values }) => {
+                layer.set_state(keys, values)
+            }
+            _ => anyhow::bail!("Qwen snapshot layer types do not match the model"),
         }
     }
 }
@@ -728,6 +793,48 @@ impl Qwen35Moe {
 
     pub fn context_limit(&self) -> i32 {
         self.context_limit
+    }
+
+    pub fn snapshot(&self) -> Result<QwenSnapshot> {
+        Ok(QwenSnapshot {
+            offset: self.offset,
+            layers: self
+                .layers
+                .iter()
+                .map(Layer::snapshot)
+                .collect::<Result<_>>()?,
+        })
+    }
+
+    pub fn restore(&mut self, snapshot: QwenSnapshot) -> Result<()> {
+        ensure!(
+            snapshot.offset >= 0
+                && snapshot.offset <= self.context_limit
+                && snapshot.layers.len() == self.layers.len(),
+            "Qwen snapshot does not match the model"
+        );
+        ensure!(
+            self.layers
+                .iter()
+                .zip(&snapshot.layers)
+                .all(|(layer, state)| matches!(
+                    (layer, state),
+                    (Layer::Linear(_), LayerSnapshot::Linear { .. })
+                        | (Layer::Attention(_), LayerSnapshot::Attention { .. })
+                )),
+            "Qwen snapshot layer types do not match the model"
+        );
+        if let Err(error) = self
+            .layers
+            .iter_mut()
+            .zip(snapshot.layers)
+            .try_for_each(|(layer, state)| layer.restore(state))
+        {
+            self.reset();
+            return Err(error.context("invalid Qwen snapshot; model state was reset"));
+        }
+        self.offset = snapshot.offset;
+        Ok(())
     }
 
     pub fn reset(&mut self) {
@@ -1074,5 +1181,51 @@ impl GatedDelta {
     fn reset(&mut self) {
         self.conv_state = None;
         self.recurrent_state = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
+        model
+            .layers
+            .iter()
+            .flat_map(|layer| match layer {
+                Layer::Linear(layer) => [
+                    layer.attention.conv_state.as_ref(),
+                    layer.attention.recurrent_state.as_ref(),
+                ],
+                Layer::Attention(layer) => [
+                    layer.attention.keys.as_ref(),
+                    layer.attention.values.as_ref(),
+                ],
+            })
+            .map(|state| state.context("missing Qwen test state")?.to_bytes())
+            .collect()
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn snapshot_restore_replays_logits_and_state_exactly() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        for token in [1, 2, 3] {
+            model.forward(token)?;
+        }
+        let snapshot = model.snapshot()?;
+        let expected_logits = [4, 5]
+            .into_iter()
+            .map(|token| model.forward(token)?.to_f16_bits())
+            .collect::<Result<Vec<_>>>()?;
+        let expected_state = state_bytes(&model)?;
+
+        model.restore(snapshot)?;
+        for (token, expected) in [4, 5].into_iter().zip(expected_logits) {
+            assert_eq!(model.forward(token)?.to_f16_bits()?, expected);
+        }
+        assert_eq!(state_bytes(&model)?, expected_state);
+        assert_eq!(model.offset, 5);
+        Ok(())
     }
 }
