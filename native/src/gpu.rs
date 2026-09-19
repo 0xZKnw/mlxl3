@@ -1,5 +1,8 @@
 //! Direct Metal ownership. No MLX/Python runtime; synchronous reference API.
-use crate::codec::{self, Codebook};
+use crate::{
+    codec::{self, Codebook},
+    contracts,
+};
 use anyhow::{Context, Result, ensure};
 use metal::{
     Buffer, CommandQueue, CompileOptions, ComputePipelineState, Device, MTLCommandBufferStatus,
@@ -129,7 +132,8 @@ impl Metal {
         if encoded.is_empty() {
             return Ok(Vec::new());
         }
-        let count = encoded.len() / 256 * 16 * k;
+        let count =
+            contracts::packed_words(encoded.len(), k).context("Metal pack shape overflow")?;
         let n = u32::try_from(count).context("Metal pack index overflow")?;
         ensure!(
             encoded.len() <= u32::MAX as usize,
@@ -156,7 +160,8 @@ impl Metal {
         if packed.is_empty() {
             return Ok((Vec::new(), Vec::new()));
         }
-        let count = packed.len() / (16 * k) * 256;
+        let count =
+            contracts::decoded_states(packed.len(), k).context("Metal decode shape overflow")?;
         let n = u32::try_from(count).context("Metal decode index overflow")?;
         let input = Self::upload(&self.device, packed);
         let states = self.output(count);
@@ -198,10 +203,7 @@ impl Metal {
             rows > 0 && cols > 0 && rows.is_multiple_of(16) && cols.is_multiple_of(16),
             "expected positive 16-aligned dimensions"
         );
-        let tiles = (rows / 16)
-            .checked_mul(cols / 16)
-            .context("QMV shape overflow")?;
-        let size = tiles.checked_mul(16 * k).context("QMV size overflow")?;
+        let size = contracts::qmv_words(rows, cols, k).context("QMV shape overflow")?;
         ensure!(
             packed.len() == size && size <= u32::MAX as usize,
             "invalid trellis size or Metal index overflow"

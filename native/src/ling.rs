@@ -5,9 +5,10 @@ use crate::{
     gated_delta,
     lfm2::{Projection, half_weight},
     moe::Exl3SwitchGlu,
+    qwen35::ProjectionBundle,
     router,
 };
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use serde::Deserialize;
 use std::{fs::File, path::Path};
 
@@ -55,27 +56,20 @@ fn is_kda_layer(index: usize, group: usize) -> bool {
 }
 
 struct Mlp {
-    gate: Projection,
-    up: Projection,
+    inputs: ProjectionBundle,
     down: Projection,
 }
 
 impl Mlp {
     fn load(checkpoint: &Checkpoint, prefix: &str, hidden: i32, intermediate: i32) -> Result<Self> {
         Ok(Self {
-            gate: Projection::load(
+            inputs: ProjectionBundle::load(
                 checkpoint,
-                &format!("{prefix}.gate_proj"),
                 hidden,
-                intermediate,
-                false,
-            )?,
-            up: Projection::load(
-                checkpoint,
-                &format!("{prefix}.up_proj"),
-                hidden,
-                intermediate,
-                false,
+                vec![
+                    (format!("{prefix}.gate_proj"), intermediate),
+                    (format!("{prefix}.up_proj"), intermediate),
+                ],
             )?,
             down: Projection::load(
                 checkpoint,
@@ -88,8 +82,8 @@ impl Mlp {
     }
 
     fn forward(&self, x: &Array) -> Result<Array> {
-        self.down
-            .forward(&self.gate.forward(x)?.swiglu(&self.up.forward(x)?)?)
+        let inputs = self.inputs.forward(x)?;
+        self.down.forward(&inputs[0].swiglu(&inputs[1])?)
     }
 }
 
@@ -148,7 +142,10 @@ impl SparseMoe {
     }
 
     fn forward(&self, x: &Array) -> Result<Array> {
-        ensure!(x.shape() == [1, self.hidden], "Ling MoE expects one token");
+        ensure!(
+            x.shape().len() == 2 && x.shape()[0] > 0 && x.shape()[1] == self.hidden,
+            "invalid Ling MoE input"
+        );
         let logits = x.astype(Dtype::Float32)?.matmul(&self.gate_weight)?;
         let (selected, scores) = router::grouped_topk_biased(
             &logits,
@@ -180,12 +177,8 @@ impl FeedForward {
 }
 
 struct Kda {
-    q: Projection,
-    k: Projection,
-    v: Projection,
-    f: Projection,
+    inputs: ProjectionBundle,
     b_weight: Array,
-    output_gate: Projection,
     output_norm: Array,
     output: Projection,
     q_conv: Array,
@@ -231,42 +224,15 @@ impl Kda {
             value.eval()?;
         }
         Ok(Self {
-            q: Projection::load(
+            inputs: ProjectionBundle::load(
                 checkpoint,
-                &format!("{prefix}.q_proj"),
                 config.hidden_size,
-                projection,
-                false,
-            )?,
-            k: Projection::load(
-                checkpoint,
-                &format!("{prefix}.k_proj"),
-                config.hidden_size,
-                projection,
-                false,
-            )?,
-            v: Projection::load(
-                checkpoint,
-                &format!("{prefix}.v_proj"),
-                config.hidden_size,
-                projection,
-                false,
-            )?,
-            f: Projection::load(
-                checkpoint,
-                &format!("{prefix}.f_proj"),
-                config.hidden_size,
-                projection,
-                false,
+                ["q_proj", "k_proj", "v_proj", "f_proj", "g_proj"]
+                    .into_iter()
+                    .map(|name| (format!("{prefix}.{name}"), projection))
+                    .collect(),
             )?,
             b_weight,
-            output_gate: Projection::load(
-                checkpoint,
-                &format!("{prefix}.g_proj"),
-                config.hidden_size,
-                projection,
-                false,
-            )?,
             output_norm: norm(
                 checkpoint,
                 &format!("{prefix}.o_norm.weight"),
@@ -308,41 +274,30 @@ impl Kda {
             None => Array::zeros_dtype(&[1, length - 1, width], Dtype::Float16)?,
         };
         let input = Array::concatenate(&[&previous, &value], 1)?;
-        *state = Some(input.slice(1, 1, length)?);
+        *state = Some(input.slice(1, value.shape()[1], value.shape()[1] + length - 1)?);
         input.conv1d(weight, width)?.silu()
     }
 
     fn forward(&mut self, x: &Array) -> Result<Array> {
+        let time = x.shape()[1];
         let projection = self.heads * self.dim;
-        let q = Self::causal_conv(
-            self.q.forward(x)?,
-            &self.q_conv,
-            &mut self.conv_q,
-            self.conv_length,
-        )?
-        .reshape(&[1, 1, self.heads, self.dim])?
-        .rms_norm_without_weight(self.eps / self.dim as f32)?
-        .scalar_mul(1.0 / self.dim as f32)?;
-        let k = Self::causal_conv(
-            self.k.forward(x)?,
-            &self.k_conv,
-            &mut self.conv_k,
-            self.conv_length,
-        )?
-        .reshape(&[1, 1, self.heads, self.dim])?
-        .rms_norm_without_weight(self.eps / self.dim as f32)?
-        .scalar_mul(1.0 / (self.dim as f32).sqrt())?;
-        let v = Self::causal_conv(
-            self.v.forward(x)?,
-            &self.v_conv,
-            &mut self.conv_v,
-            self.conv_length,
-        )?
-        .reshape(&[1, 1, self.heads, self.dim])?;
-        let raw_gate = self
-            .f
+        let [q_input, k_input, v_input, f_input, gate_input]: [Array; 5] = self
+            .inputs
             .forward(x)?
-            .reshape(&[1, 1, self.heads, self.dim])?
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Ling KDA requires five projections"))?;
+        let q = Self::causal_conv(q_input, &self.q_conv, &mut self.conv_q, self.conv_length)?
+            .reshape(&[1, time, self.heads, self.dim])?
+            .rms_norm_without_weight(self.eps / self.dim as f32)?
+            .scalar_mul(1.0 / self.dim as f32)?;
+        let k = Self::causal_conv(k_input, &self.k_conv, &mut self.conv_k, self.conv_length)?
+            .reshape(&[1, time, self.heads, self.dim])?
+            .rms_norm_without_weight(self.eps / self.dim as f32)?
+            .scalar_mul(1.0 / (self.dim as f32).sqrt())?;
+        let v = Self::causal_conv(v_input, &self.v_conv, &mut self.conv_v, self.conv_length)?
+            .reshape(&[1, time, self.heads, self.dim])?;
+        let raw_gate = f_input
+            .reshape(&[1, time, self.heads, self.dim])?
             .astype(Dtype::Float32)?;
         let decay = raw_gate
             .add(&self.dt_bias)?
@@ -362,22 +317,13 @@ impl Kda {
         let (output, state) = gated_delta::step_vector(&q, &k, &v, &decay, &beta, &state)?;
         self.recurrent = Some(state);
         let output = output.rms_norm(&self.output_norm, self.eps)?;
-        let gate = self
-            .output_gate
-            .forward(x)?
-            .reshape(&[1, 1, self.heads, self.dim])?
+        let gate = gate_input
+            .reshape(&[1, time, self.heads, self.dim])?
             .astype(Dtype::Float32)?
             .sigmoid()?
             .astype(Dtype::Float16)?;
         self.output
-            .forward(&output.mul(&gate)?.reshape(&[1, 1, projection])?)
-    }
-
-    fn eval_state(&self) -> Result<()> {
-        for value in [&self.conv_q, &self.conv_k, &self.conv_v, &self.recurrent] {
-            value.as_ref().context("missing Ling KDA state")?.eval()?;
-        }
-        Ok(())
+            .forward(&output.mul(&gate)?.reshape(&[1, time, projection])?)
     }
 
     fn reset(&mut self) {
@@ -496,11 +442,12 @@ impl Mla {
     }
 
     fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+        let time = x.shape()[1];
         let qk_dim = self.nope_dim + self.rope_dim;
         let q = self
             .q_b
             .forward(&self.q_a.forward(x)?.rms_norm(&self.q_a_norm, self.eps)?)?
-            .reshape(&[1, 1, self.heads, qk_dim])?
+            .reshape(&[1, time, self.heads, qk_dim])?
             .transpose(&[0, 2, 1, 3])?;
         let q_nope = q.slice(3, 0, self.nope_dim)?;
         let q_rope = q
@@ -510,10 +457,12 @@ impl Mla {
         let kv = compressed
             .slice(2, 0, self.kv_rank)?
             .rms_norm(&self.kv_a_norm, self.eps)?
-            .reshape(&[1, 1, 1, self.kv_rank])?;
+            .reshape(&[1, time, 1, self.kv_rank])?
+            .transpose(&[0, 2, 1, 3])?;
         let k_rope = compressed
             .slice(2, self.kv_rank, self.kv_rank + self.rope_dim)?
-            .reshape(&[1, 1, 1, self.rope_dim])?
+            .reshape(&[1, time, 1, self.rope_dim])?
+            .transpose(&[0, 2, 1, 3])?
             .rope(self.rope_dim, self.theta, offset)?;
         let keys = match &self.kv_cache {
             Some(previous) => Array::concatenate(&[previous, &kv], 2)?,
@@ -524,9 +473,27 @@ impl Mla {
             None => k_rope,
         };
         let scale = (qk_dim as f32).powf(-0.5);
-        let pe_scores = q_rope
+        let mut pe_scores = q_rope
             .scalar_mul(scale)?
             .matmul(&rope_keys.transpose(&[0, 1, 3, 2])?)?;
+        if time > 1 {
+            let length = keys.shape()[2];
+            let prefix = length - time;
+            let causal = (0..time)
+                .flat_map(|query| {
+                    (0..length).map(move |key| {
+                        if key <= prefix + query {
+                            0.0
+                        } else {
+                            f32::NEG_INFINITY
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
+            pe_scores = pe_scores.add(
+                &Array::from_f32(&causal, &[1, 1, time, length])?.astype(pe_scores.dtype())?,
+            )?;
+        }
         let embedded_q = q_nope.matmul(&self.embed_q)?;
         let attended = Array::sdpa_mask(&embedded_q, &keys, &keys, scale, &pe_scores)?
             .matmul(&self.unembed_out)?
@@ -537,25 +504,14 @@ impl Mla {
             .astype(Dtype::Float32)?
             .sigmoid()?
             .astype(Dtype::Float16)?
-            .reshape(&[1, 1, self.heads, 1])?;
+            .reshape(&[1, time, self.heads, 1])?;
         self.kv_cache = Some(keys);
         self.rope_cache = Some(rope_keys);
-        self.output.forward(
-            &attended
-                .mul(&gate)?
-                .reshape(&[1, 1, self.heads * self.value_dim])?,
-        )
-    }
-
-    fn eval_state(&self) -> Result<()> {
-        self.kv_cache
-            .as_ref()
-            .context("missing Ling MLA cache")?
-            .eval()?;
-        self.rope_cache
-            .as_ref()
-            .context("missing Ling RoPE cache")?
-            .eval()
+        self.output.forward(&attended.mul(&gate)?.reshape(&[
+            1,
+            time,
+            self.heads * self.value_dim,
+        ])?)
     }
 
     fn reset(&mut self) {
@@ -574,13 +530,6 @@ impl Attention {
         match self {
             Self::Kda(attention) => attention.forward(x),
             Self::Mla(attention) => attention.forward(x, offset),
-        }
-    }
-
-    fn eval_state(&self) -> Result<()> {
-        match self {
-            Self::Kda(attention) => attention.eval_state(),
-            Self::Mla(attention) => attention.eval_state(),
         }
     }
 
@@ -649,6 +598,7 @@ impl Layer {
     }
 
     fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+        let time = x.shape()[1];
         let hidden = x.add(
             &self
                 .attention
@@ -657,9 +607,9 @@ impl Layer {
         let feed_forward = self.feed_forward.forward(
             &hidden
                 .rms_norm(&self.post_attention_norm, self.eps)?
-                .reshape(&[1, self.hidden])?,
+                .reshape(&[time, self.hidden])?,
         )?;
-        hidden.add(&feed_forward.reshape(&[1, 1, self.hidden])?)
+        hidden.add(&feed_forward.reshape(&[1, time, self.hidden])?)
     }
 }
 
@@ -737,7 +687,11 @@ impl Ling {
     }
 
     pub fn forward(&mut self, token: u32) -> Result<Array> {
-        match self.run(token) {
+        self.forward_tokens(&[token])
+    }
+
+    pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
+        match self.run(tokens) {
             Ok(logits) => Ok(logits),
             Err(error) => {
                 self.reset();
@@ -746,26 +700,63 @@ impl Ling {
         }
     }
 
-    fn run(&mut self, token: u32) -> Result<Array> {
+    fn run(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(
-            token < self.vocab as u32,
-            "Ling token is outside vocabulary"
+            !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
+            "Ling token batch is empty or outside vocabulary"
         );
-        ensure!(self.offset < self.context_limit, "Ling context is full");
-        let id = Array::from_i32(&[token as i32], &[1, 1])?;
+        let time = i32::try_from(tokens.len())?;
+        ensure!(
+            self.offset + time <= self.context_limit,
+            "Ling context is full"
+        );
+        let ids = tokens.iter().map(|&token| token as i32).collect::<Vec<_>>();
+        let id = Array::from_i32(&ids, &[1, time])?;
         let mut hidden = self.embeddings.take(&id, 0)?;
         for layer in &mut self.layers {
             hidden = layer.forward(&hidden, self.offset)?;
-            hidden.eval()?;
-            layer.attention.eval_state()?;
         }
-        let logits = self.head.forward(&hidden.rms_norm(&self.norm, self.eps)?)?;
-        self.offset += 1;
+        let last = hidden.slice(1, time - 1, time)?;
+        let logits = self.head.forward(&last.rms_norm(&self.norm, self.eps)?)?;
+        logits.eval()?;
+        self.offset += time;
         Ok(logits)
     }
 
     pub fn context_limit(&self) -> i32 {
         self.context_limit
+    }
+
+    /// Read-only cache snapshots for numerical parity checks.
+    pub fn state_arrays(&self) -> Vec<(String, &Array)> {
+        let mut states = Vec::new();
+        for (index, layer) in self.layers.iter().enumerate() {
+            match &layer.attention {
+                Attention::Kda(attention) => {
+                    for (suffix, value) in [
+                        ("conv_q", &attention.conv_q),
+                        ("conv_k", &attention.conv_k),
+                        ("conv_v", &attention.conv_v),
+                        ("recurrent", &attention.recurrent),
+                    ] {
+                        if let Some(value) = value {
+                            states.push((format!("model.layers.{index}.{suffix}"), value));
+                        }
+                    }
+                }
+                Attention::Mla(attention) => {
+                    for (suffix, value) in [
+                        ("kv_cache", &attention.kv_cache),
+                        ("rope_cache", &attention.rope_cache),
+                    ] {
+                        if let Some(value) = value {
+                            states.push((format!("model.layers.{index}.{suffix}"), value));
+                        }
+                    }
+                }
+            }
+        }
+        states
     }
 
     pub fn reset(&mut self) {
@@ -785,5 +776,149 @@ mod tests {
         assert!(is_kda_layer(0, 4));
         assert!(!is_kda_layer(3, 4));
         assert!(!is_kda_layer(23, 4));
+    }
+
+    #[test]
+    #[ignore = "requires local Ling checkpoint and Apple GPU"]
+    fn batched_prefill_matches_serial_state() -> Result<()> {
+        let mut model = Ling::load(Path::new("models/Ling-3.0-tiny-EXL3-4bpw"))?;
+        let tokens = (1..=25).collect::<Vec<_>>();
+        let batch_logits = model.forward_tokens(&tokens)?.to_f32()?;
+        let batch_states = model
+            .state_arrays()
+            .into_iter()
+            .map(|(name, value)| Ok((name, value.to_f32()?)))
+            .collect::<Result<Vec<_>>>()?;
+        model.reset();
+        let mut serial_logits = Vec::new();
+        for token in tokens {
+            serial_logits = model.forward(token)?.to_f32()?;
+        }
+        let max_diff = |left: &[f32], right: &[f32]| {
+            left.iter()
+                .zip(right)
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0f32, f32::max)
+        };
+        let logits_diff = max_diff(&batch_logits, &serial_logits);
+        let mut worst_state = (String::new(), 0.0f32);
+        let mut divergent_states = 0;
+        for ((name, batch), (serial_name, serial)) in batch_states.iter().zip(model.state_arrays())
+        {
+            assert_eq!(name, &serial_name);
+            let diff = max_diff(batch, &serial.to_f32()?);
+            if diff > 0.001 {
+                if divergent_states < 12 {
+                    eprintln!("Ling batch/serial state {name}: {diff}");
+                }
+                divergent_states += 1;
+            }
+            if diff > worst_state.1 {
+                worst_state = (name.clone(), diff);
+            }
+        }
+        eprintln!("Ling batch/serial max logits {logits_diff}; max state {worst_state:?}");
+        assert!(logits_diff < 0.05, "Ling prefill logits diverged");
+        assert!(worst_state.1 < 0.05, "Ling prefill state diverged");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Ling checkpoint and Apple GPU"]
+    fn profile_batched_prefill_layers() -> Result<()> {
+        let mut model = Ling::load(Path::new("models/Ling-3.0-tiny-EXL3-4bpw"))?;
+        let tokens = (1..=84).collect::<Vec<_>>();
+        let id = Array::from_i32(&tokens, &[1, 84])?;
+        let mut hidden = model.embeddings.take(&id, 0)?;
+        for (index, layer) in model.layers.iter_mut().enumerate() {
+            let start = std::time::Instant::now();
+            hidden = layer.forward(&hidden, 0)?;
+            hidden.eval()?;
+            eprintln!(
+                "Ling batch layer {index}: {:.3} ms",
+                start.elapsed().as_secs_f64() * 1000.
+            );
+        }
+        let start = std::time::Instant::now();
+        model
+            .head
+            .forward(&hidden.slice(1, 83, 84)?.rms_norm(&model.norm, model.eps)?)?
+            .eval()?;
+        eprintln!(
+            "Ling batch head: {:.3} ms",
+            start.elapsed().as_secs_f64() * 1000.
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Ling checkpoint and Apple GPU"]
+    fn profile_decode_components() -> Result<()> {
+        let mut model = Ling::load(Path::new("models/Ling-3.0-tiny-EXL3-4bpw"))?;
+        model.forward(1)?.eval()?;
+        model.reset();
+        let id = Array::from_i32(&[1], &[1, 1])?;
+        let mut hidden = model.embeddings.take(&id, 0)?;
+        for (index, layer) in model.layers.iter_mut().enumerate() {
+            let start = std::time::Instant::now();
+            let attention = layer
+                .attention
+                .forward(&hidden.rms_norm(&layer.input_norm, layer.eps)?, 0)?;
+            attention.eval()?;
+            let attention_ms = start.elapsed().as_secs_f64() * 1000.;
+            let start = std::time::Instant::now();
+            let after_attention = hidden.add(&attention)?;
+            let ff = layer.feed_forward.forward(
+                &after_attention
+                    .rms_norm(&layer.post_attention_norm, layer.eps)?
+                    .reshape(&[1, layer.hidden])?,
+            )?;
+            hidden = after_attention.add(&ff.reshape(&[1, 1, layer.hidden])?)?;
+            hidden.eval()?;
+            eprintln!(
+                "Ling decode layer {index}: attention {attention_ms:.3} ms, FF {:.3} ms",
+                start.elapsed().as_secs_f64() * 1000.
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Ling checkpoint and Apple GPU"]
+    fn profile_decode_moe() -> Result<()> {
+        let mut model = Ling::load(Path::new("models/Ling-3.0-tiny-EXL3-4bpw"))?;
+        model.forward(1)?.eval()?;
+        let x = model
+            .embeddings
+            .take(&Array::from_i32(&[1], &[1, 1])?, 0)?
+            .reshape(&[1, model.layers[8].hidden])?;
+        let FeedForward::Sparse(moe) = &model.layers[8].feed_forward else {
+            unreachable!()
+        };
+        for rep in 0..5 {
+            let start = std::time::Instant::now();
+            let logits = x.astype(Dtype::Float32)?.matmul(&moe.gate_weight)?;
+            let (selected, scores) = router::grouped_topk_biased(
+                &logits,
+                &moe.expert_bias,
+                moe.top_k,
+                moe.groups,
+                moe.top_groups,
+                moe.scale,
+            )?;
+            selected.eval()?;
+            scores.eval()?;
+            let route_ms = start.elapsed().as_secs_f64() * 1000.;
+            let start = std::time::Instant::now();
+            moe.experts.forward(&x, &selected, &scores)?.eval()?;
+            let expert_ms = start.elapsed().as_secs_f64() * 1000.;
+            let start = std::time::Instant::now();
+            moe.shared.forward(&x)?.eval()?;
+            let shared_ms = start.elapsed().as_secs_f64() * 1000.;
+            eprintln!(
+                "Ling MoE rep {rep}: route {route_ms:.3} ms, experts {expert_ms:.3} ms, shared {shared_ms:.3} ms"
+            );
+        }
+        Ok(())
     }
 }

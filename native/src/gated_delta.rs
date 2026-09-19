@@ -100,13 +100,13 @@ pub fn step_vector(
         .map_err(|_| anyhow::anyhow!("vector Gated DeltaNet q must have rank 4"))?;
     ensure!(
         batch > 0
-            && time == 1
+            && time > 0
             && heads > 0
             && dim == 128
             && k.shape() == q.shape()
             && v.shape() == q.shape()
             && g.shape() == q.shape()
-            && beta.shape() == [batch, 1, heads]
+            && beta.shape() == [batch, time, heads]
             && state.shape() == [batch, heads, dim, dim],
         "invalid vector Gated DeltaNet dimensions"
     );
@@ -126,41 +126,48 @@ pub fn step_vector(
         uint lane = thread_position_in_threadgroup.x;
         uint value_index = thread_position_in_grid.y;
         uint base = lane * 4u;
-        ulong vector_base = (ulong(batch) * HEADS + head) * 128u;
         ulong state_base = (ulong(batch) * HEADS * 128u + head * 128u + value_index) * 128u;
         float local[4];
-        float memory = 0.0f;
         for (uint i = 0u; i < 4u; ++i) {
-            uint key_index = base + i;
-            local[i] = state_in[state_base + key_index] * g[vector_base + key_index];
-            memory += local[i] * float(k[vector_base + key_index]);
+            local[i] = state_in[state_base + base + i];
         }
-        memory += simd_shuffle_xor(memory, 1);
-        memory += simd_shuffle_xor(memory, 2);
-        memory += simd_shuffle_xor(memory, 4);
-        memory += simd_shuffle_xor(memory, 8);
-        memory += simd_shuffle_xor(memory, 16);
-        float delta = (float(v[vector_base + value_index]) - memory)
-            * float(beta[(ulong(batch) * HEADS) + head]);
-        float output = 0.0f;
+        for (uint t = 0u; t < TIME; ++t) {
+            ulong vector_base = ((ulong(batch) * TIME + t) * HEADS + head) * 128u;
+            float memory = 0.0f;
+            for (uint i = 0u; i < 4u; ++i) {
+                uint key_index = base + i;
+                local[i] *= g[vector_base + key_index];
+                memory += local[i] * float(k[vector_base + key_index]);
+            }
+            memory += simd_shuffle_xor(memory, 1);
+            memory += simd_shuffle_xor(memory, 2);
+            memory += simd_shuffle_xor(memory, 4);
+            memory += simd_shuffle_xor(memory, 8);
+            memory += simd_shuffle_xor(memory, 16);
+            float delta = (float(v[vector_base + value_index]) - memory)
+                * float(beta[(ulong(batch) * TIME + t) * HEADS + head]);
+            float output = 0.0f;
+            for (uint i = 0u; i < 4u; ++i) {
+                uint key_index = base + i;
+                local[i] += float(k[vector_base + key_index]) * delta;
+                output += local[i] * float(q[vector_base + key_index]);
+            }
+            output += simd_shuffle_xor(output, 1);
+            output += simd_shuffle_xor(output, 2);
+            output += simd_shuffle_xor(output, 4);
+            output += simd_shuffle_xor(output, 8);
+            output += simd_shuffle_xor(output, 16);
+            if (lane == 0u) y[vector_base + value_index] = half(output);
+        }
         for (uint i = 0u; i < 4u; ++i) {
-            uint key_index = base + i;
-            local[i] += float(k[vector_base + key_index]) * delta;
-            state_out[state_base + key_index] = local[i];
-            output += local[i] * float(q[vector_base + key_index]);
+            state_out[state_base + base + i] = local[i];
         }
-        output += simd_shuffle_xor(output, 1);
-        output += simd_shuffle_xor(output, 2);
-        output += simd_shuffle_xor(output, 4);
-        output += simd_shuffle_xor(output, 8);
-        output += simd_shuffle_xor(output, 16);
-        if (lane == 0u) y[vector_base + value_index] = half(output);
     "#;
     let mut outputs = array::metal_kernel(
-        &format!("mlxl3_rs_gdn_vector_b{batch}_h{heads}_d{dim}_v1"),
+        &format!("mlxl3_rs_gdn_vector_b{batch}_t{time}_h{heads}_d{dim}_v2"),
         &["q", "k", "v", "g", "beta", "state_in"],
         &["y", "state_out"],
-        &format!("#define HEADS {heads}u\n"),
+        &format!("#define TIME {time}u\n#define HEADS {heads}u\n"),
         source,
         &[q, k, v, g, beta, state],
         &[q.shape().to_vec(), state.shape().to_vec()],
@@ -202,6 +209,38 @@ mod tests {
         assert!(output.to_f32()?.iter().all(|&value| value == 1.));
         let state = state.to_f32()?;
         assert!((0..128).all(|row| state[row * 128] == 1.));
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn vector_batch_matches_serial_steps() -> Result<()> {
+        let mut qkv = vec![0u16; 256];
+        qkv[0] = half::f16::ONE.to_bits();
+        qkv[128] = half::f16::ONE.to_bits();
+        let qkv = Array::from_f16_bits(&qkv, &[1, 2, 1, 128])?;
+        let values = Array::from_f16_bits(&vec![half::f16::ONE.to_bits(); 256], &[1, 2, 1, 128])?;
+        let decay = Array::from_f32(&[vec![0.8; 128], vec![0.9; 128]].concat(), &[1, 2, 1, 128])?;
+        let beta = Array::from_f16_bits(&[half::f16::ONE.to_bits(); 2], &[1, 2, 1])?;
+        let initial = Array::zeros_dtype(&[1, 1, 128, 128], Dtype::Float32)?;
+        let (batched, batched_state) = step_vector(&qkv, &qkv, &values, &decay, &beta, &initial)?;
+        let mut state = initial;
+        let mut serial = Vec::new();
+        for time in 0..2 {
+            let (output, next) = step_vector(
+                &qkv.slice(1, time, time + 1)?,
+                &qkv.slice(1, time, time + 1)?,
+                &values.slice(1, time, time + 1)?,
+                &decay.slice(1, time, time + 1)?,
+                &beta.slice(1, time, time + 1)?,
+                &state,
+            )?;
+            serial.push(output);
+            state = next;
+        }
+        let serial = Array::concatenate(&serial.iter().collect::<Vec<_>>(), 1)?;
+        assert_eq!(batched.to_f16_bits()?, serial.to_f16_bits()?);
+        assert_eq!(batched_state.to_f32()?, state.to_f32()?);
         Ok(())
     }
 }

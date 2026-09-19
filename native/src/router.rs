@@ -162,7 +162,7 @@ pub fn grouped_topk_biased(
         .try_into()
         .map_err(|_| anyhow::anyhow!("router logits must have rank 2"))?;
     ensure!(
-        rows == 1
+        rows > 0
             && experts > 0
             && experts <= 1024
             && (experts as usize).is_multiple_of(groups)
@@ -181,9 +181,9 @@ pub fn grouped_topk_biased(
         "grouped router expects FP32 logits and bias"
     );
     let per_group = experts as usize / groups;
-    let source = format!(
+    let serial_source = format!(
         r#"
-            if (thread_position_in_grid.x != 0u) return;
+            uint row = thread_position_in_grid.x;
             constexpr uint EXPERTS = {experts}u;
             constexpr uint GROUPS = {groups}u;
             constexpr uint PER_GROUP = {per_group}u;
@@ -193,8 +193,9 @@ pub fn grouped_topk_biased(
             float routing[EXPERTS];
             float group_score[GROUPS];
             bool allowed[GROUPS];
+            uint route_base = row * TOP_K;
             for (uint e = 0u; e < EXPERTS; ++e) {{
-                probabilities[e] = probabilities_in[e];
+                probabilities[e] = probabilities_in[row * EXPERTS + e];
                 routing[e] = probabilities[e] + bias[e];
             }}
             for (uint group = 0u; group < GROUPS; ++group) {{
@@ -220,27 +221,96 @@ pub fn grouped_topk_biased(
                 float best = -INFINITY; uint winner = 0u;
                 for (uint e = 0u; e < EXPERTS; ++e) {{
                     bool used = false;
-                    for (uint old = 0u; old < rank; ++old) used |= uint(indices[old]) == e;
+                    for (uint old = 0u; old < rank; ++old) used |= uint(indices[route_base + old]) == e;
                     if (allowed[e / PER_GROUP] && !used && routing[e] > best) {{
                         best = routing[e]; winner = e;
                     }}
                 }}
-                indices[rank] = winner;
-                scores[rank] = probabilities[winner];
+                indices[route_base + rank] = winner;
+                scores[route_base + rank] = probabilities[winner];
             }}
         "#
     );
+    let parallel = experts == 128;
+    let source = if parallel {
+        format!(
+            r#"
+            uint row = threadgroup_position_in_grid.y;
+            uint tid = thread_position_in_threadgroup.x;
+            constexpr uint EXPERTS = {experts}u;
+            constexpr uint GROUPS = {groups}u;
+            constexpr uint PER_GROUP = {per_group}u;
+            constexpr uint TOP_GROUPS = {top_groups}u;
+            constexpr uint TOP_K = {top_k}u;
+            threadgroup float probabilities[EXPERTS];
+            threadgroup float routing[EXPERTS];
+            threadgroup float group_score[GROUPS];
+            threadgroup bool allowed[GROUPS];
+            threadgroup bool used[EXPERTS];
+            threadgroup float candidate[EXPERTS];
+            uint route_base = row * TOP_K;
+            probabilities[tid] = probabilities_in[row * EXPERTS + tid];
+            routing[tid] = probabilities[tid] + bias[tid];
+            used[tid] = false;
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            if (tid < GROUPS) {{
+                float first = -INFINITY, second = -INFINITY;
+                for (uint local = 0u; local < PER_GROUP; ++local) {{
+                    float value = routing[tid * PER_GROUP + local];
+                    if (value > first) {{ second = first; first = value; }}
+                    else if (value > second) second = value;
+                }}
+                group_score[tid] = first + second;
+                allowed[tid] = false;
+            }}
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            if (tid == 0u) {{
+                for (uint rank = 0u; rank < TOP_GROUPS; ++rank) {{
+                    float best = -INFINITY; uint winner = 0u;
+                    for (uint group = 0u; group < GROUPS; ++group) {{
+                        if (!allowed[group] && group_score[group] > best) {{
+                            best = group_score[group]; winner = group;
+                        }}
+                    }}
+                    allowed[winner] = true;
+                }}
+            }}
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            for (uint rank = 0u; rank < TOP_K; ++rank) {{
+                candidate[tid] = allowed[tid / PER_GROUP] && !used[tid]
+                    ? routing[tid] : -INFINITY;
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                if (tid == 0u) {{
+                    float best = -INFINITY; uint winner = 0u;
+                    for (uint e = 0u; e < EXPERTS; ++e) {{
+                        if (candidate[e] > best) {{ best = candidate[e]; winner = e; }}
+                    }}
+                    used[winner] = true;
+                    indices[route_base + rank] = winner;
+                    scores[route_base + rank] = probabilities[winner];
+                }}
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+            }}
+            "#
+        )
+    } else {
+        serial_source
+    };
     let mut outputs = array::metal_kernel(
-        &format!("mlxl3_rs_group_router_e{experts}_g{groups}_tg{top_groups}_k{top_k}_v1"),
+        &format!("mlxl3_rs_group_router_e{experts}_g{groups}_tg{top_groups}_k{top_k}_v2"),
         &["probabilities_in", "bias"],
         &["indices", "scores"],
         "",
         &source,
         &[&logits.sigmoid()?, bias],
-        &[vec![1, top_k as i32], vec![1, top_k as i32]],
+        &[vec![rows, top_k as i32], vec![rows, top_k as i32]],
         &[Dtype::UInt32, Dtype::Float32],
-        [1, 1, 1],
-        [1, 1, 1],
+        if parallel {
+            [experts, rows, 1]
+        } else {
+            [rows, 1, 1]
+        },
+        if parallel { [experts, 1, 1] } else { [1, 1, 1] },
     )?;
     let scores = outputs.pop().expect("checked router output count");
     let indices = outputs.pop().expect("checked router output count");
@@ -260,6 +330,37 @@ mod tests {
         let (indices, scores) = grouped_topk_biased(&logits, &bias, 2, 2, 1, 2.5)?;
         assert!(indices.to_u32()?.iter().all(|&index| index >= 4));
         assert!((scores.to_f32()?.iter().sum::<f32>() - 2.5).abs() < 0.002);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn grouped_router_batch_matches_serial() -> Result<()> {
+        let logits = (0..4 * 128)
+            .map(|index| ((index * 53) % 409) as f32 / 37.)
+            .collect::<Vec<_>>();
+        let logits = Array::from_f32(&logits, &[4, 128])?;
+        let bias = Array::from_f32(
+            &(0..128)
+                .map(|index| index as f32 / 1000.)
+                .collect::<Vec<_>>(),
+            &[128],
+        )?;
+        let (batch_indices, batch_scores) = grouped_topk_biased(&logits, &bias, 8, 8, 4, 2.5)?;
+        let batch_indices = batch_indices.to_u32()?;
+        let batch_scores = batch_scores.to_f32()?;
+        for row in 0..4 {
+            let (indices, scores) =
+                grouped_topk_biased(&logits.slice(0, row, row + 1)?, &bias, 8, 8, 4, 2.5)?;
+            assert_eq!(
+                &batch_indices[row as usize * 8..(row as usize + 1) * 8],
+                indices.to_u32()?
+            );
+            assert_eq!(
+                &batch_scores[row as usize * 8..(row as usize + 1) * 8],
+                scores.to_f32()?
+            );
+        }
         Ok(())
     }
 }

@@ -46,16 +46,15 @@ pub fn default_path() -> Result<PathBuf> {
 }
 
 pub fn validate_name(name: &str) -> Result<()> {
-    ensure!(
-        name.as_bytes()
-            .first()
-            .is_some_and(u8::is_ascii_alphanumeric)
-            && name
-                .bytes()
-                .all(|c| c.is_ascii_alphanumeric() || b"._:/-".contains(&c)),
-        "invalid model name"
-    );
+    ensure!(valid_name(name.as_bytes()), "invalid model name");
     Ok(())
+}
+
+fn valid_name(name: &[u8]) -> bool {
+    name.first().is_some_and(u8::is_ascii_alphanumeric)
+        && name
+            .iter()
+            .all(|c| c.is_ascii_alphanumeric() || b"._:/-".contains(c))
 }
 
 pub fn load(path: &Path) -> Result<BTreeMap<String, ModelEntry>> {
@@ -146,4 +145,25 @@ pub fn remove(path: &Path, name: &str, expected: Option<&Path>) -> Result<ModelE
         }
         Ok(models.remove(name).expect("entry checked above"))
     })
+}
+
+#[cfg(kani)]
+mod verification {
+    use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(10)]
+    fn model_name_validation_matches_the_registry_contract() {
+        let bytes: [u8; 8] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= bytes.len());
+        let name = &bytes[..len];
+        let expected = name.first().is_some_and(u8::is_ascii_alphanumeric)
+            && name
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"._:/-".contains(byte));
+        assert_eq!(valid_name(name), expected);
+        kani::cover!(valid_name(name));
+        kani::cover!(!valid_name(name));
+    }
 }

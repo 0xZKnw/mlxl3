@@ -13,13 +13,17 @@ use half::f16;
 use serde::Deserialize;
 use std::{fs::File, path::Path};
 
-enum ProjectionBundle {
+pub(crate) enum ProjectionBundle {
     Grouped(Box<Exl3Group>),
     Separate(Vec<Projection>),
 }
 
 impl ProjectionBundle {
-    fn load(checkpoint: &Checkpoint, input: i32, outputs: Vec<(String, i32)>) -> Result<Self> {
+    pub(crate) fn load(
+        checkpoint: &Checkpoint,
+        input: i32,
+        outputs: Vec<(String, i32)>,
+    ) -> Result<Self> {
         if outputs
             .iter()
             .all(|(prefix, _)| checkpoint.modules.contains(prefix))
@@ -40,7 +44,7 @@ impl ProjectionBundle {
         ))
     }
 
-    fn forward(&self, x: &Array) -> Result<Vec<Array>> {
+    pub(crate) fn forward(&self, x: &Array) -> Result<Vec<Array>> {
         match self {
             Self::Grouped(group) => group.forward(x),
             Self::Separate(projections) => projections.iter().map(|p| p.forward(x)).collect(),

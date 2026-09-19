@@ -3,11 +3,12 @@
 pub mod array;
 pub mod checkpoint;
 pub mod codec;
+mod contracts;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(feature = "mlx")]
 pub mod gemma4;
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
 pub mod gpu;
 pub mod hub;
 #[cfg(feature = "mlx")]

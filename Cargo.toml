@@ -7,7 +7,8 @@ license = "MIT"
 description = "Native Rust/Metal port of MLXL3 (experimental)"
 
 [features]
-default = []
+default = ["direct-metal"]
+direct-metal = ["dep:metal", "dep:objc"]
 mlx = []
 chat = ["dep:tokenizers", "dep:minijinja", "dep:minijinja-contrib"]
 
@@ -37,9 +38,12 @@ minijinja = { version = "2.24", optional = true }
 minijinja-contrib = { version = "2.24", features = ["pycompat"], optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-metal = "0.33"
-objc = "0.2"
+metal = { version = "0.33", optional = true }
+objc = { version = "0.2", optional = true }
 
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

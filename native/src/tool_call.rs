@@ -532,13 +532,14 @@ impl StreamFilter {
 }
 
 fn retain_marker_suffix(text: &mut String, marker: &str) {
-    let keep = text
-        .char_indices()
-        .map(|(index, _)| index)
-        .chain(std::iter::once(text.len()))
-        .find(|&index| marker.starts_with(&text[index..]))
-        .unwrap_or(text.len());
+    let keep = marker_suffix_start(text.as_bytes(), marker.as_bytes());
     text.drain(..keep);
+}
+
+fn marker_suffix_start(text: &[u8], marker: &[u8]) -> usize {
+    (0..=text.len())
+        .find(|&index| marker.starts_with(&text[index..]))
+        .unwrap_or(text.len())
 }
 
 #[cfg(test)]
@@ -599,5 +600,44 @@ mod tests {
                 .is_empty()
         );
         assert!(filter.finish().is_empty());
+    }
+
+    #[test]
+    fn tool_call_filter_is_independent_of_chunk_boundary() {
+        for input in [
+            "<tool_call>{}</tool_call>",
+            "<|tool_call>call:x{}<tool_call|>",
+            "<|tool_call_start|>[x()]<|tool_call_end|>",
+        ] {
+            for split in 0..=input.len() {
+                let mut filter = StreamFilter::new();
+                assert!(filter.feed(&input[..split]).is_empty());
+                assert!(filter.feed(&input[split..]).is_empty());
+                assert!(filter.finish().is_empty());
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+mod verification {
+    use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(12)]
+    fn marker_suffix_is_the_longest_possible_prefix() {
+        const MARKER: &[u8] = b"</tool>";
+        let bytes: [u8; 8] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= bytes.len());
+        let text = &bytes[..len];
+        let keep = marker_suffix_start(text, MARKER);
+        assert!(keep <= text.len());
+        assert!(MARKER.starts_with(&text[keep..]));
+        for earlier in 0..keep {
+            assert!(!MARKER.starts_with(&text[earlier..]));
+        }
+        kani::cover!(keep == 0);
+        kani::cover!(keep == text.len());
     }
 }

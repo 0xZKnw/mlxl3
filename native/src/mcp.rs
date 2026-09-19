@@ -122,10 +122,7 @@ fn read_config(registry: &Path) -> Result<ConfigFile> {
 fn validate_configs(configs: &BTreeMap<String, ServerConfig>) -> Result<()> {
     for (name, config) in configs {
         ensure!(
-            !name.is_empty()
-                && name
-                    .bytes()
-                    .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c)),
+            valid_server_name(name.as_bytes()),
             "invalid MCP server name {name:?}"
         );
         match (&config.url, config.command.is_empty()) {
@@ -143,6 +140,13 @@ fn validate_configs(configs: &BTreeMap<String, ServerConfig>) -> Result<()> {
         );
     }
     Ok(())
+}
+
+fn valid_server_name(name: &[u8]) -> bool {
+    !name.is_empty()
+        && name
+            .iter()
+            .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(c))
 }
 
 fn validate_url(url: &str) -> Result<()> {
@@ -742,5 +746,26 @@ mod tests {
         assert_eq!(parse_http_body(sse.as_bytes()).unwrap(), expected);
         assert!(validate_url("http://example.com/mcp").is_err());
         assert!(validate_url("http://127.0.0.1:9999/mcp").is_ok());
+    }
+}
+
+#[cfg(kani)]
+mod verification {
+    use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(10)]
+    fn mcp_server_names_are_nonempty_and_shell_neutral() {
+        let bytes: [u8; 8] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= bytes.len());
+        let name = &bytes[..len];
+        let expected = !name.is_empty()
+            && name
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(byte));
+        assert_eq!(valid_server_name(name), expected);
+        kani::cover!(valid_server_name(name));
+        kani::cover!(!valid_server_name(name));
     }
 }

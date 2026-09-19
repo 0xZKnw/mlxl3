@@ -6,15 +6,17 @@ Token-wise execution is the default; ``--batch`` validates supported prefill pat
 No speed claim is made.
 """
 from __future__ import annotations
+
 import argparse
 import gc
 import json
-from pathlib import Path
 import subprocess
 import tempfile
+from pathlib import Path
 
 import mlx.core as mx
 import numpy as np
+
 from mlxl3.checkpoint import load_exl3_model
 
 
@@ -26,6 +28,8 @@ def main():
     parser.add_argument("--batch", action="store_true")
     parser.add_argument("--ungrouped-reference", action="store_true",
         help="diagnostic only: disables Python QKV grouping, not production parity")
+    parser.add_argument("--ling-states", action="store_true",
+        help="diagnostic: compare Ling caches with MLX-LM (known FP32 mismatch)")
     args = parser.parse_args()
     if args.ungrouped_reference:
         import mlxl3.checkpoint as loader
@@ -37,7 +41,10 @@ def main():
         assert model_type in ("gemma4", "lfm2", "lfm2_moe"), "unsupported batch parity model"
         assert len(tokens) >= 24, "TensorOps batches need at least 24 tokens"
     sequences = [tokens] if args.batch else [[token] for token in tokens]
-    exact = model_type != "gemma4"
+    exact = model_type not in ("gemma4", "bailing_hybrid")
+    compare_states = model_type in ("lfm2", "lfm2_moe") or (
+        model_type == "bailing_hybrid" and args.ling_states
+    )
     compared = 0
     with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryFile(mode="w+") as errors:
         directory = Path(directory)
@@ -49,9 +56,15 @@ def main():
             mx.eval(expected)
             np.save(directory / f"logits-{step}.npy", np.asarray(expected))
             names = []
-            if model_type in ("lfm2", "lfm2_moe"):
+            if compare_states:
                 for index, layer in enumerate(cache):
-                    if hasattr(layer, "keys"):
+                    if model_type == "bailing_hybrid":
+                        suffixes = (
+                            ("kv_cache", "rope_cache") if hasattr(layer, "keys")
+                            else ("conv_q", "conv_k", "conv_v", "recurrent")
+                        )
+                        values = zip(suffixes, layer.state if hasattr(layer, "keys") else layer.cache)
+                    elif hasattr(layer, "keys"):
                         values = zip(("keys", "values"), layer.state)
                     else:
                         values = (("conv_state", layer[0]),)
@@ -66,7 +79,7 @@ def main():
         mx.clear_cache()
 
         command = [str(args.binary.resolve()), "forward", str(args.model), "--tokens", args.tokens]
-        if model_type in ("lfm2", "lfm2_moe"):
+        if compare_states:
             command.append("--states")
         if args.batch:
             command.append("--batch")
@@ -118,7 +131,7 @@ def main():
     print(json.dumps({"status":"passed", "steps":compared, "model":str(args.model),
         "production_reference": not args.ungrouped_reference,
         "comparison": "all logits bit-for-bit; caches when exported" if exact else
-            "same top-1, max abs <= 0.5 and KL <= 0.005 against cached production Gemma",
+            "same top-1, max abs <= 0.5 and KL <= 0.005 against the Python production model",
         "performance":"not measured"}))
 
 

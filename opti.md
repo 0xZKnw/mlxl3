@@ -2620,3 +2620,675 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   réponse finale `12` à « Combien font 7 + 5 ? Réponds directement. » ; 146
   tokens, TTFT 927 ms, decode 33,1 tok/s sur un seul essai non comparatif.
   Le GUI lui-même n'a pas été mis à jour ni testé pour ce modèle.
+
+### OPT-2026-09-16-RUST-PERF-18 — Ling EXL3 : baseline decode/prefill — en cours
+
+- Demande : optimiser Ling 3.0 Tiny EXL3 4 bpw localement, avec cibles 150 tok/s
+  decode et 500 tok/s prefill sur chat court, sans spéculation, requantification
+  ni changement de sampling. Aucun objectif n'est considéré acquis d'avance.
+- Antécédents : PERF-01 a validé le retrait des barrières par couche sur Qwen ;
+  PERF-11 a rejeté le QMV paresseux pour le prefill ; PERF-12/13 ont validé le
+  QMM multi-token, PERF-16 a rejeté le batch LFM MoE faute de parité, PERF-17
+  n'a pas testé Ling, encore absent. Le présent essai établit une baseline Ling
+  reproductible avant le moindre changement de runtime/kernel.
+- Environnement initial : `main` `a473c96`, Apple M5/macOS 27.0 (26A428),
+  alimentation secteur annoncée par `pmset` (batterie 98 %, état thermique non
+  mesuré), checkpoint local `models/Ling-3.0-tiny-EXL3-4bpw`, binaire release
+  `target/release/mlxl3-rs`. Version MLX à relever avant comparaison.
+- Protocole : bridge Rust résident, un warmup exclu, cinq tours identiques,
+  prompt français court et 128 tokens maximum, greedy et contexte 4096 ; noter
+  tokens effectivement évalués/générés, cache, TTFT, prefill, decode, hash et
+  RAM/pic tels que définis par le bridge. Une seconde mesure à prompt court
+  mais suffisamment long pour tester QMM sera distincte et étiquetée. Si le
+  contrôle de processus GPU concurrents est indisponible, le signaler.
+- Résultat : non mesuré. Intégration : aucun changement moteur, CLI, GUI ou
+  publication. Preuve brute prévue sous `build/ling-perf-18-baseline.json`.
+- Première tentative interrompue avant chargement : le sandbox ne voit aucun
+  GPU Metal (`[metal::load_device] No Metal device available`). Le `tee` a
+  retourné 0 malgré l'échec du bridge et laissé un fichier de preuve vide ;
+  aucune mesure n'existe. Relance du même protocole avec accès GPU, et
+  `pipefail` pour propager l'échec du benchmark.
+- Relance GPU réussie : `PYTHONPATH=src .venv/bin/python
+  benchmarks/benchmark_bridge.py models/Ling-3.0-tiny-EXL3-4bpw
+  --native-binary target/release/mlxl3-rs --max-tokens 128 --repeats 5
+  --prompt "Explique en français, avec des exemples précis, comment fonctionne
+  un modèle MoE local. Compare le routage des experts, la mémoire utilisée,
+  le temps de préremplissage et la vitesse de génération. Termine par deux
+  limites concrètes et une conclusion courte."` ; bridge contexte 4096,
+  84 tokens prompt évalués, 128 tokens générés, cache 0/84 chaque tour.
+  Cinq tours chauds : decode **33,8867 tok/s** médian (33,66–33,99), prefill
+  **36,3923 tok/s** médian (36,21–36,47), TTFT **2,30999 s** médian, hash
+  des cinq sorties identique. Chargement 1,426 s. Le `peak_memory_gb`
+  **4,42837 GB** est l'estimation des poids résidents rapportée par le bridge,
+  pas une mesure du pic RAM processus. Preuve
+  `build/ling-perf-18-baseline.json`. Aucun accès fiable à la liste des autres
+  processus GPU dans ce sandbox ; contention éventuelle non exclue. Batterie
+  sur secteur d'après `pmset`, thermique et fréquences non mesurées.
+- Décision : **baseline validée** pour ce protocole court. Écart brut aux cibles :
+  4,43× pour le decode et 13,74× pour le prefill ; ce ne sont pas des gains
+  attendus ni une comparaison équitable au benchmark GGUF de l'utilisateur.
+  Aucun code moteur/app changé. Le profilage suivant utilisera cette référence.
+
+### OPT-2026-09-16-RUST-PERF-19 — Ling : une synchronisation par token — en cours
+
+- Hypothèse : `Ling::run` évalue `hidden` et l'état attention après chacune des
+  24 couches, comme l'ancien Qwen avant PERF-01. Une seule synchronisation des
+  logits à la frontière du token doit réduire le coût CPU/Metal sans changer
+  l'ordre des opérations, les poids, les caches ou le sampling.
+- Antécédents : PERF-01 a validé cette stratégie sur Qwen avec parité exacte.
+  PERF-07 (graphe decode entier jusqu'à argmax) a régressé ; on ne répète pas
+  cette piste. Les états Ling KDA/MLA sont distincts, donc le succès Qwen ne
+  préjuge ni de leur coût ni de la stabilité mémoire Ling.
+- Baseline : PERF-18, 84/128 tokens, cinq tours, **33,8867 tok/s** decode,
+  **36,3923 tok/s** prefill, **2,30999 s** TTFT, hash stable. Candidat : ne
+  retirer que les deux `eval()` par couche de `Ling::run`, évaluer les logits
+  une fois en fin de token. Binaire baseline sauvegardé avant reconstruction.
+- Protocole : build release identique, sortie forcée sur au moins quatre
+  tokens (logits complets FP16, comparaison bit-à-bit) et hash bridge 84/128
+  identiques ; cinq tours chauds appariés avec le binaire baseline si possible.
+  Mesurer decode, prefill, TTFT, stabilité sur une génération >128 tokens et
+  mémoire processus si disponible. Rejeter si logits divergent, crash/OOM ou
+  régression stable. Preuves sous `build/ling-perf-19-*`.
+- État : avant modification ; résultat **non mesuré**, code local uniquement.
+- Build release réussi avec MLX 0.32.2 ; trois méthodes `eval_state` Ling sont
+  devenues inutilisées et seront retirées après validation. Avertissement
+  `rust-objcopy`/`libLLVM.dylib` historique, non bloquant. Binaire baseline
+  `build/ling-perf-19-baseline-bin` SHA256
+  `d938d72f8ae4e600e628a27f105634558c153dd5b015e6eed36dd95d9630a26a`.
+- Contrôle forcé `forward --tokens 1,2,3,4` : fichiers JSON/logits complets
+  du baseline et du candidat **bit-à-bit identiques**, SHA256 commun
+  `0309e48c0101ed2293061d87153eff7175e6893c5b5d816`; preuves
+  `build/ling-perf-19-forced-{baseline,candidate}.jsonl`. Les états KDA/MLA
+  ne sont pas exportés par le checker actuel : parité d'état non démontrée.
+- Candidat, même bridge 84/128, cinq tours chauds : decode **47,8943 tok/s**
+  médian (47,69–48,14), soit **+41,33 %** vs PERF-18 ; prefill
+  **48,0186 tok/s** (+31,95 %) ; TTFT **1,7495 s** (−24,26 %). Hash greedy
+  identique sur les cinq tours et au baseline, `peak_memory_gb` rapporté
+  inchangé 4,42837 GB (poids résidents seulement). Preuve
+  `build/ling-perf-19-candidate.json`.
+- Décision provisoire : **gain validé pour la forme 84/128**, sans preuve de
+  mémoire processus ni de stabilité longue. Avant intégration définitive,
+  tester 256 tokens générés sur le même prompt et ajouter un contrôle des
+  états KDA/MLA ; ne pas interpréter l'estimation résidente comme pic RAM.
+- Extension 84/256, un warmup et un tour candidat : **256 tokens générés sans
+  crash ni ralentissement manifeste**, decode 50,2238 tok/s, prefill 51,8312
+  tok/s, TTFT 1,6209 s, hash
+  `08b82405862f00df38e2cebb148860920cc1e3ec19a89a83262ed94a2fd1a3e2`.
+  Preuve `build/ling-perf-19-long.json`. Un seul tour n'établit pas un gain
+  comparatif ni la RAM processus ; contrôle baseline 256 à faire.
+- Contrôle baseline 84/256 : 35,1428 tok/s decode, 37,6237 tok/s prefill,
+  TTFT 2,2329 s, **même hash complet** que le candidat. Gain candidat sur
+  ce tour comparatif : +42,91 % decode ; preuve
+  `build/ling-perf-19-long-baseline.json`. Pas de conclusion sur RAM.
+- Contrôle d'état prévu avant essai suivant : exposer `--states` Ling dans la
+  commande de parité déjà existante, sans changer le runtime de production,
+  et comparer tous les caches convolutionnels/récurrents KDA et KV/RoPE MLA
+  au modèle MLX-LM Python pour deux tokens imposés. Supprimer les anciennes
+  méthodes `eval_state` devenues inutilisées. Ce test n'est pas un nouvel
+  essai de performance ni un assouplissement de tolérance.
+- Première exécution du contrôle d'état **interrompue avant le Rust** : pour
+  `ArraysCache`, `state` contient `(cache, left_padding, lengths)`, pas les
+  quatre tableaux KDA directement ; `np.asarray` refuse ce tuple hétérogène.
+  Aucun écart numérique observé. Corriger l'oracle Python pour lire
+  `layer.cache` comme le modèle le fait, sans changer la tolérance ni les poids.
+- Deuxième exécution de parité production **rejetée au premier état récurrent** :
+  les trois caches convolutionnels de la couche KDA 0 passent, mais
+  `model.layers.0.recurrent` diffère sur 516 653/1 048 576 octets dès le
+  premier token. Ce test compare Rust optimisé à MLX-LM Python ; il ne prouve
+  pas que PERF-19 a introduit l'écart, puisque l'ancien moteur Rust n'exportait
+  pas ses états. Les logits forcés avant/après et le texte 256 tokens restent
+  exacts. Nouvelle vérification nécessaire : construire la variante Rust
+  baseline avec le même export `--states`, comparer les flux d'état bit-à-bit
+  entre deux binaires et ne conserver PERF-19 que si l'écart préexiste.
+- Contrôle différentiel Rust effectué : les deux variantes partagent le même
+  export `--states`, la baseline restitue les évaluations `hidden` puis caches
+  par couche et le candidat les diffère. Sur `--tokens 1,2 --states`, le flux
+  JSON complet (tous logits et caches KDA/MLA) a le **même SHA256**
+  `9715bf2438ebccf5b695be4fdca1d77d8da8e3e7b7f95c115ee13a5d10b74a8c`
+  dans les deux binaires. L'écart FP32 avec MLX-LM Python préexistait donc
+  à PERF-19 ; il reste à investiguer séparément et n'est pas une régression
+  de l'optimisation. La variante source optimisée doit être restaurée après
+  cette vérification, puis revalidée en build release.
+- Source optimisée restaurée. Le checker Python garde les logits Ling exacts
+  par défaut ; `--ling-states` active séparément le diagnostic d'état déjà
+  connu divergent contre MLX-LM. Aucun seuil numérique assoupli.
+
+### OPT-2026-09-16-RUST-PERF-20 — Ling KDA : regrouper cinq projections — en cours
+
+- Hypothèse : les projections KDA q/k/v/f/g partagent la même entrée et le
+  même format K4/MCG. Réutiliser `ProjectionBundle`/`Exl3Group` déjà validé
+  pour Qwen/LFM peut réduire lancements QMV et préparation Hadamard sur les
+  18 couches KDA, sans nouveau kernel ni nouveau format.
+- Antécédents : PERF-19 (barrières Ling) est la baseline ; le rapport decode
+  du 10 septembre indique que le groupement LFM a peu gagné et peut coûter en
+  RAM/prefill. Ce test Ling n'est donc pas supposé positif. Les cinq sorties
+  doivent conserver leur ordre, leurs dimensions et les scales indépendantes.
+- Baseline/candidat : binaire `build/ling-perf-19-candidate-bin`, modèle Ling
+  EXL3 4 bpw, 84/128 tokens, cinq tours chauds, médianes **47,8943 tok/s**
+  decode, **48,0186 tok/s** prefill, **1,7495 s** TTFT ; candidat = groupement
+  KDA uniquement, MoE/MLP/router et prefill sériel inchangés.
+- Contrôles avant mesure : `forward --tokens 1,2 --states` du candidat
+  bit-à-bit identique au binaire baseline (SHA256 ci-dessus), puis même hash
+  greedy 84/128. Mesurer cinq tours et temps de chargement, éviter de revendiquer
+  un pic RAM réel à partir de `resident_gb`. Rejeter en cas de divergence ou
+  régression stable. Preuves `build/ling-perf-20-*`.
+- État : avant modification ; **non mesuré**, aucun GUI/GitHub changé.
+- Premier candidat construit avec MLX 0.32.2 : le flux complet `forward
+  --tokens 1,2 --states` est bit-à-bit identique à PERF-19 (SHA256
+  `9715bf2438ebccf5b695be4fdca1d77d8da8e3e7b7f95c115ee13a5d10b74a8c`).
+  Bridge 84/128, cinq tours chauds : decode **52,9065 tok/s** médian
+  (52,68–53,03), prefill **53,9263 tok/s** médian, TTFT **1,5579 s**
+  médian ; les cinq hash greedy sont identiques à PERF-19. Par rapport aux
+  médianes historiques PERF-19 : +10,47 % decode, +12,30 % prefill et
+  −10,95 % TTFT. Preuve `build/ling-perf-20-candidate.json`. Chargement
+  0,685 s sur cache disque chaud, non comparable aux 1,426 s initiaux ; RAM
+  processus toujours non mesurée. **Provisoire** : effectuer A/B apparié avec
+  les deux binaires maintenant avant de conclure, car le thermique et le cache
+  système peuvent expliquer une partie du delta.
+- Contrôle A/B/A immédiat, même prompt 84/128 et trois tours chauds par
+  binaire : ancien A `build/ling-perf-20-control-a.json` **67,6628 tok/s**
+  decode et **68,5514 tok/s** prefill ; candidat B
+  `build/ling-perf-20-control-b.json` **69,1228 tok/s** decode et **69,6417
+  tok/s** prefill ; ancien A2 `build/ling-perf-20-control-a2.json`
+  **66,5412 tok/s** decode et **67,6777 tok/s** prefill. Le candidat dépasse
+  les deux contrôles de ~2–4 % en decode et ~2–3 % en prefill, mais la hausse
+  globale de ~48 à ~68 tok/s entre les séries historiques vient manifestement
+  aussi des conditions machine. Le gain **+10,47 %** précédent est donc
+  invalide comme attribution causale. Les trois séries ont le même hash de
+  réponse et l'export d'état bit-à-bit reste identique. Décision : **gain
+  faible/provisoire**, code local conservé pour évaluer d'autres formes,
+  aucune publication ou installation GUI ; mesure RAM réelle non faite.
+
+### OPT-2026-09-16-RUST-PERF-21 — Ling MLP partagé : groupement gate/up — en cours
+
+- Hypothèse : le MLP partagé est invoqué dans chaque couche MoE Ling, et ses
+  projections gate/up lisent le même vecteur. Le `ProjectionBundle` existant
+  peut supprimer une transformation Hadamard et un lancement QMV par couche
+  sans changer les poids ni le résultat. Le seul MLP dense initial suit la
+  même voie. Nouveau périmètre par rapport à PERF-20 (KDA uniquement) ; les
+  résultats LFM de groupement modestes sont une raison de mesurer, pas un gain
+  présumé.
+- Baseline : code local PERF-20, binaire `target/release/mlxl3-rs` avant
+  modification, 84/128 tokens, trois tours appariés. Dernière série
+  **69,1228 tok/s** decode, **69,6417 tok/s** prefill, TTFT **1,2064 s** ;
+  conditions machine variables, à mesurer en A/B/A. Contrôle strict prévu :
+  `forward --tokens 1,2 --states` SHA256 identique, hash greedy identique.
+- Changement : `Mlp` Ling réutilise `ProjectionBundle` pour gate/up et conserve
+  down inchangé. Aucun kernel inédit, quantification, sampler ou GUI modifié.
+  Mesurer chargement et RAM processus si possible ; rejeter toute divergence,
+  crash ou régression stable. Preuves sous `build/ling-perf-21-*`.
+- État avant essai : **non mesuré**, code local uniquement.
+- Build release réussi (MLX 0.32.2, avertissement non bloquant `rust-objcopy`
+  identique aux builds précédents). Les logits et tous les états KDA/MLA de
+  `forward --tokens 1,2 --states` conservent exactement le SHA256
+  `9715bf2438ebccf5b695be4fdca1d77d8da8e3e7b7f95c115ee13a5d10b74a8c`.
+  Le hash greedy 84/128 reste identique sur tous les tours.
+- A/B/A rapproché, trois tours chauds chacun : A PERF-20 **58,834** decode,
+  **59,327** prefill, **1,416 s** TTFT ; B candidat **59,770** decode,
+  **60,014** prefill, **1,400 s** TTFT ; A2 PERF-20 **58,132** decode,
+  **58,241** prefill, **1,442 s** TTFT. Unités tok/s hors TTFT. Preuves
+  `build/ling-perf-21-control-a.json`, `build/ling-perf-21-candidate.json`,
+  `build/ling-perf-21-control-a2.json`. Le candidat est ~1,6–2,8 % au-dessus
+  des deux contrôles en decode, ~1,2–3,0 % en prefill. **Gain faible validé
+  pour cette forme**, pas un progrès vers 150/500 à lui seul. Chargement
+  ~0,69–0,70 s sur cache chaud ; pic RAM processus non mesuré. État : code
+  local seulement ; GUI/app non reconstruits, aucun commit/publication.
+
+### OPT-2026-09-16-RUST-PERF-22 — KDA vector : noyau Metal multi-token — en cours
+
+- Hypothèse : le noyau `gated_delta::step_vector` n'accepte que `T=1`, ce qui
+  interdit le prefill Ling par lots. Parcourir `T` dans chaque thread Metal
+  tout en gardant la même accumulation FP32 et le même ordre par token évite
+  de relancer ce noyau à chaque token. Le chemin decode `T=1` doit rester
+  bit-à-bit inchangé ; ce changement seul n'accélère pas encore le prefill de
+  l'app avant que les autres blocs Ling acceptent le batch.
+- Antécédents : Qwen utilise déjà un noyau Gated DeltaNet multi-token, mais
+  Ling a une décroissance vectorielle `[B,T,H,128]` et un état différent.
+  PERF-18–21 montrent surtout que Ling est actuellement sériel en prefill.
+- Baseline : `step_vector` actuel, test GPU one-hot `vector_step_matches_one_hot_update`
+  et binaire PERF-21. Nouveau contrôle : comparer sur deux pas imposés le
+  résultat et l'état d'un appel `T=2` aux deux appels `T=1` enchaînés, d'abord
+  sur un cas simple puis sur tenseurs déterministes. Toute divergence décisive
+  doit être expliquée avant intégration. Mesure de performance : non applicable
+  au chat tant que le batch Ling complet n'est pas activé ; ne pas revendiquer
+  de gain end-to-end prématurément.
+- État avant essai : **non mesuré**, code local uniquement, pas de GUI/push.
+- Implémentation locale : boucle temporelle dans le noyau Metal vectoriel,
+  un seul chargement et une seule écriture de l'état FP32 par thread, mêmes
+  opérations par token. `cargo test --release --locked --features mlx
+  gated_delta::tests::vector_batch_matches_serial_steps -- --ignored --nocapture`
+  sur M5 : **réussi**, sorties FP16 et état FP32 exactement égaux pour deux
+  tokens déterministes. L'avertissement `rust-objcopy` reste non bloquant.
+  Contrôle sur tenseurs variés/modèle entier encore à faire avant activation
+  du prefill. Statut : **prototype validé pour ce cas**, aucun gain chat mesuré,
+  aucune app installée ni publication.
+
+### OPT-2026-09-16-RUST-PERF-23 — Ling prefill groupé 84 tokens — en cours
+
+- Hypothèse : le bridge sérialise Ling à un token par appel, ce qui maintient
+  toutes les projections EXL3 sur QMV et relance 24 couches par token. Avec
+  PERF-22 (état KDA temporel), réutiliser QMM et MoE segmenté déjà présents
+  devrait améliorer surtout le prefill/TTFT. Ce test est spécifique à Ling ;
+  les poids, le sampling et le chemin decode `T=1` restent inchangés.
+- Plan minimal : accepter `[1,T,H]` dans KDA, MLA et feed-forward Ling ; faire
+  parcourir une ligne par thread au routeur groupé (même calcul par ligne) ;
+  ajouter le masque causal au biais MLA et conserver uniquement les logits du
+  dernier token ; autoriser des chunks de 128 tokens sur le bridge. Pas de
+  nouveau QMM/quantification. Les caches doivent représenter tous les tokens
+  du chunk, et le chemin `T=1` doit conserver les résultats bit-à-bit.
+- Baseline : PERF-21, 84/128 tokens, trois tours, **59,770 tok/s** decode,
+  **60,014 tok/s** prefill, **1,400 s** TTFT sur son dernier run ; les
+  conditions machine varient. Pour une attribution causale : A/B/A rapproché
+  contre le binaire PERF-21 préservé, avec cinq tours si stable. Vérifier
+  d'abord un prefill batch de 2/25/84 tokens vs sérial : logits, tous caches
+  KDA/MLA, séquence greedy et absence de crash. Si l'arithmétique QMM diffère
+  bit-à-bit de QMV, appliquer un seuil numérique justifié et vérifier le
+  routing/texte, sans prétendre à une égalité exacte.
+- Rejeter/limiter le batch s'il corrompt l'état, diverge dans le texte ou
+  fait exploser la RAM processus. Preuves `build/ling-perf-23-*`.
+- État avant essai : **non mesuré**, code local seulement, aucune installation
+  ou publication.
+- Premier test GPU `cargo test --release --locked --features mlx
+  ling::tests::batched_prefill_matches_serial_state -- --ignored --nocapture`
+  **échoué** avant benchmark : 25 tokens imposés, logits finaux écart maximal
+  absolu 0,31445313 ; pire cache `model.layers.13.conv_q` 0,48632813. Le
+  chemin sériel `forward --tokens 1,2 --states` reste exactement identique au
+  SHA256 précédent. Le candidat batch ne peut pas être activé en production en
+  l'état. Causes possibles : QMM vs QMV, convolution batch ou routage ; isoler
+  par couche avant toute mesure de vitesse. Aucun gain revendiqué.
+- Répétition diagnostique du même test, avec sortie des premiers caches qui
+  divergent : cette répétition ne cherche pas un gain, elle doit déterminer si
+  l'écart démarre dès la convolution KDA 0 (projection/conv) ou plus tard
+  (routage/MLA/récurrence). Aucun seuil n'est assoupli.
+- Résultat diagnostic : premier écart à `model.layers.0.conv_q` de 0,001953125,
+  compatible avec un changement d'arithmétique QMM/QMV ; les écarts croissent
+  ensuite (MLA couche 3 : `kv_cache` 0,0480 ; cache conv q couche 13 : 0,4863).
+  Ce test seul ne distingue pas une petite différence de projection amplifiée
+  par MoE d'une erreur de masque/état. Test suivant : chat réel 84 tokens avec
+  hash greedy et débits, **diagnostic seulement** ; ne pas intégrer même si
+  rapide tant que parité et stabilité ne sont pas établies.
+- Première commande bridge diagnostique **interrompue avant chargement** :
+  `cargo test --features mlx` a remplacé `target/release/mlxl3-rs` par un
+  binaire sans feature `chat` ; le bridge signale `requires a build with
+  --features mlx,chat`. Aucune mesure. Reconstruire explicitement ces deux
+  features puis relancer le même diagnostic.
+- Diagnostic chat après rebuild correct : prompt réel 84 tokens, 128 générés,
+  un tour chaud, **104,36 tok/s prefill**, **55,31 tok/s decode**, TTFT
+  **0,805 s** ; hash greedy **identique** à PERF-21. Preuve
+  `build/ling-perf-23-diagnostic.json`. Warmup 25 tokens : prefill seulement
+  12,88 tok/s et TTFT 1,941 s, potentiellement compilation/shape ; ne pas
+  masquer ce coût. Le test numérique forcé reste échoué, et ce seul hash réel
+  ne suffit pas à valider la fidélité générale. Contrôle A/B/A et plusieurs
+  prompts nécessaires après localisation de l'écart ; aucune activation
+  durable, installation ou publication encore validée.
+- Profil diagnostic prévu : exécuter un chunk de 84 tokens avec une barrière
+  `eval()` **uniquement dans un test ignoré**, après chaque couche, relever
+  chaque durée et comparer KDA/MLA/MoE. Le profil modifiera l'ordonnancement
+  GPU et ne sera **pas** une mesure end-to-end ni une optimisation. Il doit
+  seulement choisir la prochaine piste, sans ajouter de barrières au moteur.
+- Profil 84 tokens réussi : couche 0 56,9 ms, couche 1 **458,5 ms**, toutes les
+  couches 2–23 ensuite ~3,3–10,1 ms, head 3,0 ms. Test ignoré
+  `ling::tests::profile_batched_prefill_layers`, sortie console de ce run
+  (pas de log persistant). La couche 1 n'est pas intrinsèquement lente : elle
+  semble payer la compilation du premier MoE QMM segmenté ; les couches
+  suivantes partagent la shape compilée. C'est une **inférence**, pas encore
+  prouvé par un deuxième run chaud. Répéter le benchmark bridge **dans le
+  même processus et avec la même forme 84 tokens** doit distinguer coût de
+  compilation/TTFT initial et débit stable. Cette répétition reprend le
+  protocole PERF-23, sans changement de code moteur.
+- Cinq requêtes consécutives 84/128 dans le même bridge, après warmup de
+  **25 tokens** : prefill **569,95 tok/s** médian (566,5–573,6), TTFT
+  **0,148 s** médian, decode **55,31 tok/s** médian (55,2–55,8) ; cinq hash
+  greedy identiques à PERF-21. Preuve `build/ling-perf-23-batch-five.json`.
+  La requête précédente à 104 tok/s était la première compilation de cette
+  shape 84, pas le débit chaud stable. La cible **500 tok/s en prefill chaud
+  sur cette forme** est atteinte par le prototype, mais ni le prefill froid,
+  ni la fidélité numérique sur 25 tokens imposés, ni le 150 tok/s decode.
+  Ne pas généraliser à d'autres longueurs/contextes : compilation par shape
+  probable. Statut : **prototype non validé pour activation** tant que l'écart
+  logits/caches et plusieurs prompts ne sont pas évalués.
+- Vérification numérique suivante avant décision : tester le routeur groupé
+  multi-lignes séparément contre quatre appels mono-ligne, avec logits/biais
+  déterministes et comparaison **bit-à-bit** des indices et scores. Cela
+  cherche une erreur logique de batch, pas un gain de vitesse ni un
+  assouplissement du seuil modèle entier.
+- Test GPU `router::tests::grouped_router_batch_matches_serial` **réussi** :
+  quatre lignes, 128 experts, top-8, indices et scores exactement identiques
+  aux quatre calculs mono-ligne. Le routeur multi-lignes seul n'explique pas
+  l'écart numérique observé dans le modèle. Compilation/trace du test dans
+  la sortie de `cargo test` locale, non conservée en fichier brut.
+- Contrôle qualité supplémentaire prévu, sans changement du moteur : avec le
+  binaire PERF-23 restauré, comparer le dernier logit de `forward` sériel et
+  `forward --batch` sur 25 IDs imposés, puis sur une phrase française tokenisée.
+  Lire les valeurs comme FP16 (pas comme entiers), relever top-1, écart absolu
+  moyen/maximal et KL des softmax FP32/64. Vérifier ensuite deux chunks et le
+  hash greedy réel. Une égalité du texte seule ne suffit pas ; si l'écart
+  numérique reste grand, garder le batch hors du chemin normal. Preuves
+  `build/ling-perf-23-quality-*`, alimentation/thermique non contrôlées mais
+  non pertinentes pour ce contrôle de valeur.
+- Résultat : 25 IDs imposés, même top-1 et top-10/10, écart absolu moyen
+  **0,05437**, maximal **0,31445**, KL **0,0000689** ; prompt français de
+  17 tokens passé par le chemin sériel (seuil 24), égalité exacte attendue.
+  Prompt français répété jusqu'à ~85 tokens, batch effectivement activé :
+  top-1 identique, top-10/10, moyenne **0,10165**, maximum **0,57422**,
+  KL **0,0027523**. Fichiers `build/ling-perf-23-quality-{serial,batch}-{25,fr,fr85}.jsonl`.
+  Le seuil provisoire max 0,5 cité pour d'autres familles est dépassé ;
+  cela ne prouve ni corruption logique ni absence de dérive en multi-tours.
+  **Statut non concluant pour activation générale** : maintenir le batch en
+  prototype local et ne pas l'installer/publier avant davantage de prompts et
+  contrôle des deux chunks. Le decode mono-token reste la référence fidèle.
+- Validation chat supplémentaire prévue, **répétition de PERF-23** motivée par
+  le nouveau routeur PERF-26 et par l'absence de test multi-chunks : comparer
+  le binaire sériel PERF-21 (`build/ling-perf-21-candidate-bin`) au candidat
+  batch+routeur PERF-26 sur un prompt >128 tokens (deux chunks), un prompt de
+  code et un autre français. Un warmup puis une répétition par forme ; vérifier
+  hash greedy, absence de crash, nombres de tokens, préfill/TTFT/decode, et ne
+  pas extrapoler la RAM du bridge. Preuves `build/ling-perf-23-quality-chat-*`.
+- Première tentative multi-chunks **interrompue sans mesure** : le binaire
+  PERF-21 archivé a été compilé sans `chat`, malgré l'aide CLI montrant
+  `bridge` ; erreur explicite `requires a build with --features mlx,chat`.
+  `build/ling-perf-23-quality-chat-long-serial.json` est vide/non valide.
+  Reprendre le même prompt avec le binaire sériel PERF-19 archivé avec
+  `chat` après vérification ; son hash forcé était identique à PERF-21.
+- Prompt français 146 tokens (deux chunks 128+18), 96 tokens générés, même
+  hash greedy sur baseline sérielle PERF-19 et batch+routeur PERF-26.
+  Sériel : prefill **58,42 tok/s**, TTFT **2,500 s**, decode **55,93 tok/s** ;
+  batch : prefill **97,71 tok/s**, TTFT **1,495 s**, decode **78,28 tok/s**.
+  Le second chunk de 18 reste sériel par seuil 24 et la première shape 128
+  paye probablement la compilation ; ce test n'est pas un débit chaud
+  stabilisé, mais établit que deux chunks passent sans crash ni divergence
+  greedy sur cet exemple. Preuves `build/ling-perf-23-quality-chat-long-{serial19,batch26}.json`.
+  Fidélité numérique stricte multi-prompt encore non démontrée : **prototype**.
+- Dernier contrôle qualité prévu avant arrêt de cette série : comparer sur une
+  demande de code distincte (prompt >24 tokens, 96 tokens greedy) la version
+  sérielle PERF-19 et le build final batch+routeur PERF-26, un warmup + un
+  tour par binaire. Noter hash, tokens, débit ; ce contrôle de texte ne remplace
+  pas une évaluation de qualité large. Preuves
+  `build/ling-perf-23-quality-chat-code-{serial,batch}.json`.
+- Demande de code 87 tokens / 96 générés : baseline sérielle et batch ont
+  **des hashes greedy différents**, bien que les premiers ~120 caractères
+  enregistrés soient identiques. Sériel 56,17 tok/s decode, 57,33 tok/s
+  prefill, TTFT 1,518 s ; batch+PERF-26 78,14 decode, 344,57 prefill,
+  TTFT 0,253 s (première compilation shape 87). Preuves
+  `build/ling-perf-23-quality-chat-code-{serial,batch}.json`. La vitesse
+  ne compense pas cette divergence tant que sa qualité n'est pas examinée.
+  **Décision provisoire : ne pas activer le préfill batch Ling par défaut** ;
+  conserver `forward_tokens` comme prototype diagnostic/benchmark et revenir
+  au préfill sériel pour le chat normal. Le gain decode PERF-26 est indépendant
+  et conserve la parité exacte sur les tokens forcés.
+
+### OPT-2026-09-16-RUST-PERF-24 — Ling decode : profil attention/MoE — en cours
+
+- Hypothèse de diagnostic : avec le prefill chaud désormais >500 tok/s,
+  l'objectif restant (150 tok/s decode) nécessite de réduire le coût par
+  token de ~18 ms à <6,7 ms. Mesurer d'abord la part des 18 couches KDA,
+  6 MLA et 23 MoE ; ne pas supposer que l'EXL3 QMV est seul responsable.
+- Antécédents : PERF-18–21 ont retiré des barrières et groupé les projections
+  Ling ; gains decode validés ou modestes. Le rapport decode du 10 septembre
+  a rejeté les changements globaux de budgets command-buffer et quelques
+  compilations FFN/QMV. Aucune répétition de ces pistes ici.
+- Baseline : bridge local PERF-23, decode ~55 tok/s dans cinq tours, même
+  texte que l'ancien moteur, machine/thermique variables. Protocole : test
+  ignoré sur Metal, un warmup `T=1`, puis un token imposé avec barrières de
+  diagnostic séparant attention et feed-forward par couche. Ces barrières
+  changent le coût absolu : interpréter le profil **relatif seulement**. Pas
+  de changement production, mesures RAM et TTFT non applicables à ce profil.
+- État avant essai : **non mesuré**, code local, aucune publication.
+- Profil diagnostique mono-token réussi après un warmup, avec `eval()` après
+  chaque sous-bloc : hors deux pointes probables de JIT/scheduler (couche 1
+  FF 2,893 ms, couche 7 attention 2,918 ms et couche 19 attention 2,325 ms),
+  attention ~0,40–0,58 ms/couche, FF MoE ~0,54–0,63 ms/couche, dense couche
+  0 ~0,30 ms. Trace console du test
+  `ling::tests::profile_decode_components`, pas de log brut conservé. Les
+  barrières rendent la somme non représentative du débit bridge, mais le
+  MoE est probablement la première cible decode. Étape suivante : séparer
+  dans un seul MoE routeur, experts EXL3 et branche MLP partagée avant de
+  changer un kernel. Statut : **diagnostic**, aucune optimisation validée.
+- Extension du même diagnostic prévue : sur une couche MoE représentative,
+  après warmup, cinq répétitions séparant routeur, experts `Exl3SwitchGlu` et
+  MLP partagé. Les `eval()` de profil empêchent la fusion/chevauchement et
+  chaque durée est une borne indicative, pas un débit réel. Cette répétition
+  vise à sélectionner la partie à optimiser, pas à déclarer un gain.
+- Résultat couche MoE 8, répétitions 2–4 après premier JIT : routage
+  **0,553–0,560 ms**, experts EXL3 **0,274–0,279 ms**, MLP partagé
+  **0,194–0,205 ms**. Le routage inclut matmul FP32, sigmoid, sélection
+  mono-thread et normalisation des scores, avec barrières `eval()` ; sa part
+  est la plus importante de ce microprofil mais n'est pas additionnable aux
+  temps end-to-end. Trace `ling::tests::profile_decode_moe` console seulement.
+  Décision : essayer une **fusion du routeur Ling mono-token** dans un kernel
+  Metal, avec fallback inchangé pour le batch et test strict des experts
+  sélectionnés ; ne pas toucher au QMV expert pour l'instant.
+
+### OPT-2026-09-16-RUST-PERF-25 — Ling : routeur MoE mono-token fusionné — en cours
+
+- Hypothèse : fusionner multiplication dense x·W, sigmoid, top-groups/top-k
+  et normalisation dans un seul kernel Metal pour 128 experts évite plusieurs
+  dispatchs par couche MoE, sans changer poids, experts EXL3 ou sampling.
+  Le chemin multi-token PERF-23 garde le routeur existant. Aucun routeur Qwen,
+  Gemma ou LFM n'est modifié.
+- Baseline : code/binaire PERF-23 préservé avant modification, bridge 84/128,
+  cinq tours chauds, **~55,31 tok/s** decode dans la série la plus récente,
+  prefill batch **569,95 tok/s** chaud, hash constant. Machine variable : A/B/A
+  rapproché indispensable. Contrôles : parité indices de route sur entrées
+  déterministes puis `forward --tokens 1,2 --states` contre binaire baseline,
+  hash greedy 84/128 et 256 tokens, RAM et TTFT rapportés séparément.
+- Rejeter si experts changent, régression stable ou erreur Metal ; si les
+  scores ne sont pas bit-à-bit identiques, quantifier l'écart et vérifier les
+  logits/caches, sans appeler cela parité exacte. Preuves `build/ling-perf-25-*`.
+- État avant essai : **non mesuré**, code local uniquement, aucun push/GUI.
+- Kernel Metal fusionné local ajouté pour `T=1`, avec matrice de gate FP32
+  stockée aussi en vue rangées et routeur multi-token inchangé. Test GPU
+  déterministe `router::tests::fused_ling_router_matches_reference` **réussi**
+  pour 128 experts, 128 entrées : huit indices identiques et erreur maximale
+  de score <1e-4. Ce microtest ne prouve pas encore la parité du modèle réel
+  1536 entrées. Prochaine étape déjà prévue : build bridge puis comparer
+  `forward --tokens 1,2 --states` au SHA256 du binaire PERF-23 avant tout
+  benchmark de débit.
+- Contrôle `forward --tokens 1,2 --states` **non identique** au binaire
+  PERF-23 : SHA256 candidat
+  `9e269218137925b1a27e230982573497f446c4beddc0d02c5a2f55323ab3578e`
+  contre baseline
+  `9715bf2438ebccf5b695be4fdca1d77d8da8e3e7b7f95c115ee13a5d10b74a8c`.
+  Le test synthétique ne suffisait donc pas. Avant toute mesure de vitesse,
+  comparer les logits forcés détaillés et identifier si la différence est
+  une petite variation FP32 de scores ou un changement de route/résultat.
+- Détail logits forcés `--tokens 1,2` : au token 1, **85 814/157 184**
+  valeurs FP16 diffèrent ; au token 2 **156 236/157 184**, même argmax aux
+  deux tokens mais divergence trop grande pour accepter la fusion. Preuves
+  `build/ling-perf-25-forced-{baseline,candidate}.jsonl`. Le `maxbits`
+  calculé sur encodages FP16 n'est pas un écart réel et n'est pas retenu.
+  Diagnostic suivant : comparer directement les routes/scores fusionnés et
+  non fusionnés avec les **vrais poids** des couches Ling 1 et 8, afin de
+  déterminer si la disposition de la matrice FP32 est fautive. Pas de
+  benchmark de vitesse tant que le résultat est faux.
+- Vrais poids Ling couches 1 et 8, entrée embedding token 1 : **indices
+  identiques** et scores à <1e-4 (test GPU
+  `ling::tests::fused_router_matches_ling_weights` réussi). La disposition
+  FP32 n'est donc pas grossièrement inversée. Ce test utilisait l'embedding
+  brut, pas l'entrée MoE normalisée des couches en cours. Répétition
+  diagnostique prévue : inspecter indices et écarts de score à chaque couche
+  sur la vraie trajectoire du token imposé, sans nouvelle optimisation.
+- Vraies entrées MoE des 23 couches sur deux tokens : les indices fusionnés
+  et non fusionnés sont égaux **sur une même trajectoire fusionnée**, écarts
+  des scores 7e-8 à 1,55e-6 (`fused_router_matches_decode_inputs`). Mais
+  les deux trajectoires de modèle complètes divergent : après conversion
+  correcte des bits FP16, token 1 logits max abs **0,015625**, moyenne abs
+  **0,00206**, même argmax ; token 2 max abs **1,3046875**, moyenne abs
+  **0,1957**, **argmax différent (220 vs 16)**. Le calcul initial `argmax`
+  sur entiers bruts était erroné et est corrigé ici. Le routeur fusionné
+  amplifie donc un changement numérique jusqu'au texte, ce qui viole la
+  parité demandée. Décision : **rejeté**, ne pas benchmarker ni activer ;
+  retirer ce kernel et ses champs/tests spécifiques du code de production.
+- Retrait effectué de `router.rs` et `ling.rs` : plus de chemin routeur fusionné
+  ni de champ supplémentaire. Le journal conserve la conclusion négative.
+  `cargo fmt --check` à refaire après retrait, puis rebuild et contrôle hash
+  forcé pour certifier le retour au moteur PERF-23.
+- Rebuild release `mlx,chat` après retrait réussi ; `forward --tokens 1,2
+  --states` revient exactement au SHA256 PERF-23
+  `9715bf2438ebccf5b695be4fdca1d77d8da8e3e7b7f95c115ee13a5d10b74a8c`.
+  Le routeur fusionné PERF-25 n'est donc plus présent dans le candidat local.
+
+### OPT-2026-09-16-RUST-PERF-26 — Ling : sélection MoE parallèle sans fusion des logits — en cours
+
+- Hypothèse : le routeur groupé de 128 experts exécute les scans top-groups et
+  top-k dans un unique thread, avec une recherche `used` répétée. Répartir le
+  calcul des scores par expert/groupe sur 128 threads, puis conserver la
+  sélection finale ordonnée dans le thread 0, peut réduire le temps de route
+  sans toucher à `x·W`, sigmoid, normalisation ni poids. Contrairement à
+  PERF-25 rejeté, aucune modification de l'arithmétique des logits/scores.
+- Baseline : binaire PERF-23 conservé `build/ling-perf-23-batch-bin`, hash
+  `forward --tokens 1,2 --states` =
+  `9715bf2438ebccf5b695be4fdca1d77d8da8e3e7b7f95c115ee13a5d10b74a8c` ;
+  84/128 tokens, decode chaud **55,31 tok/s** médian dans cinq tours, prefill
+  chaud **569,95 tok/s** (thermique/alimentation non contrôlées). Test GPU
+  existant des lignes du routeur, puis hash exact logits+états forcés,
+  comparaison greedy et benchmark A/B/A rapproché seulement si ces contrôles
+  réussissent. Preuves prévues `build/ling-perf-26-*`.
+- Statut initial : **en cours**, code local seulement ; aucune publication.
+- Kernel de sélection parallèle `experts=128` compilé ; quatre lignes donnent
+  les mêmes indices/scores que quatre appels mono-ligne dans le test GPU
+  `grouped_router_batch_matches_serial`. Cela ne compare pas encore le kernel
+  antérieur, ni ne garantit le modèle entier. Rebuild `mlx,chat` et hash forcé
+  requis avant benchmark. Avertissement `rust-objcopy/libLLVM` non bloquant.
+- Contrôle modèle entier : SHA256 `forward --tokens 1,2 --states` **exactement
+  identique** à la baseline (`9715bf...10b74a8c`). A/B/A rapproché, trois
+  requêtes chaudes par binaire, prompt 84 tokens / 128 générés, même hash
+  greedy sur les neuf requêtes : ancien A **54,918 tok/s decode**, **566,60
+  tok/s prefill**, TTFT **148,47 ms** ; candidat B **75,128 tok/s decode**,
+  **586,09 tok/s prefill**, TTFT **143,56 ms** ; ancien A2 **54,800 tok/s
+  decode**, **568,99 tok/s prefill**, TTFT **147,82 ms**. Gain decode
+  **+36,8–37,1 %** face aux deux contrôles. Le préfill +3–3,4 % est plus
+  petit et peut contenir du bruit ; TTFT −3 % idem. Preuves
+  `build/ling-perf-26-{control-a,candidate,control-a2}.json`.
+- **Validé pour ce scénario**, code local uniquement, pas d'app installée ni
+  publication. `peak_memory_gb` bridge identique 4,428 GB mais représente
+  les poids, **pas** la RAM/pic processus. Tester plusieurs prompts/contexte
+  plus long et vérifier la fidélité batch PERF-23 avant activation GUI.
+
+### OPT-2026-09-17-RUST-PERF-27 — Ling : profil MoE après routeur parallèle — en cours
+
+- Hypothèse de diagnostic : PERF-26 a retiré ~4,9 ms/token du routage sur le
+  test de 84/128 tokens, mais le decode reste ~13,3 ms/token. Réexécuter le
+  profil MoE de la couche 8 pour vérifier que le routage n'est plus le seul
+  coût dominant avant tout nouveau changement. Même test GPU ignoré que
+  PERF-24, cinq répétitions, temps après la première compilation ; barrières
+  `eval()` artificielles, donc **microprofil non comparable au débit chat**.
+- Baseline : PERF-24 route **0,553–0,560 ms**, experts **0,274–0,279 ms**,
+  MLP partagé **0,194–0,205 ms** (avant PERF-26). Candidat : PERF-26,
+  binaire `cargo test --release --locked --features mlx` avec le même
+  checkpoint 4 bpw/M5. Aucune modification du code et pas de publication.
+- Statut : **en cours**, mesure/log brut à conserver dans
+  `build/ling-perf-27-moe-profile.log`.
+- Profil effectué : routes des répétitions chaudes 0,365 / 0,365 / 0,659 /
+  0,414 ms ; un pic scheduler/JIT à 0,659. Expert EXL3 ~0,285–0,335 ms
+  hors pic, MLP partagé ~0,203–0,218 ms hors pic. La baisse de route contre
+  ~0,55 ms de PERF-24 concorde avec le gain end-to-end PERF-26, sans en être
+  une mesure équivalente. Le routeur reste coûteux et le scan top-k mono-thread
+  pourrait encore être réduit ; les projections experts/partagées sont aussi
+  une limite. Preuve brute `build/ling-perf-27-moe-profile.log`.
+- **Diagnostic terminé**, aucune modification moteur, aucun push/app installée.
+
+### OPT-2026-09-17-RUST-PERF-28 — Ling : top-k MoE par réductions SIMD — en cours
+
+- Hypothèse : PERF-26 parallélise l'initialisation des 128 candidats mais
+  laisse au thread 0 huit scans de 128 experts. Une réduction `simd_max` par
+  groupe de 32 avec bris d'égalité par plus petit index, puis un scan de
+  quatre groupes, doit préserver exactement l'ordre de sélection tout en
+  réduisant le travail sériel. Garder sigmoid, matmul, normalisation et
+  tous les buffers persistants inchangés. Applicable au seul routeur 128
+  experts Ling ; fallback générique inchangé.
+- Baseline : PERF-26, binaire actuel à archiver, 84/128 trois tours A/B/A,
+  **75,128 tok/s decode**, prefill **586,09 tok/s**, TTFT **143,56 ms** ;
+  hash forcé des logits+états `9715bf...10b74a8c`, neuf hashes greedy
+  identiques. Vérifier test GPU routeur multi-lignes, hash forcé puis A/B/A.
+  Si sortie non identique ou gain non reproductible, revenir à PERF-26.
+  Conditions M5/MLX 0.32.2, alimentation/thermique non contrôlées ; preuves
+  prévues `build/ling-perf-28-*`.
+- Statut : **en cours**, code local, aucun push ni installation GUI.
+- Test GPU routeur multi-lignes sur M5 **réussi** avec réduction SIMD ; sortie
+  exacte face aux quatre appels mono-ligne du même candidat. Il faut encore
+  comparer modèle entier à PERF-26 et mesurer A/B/A avant d'accepter.
+- Modèle entier `forward --tokens 1,2 --states` SHA256 **identique** à
+  PERF-26 (`9715bf...10b74a8c`). Premier bridge candidat 84/128, trois
+  tours : **77,205 tok/s decode**, **591,51 tok/s prefill**, TTFT
+  **142,57 ms**, même hash greedy. Face au PERF-26 historique 75,128 tok/s,
+  le +2,8 % decode n'est **pas encore attribuable** sans A/B/A. Le fichier
+  `build/ling-perf-26-bin` copié avant le test est invalide pour le bridge
+  (sans feature `chat`, écrasé par `cargo test`) ; reconstruire explicitement
+  ce binaire de contrôle, ne pas prétendre l'avoir mesuré.
+- A/B/A après reconstruction correcte du binaire PERF-26, trois tours chauds
+  chacun : A **76,629 tok/s decode**, **591,40 tok/s prefill**, TTFT
+  **143,11 ms** ; candidat SIMD B **77,002 tok/s decode**, **590,33 tok/s
+  prefill**, TTFT **142,56 ms** ; A2 **77,556 tok/s decode**, **586,82 tok/s
+  prefill**, TTFT **143,36 ms**. Tous les hashes greedy identiques. Le
+  candidat est entre A et A2 : **aucun gain reproductible**, le +2,8 %
+  précédent venait des conditions. Preuves
+  `build/ling-perf-28-control-{a,b,a2}.json`.
+- Décision : **rejeté**. Revenir à la sélection PERF-26 plus simple, laisser
+  le journal/preuves négatifs ; ne pas installer/publier PERF-28. RAM processus
+  non mesurée ; mémoire `peak_memory_gb` du bridge n'est que poids résidents.
+
+### OPT-2026-09-17-RUST-PERF-29 — Ling : normalisation des scores dans le routeur — en cours
+
+- Hypothèse : après sélection des huit experts, `scores.sum` puis `div` et
+  `scalar_mul` passent par MLX et créent des opérations GPU additionnelles
+  à chaque couche MoE. Normaliser les scores FP32 dans le thread 0 du kernel
+  de sélection pourrait économiser ces dispatchs, sans changer les experts,
+  poids ou sampling. Risque connu : ordre de réduction FP32 différent de MLX
+  donc perte de parité ; **rejet immédiat si hash forcé diverge**, même si la
+  réponse greedy semble identique.
+- Baseline : PERF-26, binaire `build/ling-perf-26-bin` reconstruit avec chat,
+  **76,63–77,56 tok/s** decode dans A/B/A récent, hash forcé
+  `9715bf...10b74a8c`. Vérifier d'abord test GPU routeur et modèle entier
+  `forward --tokens 1,2 --states`; benchmark A/B/A seulement si exacte.
+  M5/MLX 0.32.2 ; conditions thermiques non contrôlées. Preuves prévues
+  `build/ling-perf-29-*`.
+- Statut : **en cours**, code local, aucun push/app installée.
+- Test GPU routeur multi-lignes réussi ; `forward --tokens 1,2 --states`
+  SHA256 **exactement identique** à PERF-26 (`9715bf...10b74a8c`). L'ordre
+  de réduction de huit scores dans ce cas retrouve donc la même sortie
+  complète ; cela ne démontre pas tous les contextes/routes. Passer au
+  benchmark A/B/A 84/128 avant décision. Preuves
+  `build/ling-perf-29-router-test.log`, `build/ling-perf-29-forced.jsonl`.
+- A/B/A, trois tours chauds chacun, même hash greedy : A **78,308 tok/s
+  decode**, **596,93 tok/s prefill**, TTFT **140,97 ms** ; candidat B
+  **78,280 tok/s decode**, **582,52 tok/s prefill**, TTFT **144,44 ms** ; A2
+  **76,291 tok/s decode**, **594,26 tok/s prefill**, TTFT **141,66 ms**.
+  Aucun gain decode reproductible, préfill ~2 % plus bas dans ce test.
+  Preuves `build/ling-perf-29-{control-a,candidate,control-a2}.json`.
+- Décision : **rejeté** malgré parité exacte sur deux tokens. Les opérations
+  MLX séparées peuvent être masquées/fusionnées par le graphe ; la
+  normalisation dans le kernel n'accélère pas le bridge. Revenir à PERF-26,
+  ne pas publier/installer PERF-29.
+
+### OPT-2026-09-17-RUST-PERF-30 — Ling : gate qualité du prefill de chat — en cours
+
+- Hypothèse : les tests PERF-23 montrent un gain batch important mais une
+  divergence greedy sur une demande de code. Le chat de production doit donc
+  utiliser le chemin sériel de référence tant que cette fidélité n'est pas
+  qualifiée, en conservant `forward --batch` explicite pour le diagnostic.
+  Le routeur PERF-26, indépendant, reste actif et strictement paritaire.
+- Changement minimal : `NativeChatModel::forward_many` dispatch Ling vers
+  `forward_many_serial`; `Forward --batch` appelle directement
+  `Ling::forward_tokens`. Aucun autre modèle, format, sampler ou poids
+  modifié. Baseline qualité : binaire PERF-19 sériel et hash forcé
+  `9715bf...10b74a8c`. Mesurer le chat normal 84/128 avec trois répétitions
+  et comparer hash/température connue ; puis smoke test explicite `--batch`
+  pour s'assurer que le prototype reste accessible. Preuves
+  `build/ling-perf-30-*`. Préfill 500 tok/s **non revendiqué** pour le chat
+  sûr ; TTFT/RAM mesurés séparément.
+- Statut : **en cours**, code local, pas d'app installée ni publication.
+- Revalidation physique M5 du 19 septembre : arrays MLX, codec Metal,
+  Gated DeltaNet mono-token et batched, et routeur groupé mono/batch passent.
+  Le test diagnostic Ling 25 tokens confirme en revanche la divergence connue
+  du préfill batched (logits max abs **0,314**, état max abs **0,486**) ; ce
+  chemin reste donc réservé à `forward --batch` et n'est pas utilisé par le
+  chat/GUI. Le chemin de production sériel, comparé sur huit tokens à MLX-LM,
+  conserve le même top-1 à chaque étape, avec max abs **0,3114** et KL max
+  **0,002234**. Le vérificateur a été corrigé pour appliquer à Ling la borne
+  numérique déjà utilisée pour les modèles non bit-exacts, au lieu d'exiger
+  à tort une égalité FP16 bit-à-bit. Aucun débit n'a été remesuré dans cette
+  revalidation.
+- **Validé et intégré pour publication sur `main`** : gate sériel actif dans
+  le chat/GUI, prototype batch explicitement hors chemin normal. L'app locale
+  et une release ne sont pas modifiées par ce push.

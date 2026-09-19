@@ -297,10 +297,20 @@ fn download_file(
 }
 
 fn valid_repo(repo: &str) -> bool {
-    let mut parts = repo.split('/');
-    matches!((parts.next(), parts.next(), parts.next()), (Some(owner), Some(name), None)
-        if !owner.is_empty() && !name.is_empty()
-        && repo.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"-._/".contains(&byte)))
+    valid_repo_bytes(repo.as_bytes())
+}
+
+fn valid_repo_bytes(repo: &[u8]) -> bool {
+    let mut slash = None;
+    for (index, &byte) in repo.iter().enumerate() {
+        if !(byte.is_ascii_alphanumeric() || b"-._/".contains(&byte)) {
+            return false;
+        }
+        if byte == b'/' && slash.replace(index).is_some() {
+            return false;
+        }
+    }
+    slash.is_some_and(|index| index > 0 && index + 1 < repo.len())
 }
 
 pub fn search(query: &str, limit: usize) -> Result<Vec<ModelSummary>> {
@@ -356,10 +366,24 @@ fn descriptor_label(name: &str) -> Option<Option<String>> {
 }
 
 fn safe_file(name: &str) -> bool {
-    !name.is_empty()
-        && !name.starts_with('/')
-        && !name.contains('\\')
-        && name.split('/').all(|part| !matches!(part, "" | "." | ".."))
+    safe_file_bytes(name.as_bytes())
+}
+
+fn safe_file_bytes(name: &[u8]) -> bool {
+    if name.is_empty() || name[0] == b'/' || name.contains(&b'\\') {
+        return false;
+    }
+    let mut start = 0;
+    for end in 0..=name.len() {
+        if end == name.len() || name[end] == b'/' {
+            let part = &name[start..end];
+            if part.is_empty() || part == b"." || part == b".." {
+                return false;
+            }
+            start = end + 1;
+        }
+    }
+    true
 }
 
 fn parent(name: &str) -> &str {
@@ -834,5 +858,49 @@ mod tests {
         assert_eq!(root.size_bytes, 135);
         assert_eq!(named.id, "#quantization_config-4bpw.json");
         assert_eq!(named.size_bytes, 236);
+    }
+}
+
+#[cfg(kani)]
+mod verification {
+    use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(10)]
+    fn repository_names_have_one_nonempty_safe_separator() {
+        let bytes: [u8; 8] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= bytes.len());
+        let name = &bytes[..len];
+        let expected = !name.is_empty()
+            && name.iter().filter(|&&byte| byte == b'/').count() == 1
+            && name[0] != b'/'
+            && name[name.len() - 1] != b'/'
+            && name
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"-._/".contains(byte));
+        assert_eq!(valid_repo_bytes(name), expected);
+        kani::cover!(valid_repo_bytes(name));
+        kani::cover!(!valid_repo_bytes(name));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(12)]
+    fn accepted_checkpoint_paths_have_no_traversal_component() {
+        let bytes: [u8; 8] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= bytes.len());
+        let name = &bytes[..len];
+        if safe_file_bytes(name) {
+            assert!(!name.is_empty());
+            assert_ne!(name[0], b'/');
+            assert!(!name.contains(&b'\\'));
+            assert!(
+                name.split(|&byte| byte == b'/')
+                    .all(|part| !part.is_empty() && part != b"." && part != b"..")
+            );
+        }
+        kani::cover!(safe_file_bytes(name));
+        kani::cover!(!safe_file_bytes(name));
     }
 }

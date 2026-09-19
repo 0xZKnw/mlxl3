@@ -953,7 +953,10 @@ fn run(cli: Cli) -> Result<()> {
             let mut out = io::stdout().lock();
             if batch {
                 let token = *tokens.last().context("empty token batch")?;
-                let logits = model.forward_many(&tokens)?;
+                let logits = match &mut model {
+                    NativeChatModel::Ling(model) => model.forward_tokens(&tokens)?,
+                    _ => model.forward_many(&tokens)?,
+                };
                 let arrays = match (&model, states) {
                     (NativeChatModel::Lfm2(model), true) => model
                         .state_arrays()
@@ -981,6 +984,15 @@ fn run(cli: Cli) -> Result<()> {
                     (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Lfm2(model), true) => {
                         let logits = model.forward(&[token])?;
+                        let arrays = model
+                            .state_arrays()
+                            .into_iter()
+                            .map(|(name, array)| Ok((name, array.try_clone()?)))
+                            .collect::<Result<Vec<_>>>()?;
+                        (logits, arrays)
+                    }
+                    (NativeChatModel::Ling(model), true) => {
+                        let logits = model.forward(token)?;
                         let arrays = model
                             .state_arrays()
                             .into_iter()
@@ -1281,8 +1293,9 @@ impl NativeChatModel {
                     model.forward_tokens(tokens)
                 }
                 Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
+                Self::Ling(_) => self.forward_many_serial(tokens),
                 Self::Qwen(model) => model.forward_tokens(tokens),
-                Self::Gemma4(_) | Self::Lfm2(_) | Self::Ling(_) => self.forward_many_serial(tokens),
+                Self::Gemma4(_) | Self::Lfm2(_) => self.forward_many_serial(tokens),
             };
         }
         self.forward_many_serial(tokens)
@@ -1301,7 +1314,8 @@ impl NativeChatModel {
             Self::Gemma4(_) => 256,
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
             Self::Qwen(_) => 256,
-            Self::Lfm2(_) | Self::Ling(_) => 1,
+            Self::Ling(_) => 128,
+            Self::Lfm2(_) => 1,
         }
     }
 

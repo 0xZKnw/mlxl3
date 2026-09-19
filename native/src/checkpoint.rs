@@ -1,4 +1,5 @@
 //! Header-only checkpoint inspection. Weight payloads are read only on request.
+use crate::contracts;
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -62,17 +63,11 @@ pub fn read_header(path: &Path) -> Result<BTreeMap<String, TensorInfo>> {
     for (name, value) in entries {
         let mut info: TensorInfo =
             serde_json::from_value(value).with_context(|| format!("invalid tensor {name}"))?;
-        let elements = info
-            .shape
-            .iter()
-            .try_fold(1u64, |n, &d| n.checked_mul(d as u64))
-            .context("tensor shape overflow")?;
-        let bytes = elements
-            .checked_mul(dtype_size(&info.dtype)?)
+        let bytes = contracts::tensor_bytes(&info.shape, dtype_size(&info.dtype)?)
             .context("tensor size overflow")?;
         let [start, end] = info.data_offsets;
         ensure!(
-            end >= start && end <= file_len - payload_offset && end - start == bytes,
+            contracts::valid_data_range(start, end, file_len - payload_offset, bytes),
             "invalid data range for tensor {name}"
         );
         info.file = path.to_owned();

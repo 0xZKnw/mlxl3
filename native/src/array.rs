@@ -1,4 +1,5 @@
 //! Owned MLX arrays through a small C ABI. There is no Python runtime.
+use crate::contracts;
 use anyhow::{Context, Result, bail, ensure};
 use std::{
     ffi::{CStr, CString, c_char, c_void},
@@ -197,10 +198,8 @@ fn initialize() -> Result<()> {
     Ok(())
 }
 fn bytes_for(shape: &[i32], dtype: Dtype) -> Result<usize> {
-    shape.iter().try_fold(dtype.item_size(), |size, &dim| {
-        let dim = usize::try_from(dim).context("negative tensor dimension")?;
-        size.checked_mul(dim).context("tensor byte size overflow")
-    })
+    contracts::array_bytes(shape, dtype.item_size())
+        .context("negative tensor dimension or tensor byte size overflow")
 }
 pub fn is_m5_gpu() -> Result<bool> {
     initialize()?;

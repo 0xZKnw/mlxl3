@@ -23,8 +23,30 @@ impl TryFrom<u32> for Codebook {
 }
 
 pub fn check_k(k: usize) -> Result<()> {
-    ensure!((1..=8).contains(&k), "K must be in 1..=8, got {k}");
+    ensure!(valid_k(k), "K must be in 1..=8, got {k}");
     Ok(())
+}
+
+fn valid_k(k: usize) -> bool {
+    (1..=8).contains(&k)
+}
+
+fn pack_source(k: usize, logical: usize, bit: usize) -> (usize, usize) {
+    let span = logical / k;
+    let stream_bit = (logical % k) * 16 + bit;
+    (span * 16 + stream_bit / k, k - 1 - stream_bit % k)
+}
+
+fn unpack_window(k: usize, state: usize) -> (usize, usize, usize) {
+    let b0 = state * k + k + 256 * k - 16;
+    let b1 = b0 + 16;
+    let i0 = b0 / 32;
+    let i1 = (b1 - 1) / 32;
+    (i0, i1, (i1 + 1) * 32 - b1)
+}
+
+fn packed_pair(k: usize, word: usize) -> usize {
+    2 * (word % (8 * k))
 }
 
 pub fn decode_codeword(word: u16, mode: Codebook) -> f16 {
@@ -54,6 +76,10 @@ pub fn pack(encoded: &[u16], k: usize) -> Result<Vec<u16>> {
         encoded.len().is_multiple_of(256),
         "encoded length must be a multiple of 256"
     );
+    Ok(pack_valid(encoded, k))
+}
+
+fn pack_valid(encoded: &[u16], k: usize) -> Vec<u16> {
     let mut result = vec![0u16; encoded.len() / 256 * 16 * k];
     for (tile, output) in encoded
         .as_chunks::<256>()
@@ -62,18 +88,15 @@ pub fn pack(encoded: &[u16], k: usize) -> Result<Vec<u16>> {
         .zip(result.chunks_exact_mut(16 * k))
     {
         for logical in 0..16 * k {
-            let span = logical / k;
-            let word_idx = logical % k;
             let mut word = 0u16;
             for bit in 0..16 {
-                let stream_bit = word_idx * 16 + bit;
-                let shift = k - 1 - stream_bit % k;
-                word = (word << 1) | ((tile[span * 16 + stream_bit / k] >> shift) & 1);
+                let (index, shift) = pack_source(k, logical, bit);
+                word = (word << 1) | ((tile[index] >> shift) & 1);
             }
             output[logical ^ 1] = word;
         }
     }
-    Ok(result)
+    result
 }
 
 pub fn unpack(packed: &[u16], k: usize) -> Result<Vec<u16>> {
@@ -82,22 +105,22 @@ pub fn unpack(packed: &[u16], k: usize) -> Result<Vec<u16>> {
         packed.len().is_multiple_of(16 * k),
         "packed length is not a whole tile"
     );
+    Ok(unpack_valid(packed, k))
+}
+
+fn unpack_valid(packed: &[u16], k: usize) -> Vec<u16> {
     let mut result = Vec::with_capacity(packed.len() / (16 * k) * 256);
     for tile in packed.chunks_exact(16 * k) {
         for t in 0..256 {
-            let b0 = t * k + k + 256 * k - 16;
-            let b1 = b0 + 16;
-            let i0 = b0 / 32;
-            let i1 = (b1 - 1) / 32;
-            let shift = (i1 + 1) * 32 - b1;
+            let (i0, i1, shift) = unpack_window(k, t);
             let read = |i: usize| {
-                let p = 2 * (i % (8 * k));
+                let p = packed_pair(k, i);
                 u32::from(tile[p]) | (u32::from(tile[p + 1]) << 16)
             };
             result.push((((u64::from(read(i0)) << 32) | u64::from(read(i1))) >> shift) as u16);
         }
     }
-    Ok(result)
+    result
 }
 
 pub fn permutation() -> [usize; 256] {
@@ -189,6 +212,61 @@ mod tests {
             for word in 0..=u16::MAX {
                 assert!(decode_codeword(word, mode).is_finite());
             }
+        }
+    }
+}
+
+#[cfg(kani)]
+mod verification {
+    use super::*;
+
+    #[kani::proof]
+    fn bitrate_validation_accepts_exactly_one_through_eight() {
+        let k: usize = kani::any();
+        assert_eq!(valid_k(k), (1..=8).contains(&k));
+        kani::cover!(valid_k(k));
+        kani::cover!(!valid_k(k));
+    }
+
+    #[kani::proof]
+    fn symbolic_pack_indices_stay_inside_one_tile() {
+        let k: usize = kani::any();
+        let logical: usize = kani::any();
+        let bit: usize = kani::any();
+        kani::assume((1..=8).contains(&k));
+        kani::assume(logical < 16 * k && bit < 16);
+        let (index, shift) = pack_source(k, logical, bit);
+        assert!(index < 256);
+        assert!(shift < k);
+        kani::cover!(k == 1);
+        kani::cover!(k == 8);
+    }
+
+    #[kani::proof]
+    fn symbolic_unpack_indices_stay_inside_one_packed_tile() {
+        let k: usize = kani::any();
+        let state: u8 = kani::any();
+        kani::assume((1..=8).contains(&k));
+        let (i0, i1, shift) = unpack_window(k, usize::from(state));
+        let p0 = packed_pair(k, i0);
+        let p1 = packed_pair(k, i1);
+        assert!(p0 + 1 < 16 * k);
+        assert!(p1 + 1 < 16 * k);
+        assert!(shift < 64);
+        kani::cover!(k == 1);
+        kani::cover!(k == 8);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(260)]
+    fn exl3_permutation_and_inverse_are_bijections() {
+        let direct = permutation();
+        let inverse = permutation_inverse();
+        for index in 0..256 {
+            assert!(direct[index] < 256);
+            assert!(inverse[index] < 256);
+            assert_eq!(direct[inverse[index]], index);
+            assert_eq!(inverse[direct[index]], index);
         }
     }
 }
