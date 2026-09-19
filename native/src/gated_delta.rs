@@ -177,6 +177,33 @@ pub fn step_vector(
     beta: &Array,
     state: &Array,
 ) -> Result<(Array, Array)> {
+    step_vector_impl(q, k, v, g, beta, state, false)
+}
+
+pub fn step_vector_with_beta(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    g: &Array,
+    beta_raw: &Array,
+    state: &Array,
+) -> Result<(Array, Array)> {
+    ensure!(
+        q.shape().get(1) == Some(&1),
+        "fused vector beta requires one decode token"
+    );
+    step_vector_impl(q, k, v, g, beta_raw, state, true)
+}
+
+fn step_vector_impl(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    g: &Array,
+    beta: &Array,
+    state: &Array,
+    beta_is_raw: bool,
+) -> Result<(Array, Array)> {
     let [batch, time, heads, dim]: [i32; 4] = q
         .shape()
         .try_into()
@@ -198,7 +225,12 @@ pub fn step_vector(
             && k.dtype() == Dtype::Float16
             && v.dtype() == Dtype::Float16
             && g.dtype() == Dtype::Float32
-            && beta.dtype() == Dtype::Float16
+            && beta.dtype()
+                == if beta_is_raw {
+                    Dtype::Float32
+                } else {
+                    Dtype::Float16
+                }
             && state.dtype() == Dtype::Float32,
         "invalid vector Gated DeltaNet dtypes"
     );
@@ -227,8 +259,15 @@ pub fn step_vector(
             memory += simd_shuffle_xor(memory, 4);
             memory += simd_shuffle_xor(memory, 8);
             memory += simd_shuffle_xor(memory, 16);
+#if MLXL3_GDN_VECTOR_FUSED_BETA
+            float beta_value = beta_raw[(ulong(batch) * TIME + t) * HEADS + head];
+            float beta_tail = 1.0f / (1.0f + metal::exp(metal::abs(beta_value)));
+            half beta_t = half(beta_value < 0.0f ? beta_tail : 1.0f - beta_tail);
+#else
+            half beta_t = beta[(ulong(batch) * TIME + t) * HEADS + head];
+#endif
             float delta = (float(v[vector_base + value_index]) - memory)
-                * float(beta[(ulong(batch) * TIME + t) * HEADS + head]);
+                * float(beta_t);
             float output = 0.0f;
             for (uint i = 0u; i < 4u; ++i) {
                 uint key_index = base + i;
@@ -246,11 +285,20 @@ pub fn step_vector(
             state_out[state_base + base + i] = local[i];
         }
     "#;
+    let fused_header = if beta_is_raw {
+        "#define MLXL3_GDN_VECTOR_FUSED_BETA 1\n"
+    } else {
+        ""
+    };
+    let beta_name = if beta_is_raw { "beta_raw" } else { "beta" };
     let mut outputs = array::metal_kernel(
-        &format!("mlxl3_rs_gdn_vector_b{batch}_t{time}_h{heads}_d{dim}_v2"),
-        &["q", "k", "v", "g", "beta", "state_in"],
+        &format!(
+            "mlxl3_rs_gdn_vector{}_b{batch}_t{time}_h{heads}_d{dim}_v2",
+            if beta_is_raw { "_raw_beta" } else { "" }
+        ),
+        &["q", "k", "v", "g", beta_name, "state_in"],
         &["y", "state_out"],
-        &format!("#define TIME {time}u\n#define HEADS {heads}u\n"),
+        &format!("{fused_header}#define TIME {time}u\n#define HEADS {heads}u\n"),
         source,
         &[q, k, v, g, beta, state],
         &[q.shape().to_vec(), state.shape().to_vec()],
@@ -294,6 +342,23 @@ mod tests {
         let (expected, expected_state) = step(&q, &q, &values, &decay, &beta, &state)?;
         let (actual, actual_state) =
             step_with_gates(&q, &q, &values, &a, &b, &a_log, &dt_bias, &state)?;
+        assert_eq!(actual.to_f16_bits()?, expected.to_f16_bits()?);
+        assert_eq!(actual_state.to_f32()?, expected_state.to_f32()?);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn vector_step_with_beta_matches_graph() -> Result<()> {
+        let mut qkv = vec![0u16; 128];
+        qkv[0] = half::f16::ONE.to_bits();
+        let q = Array::from_f16_bits(&qkv, &[1, 1, 1, 128])?;
+        let g = Array::from_f32(&[1.0; 128], &[1, 1, 1, 128])?;
+        let beta_raw = Array::from_f32(&[0.625], &[1, 1, 1])?;
+        let beta = beta_raw.sigmoid()?.astype(Dtype::Float16)?;
+        let state = Array::zeros_dtype(&[1, 1, 128, 128], Dtype::Float32)?;
+        let (expected, expected_state) = step_vector(&q, &q, &q, &g, &beta, &state)?;
+        let (actual, actual_state) = step_vector_with_beta(&q, &q, &q, &g, &beta_raw, &state)?;
         assert_eq!(actual.to_f16_bits()?, expected.to_f16_bits()?);
         assert_eq!(actual_state.to_f32()?, expected_state.to_f32()?);
         Ok(())

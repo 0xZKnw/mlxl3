@@ -3600,3 +3600,55 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   `build/perf-31/qwen-gdn-integrated-kani.log`. Intégration : code inclus dans
   le commit d'optimisation dédié et destiné à `main` ; application installée et
   release non modifiées dans cet essai.
+
+### OPT-2026-09-19-RUST-PERF-39 — Ling KDA : beta intégré à la récurrence — validé
+
+- Suite générale de PERF-38 et de l'analyse Splash/Inco : Ling matérialise
+  encore le vecteur de decay FP32 et le beta FP16 avant son kernel récurrent
+  vectoriel. Le candidat transmet au même kernel les sorties brutes déjà
+  calculées et les constantes `A_log`, `dt_bias` et `lower_bound`, puis y
+  reproduit exactement les transformations élémentaires. Les projections,
+  poids EXL3, caches, ordre des FMA et sampling restent inchangés.
+- Hypothèse : sur les couches KDA, retirer les graphes/buffers intermédiaires
+  de sigmoid, cast et decay réduit les dispatches de decode. Le matmul de beta
+  reste nécessaire et n'est pas fusionné. Le prefill multi-token conserve le
+  chemin de référence tant que l'égalité numérique n'est pas établie.
+- Baseline : binaire `b7de3f8` archivé avant modification, modèle
+  `Ling-3.0-tiny-EXL3-4bpw`. Protocole prévu : sortie et états Ling bit-à-bit
+  sur tokens imposés, test GPU synthétique, puis A/B/A d'au moins cinq runs
+  sur la même longueur ; decode, prefill, TTFT, pic et hashes suivis. Rejet à
+  la moindre divergence inexpliquée ou si le gain ne se reproduit pas.
+- Conditions : Apple M5 24 Go, sur batterie et température dérivante ; niveau
+  de batterie et alternance consignés. Statut : **en cours**, journalisé avant
+  baseline, modification et benchmark ; aucune publication.
+- Revue avant modification : contrairement à Qwen, le decay Ling contient 128
+  valeurs par head et est partagé par 128 lignes d'état. Le recalculer dans la
+  géométrie actuelle répéterait ses exponentielles 32 à 128 fois. Pour éviter
+  cette régression prévisible, ce premier candidat n'intègre que le sigmoid et
+  cast FP16 de beta, scalaire par head ; le decay reste matérialisé une fois.
+  Une fusion decay correcte nécessitera une géométrie/threadgroup distincte et
+  fera l'objet d'un essai séparé. Baseline A mesurée : **97,672 tok/s** decode,
+  prefill chaud médian **100,080 tok/s**, TTFT médian **839,5 ms**, pic déclaré
+  4,428 GB, hashes identiques ; batterie 55 %. Preuve
+  `build/perf-39/ling-gates-control-a.json`.
+- Candidat : le kernel vectoriel reçoit les logits beta FP32, reproduit le
+  sigmoid MLX puis son cast FP16 avant la récurrence. Test GPU synthétique :
+  sortie FP16 et état FP32 bit-à-bit contre le graphe de référence. Sur huit
+  tokens imposés du modèle réel, logits complets baseline/candidat identiques,
+  SHA256 commun
+  `7bfec320150e5c307ecf2fec425fd4a22e06035c91cbaa68de8a193a400d7446`.
+- Alternance A/B/A/B, cinq runs 84/128 : decode **97,672 / 102,008 / 100,373 /
+  101,697 tok/s**. Les deux candidats sont à **+4,44 % / +1,32 %** face au
+  contrôle précédent et restent groupés autour de 102 tok/s. Prefill chaud
+  **100,079 / 104,652 / 102,916 / 104,589 tok/s** ; TTFT **839,53 / 802,88 /
+  816,43 / 803,41 ms**. Pic déclaré identique 4,428371 GB et hash de génération
+  identique sur les vingt runs. Batterie 55→49 %, en décharge. Preuves
+  `build/perf-39/ling-gates-{control-a,candidate-b1,control-a2,candidate-b2}.json`.
+- Décision : **validé** pour le decode Ling. Suite : 20 tests lib, 1 test CLI
+  et 14 tests contractuels réussis ; 13 tests matériels ignorés par la suite
+  standard, dont le nouveau test exécuté séparément avec succès. Format,
+  Clippy strict et `git diff --check` réussis. Kani 0.68 / CBMC 6.11 : **14/14
+  harnesses**, zéro échec, cœur Rust sans features MLX. Kani ne vérifie pas le
+  shader, MLX ou leur FFI ; leur contrôle est différentiel sur GPU physique.
+  Preuve `build/perf-39/ling-gates-kani.log`. Intégration : commit dédié pour
+  `main`, sans rebuild de l'app ni release dans cet essai.

@@ -305,16 +305,17 @@ impl Kda {
             .sigmoid()?
             .scalar_mul(self.lower_bound)?
             .exp()?;
-        let beta = x
-            .astype(Dtype::Float32)?
-            .matmul(&self.b_weight)?
-            .sigmoid()?
-            .astype(Dtype::Float16)?;
+        let beta_raw = x.astype(Dtype::Float32)?.matmul(&self.b_weight)?;
         let state = match &self.recurrent {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(&[1, self.heads, self.dim, self.dim], Dtype::Float32)?,
         };
-        let (output, state) = gated_delta::step_vector(&q, &k, &v, &decay, &beta, &state)?;
+        let (output, state) = if time == 1 {
+            gated_delta::step_vector_with_beta(&q, &k, &v, &decay, &beta_raw, &state)?
+        } else {
+            let beta = beta_raw.sigmoid()?.astype(Dtype::Float16)?;
+            gated_delta::step_vector(&q, &k, &v, &decay, &beta, &state)?
+        };
         self.recurrent = Some(state);
         let output = output.rms_norm(&self.output_norm, self.eps)?;
         let gate = gate_input
