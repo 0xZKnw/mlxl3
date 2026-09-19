@@ -213,10 +213,19 @@ impl Exl3Linear {
             self.rows
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
+        ensure!(matrix_rows > 0, "EXL3 linear input cannot be empty");
         if matrix_rows >= 24 {
             return self.forward_qmm_tensor(x);
         }
-        ensure!(matrix_rows == 1, "native QMM requires at least 24 rows");
+        if matrix_rows > 1 {
+            let matrix = x.reshape(&[matrix_rows, self.rows])?;
+            let rows = (0..matrix_rows)
+                .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let mut shape = x.shape().to_vec();
+            *shape.last_mut().context("empty EXL3 batch shape")? = self.cols;
+            return Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
+        }
         let xhat = x
             .astype(Dtype::Float16)?
             .reshape(&[1, self.rows])?
@@ -527,6 +536,7 @@ impl Exl3Group {
             "invalid grouped EXL3 input"
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
+        ensure!(matrix_rows > 0, "grouped EXL3 input cannot be empty");
         if matrix_rows >= 24 {
             let mut tile_cursor = 0;
             let mut scale_cursor = 0;
@@ -556,7 +566,23 @@ impl Exl3Group {
             }
             return Ok(outputs);
         }
-        ensure!(matrix_rows == 1, "grouped QMV expects one token");
+        if matrix_rows > 1 {
+            let matrix = x.reshape(&[matrix_rows, self.rows])?;
+            let rows = (0..matrix_rows)
+                .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            return self
+                .widths
+                .iter()
+                .enumerate()
+                .map(|(projection, &width)| {
+                    let values = rows.iter().map(|row| &row[projection]).collect::<Vec<_>>();
+                    let mut shape = x.shape().to_vec();
+                    *shape.last_mut().context("empty grouped batch shape")? = width;
+                    Array::concatenate(&values, 0)?.reshape(&shape)
+                })
+                .collect();
+        }
         let groups = i32::try_from(self.widths.len())?;
         let xhat = x
             .astype(Dtype::Float16)?
@@ -798,4 +824,75 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
         }
     };
     format!("inline float mlxl3_decode_codeword(uint x,int unused_cb) {{ x &= 0xffffu; {body} }}\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use half::f16;
+    use std::{path::Path, time::Instant};
+
+    fn serial_rows(linear: &Exl3Linear, x: &Array) -> Result<Array> {
+        let rows = x.shape()[0];
+        let outputs = (0..rows)
+            .map(|row| linear.forward(&x.slice(0, row, row + 1)?))
+            .collect::<Result<Vec<_>>>()?;
+        Array::concatenate(&outputs.iter().collect::<Vec<_>>(), 0)
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple M5 GPU"]
+    fn batch_qmv_eight_rows_matches_serial() -> Result<()> {
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let linear = Exl3Linear::from_checkpoint(
+            &checkpoint,
+            "model.language_model.layers.0.linear_attn.in_proj_qkv",
+        )?;
+        let values = (0..8 * linear.rows)
+            .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
+            .collect::<Vec<_>>();
+        let x = Array::from_f16_bits(&values, &[8, linear.rows])?;
+
+        let serial = serial_rows(&linear, &x)?;
+        let batched = linear.forward(&x)?;
+        let serial_bits = serial.to_f16_bits()?;
+        let batched_bits = batched.to_f16_bits()?;
+        let mismatches = serial_bits
+            .iter()
+            .zip(&batched_bits)
+            .filter(|(left, right)| left != right)
+            .count();
+        let max_abs = serial_bits
+            .iter()
+            .zip(&batched_bits)
+            .map(|(&left, &right)| {
+                (f16::from_bits(left).to_f32() - f16::from_bits(right).to_f32()).abs()
+            })
+            .fold(0.0f32, f32::max);
+
+        for _ in 0..2 {
+            serial_rows(&linear, &x)?.eval()?;
+            linear.forward(&x)?.eval()?;
+        }
+        let repeats = 5;
+        let start = Instant::now();
+        for _ in 0..repeats {
+            serial_rows(&linear, &x)?.eval()?;
+        }
+        let serial_ms = start.elapsed().as_secs_f64() * 1000.0 / f64::from(repeats);
+        let start = Instant::now();
+        for _ in 0..repeats {
+            linear.forward(&x)?.eval()?;
+        }
+        let batched_ms = start.elapsed().as_secs_f64() * 1000.0 / f64::from(repeats);
+        eprintln!(
+            "M=8 projection: serial={serial_ms:.3}ms batch_qmv={batched_ms:.3}ms speedup={:.2}x mismatches={mismatches}/{} max_abs={max_abs}",
+            serial_ms / batched_ms,
+            serial_bits.len()
+        );
+        assert_eq!(serial.shape(), batched.shape());
+        assert_eq!(mismatches, 0);
+        Ok(())
+    }
 }

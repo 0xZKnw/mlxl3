@@ -3881,3 +3881,70 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   normal nul. La mesure microsecondes et le coût sous spéculation seront faits
   avec le contrôleur complet, afin de ne pas présenter un timing isolé comme
   un gain de decode. Publication prévue dans le jalon DFlash suivant.
+
+### OPT-2026-09-19-RUST-PERF-47 — EXL3 : vérification cible `M=8` — en cours
+
+- Hypothèse : le QMM TensorOps EXL3 existant, aujourd'hui réservé à `M>=24`,
+  peut traiter les huit lignes de vérification DFlash en un graphe. Le padding
+  à 32 lignes gaspille 75 % du calcul, mais évite d'abord un nouveau décodeur
+  de poids et fournit une référence mesurable avant d'écrire un QMV batch.
+- Baseline fonctionnelle : sur une projection réelle du Qwen3.6-35B-A3B
+  EXL3 2.49 bpw, comparer `forward(M=8)` aux huit appels `M=1` : dimensions,
+  valeurs FP16, argmax et timing chaud. Le contrôle final exigera aussi les
+  mêmes tokens et le même état en exécution autoregressive complète.
+- Protocole : autoriser temporairement `M=8` dans le QMM, ajouter un test GPU
+  ignoré et mesurer plusieurs répétitions après warmup. **Rejet immédiat** si
+  le QMM n'est pas plus rapide ou si l'écart numérique change les tokens ; si
+  l'écart FP16 existe sans changer les tokens, il restera uniquement une
+  référence de performance et ne sera pas intégré au chemin lossless.
+- Baseline modèle : PERF-42/43, **44,3–47,0 tok/s** decode, **172,9–181,7
+  tok/s** prefill et **148,8–156,4 ms** TTFT, avec dérive batterie/thermique.
+  Statut : **en cours**, journalisé avant code ; aucune publication.
+- Sous-essai TensorOps sur `layers.0.linear_attn.in_proj_qkv`, entrée
+  déterministe `[8,2048]`, deux warmups puis cinq répétitions : huit QMV
+  série **2,055 ms**, QMM paddé à 32 **0,680 ms**, soit **3,02×** sur cette
+  projection. Mais **555/65 536** sorties FP16 diffèrent, écart absolu maximal
+  **0,0014648438**. Le QMM est donc **rejeté comme vérificateur lossless** ; il
+  reste une référence de plafond et n'est pas branché au chemin production.
+- Prochain sous-essai : QMV `M<=8` à lignes parallèles, même shader, même
+  partition de K et même réduction par ligne afin de viser la parité bit-à-bit.
+  Mesurer projection puis tokens/états complets avant intégration. Statut global
+  PERF-47 : **en cours**.
+- Sous-essai QMV exact sur la même projection et la même entrée, deux warmups
+  puis cinq répétitions : batch **0,751 ms**, référence huit branches QMV
+  **1,478 ms**, soit **1,97×** dans ce microbenchmark, avec **0/65 536** valeur
+  FP16 différente et écart maximal nul. Le résultat peut inclure du cache et
+  l'ordonnancement MLX ; ce n'est pas encore un gain modèle.
+- Étape suivante journalisée avant code : exposer les huit lignes de logits du
+  passage Qwen déjà vectorisé, puis comparer batch contre huit pas séquentiels,
+  logits FP16 et 80 tenseurs d'état compris. Un écart du GDN/SDPA invalidera le
+  chemin comme vérification exacte ou imposera un kernel séquentiel équivalent.
+- Résultat modèle du batch vectorisé : **rejeté**. Après le même préfixe de
+  trois tokens, huit pas séquentiels prennent **162,503 ms**, contre **425,245
+  ms** en batch (`0,38×`). **1 913 011/1 986 560** logits FP16 diffèrent
+  (écart absolu max 0,34179688) et **72/80** tenseurs d'état diffèrent. Les
+  opérations GDN/SDPA multi-token n'ont pas l'arrondi exact du chemin `M=1`,
+  et le lm_head/MoE batch est ici plus coûteux. Le chemin n'est pas exposé.
+- Sous-essai suivant, journalisé avant code : construire les huit pas dans
+  l'ordre autoregressif exact avec les kernels `M=1`, sans `eval` entre les
+  tokens, concaténer les logits puis synchroniser une seule fois. Attendu :
+  parité bit-à-bit par construction et gain limité aux synchronisations et à
+  l'ordonnancement du graphe. Si le graphe grossit ou régresse, le rejeter.
+- Résultat du graphe autoregressif différé sur le modèle réel : **validé comme
+  primitive lossless**. Huit pas séquentiels synchronisés prennent **179,207
+  ms**, contre **153,829 ms** avec une seule synchronisation, soit **1,16×**.
+  Les **1 986 560** logits FP16 et les **80/80** tenseurs d'état sont identiques
+  bit-à-bit. Ce résultat ponctuel correspond à ~52 vérifications/s et ne
+  revendique pas encore un débit DFlash complet : draft, sélection, acceptation
+  et commit ne sont pas branchés.
+- Le fallback QMV `2<=M<24` est également exact sur la projection test
+  (**0/65 536** différence) ; il sert aux futurs kernels batch, mais le chemin
+  target retenu ici reste token-par-token différé pour préserver l'arithmétique
+  GDN/SDPA.
+- Vérification du jalon : format et Clippy strict réussis ; **21** tests lib,
+  **1** test CLI et **14** contrats réussis. Les deux tests GPU ciblés réussissent
+  sur M5. Kani 0.68 / CBMC 6.11 vérifie **15/15 harnesses**, zéro échec et 2/2
+  couvertures (`build/perf-47-kani.log`). Kani est exécuté sans le feature MLX :
+  il ne prouve ni les graphes MLX, ni Metal, ni les états Qwen ; leur parité est
+  couverte par les différentiels physiques bornés décrits ci-dessus. Statut :
+  **validé et intégré comme primitive inactive**.

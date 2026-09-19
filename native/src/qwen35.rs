@@ -742,7 +742,7 @@ impl Qwen35Moe {
     }
 
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
-        match self.run_tokens(tokens, false) {
+        match self.run_tokens(tokens, false, true) {
             Ok((logits, _)) => Ok(logits),
             Err(error) => {
                 self.reset();
@@ -751,11 +751,38 @@ impl Qwen35Moe {
         }
     }
 
-    fn run(&mut self, token: u32, trace: bool) -> Result<(Array, Vec<Vec<u16>>)> {
-        self.run_tokens(&[token], trace)
+    /// Runs target verification in the exact autoregressive order, then
+    /// synchronizes the resulting Metal graph once.
+    pub fn verify_tokens_exact(&mut self, tokens: &[u32]) -> Result<Array> {
+        let result = (|| {
+            ensure!(
+                !tokens.is_empty() && tokens.len() <= 8,
+                "target verification requires 1 to 8 tokens"
+            );
+            let mut logits = Vec::with_capacity(tokens.len());
+            for &token in tokens {
+                logits.push(self.run_tokens(&[token], false, false)?.0);
+            }
+            let output = Array::concatenate(&logits.iter().collect::<Vec<_>>(), 1)?;
+            output.eval()?;
+            Ok(output)
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result.context("Qwen target verification failed; its cache was reset")
     }
 
-    fn run_tokens(&mut self, tokens: &[u32], trace: bool) -> Result<(Array, Vec<Vec<u16>>)> {
+    fn run(&mut self, token: u32, trace: bool) -> Result<(Array, Vec<Vec<u16>>)> {
+        self.run_tokens(&[token], trace, true)
+    }
+
+    fn run_tokens(
+        &mut self,
+        tokens: &[u32],
+        trace: bool,
+        evaluate: bool,
+    ) -> Result<(Array, Vec<Vec<u16>>)> {
         ensure!(
             !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
             "Qwen token batch is empty or outside vocabulary"
@@ -778,15 +805,18 @@ impl Qwen35Moe {
                 layers.push(hidden.to_f16_bits()?);
             }
         }
-        let last = hidden.slice(1, time - 1, time)?;
-        let normalized = last.rms_norm(&self.norm, self.eps)?;
+        let normalized = hidden
+            .slice(1, time - 1, time)?
+            .rms_norm(&self.norm, self.eps)?;
         if trace {
             layers.push(normalized.to_f16_bits()?);
         }
         let logits = self.head.forward(&normalized)?;
         // One token is one Metal graph. Synchronizing hidden/cache arrays in
         // every layer serialized dozens of otherwise independent dispatches.
-        logits.eval()?;
+        if evaluate {
+            logits.eval()?;
+        }
         self.offset += time;
         Ok((logits, layers))
     }
@@ -1187,6 +1217,7 @@ impl GatedDelta {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
 
     fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
         model
@@ -1226,6 +1257,58 @@ mod tests {
         }
         assert_eq!(state_bytes(&model)?, expected_state);
         assert_eq!(model.offset, 5);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn deferred_target_verification_matches_sequential() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        for token in [1, 2, 3] {
+            model.forward(token)?;
+        }
+        let snapshot = model.snapshot()?;
+        let tokens = [4, 5, 6, 7, 8, 9, 10, 11];
+
+        let start = Instant::now();
+        let mut sequential_bits = Vec::new();
+        for token in tokens {
+            sequential_bits.extend(model.forward(token)?.to_f16_bits()?);
+        }
+        let sequential_ms = start.elapsed().as_secs_f64() * 1000.0;
+        let sequential_state = state_bytes(&model)?;
+
+        model.restore(snapshot)?;
+        let start = Instant::now();
+        let batched_bits = model.verify_tokens_exact(&tokens)?.to_f16_bits()?;
+        let batched_ms = start.elapsed().as_secs_f64() * 1000.0;
+        let batched_state = state_bytes(&model)?;
+        let mismatches = sequential_bits
+            .iter()
+            .zip(&batched_bits)
+            .filter(|(left, right)| left != right)
+            .count();
+        let max_abs = sequential_bits
+            .iter()
+            .zip(&batched_bits)
+            .map(|(&left, &right)| {
+                (f16::from_bits(left).to_f32() - f16::from_bits(right).to_f32()).abs()
+            })
+            .fold(0.0f32, f32::max);
+        let state_mismatches = sequential_state
+            .iter()
+            .zip(&batched_state)
+            .filter(|(left, right)| left != right)
+            .count();
+        eprintln!(
+            "Qwen target M=8: sequential={sequential_ms:.3}ms batch={batched_ms:.3}ms speedup={:.2}x logits={mismatches}/{} max_abs={max_abs} state={state_mismatches}/{}",
+            sequential_ms / batched_ms,
+            sequential_bits.len(),
+            sequential_state.len()
+        );
+        assert_eq!(batched_bits.len(), sequential_bits.len());
+        assert_eq!(mismatches, 0, "batched target logits differ");
+        assert_eq!(state_mismatches, 0, "batched target state differs");
         Ok(())
     }
 }
