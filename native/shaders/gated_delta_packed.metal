@@ -34,12 +34,39 @@
           state[i] = static_cast<float>(i_state[i]);
         }
 
-        // g, beta: [B, T, Hv]
+        // Gates: either precomputed [B, T, Hv], or their projection inputs.
+#if MLXL3_GDN_FUSED_GATES
+        auto a_ = a + b_idx * T * Hv;
+        auto b_ = b + b_idx * T * Hv;
+#else
         auto g_ = g + b_idx * T * Hv;
         auto beta_ = beta + b_idx * T * Hv;
+#endif
 
         for (int t = 0; t < T; ++t) {
+#if MLXL3_GDN_FUSED_GATES
+          half bh = b_[hv_idx];
+          half sigmoid_tail = half(1.0h) /
+              (half(1.0h) + metal::exp(metal::abs(bh)));
+          half beta_t = bh < half(0.0h)
+              ? sigmoid_tail
+              : half(1.0h) - sigmoid_tail;
+          half summed = half(float(a_[hv_idx]) + float(dt_bias[hv_idx]));
+          half maximum = metal::max(summed, half(0.0h));
+          half minimum = metal::min(summed, half(0.0h));
+          float exp_delta = float(metal::exp(minimum - maximum));
+          float plus_one = 1.0f + exp_delta;
+          float log_one_plus = plus_one == 1.0f
+              ? exp_delta
+              : exp_delta * (metal::log(plus_one) / (plus_one - 1.0f));
+          half softplus = half(float(maximum) + log_one_plus);
+          float gt = precise::exp(
+              -precise::exp(a_log[hv_idx]) * float(softplus)
+          );
+#else
           float gt = static_cast<float>(g_[hv_idx]);
+          half beta_t = beta_[hv_idx];
+#endif
 
           // Partials mirror the generic kernel: each 4-element chain is one
           // original lane's sequential accumulation.
@@ -63,7 +90,7 @@
 
           auto delta =
               (static_cast<float>(v_[dv_idx]) - kv_mem) *
-              static_cast<float>(beta_[hv_idx]);
+              static_cast<float>(beta_t);
 
           for (int pb = 0; pb < partials_per_lane; ++pb) {
             float acc = 0.0f;
@@ -87,8 +114,13 @@
           k_ += Hk * Dk;
           v_ += Hv * Dv;
           y += Hv * Dv;
+#if MLXL3_GDN_FUSED_GATES
+          a_ += Hv;
+          b_ += Hv;
+#else
           g_ += Hv;
           beta_ += Hv;
+#endif
         }
 
         for (int i = 0; i < values_per_lane; ++i) {

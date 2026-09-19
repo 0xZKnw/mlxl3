@@ -3292,3 +3292,311 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
 - **Validé et intégré pour publication sur `main`** : gate sériel actif dans
   le chat/GUI, prototype batch explicitement hors chemin normal. L'app locale
   et une release ne sont pas modifiées par ce push.
+
+### OPT-2026-09-19-RUST-PERF-31 — Campagne générale : baseline et profil Qwen complet — en cours
+
+- Hypothèse de diagnostic : le moteur Rust actuel possède déjà les gains de
+  synchronisation, QMV/QMM, routage et chargement documentés ci-dessus ; une
+  nouvelle optimisation doit donc partir des coûts réellement dominants du
+  modèle complet, et non répéter les réglages de command buffers, compilation
+  FFN/QMV, gather/Hadamard ou top-k déjà rejetés.
+- Cible initiale : Qwen3.6-35B-A3B EXL3 2,49 bpw, puis validation de toute
+  piste générale sur Ling 3 Tiny et les autres architectures compatibles.
+  Priorité : decode, prefill, TTFT, RAM, chargement, CPU/dispatch/allocations.
+- Baseline prévue : binaire `main` `ce5ede9`, bridge natif, un warmup exclu,
+  au moins cinq générations chaudes de 256 tokens avec prompt fixé, puis
+  tailles de prefill séparées. Relever débit moteur/client, TTFT, tokens,
+  hash du texte, mémoire MLX et RSS. Les comparaisons de candidats seront
+  alternées A/B/A avec binaire de contrôle archivé et sorties forcées/parité.
+- Profil prévu : trace Qwen synchronisée existante sur une passe mono-token et
+  une passe multi-token, complétée par échantillonnage CPU du bridge. Les
+  barrières de profil modifient le débit et ne seront utilisées que pour
+  classer les sous-blocs. Instruments/xctrace et le compilateur Metal ne sont
+  pas disponibles via le Command Line Tools actuellement sélectionné ; aucune
+  durée GPU fine ne sera inventée.
+- Conditions initiales : Apple M5, 24 Gio, Mac sur batterie (86 %, décharge),
+  aucun autre moteur MLX/modèle détecté. Les variations thermiques/fréquence
+  seront traitées par répétitions proches, sans additionner des gains issus de
+  séries incompatibles. Résultats et classement des dix hotspots à ajouter
+  avant toute modification du moteur.
+- Statut : **en cours**, diagnostic local uniquement ; aucune optimisation,
+  installation, publication ou revendication de gain à ce stade.
+- Baseline exécutée : cinq runs chauds 27/256, decode médian **43,719 tok/s**
+  (43,508–44,105), prefill chaud médian **167,21 tok/s**, TTFT chaud médian
+  **161,97 ms**, hash identique sur les cinq sorties. Le premier run après
+  warmup subit encore une compilation/JIT (TTFT 1,472 s). Chargement moteur
+  5,421 s, modèle 13,064 GB annoncé ; `/usr/bin/time` ne comptabilise pas
+  correctement le footprint unifié du processus enfant et n'est pas retenu
+  comme mesure RSS. Preuves `build/perf-31/qwen-baseline.{json,time}`.
+- Profil modèle complet : capture CPU `sample` de cinq secondes au milieu
+  d'une génération 768 tokens. Le thread principal est dans `Qwen35Moe::
+  run_tokens`/`array.eval` pour **2 673/3 082 échantillons (86,7 %)** ; au
+  sein de cette phase, 961 échantillons attendent une condition GPU et 780
+  construisent/soumettent le graphe. La sélection de token représente 61
+  échantillons. Le profil est perturbant et ne donne pas les temps GPU purs.
+  Preuves `build/perf-31/qwen-decode-cpu.sample` et
+  `qwen-decode-sampled-run.json` (42,234 tok/s sous échantillonnage).
+- Classement initial des dix coûts, fondé sur la capture et la structure réelle
+  (40 couches = 30 GDN + 10 attention ; 256 experts, top-8), à confirmer pour
+  chaque candidat : (1) exécution/attente du graphe GPU complet ; (2) QMV
+  experts gate/up/down des 40 MoE ; (3) projections/état GDN des 30 couches ;
+  (4) branche experte partagée des 40 MoE ; (5) `lm_head` 248 320 sorties ;
+  (6) construction/soumission CPU des nombreux graphes/kernels ; (7) dix
+  attentions et croissance KV ; (8) transformées Hadamard/scales/épilogues
+  séparés ; (9) allocations/destructions/copies temporaires MLX observées par
+  `sample` ; (10) sampler/synchronisation finale par token. Ce classement ne
+  prétend pas répartir le temps GPU sans Instruments.
+- Limites : batterie 86→83 %, aucune trace GPU fine (`xctrace`/`metal`
+  absents du Command Line Tools sélectionné), aucun autre processus MLX.
+  Statut : **diagnostic terminé**, aucun gain intégré par PERF-31.
+
+### OPT-2026-09-19-RUST-PERF-32 — Greedy : argmax direct sans log-softmax — en cours
+
+- Profil déclencheur : pendant cinq secondes de decode Qwen complet, le thread
+  principal passe 2 673/3 082 échantillons dans l'évaluation MLX ; la sélection
+  apparaît 61 fois et matérialise actuellement `log_probs` avant un `argmax`
+  GPU. Le vocabulaire compte 248 320 entrées. Le chemin température/repetition
+  penalty doit rester strictement inchangé.
+- Hypothèse : pour `temperature=0` ou `top_k=1` sans pénalité, `argmax(logits)`
+  évite le log-softmax complet. La transformation est monotone mais les égalités
+  et non-finis imposent une validation sur le modèle réel ; rejet immédiat si
+  un token/hash diffère.
+- Baseline : PERF-31, cinq runs chauds 27/256 sur batterie : decode médian
+  **43,719 tok/s** (43,508–44,105), prefill chaud **167,21 tok/s** médian hors
+  premier JIT, TTFT chaud **161,97 ms** médian, hash de texte constant
+  `55b6be28...d6a5bc6`. Chargement moteur 5,42 s, poids résidents annoncés
+  13,064 GB. Preuve `build/perf-31/qwen-baseline.json`.
+- Protocole candidat : archiver le binaire baseline, modifier uniquement le
+  fast path greedy partagé du bridge, rebuild release, contrôler 256 tokens
+  greedy/hash, puis A/B/A avec cinq runs de 256 tokens par binaire. Mesurer
+  decode, prefill, TTFT et empreinte processus ; ne conserver que si le gain
+  dépasse le bruit sans régression de fidélité.
+- Statut : **en cours**, code non encore modifié.
+- Candidat B1, contrôle A, candidat B2, cinq runs 27/256 chacun : decode
+  médian **43,743 / 43,716 / 43,502 tok/s** ; prefill chaud médian
+  **167,47 / 165,76 / 161,59 tok/s** ; TTFT chaud **161,41 / 163,22 /
+  167,29 ms**. Les quinze générations ont le même hash que la baseline.
+  L'empreinte poids annoncée reste 13,064 GB. Preuves
+  `build/perf-31/qwen-argmax-{b1,a,b2}.json`.
+- Le candidat ne dépasse pas le bruit et le second passage est plus lent avec
+  la dérive batterie/thermique. Décision : **rejeté** ; fast path restauré au
+  log-softmax de référence, aucun commit/push d'optimisation.
+
+### OPT-2026-09-19-RUST-PERF-33 — Cache de factories Metal par identité de kernel — en cours
+
+- Profil déclencheur : la capture PERF-31 observe, dans chaque token, des
+  allocations/libérations de chaînes, comparaisons d'une clé C++ comprenant
+  le source Metal complet, et créations répétées de descripteurs de custom
+  kernel. La factory MLX est déjà cachée, mais sa recherche recopie et compare
+  `name + input names + output names + header + source` à chaque dispatch.
+- Hypothèse : les noms de kernels MLXL3 peuvent constituer l'identité de la
+  factory si toutes les spécialisations dynamiques y figurent. Une recherche
+  par nom court évite les copies/comparaisons du source sans changer le graphe,
+  les poids, les dimensions de dispatch ou l'arithmétique GPU.
+- Changement prévu : compléter les noms aujourd'hui ambigus (QMV groupé et
+  QMM expert segmenté), puis indexer le cache C++ par nom. Aucun nouveau cache,
+  thread ou dépendance. Vérifier par revue exhaustive des 11 sites de dispatch,
+  tests Metal, parité forcée Qwen et hashes greedy ; benchmark A/B/A 27/256.
+- Baseline de contrôle : binaire PERF-31 archivé SHA256 `3c25f59e...53d2cfac`,
+  decode médian récent **43,716 tok/s**, prefill chaud **165,76 tok/s**, TTFT
+  **163,22 ms** dans `qwen-argmax-a.json`. Conditions batterie, dérive connue.
+- Statut : **en cours**, aucune modification appliquée à ce stade.
+- Résultats A/B/A, cinq runs chauds 27/256 : candidat B1 **44,229 tok/s**
+  decode, **167,84 tok/s** prefill, **161,09 ms** TTFT ; contrôle A
+  **43,602 tok/s**, **161,97 tok/s**, **166,95 ms** ; candidat B2
+  **43,619 tok/s**, **162,25 tok/s**, **166,66 ms**. Les quinze sorties ont
+  le même hash. Le passage B2 ne reproduit pas le +1,4 % apparent de B1 et
+  décroît avec la batterie/chauffe. Preuves
+  `build/perf-31/qwen-factory-cache-{b1,a,b2}.json`.
+- Contrôles : quatre tests Metal physiques réussis et parité Qwen forcée sur
+  huit étapes bit-à-bit (`build/perf-31/qwen-factory-cache-parity-8.log`).
+- Revue historique tardive : cette hypothèse est la même que
+  `OPT-2026-09-14-RUST-PERF-06`, déjà rejetée à **-2,65 %**. La répétition
+  n'aurait pas dû être lancée ; le rapprochement exact n'a été retrouvé
+  qu'après le benchmark. Le nouveau résultat confirme l'absence de gain.
+- Décision : **rejeté**, code restauré, aucun commit/push. Les mesures et cet
+  écart au protocole restent consignés pour empêcher une nouvelle répétition.
+
+### OPT-2026-09-19-RUST-PERF-34 — Qwen GDN : convolution causale mono-token — en cours
+
+- Profil déclencheur : Qwen exécute 30 couches Gated DeltaNet par token. Chacune
+  construit actuellement un `concatenate` état+QKV, lance une convolution
+  depthwise de longueur 4, puis crée un `slice` pour le nouvel état avant le
+  SiLU. Le roadmap `docs/decode-roadmap-2026-09-04.md` identifie précisément
+  cette séquence comme prochaine fusion utile ; aucun essai historique du
+  kernel convolution+état Rust n'a été trouvé.
+- Hypothèse : pour `T=1`, un kernel Metal par canal calculant exactement la
+  convolution FP16 et le décalage d'état remplace concat+conv+slice par un seul
+  dispatch à deux sorties. Le SiLU MLX reste séparé au premier essai afin de
+  réduire le risque numérique. Le chemin multi-token/prefill reste inchangé.
+- Baseline : PERF-31, Qwen 2,49 bpw, prompt 27 / génération 256, decode médian
+  **43,719 tok/s**, prefill chaud **167,21 tok/s**, TTFT chaud **161,97 ms**,
+  hash `55b6be28...d6a5bc6`. Batterie et chauffe variables ; comparaison A/B/A
+  de cinq runs avec binaires archivés et sortie identique requise.
+- Protocole : test physique kernel contre `concatenate+conv1d` sur formes
+  déterministes, `native/check_qwen_gdn.py` sur deux états réels, parité modèle
+  forcée huit étapes incluant tous les caches, puis benchmark A/B/A. Rejet si
+  un bit des sorties/états réels diverge ou si le gain ne se reproduit pas.
+- Statut : **en cours**, aucun code candidat appliqué à ce stade.
+- Contrôles du candidat : kernel synthétique exact contre MLX, GDN réelle
+  couche 0 exacte sur deux états, puis modèle complet exact sur huit tokens
+  imposés, logits et caches bit-à-bit. Preuves
+  `build/perf-31/qwen-causal-conv-{gdn,parity-8}.log`.
+- A/B/A, cinq runs 27/256 : candidat B1 **43,831 tok/s** decode,
+  **168,02 tok/s** prefill, **160,98 ms** TTFT ; contrôle A
+  **43,427 tok/s**, **163,49 tok/s**, **167,34 ms** ; candidat B2
+  **43,164 tok/s**, **165,85 tok/s**, **163,66 ms**. Les quinze sorties ont
+  le hash de référence. Batterie 78→76 %, dérive thermique visible.
+- Le +0,9 % apparent face au contrôle n'est pas reproduit par B2, qui termine
+  sous A et sous la baseline initiale. La réduction des opérations du graphe
+  n'abaisse donc pas le temps modèle mesurable dans ces conditions.
+- Décision : **rejeté**, code et test candidat retirés, aucun commit/push.
+  Preuves `build/perf-31/qwen-causal-conv-{b1,a,b2}.json`.
+
+### OPT-2026-09-19-RUST-PERF-35 — Splash/Inco et adressage incrémental QMV — rejeté
+
+- Recherche déclenchée par l'utilisateur : analyse du moteur Apple Silicon
+  Splash/Inco (dépôt Apache-2.0 et billet technique, état du 17 septembre
+  2026). Son avantage annoncé repose notamment sur DFlash2/speculative decode,
+  exclu de cette campagne car l'utilisateur exige un décodage exact sans
+  spéculation. Les idées transférables sans perte sont : plans Metal fixes par
+  forme, poids déjà disposés pour leur consommateur, arènes préallouées, et
+  fusion complète du Gated DeltaNet. Leur kernel GDN fusionne convolution,
+  SiLU, normalisations q/k, gates, récurrence et normalisation/gate de sortie ;
+  cela explique pourquoi le seul sous-kernel convolution de PERF-34 n'a pas
+  produit de gain modèle. Le format Q4 privé et le command graph Splash ne sont
+  pas directement réutilisables par un moteur EXL3 construit sur les graphes
+  MLX, et une réécriture de runtime n'est pas engagée silencieusement.
+- Premier candidat général et réversible avant la fusion GDN : dans les QMV
+  dense et expert mappé, calculer la base de la tuile K une seule fois par
+  itération puis l'avancer d'un stride constant. Le kernel actuel répète
+  `(tile_k * TILES_N + tile_n) * PACKED_U32` pour chaque tuile de sortie ; le
+  changement conserve codewords, ordre des FMA, réduction, dispatch et poids.
+  Aucun repacking, nouvelle copie ni allocation.
+- Baseline : binaire archivé PERF-31, Qwen3.6-35B-A3B 2,49 bpw, prompt 27 et
+  génération 256 : decode médian initial **43,719 tok/s**. La batterie et la
+  température dérivent ; décision uniquement sur une alternance B/A/B récente
+  d'au moins cinq runs, texte/hash identique, plus tests QMV et parité modèle.
+- Protocole : vérifier d'abord les kernels Metal physiques et huit tokens Qwen
+  forcés, puis B/A/B. Rejeter si l'écart ne se reproduit pas ou reste dans le
+  bruit. Si rejeté, passer à la fusion GDN complète indiquée par Splash, sans
+  conserver ce micro-changement.
+- Statut : **en cours**, journalisé avant modification ; aucune publication ni
+  revendication de gain.
+- Le candidat passe la parité Qwen complète sur huit étapes bit-à-bit. Mesures
+  longues 27/512, cinq runs par passage : candidat B1 **41,410 tok/s**,
+  contrôle A1 **40,841 tok/s**, candidat B2 **41,175 tok/s**, puis contrôle A2
+  **42,533 tok/s**. Les vingt sorties ont le même hash ; pic MLX identique
+  13,064 GB. Le prefill chaud est respectivement **156,79 / 157,22 / 153,92 /
+  162,57 tok/s** et ne montre aucun gain. Batterie 76→70 %, dérive thermique
+  et énergétique importante. Preuves `build/perf-31/qwen-qmv-address-*.json`
+  et `qwen-qmv-address-parity-8.log`.
+- Le dernier contrôle dépasse le candidat de 3,3 % : les +1,39/+0,82 % vus
+  autour d'A1 ne sont pas reproductibles et ne peuvent pas être attribués au
+  code. Décision : **rejeté**, shaders restaurés, aucun commit/push.
+
+### OPT-2026-09-19-RUST-PERF-36 — Qwen GDN : invariants persistants — rejeté
+
+- Profil et inspiration Splash : la part CPU de PERF-31 montre beaucoup de
+  construction/destruction de graphes et d'arrays ; Splash alloue et prépare
+  ses ressources fixes au chargement. Dans chaque appel mono-token de chacune
+  des 30 couches GDN Qwen, MLXL3 recrée actuellement trois scalaires MLX
+  (`1/Dk`, `1/sqrt(Dk)`, zéro) et reconstruit `exp(A_log)` alors que ces quatre
+  valeurs sont invariantes pour toute la vie du modèle.
+- Hypothèse : matérialiser une seule fois au chargement les trois scalaires et
+  `-exp(A_log)`, puis les réutiliser, supprime 90 petites allocations/objets de
+  graphe par token et le calcul invariant des 30 vecteurs A. Le signe est
+  déplacé avant la multiplication, opération exactement équivalente sur ces
+  poids finis ; aucun ordre de réduction, poids, cache ou kernel EXL3 ne change.
+- Protocole : parité GDN deux états puis modèle Qwen huit étapes bit-à-bit ;
+  benchmark B/A/B 27/512 avec cinq runs et contrôle archivé. Mesurer decode,
+  prefill, TTFT et pic. Rejeter si le gain ne se reproduit pas ; ce candidat
+  reste distinct de la future fusion Metal GDN.
+- Baseline récente pertinente : contrôle A2 PERF-35 **42,533 tok/s** decode,
+  prefill chaud **162,57 tok/s**, TTFT **168,20 ms**, pic 13,064 GB, batterie
+  70 % en décharge. Statut : **en cours**, aucune modification appliquée avant
+  cette entrée.
+- Parité : GDN couche 0 sur deux états, puis modèle complet huit étapes,
+  sorties et caches **bit-à-bit**. Mesures B/A/B 27/512, cinq runs : decode
+  **49,696 / 48,563 / 48,320 tok/s** ; prefill chaud **187,34 / 186,82 /
+  186,47 tok/s** ; TTFT **144,68 / 146,42 / 146,40 ms** ; pic identique
+  13,064 GB et hash identique. Batterie 70→66 %, forte remontée globale de
+  fréquence par rapport à PERF-35 puis dérive dans la série. Preuves
+  `build/perf-31/qwen-gdn-invariants-{b1,a,b2}.json`, `*-gdn.log` et
+  `*-parity-8.log`.
+- B1 paraît +2,33 %, mais B2 est **−0,50 %** face au contrôle central : le gain
+  n'est pas reproduit. Décision : **rejeté**, code restauré ; les allocations
+  minuscules/invariants sont vraisemblablement masqués ou déjà fusionnés par
+  MLX. Aucun commit/push.
+
+### OPT-2026-09-19-RUST-PERF-37 — Qwen GDN : gates Metal fusionnées — rejeté
+
+- Étape minimale vers la fusion complète observée dans Splash : remplacer les
+  deux graphes élémentaires séparés `sigmoid(b)` et
+  `exp(-exp(A_log) * softplus(a + dt_bias))` par un kernel Metal mono-token à
+  deux sorties (`beta` FP16 et decay FP32). Les projections, la convolution,
+  les normalisations, la récurrence et les caches restent inchangés.
+- Hypothèse : 30 couches GDN par token peuvent éviter au moins une frontière de
+  dispatch/compilation chacune. Le calcul doit reproduire les arrondis FP16 de
+  `a + dt_bias` puis `logaddexp`; aucune approximation `fast`, table ou
+  spéculation. Le chemin multi-token garde le graphe MLX actuel.
+- Protocole : test GDN réel deux états exigeant sortie et caches bit-à-bit,
+  puis modèle Qwen huit étapes bit-à-bit. Si la formule MSL ne reproduit pas la
+  référence, rejet immédiat ou correction avant tout benchmark. Si exacte,
+  B/A/B 27/512 cinq runs ; pic, TTFT et prefill suivis.
+- Baseline de proximité : contrôle PERF-36 **48,563 tok/s**, prefill chaud
+  **186,82 tok/s**, TTFT **146,42 ms**, pic 13,064 GB ; batterie 66 % en
+  décharge. Statut : **en cours**, journalisé avant code.
+- La première formule MSL a été rejetée avant benchmark : le `sigmoid` calculé
+  en FP32 différait d'un ULP FP16 sur plusieurs entrées et faisait diverger la
+  GDN réelle. La correction reproduit l'opérateur MLX : exponentielle et
+  branche stable en `half`, ainsi que son `logaddexp` et son `log1p` compensé.
+  Le test GPU synthétique passe alors bit-à-bit, de même que la GDN réelle sur
+  deux états et le modèle sur huit étapes.
+- B/A/B 27/512, cinq runs : decode **44,673 / 44,187 / 44,122 tok/s** ; prefill
+  chaud **168,75 / 166,32 / 166,74 tok/s** ; TTFT **164,56 / 162,92 /
+  164,90 ms** ; pic identique 13,064 GB et tous les hashes identiques. Batterie
+  66→61 %. Preuves `build/perf-31/qwen-gdn-gates-{b1,a,b2}.json`,
+  `qwen-gdn-gates-gdn.log`, `qwen-gdn-gates-parity-8.log`.
+- B1 est +1,10 %, mais B2 est **−0,15 %** et le TTFT n'est pas amélioré : un
+  dispatch Metal supplémentaire remplace des expressions que MLX fusionne déjà
+  efficacement. Décision : **rejeté**, kernel/test retirés, aucun commit/push.
+
+### OPT-2026-09-19-RUST-PERF-38 — Qwen GDN : gates intégrées à la récurrence — validé
+
+- Suite directe de PERF-37 : ne plus produire `g` et `beta` dans un kernel
+  séparé. Pour le decode `T=1`, le kernel récurrent existant reçoit directement
+  `a`, `b`, `A_log` et `dt_bias` et calcule les deux scalaires du head avant la
+  mise à jour d'état. La formule half/FP32 exacte validée dans PERF-37 est
+  réutilisée ; la géométrie et l'ordre des FMA récurrentes restent inchangés.
+- Hypothèse : supprimer réellement le dispatch et les deux buffers
+  intermédiaires sur chacune des 30 couches peut rendre visible le bénéfice que
+  PERF-37 masquait. Le calcul des deux scalaires est répété par row-group, coût
+  minuscule face aux 16 384 valeurs d'état du head et sans synchronisation
+  inter-groupe.
+- Protocole : test dédié des gates contre le graphe MLX, GDN deux états et
+  modèle huit étapes bit-à-bit, puis B/A/B 27/512 cinq runs. Le prefill `T>1`
+  garde le chemin de référence. Statut : **en cours**, aucune revendication.
+- Contrôles numériques initiaux réussis : test GPU du kernel intégré contre le
+  graphe de gates + kernel récurrent, GDN réelle couche 0 sur deux états, puis
+  modèle Qwen complet huit étapes ; sorties et caches bit-à-bit. Le chemin
+  trace et le prefill multi-token continuent explicitement d'utiliser les
+  opérations MLX de référence.
+- B/A/B 27/512, cinq runs : decode **44,698 / 43,972 / 44,576 tok/s**, soit
+  **+1,65 % / +1,37 %** face au contrôle central ; prefill chaud **169,42 /
+  163,18 / 168,05 tok/s** ; TTFT **161,04 / 166,76 / 162,76 ms** ; pic identique
+  **13,064 GB**, tous les hashes identiques. Batterie 61→57 % en décharge ; les
+  deux passages candidat encadrant le contrôle reproduisent le gain malgré la
+  dérive. Preuves `build/perf-31/qwen-gdn-integrated-{b1,a,b2}.json`,
+  `qwen-gdn-integrated-{gdn,parity-8}.log`.
+- Décision performance : **validé** pour Qwen GDN decode. Vérifications
+  complètes : test GPU dédié, GDN réelle sur deux états et modèle Qwen huit
+  étapes bit-à-bit ; 190 cas de parité MLX exacts ; 35 tests Rust réussis
+  (12 tests matériels explicitement ignorés par la suite standard) ; format,
+  Clippy strict et `git diff --check` réussis. Kani 0.68 / CBMC 6.11 vérifie
+  **14/14 harnesses**, zéro échec, sur le cœur Rust sans features MLX. Kani ne
+  couvre pas Metal, MLX ni leur FFI : ces chemins sont validés par les tests
+  différentiels physiques précédents, pas formellement prouvés. Preuve Kani
+  `build/perf-31/qwen-gdn-integrated-kani.log`. Intégration : code inclus dans
+  le commit d'optimisation dédié et destiné à `main` ; application installée et
+  release non modifiées dans cet essai.

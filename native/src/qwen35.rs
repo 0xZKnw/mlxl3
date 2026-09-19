@@ -1005,10 +1005,6 @@ impl GatedDelta {
         )?;
         let q = q.rms_norm_without_weight(1e-6)?.mul(&q_scale)?;
         let k = k.rms_norm_without_weight(1e-6)?.mul(&k_scale)?;
-        let beta = b.sigmoid()?;
-        let zero = Array::from_f16_bits(&[0], &[])?;
-        let softplus = a.add(&self.dt_bias)?.logaddexp(&zero)?;
-        let g = self.a_log.exp()?.mul(&softplus)?.negative()?.exp()?;
         let state = match &self.recurrent_state {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(
@@ -1016,7 +1012,26 @@ impl GatedDelta {
                 Dtype::Float32,
             )?,
         };
-        let (out, state) = gated_delta::step(&q, &k, &v, &g, &beta, &state)?;
+        let (out, state, beta, softplus, g) = if time == 1 && !trace {
+            let (out, state) = gated_delta::step_with_gates(
+                &q,
+                &k,
+                &v,
+                &a,
+                &b,
+                &self.a_log,
+                &self.dt_bias,
+                &state,
+            )?;
+            (out, state, None, None, None)
+        } else {
+            let beta = b.sigmoid()?;
+            let zero = Array::from_f16_bits(&[0], &[])?;
+            let softplus = a.add(&self.dt_bias)?.logaddexp(&zero)?;
+            let g = self.a_log.exp()?.mul(&softplus)?.negative()?.exp()?;
+            let (out, state) = gated_delta::step(&q, &k, &v, &g, &beta, &state)?;
+            (out, state, Some(beta), Some(softplus), Some(g))
+        };
         self.recurrent_state = Some(state);
         let normalized = out.rms_norm(&self.norm, self.eps)?;
         let gated = z.precise_swiglu(&normalized)?;
@@ -1031,9 +1046,9 @@ impl GatedDelta {
                 q,
                 k,
                 v,
-                beta,
-                softplus,
-                g,
+                beta.context("missing traced Gated DeltaNet beta")?,
+                softplus.context("missing traced Gated DeltaNet softplus")?,
+                g.context("missing traced Gated DeltaNet decay")?,
                 out,
                 normalized,
                 gated,

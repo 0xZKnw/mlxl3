@@ -86,6 +86,89 @@ pub fn step(
     Ok((output, state))
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn step_with_gates(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+) -> Result<(Array, Array)> {
+    let [batch, time, key_heads, key_dim]: [i32; 4] = q
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet q must have rank 4"))?;
+    let [v_batch, v_time, value_heads, value_dim]: [i32; 4] = v
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet v must have rank 4"))?;
+    ensure!(
+        batch == 1 && time == 1 && v_batch == batch && v_time == time,
+        "fused Gated DeltaNet gates require one decode token"
+    );
+    ensure!(
+        key_dim == 128
+            && value_dim > 0
+            && value_dim % 8 == 0
+            && key_heads > 0
+            && value_heads > 0
+            && value_heads % key_heads == 0,
+        "invalid fused Gated DeltaNet head dimensions"
+    );
+    ensure!(
+        k.shape() == q.shape()
+            && a.shape() == [batch, time, value_heads]
+            && b.shape() == a.shape()
+            && a_log.shape() == [value_heads]
+            && dt_bias.shape() == [value_heads]
+            && state.shape() == [batch, value_heads, value_dim, key_dim],
+        "invalid fused Gated DeltaNet gate shapes"
+    );
+    ensure!(
+        q.dtype() == Dtype::Float16
+            && k.dtype() == Dtype::Float16
+            && v.dtype() == Dtype::Float16
+            && a.dtype() == Dtype::Float16
+            && b.dtype() == Dtype::Float16
+            && a_log.dtype() == Dtype::Float32
+            && dt_bias.dtype() == Dtype::Float16
+            && state.dtype() == Dtype::Float32,
+        "invalid fused Gated DeltaNet gate dtypes"
+    );
+    let header = format!(
+        "#define MLXL3_GDN_FUSED_GATES 1\n#define InT half\n#define StT float\n#define T 1\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n"
+    );
+    let mut outputs = array::metal_kernel(
+        &format!("mlxl3_rs_gdn_packed_gates_hk{key_heads}_hv{value_heads}_dv{value_dim}"),
+        &["q", "k", "v", "a", "b", "a_log", "dt_bias", "state_in"],
+        &["y", "state_out"],
+        &header,
+        include_str!("../shaders/gated_delta_packed.metal"),
+        &[q, k, v, a, b, a_log, dt_bias, state],
+        &[
+            vec![batch, time, value_heads, value_dim],
+            state.shape().to_vec(),
+        ],
+        &[Dtype::Float16, Dtype::Float32],
+        [32, value_dim / 8, value_heads],
+        [32, 2, 1],
+    )?;
+    ensure!(
+        outputs.len() == 2,
+        "fused Gated DeltaNet gates returned wrong output count"
+    );
+    let state = outputs
+        .pop()
+        .context("missing fused Gated DeltaNet state")?;
+    let output = outputs
+        .pop()
+        .context("missing fused Gated DeltaNet output")?;
+    Ok((output, state))
+}
+
 pub fn step_vector(
     q: &Array,
     k: &Array,
@@ -191,6 +274,30 @@ pub fn step_vector(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn packed_step_with_gates_matches_graph() -> Result<()> {
+        let mut qkv = vec![0u16; 128];
+        qkv[0] = half::f16::ONE.to_bits();
+        let q = Array::from_f16_bits(&qkv, &[1, 1, 1, 128])?;
+        let values = Array::from_f16_bits(&[half::f16::ONE.to_bits(); 8], &[1, 1, 1, 8])?;
+        let a = Array::from_f16_bits(&[half::f16::from_f32(-0.75).to_bits()], &[1, 1, 1])?;
+        let b = Array::from_f16_bits(&[half::f16::from_f32(0.625).to_bits()], &[1, 1, 1])?;
+        let a_log = Array::from_f32(&[-4.25], &[1])?;
+        let dt_bias = Array::from_f16_bits(&[half::f16::from_f32(0.125).to_bits()], &[1])?;
+        let state = Array::zeros_dtype(&[1, 1, 8, 128], Dtype::Float32)?;
+        let zero = Array::from_f16_bits(&[0], &[])?;
+        let beta = b.sigmoid()?;
+        let softplus = a.add(&dt_bias)?.logaddexp(&zero)?;
+        let decay = a_log.exp()?.mul(&softplus)?.negative()?.exp()?;
+        let (expected, expected_state) = step(&q, &q, &values, &decay, &beta, &state)?;
+        let (actual, actual_state) =
+            step_with_gates(&q, &q, &values, &a, &b, &a_log, &dt_bias, &state)?;
+        assert_eq!(actual.to_f16_bits()?, expected.to_f16_bits()?);
+        assert_eq!(actual_state.to_f32()?, expected_state.to_f32()?);
+        Ok(())
+    }
 
     #[test]
     #[ignore = "requires Apple GPU"]
