@@ -237,21 +237,13 @@ impl Mlp {
         let rows = i32::try_from(values.len())?;
         let batch =
             Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?.reshape(&[rows, hidden])?;
-        let routes = values
+        let gates = values
             .iter()
-            .map(|value| mlp.routes(&value.reshape(&[1, hidden])?))
+            .map(|value| mlp.gate.forward(&value.reshape(&[1, hidden])?))
             .collect::<Result<Vec<_>>>()?;
-        let selected = Array::concatenate(
-            &routes
-                .iter()
-                .map(|(selected, _)| selected)
-                .collect::<Vec<_>>(),
-            0,
-        )?;
-        let scores = Array::concatenate(
-            &routes.iter().map(|(_, scores)| scores).collect::<Vec<_>>(),
-            0,
-        )?;
+        let probabilities =
+            Array::concatenate(&gates.iter().collect::<Vec<_>>(), 0)?.softmax_precise()?;
+        let (selected, scores) = router::topk(&probabilities, mlp.top_k, true)?;
         let routed = mlp.experts.forward(&batch, &selected, &scores)?;
         let shared = mlp.shared(&batch)?;
         let output = routed.add(&shared)?;

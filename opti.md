@@ -4406,3 +4406,47 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   (85,292–86,435), contre 86,132–86,274 ms pour PERF-57. Les plages se
   recouvrent et le premier passage régresse ; le batch normes/résiduels est
   retiré. Aucun gain n'est revendiqué.
+
+### OPT-2026-09-20-RUST-PERF-59 — Routeur MoE groupé après gates exactes — validé
+
+- Diagnostic PERF-56 : la projection dense de gate en M=8 change les arrondis,
+  mais cela ne démontre pas que le softmax précis et le top-k changent une fois
+  les logits mono-token préservés. Hypothèse : calculer les huit gates en M=1,
+  concaténer leurs logits puis lancer un seul softmax/top-k par couche réduit les
+  dispatchs sans changer aucune route ni aucun score.
+- Baseline : PERF-57 **86,132–86,274 ms** médian pour huit positions, modèle
+  Qwen3.6-35B-A3B EXL3 2.49 bpw sur M5, batterie. Protocole : comparaison exacte
+  des logits FP16 et des 80 états pour M=1/2/4/8, puis deux séries ABBA avec le
+  test physique ignoré. Rejet au premier écart ou si le gain n'est pas stable.
+  Statut : **en cours**, journalisé avant code.
+- Première commande interrompue avant compilation : `cargo` n'était pas dans le
+  `PATH` de ce shell (`command not found`). Aucun test ni timing n'a été produit ;
+  reprise avec le binaire Rust installé explicitement, protocole inchangé.
+- Deuxième commande interrompue par le build script : `MLXL3_MLX_ROOT` n'était
+  pas défini. Aucun test physique ni timing n'a démarré ; reprise avec le paquet
+  MLX 0.32.2 déjà installé dans `.venv`, protocole inchangé.
+- Le benchmark AB temporaire n'a pas compilé à sa première tentative, car
+  `QwenSnapshot` n'est volontairement pas clonable. Aucun test/timing produit ;
+  le test conserve une nouvelle vue du snapshot après chaque restauration sans
+  modifier l'API de production, puis reprend le même protocole.
+- Sa correction initiale a modifié par erreur le snapshot du test voisin et
+  laissé celui du benchmark inchangé ; compilation encore interrompue, sans
+  exécution. Les deux déclarations sont corrigées explicitement avant reprise.
+- Exactitude : le différentiel physique M=1/2/4/8 conserve tous les logits FP16
+  et les 80 états octet par octet. Deux séries ABBA isolant seulement le routeur
+  donnent **84,588 ms** groupé contre 85,906 ms série, puis **88,248 ms** contre
+  89,050 ms : gain reproductible de **0,8–1,3 ms** (**1,009–1,016×**) pour huit
+  positions malgré la chauffe. Le commutateur AB temporaire est retiré ; seules
+  les huit gates M=1 suivies d'un softmax/top-k M=8 restent en production.
+- Statut : **validé et intégré**. Contrôles de jalon en cours avant publication ;
+  le gain est un microbenchmark cible réel et ne prédit pas encore un débit
+  DFlash2 bout en bout tant que sa boucle d'acceptation n'est pas intégrée.
+- Premier contrôle de jalon arrêté par `cargo fmt --check` sur une ligne vide
+  laissée après retrait du benchmark temporaire. Aucun autre contrôle n'a été
+  lancé par cette commande ; formatage mécanique puis reprise complète.
+- Contrôles finaux réussis : format, Clippy strict tous targets/features,
+  23 tests lib, 1 test CLI, 14 contrats, build release et différentiel physique
+  M=1/2/4/8. Kani 0.68 / CBMC 6.11 vérifie **17/17 harnesses**, zéro échec et
+  2/2 couvertures ; ses bornes portent sur le Rust pur et n'incluent pas MLX ou
+  Metal, couverts ici par le différentiel exact sur le modèle réel. Statut :
+  **validé, intégré et prêt à publier**.
