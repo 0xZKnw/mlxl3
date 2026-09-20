@@ -181,9 +181,11 @@ for (uint position = 0; position < 7; ++position) {
   uint selected = 0;
   for (uint candidate = 1; candidate < 16; ++candidate) {
     float score = float(unary[position * 16 + candidate]) +
-                  edges[(position * 16 + predecessor_index) * 16 + candidate];
+                  DFLASH_EDGE_SCALE *
+                      edges[(position * 16 + predecessor_index) * 16 + candidate];
     float previous = float(unary[position * 16 + selected]) +
-                     edges[(position * 16 + predecessor_index) * 16 + selected];
+                     DFLASH_EDGE_SCALE *
+                         edges[(position * 16 + predecessor_index) * 16 + selected];
     if (score > previous)
       selected = candidate;
   }

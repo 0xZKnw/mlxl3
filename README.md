@@ -54,7 +54,7 @@ rows use different workloads and must not be combined.
 | Model and workload | Decode | Prefill / TTFT | Notes |
 | --- | ---: | ---: | --- |
 | Qwen3.6-35B-A3B EXL3 2.49 bpw, greedy, 48 generated tokens | **47.545 tok/s** latest median | Captured prefill 0.153–0.154 s | Apple M5, three alternating runs |
-| Same target with experimental lossless DFlash2 | **59.345 tok/s** latest median | Draft-context setup 0.008 s | **+24.8%** latest; +21.4% independent repeat, five proposals per block, 76.0% accepted, exact sequences |
+| Same target with experimental lossless DFlash2 | **63.716 tok/s** cool-state median | Draft-context setup 0.007–0.008 s | **+34.2%** cool / +33.8% hot, five proposals per block, 86.7% accepted, exact sequences |
 | Ling 3.0 Tiny EXL3 4 bpw, 84-token prompt / 128-token generation | **102.873 tok/s** best control median | **105.524 tok/s**, 796.23 ms TTFT | M5, battery-powered diagnostic campaign |
 | LFM2.5-8B-A1B EXL3 3.10 bpw, historical 12-run warm campaign | **65.8 tok/s** paired median | **113.9 tok/s** on a 51-token prompt | 4.02 GB peak MLX allocation |
 

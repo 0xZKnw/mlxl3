@@ -4970,3 +4970,142 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   noyée par la compilation/ordonnancement et n'apporte aucun gain mesurable.
 - Décision : **rejeté** ; le sélecteur limité a été retiré. Seule la largeur
   de vérification N=5 de PERF-73 est conservée.
+
+### OPT-2026-09-20-RUST-PERF-75 — NT4 grandes projections au verify M=6 — rejeté
+
+- Observation : PERF-73 retient cinq propositions, donc six lignes target.
+  `Exl3Linear::forward_qmv_batch` n'active pourtant le parcours NT4 M5 qu'à
+  partir de huit lignes ; le `lm_head` 2048→248320 repasse ainsi sur NT2.
+  PERF-69 avait validé NT4 à M=8 avec −2,2 à −3,1 ms par verify exact.
+- Hypothèse : étendre uniquement ce seuil M5 de 8 à 6 conserve l'arithmétique
+  de chaque sortie et réduit le `lm_head` M=6. Aucun changement de draft,
+  d'acceptation ou de sampling.
+- Baseline : PERF-73 revalidé à greedy **47,545 tok/s**, DFlash N=5
+  **59,345 tok/s**, draft 0,170–0,177 s, target 0,618–0,637 s sur dix blocs.
+  Protocole : ajouter M=6 au différentiel exact target, puis trois alternances
+  E2E de 48 tokens. Rejeter au premier écart de logits/80 états ou si le temps
+  target ne baisse pas au-delà du bruit. Statut : **en cours**, journalisé
+  avant code.
+- Exactitude : le différentiel physique M=1/2/4/6/8 conserve les logits FP16
+  et les 80 états octet par octet.
+- Mesure E2E, trois alternances de 48 tokens : greedy **46,385 tok/s** médian,
+  DFlash **58,676 tok/s** médian, acceptation **38/50 (76 %)**. Le temps target
+  reste à **0,622–0,629 s** sur dix blocs, contre **0,618–0,637 s** avant le
+  changement ; aucun gain ne dépasse le bruit, et le débit reste sous les
+  **59,345 tok/s** de PERF-73.
+- Décision : **rejeté**. Le seuil M=8 et la matrice de test initiale sont
+  restaurés ; aucune modification exécutable de cet essai n'est conservée.
+
+### OPT-2026-09-20-RUST-PERF-76 — NT4 du down MoE à 48 routes — rejeté
+
+- Observation : avec cinq propositions, chaque couche MoE vérifie six tokens.
+  Les `gate_proj`/`up_proj` traitent 96 lignes et utilisent déjà le chemin NT4,
+  mais le `down_proj` traite exactement 48 routes et retombe sur NT2 à cause du
+  seuil `rows >= 64` de `expert_mapped`.
+- Hypothèse : autoriser le même kernel NT4 M5 dès 48 routes divise les groupes
+  du down sparse sans changer l'accumulation d'une sortie. Les chemins M=1 et
+  hors M5 restent inchangés.
+- Baseline : PERF-75 revalide DFlash N=5 à **58,676 tok/s**, target
+  **0,622–0,629 s**, draft **0,174–0,176 s**, acceptation **76 %**. Protocole :
+  différentiel physique exact M=1/2/4/6/8, puis trois alternances E2E de
+  48 tokens. Rejet au premier écart ou si le débit/temps target ne gagne pas
+  au-delà du bruit. Statut : **en cours**, journalisé avant code.
+- Exactitude : le différentiel physique M=1/2/4/6/8 conserve les logits FP16
+  et les 80 états octet par octet.
+- Mesure E2E, trois alternances de 48 tokens : greedy **43,783 tok/s** médian,
+  DFlash **54,097 tok/s** médian, acceptation **38/50 (76 %)**. Le temps target
+  régresse à **0,631–0,707 s** et le draft à 0,175–0,192 s sous chauffe ; même
+  le meilleur passage reste inférieur à PERF-73.
+- Décision : **rejeté**. Le seuil `rows >= 64` et la matrice de test initiale
+  sont restaurés ; aucune modification exécutable de cet essai n'est conservée.
+
+### OPT-2026-09-20-RUST-PERF-77 — NT4 des projections groupées au verify M=6 — rejeté
+
+- Observation : `Exl3Group::forward_qmv_batch` conserve NT2 lorsque sa largeur
+  concaténée dépasse 1 024 tiles, même sur M5 et six lignes, alors que les
+  projections linéaires non groupées M=8 bénéficient déjà de NT4 (PERF-69).
+- Hypothèse : sélectionner la géométrie NT4 existante uniquement sur M5,
+  `matrix_rows >= 6` et largeur divisible par quatre réduit les projections
+  groupées du verify sans toucher au decode M=1 ni à l'arithmétique d'une
+  sortie.
+- Baseline : production PERF-73 **59,345 tok/s** ; mesures chaudes récentes
+  PERF-75 target **0,622–0,629 s** et PERF-76 meilleur target **0,631 s**.
+  Protocole : différentiel physique exact M=1/2/4/6/8, puis trois alternances
+  E2E de 48 tokens. Rejet au premier écart ou sans amélioration reproductible.
+  Statut : **en cours**, journalisé avant code.
+- Exactitude : le différentiel physique M=1/2/4/6/8 conserve les logits FP16
+  et les 80 états octet par octet.
+- Mesure E2E, trois alternances de 48 tokens : greedy **47,812 tok/s** médian,
+  DFlash **57,427 tok/s** médian, acceptation **38/50 (76 %)**, target
+  **0,636–0,640 s**. La cible est plus lente que PERF-75 et le débit reste sous
+  PERF-73 malgré une baseline greedy revenue à son niveau normal.
+- Décision : **rejeté**. La géométrie NT2 production et la matrice de test
+  initiale sont restaurées ; aucune modification exécutable n'est conservée.
+
+### OPT-2026-09-20-RUST-PERF-78 — sélection globale Viterbi DFlash — rejeté
+
+- Observation : le sélecteur calcule déjà les 16 candidats, leurs scores
+  unaires et toutes les transitions 16×16 pour sept positions, mais choisit
+  ensuite gloutonnement le meilleur token local. Une erreur précoce réduit
+  directement le nombre de tokens acceptés et force une nouvelle vérification
+  target complète.
+- Hypothèse : le chemin Viterbi maximisant la somme globale unary+transition
+  sur les sept positions exploite les scores déjà calculés, sans nouveau
+  dispatch ni modèle, et peut augmenter l'acceptation. L'inférence reste
+  lossless : chaque proposition est toujours vérifiée par le modèle cible et
+  le premier token divergent est rejeté.
+- Baseline : PERF-73 **59,345 tok/s**, **38/50 (76 %)** acceptés, dix blocs,
+  target **0,618–0,637 s** pour 48 tokens. Protocole : remplacer uniquement le
+  choix final mono-thread, exiger l'égalité complète des tokens target E2E,
+  puis trois alternances de 48 tokens. Rejet si l'acceptation ou le débit ne
+  progresse pas de manière reproductible. Statut : **en cours**, journalisé
+  avant code.
+- Résultat E2E exact, trois alternances de 48 tokens : greedy cible
+  **45,941 tok/s** médian, DFlash Viterbi **51,534 tok/s**, acceptation
+  **37/55 (67,3 %)** et onze blocs. Le texte reste strictement identique au
+  greedy target, mais le chemin global choisit moins bien les premiers tokens
+  utiles que le sélecteur glouton et ajoute une vérification complète.
+- Décision : **rejeté**. Le shader glouton et sa clé Metal d'origine sont
+  restaurés ; aucune modification exécutable de cet essai n'est conservée.
+
+### OPT-2026-09-20-RUST-PERF-79 — calibration du poids de transition — validé
+
+- Observation : le sélecteur glouton additionne les logits unaires et le score
+  de transition avec un poids implicite de 1. La quantification BF16/Q4 et le
+  port Metal peuvent changer leur échelle relative ; le calcul des deux scores
+  est déjà payé.
+- Hypothèse : calibrer un unique coefficient global de transition augmente la
+  probabilité que les premiers tokens proposés coïncident avec le modèle cible,
+  sans coût significatif et sans modifier la validation lossless.
+- Baseline : poids 1, PERF-73 **38/50 (76 %)**, dix blocs, **59,345 tok/s**.
+  Protocole : matrice courte `{0; 0,25; 0,5; 0,75; 1; 1,25; 1,5; 2}` sur le
+  même prompt et 48 tokens ; retenir seulement un candidat qui réduit les blocs
+  ou améliore l'acceptation, puis le confirmer sur trois alternances exactes.
+  Le commutateur de benchmark sera retiré après décision. Statut : **en cours**,
+  journalisé avant code.
+- Exploration, un passage exact par coefficient : poids 0 → **67,3 %** et
+  51,111 tok/s ; 0,25 → **86,7 %** et 66,024 tok/s ; 0,5 → **86,7 %** et
+  66,048 tok/s ; 0,75/1/1,25/1,5/2 → **76 %** et dix blocs. Seuls 0,25 et 0,5
+  suppriment une vérification target entière sur ce corpus.
+- Confirmation sur trois alternances exactes : poids 0,25, greedy cible
+  **47,467 tok/s** médian et DFlash **63,716 tok/s**, soit **1,342×** ; neuf
+  blocs, **39/45 (86,7 %)** acceptés, draft **0,157–0,162 s**, target
+  **0,571–0,597 s**. Poids 0,5 confirme la même séquence et acceptation mais
+  sa série plus chaude est moins stable (**60,760 tok/s** médian).
+- Décision : **validé** avec le poids 0,25, codé comme constante Metal. Le
+  commutateur d'exploration est retiré. Par rapport à PERF-73, le débit médian
+  monte de 59,345 à 63,716 tok/s (**+7,4 %**) et le speedup sur le greedy du
+  même passage monte de 1,248× à **1,342×**. La sortie reste strictement égale
+  au greedy target ; contrôles complets et Kani requis avant publication.
+- Revalidation après retrait du commutateur, Mac plus chaud : greedy
+  **39,211 tok/s**, DFlash **52,451 tok/s**, soit **1,338×**, toujours neuf
+  blocs et 86,7 % acceptés. La baisse absolue affecte les deux chemins ; le gain
+  relatif est stable à 0,4 point de la série froide.
+- Contrôles finaux réussis : `git diff --check`, format Rust, Clippy strict tous
+  targets/features, 23 tests lib, 1 test CLI, 14 contrats, build release
+  MLX/chat, E2E physique exact et rollback sélectif exact pour les largeurs
+  retenues 1 à 8. Kani 0.68 / CBMC 6.11 vérifie **17/17 harnesses**, zéro
+  échec et 2/2 couvertures. Kani couvre ici le Rust pur, pas le shader Metal ;
+  le caractère lossless du chemin GPU est contrôlé par le différentiel physique
+  et ne constitue pas une preuve formelle non bornée. Statut : **validé, intégré
+  et prêt à publier**.

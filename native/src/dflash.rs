@@ -609,7 +609,7 @@ impl DFlashWeights {
         let logits = logits.astype(Dtype::BFloat16)?;
         let selector = selector.astype(Dtype::BFloat16)?;
         let header = format!(
-            "#define DFLASH_VOCABULARY {}u\n{}",
+            "#define DFLASH_VOCABULARY {}u\n#define DFLASH_EDGE_SCALE 0.25f\n{}",
             VOCABULARY,
             include_str!("../shaders/dflash_select.h")
         );
@@ -659,7 +659,7 @@ impl DFlashWeights {
         let unary = scored.pop().expect("three selector outputs");
         let candidates = scored.pop().expect("three selector outputs");
         let tokens = array::metal_kernel(
-            "mlxl3_dflash_select_greedy_v1",
+            "mlxl3_dflash_select_greedy_quarter_edges_v1",
             &["candidates", "unary", "edges"],
             &["tokens"],
             &stage(3),
