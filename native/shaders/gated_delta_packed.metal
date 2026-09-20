@@ -110,6 +110,15 @@
             y[dv_idx] = static_cast<InT>(out);
           }
 
+#if MLXL3_GDN_SAVE_HISTORY
+          auto h_state = state_history +
+              ((ulong(t) * B * Hv + n) * Dv + dv_idx) * Dk +
+              lane_in_row * values_per_lane;
+          for (int i = 0; i < values_per_lane; ++i) {
+            h_state[i] = static_cast<StT>(state[i]);
+          }
+#endif
+
           q_ += Hk * Dk;
           k_ += Hk * Dk;
           v_ += Hv * Dv;

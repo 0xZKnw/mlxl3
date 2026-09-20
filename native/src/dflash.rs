@@ -297,6 +297,84 @@ impl Default for DFlashCache {
 }
 
 #[cfg(feature = "mlx")]
+impl DFlashCache {
+    pub fn append_captured(
+        &mut self,
+        weights: &DFlashWeights,
+        captured: &crate::array::Array,
+        start_position: i32,
+    ) -> Result<()> {
+        use crate::array::{Array, Dtype};
+
+        ensure!(
+            captured.shape().len() == 2
+                && captured.shape()[0] > 0
+                && captured.shape()[1] == TARGET_HIDDEN as i32
+                && captured.dtype() == Dtype::BFloat16
+                && start_position >= 0,
+            "invalid DFlash captured context"
+        );
+        let rows = captured.shape()[0];
+        for begin in (0..rows).step_by(8) {
+            let count = (rows - begin).min(8);
+            let block = captured.slice(0, begin, begin + count)?;
+            let block = if count == 8 {
+                block
+            } else {
+                Array::concatenate(
+                    &[
+                        &block,
+                        &Array::zeros_dtype(&[8 - count, TARGET_HIDDEN as i32], Dtype::BFloat16)?,
+                    ],
+                    0,
+                )?
+            };
+            let hidden = weights
+                .context_projection
+                .forward(&block, Q4Kernel::N128Pipelined, 16)?
+                .rms_norm(&weights.hidden_norm, 1e-6)?;
+            for (index, layer) in weights.layers.iter().enumerate() {
+                let qkv = layer.qkv.forward(&hidden, Q4Kernel::N128Pipelined, 48)?;
+                let keys = qkv
+                    .slice(1, 4096, 5120)?
+                    .reshape(&[1, 8, 8, 128])?
+                    .rms_norm(&layer.key_norm, 1e-6)?
+                    .transpose(&[0, 2, 1, 3])?
+                    .rope(128, 10_000_000.0, start_position + begin)?
+                    .slice(2, 0, count)?;
+                let values = qkv
+                    .slice(1, 5120, 6144)?
+                    .reshape(&[1, 8, 8, 128])?
+                    .transpose(&[0, 2, 1, 3])?
+                    .slice(2, 0, count)?;
+                let (keys, values) = match &self.layers[index] {
+                    Some(previous) => (
+                        Array::concatenate(&[&previous.keys, &keys], 2)?,
+                        Array::concatenate(&[&previous.values, &values], 2)?,
+                    ),
+                    None => (keys, values),
+                };
+                let length = keys.shape()[2];
+                let first = (length - 2048).max(0);
+                self.layers[index] = Some(DFlashCacheLayer {
+                    keys: keys.slice(2, first, length)?,
+                    values: values.slice(2, first, length)?,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    pub fn eval(&self) -> Result<()> {
+        for layer in self.layers.iter().flatten() {
+            layer.keys.eval()?;
+            layer.values.eval()?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "mlx")]
 pub struct DFlashOutput {
     pub hidden: crate::array::Array,
     pub selector: crate::array::Array,
@@ -512,6 +590,130 @@ impl DFlashWeights {
             .selector_projection
             .forward(&hidden, Q4Kernel::N128Pipelined, 2)?;
         Ok(DFlashOutput { hidden, selector })
+    }
+
+    pub fn select_greedy(
+        &self,
+        logits: &crate::array::Array,
+        selector: &crate::array::Array,
+        anchor: u32,
+    ) -> Result<Vec<u32>> {
+        use crate::array::{self, Array, Dtype};
+
+        ensure!(
+            logits.shape() == [8, VOCABULARY as i32]
+                && selector.shape() == [8, SELECTOR as i32]
+                && anchor < VOCABULARY as u32,
+            "invalid DFlash selector input"
+        );
+        let logits = logits.astype(Dtype::BFloat16)?;
+        let selector = selector.astype(Dtype::BFloat16)?;
+        let header = format!(
+            "#define DFLASH_VOCABULARY {}u\n{}",
+            VOCABULARY,
+            include_str!("../shaders/dflash_select.h")
+        );
+        let stage = |value| format!("#define DFLASH_STAGE {value}\n{header}");
+        let mut partial = array::metal_kernel(
+            "mlxl3_dflash_select_top16_v1",
+            &["logits"],
+            &["partial_ids", "partial_values"],
+            &stage(1),
+            include_str!("../shaders/dflash_select.metal"),
+            &[&logits],
+            &[vec![7 * 8, 16], vec![7 * 8, 16]],
+            &[Dtype::UInt32, Dtype::Float32],
+            [7 * 8 * 256, 1, 1],
+            [256, 1, 1],
+        )?;
+        let partial_values = partial.pop().expect("two selector outputs");
+        let partial_ids = partial.pop().expect("two selector outputs");
+        let anchor = Array::from_u32(&[anchor], &[1])?;
+        let mut scored = array::metal_kernel(
+            "mlxl3_dflash_select_edges_v1",
+            &[
+                "partial_ids",
+                "partial_values",
+                "selector",
+                "predecessor",
+                "successor",
+                "anchor",
+            ],
+            &["candidates", "unary", "edges"],
+            &stage(2),
+            include_str!("../shaders/dflash_select.metal"),
+            &[
+                &partial_ids,
+                &partial_values,
+                &selector,
+                &self.predecessor_codebook,
+                &self.successor_codebook,
+                &anchor,
+            ],
+            &[vec![7, 16], vec![7, 16], vec![7, 16, 16]],
+            &[Dtype::UInt32, Dtype::BFloat16, Dtype::Float32],
+            [7 * 256, 1, 1],
+            [256, 1, 1],
+        )?;
+        let edges = scored.pop().expect("three selector outputs");
+        let unary = scored.pop().expect("three selector outputs");
+        let candidates = scored.pop().expect("three selector outputs");
+        let tokens = array::metal_kernel(
+            "mlxl3_dflash_select_greedy_v1",
+            &["candidates", "unary", "edges"],
+            &["tokens"],
+            &stage(3),
+            include_str!("../shaders/dflash_select.metal"),
+            &[&candidates, &unary, &edges],
+            &[vec![7]],
+            &[Dtype::UInt32],
+            [1, 1, 1],
+            [1, 1, 1],
+        )?
+        .remove(0);
+        tokens.to_u32()
+    }
+
+    pub fn row_argmax(logits: &crate::array::Array) -> Result<Vec<u32>> {
+        use crate::array::{self, Dtype};
+
+        let elements = logits
+            .shape()
+            .iter()
+            .try_fold(1i64, |total, &dimension| {
+                total.checked_mul(i64::from(dimension))
+            })
+            .context("DFlash target logits size overflow")?;
+        let rows = i32::try_from(elements / VOCABULARY as i64)?;
+        ensure!(
+            logits.shape().last() == Some(&(VOCABULARY as i32))
+                && elements % VOCABULARY as i64 == 0
+                && rows > 0
+                && rows <= 8,
+            "invalid DFlash target logits"
+        );
+        let logits = logits
+            .reshape(&[rows, VOCABULARY as i32])?
+            .astype(Dtype::Float16)?;
+        let header = format!(
+            "#define DFLASH_STAGE 4\n#define DFLASH_VOCABULARY {}u\n{}",
+            VOCABULARY,
+            include_str!("../shaders/dflash_select.h")
+        );
+        array::metal_kernel(
+            "mlxl3_dflash_target_argmax_v1",
+            &["logits"],
+            &["tokens"],
+            &header,
+            include_str!("../shaders/dflash_select.metal"),
+            &[&logits],
+            &[vec![rows]],
+            &[Dtype::UInt32],
+            [rows * 256, 1, 1],
+            [256, 1, 1],
+        )?
+        .remove(0)
+        .to_u32()
     }
 }
 
@@ -927,6 +1129,233 @@ mod tests {
             samples[samples.len() / 2],
             samples[samples.len() / 10],
             samples[samples.len() * 9 / 10]
+        );
+        Ok(())
+    }
+
+    #[cfg(all(feature = "mlx", feature = "chat"))]
+    #[test]
+    #[ignore = "requires Apple M5 plus the local Qwen target and DFlash package"]
+    fn benchmarks_dflash_end_to_end_greedy() -> Result<()> {
+        use crate::{
+            qwen35::Qwen35Moe,
+            tokenizer::{ChatTokenizer, Message},
+        };
+        use std::time::{Duration, Instant};
+
+        const TARGET: &str = "models/Qwen3.6-35B-A3B-EXL3-2.49bpw";
+        const DRAFT: &str = "models/Qwen3.6-35B-A3B-DFlash2";
+        const MASK: u32 = 248_077;
+        let budget = std::env::var("MLXL3_DFLASH_TOKENS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(48usize);
+        let repeats = std::env::var("MLXL3_DFLASH_REPEATS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(3usize);
+        ensure!(budget >= 8 && repeats > 0, "invalid DFlash benchmark size");
+        ensure!(crate::array::is_m5_gpu()?, "benchmark requires Apple M5");
+
+        let tokenizer = ChatTokenizer::load(Path::new(TARGET))?;
+        let rendered = tokenizer.render(&[Message {
+            role: "user".into(),
+            content: "Explain in detail how speculative decoding stays lossless, with a concrete example and a short conclusion.".into(),
+        }])?;
+        let prompt = tokenizer.encode(&rendered)?;
+        let eos = tokenizer.eos_ids();
+        let mut target = Qwen35Moe::load(Path::new(TARGET))?;
+        let package = inspect(DRAFT)?;
+        let draft = DFlashWeights::load(&package)?;
+
+        struct SpecRun {
+            tokens: Vec<u32>,
+            elapsed: Duration,
+            accepted: usize,
+            proposed: usize,
+            blocks: usize,
+            draft: Duration,
+            target: Duration,
+            commit: Duration,
+            prefill: Duration,
+            context: Duration,
+        }
+
+        let prefill_plain = |target: &mut Qwen35Moe| -> Result<(crate::array::Array, Duration)> {
+            target.reset();
+            let started = Instant::now();
+            let mut logits = None;
+            for chunk in prompt.chunks(128) {
+                logits = Some(target.forward_tokens(chunk)?);
+            }
+            Ok((logits.context("empty prompt")?, started.elapsed()))
+        };
+        let run_plain = |target: &mut Qwen35Moe, count: usize| -> Result<(Vec<u32>, Duration)> {
+            let (logits, _) = prefill_plain(target)?;
+            let mut next = logits
+                .argmax()?
+                .to_u32()?
+                .into_iter()
+                .next()
+                .context("empty target logits")?;
+            let mut tokens = Vec::with_capacity(count);
+            if !eos.contains(&next) {
+                tokens.push(next);
+            }
+            let started = Instant::now();
+            while tokens.len() < count && !eos.contains(&next) {
+                let logits = target.forward(next)?;
+                next = logits
+                    .argmax()?
+                    .to_u32()?
+                    .into_iter()
+                    .next()
+                    .context("empty target logits")?;
+                if !eos.contains(&next) {
+                    tokens.push(next);
+                }
+            }
+            Ok((tokens, started.elapsed()))
+        };
+        let run_spec = |target: &mut Qwen35Moe, count: usize| -> Result<SpecRun> {
+            target.reset();
+            let prefill_started = Instant::now();
+            let mut logits = None;
+            let mut cache = DFlashCache::default();
+            let mut position = 0i32;
+            let mut context = Duration::ZERO;
+            for chunk in prompt.chunks(128) {
+                let (next, captured) = target.forward_tokens_with_dflash_capture(chunk)?;
+                let started = Instant::now();
+                cache.append_captured(&draft, &captured, position)?;
+                cache.eval()?;
+                context += started.elapsed();
+                position += i32::try_from(chunk.len())?;
+                logits = Some(next);
+            }
+            let prefill = prefill_started.elapsed();
+            let mut anchor = logits
+                .context("empty prompt")?
+                .argmax()?
+                .to_u32()?
+                .into_iter()
+                .next()
+                .context("empty target logits")?;
+            let mut tokens = Vec::with_capacity(count);
+            if !eos.contains(&anchor) {
+                tokens.push(anchor);
+            }
+            let started = Instant::now();
+            let mut accepted_total = 0usize;
+            let mut proposed_total = 0usize;
+            let mut blocks = 0usize;
+            let mut draft_time = Duration::ZERO;
+            let mut target_time = Duration::ZERO;
+            let mut commit_time = Duration::ZERO;
+            while tokens.len() < count && !eos.contains(&anchor) {
+                let draft_started = Instant::now();
+                let input = target.dflash_input(anchor, MASK)?;
+                let output = draft.forward_hidden(&input, &cache, target.offset())?;
+                let draft_logits = target.dflash_logits(&output.hidden)?;
+                let proposals = draft.select_greedy(&draft_logits, &output.selector, anchor)?;
+                draft_time += draft_started.elapsed();
+
+                let verify = std::iter::once(anchor)
+                    .chain(proposals.iter().copied())
+                    .collect::<Vec<_>>();
+                let verify_position = target.offset();
+                let target_started = Instant::now();
+                let (target_logits, captured) =
+                    target.verify_tokens_exact_with_dflash_capture(&verify)?;
+                let target_tokens = DFlashWeights::row_argmax(&target_logits)?;
+                target_time += target_started.elapsed();
+                let accepted = proposals
+                    .iter()
+                    .zip(&target_tokens)
+                    .take_while(|(draft, target)| draft == target)
+                    .count();
+                let retained = accepted + 1;
+                let commit_started = Instant::now();
+                target.commit_dflash_verification(retained, 8)?;
+                let captured = captured.slice(0, 0, i32::try_from(retained)?)?;
+                cache.append_captured(&draft, &captured, verify_position)?;
+                commit_time += commit_started.elapsed();
+                accepted_total += accepted;
+                proposed_total += 7;
+                blocks += 1;
+
+                let mut stop = false;
+                for &token in proposals[..accepted]
+                    .iter()
+                    .chain(std::iter::once(&target_tokens[accepted]))
+                {
+                    if eos.contains(&token) {
+                        stop = true;
+                        break;
+                    }
+                    if tokens.len() == count {
+                        break;
+                    }
+                    tokens.push(token);
+                }
+                anchor = target_tokens[accepted];
+                if stop {
+                    break;
+                }
+            }
+            Ok(SpecRun {
+                tokens,
+                elapsed: started.elapsed(),
+                accepted: accepted_total,
+                proposed: proposed_total,
+                blocks,
+                draft: draft_time,
+                target: target_time,
+                commit: commit_time,
+                prefill,
+                context,
+            })
+        };
+
+        let _ = run_plain(&mut target, 12)?;
+        let warm = run_spec(&mut target, 12)?;
+        ensure!(warm.tokens.len() == 12, "DFlash warmup ended early");
+        let mut plain_rates = Vec::with_capacity(repeats);
+        let mut spec_rates = Vec::with_capacity(repeats);
+        for run in 0..repeats {
+            let (plain, plain_elapsed) = run_plain(&mut target, budget)?;
+            let spec = run_spec(&mut target, budget)?;
+            ensure!(
+                spec.tokens == plain,
+                "DFlash output differs from ordinary greedy decode at run {run}"
+            );
+            let emitted = plain.len().saturating_sub(1) as f64;
+            let plain_rate = emitted / plain_elapsed.as_secs_f64().max(1e-9);
+            let spec_rate = emitted / spec.elapsed.as_secs_f64().max(1e-9);
+            plain_rates.push(plain_rate);
+            spec_rates.push(spec_rate);
+            eprintln!(
+                "DFlash E2E run {run}: plain={plain_rate:.3} tok/s spec={spec_rate:.3} tok/s acceptance={}/{} ({:.1}%) blocks={} draft={:.3}s target={:.3}s commit={:.3}s prefill={:.3}s context={:.3}s",
+                spec.accepted,
+                spec.proposed,
+                100.0 * spec.accepted as f64 / spec.proposed.max(1) as f64,
+                spec.blocks,
+                spec.draft.as_secs_f64(),
+                spec.target.as_secs_f64(),
+                spec.commit.as_secs_f64(),
+                spec.prefill.as_secs_f64(),
+                spec.context.as_secs_f64(),
+            );
+        }
+        plain_rates.sort_by(f64::total_cmp);
+        spec_rates.sort_by(f64::total_cmp);
+        eprintln!(
+            "DFlash E2E median: plain={:.3} tok/s spec={:.3} tok/s speedup={:.3}x tokens={} repeats={}",
+            plain_rates[plain_rates.len() / 2],
+            spec_rates[spec_rates.len() / 2],
+            spec_rates[spec_rates.len() / 2] / plain_rates[plain_rates.len() / 2],
+            budget,
+            repeats,
         );
         Ok(())
     }

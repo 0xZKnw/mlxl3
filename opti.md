@@ -4796,3 +4796,104 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   le shader Metal et la géométrie temporelle sont couverts par le différentiel
   physique exact, pas par une preuve formelle. Statut : **validé, intégré et
   prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-71 — débit DFlash2 bout en bout — validé, activation rejetée
+
+- Observation : le dépôt possède le lecteur du package Splash, le draft Q4,
+  le sélecteur et la vérification cible exacte, mais `main.rs` génère encore
+  exclusivement token par token. Le microbenchmark draft à contexte vide et
+  la borne calculée de PERF-70 ne mesurent donc pas un DFlash2 fonctionnel.
+- Hypothèse : raccorder le conditionnement par captures cible, la proposition
+  DFlash2 officielle, la vérification exacte, l'acceptation greedy, le commit /
+  rollback et le streaming permet de mesurer le débit réellement délivré sans
+  modifier la sortie greedy. La version minimale réutilisera les structures et
+  kernels existants ainsi que la sémantique de référence amont ; aucun nouveau
+  framework ni chemin approximatif.
+- Baselines connues, non comparables comme résultat final : decode ordinaire
+  Qwen **~43,719 tok/s** (ancienne session PERF-31), draft partiel
+  **~4,621 ms** (contexte vide), target M=8 PERF-70 **72,540–75,632 ms**.
+  Protocole : prompts fixes greedy, warmup, alternance DFlash désactivé/activé,
+  au moins trois générations utiles ; mesurer tokens émis / temps decode,
+  acceptation par position, coût draft/target/rollback, TTFT et mémoire. La
+  séquence DFlash doit être exactement identique au greedy ordinaire. Statut :
+  **en cours**, journalisé avant raccord et benchmark.
+- Premier smoke physique (12 tokens, 1 répétition) : compilation Rust/Metal
+  réussie et exécution arrivée jusqu'au verify cible, puis arrêt contrôlé avant
+  mesure avec `invalid DFlash target logits`. La tête renvoie légitimement
+  `[1,T,V]` alors que le nouveau row-argmax validait seulement `[T,V]`.
+  Statut : **échec diagnostique, corrigé localement** en normalisant toute forme
+  dont la dernière dimension vaut `V` et qui contient 1 à 8 lignes ; aucune
+  métrique de ce passage n'est retenue.
+- Le smoke corrigé est exact sur 12 tokens : greedy **46,487 tok/s**, DFlash2
+  **57,283 tok/s**, 14/14 propositions acceptées, soit **1,232×**. Cette série
+  reste trop courte pour conclure et n'est pas retenue comme chiffre principal.
+- Mesure utile, même prompt anglais, greedy déterministe, 48 tokens, warmup puis
+  trois alternances greedy/DFlash2, Mac M5 :
+  - passage 0 : **46,947 / 37,201 tok/s**, 39/63 acceptées (**61,9 %**),
+    draft 0,160 s, target 0,690 s, rollback 0,412 s ;
+  - passage 1 : **46,995 / 44,482 tok/s**, 39/63 (**61,9 %**), draft
+    0,177 s, target 0,752 s, rollback 0,127 s ;
+  - passage 2 : **41,085 / 41,570 tok/s**, 39/63 (**61,9 %**), draft
+    0,189 s, target 0,808 s, rollback 0,132 s.
+- Médianes : greedy **46,947 tok/s**, DFlash2 **41,570 tok/s**, soit
+  **0,885×** (**−11,5 %**). Chaque passage compare toute la séquence de 48
+  tokens ; aucun écart n'a été observé. Le prefill capturé vaut 0,152–0,177 s
+  et la matérialisation initiale du contexte draft 0,007–0,010 s sur ce prompt.
+- Interprétation : la vérification M=8 est bien accélérée, mais à 61,9 %
+  d'acceptation le snapshot/restore puis recalcul exact du préfixe retenu coûte
+  0,127–0,132 s après échauffement. Il faut un commit sélectif des états
+  GDN/KV, sans second passage cible, avant d'espérer un gain bout en bout.
+  La borne parfaite **~102,7 tok/s** de PERF-70 n'est donc pas représentative.
+- Décision : **validé comme benchmark lossless, rejeté pour activation
+  production**. Le raccord minimal et le test physique restent disponibles
+  pour la prochaine optimisation du commit sélectif ; CLI/GUI continuent le
+  greedy ordinaire. Statut d'intégration : code local, contrôles finaux requis
+  avant publication.
+
+### OPT-2026-09-20-RUST-PERF-72 — commit sélectif DFlash2 sans recalcul — validé
+
+- Observation : PERF-71 mesure DFlash2 à **41,570 tok/s** contre greedy
+  **46,947 tok/s**, avec 61,9 % d'acceptation. Après échauffement, le second
+  passage cible nécessaire au rollback/recommit coûte encore 0,127–0,132 s
+  sur neuf blocs et transforme le gain de vérification batchée en régression.
+- Hypothèse : conserver, uniquement pendant le verify DFlash, l'état GDN exact
+  après chacune des huit positions puis tronquer les KV/conv à la longueur
+  acceptée permet de committer le préfixe sans restaurer ni recalculer le
+  target. Le chemin greedy et le verify ordinaire ne doivent payer aucun buffer
+  d'historique supplémentaire.
+- Baseline/protocole : même prompt et mêmes 48 tokens que PERF-71, warmup puis
+  trois alternances greedy/DFlash2. Exiger l'égalité de toute la séquence et de
+  l'état committé avec un recalcul de référence pour chaque largeur 1..8 avant
+  timing. Mesurer tok/s, acceptation, draft, target et coût de commit ; rejeter
+  au premier écart. Statut initial : **en cours**, journalisé avant code.
+- Implémentation : le verify DFlash conserve l'état GDN FP32 exact après chaque
+  position et la base des caches attention. Le commit garde directement l'état
+  retenu, tronque KV et convolution puis corrige l'offset. Le chemin greedy et
+  le verify non DFlash ne créent aucun historique supplémentaire.
+- Contrôle d'état physique : pour chaque largeur retenue de 1 à 8, les **80
+  tableaux d'état** du vrai Qwen cible sont identiques au recalcul exact du
+  préfixe (`selective_dflash_commit_matches_exact_prefix`). Aucun écart.
+- Mesure bout en bout, trois alternances, 48 tokens exacts :
+  - passage 0 : greedy **48,405 tok/s**, DFlash2 **54,456 tok/s**, 39/63
+    propositions acceptées (**61,9 %**), draft 0,160 s, target 0,702 s,
+    commit 0,001 s ;
+  - passage 1 : **48,325 / 54,170 tok/s**, 39/63, draft 0,159 s, target
+    0,708 s, commit 0,001 s ;
+  - passage 2 : **48,293 / 54,619 tok/s**, 39/63, draft 0,158 s, target
+    0,702 s, commit 0,001 s.
+- Médianes : greedy **48,325 tok/s**, DFlash2 **54,456 tok/s**, soit
+  **1,127× (+12,7 %)**. Les trois séquences complètes sont strictement
+  identiques. Le prefill capturé vaut 0,152–0,155 s et la construction initiale
+  du contexte draft 0,008 s. Le coût de commit remplace le rollback/recalcul de
+  0,127–0,132 s de PERF-71 par environ **0,001 s**.
+- Décision : **validé et intégré localement** dans le chemin de benchmark exact.
+  Le gain est réel mais n'atteint pas 100 tok/s avec cette acceptation ; le
+  CLI/GUI n'activent pas encore automatiquement DFlash2. Contrôles finaux et
+  Kani requis avant publication.
+- Contrôles finaux réussis : `git diff --check`, format Rust, Clippy strict
+  tous targets/features, **23 tests lib + 1 CLI + 14 contrats**, build release
+  MLX/chat, différentiel physique des 80 états pour les largeurs 1..8 et trois
+  passages physiques bout en bout. Kani 0.68 / CBMC 6.11 vérifie **17/17
+  harnesses**, zéro échec et 2/2 couvertures. Kani couvre le Rust pur ; les
+  kernels Metal et l'état MLX sont couverts par les différentiels physiques,
+  pas par une preuve formelle complète. Statut : **validé et prêt à publier**.

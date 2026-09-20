@@ -97,6 +97,42 @@ pub fn step_with_gates(
     dt_bias: &Array,
     state: &Array,
 ) -> Result<(Array, Array)> {
+    let (output, state, _) = step_with_gates_impl(q, k, v, a, b, a_log, dt_bias, state, false)?;
+    Ok((output, state))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn step_with_gates_history(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+) -> Result<(Array, Array, Array)> {
+    let (output, state, history) =
+        step_with_gates_impl(q, k, v, a, b, a_log, dt_bias, state, true)?;
+    Ok((
+        output,
+        state,
+        history.context("missing fused Gated DeltaNet history")?,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn step_with_gates_impl(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+    save_history: bool,
+) -> Result<(Array, Array, Option<Array>)> {
     let [batch, time, key_heads, key_dim]: [i32; 4] = q
         .shape()
         .try_into()
@@ -139,34 +175,50 @@ pub fn step_with_gates(
         "invalid fused Gated DeltaNet gate dtypes"
     );
     let header = format!(
-        "#define MLXL3_GDN_FUSED_GATES 1\n#define InT half\n#define StT float\n#define T {time}\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n"
+        "#define MLXL3_GDN_FUSED_GATES 1\n#define MLXL3_GDN_SAVE_HISTORY {}\n#define InT half\n#define StT float\n#define B {batch}\n#define T {time}\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n",
+        u8::from(save_history),
     );
+    let output_names: &[&str] = if save_history {
+        &["y", "state_out", "state_history"]
+    } else {
+        &["y", "state_out"]
+    };
+    let mut output_shapes = vec![
+        vec![batch, time, value_heads, value_dim],
+        state.shape().to_vec(),
+    ];
+    let mut output_dtypes = vec![Dtype::Float16, Dtype::Float32];
+    if save_history {
+        output_shapes.push(vec![time, batch, value_heads, value_dim, key_dim]);
+        output_dtypes.push(Dtype::Float32);
+    }
     let mut outputs = array::metal_kernel(
-        &format!("mlxl3_rs_gdn_packed_gates_t{time}_hk{key_heads}_hv{value_heads}_dv{value_dim}"),
+        &format!(
+            "mlxl3_rs_gdn_packed_gates_h{}_t{time}_hk{key_heads}_hv{value_heads}_dv{value_dim}",
+            u8::from(save_history)
+        ),
         &["q", "k", "v", "a", "b", "a_log", "dt_bias", "state_in"],
-        &["y", "state_out"],
+        output_names,
         &header,
         include_str!("../shaders/gated_delta_packed.metal"),
         &[q, k, v, a, b, a_log, dt_bias, state],
-        &[
-            vec![batch, time, value_heads, value_dim],
-            state.shape().to_vec(),
-        ],
-        &[Dtype::Float16, Dtype::Float32],
+        &output_shapes,
+        &output_dtypes,
         [32, value_dim / 8, value_heads],
         [32, 2, 1],
     )?;
     ensure!(
-        outputs.len() == 2,
+        outputs.len() == if save_history { 3 } else { 2 },
         "fused Gated DeltaNet gates returned wrong output count"
     );
+    let history = save_history.then(|| outputs.pop().expect("history output was requested"));
     let state = outputs
         .pop()
         .context("missing fused Gated DeltaNet state")?;
     let output = outputs
         .pop()
         .context("missing fused Gated DeltaNet output")?;
-    Ok((output, state))
+    Ok((output, state, history))
 }
 
 pub fn step_vector(

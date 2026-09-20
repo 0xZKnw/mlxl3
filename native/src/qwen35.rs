@@ -13,6 +13,8 @@ use half::f16;
 use serde::Deserialize;
 use std::{fs::File, path::Path};
 
+const DFLASH_CAPTURE_LAYERS: [usize; 8] = [1, 6, 11, 16, 22, 27, 32, 37];
+
 pub(crate) enum ProjectionBundle {
     Grouped(Box<Exl3Group>),
     Separate(Vec<Projection>),
@@ -264,6 +266,8 @@ pub struct GatedDelta {
     dt_bias: Array,
     conv_state: Option<Array>,
     recurrent_state: Option<Array>,
+    verification_conv_input: Option<Array>,
+    verification_recurrent_history: Option<Array>,
     hidden: i32,
     key_heads: i32,
     value_heads: i32,
@@ -295,6 +299,7 @@ pub struct Attention {
     eps: f32,
     keys: Option<Array>,
     values: Option<Array>,
+    verification_base: Option<i32>,
 }
 
 impl Attention {
@@ -350,6 +355,7 @@ impl Attention {
             eps,
             keys: None,
             values: None,
+            verification_base: None,
         })
     }
 
@@ -372,10 +378,12 @@ impl Attention {
         );
         self.keys = keys;
         self.values = values;
+        self.verification_base = None;
         Ok(())
     }
 
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
+        self.verification_base = None;
         let time = *x
             .shape()
             .get(1)
@@ -427,6 +435,14 @@ impl Attention {
     }
 
     fn forward_verification(&mut self, x: &Array) -> Result<Array> {
+        self.forward_verification_impl(x, false)
+    }
+
+    fn forward_verification_dflash(&mut self, x: &Array) -> Result<Array> {
+        self.forward_verification_impl(x, true)
+    }
+
+    fn forward_verification_impl(&mut self, x: &Array, retain_history: bool) -> Result<Array> {
         let time = *x
             .shape()
             .get(1)
@@ -435,6 +451,8 @@ impl Attention {
             x.shape().len() == 3 && x.shape()[0] == 1 && (1..=8).contains(&time),
             "invalid Qwen verification attention input"
         );
+        self.verification_base =
+            retain_history.then(|| self.keys.as_ref().map_or(0, |keys| keys.shape()[2]));
         let qkv = self.qkv.forward(x)?;
         let mut attended = Vec::with_capacity(time as usize);
         for row in 0..time {
@@ -484,6 +502,33 @@ impl Attention {
         )?)
     }
 
+    fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
+        let base = self
+            .verification_base
+            .take()
+            .context("attention has no pending DFlash verification")?;
+        ensure!(
+            retained > 0 && retained <= total && total <= 8,
+            "invalid attention verification commit"
+        );
+        if retained < total {
+            let end = base + retained;
+            self.keys = Some(
+                self.keys
+                    .as_ref()
+                    .context("missing verified attention keys")?
+                    .slice(2, 0, end)?,
+            );
+            self.values = Some(
+                self.values
+                    .as_ref()
+                    .context("missing verified attention values")?
+                    .slice(2, 0, end)?,
+            );
+        }
+        Ok(())
+    }
+
     pub fn states(&self) -> Result<(&Array, &Array)> {
         Ok((
             self.keys.as_ref().context("missing attention keys")?,
@@ -494,6 +539,7 @@ impl Attention {
     fn reset(&mut self) {
         self.keys = None;
         self.values = None;
+        self.verification_base = None;
     }
 }
 
@@ -584,12 +630,28 @@ impl AttentionLayer {
     }
 
     fn forward_verification(&mut self, values: &mut [Array]) -> Result<()> {
+        self.forward_verification_impl(values, false)
+    }
+
+    fn forward_verification_dflash(&mut self, values: &mut [Array]) -> Result<()> {
+        self.forward_verification_impl(values, true)
+    }
+
+    fn forward_verification_impl(
+        &mut self,
+        values: &mut [Array],
+        retain_history: bool,
+    ) -> Result<()> {
         let normalized = values
             .iter()
             .map(|value| value.rms_norm(&self.input_norm, self.eps))
             .collect::<Result<Vec<_>>>()?;
         let normalized = Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)?;
-        let attention = self.attention.forward_verification(&normalized)?;
+        let attention = if retain_history {
+            self.attention.forward_verification_dflash(&normalized)?
+        } else {
+            self.attention.forward_verification(&normalized)?
+        };
         let mut residuals = Vec::with_capacity(values.len());
         let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
@@ -602,6 +664,10 @@ impl AttentionLayer {
             *value = hidden.add(&output)?;
         }
         Ok(())
+    }
+
+    fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
+        self.attention.commit_verification_prefix(retained, total)
     }
 
     pub fn states(&self) -> Result<(&Array, &Array)> {
@@ -691,6 +757,20 @@ impl Layer {
         match self {
             Self::Linear(layer) => layer.forward_verification(values),
             Self::Attention(layer) => layer.forward_verification(values),
+        }
+    }
+
+    fn forward_verification_dflash(&mut self, values: &mut [Array]) -> Result<()> {
+        match self {
+            Self::Linear(layer) => layer.forward_verification_dflash(values),
+            Self::Attention(layer) => layer.forward_verification_dflash(values),
+        }
+    }
+
+    fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
+        match self {
+            Self::Linear(layer) => layer.commit_verification_prefix(retained, total),
+            Self::Attention(layer) => layer.commit_verification_prefix(retained, total),
         }
     }
 
@@ -882,10 +962,25 @@ impl Qwen35Moe {
         }
     }
 
+    pub fn forward_tokens_with_dflash_capture(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
+        let result: Result<(Array, Array)> = (|| {
+            let (hidden, captured) = self.run_hidden_tokens_with_dflash_capture(tokens)?;
+            let logits = self.head.forward(&hidden)?;
+            logits.eval()?;
+            captured.eval()?;
+            self.offset += i32::try_from(tokens.len())?;
+            Ok((logits, captured))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result.context("Qwen captured prefill failed; its cache was reset")
+    }
+
     /// Runs target verification in the exact autoregressive order, then
     /// synchronizes the resulting Metal graph once.
     pub fn verify_tokens_exact(&mut self, tokens: &[u32]) -> Result<Array> {
-        let result = (|| {
+        let result: Result<Array> = (|| {
             ensure!(
                 !tokens.is_empty() && tokens.len() <= 8,
                 "target verification requires 1 to 8 tokens"
@@ -900,6 +995,49 @@ impl Qwen35Moe {
             self.reset();
         }
         result.context("Qwen target verification failed; its cache was reset")
+    }
+
+    pub fn verify_tokens_exact_with_dflash_capture(
+        &mut self,
+        tokens: &[u32],
+    ) -> Result<(Array, Array)> {
+        let result: Result<(Array, Array)> = (|| {
+            ensure!(
+                !tokens.is_empty() && tokens.len() <= 8,
+                "target verification requires 1 to 8 tokens"
+            );
+            let (hidden, captured) = self.run_hidden_tokens_layer_major_captured(tokens)?;
+            let output = self.head.forward(&hidden)?;
+            output.eval()?;
+            captured.eval()?;
+            self.offset += i32::try_from(tokens.len())?;
+            Ok((output, captured))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result.context("Qwen captured verification failed; its cache was reset")
+    }
+
+    pub fn dflash_input(&self, anchor: u32, mask: u32) -> Result<Array> {
+        ensure!(
+            anchor < self.vocab as u32 && mask < self.vocab as u32,
+            "DFlash input token is outside vocabulary"
+        );
+        let mut tokens = [mask as i32; 8];
+        tokens[0] = anchor as i32;
+        self.embeddings
+            .take(&Array::from_i32(&tokens, &[1, 8])?, 0)?
+            .reshape(&[8, 2048])?
+            .astype(Dtype::BFloat16)
+    }
+
+    pub fn dflash_logits(&self, hidden: &Array) -> Result<Array> {
+        ensure!(
+            hidden.shape() == [8, 2048],
+            "DFlash head expects eight hidden rows"
+        );
+        self.head.forward(&hidden.astype(Dtype::Float16)?)
     }
 
     fn run(&mut self, token: u32, trace: bool) -> Result<(Array, Vec<Vec<u16>>)> {
@@ -953,6 +1091,39 @@ impl Qwen35Moe {
         Ok((normalized, layers))
     }
 
+    fn run_hidden_tokens_with_dflash_capture(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
+        ensure!(
+            !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
+            "Qwen token batch is empty or outside vocabulary"
+        );
+        let time = i32::try_from(tokens.len())?;
+        ensure!(
+            self.offset + time <= self.context_limit,
+            "Qwen context is full"
+        );
+        let ids = tokens.iter().map(|&token| token as i32).collect::<Vec<_>>();
+        let id = Array::from_i32(&ids, &[1, time])?;
+        let mut hidden = self.embeddings.take(&id, 0)?;
+        let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        for (index, layer) in self.layers.iter_mut().enumerate() {
+            hidden = layer.forward(&hidden)?;
+            if DFLASH_CAPTURE_LAYERS.contains(&index) {
+                captured.push(hidden.try_clone()?);
+            }
+        }
+        ensure!(
+            captured.len() == DFLASH_CAPTURE_LAYERS.len(),
+            "Qwen model is missing DFlash capture layers"
+        );
+        let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
+            .reshape(&[time, 8 * 2048])?
+            .astype(Dtype::BFloat16)?;
+        let normalized = hidden
+            .slice(1, time - 1, time)?
+            .rms_norm(&self.norm, self.eps)?;
+        Ok((normalized, capture))
+    }
+
     fn run_hidden_tokens_layer_major(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(
             !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
@@ -980,8 +1151,72 @@ impl Qwen35Moe {
         Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)
     }
 
+    fn run_hidden_tokens_layer_major_captured(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
+        ensure!(
+            !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
+            "Qwen token batch is empty or outside vocabulary"
+        );
+        let time = i32::try_from(tokens.len())?;
+        ensure!(
+            self.offset + time <= self.context_limit,
+            "Qwen context is full"
+        );
+        let mut hidden = tokens
+            .iter()
+            .map(|&token| {
+                let id = Array::from_i32(&[token as i32], &[1, 1])?;
+                self.embeddings.take(&id, 0)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        for (index, layer) in self.layers.iter_mut().enumerate() {
+            layer.forward_verification_dflash(&mut hidden)?;
+            if DFLASH_CAPTURE_LAYERS.contains(&index) {
+                captured.push(Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?);
+            }
+        }
+        ensure!(
+            captured.len() == DFLASH_CAPTURE_LAYERS.len(),
+            "Qwen model is missing DFlash capture layers"
+        );
+        let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
+            .reshape(&[time, 8 * 2048])?
+            .astype(Dtype::BFloat16)?;
+        let normalized = hidden
+            .into_iter()
+            .map(|value| value.rms_norm(&self.norm, self.eps))
+            .collect::<Result<Vec<_>>>()?;
+        Ok((
+            Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)?,
+            capture,
+        ))
+    }
+
     pub fn context_limit(&self) -> i32 {
         self.context_limit
+    }
+
+    pub fn offset(&self) -> i32 {
+        self.offset
+    }
+
+    pub fn commit_dflash_verification(&mut self, retained: usize, total: usize) -> Result<()> {
+        ensure!(
+            retained > 0 && retained <= total && total <= 8,
+            "invalid DFlash verification commit"
+        );
+        let retained = i32::try_from(retained)?;
+        let total = i32::try_from(total)?;
+        if let Err(error) = self
+            .layers
+            .iter_mut()
+            .try_for_each(|layer| layer.commit_verification_prefix(retained, total))
+        {
+            self.reset();
+            return Err(error.context("DFlash selective commit failed; model state was reset"));
+        }
+        self.offset -= total - retained;
+        Ok(())
     }
 
     pub fn snapshot(&self) -> Result<QwenSnapshot> {
@@ -1095,12 +1330,28 @@ impl LinearLayer {
     }
 
     fn forward_verification(&mut self, values: &mut [Array]) -> Result<()> {
+        self.forward_verification_impl(values, false)
+    }
+
+    fn forward_verification_dflash(&mut self, values: &mut [Array]) -> Result<()> {
+        self.forward_verification_impl(values, true)
+    }
+
+    fn forward_verification_impl(
+        &mut self,
+        values: &mut [Array],
+        retain_history: bool,
+    ) -> Result<()> {
         let normalized = values
             .iter()
             .map(|value| value.rms_norm(&self.input_norm, self.eps))
             .collect::<Result<Vec<_>>>()?;
         let normalized = Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)?;
-        let attention = self.attention.forward_verification(&normalized)?;
+        let attention = if retain_history {
+            self.attention.forward_verification_dflash(&normalized)?
+        } else {
+            self.attention.forward_verification(&normalized)?
+        };
         let mut residuals = Vec::with_capacity(values.len());
         let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
@@ -1113,6 +1364,10 @@ impl LinearLayer {
             *value = hidden.add(&output)?;
         }
         Ok(())
+    }
+
+    fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
+        self.attention.commit_verification_prefix(retained, total)
     }
 
     pub fn trace(&mut self, x: &Array) -> Result<(Array, Vec<Array>)> {
@@ -1243,6 +1498,8 @@ impl GatedDelta {
             dt_bias,
             conv_state: None,
             recurrent_state: None,
+            verification_conv_input: None,
+            verification_recurrent_history: None,
             hidden,
             key_heads,
             value_heads,
@@ -1270,14 +1527,26 @@ impl GatedDelta {
         );
         self.conv_state = conv;
         self.recurrent_state = recurrent;
+        self.verification_conv_input = None;
+        self.verification_recurrent_history = None;
         Ok(())
     }
 
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
+        self.verification_conv_input = None;
+        self.verification_recurrent_history = None;
         Ok(self.run(x, false)?.0)
     }
 
     fn forward_verification(&mut self, x: &Array) -> Result<Array> {
+        self.forward_verification_impl(x, false)
+    }
+
+    fn forward_verification_dflash(&mut self, x: &Array) -> Result<Array> {
+        self.forward_verification_impl(x, true)
+    }
+
+    fn forward_verification_impl(&mut self, x: &Array, retain_history: bool) -> Result<Array> {
         let time = *x.shape().get(1).context("Qwen GDN input must have time")?;
         ensure!(
             x.shape() == [1, time, self.hidden] && (1..=8).contains(&time),
@@ -1303,6 +1572,7 @@ impl GatedDelta {
         };
         let conv_input = Array::concatenate(&[&conv_state, &qkv], 1)?;
         self.conv_state = Some(conv_input.slice(1, time, time + self.conv_length - 1)?);
+        self.verification_conv_input = retain_history.then(|| conv_input.clone());
         let conv = conv_input.conv1d(&self.conv_weight, conv_dims)?.silu()?;
         let q = conv
             .slice(2, 0, keys)?
@@ -1327,20 +1597,61 @@ impl GatedDelta {
                 Dtype::Float32,
             )?,
         };
-        let (out, recurrent_state) = gated_delta::step_with_gates(
-            &q,
-            &k,
-            &v,
-            &a,
-            &b,
-            &self.a_log,
-            &self.dt_bias,
-            &recurrent_state,
-        )?;
+        let (out, recurrent_state) = if retain_history {
+            let (out, state, history) = gated_delta::step_with_gates_history(
+                &q,
+                &k,
+                &v,
+                &a,
+                &b,
+                &self.a_log,
+                &self.dt_bias,
+                &recurrent_state,
+            )?;
+            self.verification_recurrent_history = Some(history);
+            (out, state)
+        } else {
+            self.verification_recurrent_history = None;
+            gated_delta::step_with_gates(
+                &q,
+                &k,
+                &v,
+                &a,
+                &b,
+                &self.a_log,
+                &self.dt_bias,
+                &recurrent_state,
+            )?
+        };
         self.recurrent_state = Some(recurrent_state);
         let normalized = out.rms_norm(&self.norm, self.eps)?;
         self.output
             .forward(&z.precise_swiglu(&normalized)?.reshape(&[1, time, values])?)
+    }
+
+    fn commit_verification_prefix(&mut self, retained: i32, total: i32) -> Result<()> {
+        ensure!(
+            retained > 0 && retained <= total && total <= 8,
+            "invalid GDN verification commit"
+        );
+        let conv_input = self
+            .verification_conv_input
+            .take()
+            .context("GDN has no pending DFlash convolution history")?;
+        let recurrent_history = self
+            .verification_recurrent_history
+            .take()
+            .context("GDN has no pending DFlash recurrent history")?;
+        if retained < total {
+            self.conv_state =
+                Some(conv_input.slice(1, retained, retained + self.conv_length - 1)?);
+            self.recurrent_state = Some(
+                recurrent_history
+                    .slice(0, retained - 1, retained)?
+                    .reshape(&[1, self.value_heads, self.value_dim, self.key_dim])?,
+            );
+        }
+        Ok(())
     }
 
     pub fn trace(&mut self, x: &Array) -> Result<(Array, Vec<Array>)> {
@@ -1457,6 +1768,8 @@ impl GatedDelta {
     fn reset(&mut self) {
         self.conv_state = None;
         self.recurrent_state = None;
+        self.verification_conv_input = None;
+        self.verification_recurrent_history = None;
     }
 }
 
@@ -1575,6 +1888,31 @@ mod tests {
                 state_bytes(&model)?,
                 expected_state,
                 "verification state differs at M={width}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn selective_dflash_commit_matches_exact_prefix() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let tokens = [4, 5, 6, 7, 8, 9, 10, 11];
+        for retained in 1..=8 {
+            model.reset();
+            model.forward_tokens(&[1, 2, 3])?;
+            model.verify_tokens_exact(&tokens[..retained])?;
+            let expected = state_bytes(&model)?;
+
+            model.reset();
+            model.forward_tokens(&[1, 2, 3])?;
+            model.verify_tokens_exact_with_dflash_capture(&tokens)?;
+            model.commit_dflash_verification(retained, tokens.len())?;
+            assert_eq!(model.offset(), 3 + retained as i32);
+            assert_eq!(
+                state_bytes(&model)?,
+                expected,
+                "selective DFlash state differs at M={retained}"
             );
         }
         Ok(())
