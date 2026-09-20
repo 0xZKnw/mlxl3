@@ -4389,3 +4389,20 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures ; MLX/Metal reste
   hors de sa portée et est vérifié ici par les différentiels physiques exacts.
   Statut : **validé et intégré**, prêt à publier.
+
+### OPT-2026-09-20-RUST-PERF-58 — Normes et résiduels cible multi-lignes — en cours
+
+- Observation : les 40 couches calculent encore input RMSNorm, résiduel,
+  post RMSNorm et résiduel MLP dans huit graphes mono-ligne, bien que chaque
+  opération ne réduise que le dernier axe et n'échange aucune donnée entre
+  positions. Concaténer les huit hidden, appliquer ces opérations une fois,
+  puis redécouper uniquement à la frontière des routes M=1 doit supprimer des
+  centaines de dispatchs sans changer l'ordre arithmétique interne d'une ligne.
+- Baseline : PERF-57 **86,132–86,274 ms** médian pour huit positions. Protocole :
+  M=1/2/4/8 avec logits FP16 et 80 états strictement identiques, puis deux
+  séries ABBA. Rejet à tout écart. Statut : **en cours**, journalisé avant code.
+- Résultat : exact sur M=1/2/4/8, mais **rejeté pour absence de gain stable**.
+  Deux séries donnent **87,399 ms** (85,138–88,621), puis **85,393 ms**
+  (85,292–86,435), contre 86,132–86,274 ms pour PERF-57. Les plages se
+  recouvrent et le premier passage régresse ; le batch normes/résiduels est
+  retiré. Aucun gain n'est revendiqué.
