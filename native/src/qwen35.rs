@@ -563,6 +563,18 @@ impl Layer {
         }
     }
 
+    fn forward_verification(&mut self, values: &mut [Array]) -> Result<()> {
+        match self {
+            Self::Linear(layer) => layer.forward_verification(values),
+            Self::Attention(layer) => {
+                for value in values {
+                    *value = layer.forward(value)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
     fn reset(&mut self) {
         match self {
             Self::Linear(layer) => layer.reset(),
@@ -759,14 +771,10 @@ impl Qwen35Moe {
                 !tokens.is_empty() && tokens.len() <= 8,
                 "target verification requires 1 to 8 tokens"
             );
-            let mut hidden = Vec::with_capacity(tokens.len());
-            for &token in tokens {
-                hidden.push(self.run_hidden_tokens(&[token], false)?.0);
-                self.offset += 1;
-            }
-            let hidden = Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?;
+            let hidden = self.run_hidden_tokens_layer_major(tokens)?;
             let output = self.head.forward(&hidden)?;
             output.eval()?;
+            self.offset += i32::try_from(tokens.len())?;
             Ok(output)
         })();
         if result.is_err() {
@@ -824,6 +832,33 @@ impl Qwen35Moe {
             layers.push(normalized.to_f16_bits()?);
         }
         Ok((normalized, layers))
+    }
+
+    fn run_hidden_tokens_layer_major(&mut self, tokens: &[u32]) -> Result<Array> {
+        ensure!(
+            !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
+            "Qwen token batch is empty or outside vocabulary"
+        );
+        let time = i32::try_from(tokens.len())?;
+        ensure!(
+            self.offset + time <= self.context_limit,
+            "Qwen context is full"
+        );
+        let mut hidden = tokens
+            .iter()
+            .map(|&token| {
+                let id = Array::from_i32(&[token as i32], &[1, 1])?;
+                self.embeddings.take(&id, 0)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        for layer in &mut self.layers {
+            layer.forward_verification(&mut hidden)?;
+        }
+        let normalized = hidden
+            .into_iter()
+            .map(|value| value.rms_norm(&self.norm, self.eps))
+            .collect::<Result<Vec<_>>>()?;
+        Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)
     }
 
     pub fn context_limit(&self) -> i32 {
@@ -938,6 +973,22 @@ impl LinearLayer {
 
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
         Ok(self.run(x, false)?.0)
+    }
+
+    fn forward_verification(&mut self, values: &mut [Array]) -> Result<()> {
+        let normalized = values
+            .iter()
+            .map(|value| value.rms_norm(&self.input_norm, self.eps))
+            .collect::<Result<Vec<_>>>()?;
+        let normalized = Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)?;
+        let attention = self.attention.forward_verification(&normalized)?;
+        for (time, value) in values.iter_mut().enumerate() {
+            let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
+            let post = hidden.rms_norm(&self.post_norm, self.eps)?;
+            let mlp = self.mlp.forward(&post.reshape(&[1, self.hidden])?)?;
+            *value = hidden.add(&mlp.reshape(&[1, 1, self.hidden])?)?;
+        }
+        Ok(())
     }
 
     pub fn trace(&mut self, x: &Array) -> Result<(Array, Vec<Array>)> {
@@ -1102,6 +1153,80 @@ impl GatedDelta {
         Ok(self.run(x, false)?.0)
     }
 
+    fn forward_verification(&mut self, x: &Array) -> Result<Array> {
+        let time = *x.shape().get(1).context("Qwen GDN input must have time")?;
+        ensure!(
+            x.shape() == [1, time, self.hidden] && (1..=8).contains(&time),
+            "invalid Qwen verification GDN input"
+        );
+        let keys = self.key_heads * self.key_dim;
+        let values = self.value_heads * self.value_dim;
+        let conv_dims = 2 * keys + values;
+        let inputs = self.inputs.forward(x)?;
+        let qkv = inputs[0].try_clone()?;
+        let z = inputs[1].reshape(&[1, time, self.value_heads, self.value_dim])?;
+        let b = self.b.forward(x)?;
+        let a = self.a.forward(x)?;
+        let q_scale =
+            Array::from_f16_bits(&[f16::from_f32(1.0 / self.key_dim as f32).to_bits()], &[])?;
+        let k_scale = Array::from_f16_bits(
+            &[f16::from_f32(1.0 / (self.key_dim as f32).sqrt()).to_bits()],
+            &[],
+        )?;
+        let mut conv_state = match &self.conv_state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(&[1, self.conv_length - 1, conv_dims], Dtype::Float16)?,
+        };
+        let mut recurrent_state = match &self.recurrent_state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(
+                &[1, self.value_heads, self.value_dim, self.key_dim],
+                Dtype::Float32,
+            )?,
+        };
+        let mut gated = Vec::with_capacity(time as usize);
+        for row in 0..time {
+            let conv_input = Array::concatenate(&[&conv_state, &qkv.slice(1, row, row + 1)?], 1)?;
+            conv_state = conv_input.slice(1, 1, self.conv_length)?;
+            let conv = conv_input.conv1d(&self.conv_weight, conv_dims)?.silu()?;
+            let q = conv
+                .slice(2, 0, keys)?
+                .reshape(&[1, 1, self.key_heads, self.key_dim])?
+                .rms_norm_without_weight(1e-6)?
+                .mul(&q_scale)?;
+            let k = conv
+                .slice(2, keys, 2 * keys)?
+                .reshape(&[1, 1, self.key_heads, self.key_dim])?
+                .rms_norm_without_weight(1e-6)?
+                .mul(&k_scale)?;
+            let v = conv.slice(2, 2 * keys, conv_dims)?.reshape(&[
+                1,
+                1,
+                self.value_heads,
+                self.value_dim,
+            ])?;
+            let (out, state) = gated_delta::step_with_gates(
+                &q,
+                &k,
+                &v,
+                &a.slice(1, row, row + 1)?,
+                &b.slice(1, row, row + 1)?,
+                &self.a_log,
+                &self.dt_bias,
+                &recurrent_state,
+            )?;
+            recurrent_state = state;
+            let normalized = out.rms_norm(&self.norm, self.eps)?;
+            gated.push(z.slice(1, row, row + 1)?.precise_swiglu(&normalized)?);
+        }
+        self.conv_state = Some(conv_state);
+        self.recurrent_state = Some(recurrent_state);
+        self.output.forward(
+            &Array::concatenate(&gated.iter().collect::<Vec<_>>(), 1)?
+                .reshape(&[1, time, values])?,
+        )
+    }
+
     pub fn trace(&mut self, x: &Array) -> Result<(Array, Vec<Array>)> {
         self.run(x, true)
     }
@@ -1242,12 +1367,14 @@ mod tests {
             .collect()
     }
 
-    fn deferred_heads(model: &mut Qwen35Moe, tokens: &[u32]) -> Result<Array> {
-        let mut logits = Vec::with_capacity(tokens.len());
+    fn batched_head_token_major(model: &mut Qwen35Moe, tokens: &[u32]) -> Result<Array> {
+        let mut hidden = Vec::with_capacity(tokens.len());
         for &token in tokens {
-            logits.push(model.run_tokens(&[token], false, false)?.0);
+            hidden.push(model.run_hidden_tokens(&[token], false)?.0);
+            model.offset += 1;
         }
-        let output = Array::concatenate(&logits.iter().collect::<Vec<_>>(), 1)?;
+        let hidden = Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?;
+        let output = model.head.forward(&hidden)?;
         output.eval()?;
         Ok(output)
     }
@@ -1277,6 +1404,37 @@ mod tests {
 
     #[test]
     #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn verification_widths_match_token_major() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        for width in [1, 2, 4, 8] {
+            model.reset();
+            for token in [1, 2, 3] {
+                model.forward(token)?;
+            }
+            let tokens = (4..4 + width).collect::<Vec<_>>();
+            let expected = batched_head_token_major(&mut model, &tokens)?.to_f16_bits()?;
+            let expected_state = state_bytes(&model)?;
+
+            model.reset();
+            for token in [1, 2, 3] {
+                model.forward(token)?;
+            }
+            assert_eq!(
+                model.verify_tokens_exact(&tokens)?.to_f16_bits()?,
+                expected,
+                "verification logits differ at M={width}"
+            );
+            assert_eq!(
+                state_bytes(&model)?,
+                expected_state,
+                "verification state differs at M={width}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
     fn deferred_target_verification_matches_sequential() -> Result<()> {
         let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
         for token in [1, 2, 3] {
@@ -1287,8 +1445,8 @@ mod tests {
 
         model.verify_tokens_exact(&tokens)?;
         model.restore(snapshot)?;
-        let mut deferred_samples = Vec::new();
-        let mut batched_samples = Vec::new();
+        let mut token_major_samples = Vec::new();
+        let mut layer_major_samples = Vec::new();
         let mut expected = None;
         for candidate_first in [false, true, true, false, false, true] {
             for candidate in [candidate_first, !candidate_first] {
@@ -1297,7 +1455,7 @@ mod tests {
                 let output = if candidate {
                     model.verify_tokens_exact(&tokens)?
                 } else {
-                    deferred_heads(&mut model, &tokens)?
+                    batched_head_token_major(&mut model, &tokens)?
                 };
                 let elapsed = start.elapsed().as_secs_f64() * 1000.0;
                 let bits = output.to_f16_bits()?;
@@ -1309,20 +1467,20 @@ mod tests {
                     expected = Some((bits, state));
                 }
                 if candidate {
-                    batched_samples.push(elapsed);
+                    layer_major_samples.push(elapsed);
                 } else {
-                    deferred_samples.push(elapsed);
+                    token_major_samples.push(elapsed);
                 }
                 model.restore(snapshot)?;
             }
         }
-        deferred_samples.sort_by(f64::total_cmp);
-        batched_samples.sort_by(f64::total_cmp);
-        let deferred_ms = deferred_samples[deferred_samples.len() / 2];
-        let batched_ms = batched_samples[batched_samples.len() / 2];
+        token_major_samples.sort_by(f64::total_cmp);
+        layer_major_samples.sort_by(f64::total_cmp);
+        let token_major_ms = token_major_samples[token_major_samples.len() / 2];
+        let layer_major_ms = layer_major_samples[layer_major_samples.len() / 2];
         eprintln!(
-            "Qwen target M=8: deferred={deferred_ms:.3}ms batch_head={batched_ms:.3}ms speedup={:.2}x samples={deferred_samples:?}/{batched_samples:?}",
-            deferred_ms / batched_ms
+            "Qwen target M=8: token_major={token_major_ms:.3}ms layer_major={layer_major_ms:.3}ms speedup={:.2}x samples={token_major_samples:?}/{layer_major_samples:?}",
+            token_major_ms / layer_major_ms
         );
         Ok(())
     }

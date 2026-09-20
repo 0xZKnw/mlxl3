@@ -4191,3 +4191,81 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   **validé et prêt à intégrer** pour le partage exact du `lm_head` et les
   corrections d'attention ; la vérification cible layer-major et le débit
   DFlash end-to-end restent non implémentés.
+
+### OPT-2026-09-20-RUST-PERF-52 — Vérification exacte couche-major — en cours
+
+- Hypothèse issue de l'audit fourni, recoupée avec le code : le vérificateur
+  exact avance encore chaque token dans les 40 couches avant le suivant. Sans
+  modifier un kernel, avancer les huit tenseurs mono-token dans une couche
+  avant de passer à la suivante conserve les récurrences GDN/KV propres à
+  chaque couche et rapproche les lectures d'un même jeu de poids.
+- Baseline appariée la plus récente, Qwen3.6-35B-A3B EXL3 2,49 bpw, préfixe
+  `[1,2,3]`, vérification `[4..11]`, batterie 100 % : chemin token-major avec
+  tête M=8 **159,950 ms** médiane (156,112–161,647), logits FP16 et 80 états
+  identiques à l'ancien chemin différé.
+- Prototype minimal prévu : garder chaque opération sensible en M=1 et le même
+  ordre temporel *dans chaque couche* ; seule la boucle tokens/couches est
+  transposée. Comparaison ABBA d'au moins six passages par variante, de chaque
+  logit FP16 et des 80 états. Rejet au premier octet différent ou si le gain
+  n'est pas stable. Aucun débit DFlash end-to-end ne sera extrapolé. Statut :
+  **en cours**, journalisé avant code.
+- Première commande interrompue avant compilation : lancée depuis `native/`,
+  elle a résolu `MLXL3_MLX_ROOT` sous `native/.venv` au lieu de la racine.
+  Aucun kernel ni timing n'a été exécuté. La relance utilise le chemin absolu
+  du runtime MLX du dépôt.
+- Première série ABBA, six mesures par variante, batterie 100 % : token-major
+  médian **161,909 ms** (143,916–162,827), couche-major **149,137 ms**
+  (141,490–171,693), soit **1,086×**. Les 12 passages produisent exactement les
+  mêmes **1 986 560 logits FP16** et les mêmes **80 états**. Le signal est
+  positif mais les plages se recouvrent et un outlier couche-major existe ; une
+  seconde série indépendante est requise avant intégration.
+- Seconde série indépendante : token-major médian **144,678 ms**
+  (137,309–146,584), couche-major **143,745 ms** (140,090–158,833), soit
+  seulement **1,006×**. L'identité complète reste vérifiée, mais le gain du
+  simple réordonnancement n'est pas stable ; il n'est pas suffisant seul.
+- Sous-essai suivant, journalisé avant code : `ProjectionBundle::Grouped`,
+  utilisé par QKV et gate/up, sérialise encore chaque ligne malgré le QMV exact
+  multi-lignes de PERF-51. Étendre le shader mappé avec un axe de lignes doit
+  grouper ces dispatchs sans changer l'accumulation de chaque sortie. Comparer
+  toutes les sorties FP16 du bundle à huit appels M=1, puis le modèle complet
+  couche-major au token-major. Rejet au premier écart ; le réordonnancement
+  couche-major sera retiré si le bundle groupé n'apporte pas un gain stable.
+- Microbenchmark réel couche 0, bundle QKV+Z 2048→(6144+4096), M=8 : huit
+  appels groupés M=1 **1,584 ms**, nouvel axe de lignes **0,804 ms**, soit
+  **1,97×**. Les deux sorties, **81 920 valeurs FP16**, sont identiques bit à
+  bit. Ce résultat justifie le test modèle complet mais ne constitue pas encore
+  un gain du vérificateur.
+- Intégration expérimentale suivante : uniquement dans les 30 couches GDN,
+  batcher QKV/Z/A/B et la projection de sortie avec les QMV exacts, tout en
+  exécutant convolution et récurrence token par token dans leur ordre canonique.
+  Les normes, résiduels et MoE restent mono-token. Cette frontière minimale
+  isole le partage des poids ; elle sera comparée au token-major sur logits et
+  80 états avant toute extension aux dix couches d'attention.
+- Première exécution arrêtée par la validation de forme avant mesure : les
+  sorties SwiGLU concaténées gardaient `[1,8,Hv,Dv]` au lieu d'être repliées en
+  `[1,8,Hv×Dv]` pour `out_proj`. Aucun timing ni résultat numérique n'est
+  attribué à ce passage ; le reshape identique au chemin canonique est ajouté.
+- Première série modèle après correction, six passages ABBA par variante :
+  token-major médian **145,190 ms** (140,824–165,353), couche-major avec
+  projections GDN groupées **113,266 ms** (110,779–116,259), soit **1,282×**.
+  Les 12 passages conservent exactement les 1 986 560 logits FP16 et les 80
+  états. Le signal est net ; une seconde série indépendante doit confirmer la
+  stabilité avant extension ou intégration.
+- Seconde série indépendante : token-major médian **137,759 ms**
+  (135,110–138,697), candidat **108,866 ms** (107,657–111,032), soit
+  **1,265×**. Les intervalles ne se recouvrent pas et l'identité logits+états
+  est de nouveau complète. Le gain est **validé pour M=8** ; les largeurs
+  1/2/4 restent à contrôler avant intégration.
+- Contrôle des largeurs **M=1/2/4/8** réussi sur le modèle réel : pour chaque
+  largeur, tous les logits FP16 et les 80 tenseurs d'état correspondent octet
+  pour octet au chemin token-major. Le candidat peut passer aux contrôles
+  complets ; cela reste une vérification physique bornée, pas une preuve de
+  tous les prompts ni de Metal.
+- Contrôles du jalon : format, Clippy strict tous targets/features, 23 tests
+  lib, 1 CLI, 14 contrats et build release MLX/chat réussis. Kani 0.68/CBMC
+  6.11 vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures ; il ne
+  compile pas MLX/Metal. Les nouveaux axes Metal et la transposition des états
+  sont donc couverts par les différentiels physiques M=1/2/4/8 et les deux
+  séries ABBA, pas par Kani. Statut : **validé et prêt à intégrer** ; coût cible
+  M=8 ramené de 137,759 à 108,866 ms dans la série indépendante, encore au-dessus
+  du budget ~75 ms nécessaire à 100 tok/s même avec acceptation parfaite.

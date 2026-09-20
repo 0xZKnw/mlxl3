@@ -6,6 +6,10 @@
             uint simd = simdgroup_index_in_threadgroup;
             uint tile_group = threadgroup_position_in_grid.x;
             uint local_tile = tile_group * MLXL3_QMV_NT;
+            uint batch_row = 0u;
+#if MLXL3_BATCH_ROWS
+            batch_row = threadgroup_position_in_grid.y;
+#endif
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
 
@@ -78,7 +82,11 @@
                 // Output rows are 128-aligned, so both tiles in a pair use
                 // the same transformed activation row.
                 const device half2* x_pairs = reinterpret_cast<const device half2*>(
-                    xhat + sub * uint(INPUT_DIMS) + tile_k * 16u
+                    xhat
+#if MLXL3_BATCH_ROWS
+                    + batch_row * uint(GROUPS) * uint(INPUT_DIMS)
+#endif
+                    + sub * uint(INPUT_DIMS) + tile_k * 16u
                 );
                 half2 x_pair = x_pairs[lane & 7u];
                 half2 x_pair0 = simd_shuffle(x_pair, ushort(lane & 3u));
@@ -181,7 +189,7 @@
                     sum += partials[group][output_tile * 16u + column];
                 }
                 yhat[
-                    split * uint(LOCAL_OUTPUT_DIMS)
+                    (batch_row * uint(N_SPLITS) + split) * uint(LOCAL_OUTPUT_DIMS)
                     + (local_tile + output_tile) * 16u + column
                 ] = sum;
             }

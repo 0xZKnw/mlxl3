@@ -649,21 +649,7 @@ impl Exl3Group {
             return Ok(outputs);
         }
         if matrix_rows > 1 {
-            let matrix = x.reshape(&[matrix_rows, self.rows])?;
-            let rows = (0..matrix_rows)
-                .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
-                .collect::<Result<Vec<_>>>()?;
-            return self
-                .widths
-                .iter()
-                .enumerate()
-                .map(|(projection, &width)| {
-                    let values = rows.iter().map(|row| &row[projection]).collect::<Vec<_>>();
-                    let mut shape = x.shape().to_vec();
-                    *shape.last_mut().context("empty grouped batch shape")? = width;
-                    Array::concatenate(&values, 0)?.reshape(&shape)
-                })
-                .collect();
+            return self.forward_qmv_batch(x, matrix_rows);
         }
         let groups = i32::try_from(self.widths.len())?;
         let xhat = x
@@ -735,6 +721,96 @@ impl Exl3Group {
             let y = output.slice(0, begin, begin + width)?.reshape(&shape)?;
             outputs.push(match bias {
                 Some(b) => y.add(b)?,
+                None => y,
+            });
+            begin += width;
+        }
+        Ok(outputs)
+    }
+
+    fn forward_qmv_batch(&self, x: &Array, matrix_rows: i32) -> Result<Vec<Array>> {
+        ensure!(
+            (2..24).contains(&matrix_rows),
+            "grouped batch QMV requires 2 to 23 rows"
+        );
+        let groups = i32::try_from(self.widths.len())?;
+        let xhat = x
+            .astype(Dtype::Float16)?
+            .reshape(&[matrix_rows, 1, self.rows])?
+            .mul(
+                &self
+                    .suh
+                    .astype(Dtype::Float16)?
+                    .reshape(&[1, groups, self.rows])?,
+            )?
+            .reshape(&[matrix_rows * groups, self.rows / 128, 128])?
+            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+            .reshape(&[-1])?;
+        let tiles = self.cols / 16;
+        let splits = split_count(self.rows / 16, tiles);
+        let nt = if tiles >= 1024 {
+            if tiles % 2 == 0 { 2 } else { 1 }
+        } else if tiles % 4 == 0 {
+            4
+        } else if tiles % 2 == 0 {
+            2
+        } else {
+            1
+        };
+        let header = codebook_header(self.cb)
+            + &format!(
+                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 1\n#define GROUPS {groups}\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
+                sg = self.simdgroups,
+                k = self.k,
+                cb = self.cb as u32,
+                words = self.k * 8,
+                rows = self.rows,
+                kt = self.rows / 16,
+                cols = self.cols,
+            );
+        let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+        let partials = array::metal_kernel(
+            &format!(
+                "mlxl3_rs_grouped_batch_{}_{}_{}_{}_{}_{}_{}",
+                self.rows, self.cols, self.k, self.cb as u32, nt, self.simdgroups, splits,
+            ),
+            &["xhat", "trellis", "tile_map", "tile_sub"],
+            &["yhat"],
+            &header,
+            include_str!("../shaders/_qmv_mapped_tile_kernel.metal"),
+            &[&xhat, &words, &self.identity, &self.tile_sub],
+            &[vec![matrix_rows, splits, self.cols]],
+            &[Dtype::Float32],
+            [
+                (tiles / nt)
+                    .checked_mul(self.simdgroups * 32)
+                    .context("grouped batch grid overflow")?,
+                matrix_rows,
+                splits,
+            ],
+            [self.simdgroups * 32, 1, 1],
+        )?
+        .remove(0);
+        let yhat = if splits == 1 {
+            partials.reshape(&[matrix_rows, self.cols])?
+        } else {
+            partials.sum(1, false)?
+        };
+        let output = yhat
+            .astype(Dtype::Float16)?
+            .reshape(&[matrix_rows, self.cols / 128, 128])?
+            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+            .reshape(&[matrix_rows, self.cols])?
+            .mul(&self.svh.astype(Dtype::Float16)?)?
+            .astype(x.dtype())?;
+        let mut begin = 0;
+        let mut outputs = Vec::with_capacity(self.widths.len());
+        for (width, bias) in self.widths.iter().zip(&self.biases) {
+            let mut shape = x.shape().to_vec();
+            *shape.last_mut().context("empty grouped batch input")? = *width;
+            let y = output.slice(1, begin, begin + width)?.reshape(&shape)?;
+            outputs.push(match bias {
+                Some(value) => y.add(value)?,
                 None => y,
             });
             begin += width;
@@ -922,6 +998,20 @@ mod tests {
         Array::concatenate(&outputs.iter().collect::<Vec<_>>(), 0)
     }
 
+    fn serial_group_rows(group: &Exl3Group, x: &Array) -> Result<Vec<Array>> {
+        let rows = (0..x.shape()[0])
+            .map(|row| group.forward(&x.slice(0, row, row + 1)?))
+            .collect::<Result<Vec<_>>>()?;
+        (0..group.widths.len())
+            .map(|projection| {
+                Array::concatenate(
+                    &rows.iter().map(|row| &row[projection]).collect::<Vec<_>>(),
+                    0,
+                )
+            })
+            .collect()
+    }
+
     #[test]
     #[ignore = "requires local Qwen checkpoint and Apple M5 GPU"]
     fn batch_qmv_eight_rows_matches_serial() -> Result<()> {
@@ -986,6 +1076,64 @@ mod tests {
         );
         assert_eq!(serial.shape(), batched.shape());
         assert_eq!(mismatches, 0);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple M5 GPU"]
+    fn batch_grouped_qmv_eight_rows_matches_serial() -> Result<()> {
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let group = Exl3Group::new(vec![
+            Exl3Linear::from_checkpoint(
+                &checkpoint,
+                "model.language_model.layers.0.linear_attn.in_proj_qkv",
+            )?,
+            Exl3Linear::from_checkpoint(
+                &checkpoint,
+                "model.language_model.layers.0.linear_attn.in_proj_z",
+            )?,
+        ])?;
+        let values = (0..8 * group.rows)
+            .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
+            .collect::<Vec<_>>();
+        let x = Array::from_f16_bits(&values, &[8, group.rows])?;
+        let expected = serial_group_rows(&group, &x)?;
+        let actual = group.forward(&x)?;
+        for (index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+            assert_eq!(
+                left.to_f16_bits()?,
+                right.to_f16_bits()?,
+                "grouped batch output {index} differs"
+            );
+        }
+        for _ in 0..2 {
+            for value in serial_group_rows(&group, &x)? {
+                value.eval()?;
+            }
+            for value in group.forward(&x)? {
+                value.eval()?;
+            }
+        }
+        let repeats = 5;
+        let start = Instant::now();
+        for _ in 0..repeats {
+            for value in serial_group_rows(&group, &x)? {
+                value.eval()?;
+            }
+        }
+        let serial_ms = start.elapsed().as_secs_f64() * 1000.0 / f64::from(repeats);
+        let start = Instant::now();
+        for _ in 0..repeats {
+            for value in group.forward(&x)? {
+                value.eval()?;
+            }
+        }
+        let batched_ms = start.elapsed().as_secs_f64() * 1000.0 / f64::from(repeats);
+        eprintln!(
+            "Qwen grouped QMV M=8: serial={serial_ms:.3}ms batch={batched_ms:.3}ms speedup={:.2}x",
+            serial_ms / batched_ms
+        );
         Ok(())
     }
 }
