@@ -5787,3 +5787,36 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
 - Décision : **rejeté**. Les 60 registres environ par thread provoquent une
   perte d'occupation ou du spill qui domine la grille réduite. Commutateur et
   largeur M=6 temporaire retirés ; aucun code exécutable n'est conservé.
+
+### OPT-2026-09-20-RUST-PERF-106 — extraction QMV K=6 en mots 32 bits — rejeté
+
+- Observation : PERF-103 attribue **0,089–0,091 s** sur neuf blocs au
+  `lm_head` limité ; le checkpoint encode cette tête 2048→248320 en K=6/MCG.
+  Le kernel QMV batch reconstruit actuellement deux fenêtres par tuile avec des
+  concaténations et décalages `ulong`, y compris un second décalage pour le
+  quatrième codeword de chaque groupe.
+- Hypothèse : reconstruire exactement les mêmes 32 bits depuis les deux mots
+  avec des décalages/or 32 bits, uniquement pour les gros QMV batch K=6,
+  supprime les opérations entières 64 bits sans changer codewords, poids, FMA,
+  réduction ni géométrie. L'ancien essai `OPT-2026-09-07-10` concernait le QMM
+  générique et avait régressé ; ce nouvel essai est motivé par le profil QMV
+  K=6 répété et reste donc explicitement distinct.
+- Baseline production : greedy **51,896 tok/s**, DFlash **74,645 tok/s**,
+  **1,438× (+43,8 %)**, target 0,507–0,508 s. Protocole : différentiel physique
+  M=1/2/4/6/8, puis A/B/B/A strictement séquentiel avec un seul processus de
+  modèle. Rejet au premier bit différent ou si lm_head/target/débit ne gagnent
+  pas de manière reproductible. Statut initial : **en cours**, journalisé avant
+  code.
+- Exactitude : le différentiel physique M=1/2/4/6/8 passe ; logits FP16 et les
+  80 états restent identiques au chemin token-major. Les quatre générations
+  conservent 39/45 propositions et la séquence target exacte.
+- A/B/B/A séquentiel, deux répétitions par processus : extraction 32 bits
+  **61,812 / 61,831 tok/s**, ancien `ulong` **63,797 / 64,138 tok/s**. Les
+  médianes par variante sont **61,822** contre **63,968 tok/s (−3,35 %)**.
+  Le draft candidat prend 0,160–0,165 s puis 0,161–0,163 s, contre
+  0,142–0,143 s et 0,142 s pour le contrôle. Le target régresse également de
+  0,590–0,595 s à 0,598–0,612 s selon le passage.
+- Décision : **rejeté**. Sur ce M5, les expressions `ulong` d'origine sont
+  mieux abaissées que la reconstruction manuelle 32 bits malgré leur apparence
+  plus coûteuse. Le shader, le commutateur et la largeur M=6 temporaire du test
+  sont intégralement retirés ; aucun code exécutable de l'essai n'est conservé.
