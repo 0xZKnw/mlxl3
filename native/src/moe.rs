@@ -236,6 +236,84 @@ fn routed_inputs(x: &Array, scales: &Array, plan: &RoutePlan, input: i32) -> Res
     .remove(0))
 }
 
+fn routed_inputs_small(
+    x: &Array,
+    scales: &Array,
+    selected: &Array,
+    rows: i32,
+    top_k: i32,
+    input: i32,
+) -> Result<Array> {
+    let slots = rows.checked_mul(top_k).context("MoE slot overflow")?;
+    ensure!(
+        x.shape() == [rows, input]
+            && scales.shape().len() == 3
+            && scales.shape()[1..] == [2, input]
+            && selected.shape() == [slots]
+            && selected.dtype() == Dtype::UInt32
+            && input % 128 == 0,
+        "invalid small routed input"
+    );
+    let source = format!(
+        r#"
+            constexpr uint INPUT_DIMS = {input}u;
+            constexpr uint TOP_K = {top_k}u;
+            uint tid = thread_position_in_threadgroup.x;
+            uint block = threadgroup_position_in_grid.x;
+            uint route = threadgroup_position_in_grid.y;
+            uint projection = threadgroup_position_in_grid.z;
+            uint token = route / TOP_K;
+            uint expert = selected[route];
+            uint base = block * 128u + tid * 4u;
+            float v[4];
+            for (uint r = 0u; r < 4u; ++r) {{
+                uint column = base + r;
+                v[r] = float(half(half(x[token * INPUT_DIMS + column]) *
+                    half(scales[(expert * 2u + projection) * INPUT_DIMS + column])));
+            }}
+            for (uint h = 1u; h < 4u; h *= 2u) {{
+                for (uint i = 0u; i < 2u; ++i) {{
+                    uint k = i & (h - 1u);
+                    uint j = ((i - k) << 1u) + k;
+                    float a = v[j], b = v[j + h];
+                    v[j] = a + b;
+                    v[j + h] = a - b;
+                }}
+            }}
+            for (uint h = 1u; h < 4u; h *= 2u) {{
+                for (uint r = 0u; r < 4u; ++r) {{
+                    float peer = simd_shuffle_xor(v[r], h);
+                    v[r] = (tid & h) ? peer - v[r] : v[r] + peer;
+                }}
+            }}
+            for (uint r = 0u; r < 4u; ++r) v[r] = float(half(v[r]));
+            for (uint h = 4u; h < 32u; h *= 2u) {{
+                for (uint r = 0u; r < 4u; ++r) {{
+                    float peer = simd_shuffle_xor(v[r], h);
+                    v[r] = (tid & h) ? peer - v[r] : v[r] + peer;
+                }}
+            }}
+            for (uint r = 0u; r < 4u; ++r) {{
+                out[((route * 2u + projection) * INPUT_DIMS) + base + r] =
+                    half(float(half(v[r])) * 0.08838834764831845f);
+            }}
+        "#
+    );
+    Ok(array::metal_kernel(
+        &format!("mlxl3_rs_routed_small_d{input}_k{top_k}_v1"),
+        &["x", "scales", "selected"],
+        &["out"],
+        "",
+        &source,
+        &[x, scales, selected],
+        &[vec![slots * 2, input]],
+        &[Dtype::Float16],
+        [input / 4, slots, 2],
+        [32, 1, 1],
+    )?
+    .remove(0))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn expert_segmented_qmm(
     xhat: &Array,
@@ -767,18 +845,11 @@ impl Exl3SwitchGlu {
         if rows >= 64 && self.experts <= 256 && self.k != 7 && array::is_m5_gpu()? {
             return self.forward_segmented(x, &selected, scores, rows);
         }
-        let x_gu = x
-            .reshape(&[rows, 1, 1, self.input])?
-            .broadcast_to(&[rows, self.top_k, 2, self.input])?
-            .reshape(&[slots * 2, self.input])?;
-        let gu_input_scales = self
-            .gu_suh
-            .take(&selected, 0)?
-            .reshape(&[slots * 2, self.input])?;
+        let x_gu = routed_inputs_small(x, &self.gu_suh, &selected, rows, self.top_k, self.input)?;
         let gate_up = expert_mapped(
             &x_gu,
             &self.gu_trellis,
-            Some(&gu_input_scales),
+            None,
             None,
             &selected,
             self.hidden,
@@ -786,7 +857,7 @@ impl Exl3SwitchGlu {
             self.experts * self.hidden / 16,
             self.k,
             self.cb,
-            false,
+            true,
             true,
         )?;
         let down_input = glu_down_input(
@@ -957,5 +1028,45 @@ impl Exl3SwitchGlu {
         .reshape(&[rows, self.top_k, self.input])?
         .mul(&scores.reshape(&[rows, self.top_k, 1])?)?
         .sum(1, false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use half::f16;
+
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn small_routed_input_matches_array_reference() -> Result<()> {
+        const EXPERTS: i32 = 16;
+        const INPUT: i32 = 256;
+        let scale_values = (0..EXPERTS * 2 * INPUT)
+            .map(|index| f16::from_f32(0.5 + (index % 29) as f32 / 64.0).to_bits())
+            .collect::<Vec<_>>();
+        let scales = Array::from_f16_bits(&scale_values, &[EXPERTS, 2, INPUT])?;
+        for (rows, top_k) in [(1, 8), (6, 8)] {
+            let values = (0..rows * INPUT)
+                .map(|index| f16::from_f32(((index % 97) as f32 - 48.0) / 32.0).to_bits())
+                .collect::<Vec<_>>();
+            let routes = rows * top_k;
+            let route_values = (0..routes)
+                .map(|route| u32::try_from((route * 7 + 3) % EXPERTS))
+                .collect::<Result<Vec<_>, _>>()?;
+            let selected = Array::from_u32(&route_values, &[routes])?;
+            let x = Array::from_f16_bits(&values, &[rows, INPUT])?;
+            let reference = x
+                .reshape(&[rows, 1, 1, INPUT])?
+                .broadcast_to(&[rows, top_k, 2, INPUT])?
+                .reshape(&[routes * 2, INPUT])?
+                .mul(&scales.take(&selected, 0)?.reshape(&[routes * 2, INPUT])?)?
+                .reshape(&[routes * 2, INPUT / 128, 128])?
+                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+                .reshape(&[routes * 2, INPUT])?;
+            let actual = routed_inputs_small(&x, &scales, &selected, rows, top_k, INPUT)?;
+            assert_eq!(actual.to_f16_bits()?, reference.to_f16_bits()?);
+        }
+        Ok(())
     }
 }

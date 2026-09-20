@@ -5524,3 +5524,107 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Le kernel, la route expérimentale et le changement de plan sont intégralement
   retirés. Le ticket 15 est donc testé mais non intégré ; aucun gain n'est
   revendiqué.
+
+### OPT-2026-09-20-RUST-PERF-97 — préparation attention de vérification batchée — rejeté
+
+- Source : premier palier du ticket 16 de
+  `MLXL3_Audit_Decode_28_Optimisations.md`. L'attention M=6 normalise et applique
+  RoPE à Q/K, concatène K/V et met à jour le cache séparément pour chaque
+  ligne avant six SDPA exacts.
+- Hypothèse : calculer les normes et RoPE sur les six lignes, concaténer le
+  bloc K/V une seule fois, puis conserver un SDPA par ligne sur le préfixe exact
+  supprime des dispatchs et copies sans modifier l'ordre de réduction de
+  l'attention. Ce jalon n'essaie pas encore un SDPA causal batché, susceptible
+  de changer les arrondis.
+- Baseline publiée : PERF-93, greedy **49,967 tok/s**, DFlash
+  **73,055 tok/s**, **1,462× (+46,2 %)**, target **0,518–0,521 s**, draft
+  0,124 s, 39/45 acceptés. Protocole : relever d'abord une baseline au commit
+  courant, comparer logits et 80 états pour les largeurs 1..8, puis A/B/B/A
+  et trois alternances E2E exactes de 48 tokens. Rejet au premier écart ou si
+  le gain relatif ne dépasse pas le bruit thermique. Statut : **en cours**,
+  journalisé avant code.
+- Exactitude : le différentiel physique des largeurs 1..8 reste strictement
+  identique au chemin token-major et les trois séquences E2E sont exactes.
+- Mesure : baseline fraîche **72,974 tok/s** médians, target 0,517–0,523 s ;
+  candidat **72,556 tok/s**, target 0,518–0,536 s, toujours 39/45 acceptés.
+  Les préparations batchées ne diminuent pas le temps target au-delà du bruit.
+- Décision : **rejeté**. Le calcul par ligne est restauré ; aucun code
+  exécutable n'est conservé. Un vrai kernel d'attention multi-requêtes reste
+  distinct de ce palier, mais n'est justifié qu'après un profil attention isolé.
+
+### OPT-2026-09-20-RUST-PERF-98 — résiduel et RMSNorm compacts du vérificateur — rejeté
+
+- Source : palier minimal du ticket 17 du rapport. Chaque couche applique
+  actuellement deux RMSNorm et les additions résiduelles sur six petits
+  tenseurs séparés, avec slices et concaténations autour des blocs déjà
+  batchés.
+- Hypothèse : concaténer les six lignes une fois par couche, appliquer
+  RMSNorm/résidu sur `[1,M,H]`, puis ne redécouper qu'à la frontière MoE
+  conserve exactement la réduction sur la dernière dimension et supprime des
+  dispatchs MLX. Ce premier palier évite un refactor complet des interfaces.
+- Baseline fraîche : greedy **50,630 tok/s**, DFlash **72,974 tok/s**,
+  **1,441×**, target 0,517–0,523 s, draft 0,124–0,125 s, 39/45 acceptés.
+  Protocole : différentiel physique largeurs 1..8, E2E exact, puis trois
+  alternances de 48 tokens et A/B/B/A si le candidat dépasse le bruit. Rejet
+  au premier écart de logits/états. Statut : **en cours**, journalisé avant
+  code.
+- Exactitude : les largeurs 1..8 et les trois sorties E2E restent strictement
+  identiques au chemin token-major.
+- Mesure : **73,067 tok/s** médians, target 0,516–0,524 s, contre
+  **72,974 tok/s** et 0,517–0,523 s juste avant. L'écart de 0,13 % est du
+  bruit et ne réduit pas le goulot target.
+- Décision : **rejeté** ; les petits tenseurs sont restaurés et aucun code
+  exécutable n'est conservé. Le refactor compact complet n'est pas justifié
+  par ce premier palier mesuré.
+
+### OPT-2026-09-20-RUST-PERF-99 — préparation Metal directe des routes MoE — validé
+
+- Source : ticket 8 du rapport. Le petit-M construit aujourd'hui `x_gu` par
+  broadcast/reshape, rassemble `gu_suh`, multiplie en FP16 puis lance le
+  Hadamard avant chaque gate/up expert.
+- Hypothèse : un kernel Metal produit directement les deux lignes transformées
+  de chaque route depuis `x`, `selected` et `gu_suh`, avec exactement les
+  arrondis Hadamard radix-16/radix-8 déjà utilisés par le chemin segmenté.
+  Cela remplace plusieurs opérations MLX dans chaque couche MoE M=1..8 sans
+  modifier le kernel EXL3 ni l'ordre de réduction des experts.
+- Baseline : greedy **50,630 tok/s**, DFlash **72,974 tok/s**, **1,441×**,
+  target 0,517–0,523 s. Protocole : différentiel direct de la préparation puis
+  logits/80 états pour M=1..8, trois alternances E2E et A/B/B/A si positif.
+  Rejet au premier bit différent ou sans gain reproductible. Statut : **en
+  cours**, journalisé avant code.
+- Contrôle préliminaire : le kernel direct reproduit bit à bit la chaîne MLX
+  indépendante sur 3 lignes, 2 routes, 5 experts et 256 dimensions ; les
+  largeurs de vérification 1..8 restent exactes. Une première exécution E2E
+  isolée donne **73,578 tok/s**, target 0,513–0,522 s, contre 72,974 tok/s,
+  mais ce petit écart n'est pas encore validé.
+- Incident de protocole : la tentative A/B/B/A a lancé quatre commandes cargo
+  en sessions longues simultanées au lieu de les attendre séquentiellement,
+  chargeant quatre fois le Qwen 35B et saturant la RAM unifiée. Les huit PID
+  cargo/test ont été arrêtés immédiatement ; aucune mesure de cette campagne
+  parallèle n'est valide ni conservée.
+- État : **interrompu à la demande de l'utilisateur**, prototype local non
+  publié. La reprise devra exécuter strictement un seul processus de benchmark
+  à la fois et vérifier le PID précédent avant l'alternance suivante.
+- Reprise séquentielle A/B/B/A, deux répétitions par processus et contrôle
+  d'absence du PID précédent avant chaque lancement : ancien chemin
+  **73,264 / 74,234 tok/s**, kernel direct **74,684 / 74,760 tok/s**. Les
+  médianes des quatre mesures passent de **73,749** à **74,722 tok/s
+  (+1,32 %)** ; target passe globalement de 0,511–0,517 s à 0,506–0,508 s.
+  Le greedy profite aussi de la préparation générale, donc ce gain absolu ne
+  porte pas à lui seul le ratio DFlash à 1,5×.
+- Décision : **validé**. Le commutateur A/B et l'ancien assemblage sont
+  retirés ; le chemin petit-M utilise le kernel direct. Confirmation de
+  production, contrôles complets et publication requis.
+- Confirmation de production après retrait du commutateur, un seul processus
+  et trois alternances : greedy médian **51,896 tok/s**, DFlash médian
+  **74,645 tok/s**, soit **1,438× (+43,8 %)** ; target 0,507–0,508 s, draft
+  0,122–0,123 s, 39/45 acceptés et trois sorties exactes. Par rapport au
+  73,055 tok/s de PERF-93, le débit DFlash absolu gagne **2,18 %** ; le ratio
+  baisse parce que le même kernel accélère davantage le greedy M=1.
+- Contrôles finaux réussis : `git diff --check`, format Rust, Clippy strict
+  tous targets/features, **23 tests lib + 14 contrats**, build release MLX/chat,
+  différentiel Metal indépendant M=1/M=6 top-8, largeurs physiques 1..8 et
+  trois passages E2E exacts. Kani 0.68 / CBMC 6.11 termine sans échec sur les
+  harnesses Rust existants ; il ne couvre pas le shader Metal, dont l'égalité
+  est un contrôle différentiel fini et non une preuve formelle non bornée.
+  Statut : **validé, intégré et prêt à publier**.
