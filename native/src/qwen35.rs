@@ -141,9 +141,13 @@ impl Moe {
     }
 
     fn routed(&self, x: &Array) -> Result<Array> {
-        let probabilities = self.gate.forward(x)?.softmax_precise()?;
-        let (selected, scores) = router::topk(&probabilities, self.top_k, true)?;
+        let (selected, scores) = self.routes(x)?;
         self.experts.forward(x, &selected, &scores)
+    }
+
+    fn routes(&self, x: &Array) -> Result<(Array, Array)> {
+        let probabilities = self.gate.forward(x)?.softmax_precise()?;
+        router::topk(&probabilities, self.top_k, true)
     }
 
     fn shared(&self, x: &Array) -> Result<Array> {
@@ -233,15 +237,26 @@ impl Mlp {
         let rows = i32::try_from(values.len())?;
         let batch =
             Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?.reshape(&[rows, hidden])?;
-        let shared = mlp.shared(&batch)?;
-        values
+        let routes = values
             .iter()
-            .enumerate()
-            .map(|(row, value)| {
-                mlp.routed(&value.reshape(&[1, hidden])?)?
-                    .add(&shared.slice(0, row as i32, row as i32 + 1)?)?
-                    .reshape(&[1, 1, hidden])
-            })
+            .map(|value| mlp.routes(&value.reshape(&[1, hidden])?))
+            .collect::<Result<Vec<_>>>()?;
+        let selected = Array::concatenate(
+            &routes
+                .iter()
+                .map(|(selected, _)| selected)
+                .collect::<Vec<_>>(),
+            0,
+        )?;
+        let scores = Array::concatenate(
+            &routes.iter().map(|(_, scores)| scores).collect::<Vec<_>>(),
+            0,
+        )?;
+        let routed = mlp.experts.forward(&batch, &selected, &scores)?;
+        let shared = mlp.shared(&batch)?;
+        let output = routed.add(&shared)?;
+        (0..rows)
+            .map(|row| output.slice(0, row, row + 1)?.reshape(&[1, 1, hidden]))
             .collect()
     }
 }

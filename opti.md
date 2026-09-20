@@ -4366,3 +4366,26 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   multi-lignes change donc l'arithmétique ou les routes à cette largeur. Aucun
   timing n'est retenu ; gate, top-k et experts sparse reviennent entièrement
   en M=1, tandis que l'expert partagé PERF-55 reste intégré.
+
+### OPT-2026-09-20-RUST-PERF-57 — Experts sparse batchés, routes M=1 — en cours
+
+- Diagnostic PERF-56 : la gate Qwen est une matrice dense FP16 ; son matmul
+  M=8 peut choisir un GEMM dont l'arrondi diffère du GEMV M=1. Pour isoler le
+  calcul coûteux, produire gate/softmax/top-k séparément pour chaque ligne,
+  concaténer ces routes exactes, puis exécuter uniquement `Exl3SwitchGlu` sur
+  les huit lignes. L'expert partagé reste celui de PERF-55.
+- Baseline : PERF-55 **94,658–98,081 ms** médian. Protocole : logits et 80
+  états octet par octet pour M=1/2/4/8, puis deux séries ABBA. Cet essai est
+  rejeté si le kernel expert multi-lignes change un seul résultat. Statut :
+  **en cours**, journalisé avant code.
+- Exactitude physique M=1/2/4/8 : tous les logits FP16 et les 80 états restent
+  identiques octet par octet. Deux séries ABBA M=8 donnent **86,274 ms**
+  (85,245–99,513) contre 138,620 ms, puis **86,132 ms** (85,483–86,212) contre
+  139,159 ms, soit **1,61–1,62×** face au token-major. Par rapport à PERF-55,
+  le batch sparse exact apporte encore environ **1,10–1,14×**. Statut :
+  **validé**.
+- Contrôles finaux : format, Clippy strict, 23 tests lib, 1 test CLI,
+  14 contrats et build release MLX/chat réussissent. Kani 0.68 / CBMC 6.11
+  vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures ; MLX/Metal reste
+  hors de sa portée et est vérifié ici par les différentiels physiques exacts.
+  Statut : **validé et intégré**, prêt à publier.
