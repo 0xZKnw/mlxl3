@@ -5461,3 +5461,66 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   couvre pas le shader Metal ; l'égalité GPU est un contrôle différentiel borné,
   pas une preuve formelle non bornée. Statut : **validé, intégré et prêt à
   publier**.
+
+### OPT-2026-09-20-RUST-PERF-94 — mutualisation des routes par expert — diagnostic terminé
+
+- Source : ticket 15 de `MLXL3_Audit_Decode_28_Optimisations.md`. Pour six
+  lignes et top-8, le chemin vérifie 48 routes et `expert_mapped` redécode les
+  poids séparément pour chaque route, même quand plusieurs lignes partagent le
+  même expert.
+- Hypothèse : si le recouvrement des routes adjacentes est élevé, regrouper les
+  lignes par expert permet un micro-tile analogue à PERF-93 pour gate/up/down.
+- Baseline : PERF-93 **73,055 tok/s**, target 0,518–0,521 s. Protocole : relever
+  sur GPU, sans timing, nombre d'experts distincts, multiplicité moyenne/max et
+  histogramme sur chaque couche M=6 ; n'implémenter un tri/gather que si le
+  travail partagé dépasse clairement son coût. Instrumentation retirée avant
+  toute mesure de débit. Statut : **diagnostic en cours**, journalisé avant code.
+- Résultat sur 160 appels/couches M=6 : **29,29 experts distincts** en moyenne
+  pour 48 routes, **29,75 routes** appartiennent à un expert répété, soit
+  **13,29 paires partageables** par couche. Multiplicité maximale moyenne 4,33,
+  maximum observé 6.
+- Décision : le recouvrement est suffisant pour tester le regroupement #15.
+  L'instrumentation et sa synchronisation CPU sont retirées ; aucun débit de
+  cette passe diagnostique n'est retenu. Statut : **diagnostic terminé**.
+
+### OPT-2026-09-20-RUST-PERF-95 — chemin expert segmenté à M=6 — rejeté
+
+- Hypothèse : le plan GPU `route_plan` et le QMM segmenté déjà utilisés au
+  préfill peuvent mutualiser les poids des ~13 paires par couche sans ajouter
+  immédiatement un second kernel. C'est le premier palier minimal du ticket 15.
+- Baseline : PERF-93 **73,055 tok/s**, target 0,518–0,521 s. Protocole : activer
+  le chemin segmenté existant uniquement à M=6, vérifier logits/états et sortie
+  E2E exacts, puis A/B. Le rejeter si le padding BM32 des ~29 experts coûte plus
+  que la réutilisation ; dans ce cas seulement, passer à un micro-kernel MB=2.
+  Statut : **en cours**, journalisé avant code.
+- Exactitude bornée : les logits des largeurs 1..8 restent identiques au chemin
+  token-major et la séquence E2E reste lossless. Cependant, les captures changent
+  assez pour ramener l'acceptation de 39/45 à 38/50 dans cette campagne.
+- Performance : **42,946 tok/s** contre 73,055 tok/s en baseline, target
+  **0,958 s** contre 0,518–0,521 s. Le padding BM32 de ~29 segments distincts
+  domine très largement la mutualisation.
+- Décision : **rejeté** ; seuil et chemin préfill reviennent inchangés. Le #15
+  exige bien un micro-kernel MB=2 sans padding BM32. Aucun code exécutable de
+  cet essai n'est conservé.
+
+### OPT-2026-09-20-RUST-PERF-96 — experts groupés par paires MB=2 — rejeté
+
+- Hypothèse : trier les 48 routes sur GPU avec le `route_plan` existant, puis
+  traiter chaque segment expert par paires dans un QMV dédié partage le décodage
+  des poids sans le padding BM32 rejeté par PERF-95. Les accumulateurs et FMA
+  restent indépendants et dans l'ordre original pour chaque route.
+- Baseline : PERF-93 **73,055 tok/s**, target 0,518–0,521 s ; PERF-94 mesure
+  13,29 paires partageables/couche. Protocole : différentiel complet logits et
+  états M=6/8 contre le chemin route-major, E2E exact, puis A/B/B/A. Rejeter au
+  premier bit différent ou si tri/gather et pression registres annulent le gain.
+  Statut : **en cours**, journalisé avant code.
+- Exactitude : le différentiel des largeurs 1..8 et l'E2E restent lossless,
+  avec 39/45 propositions acceptées pour le micro-kernel MB=2.
+- Performance : NT=2 atteint seulement **61,286 tok/s**, target 0,638–0,641 s.
+  NT=4 augmente la pression registres et tombe à **49,887 tok/s**, target
+  0,816–0,824 s, contre 73,055 tok/s et 0,518–0,521 s pour PERF-93.
+- Décision : **rejeté**. Malgré 13,29 paires théoriques, tri/gather, dispatchs
+  clairsemés et occupation réduite coûtent plus que le décodage de poids évité.
+  Le kernel, la route expérimentale et le changement de plan sont intégralement
+  retirés. Le ticket 15 est donc testé mais non intégré ; aucun gain n'est
+  revendiqué.
