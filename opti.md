@@ -5870,3 +5870,53 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   harness concerné). Kani couvre les propriétés Rust bornées existantes ; la
   garde Metal de la ligne impaire est couverte par les différentiels physiques
   finis M=1..8, pas par une preuve exhaustive du shader.
+
+### OPT-2026-09-20-RUST-PERF-108 — partage MB=2 des projections EXL3 groupées — validé
+
+- Source : ticket D01 de
+  `MLXL3_Decode_50_Upgrades_Priorises_2026-09-20.md`, placé avant D23/D09/D04
+  dans l'ordre d'attaque confirmé. Le QMV standard partage déjà le décodage
+  des poids entre deux lignes, mais `Exl3Group::forward_qmv_batch` soumet encore
+  une ligne par groupe Y avec `MLXL3_BATCH_ROWS=1`.
+- Hypothèse : sur le chemin groupé `IDENTITY_MAP=1`, MB=2 peut réutiliser chaque
+  tuile de treillis pour deux activations indépendantes sans toucher aux maps
+  d'experts. Les `suh` restent appliqués avant le kernel ; le shader ne partage
+  que les poids et garde deux ensembles d'accumulateurs.
+- Baseline production après PERF-107 : greedy médian **45,158 tok/s**, DFlash
+  médian **65,463 tok/s**, draft 0,129–0,133 s, target 0,585–0,588 s, 39/45
+  propositions exactes. Protocole prévu : bundle QKV/Z réel M=6 puis largeur
+  M=8, comparaison bit-à-bit contre les projections série, microbenchmark
+  apparié MB=1/MB=2 et A/B E2E strict, un seul processus modèle à la fois.
+  Rejet immédiat au premier écart numérique ou sans gain reproductible.
+- Exactitude : le bundle réel `linear_attn.in_proj_qkv` + `in_proj_z` de la
+  couche 0 passe bit-à-bit contre les deux projections série pour M=6 et M=8.
+  Les quatre générations complètes gardent 39/45 propositions et exactement
+  la même séquence greedy.
+- Microbenchmark bundle M=8, A/B/B/A séquentiel, cinq appels évalués par
+  processus après deux warmups : MB=2 **0,646 / 0,716 ms**, MB=1
+  **0,909 / 0,946 ms**. Les médianes de variante passent de **0,928** à
+  **0,681 ms (−26,5 %, 1,36×)**. Le temps des projections série, donné seulement
+  comme repère, variait de 1,337 à 1,473 ms.
+- E2E DFlash, 48 tokens, cinq propositions, deux répétitions par processus,
+  A/B/B/A strict : MB=2 **66,352 / 67,221 / 67,593 / 67,049 tok/s** ; MB=1
+  **64,647 / 64,655 / 64,344 / 65,616 tok/s**. Les médianes supérieures des
+  quatre passages sont **67,221 contre 64,655 tok/s, soit +3,97 %**. Le temps
+  target baisse de 0,588–0,598 s à 0,565–0,577 s hors un premier passage à
+  0,570 s ; draft et commit restent comparables.
+- Décision : **validé et intégré localement** pour M=6/8 sur le seul chemin
+  groupé `IDENTITY_MAP=1`. Le mapping d'experts n'est pas modifié. Le
+  commutateur A/B temporaire a été retiré.
+- Confirmation production après retrait du commutateur, trois répétitions :
+  greedy médian **44,856 tok/s**, DFlash médian **67,792 tok/s (1,511×)**,
+  target 0,562–0,566 s, draft 0,129 s, 39/45 propositions et trois séquences
+  exactes. Face à la confirmation PERF-107 à 65,463 tok/s, le débit observé
+  monte de **3,56 %** ; l'attribution causale reste fondée sur l'A/B/B/A à
+  +3,97 %. Cette série chaude ne remplace pas les anciens records absolus de
+  73–75 tok/s mesurés sous un autre régime machine ; elle valide le delta
+  adjacent, pas un nouveau plafond absolu.
+- Contrôles finaux réussis : `cargo fmt --all -- --check`, `git diff --check`,
+  Clippy strict tous targets/features, 23 tests lib + 1 test CLI + 14 contrats,
+  build release, oracle GPU M=6/8, et Kani 0.68.0 / CBMC 6.11.0 (**17/17
+  harnesses, 0 échec**). Kani borne les propriétés Rust existantes ; le shader
+  Metal est validé par les différentiels physiques finis, pas prouvé
+  exhaustivement.

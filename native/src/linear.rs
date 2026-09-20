@@ -763,7 +763,7 @@ impl Exl3Group {
             .reshape(&[-1])?;
         let tiles = self.cols / 16;
         let splits = split_count(self.rows / 16, tiles);
-        let nt = if tiles >= 1024 {
+        let mut nt = if tiles >= 1024 {
             if tiles % 2 == 0 { 2 } else { 1 }
         } else if tiles % 4 == 0 {
             4
@@ -772,9 +772,13 @@ impl Exl3Group {
         } else {
             1
         };
+        let mb = if matches!(matrix_rows, 6 | 8) { 2 } else { 1 };
+        if mb == 2 {
+            nt = nt.min(2);
+        }
         let header = codebook_header(self.cb)
             + &format!(
-                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 1\n#define GROUPS {groups}\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
+                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 1\n#define GROUPS {groups}\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
                 sg = self.simdgroups,
                 k = self.k,
                 cb = self.cb as u32,
@@ -786,8 +790,8 @@ impl Exl3Group {
         let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
         let partials = array::metal_kernel(
             &format!(
-                "mlxl3_rs_grouped_batch_{}_{}_{}_{}_{}_{}_{}",
-                self.rows, self.cols, self.k, self.cb as u32, nt, self.simdgroups, splits,
+                "mlxl3_rs_grouped_batch_{}_{}_{}_{}_{}_{}_{}_{}",
+                self.rows, self.cols, self.k, self.cb as u32, nt, mb, self.simdgroups, splits,
             ),
             &["xhat", "trellis", "tile_map", "tile_sub"],
             &["yhat"],
@@ -800,7 +804,7 @@ impl Exl3Group {
                 (tiles / nt)
                     .checked_mul(self.simdgroups * 32)
                     .context("grouped batch grid overflow")?,
-                matrix_rows,
+                matrix_rows / mb,
                 splits,
             ],
             [self.simdgroups * 32, 1, 1],
@@ -1099,7 +1103,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires local Qwen checkpoint and Apple M5 GPU"]
-    fn batch_grouped_qmv_eight_rows_matches_serial() -> Result<()> {
+    fn batch_grouped_qmv_shared_rows_match_serial() -> Result<()> {
         let checkpoint =
             crate::checkpoint::inspect(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
         let group = Exl3Group::new(vec![
@@ -1112,19 +1116,26 @@ mod tests {
                 "model.language_model.layers.0.linear_attn.in_proj_z",
             )?,
         ])?;
-        let values = (0..8 * group.rows)
+        for matrix_rows in [6, 8] {
+            let values = (0..matrix_rows * group.rows)
+                .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
+                .collect::<Vec<_>>();
+            let x = Array::from_f16_bits(&values, &[matrix_rows, group.rows])?;
+            let expected = serial_group_rows(&group, &x)?;
+            let actual = group.forward(&x)?;
+            for (index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+                assert_eq!(
+                    left.to_f16_bits()?,
+                    right.to_f16_bits()?,
+                    "grouped batch M={matrix_rows} output {index} differs"
+                );
+            }
+        }
+        let matrix_rows = 8;
+        let values = (0..matrix_rows * group.rows)
             .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
             .collect::<Vec<_>>();
-        let x = Array::from_f16_bits(&values, &[8, group.rows])?;
-        let expected = serial_group_rows(&group, &x)?;
-        let actual = group.forward(&x)?;
-        for (index, (left, right)) in expected.iter().zip(&actual).enumerate() {
-            assert_eq!(
-                left.to_f16_bits()?,
-                right.to_f16_bits()?,
-                "grouped batch output {index} differs"
-            );
-        }
+        let x = Array::from_f16_bits(&values, &[matrix_rows, group.rows])?;
         for _ in 0..2 {
             for value in serial_group_rows(&group, &x)? {
                 value.eval()?;
