@@ -601,36 +601,41 @@ impl DFlashWeights {
         use crate::array::{self, Array, Dtype};
 
         ensure!(
-            logits.shape() == [8, VOCABULARY as i32]
+            logits.shape().len() == 2
+                && (1..=7).contains(&logits.shape()[0])
+                && logits.shape()[1] == VOCABULARY as i32
                 && selector.shape() == [8, SELECTOR as i32]
                 && anchor < VOCABULARY as u32,
             "invalid DFlash selector input"
         );
+        let positions = logits.shape()[0];
         let logits = logits.astype(Dtype::BFloat16)?;
-        let selector = selector.astype(Dtype::BFloat16)?;
+        let selector = selector
+            .slice(0, 1, positions + 1)?
+            .astype(Dtype::BFloat16)?;
         let header = format!(
-            "#define DFLASH_VOCABULARY {}u\n#define DFLASH_EDGE_SCALE 0.25f\n{}",
+            "#define DFLASH_VOCABULARY {}u\n#define DFLASH_POSITIONS {positions}u\n#define DFLASH_EDGE_SCALE 0.25f\n{}",
             VOCABULARY,
             include_str!("../shaders/dflash_select.h")
         );
         let stage = |value| format!("#define DFLASH_STAGE {value}\n{header}");
         let mut partial = array::metal_kernel(
-            "mlxl3_dflash_select_top16_v1",
+            &format!("mlxl3_dflash_select_top16_p{positions}_v2"),
             &["logits"],
             &["partial_ids", "partial_values"],
             &stage(1),
             include_str!("../shaders/dflash_select.metal"),
             &[&logits],
-            &[vec![7 * 8, 16], vec![7 * 8, 16]],
+            &[vec![positions * 8, 16], vec![positions * 8, 16]],
             &[Dtype::UInt32, Dtype::Float32],
-            [7 * 8 * 256, 1, 1],
+            [positions * 8 * 256, 1, 1],
             [256, 1, 1],
         )?;
         let partial_values = partial.pop().expect("two selector outputs");
         let partial_ids = partial.pop().expect("two selector outputs");
         let anchor = Array::from_u32(&[anchor], &[1])?;
         let mut scored = array::metal_kernel(
-            "mlxl3_dflash_select_edges_v1",
+            &format!("mlxl3_dflash_select_edges_p{positions}_v2"),
             &[
                 "partial_ids",
                 "partial_values",
@@ -650,22 +655,26 @@ impl DFlashWeights {
                 &self.successor_codebook,
                 &anchor,
             ],
-            &[vec![7, 16], vec![7, 16], vec![7, 16, 16]],
+            &[
+                vec![positions, 16],
+                vec![positions, 16],
+                vec![positions, 16, 16],
+            ],
             &[Dtype::UInt32, Dtype::BFloat16, Dtype::Float32],
-            [7 * 256, 1, 1],
+            [positions * 256, 1, 1],
             [256, 1, 1],
         )?;
         let edges = scored.pop().expect("three selector outputs");
         let unary = scored.pop().expect("three selector outputs");
         let candidates = scored.pop().expect("three selector outputs");
         let tokens = array::metal_kernel(
-            "mlxl3_dflash_select_greedy_quarter_edges_v1",
+            &format!("mlxl3_dflash_select_greedy_p{positions}_v2"),
             &["candidates", "unary", "edges"],
             &["tokens"],
             &stage(3),
             include_str!("../shaders/dflash_select.metal"),
             &[&candidates, &unary, &edges],
-            &[vec![7]],
+            &[vec![positions]],
             &[Dtype::UInt32],
             [1, 1, 1],
             [1, 1, 1],
@@ -1263,9 +1272,8 @@ mod tests {
                 let draft_started = Instant::now();
                 let input = target.dflash_input(anchor, MASK)?;
                 let output = draft.forward_hidden(&input, &cache, target.offset())?;
-                let draft_logits = target.dflash_logits(&output.hidden)?;
+                let draft_logits = target.dflash_logits(&output.hidden, proposal_count)?;
                 let proposals = draft.select_greedy(&draft_logits, &output.selector, anchor)?;
-                let proposals = &proposals[..proposal_count];
                 draft_time += draft_started.elapsed();
 
                 let verify = std::iter::once(anchor)

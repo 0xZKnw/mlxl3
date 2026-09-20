@@ -1032,12 +1032,14 @@ impl Qwen35Moe {
             .astype(Dtype::BFloat16)
     }
 
-    pub fn dflash_logits(&self, hidden: &Array) -> Result<Array> {
+    pub fn dflash_logits(&self, hidden: &Array, positions: usize) -> Result<Array> {
         ensure!(
-            hidden.shape() == [8, 2048],
+            hidden.shape() == [8, 2048] && (1..=7).contains(&positions),
             "DFlash head expects eight hidden rows"
         );
-        self.head.forward(&hidden.astype(Dtype::Float16)?)
+        let end = i32::try_from(positions)? + 1;
+        self.head
+            .forward(&hidden.slice(0, 1, end)?.astype(Dtype::Float16)?)
     }
 
     fn run(&mut self, token: u32, trace: bool) -> Result<(Array, Vec<Vec<u16>>)> {
@@ -1890,6 +1892,21 @@ mod tests {
                 "verification state differs at M={width}"
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn dflash_limited_head_matches_full_rows() -> Result<()> {
+        let model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let hidden = model.dflash_input(1, 2)?;
+        let limited = model.dflash_logits(&hidden, 5)?.to_f16_bits()?;
+        let full = model
+            .head
+            .forward(&hidden.astype(Dtype::Float16)?)?
+            .slice(0, 1, 6)?
+            .to_f16_bits()?;
+        assert_eq!(limited, full);
         Ok(())
     }
 

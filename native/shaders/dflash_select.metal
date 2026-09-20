@@ -3,7 +3,7 @@ constexpr uint K = 16, Shards = 8, VectorTokens = 8, ChunkVectors = 16;
 uint group = threadgroup_position_in_grid.x;
 uint position = group / Shards;
 uint shard = group % Shards;
-ulong row_start = ulong(position + 1) * DFLASH_VOCABULARY;
+ulong row_start = ulong(position) * DFLASH_VOCABULARY;
 uint shard_tokens = (DFLASH_VOCABULARY + Shards - 1) / Shards;
 uint begin = min(shard * shard_tokens, DFLASH_VOCABULARY);
 uint end = min(begin + shard_tokens, DFLASH_VOCABULARY);
@@ -144,7 +144,7 @@ threadgroup_barrier(mem_flags::mem_threadgroup);
 constexpr uint TaskCandidates = 8, Dims = Rank / 32;
 uint tasks = (position > 0 ? Candidates : 1) *
              (Candidates / TaskCandidates);
-device const bfloat *row_hidden = selector + ulong(position + 1) * Rank;
+device const bfloat *row_hidden = selector + ulong(position) * Rank;
 for (uint task = simdgroup_index_in_threadgroup; task < tasks; task += 8) {
   uint predecessor_index = task / (Candidates / TaskCandidates);
   uint first_candidate = task % (Candidates / TaskCandidates) * TaskCandidates;
@@ -177,7 +177,7 @@ for (uint task = simdgroup_index_in_threadgroup; task < tasks; task += 8) {
 }
 #elif DFLASH_STAGE == 3
 uint predecessor_index = 0;
-for (uint position = 0; position < 7; ++position) {
+for (uint position = 0; position < DFLASH_POSITIONS; ++position) {
   uint selected = 0;
   for (uint candidate = 1; candidate < 16; ++candidate) {
     float score = float(unary[position * 16 + candidate]) +

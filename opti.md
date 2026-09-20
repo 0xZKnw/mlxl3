@@ -5109,3 +5109,260 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   le caractère lossless du chemin GPU est contrôlé par le différentiel physique
   et ne constitue pas une preuve formelle non bornée. Statut : **validé, intégré
   et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-80 — largeur verify après calibration — rejeté
+
+- Observation : PERF-73 avait retenu cinq propositions avec le poids de
+  transition 1. PERF-79 augmente l'acceptation à 86,7 % et peut déplacer
+  l'optimum entre coût target par bloc et nombre de blocs.
+- Hypothèse : une largeur de six ou sept propositions amortit mieux les neuf
+  vérifications restantes et rapproche le débit de 1,5×, sans aucun changement
+  de correction puisque le target vérifie toujours tout le bloc.
+- Baseline : N=5, poids 0,25, **63,716 tok/s** froid / **52,451 tok/s** chaud,
+  neuf blocs, 86,7 % acceptés et speedup **1,342× / 1,338×**. Protocole : balayage
+  N=1..7 sur 48 tokens, puis trois alternances exactes du meilleur candidat.
+  Rejeter toute largeur qui augmente les blocs ou n'améliore pas le ratio face
+  au greedy du même passage. Statut : **en cours**, journalisé avant mesure.
+- Balayage exact, un passage par largeur : N=1 **0,861×**, N=2 **1,060×**,
+  N=3 **1,128×**, N=4 **1,255×**, N=5 **1,347×**, N=6 **1,108×** et N=7
+  **1,137×**. N=5 conserve neuf blocs et 86,7 % ; N=6/7 tombent à
+  63,3/61,9 % et augmentent fortement le temps target.
+- Décision : **rejeté**, l'optimum N=5 de PERF-73 reste inchangé. Aucun code
+  exécutable ni défaut de correction ; seul ce résultat négatif est conservé.
+
+### OPT-2026-09-20-RUST-PERF-81 — calibration de transition par position — rejeté
+
+- Observation : le poids global 0,25 enlève une vérification mais laisse six
+  propositions rejetées sur 45. Le sélecteur produit sept positions avec des
+  distributions différentes ; un poids unique peut corriger un rang tout en
+  dégradant un autre.
+- Hypothèse : identifier les rangs de première divergence puis calibrer le
+  coefficient seulement à ces positions augmente l'acceptation jusqu'à huit
+  blocs sans changer le coût du sélecteur ni la correction lossless.
+- Baseline : PERF-79, N=5, **39/45 (86,7 %)**, neuf blocs, **1,342×** froid.
+  Protocole : instrumenter temporairement le test E2E pour relever le rang de
+  chaque première divergence, balayer uniquement les positions concernées,
+  puis confirmer toute combinaison gagnante sur trois alternances exactes.
+  Retirer toute instrumentation et rejeter si neuf blocs restent nécessaires.
+  Statut : **en cours**, journalisé avant code.
+- Diagnostic : la trace d'acceptation est stable à
+  `[5,5,5,5,0,5,4,5,5]`. Les coefficients des positions 0 puis 4, balayés
+  séparément sur `{0; 0,1; 0,25; 0,5; 0,75; 1; 1,5; 2}`, ne changent aucun
+  token, aucun rang de divergence et aucun nombre de blocs.
+- Décision : **rejeté**. Le tableau de poids et la trace temporaire sont retirés ;
+  la constante globale 0,25 de PERF-79 reste en production. Le résultat suggère
+  que les cibles divergentes ne figurent pas dans les 16 candidats, ou que leur
+  score reste dominé sur toute la plage mesurée.
+
+### OPT-2026-09-20-RUST-PERF-82 — top-32 du sélecteur DFlash — rejeté
+
+- Observation : PERF-81 montre qu'aucun poids raisonnable ne corrige les deux
+  divergences du top-16. Le sélecteur lit déjà tout le vocabulaire ; conserver
+  32 candidats augmente seulement les petits buffers/edges du sélecteur, pas le
+  draft ni la vérification target.
+- Hypothèse : inclure les candidats classés 17–32 permet au score de transition
+  de récupérer au moins la divergence de rang 0 et de passer de neuf à huit
+  blocs. Une vérification économisée (~60–70 ms) doit largement couvrir le
+  surcoût du sélecteur.
+- Baseline : top-16, N=5, **39/45 (86,7 %)**, neuf blocs, **1,342×** froid.
+  Protocole : élargir uniquement K/Candidates 16→32, vérifier la sortie target
+  exacte, mesurer trois alternances de 48 tokens et rejeter sans réduction des
+  blocs ou gain de débit reproductible. Statut : **en cours**, journalisé avant
+  code.
+- Résultat E2E exact : **39/45 (86,7 %)**, neuf blocs et 63,483 tok/s sur le
+  passage exploratoire, contre 65,078 tok/s pour top-16 dans la même campagne.
+  Aucun token supplémentaire n'est accepté et le petit surcoût ne produit
+  aucun gain réel.
+- Décision : **rejeté**. Buffers, boucles, helpers et clés Metal reviennent à
+  top-16 ; aucune modification exécutable de cet essai n'est conservée.
+
+### OPT-2026-09-20-RUST-PERF-83 — profil target DFlash exact M=6 — diagnostic
+
+- Objectif : localiser le coût des neuf vérifications restantes après PERF-79.
+  Les profils M=8 de PERF-62 datent d'avant plusieurs kernels et ne séparent pas
+  la matérialisation des huit captures DFlash.
+- Protocole : instrumentation temporaire sur le modèle physique, six tokens et
+  contexte identique, avec synchronisation après corps 40 couches+caches,
+  captures et `lm_head`. Sept répétitions ; les barrières servent uniquement à
+  classer les goulots et ne seront pas sommées au débit E2E. Retirer le test
+  après mesure avant toute modification de production. Statut : **diagnostic
+  en cours**, journalisé avant code.
+- Résultat, sept répétitions après warmup : corps 40 couches **50,715 ms** médian
+  `[49,989; 50,486; 50,501; 50,715; 50,784; 50,980; 52,082]`, captures
+  **0,200 ms** et `lm_head` **10,153 ms**. Les captures sont négligeables ; le
+  corps représente ~83 % du temps séparé et reste le seul levier assez gros.
+- Aucun gain revendiqué et aucune somme avec l'E2E, car les barrières changent
+  le graphe. Instrumentation retirée. Statut : **diagnostic terminé**.
+
+### OPT-2026-09-20-RUST-PERF-84 — quatre SIMD-groups expert K=3 — rejeté
+
+- Observation : les experts Qwen de ce checkpoint sont K=3 (trellis
+  `[128,32,48]`) et `expert_mapped` leur attribue huit SIMD-groups par
+  threadgroup. Quatre groupes divisent les threads et la mémoire threadgroup,
+  au prix de deux fois plus d'itérations input par groupe.
+- Hypothèse : sur M5 et M=6, l'occupation gagnée dépasse les itérations
+  supplémentaires et réduit le corps de 50,7 ms ; le même changement peut aussi
+  aider le decode M=1. Aucune arithmétique d'une sortie n'est modifiée.
+- Baseline : PERF-79 **1,342×**, PERF-83 corps **50,715 ms**. Protocole : K=3
+  M5 seulement, différentiel physique exact M=1/2/4/6/8 puis trois alternances
+  E2E. Rejet au premier écart ou sans gain absolu et relatif reproductible.
+  Statut : **en cours**, journalisé avant code.
+- Résultat : le différentiel physique échoue à M=8 sur l'état de vérification
+  exact. Le regroupement différent des réductions change l'arrondi flottant ;
+  l'hypothèse « aucune arithmétique modifiée » était donc fausse au sens bit à
+  bit requis par le chemin lossless. Aucun benchmark de débit n'a été lancé.
+- Décision : **rejeté** au premier écart comme prévu. Le dispatch K=3 revient à
+  huit SIMD-groups et la largeur M=6 temporaire est retirée du test.
+
+### OPT-2026-09-20-RUST-PERF-85 — largeur DFlash adaptative — diagnostic
+
+- Observation : PERF-79 vérifie neuf blocs de six lignes ; huit blocs acceptent
+  cinq propositions et un bloc diverge immédiatement. Cette vérification de six
+  lignes entièrement rejetée est du travail target perdu, mais une heuristique
+  non corrélée au rejet déplacerait seulement ce coût ailleurs.
+- Hypothèse : la marge ou le rang du token target dans les logits draft permet
+  d'identifier le bloc fragile avant vérification et d'y réduire seulement la
+  largeur. Le target vérifie toujours chaque token retenu, donc une éventuelle
+  politique reste lossless ; seul le débit change.
+- Protocole : instrumenter temporairement une génération exacte pour relever,
+  par position et par bloc, rang du token target, rang du choix DFlash et marge
+  top-1/top-2. Aucune métrique de débit avec cette copie CPU diagnostique. Ne
+  modifier la production que si un signal observable *avant* le verify sépare
+  les rejets ; sinon rejeter et retirer l'instrumentation. Statut : **diagnostic
+  en cours**, journalisé avant code.
+- Résultat : le bloc divergent au premier token présente des marges draft
+  `[1,156; 1,172; 3,000; 4,250; 2,359]` et le token target est au rang 3 de
+  la première ligne. Mais un bloc entièrement accepté a des marges encore plus
+  faibles `[0,797; 0,281; 1,211; 0,672; 1,094]`, et un autre bloc accepté finit
+  avec une marge 0,055. Aucun seuil de marge observable avant le verify ne
+  sépare donc le rejet sans raccourcir aussi de bons blocs.
+- Décision : **rejeté**. Aucune largeur adaptative heuristique n'est ajoutée ;
+  la copie CPU diagnostique est retirée et aucun débit de cette passe instrumentée
+  n'est retenu.
+
+### OPT-2026-09-20-RUST-PERF-86 — `lm_head` M=6 avec sortie fusionnée — en cours
+
+- Observation : PERF-83 mesure **10,153 ms** par `lm_head` M=6, soit ~17 % de
+  chaque vérification. Le kernel QMV possède déjà un épilogue Hadamard+échelle
+  exact prévu pour huit tiles, mais le chemin batch écrit actuellement les
+  accumulations FP32 puis relit toute la matrice via plusieurs opérations MLX.
+- Hypothèse : pour le gros head M5, `splits=1`, utiliser NT=8 et l'épilogue
+  existant supprime ces buffers/passes sans changer l'ordre des accumulations ni
+  les arrondis FP16 de l'épilogue. Le changement reste limité au batch M=6 et
+  aux sorties très larges.
+- Baseline : PERF-79 **1,342×**, head M=6 **10,153 ms**. Protocole : activer la
+  fusion uniquement pour M=6, sortie divisible par 128 et >=65 536, exiger les
+  logits FP16 et 80 états strictement identiques M=1/2/4/6/8, puis mesurer le
+  head isolé et trois alternances E2E. Rejet au premier écart ou sans gain
+  reproductible. Statut : **en cours**, journalisé avant code.
+- Exactitude : le différentiel physique M=1/2/4/6/8 conserve tous les logits
+  FP16 et les 80 états octet par octet.
+- Résultat E2E, trois alternances : greedy **49,273 tok/s**, DFlash
+  **62,444 tok/s** (**1,267×**), target **0,598–0,600 s**. La baseline PERF-79
+  donnait 0,571–0,597 s et 1,342× à froid ; la fusion exacte M=6 n'améliore donc
+  pas le coût target et régresse légèrement dans cette série.
+- Décision : **rejeté**. La condition M=6 et sa largeur de test temporaire sont
+  retirées ; aucun gain n'est revendiqué.
+
+### OPT-2026-09-20-RUST-PERF-87 — `lm_head` draft M=8 avec sortie fusionnée — en cours
+
+- Observation : les ~0,152 s de draft sur neuf blocs incluent à chaque bloc la
+  projection du hidden DFlash par le `lm_head` target M=8. PERF-62 mesurait ce
+  head à **13,568 ms** avant NT4 ; même quelques millisecondes économisées neuf
+  fois ont plus d'effet que la fusion M=6 rejetée.
+- Hypothèse : NT=8 + épilogue Hadamard/échelle fusionné, uniquement pour M=8 et
+  les sorties >=65 536, évite les passes globales du head draft et réduit le
+  temps draft tout en gardant exactement les mêmes logits.
+- Protocole : différentiel strict M=1/2/4/8, puis trois alternances E2E ; comparer
+  le temps draft à **0,152–0,162 s** et le speedup apparié à **1,342×**. Rejet
+  au premier écart ou sans baisse reproductible du draft. Statut : **en cours**,
+  journalisé avant code.
+- Exactitude : le différentiel strict M=1/2/4/8 réussit, y compris tous les
+  logits et états M=8.
+- Résultat E2E : draft **0,233–0,244 s**, DFlash **56,582 tok/s** médian et
+  **1,243×** face au greedy apparié, contre 0,152–0,162 s et 1,342× avant.
+  NT=8 augmente fortement la pression registres et annule le bénéfice des
+  passes mémoire supprimées.
+- Décision : **rejeté** ; le QMV M=8 revient à NT4 et l'épilogue embarqué est
+  désactivé. Aucun gain revendiqué.
+
+### OPT-2026-09-20-RUST-PERF-88 — épilogue QMV Metal séparé mais fusionné — en cours
+
+- Observation : PERF-86/87 prouvent que l'épilogue Metal existant reproduit
+  exactement Hadamard+échelle, mais NT=8 ralentit le QMV. Le QMV NT4 rapide peut
+  rester intact et fournir son FP32 à un unique kernel 128 threads au lieu du
+  cast, Hadamard et multiply MLX séparés.
+- Hypothèse : fusionner uniquement ces trois passes réduit les deux `lm_head`
+  M=6/M=8 sans pression registres QMV ni changement arithmétique.
+- Protocole : helper Metal limité aux sorties >=65 536, batch 6/8, `splits=1` ;
+  différentiel strict M=1/2/4/6/8 puis trois alternances E2E. Rejet au premier
+  écart ou sans réduction reproductible de target/draft. Statut : **en cours**,
+  journalisé avant code.
+- Exactitude : différentiel strict M=1/2/4/6/8 réussi.
+- Résultat : première série fusionnée **64,586 tok/s**, target 0,568–0,571 s,
+  puis contrôle apparié B/A/A/B sous dérive thermique : fusion **62,514 / 65,063
+  tok/s**, baseline **63,292 / 62,914 tok/s**. Les temps target/draft se
+  recouvrent également ; l'ordre des variantes explique davantage la mesure
+  que l'épilogue.
+- Décision : **rejeté, non concluant côté débit**. Le helper et le commutateur
+  temporaire sont retirés ; aucun gain n'est poussé.
+
+### OPT-2026-09-20-RUST-PERF-89 — LUT exacte du codebook K=3 sparse — en cours
+
+- Observation : les experts Qwen K=3 dominent le corps target. Pour seulement
+  huit codewords possibles, chaque produit recalcule encore le hash entier,
+  construit deux FP16 et les additionne. Une LUT constante de huit valeurs
+  tient dans 16 octets et élimine ce calcul dans gate/up/down.
+- Hypothèse : indexer les huit bits FP16 pré-calculés par le codec Rust réduit
+  le coût sparse sans changer aucun produit ni ordre de FMA. Le changement
+  profite aussi au decode Qwen ordinaire et à tout expert EXL3 K=3.
+- Protocole : LUT uniquement dans `expert_mapped` K=3 ; différentiel strict du
+  modèle M=1/2/4/8 puis trois alternances E2E. Rejet au premier bit différent
+  ou sans gain reproductible sur target et débit. Statut : **en cours**,
+  journalisé avant code.
+- Résultat : la génération de warmup termine prématurément sur EOS avant tout
+  timing, donc les logits ne sont pas ceux de la baseline. Cause : K=3 encode
+  trois bits de transition du treillis, mais l'état/codeword décodé reste sur
+  16 bits ; le réduire à huit entrées était une hypothèse invalide.
+- Décision : **rejeté immédiatement**, LUT retirée. Le différentiel batch contre
+  token-major n'était pas une preuve suffisante ici car les deux chemins
+  partageaient la même LUT modifiée ; l'E2E a correctement capté la dérive.
+
+### OPT-2026-09-20-RUST-PERF-90 — tête draft limitée aux N positions utiles — validé
+
+- Source : ticket 21 de `MLXL3_Audit_Decode_28_Optimisations.md`, relu et croisé
+  avec PERF-74. PERF-74 limitait seulement les grilles du sélecteur ; il ne
+  supprimait aucune ligne du `lm_head` M=8.
+- Hypothèse : après les six couches bidirectionnelles M=8, projeter uniquement
+  les lignes 1..N+1 par le head target et limiter le selector aux mêmes lignes
+  supprime 3/8 des lignes vocabulaire à N=5, sans changer les cinq propositions.
+- Baseline : PERF-79 draft **0,157–0,162 s**, target **0,571–0,597 s**,
+  DFlash **63,716 tok/s** et **1,342×**. Protocole : comparer les cinq tokens
+  sélectionnés à l'ancien M=8, vérifier l'E2E exact, puis trois alternances et
+  un A/B/B/A si positif. Rejet au premier token différent ou sans baisse du
+  draft. Statut : **en cours**, journalisé avant code.
+- Exactitude : les campagnes gardent **39/45 (86,7 %)** propositions acceptées,
+  neuf blocs et la séquence complète strictement égale au greedy target. Le
+  slice est appliqué après les six couches draft ; leur contexte bidirectionnel
+  M=8 reste donc inchangé.
+- Première série de trois alternances : draft **0,138–0,154 s**, DFlash médian
+  **59,945 tok/s** contre greedy **42,236 tok/s**, soit **1,419×** ; le target
+  varie de 0,595 à 0,682 s sous chauffe, d'où le contrôle dédié.
+- Deuxième A/B/B/A sans recompilation : head N=5 **67,195 / 66,796 tok/s**,
+  draft **0,130 / 0,129 s** ; head M=8 puis slice **63,563 / 64,666 tok/s**,
+  draft **0,157 / 0,155 s**. Le temps draft baisse de **16,8–17,2 %** et le
+  débit livré gagne **3,3–5,7 %** à température entrelacée. Speedup apparié
+  N=5 **1,410× / 1,401×**, contrôle M=8 **1,357× / 1,366×**.
+- Décision : **validé et intégré localement**. Le commutateur A/B est retiré ;
+  le nombre de positions est dérivé de N et inclus dans les clés/shapes Metal.
+  Confirmation finale de production sur trois alternances : greedy médian
+  **47,218 tok/s**, DFlash médian **66,652 tok/s**, soit **1,412× (+41,2 %)**,
+  draft **0,129–0,132 s**, toujours 39/45 acceptés et sortie exacte.
+- Contrôles finaux réussis : `git diff --check`, format Rust, Clippy strict tous
+  targets/features, 23 tests lib, 1 test CLI, 14 contrats, build release
+  MLX/chat, différentiel physique du head limité contre M=8 puis slice, E2E
+  physique exact et rollback sélectif exact pour les largeurs 1 à 8. Kani 0.68
+  / CBMC 6.11 vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures.
+  Kani couvre ici le Rust pur, pas le shader Metal ; ce dernier est contrôlé
+  par les différentiels physiques bornés et n'est pas formellement prouvé.
+  Statut : **validé, intégré et prêt à publier**.
