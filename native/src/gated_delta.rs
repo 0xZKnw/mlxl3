@@ -106,8 +106,8 @@ pub fn step_with_gates(
         .try_into()
         .map_err(|_| anyhow::anyhow!("Gated DeltaNet v must have rank 4"))?;
     ensure!(
-        batch == 1 && time == 1 && v_batch == batch && v_time == time,
-        "fused Gated DeltaNet gates require one decode token"
+        batch == 1 && (1..=8).contains(&time) && v_batch == batch && v_time == time,
+        "fused Gated DeltaNet gates require 1 to 8 tokens"
     );
     ensure!(
         key_dim == 128
@@ -139,10 +139,10 @@ pub fn step_with_gates(
         "invalid fused Gated DeltaNet gate dtypes"
     );
     let header = format!(
-        "#define MLXL3_GDN_FUSED_GATES 1\n#define InT half\n#define StT float\n#define T 1\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n"
+        "#define MLXL3_GDN_FUSED_GATES 1\n#define InT half\n#define StT float\n#define T {time}\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n"
     );
     let mut outputs = array::metal_kernel(
-        &format!("mlxl3_rs_gdn_packed_gates_hk{key_heads}_hv{value_heads}_dv{value_dim}"),
+        &format!("mlxl3_rs_gdn_packed_gates_t{time}_hk{key_heads}_hv{value_heads}_dv{value_dim}"),
         &["q", "k", "v", "a", "b", "a_log", "dt_bias", "state_in"],
         &["y", "state_out"],
         &header,

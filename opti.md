@@ -4752,3 +4752,47 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   portent sur le Rust pur ; la géométrie MLX/Metal est couverte par le
   différentiel exact du modèle réel, pas par une preuve formelle. Statut :
   **validé, intégré et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-70 — séquence GDN exacte en un kernel — validé
+
+- Observation : `GatedDelta::forward_verification` batch déjà ses projections,
+  mais exécute encore huit convolutions mono-token et huit appels récurrents
+  `step_with_gates` par couche. Le shader de production contient pourtant une
+  boucle temporelle `T` et indexe déjà q/k/v/a/b à chaque pas ; seule la garde
+  Rust le limite artificiellement à `T=1`.
+- Hypothèse : produire la convolution causale des huit lignes en une opération,
+  puis appeler le même shader gates fusionnées avec `T<=8`, conserve exactement
+  l'ordre récurrent interne et supprime 14 dispatchs par couche GDN. Les calculs
+  de gate et d'état restent identiques ; aucune spéculation ni approximation.
+- Baseline : PERF-69 **80,339–80,526 ms** M=8 ; diagnostic PERF-64 : bloc GDN
+  **1,208 ms** par couche avec barrières. Protocole : différentiel strict
+  logits + 80 états M=1/2/4/8 avant tout timing, puis deux ABBA si exact et plus
+  rapide. Rejet immédiat au premier écart ; chemins decode M=1 et prefill >8
+  inchangés. Statut : **en cours**, journalisé avant code.
+- Correctif durant l'essai : le premier prototype compilait encore le shader
+  avec `T=1`, alors que les buffers contenaient plusieurs lignes ; M=2 a donc
+  échoué nettement. Le header et la clé de cache Metal incluent désormais le
+  vrai `T`. Après ce correctif de géométrie, le différentiel physique complet
+  M=1/2/4/8 réussit : logits FP16 et 80 états identiques octet par octet.
+- Première ABBA M=8 : série mono-token **81,455 ms** médiane
+  `[79,857; 80,279; 80,711; 81,455; 88,073; 89,369]` contre séquence fusionnée
+  **75,632 ms** `[71,448; 73,194; 75,118; 75,632; 77,829; 81,426]`, soit
+  **1,077×**.
+- Deuxième ABBA M=8 : série mono-token **84,435 ms** médiane
+  `[78,691; 78,705; 81,864; 84,435; 86,234; 90,731]` contre séquence fusionnée
+  **72,540 ms** `[71,769; 71,902; 72,067; 72,540; 77,873; 80,673]`, soit
+  **1,164×**. Chaque passage compare les logits et les 80 états exactement.
+- Décision : **validé et intégré localement** pour la vérification exacte
+  `T<=8`. Le benchmark et le commutateur série temporaires sont retirés. À
+  titre de borne, 72,540 ms de target plus 5,39 ms de draft donneraient
+  **~102,7 tok/s** si les huit propositions étaient toujours acceptées ; ce
+  n'est pas une mesure bout en bout et ne préjuge ni de l'acceptation réelle,
+  ni de l'orchestration/rollback/streaming. Contrôles complets et Kani requis
+  avant publication.
+- Contrôles finaux réussis : format, `git diff --check`, Clippy strict tous
+  targets/features, 23 tests lib, 1 test CLI, 14 contrats, build release
+  MLX/chat et différentiel physique M=1/2/4/8. Kani 0.68 / CBMC 6.11 vérifie
+  **17/17 harnesses**, zéro échec et 2/2 couvertures. Kani couvre le Rust pur ;
+  le shader Metal et la géométrie temporelle sont couverts par le différentiel
+  physique exact, pas par une preuve formelle. Statut : **validé, intégré et
+  prêt à publier**.

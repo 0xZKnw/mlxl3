@@ -1297,58 +1297,50 @@ impl GatedDelta {
             &[f16::from_f32(1.0 / (self.key_dim as f32).sqrt()).to_bits()],
             &[],
         )?;
-        let mut conv_state = match &self.conv_state {
+        let conv_state = match &self.conv_state {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(&[1, self.conv_length - 1, conv_dims], Dtype::Float16)?,
         };
-        let mut recurrent_state = match &self.recurrent_state {
+        let conv_input = Array::concatenate(&[&conv_state, &qkv], 1)?;
+        self.conv_state = Some(conv_input.slice(1, time, time + self.conv_length - 1)?);
+        let conv = conv_input.conv1d(&self.conv_weight, conv_dims)?.silu()?;
+        let q = conv
+            .slice(2, 0, keys)?
+            .reshape(&[1, time, self.key_heads, self.key_dim])?
+            .rms_norm_without_weight(1e-6)?
+            .mul(&q_scale)?;
+        let k = conv
+            .slice(2, keys, 2 * keys)?
+            .reshape(&[1, time, self.key_heads, self.key_dim])?
+            .rms_norm_without_weight(1e-6)?
+            .mul(&k_scale)?;
+        let v = conv.slice(2, 2 * keys, conv_dims)?.reshape(&[
+            1,
+            time,
+            self.value_heads,
+            self.value_dim,
+        ])?;
+        let recurrent_state = match &self.recurrent_state {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(
                 &[1, self.value_heads, self.value_dim, self.key_dim],
                 Dtype::Float32,
             )?,
         };
-        let mut gated = Vec::with_capacity(time as usize);
-        for row in 0..time {
-            let conv_input = Array::concatenate(&[&conv_state, &qkv.slice(1, row, row + 1)?], 1)?;
-            conv_state = conv_input.slice(1, 1, self.conv_length)?;
-            let conv = conv_input.conv1d(&self.conv_weight, conv_dims)?.silu()?;
-            let q = conv
-                .slice(2, 0, keys)?
-                .reshape(&[1, 1, self.key_heads, self.key_dim])?
-                .rms_norm_without_weight(1e-6)?
-                .mul(&q_scale)?;
-            let k = conv
-                .slice(2, keys, 2 * keys)?
-                .reshape(&[1, 1, self.key_heads, self.key_dim])?
-                .rms_norm_without_weight(1e-6)?
-                .mul(&k_scale)?;
-            let v = conv.slice(2, 2 * keys, conv_dims)?.reshape(&[
-                1,
-                1,
-                self.value_heads,
-                self.value_dim,
-            ])?;
-            let (out, state) = gated_delta::step_with_gates(
-                &q,
-                &k,
-                &v,
-                &a.slice(1, row, row + 1)?,
-                &b.slice(1, row, row + 1)?,
-                &self.a_log,
-                &self.dt_bias,
-                &recurrent_state,
-            )?;
-            recurrent_state = state;
-            let normalized = out.rms_norm(&self.norm, self.eps)?;
-            gated.push(z.slice(1, row, row + 1)?.precise_swiglu(&normalized)?);
-        }
-        self.conv_state = Some(conv_state);
+        let (out, recurrent_state) = gated_delta::step_with_gates(
+            &q,
+            &k,
+            &v,
+            &a,
+            &b,
+            &self.a_log,
+            &self.dt_bias,
+            &recurrent_state,
+        )?;
         self.recurrent_state = Some(recurrent_state);
-        self.output.forward(
-            &Array::concatenate(&gated.iter().collect::<Vec<_>>(), 1)?
-                .reshape(&[1, time, values])?,
-        )
+        let normalized = out.rms_norm(&self.norm, self.eps)?;
+        self.output
+            .forward(&z.precise_swiglu(&normalized)?.reshape(&[1, time, values])?)
     }
 
     pub fn trace(&mut self, x: &Array) -> Result<(Array, Vec<Array>)> {
