@@ -5920,3 +5920,69 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   harnesses, 0 échec**). Kani borne les propriétés Rust existantes ; le shader
   Metal est validé par les différentiels physiques finis, pas prouvé
   exhaustivement.
+
+### OPT-2026-09-20-RUST-PERF-109 — préparation GDN conv/SiLU/QK-norm fusionnée — validé
+
+- Source : ticket D23 de
+  `MLXL3_Decode_50_Upgrades_Priorises_2026-09-20.md`, troisième chantier de
+  l'ordre confirmé après D02 et D01. PERF-70 fusionne déjà la boucle récurrente
+  T≤8, mais chaque couche GDN matérialise encore concaténation, conv1d, SiLU,
+  deux slices/reshapes et deux RMSNorm avant cette récurrence.
+- Antécédents : PERF-34 a rejeté convolution + état seule faute de gain E2E,
+  bien que son calcul soit exact ; PERF-37 a rejeté des gates dans un dispatch
+  séparé ; PERF-38/70 montrent qu'une fusion gagne lorsqu'elle retire vraiment
+  plusieurs frontières. Le nouvel essai ne refait donc pas PERF-34 : il fusionne
+  convolution, SiLU et les deux normalisations/scales Q/K en un dispatch, sans
+  inclure les projections EXL3 ni la récurrence.
+- Hypothèse : un SIMDgroup par head et par position peut reproduire le kernel
+  depthwise MLX (accumulation FP32 ordonnée), puis le SiLU FP16 et la réduction
+  RMS canonique à 32 lanes pour Dk=128, tout en produisant directement Q/K/V et
+  le nouvel état convolutif. Cela retire les intermédiaires répétés sur les 30
+  couches GDN.
+- Baseline production courante chaude après PERF-108 : greedy médian **44,856
+  tok/s**, DFlash médian **67,792 tok/s**, target 0,562–0,566 s, draft 0,129 s,
+  39/45 propositions exactes. Protocole : différentiel séparé conv, Q, K, V et
+  état pour T=1/6/8, puis modèle complet logits + 80 états, microprofil et
+  A/B/B/A E2E, un seul processus modèle à la fois. Rejet au premier écart ou
+  si le gain complet n'est pas reproductible.
+- Premier smoke : compilation Metal refusée avant exécution car les scalaires
+  MLX de rang zéro `q_scale`/`k_scale` sont exposés comme valeurs, pas comme
+  pointeurs (`q_scale[0]`). Aucun calcul ni benchmark n'a eu lieu. Correction
+  locale limitée à leur accès scalaire, puis reprise du différentiel.
+- Différentiel isolé corrigé : sur poids convolutionnels réels et activations/
+  état FP16 déterministes, Q, K, V et le nouvel état convolutif sont identiques
+  bit-à-bit au graphe MLX `concatenate → conv1d → SiLU → RMSNorm → scales` pour
+  **T=1, T=6 et T=8**. Le prototype peut donc être raccordé au modèle complet ;
+  aucun chiffre de performance n'est encore attribué à ce seul passage.
+- Raccord modèle : largeurs de vérification M=1..8, commit partiel DFlash et
+  snapshot/rejeu passent bit-à-bit. Premier A/B/B/A E2E chaud, 48 tokens et
+  deux répétitions par processus : fusion **66,472 / 66,891 / 67,959 / 67,699
+  tok/s**, référence **65,939 / 65,981 / 67,099 / 67,465 tok/s**. La médiane
+  conventionnelle des quatre mesures est **67,295 contre 66,540 tok/s
+  (+1,13 %)** ; le greedy est quasi neutre (**44,909 contre 44,835 tok/s,
+  +0,17 %**). Le signal positif reste petit face à la dérive thermique.
+- Essai discriminant suivant, enregistré avant modification : mesurer dans un
+  unique test GPU la préparation seule pour T=1/6/8, après warmup, en alternant
+  le graphe MLX de référence et le kernel fusionné, avec évaluation forcée de
+  Q/K/V/état. Conserver D23 seulement si cette frontière baisse nettement et
+  si un second E2E apparié confirme l'absence de régression.
+- Microbenchmark apparié, 8 warmups puis 40 mesures par variante : à T=1,
+  fusion **0,171 ms** contre référence **0,400 ms (−57,1 %)** ; T=6,
+  **0,152 contre 0,409 ms (−62,7 %)** ; T=8, **0,163 contre 0,401 ms
+  (−59,5 %)**. Les quatre sorties restent contrôlées bit-à-bit avant mesure.
+- Décision : **validé et intégré localement** pour T≤8 hors trace. La trace et
+  les grands prefills gardent le graphe MLX existant. Le commutateur A/B
+  temporaire est retiré ; la confirmation production et les contrôles finaux
+  sont consignés ci-dessous.
+- Confirmation production après retrait du commutateur, trois répétitions :
+  greedy **43,305 / 44,713 / 44,636 tok/s** (médiane **44,636**), DFlash
+  **67,489 / 67,325 / 67,206 tok/s** (médiane **67,325**, 1,508×), target
+  0,567–0,569 s, draft 0,128–0,132 s et 39/45 propositions exactes. Cette
+  série chaude confirme le palier courant sans constituer un nouveau record ;
+  l'attribution causale reste l'A/B à +1,13 % et le microbenchmark à −57/−63 %.
+- Contrôles finaux réussis : `cargo fmt --all -- --check`, `git diff --check`,
+  Clippy strict tous targets/features, 23 tests lib + 1 test CLI + 14 contrats,
+  build release, différentiels GPU T=1/6/8 et modèle/commit/snapshot, ainsi que
+  Kani 0.68.0 / CBMC 6.11.0 (**17/17 harnesses vérifiés, 0 échec**). Kani
+  couvre les contrats Rust bornés existants ; le shader Metal est couvert par
+  les différentiels physiques finis et n'est pas formellement prouvé.

@@ -1548,20 +1548,16 @@ impl GatedDelta {
         self.forward_verification_impl(x, true)
     }
 
-    fn forward_verification_impl(&mut self, x: &Array, retain_history: bool) -> Result<Array> {
-        let time = *x.shape().get(1).context("Qwen GDN input must have time")?;
-        ensure!(
-            x.shape() == [1, time, self.hidden] && (1..=8).contains(&time),
-            "invalid Qwen verification GDN input"
-        );
+    fn prepare_recurrence_inputs(
+        &mut self,
+        qkv: &Array,
+        time: i32,
+        retain_history: bool,
+        fused: bool,
+    ) -> Result<(Array, Array, Array, Option<Array>)> {
         let keys = self.key_heads * self.key_dim;
         let values = self.value_heads * self.value_dim;
         let conv_dims = 2 * keys + values;
-        let inputs = self.inputs.forward(x)?;
-        let qkv = inputs[0].try_clone()?;
-        let z = inputs[1].reshape(&[1, time, self.value_heads, self.value_dim])?;
-        let b = self.b.forward(x)?;
-        let a = self.a.forward(x)?;
         let q_scale =
             Array::from_f16_bits(&[f16::from_f32(1.0 / self.key_dim as f32).to_bits()], &[])?;
         let k_scale = Array::from_f16_bits(
@@ -1572,7 +1568,28 @@ impl GatedDelta {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(&[1, self.conv_length - 1, conv_dims], Dtype::Float16)?,
         };
-        let conv_input = Array::concatenate(&[&conv_state, &qkv], 1)?;
+        if fused {
+            self.verification_conv_input = if retain_history {
+                Some(Array::concatenate(&[&conv_state, qkv], 1)?)
+            } else {
+                None
+            };
+            let (q, k, v, state) = gated_delta::prepare_qkv(
+                qkv,
+                &conv_state,
+                &self.conv_weight,
+                &q_scale,
+                &k_scale,
+                self.key_heads,
+                self.value_heads,
+                self.key_dim,
+                self.value_dim,
+                self.conv_length,
+            )?;
+            self.conv_state = Some(state);
+            return Ok((q, k, v, None));
+        }
+        let conv_input = Array::concatenate(&[&conv_state, qkv], 1)?;
         self.conv_state = Some(conv_input.slice(1, time, time + self.conv_length - 1)?);
         self.verification_conv_input = retain_history.then(|| conv_input.clone());
         let conv = conv_input.conv1d(&self.conv_weight, conv_dims)?.silu()?;
@@ -1592,6 +1609,22 @@ impl GatedDelta {
             self.value_heads,
             self.value_dim,
         ])?;
+        Ok((q, k, v, Some(conv)))
+    }
+
+    fn forward_verification_impl(&mut self, x: &Array, retain_history: bool) -> Result<Array> {
+        let time = *x.shape().get(1).context("Qwen GDN input must have time")?;
+        ensure!(
+            x.shape() == [1, time, self.hidden] && (1..=8).contains(&time),
+            "invalid Qwen verification GDN input"
+        );
+        let values = self.value_heads * self.value_dim;
+        let inputs = self.inputs.forward(x)?;
+        let qkv = inputs[0].try_clone()?;
+        let z = inputs[1].reshape(&[1, time, self.value_heads, self.value_dim])?;
+        let b = self.b.forward(x)?;
+        let a = self.a.forward(x)?;
+        let (q, k, v, _) = self.prepare_recurrence_inputs(&qkv, time, retain_history, true)?;
         let recurrent_state = match &self.recurrent_state {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(
@@ -1666,41 +1699,14 @@ impl GatedDelta {
             x.shape() == [1, time, self.hidden] && time > 0,
             "invalid Qwen GDN input"
         );
-        let keys = self.key_heads * self.key_dim;
         let values = self.value_heads * self.value_dim;
-        let conv_dims = 2 * keys + values;
         let inputs = self.inputs.forward(x)?;
         let qkv = inputs[0].try_clone()?;
         let z = inputs[1].reshape(&[1, time, self.value_heads, self.value_dim])?;
         let b = self.b.forward(x)?;
         let a = self.a.forward(x)?;
-        let conv_state = match &self.conv_state {
-            Some(state) => state.try_clone()?,
-            None => Array::zeros_dtype(&[1, self.conv_length - 1, conv_dims], Dtype::Float16)?,
-        };
-        let conv_input = Array::concatenate(&[&conv_state, &qkv], 1)?;
-        self.conv_state = Some(conv_input.slice(1, time, time + self.conv_length - 1)?);
-        let conv = conv_input.conv1d(&self.conv_weight, conv_dims)?.silu()?;
-        let q = conv
-            .slice(2, 0, keys)?
-            .reshape(&[1, time, self.key_heads, self.key_dim])?;
-        let k = conv
-            .slice(2, keys, 2 * keys)?
-            .reshape(&[1, time, self.key_heads, self.key_dim])?;
-        let v = conv.slice(2, 2 * keys, 2 * keys + values)?.reshape(&[
-            1,
-            time,
-            self.value_heads,
-            self.value_dim,
-        ])?;
-        let q_scale =
-            Array::from_f16_bits(&[f16::from_f32(1.0 / (self.key_dim as f32)).to_bits()], &[])?;
-        let k_scale = Array::from_f16_bits(
-            &[f16::from_f32(1.0 / (self.key_dim as f32).sqrt()).to_bits()],
-            &[],
-        )?;
-        let q = q.rms_norm_without_weight(1e-6)?.mul(&q_scale)?;
-        let k = k.rms_norm_without_weight(1e-6)?.mul(&k_scale)?;
+        let use_fused = !trace && time <= 8;
+        let (q, k, v, conv) = self.prepare_recurrence_inputs(&qkv, time, false, use_fused)?;
         let state = match &self.recurrent_state {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(
@@ -1738,7 +1744,7 @@ impl GatedDelta {
                 z,
                 a,
                 b,
-                conv,
+                conv.context("missing traced Gated DeltaNet convolution")?,
                 q,
                 k,
                 v,
@@ -1837,6 +1843,150 @@ mod tests {
                 serial.to_f16_bits()?,
                 "dense gate differs at M={rows}"
             );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn fused_gdn_preparation_matches_mlx() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let Layer::Linear(layer) = &mut model.layers[0] else {
+            anyhow::bail!("Qwen layer 0 is not Gated DeltaNet");
+        };
+        let gdn = &layer.attention;
+        let keys = gdn.key_heads * gdn.key_dim;
+        let values = gdn.value_heads * gdn.value_dim;
+        let conv_dims = 2 * keys + values;
+        let q_scale =
+            Array::from_f16_bits(&[f16::from_f32(1.0 / gdn.key_dim as f32).to_bits()], &[])?;
+        let k_scale = Array::from_f16_bits(
+            &[f16::from_f32(1.0 / (gdn.key_dim as f32).sqrt()).to_bits()],
+            &[],
+        )?;
+        let state_values = (0..(gdn.conv_length - 1) * conv_dims)
+            .map(|index| f16::from_f32(((index % 127) as f32 - 63.0) / 128.0).to_bits())
+            .collect::<Vec<_>>();
+        let state = Array::from_f16_bits(&state_values, &[1, gdn.conv_length - 1, conv_dims])?;
+        for time in [1, 6, 8] {
+            let qkv_values = (0..time * conv_dims)
+                .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
+                .collect::<Vec<_>>();
+            let qkv = Array::from_f16_bits(&qkv_values, &[1, time, conv_dims])?;
+            let conv_input = Array::concatenate(&[&state, &qkv], 1)?;
+            let expected_state = conv_input.slice(1, time, time + gdn.conv_length - 1)?;
+            let conv = conv_input.conv1d(&gdn.conv_weight, conv_dims)?.silu()?;
+            let expected_q = conv
+                .slice(2, 0, keys)?
+                .reshape(&[1, time, gdn.key_heads, gdn.key_dim])?
+                .rms_norm_without_weight(1e-6)?
+                .mul(&q_scale)?;
+            let expected_k = conv
+                .slice(2, keys, 2 * keys)?
+                .reshape(&[1, time, gdn.key_heads, gdn.key_dim])?
+                .rms_norm_without_weight(1e-6)?
+                .mul(&k_scale)?;
+            let expected_v = conv.slice(2, 2 * keys, conv_dims)?.reshape(&[
+                1,
+                time,
+                gdn.value_heads,
+                gdn.value_dim,
+            ])?;
+            let (q, k, v, next_state) = gated_delta::prepare_qkv(
+                &qkv,
+                &state,
+                &gdn.conv_weight,
+                &q_scale,
+                &k_scale,
+                gdn.key_heads,
+                gdn.value_heads,
+                gdn.key_dim,
+                gdn.value_dim,
+                gdn.conv_length,
+            )?;
+            for (name, actual, expected) in [
+                ("q", q, expected_q),
+                ("k", k, expected_k),
+                ("v", v, expected_v),
+                ("state", next_state, expected_state),
+            ] {
+                assert_eq!(
+                    actual.to_f16_bits()?,
+                    expected.to_f16_bits()?,
+                    "fused GDN {name} differs at T={time}"
+                );
+            }
+            if std::env::var_os("MLXL3_GDN_PREP_BENCH").is_some() {
+                let reference = || -> Result<(Array, Array, Array, Array)> {
+                    let conv_input = Array::concatenate(&[&state, &qkv], 1)?;
+                    let next_state = conv_input.slice(1, time, time + gdn.conv_length - 1)?;
+                    let conv = conv_input.conv1d(&gdn.conv_weight, conv_dims)?.silu()?;
+                    let q = conv
+                        .slice(2, 0, keys)?
+                        .reshape(&[1, time, gdn.key_heads, gdn.key_dim])?
+                        .rms_norm_without_weight(1e-6)?
+                        .mul(&q_scale)?;
+                    let k = conv
+                        .slice(2, keys, 2 * keys)?
+                        .reshape(&[1, time, gdn.key_heads, gdn.key_dim])?
+                        .rms_norm_without_weight(1e-6)?
+                        .mul(&k_scale)?;
+                    let v = conv.slice(2, 2 * keys, conv_dims)?.reshape(&[
+                        1,
+                        time,
+                        gdn.value_heads,
+                        gdn.value_dim,
+                    ])?;
+                    Ok((q, k, v, next_state))
+                };
+                let fused = || {
+                    gated_delta::prepare_qkv(
+                        &qkv,
+                        &state,
+                        &gdn.conv_weight,
+                        &q_scale,
+                        &k_scale,
+                        gdn.key_heads,
+                        gdn.value_heads,
+                        gdn.key_dim,
+                        gdn.value_dim,
+                        gdn.conv_length,
+                    )
+                };
+                let evaluate = |output: (Array, Array, Array, Array)| -> Result<()> {
+                    output.0.eval()?;
+                    output.1.eval()?;
+                    output.2.eval()?;
+                    output.3.eval()
+                };
+                for _ in 0..8 {
+                    evaluate(reference()?)?;
+                    evaluate(fused()?)?;
+                }
+                let mut reference_ms = Vec::with_capacity(40);
+                let mut fused_ms = Vec::with_capacity(40);
+                for index in 0..40 {
+                    for use_fused in [index % 2 == 0, index % 2 != 0] {
+                        let started = Instant::now();
+                        evaluate(if use_fused { fused()? } else { reference()? })?;
+                        let elapsed = started.elapsed().as_secs_f64() * 1000.0;
+                        if use_fused {
+                            fused_ms.push(elapsed);
+                        } else {
+                            reference_ms.push(elapsed);
+                        }
+                    }
+                }
+                reference_ms.sort_by(f64::total_cmp);
+                fused_ms.sort_by(f64::total_cmp);
+                eprintln!(
+                    "GDN prepare T={time}: fused={:.3} ms reference={:.3} ms delta={:+.1}%",
+                    fused_ms[fused_ms.len() / 2],
+                    reference_ms[reference_ms.len() / 2],
+                    (fused_ms[fused_ms.len() / 2] / reference_ms[reference_ms.len() / 2] - 1.0)
+                        * 100.0
+                );
+            }
         }
         Ok(())
     }

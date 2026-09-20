@@ -2,6 +2,134 @@
 use crate::array::{self, Array, Dtype};
 use anyhow::{Context, Result, ensure};
 
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_qkv(
+    qkv: &Array,
+    conv_state: &Array,
+    conv_weight: &Array,
+    q_scale: &Array,
+    k_scale: &Array,
+    key_heads: i32,
+    value_heads: i32,
+    key_dim: i32,
+    value_dim: i32,
+    conv_length: i32,
+) -> Result<(Array, Array, Array, Array)> {
+    let [batch, time, conv_dims]: [i32; 3] = qkv
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet QKV input must have rank 3"))?;
+    let keys = key_heads
+        .checked_mul(key_dim)
+        .context("Gated DeltaNet key width overflow")?;
+    let values = value_heads
+        .checked_mul(value_dim)
+        .context("Gated DeltaNet value width overflow")?;
+    ensure!(
+        batch == 1
+            && (1..=8).contains(&time)
+            && key_heads > 0
+            && value_heads > 0
+            && key_dim == 128
+            && value_dim > 0
+            && value_dim % 8 == 0
+            && conv_length > 1
+            && conv_dims == 2 * keys + values,
+        "invalid fused Gated DeltaNet preparation dimensions"
+    );
+    ensure!(
+        qkv.dtype() == Dtype::Float16
+            && conv_state.dtype() == Dtype::Float16
+            && conv_weight.dtype() == Dtype::Float16
+            && q_scale.dtype() == Dtype::Float16
+            && k_scale.dtype() == Dtype::Float16
+            && conv_state.shape() == [1, conv_length - 1, conv_dims]
+            && conv_weight.shape() == [conv_dims, conv_length, 1]
+            && q_scale.shape().is_empty()
+            && k_scale.shape().is_empty(),
+        "invalid fused Gated DeltaNet preparation tensors"
+    );
+    let header = format!(
+        r#"
+#define TIME {time}
+#define KEY_HEADS {key_heads}
+#define VALUE_HEADS {value_heads}
+#define KEY_DIM {key_dim}
+#define VALUE_DIM {value_dim}
+#define KEYS {keys}
+#define CONV_LENGTH {conv_length}
+#define CONV_HISTORY {history}
+#define CONV_DIMS {conv_dims}
+
+inline half mlxl3_gdn_input(
+    const device half* qkv,
+    const device half* conv_state,
+    uint position,
+    uint channel
+) {{
+    if (position < uint(CONV_HISTORY)) {{
+        return conv_state[position * uint(CONV_DIMS) + channel];
+    }}
+    return qkv[(position - uint(CONV_HISTORY)) * uint(CONV_DIMS) + channel];
+}}
+
+inline half mlxl3_gdn_conv_silu(
+    const device half* qkv,
+    const device half* conv_state,
+    const device half* conv_weight,
+    uint time,
+    uint channel
+) {{
+    float acc = 0.0f;
+    for (uint index = 0u; index < uint(CONV_LENGTH); ++index) {{
+        acc += float(mlxl3_gdn_input(qkv, conv_state, time + index, channel))
+            * conv_weight[channel * uint(CONV_LENGTH) + index];
+    }}
+    half value = half(acc);
+    half tail = half(1.0h) / (half(1.0h) + metal::exp(metal::abs(value)));
+    half sigmoid = value < half(0.0h) ? tail : half(1.0h) - tail;
+    return value * sigmoid;
+}}
+"#,
+        history = conv_length - 1,
+    );
+    let mut outputs = array::metal_kernel(
+        &format!(
+            "mlxl3_rs_gdn_prepare_t{time}_kh{key_heads}_vh{value_heads}_vd{value_dim}_c{conv_length}"
+        ),
+        &["qkv", "conv_state", "conv_weight", "q_scale", "k_scale"],
+        &["q", "k", "v", "state_out"],
+        &header,
+        include_str!("../shaders/gated_delta_prepare.metal"),
+        &[qkv, conv_state, conv_weight, q_scale, k_scale],
+        &[
+            vec![1, time, key_heads, key_dim],
+            vec![1, time, key_heads, key_dim],
+            vec![1, time, value_heads, value_dim],
+            conv_state.shape().to_vec(),
+        ],
+        &[
+            Dtype::Float16,
+            Dtype::Float16,
+            Dtype::Float16,
+            Dtype::Float16,
+        ],
+        [32, key_heads.max(value_heads), time],
+        [32, 1, 1],
+    )?;
+    ensure!(
+        outputs.len() == 4,
+        "Gated DeltaNet preparation returned wrong outputs"
+    );
+    let state = outputs
+        .pop()
+        .context("missing Gated DeltaNet convolution state")?;
+    let v = outputs.pop().context("missing Gated DeltaNet V")?;
+    let k = outputs.pop().context("missing Gated DeltaNet K")?;
+    let q = outputs.pop().context("missing Gated DeltaNet Q")?;
+    Ok((q, k, v, state))
+}
+
 pub fn step(
     q: &Array,
     k: &Array,
