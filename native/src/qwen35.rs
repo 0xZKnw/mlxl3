@@ -381,6 +381,64 @@ impl Attention {
         self.output.forward(&attended)
     }
 
+    fn forward_verification(&mut self, x: &Array) -> Result<Array> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("Qwen attention input must have time")?;
+        ensure!(
+            x.shape().len() == 3 && x.shape()[0] == 1 && (1..=8).contains(&time),
+            "invalid Qwen verification attention input"
+        );
+        let qkv = self.qkv.forward(x)?;
+        let mut attended = Vec::with_capacity(time as usize);
+        for row in 0..time {
+            let q_gate =
+                qkv[0]
+                    .slice(1, row, row + 1)?
+                    .reshape(&[1, 1, self.heads, self.head_dim * 2])?;
+            let q = q_gate
+                .slice(3, 0, self.head_dim)?
+                .rms_norm(&self.q_norm, self.eps)?
+                .transpose(&[0, 2, 1, 3])?;
+            let gate = q_gate
+                .slice(3, self.head_dim, self.head_dim * 2)?
+                .reshape(&[1, 1, self.heads * self.head_dim])?;
+            let k = qkv[1]
+                .slice(1, row, row + 1)?
+                .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+                .rms_norm(&self.k_norm, self.eps)?
+                .transpose(&[0, 2, 1, 3])?;
+            let v = qkv[2]
+                .slice(1, row, row + 1)?
+                .reshape(&[1, 1, self.kv_heads, self.head_dim])?
+                .transpose(&[0, 2, 1, 3])?;
+            let offset = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
+            let q = q.rope(self.rope_dims, self.theta, offset)?;
+            let k = k.rope(self.rope_dims, self.theta, offset)?;
+            let keys = match &self.keys {
+                Some(previous) => Array::concatenate(&[previous, &k], 2)?,
+                None => k,
+            };
+            let values = match &self.values {
+                Some(previous) => Array::concatenate(&[previous, &v], 2)?,
+                None => v,
+            };
+            attended.push(
+                Array::sdpa(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), false)?
+                    .transpose(&[0, 2, 1, 3])?
+                    .reshape(&[1, 1, self.heads * self.head_dim])?
+                    .mul(&gate.sigmoid()?)?,
+            );
+            self.keys = Some(keys);
+            self.values = Some(values);
+        }
+        self.output.forward(&Array::concatenate(
+            &attended.iter().collect::<Vec<_>>(),
+            1,
+        )?)
+    }
+
     pub fn states(&self) -> Result<(&Array, &Array)> {
         Ok((
             self.keys.as_ref().context("missing attention keys")?,
@@ -480,6 +538,22 @@ impl AttentionLayer {
         hidden.add(&mlp.reshape(&[1, time, self.hidden])?)
     }
 
+    fn forward_verification(&mut self, values: &mut [Array]) -> Result<()> {
+        let normalized = values
+            .iter()
+            .map(|value| value.rms_norm(&self.input_norm, self.eps))
+            .collect::<Result<Vec<_>>>()?;
+        let normalized = Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)?;
+        let attention = self.attention.forward_verification(&normalized)?;
+        for (time, value) in values.iter_mut().enumerate() {
+            let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
+            let post = hidden.rms_norm(&self.post_norm, self.eps)?;
+            let mlp = self.mlp.forward(&post.reshape(&[1, self.hidden])?)?;
+            *value = hidden.add(&mlp.reshape(&[1, 1, self.hidden])?)?;
+        }
+        Ok(())
+    }
+
     pub fn states(&self) -> Result<(&Array, &Array)> {
         self.attention.states()
     }
@@ -566,12 +640,7 @@ impl Layer {
     fn forward_verification(&mut self, values: &mut [Array]) -> Result<()> {
         match self {
             Self::Linear(layer) => layer.forward_verification(values),
-            Self::Attention(layer) => {
-                for value in values {
-                    *value = layer.forward(value)?;
-                }
-                Ok(())
-            }
+            Self::Attention(layer) => layer.forward_verification(values),
         }
     }
 

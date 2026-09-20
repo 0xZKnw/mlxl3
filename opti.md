@@ -4269,3 +4269,53 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   séries ABBA, pas par Kani. Statut : **validé et prêt à intégrer** ; coût cible
   M=8 ramené de 137,759 à 108,866 ms dans la série indépendante, encore au-dessus
   du budget ~75 ms nécessaire à 100 tok/s même avec acceptation parfaite.
+
+### OPT-2026-09-20-RUST-PERF-53 — Attention cible : projections exactes M=8 — en cours
+
+- Suite de PERF-52 : les dix couches d'attention exécutent encore Q/Gate/K/V et
+  `o_proj` huit fois. Hypothèse : utiliser les QMV groupés multi-lignes pour ces
+  seules projections, puis avancer RoPE, append KV et SDPA causal en M=1 dans
+  l'ordre canonique, partage les poids sans modifier le masque ni la réduction
+  d'attention.
+- Baseline indépendante : vérificateur PERF-52 **108,866 ms** médian
+  (107,657–111,032), contre token-major 137,759 ms, batterie. Protocole : série
+  ABBA, logits FP16 et 80 états octet par octet, M=1/2/4/8. Rejet à tout écart
+  ou si le gain n'est pas reproductible. Les MoE restent mono-token afin
+  d'isoler la projection d'attention. Statut : **en cours**, journalisé avant
+  code.
+- Exactitude physique M=1/2/4/8 : tous les logits FP16 et les 80 états restent
+  identiques au token-major. Première série ABBA M=8 : token-major médian
+  **141,809 ms** (139,389–145,197), candidat GDN+attention **104,353 ms**
+  (103,519–105,943), soit **1,359×** face à la référence du même processus.
+  Par rapport aux 108,866 ms indépendants de PERF-52, l'attention apporte
+  environ 4,5 ms supplémentaires ; répétition indépendante requise.
+- Répétition indépendante : token-major médian **143,504 ms**
+  (139,091–145,417), candidat **104,722 ms** (103,746–107,606), soit
+  **1,370×**, toujours strictement identique. Les projections d'attention sont
+  donc **validées** ; le coût cible reste toutefois ~30 ms au-dessus du budget
+  optimiste de 75 ms.
+- Contrôles finaux : le différentiel physique M=1/2/4/8 réussit après retrait
+  du prototype MoE divergent. Format, Clippy strict, 23 tests lib, 1 test CLI,
+  14 contrats et build release MLX/chat réussissent. Kani 0.68 / CBMC 6.11
+  vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures ; il ne couvre pas
+  MLX/Metal, validés séparément par le différentiel bit à bit. Statut :
+  **validé et intégré**, prêt à publier.
+
+### OPT-2026-09-20-RUST-PERF-54 — MoE exact multi-lignes du vérificateur — en cours
+
+- Observation : après PERF-53, les normes et résiduels sont déjà disponibles
+  couche par couche, mais chaque MoE traite encore huit tokens séparément. Pour
+  M=8, le chemin existant `Exl3SwitchGlu` reste sous le seuil TensorOps 64 et
+  utilise le même QMV mappé par route ; le batch peut donc mutualiser dispatchs,
+  routeur et projections partagées sans changer l'accumulation des experts.
+- Baseline : candidat PERF-53 **104,722 ms** médian, référence token-major
+  **143,504 ms**. Essai : calculer chaque RMSNorm post-attention séparément,
+  concaténer seulement ses huit lignes pour `Mlp::forward`, puis restaurer les
+  résiduels dans l'ordre. Contrôler M=1/2/4/8, logits et 80 états bit à bit,
+  puis deux séries ABBA. Rejet immédiat à tout écart. Statut : **en cours**,
+  journalisé avant code.
+- Résultat : **rejeté**. Les largeurs M=1/2/4 restent exactes, mais M=8 produit
+  de nombreuses divergences dans les logits FP16 par rapport au chemin
+  token-major. Le seuil M=8 change donc le chemin d'exécution MoE et ne conserve
+  pas l'arithmétique canonique ; aucun timing n'a été retenu. Le batch MoE
+  complet est retiré, tandis que PERF-53 reste inchangé et exact.
