@@ -5736,3 +5736,30 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   n'est donc pas réécrit maintenant. La tête vocabulaire domine le draft ;
   l'instrumentation et toutes ses synchronisations sont retirées. Aucun gain
   revendiqué. Statut : **diagnostic terminé**.
+
+### OPT-2026-09-20-RUST-PERF-104 — micro-tile EXL3 MB=3 pour M=6 — rejeté
+
+- Source : prolongement mesuré du ticket 14 après MB=2 validé en PERF-93.
+  PERF-103 attribue 0,089–0,091 s sur neuf blocs au `lm_head` draft ; la tête
+  target M=6 est également répétée neuf fois. Le kernel actuel redécode chaque
+  tile de poids trois fois, une fois par paire de lignes.
+- Hypothèse : `MB=3, NT=1` garde 24 accumulateurs de sortie et 12 valeurs
+  d'entrée par thread, contre 32+8 pour `MB=2, NT=2`, tout en ne redécodant les
+  poids que deux fois par tile. La grille a davantage de threadgroups mais une
+  pression registres comparable ; chaque ligne conserve son ordre de FMA.
+- Baseline production : greedy **51,896 tok/s**, DFlash **74,645 tok/s**,
+  **1,438× (+43,8 %)**, target 0,507–0,508 s. Protocole : différentiel physique
+  M=6 contre MB=2, largeurs 1..8 et E2E exact, puis A/B/B/A strictement
+  séquentiel. Rejet au premier bit différent ou si target/débit ne gagnent pas
+  de façon reproductible. Statut : **en cours**, journalisé avant code.
+- Exactitude : logits FP16 et 80 états M=1/2/4/6/8 restent identiques au chemin
+  token-major ; les quatre générations gardent 39/45 propositions et la même
+  séquence target.
+- Mesure A/B/B/A, deux répétitions et un seul processus à la fois : MB=3
+  **71,739 / 71,707 tok/s**, MB=2 **72,899 / 73,491 tok/s**. Les médianes par
+  variante sont **71,723** contre **73,195 tok/s (-2,01 %)** ; target MB=3
+  reste 0,530–0,533 s contre 0,515–0,526 s.
+- Décision : **rejeté**. Malgré une redécompression de poids en moins, NT=1
+  augmente le nombre de threadgroups et perd le parallélisme sur N. MB=2/NT=2
+  reste la meilleure géométrie M=6 mesurée. Commutateur et largeur de test
+  temporaire retirés ; aucun code exécutable de l'essai n'est conservé.
