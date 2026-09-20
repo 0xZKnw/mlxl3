@@ -1868,7 +1868,7 @@ mod tests {
     #[ignore = "requires local Qwen checkpoint and Apple GPU"]
     fn verification_widths_match_token_major() -> Result<()> {
         let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
-        for width in [1, 2, 4, 8] {
+        for width in 1..=8 {
             model.reset();
             for token in [1, 2, 3] {
                 model.forward(token)?;

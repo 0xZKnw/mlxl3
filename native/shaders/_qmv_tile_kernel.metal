@@ -46,12 +46,15 @@
             ) {
                 float x_values[MLXL3_QMV_MB][4];
                 for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
-                    const device half2* x_pairs =
-                        reinterpret_cast<const device half2*>(
-                            xhat + (row_base + batch_row) * uint(INPUT_DIMS)
-                                 + tile_k * 16u
-                        );
-                    half2 x_pair = x_pairs[lane & 7u];
+                    half2 x_pair = half2(0.0h);
+                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+                        const device half2* x_pairs =
+                            reinterpret_cast<const device half2*>(
+                                xhat + (row_base + batch_row) * uint(INPUT_DIMS)
+                                     + tile_k * 16u
+                            );
+                        x_pair = x_pairs[lane & 7u];
+                    }
                     half2 x_pair0 = simd_shuffle(x_pair, ushort(lane & 3u));
                     half2 x_pair1 = simd_shuffle(x_pair, ushort((lane & 3u) + 4u));
                     x_values[batch_row][0] = float(x_pair0.x);
@@ -141,10 +144,13 @@
                     sum += partials[group][partial];
                 }
                 if (MLXL3_FUSE_OUTPUT) ha[tid] = float(half(sum));
-                else yhat[
-                    ((row_base + batch_row) * uint(N_SPLITS) + split) * uint(OUTPUT_DIMS)
-                    + (tile_n + output_tile) * 16u + column
-                ] = sum;
+                else if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+                    yhat[
+                        ((row_base + batch_row) * uint(N_SPLITS) + split)
+                        * uint(OUTPUT_DIMS)
+                        + (tile_n + output_tile) * 16u + column
+                    ] = sum;
+                }
             }
             if (MLXL3_FUSE_OUTPUT) {
                 for (uint shift = 0u; shift < 7u; ++shift) {

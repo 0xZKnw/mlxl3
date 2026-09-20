@@ -5820,3 +5820,53 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   mieux abaissées que la reconstruction manuelle 32 bits malgré leur apparence
   plus coûteuse. Le shader, le commutateur et la largeur M=6 temporaire du test
   sont intégralement retirés ; aucun code exécutable de l'essai n'est conservé.
+
+### OPT-2026-09-20-RUST-PERF-107 — partage MB=2 du `lm_head` draft M=5 — validé
+
+- Source : ticket D02 de
+  `MLXL3_Decode_50_Upgrades_Priorises_2026-09-20.md`. PERF-90 limite le head
+  draft aux cinq lignes utiles, mais `forward_qmv_batch` réserve encore MB=2
+  aux seuls M=6/8 ; M=5 redécode donc les mêmes poids cinq fois.
+- Hypothèse : une grille MB=2 à trois groupes traite M=5 en `2+2+1`, partage le
+  décodage sur les quatre premières lignes et garde explicitement la queue
+  impaire. La ligne inexistante charge des zéros et n'écrit rien ; les cinq
+  lignes valides conservent exactement leurs FMA, réduction et épilogue.
+- Baseline fraîche après PERF-106 rejeté : ancien M=5 **63,797 / 64,138 tok/s**
+  dans les deux contrôles séquentiels, draft 0,142–0,143 s, 39/45 propositions
+  acceptées. Protocole : oracle token-major indépendant pour M=1/2/3/4/5/6/7/8,
+  contrôle direct du head limité, puis A/B/B/A E2E, un seul processus modèle à
+  la fois. Rejet au premier écart ou sans gain reproductible. Statut initial :
+  **en cours**, journalisé avant code.
+- Exactitude : l'oracle physique indépendant passe pour chaque largeur M=1 à
+  M=8 ; logits FP16 et 80 états sont identiques au chemin token-major. Le head
+  limité M=5 égale aussi les cinq lignes correspondantes du head M=8. Toutes
+  les campagnes E2E gardent 39/45 propositions et la séquence target exacte.
+- Microbenchmark head isolé, 3 warmups puis 27 appels évalués par processus,
+  A/B/B/A séquentiel : MB=2 **8,676 / 8,729 ms/appel**, MB=1
+  **9,611 / 9,608 ms/appel**. Les médianes passent de **9,610** à **8,703 ms
+  (−9,44 %, 1,104×)**.
+- E2E : la première A/B/B/A donne MB=2 **63,677 / 62,542 tok/s** contre MB=1
+  **62,518 / 62,971 tok/s**, soit **+0,58 %** sur les médianes de variante. Une
+  paire adjacente supplémentaire au même régime donne **64,936** contre
+  **64,862 tok/s (+0,11 %)**. Le draft candidat baisse de 0,140–0,147 s à
+  0,130–0,137 s sur ces passages. Un contrôle isolé à 72,728 tok/s, après un
+  changement brutal de régime machine, est explicitement exclu de la
+  comparaison appariée.
+- Décision : **validé et intégré localement**. MB=2 couvre maintenant M=5..8 ;
+  la dernière paire impaire charge des zéros et n'écrit aucune sixième ligne.
+  Le gain E2E court est modeste et ne doit pas être présenté comme +9,44 % :
+  ce chiffre appartient au head isolé. Le commutateur et le microbenchmark
+  temporaire sont retirés ; le différentiel permanent couvre désormais toutes
+  les largeurs M=1..8.
+- Confirmation production après retrait du commutateur, trois répétitions :
+  greedy médian **45,158 tok/s**, DFlash médian **65,463 tok/s (1,450×)**,
+  draft 0,129–0,133 s, target 0,585–0,588 s, 39/45 propositions et trois
+  séquences exactes. Cette confirmation fixe l'état intégré ; elle ne remplace
+  pas les comparaisons A/B ci-dessus pour attribuer le petit gain causal.
+- Contrôles finaux réussis : `cargo fmt --all -- --check`, `git diff --check`,
+  `cargo clippy --all-targets --all-features -- -D warnings`, 23 tests lib + 1
+  test CLI + 14 tests de contrats, build release, et Kani 0.68.0 / CBMC 6.11.0
+  (**17/17 harnesses vérifiés, 0 échec**, deux propriétés de couverture par
+  harness concerné). Kani couvre les propriétés Rust bornées existantes ; la
+  garde Metal de la ligne impaire est couverte par les différentiels physiques
+  finis M=1..8, pas par une preuve exhaustive du shader.
