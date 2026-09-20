@@ -4348,3 +4348,21 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Kani n'exécute pas MLX/Metal ; le graphe GPU est couvert par les différentiels
   physiques exacts et les séries ABBA. Statut : **validé et intégré**, prêt à
   publier.
+
+### OPT-2026-09-20-RUST-PERF-56 — Gate et top-k MoE multi-lignes — en cours
+
+- Hypothèse : PERF-54 a seulement démontré que le calcul groupé des experts
+  sparse diverge à M=8. La projection gate, le softmax et le kernel top-k sont
+  indépendants par ligne et peuvent produire les routes des huit positions en
+  un seul graphe, puis alimenter huit appels experts M=1 inchangés. Cette
+  frontière complète PERF-55 sans toucher l'accumulation sparse.
+- Baseline : PERF-55 **94,658–98,081 ms** médian pour huit positions. Protocole :
+  batcher gate/softmax/top-k, découper indices et scores par ligne, exécuter les
+  experts routés en M=1, puis comparer logits FP16 et 80 états pour M=1/2/4/8
+  et deux séries ABBA. Rejet immédiat au premier écart. Statut : **en cours**,
+  journalisé avant code.
+- Résultat : **rejeté**. M=1/2/4 reste exact, mais M=8 diverge massivement
+  dans les logits FP16 avant toute mesure. La projection gate/softmax/top-k
+  multi-lignes change donc l'arithmétique ou les routes à cette largeur. Aucun
+  timing n'est retenu ; gate, top-k et experts sparse reviennent entièrement
+  en M=1, tandis que l'expert partagé PERF-55 reste intégré.
