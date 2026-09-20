@@ -4549,3 +4549,111 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   bornées concernent le Rust pur ; Kani ne couvre ni MLX ni Metal, vérifiés ici
   uniquement par les différentiels physiques exacts. Statut : **validé,
   intégré et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-62 — profil cible après gate batchée — diagnostic
+
+- Objectif : localiser le coût résiduel du bundle exact M=8 avant toute nouvelle
+  optimisation. PERF-61 mesure **86,425 ms** médian sous chauffe pour la cible,
+  auxquels s'ajoutent environ **5,39 ms** pour le draft ; le plafond à 100 %
+  d'acceptation est donc environ **87,1 tok/s**, pas 92 tok/s.
+- Protocole prévu : sur le Qwen3.6-35B-A3B EXL3 2.49 bpw local, séparer par
+  synchronisation physique le corps 40 couches de la projection `lm_head`, puis
+  mesurer le `lm_head` seul sur le même hidden évalué. Une instrumentation de
+  test temporaire sera supprimée après diagnostic. Conditions : M5 sur batterie,
+  applications utilisateur actives et chauffe non contrôlée ; les temps servent
+  à classer les goulots, pas à annoncer un gain. Statut : **en cours**.
+- Mesure, sept répétitions : corps des 40 couches **71,992 ms** médian
+  `[71,657; 71,824; 71,988; 71,992; 72,044; 72,161; 75,689]`, `lm_head`
+  EXL3 M=8 seul **13,568 ms** médian `[13,452; 13,495; 13,529; 13,568;
+  13,648; 13,660; 14,481]`. Le corps représente donc environ 84 % du temps
+  séparé et reste la priorité, mais le head pèse encore environ 16 %.
+- Aucun gain revendiqué : les synchronisations ajoutées changent la frontière
+  de graphe. L'instrumentation temporaire est retirée. Statut : **diagnostic
+  terminé**, données conservées pour sélectionner PERF-63.
+
+### OPT-2026-09-20-RUST-PERF-63 — profil par famille de couche M=8 — diagnostic
+
+- Hypothèse de diagnostic : parmi les **71,992 ms** du corps PERF-62, les 30
+  couches Gated DeltaNet et les 10 couches attention n'ont pas le même coût ;
+  choisir sans mesure entre récurrence, attention et MoE risquerait de refaire
+  une piste déjà rejetée. Aucun changement de production prévu à ce stade.
+- Protocole : une passe temporaire avec synchronisation après chaque couche,
+  classement séparé des couches linéaires et attention, même contexte de trois
+  tokens et bundle exact M=8. Les barrières ajoutent du coût et interdisent de
+  sommer ces durées avec PERF-62 ; elles servent seulement à comparer les deux
+  familles. Instrumentation retirée immédiatement après mesure. Statut :
+  **en cours**.
+- Résultat : médiane par couche avec barrière, **3,838 ms** pour les 30 couches
+  Gated DeltaNet contre **3,324 ms** pour les 10 couches attention. Plages
+  observées respectives **3,365–4,498 ms** et **3,064–4,186 ms**. Les couches
+  linéaires sont un peu plus chères, mais les plages se recouvrent fortement,
+  ce qui indique que leur MoE commun reste probablement majoritaire.
+- Aucun gain revendiqué et aucune somme avec les 71,992 ms de PERF-62 : les 40
+  barrières doublent presque le temps. Instrumentation retirée. Statut :
+  **diagnostic terminé**.
+
+### OPT-2026-09-20-RUST-PERF-64 — profil attention/GDN contre MoE — diagnostic
+
+- Hypothèse de diagnostic : le coût commun aux deux familles vient surtout du
+  MoE exact M=8 ; mesurer séparément sous-couche attention/GDN et MLP sur chaque
+  couche permet de décider entre un nouveau kernel récurrent et une réduction
+  de dispatch experts. Même modèle, contexte et bundle que PERF-63, avec
+  synchronisations temporaires aux frontières. Les valeurs absolues ne seront
+  pas additionnées au débit sans barrières. Statut : **en cours**.
+- Résultat médian par couche : Gated DeltaNet **1,208 ms**, attention complète
+  **0,878 ms**, MLP des couches linéaires **2,359 ms**, MLP des couches attention
+  **2,354 ms**. Le MoE commun représente environ deux tiers du temps d'une
+  couche synchronisée et ne dépend pratiquement pas de sa famille ; c'est le
+  prochain goulot à décomposer. Aucun gain revendiqué, instrumentation retirée.
+  Statut : **diagnostic terminé**.
+
+### OPT-2026-09-20-RUST-PERF-65 — profil interne du MoE exact M=8 — diagnostic
+
+- Hypothèse de diagnostic : après les gates batchées de PERF-61, les 64 routes
+  d'experts sparse ou l'expert partagé doivent dominer le MoE à **~2,36 ms** par
+  couche. Mesurer séparément routeur, experts sparse et expert partagé sur les
+  40 couches, avec synchronisation temporaire, orientera le prochain kernel.
+  Même modèle/contexte/bundle ; aucune somme avec le chemin sans barrières et
+  aucune modification de production avant résultat. Statut : **en cours**.
+- Résultat médian par couche avec barrières : routeur gate/softmax/top-k
+  **0,210 ms**, experts sparse gate/up/down **0,857 ms**, expert partagé
+  **0,289 ms**. Les routes sparse représentent environ 63 % de ces trois
+  sous-blocs mesurés et sont le seul prochain candidat assez lourd.
+- Aucun gain revendiqué ; instrumentation supprimée. Statut : **diagnostic
+  terminé**.
+
+### OPT-2026-09-20-RUST-PERF-66 — quatre tiles par threadgroup expert M=8 — validé
+
+- Observation : le chemin mapped des 64 routes utilise actuellement `NT=2`
+  dès que le nombre global de tiles dépasse 1 024, donc 2 048 threadgroups pour
+  gate/up et 4 096 pour down à chaque couche. Les sorties tiles sont
+  indépendantes ; `NT=4` divise ces lancements par deux mais double les
+  accumulateurs par thread et peut réduire l'occupation.
+- Hypothèse : réserver `NT=4` aux mapped-QMV ayant au moins 64 routes sur M5
+  réduit le sous-bloc sparse sans changer une opération, un poids ou l'ordre de
+  réduction d'une sortie. Baseline cible complète PERF-61 : **86,425 ms** sous
+  chauffe ; sous-bloc sparse PERF-65 : **0,857 ms** médian par couche avec
+  barrières. Protocole : exactitude M=1/2/4/8, puis deux ABBA cible complète ;
+  rejet au premier écart ou si le gain n'est pas reproductible. Statut :
+  **en cours**.
+- Exactitude : différentiel modèle M=1/2/4/8 réussi, avec logits FP16 et 80
+  états octet par octet identiques au chemin token-major. Les deux ABBA
+  comparent aussi chaque sortie et état entre NT2 et NT4.
+- Première ABBA : NT2 **86,462 ms** contre NT4 **81,168 ms**, soit **1,065×**
+  et **−5,294 ms**. Échantillons NT2 `[84,808; 85,233; 85,308; 86,462;
+  89,155; 89,592]`, NT4 `[80,445; 80,807; 80,865; 81,168; 83,006;
+  84,597]` ms.
+- Deuxième ABBA sous chauffe : NT2 **84,944 ms** contre NT4 **82,508 ms**,
+  soit **1,030×** et **−2,436 ms**. Échantillons NT2 `[83,909; 83,915;
+  84,129; 84,944; 87,386; 87,838]`, NT4 `[81,444; 81,621; 81,747;
+  82,508; 85,086; 131,711]` ms ; le dernier outlier candidat est conservé et
+  n'inverse pas la médiane.
+- Décision : **validé, intégré localement**. Le commutateur AB temporaire est
+  retiré ; la règle production reste minimale (`M5`, au moins 64 lignes mapped,
+  largeur divisible par quatre tiles).
+- Contrôles finaux réussis : format, Clippy strict tous targets/features,
+  23 tests lib, 1 test CLI, 14 contrats, build release MLX/chat et différentiel
+  physique M=1/2/4/8. Kani 0.68 / CBMC 6.11 vérifie **17/17 harnesses**,
+  zéro échec et 2/2 couvertures. Ses propriétés bornées ne couvrent pas MLX ou
+  Metal ; le chemin GPU est couvert par le différentiel modèle exact, pas par
+  une preuve formelle. Statut : **validé, intégré et prêt à publier**.

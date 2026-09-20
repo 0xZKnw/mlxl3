@@ -887,7 +887,11 @@ pub fn expert_mapped(
         .checked_mul(output_tiles)
         .context("expert tile count overflow")?;
     let splits = split_count(trellis.shape()[0], local_tiles);
-    let mut nt = if local_tiles >= 1024 {
+    let m5 = array::is_m5_gpu()?;
+    let use_nt4 = m5 && rows >= 64 && output_tiles % 4 == 0;
+    let mut nt = if use_nt4 {
+        4
+    } else if local_tiles >= 1024 {
         if local_tiles % 2 == 0 { 2 } else { 1 }
     } else if local_tiles % 4 == 0 {
         4
@@ -899,7 +903,6 @@ pub fn expert_mapped(
     if output_tiles % nt != 0 {
         nt = 1;
     }
-    let m5 = array::is_m5_gpu()?;
     let simdgroups = if m5 && k == 2 {
         4
     } else if m5 {
