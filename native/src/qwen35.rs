@@ -137,14 +137,21 @@ impl Moe {
             x.shape().len() == 2 && x.shape()[0] > 0 && x.shape()[1] == self.hidden,
             "invalid Qwen MoE input"
         );
+        self.routed(x)?.add(&self.shared(x)?)
+    }
+
+    fn routed(&self, x: &Array) -> Result<Array> {
         let probabilities = self.gate.forward(x)?.softmax_precise()?;
         let (selected, scores) = router::topk(&probabilities, self.top_k, true)?;
-        let routed = self.experts.forward(x, &selected, &scores)?;
+        self.experts.forward(x, &selected, &scores)
+    }
+
+    fn shared(&self, x: &Array) -> Result<Array> {
         let shared_inputs = self.shared_inputs.forward(x)?;
         let shared = self
             .shared_down
             .forward(&shared_inputs[0].swiglu(&shared_inputs[1])?)?;
-        routed.add(&shared.mul(&self.shared_multiplier.forward(x)?.sigmoid()?)?)
+        shared.mul(&self.shared_multiplier.forward(x)?.sigmoid()?)
     }
 }
 
@@ -205,6 +212,37 @@ impl Mlp {
             }
             Self::Moe(mlp) => mlp.forward(x),
         }
+    }
+
+    fn forward_verification(&self, values: &[Array], hidden: i32) -> Result<Vec<Array>> {
+        ensure!(
+            !values.is_empty()
+                && values.len() <= 8
+                && values.iter().all(|value| value.shape() == [1, 1, hidden]),
+            "invalid Qwen verification MLP input"
+        );
+        let Self::Moe(mlp) = self else {
+            return values
+                .iter()
+                .map(|value| {
+                    self.forward(&value.reshape(&[1, hidden])?)?
+                        .reshape(&[1, 1, hidden])
+                })
+                .collect();
+        };
+        let rows = i32::try_from(values.len())?;
+        let batch =
+            Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?.reshape(&[rows, hidden])?;
+        let shared = mlp.shared(&batch)?;
+        values
+            .iter()
+            .enumerate()
+            .map(|(row, value)| {
+                mlp.routed(&value.reshape(&[1, hidden])?)?
+                    .add(&shared.slice(0, row as i32, row as i32 + 1)?)?
+                    .reshape(&[1, 1, hidden])
+            })
+            .collect()
     }
 }
 
@@ -545,11 +583,16 @@ impl AttentionLayer {
             .collect::<Result<Vec<_>>>()?;
         let normalized = Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)?;
         let attention = self.attention.forward_verification(&normalized)?;
+        let mut residuals = Vec::with_capacity(values.len());
+        let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
             let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
-            let post = hidden.rms_norm(&self.post_norm, self.eps)?;
-            let mlp = self.mlp.forward(&post.reshape(&[1, self.hidden])?)?;
-            *value = hidden.add(&mlp.reshape(&[1, 1, self.hidden])?)?;
+            posts.push(hidden.rms_norm(&self.post_norm, self.eps)?);
+            residuals.push(hidden);
+        }
+        let mlp = self.mlp.forward_verification(&posts, self.hidden)?;
+        for ((value, hidden), output) in values.iter_mut().zip(residuals).zip(mlp) {
+            *value = hidden.add(&output)?;
         }
         Ok(())
     }
@@ -1051,11 +1094,16 @@ impl LinearLayer {
             .collect::<Result<Vec<_>>>()?;
         let normalized = Array::concatenate(&normalized.iter().collect::<Vec<_>>(), 1)?;
         let attention = self.attention.forward_verification(&normalized)?;
+        let mut residuals = Vec::with_capacity(values.len());
+        let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
             let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
-            let post = hidden.rms_norm(&self.post_norm, self.eps)?;
-            let mlp = self.mlp.forward(&post.reshape(&[1, self.hidden])?)?;
-            *value = hidden.add(&mlp.reshape(&[1, 1, self.hidden])?)?;
+            posts.push(hidden.rms_norm(&self.post_norm, self.eps)?);
+            residuals.push(hidden);
+        }
+        let mlp = self.mlp.forward_verification(&posts, self.hidden)?;
+        for ((value, hidden), output) in values.iter_mut().zip(residuals).zip(mlp) {
+            *value = hidden.add(&output)?;
         }
         Ok(())
     }

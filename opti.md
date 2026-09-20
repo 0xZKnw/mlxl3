@@ -4319,3 +4319,32 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   token-major. Le seuil M=8 change donc le chemin d'exécution MoE et ne conserve
   pas l'arithmétique canonique ; aucun timing n'a été retenu. Le batch MoE
   complet est retiré, tandis que PERF-53 reste inchangé et exact.
+
+### OPT-2026-09-20-RUST-PERF-55 — Expert partagé MoE multi-lignes — en cours
+
+- Hypothèse : la divergence PERF-54 vient du routage/expert sparse à huit
+  lignes, pas des projections d'expert partagé qui sont indépendantes par
+  ligne. Conserver gate, top-k et experts routés en huit appels M=1, mais
+  calculer `shared_expert` et son multiplicateur en M=1/2/4/8 doit mutualiser
+  leurs lectures de poids tout en gardant l'arithmétique lossless.
+- Baseline : PERF-53 **104,722 ms** médian pour huit positions, référence
+  token-major **143,504 ms**. Protocole : séparer sans duplication les chemins
+  routé/partagé du MoE, comparer logits FP16 et 80 états octet par octet pour
+  M=1/2/4/8, puis deux séries ABBA. Rejet immédiat au premier écart. Statut :
+  **en cours**, journalisé avant code.
+- Première compilation interrompue par une accolade fermante manquante dans le
+  helper de vérification ; aucun modèle, kernel ni timing exécuté. Correction
+  syntaxique uniquement avant reprise du protocole inchangé.
+- Exactitude physique M=1/2/4/8 : tous les logits FP16 et les 80 états sont
+  identiques octet par octet au token-major. Deux séries ABBA M=8 donnent
+  respectivement **94,658 ms** (93,190–95,924) contre 136,622 ms, puis
+  **98,081 ms** (93,340–105,459) contre 144,954 ms, soit **1,44–1,48×** face à
+  la référence du même processus. Comparé à PERF-53 (104,722 ms), l'expert
+  partagé économise environ **6,6–10,1 ms** selon la passe. Statut :
+  **validé**.
+- Contrôles finaux : format, Clippy strict, 23 tests lib, 1 test CLI,
+  14 contrats et build release MLX/chat réussissent. Kani 0.68 / CBMC 6.11
+  vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures. Comme auparavant,
+  Kani n'exécute pas MLX/Metal ; le graphe GPU est couvert par les différentiels
+  physiques exacts et les séries ABBA. Statut : **validé et intégré**, prêt à
+  publier.
