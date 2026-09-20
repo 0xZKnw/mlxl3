@@ -279,7 +279,7 @@ impl Exl3Linear {
                 1
             };
             header += &format!(
-                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {}\n",
+                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB 1u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {}\n",
                 self.simdgroups,
                 self.k,
                 self.k,
@@ -348,7 +348,7 @@ impl Exl3Linear {
         let output_tiles = self.cols / 16;
         let splits = split_count(input_tiles, output_tiles);
         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
-        let nt = if use_nt4 {
+        let mut nt = if use_nt4 {
             4
         } else if output_tiles >= 1024 {
             if output_tiles % 2 == 0 { 2 } else { 1 }
@@ -359,9 +359,13 @@ impl Exl3Linear {
         } else {
             1
         };
+        let mb = if matches!(matrix_rows, 6 | 8) { 2 } else { 1 };
+        if mb == 2 {
+            nt = nt.min(2);
+        }
         let header = codebook_header(self.cb)
             + &format!(
-                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {output}\n",
+                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {output}\n",
                 self.simdgroups,
                 self.k,
                 self.k,
@@ -373,8 +377,8 @@ impl Exl3Linear {
         let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
         let partials = array::metal_kernel(
             &format!(
-                "mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}",
-                self.rows, self.cols, self.k, self.cb as u32, nt, self.simdgroups, splits
+                "mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}",
+                self.rows, self.cols, self.k, self.cb as u32, nt, mb, self.simdgroups, splits
             ),
             &["xhat", "trellis", "svh"],
             &["yhat"],
@@ -387,7 +391,7 @@ impl Exl3Linear {
                 (output_tiles / nt)
                     .checked_mul(self.simdgroups * 32)
                     .context("QMV grid overflow")?,
-                matrix_rows,
+                matrix_rows / mb,
                 splits,
             ],
             [self.simdgroups * 32, 1, 1],

@@ -5399,3 +5399,65 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   2/2 couvertures. Kani ne couvre pas Metal ; la plage GPU est validée par le
   différentiel physique borné et l'E2E exact, sans constituer une preuve
   formelle non bornée. Statut : **validé, intégré et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-92 — captures Q4 à la largeur retenue — bloqué/rejeté
+
+- Source : ticket 20 de `MLXL3_Audit_Decode_28_Optimisations.md`.
+  `append_captured` complète aujourd'hui chaque commit à huit lignes avant la
+  projection de contexte puis les six projections KV, alors que le chemin
+  courant en retient le plus souvent six et parfois une seule.
+- Hypothèse : paramétrer le kernel Q4 TensorOps existant par M=1..8 et supprimer
+  ce padding réduit proportionnellement le travail row-wise des captures sans
+  toucher aux huit positions bidirectionnelles du réseau draft lui-même.
+- Baseline : PERF-91, KV-only **67,420 / 67,542 tok/s**, draft
+  **0,126–0,127 s**, contexte 0,006–0,008 s, 39/45 acceptés. Protocole :
+  différentiel BF16 M=1..8 contre l'ancien calcul pad-to-8 puis slice, E2E exact,
+  puis A/B entrelacé. Rejet au premier écart ou si le débit/cache ne baisse pas.
+  Statut : **en cours**, journalisé avant code.
+- Résultat : le premier différentiel M=1 échoue avant exécution à la compilation
+  Metal. `MPPTensorOpsMatMul2dImpl.h` impose statiquement que M soit multiple de
+  8 ou 16 ; le TensorOps Q4 actuel ne peut donc pas matérialiser M=1..7. Garder
+  M=8 avec des lignes masquées ne supprimerait pas le matmul et n'est pas le
+  gain visé.
+- Décision : **bloqué/rejeté pour le kernel TensorOps actuel**. Le prototype est
+  retiré avant tout benchmark E2E. Il faudrait un second micro-kernel Q4 non-MPP
+  pour M<8, chantier nettement plus lourd à comparer au très faible coût cache
+  observé (0,006–0,008 s) ; aucun code exécutable n'est conservé.
+
+### OPT-2026-09-20-RUST-PERF-93 — EXL3 petit-M, deux lignes par décodage — validé
+
+- Source : ticket 14 de `MLXL3_Audit_Decode_28_Optimisations.md`. Le QMV batch
+  place actuellement chaque ligne sur `grid.y` et redécode donc les mêmes
+  codewords pour chacune des six lignes de vérification.
+- Hypothèse : pour M=6/8, un micro-tile MB=2 partage chaque décodage de poids
+  entre deux lignes tout en conservant les accumulateurs et l'ordre des FMA par
+  ligne. Le surcoût registres reste borné à deux lignes, contrairement à MB=4.
+- Baseline : PERF-91/92, DFlash **67,420 / 67,542 tok/s**, target par génération
+  **0,568–0,576 s**, sortie exacte. Protocole : différentiel physique EXL3
+  batch M=8 et largeurs de vérification 1..8, puis profil target M=6 et A/B
+  E2E entrelacé. Rejet au premier écart ou si spills/occupation annulent le gain.
+  Statut : **en cours**, journalisé avant code.
+- Exactitude : le différentiel physique M=8 donne zéro mismatch sur 65 536
+  sorties et le test des largeurs de vérification 1..8 reste strictement égal au
+  chemin token-major. L'E2E conserve 39/45 propositions et la séquence greedy
+  target exacte.
+- A/B/B/A, deux répétitions par passage : MB=2 **73,038 / 72,368 tok/s**, MB=1
+  **69,019 / 68,313 tok/s**. Le débit médian des quatre exécutions passe
+  d'environ 68,7 à **72,1 tok/s (+5,0 %)** ; le corps target passe de
+  **0,556–0,565 s** à **0,517–0,526 s (-6,5 à -7,1 %)**. Le ratio apparié
+  DFlash/greedy du candidat est **~1,450×**. Le draft et l'acceptation restent
+  inchangés, ce qui localise le gain dans le vérificateur EXL3.
+- Décision : **validé et intégré localement** pour M=6/8 avec MB=2 et NT<=2.
+  Le commutateur A/B est retiré. Contrôles complets, confirmation production et
+  publication immédiate requis.
+- Confirmation production après retrait du commutateur, trois alternances :
+  greedy médian **49,967 tok/s**, DFlash médian **73,055 tok/s**, soit
+  **1,462× (+46,2 %)** ; target **0,518–0,521 s**, draft 0,124 s, 39/45
+  acceptés et sortie exacte.
+- Contrôles finaux réussis : `git diff --check`, format Rust, Clippy strict tous
+  targets/features, 23 tests lib, 1 test CLI, 14 contrats, build release
+  MLX/chat, différentiel M=8 et largeurs physiques 1..8. Kani 0.68 / CBMC
+  6.11 vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures. Kani ne
+  couvre pas le shader Metal ; l'égalité GPU est un contrôle différentiel borné,
+  pas une preuve formelle non bornée. Statut : **validé, intégré et prêt à
+  publier**.
