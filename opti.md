@@ -4123,3 +4123,71 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   les différentiels et exécutions physiques. Décision : publier ce jalon draft
   mesuré, tout en gardant PERF-50 **en cours** jusqu'à la boucle lossless et au
   débit DFlash end-to-end.
+- Révision du 20 septembre, avant nouvel essai : l'audit externe fourni et la
+  lecture directe du kernel Splash `draft_attention_split_phase` montrent que
+  les huit K/V courants sont ajoutés sans masque causal entre lignes. MLXL3
+  utilise encore SDPA causal à contexte vide et masque les lignes courantes
+  futures avec cache. Sous-essai E01 : rendre les huit lignes courantes visibles
+  tout en conservant la fenêtre causale uniquement sur l'historique, puis laisser
+  un test où la valeur de la ligne 7 doit modifier la sortie de la ligne 0. Le
+  débit ne sera interprété qu'après ce contrôle de fidélité. État : **en cours**.
+- E01 reproduit puis corrigé : le test qui ne modifie que les V de la ligne 7
+  échouait avec le SDPA causal (la sortie de la ligne 0 restait identique), puis
+  réussit après passage du bloc courant en non-causal. Avec historique, seules
+  les colonnes antérieures respectent la borne glissante ; les huit colonnes
+  courantes sont visibles pour chaque requête, comme dans le kernel Splash lu.
+  Le graphe six couches reste déterministe et fini ; timing ponctuel médian
+  **5,390 ms**, p10 **4,567**, p90 **5,525**. La dispersion interdit d'attribuer
+  ici une régression par rapport aux 4,621 ms précédents. Fidélité Splash des
+  tenseurs complets et cas anneau restent à qualifier avant de clore E01.
+- Extension du même test avec un cache historique d'une position : échec avant
+  l'oracle, car le masque FP32 ne peut pas promouvoir la sortie SDPA BF16. Le
+  cache draft n'avait donc pas de chemin exécutable validé. Correction minimale
+  à la frontière commune : caster le masque additif en BF16 avant SDPA ; relance
+  du test causal/non-causal requise avant toute mesure avec contexte.
+- Après correction du dtype, le test physique réussit à contexte vide et avec
+  une position historique : modifier uniquement V à la ligne courante 7 modifie
+  bien la sortie de la ligne 0 dans les deux cas. Cela valide le défaut initial,
+  sa correction et l'exécution du cache court ; la parité numérique Splash et
+  le wrap à 2048 restent non mesurés.
+
+### OPT-2026-09-19-RUST-PERF-51 — Vérification cible M=8 exacte — en cours
+
+- Hypothèse : la vérification lossless actuelle calcule les huit `lm_head`
+  EXL3 comme huit QMV indépendants. Un QMV Metal M=2..8 qui ajoute seulement
+  l'indice de ligne à la géométrie existante peut partager l'ordonnancement et
+  améliorer la localité des poids sans changer l'ordre arithmétique interne de
+  chaque ligne. Le reste du modèle demeure strictement autoregressif M=1.
+- Baseline : Qwen3.6-35B-A3B EXL3 2,49 bpw, tokens cibles 4..11 après le préfixe
+  1,2,3, Apple M5 ; vérification différée exacte PERF-47 **153,829 ms / 8**.
+  Batterie et thermique du nouveau passage seront relevées ; aucun gain n'est
+  revendiqué avant une série alternée.
+- Protocole : comparer chaque logit FP16 et chaque état cible au chemin huit
+  forwards M=1, puis mesurer au moins cinq passages chauds. Rejeter au premier
+  écart. La distribution cible, les tokens acceptés et le rollback ne doivent
+  pas changer. État : **en cours**, journalisé avant code.
+- Première compilation du prototype interrompue correctement : le shader QMV
+  partagé référençait `INPUT_DIMS`, absent du header du chemin M=1. Aucun timing
+  n'a été retenu ; le define a été ajouté aux deux géométries avant relance.
+- Projection réelle Qwen 2048→8192, K=4, M=8 : QMV ligne par ligne **1,872 ms**,
+  QMV à grille 2D **0,573 ms**, soit **3,27×** sur ce microbenchmark ; 0/65 536
+  sorties FP16 différentes, écart max 0. Le kernel conserve une accumulation
+  indépendante et le même ordre par ligne ; seul l'indice de batch est ajouté.
+- Vérificateur complet, série appariée ABBA sur batterie : ancien graphe différé
+  médian **168,334 ms** (166,859–173,020), tête M=8 partagée **159,950 ms**
+  (156,112–161,647), soit **1,052×**. Les 12 passages conservent exactement les
+  1 986 560 logits FP16 et les 80 états ; les QMV M=2/4/8/16/23 sont aussi
+  identiques ligne par ligne. Décision : conserver ce premier partage exact ;
+  il améliore V d'environ 5 % ici, loin du budget 45–75 ms visé. E06/E10 restent
+  nécessaires. K=7 reste volontairement sur le fallback série faute de fixture
+  locale permettant de qualifier le kernel multi-lignes.
+- Contrôles finaux du jalon : `cargo fmt --all -- --check`, Clippy strict
+  tous targets/features, 23 tests lib, 1 test CLI, 14 tests de contrats et le
+  build release MLX/chat réussissent. Kani 0.68/CBMC 6.11 vérifie **17/17
+  harnesses**, 0 échec et 2/2 couvertures ; il ne couvre pas MLX/Metal. Les
+  chemins GPU sont donc validés séparément sur le M5 par les différentiels QMV
+  M=2/4/8/16/23, le replay exact logits+état Qwen, le test de visibilité
+  DFlash vide+cache et le graphe draft complet déterministe/fini. Statut :
+  **validé et prêt à intégrer** pour le partage exact du `lm_head` et les
+  corrections d'attention ; la vérification cible layer-major et le débit
+  DFlash end-to-end restent non implémentés.

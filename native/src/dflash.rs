@@ -573,18 +573,20 @@ fn attention(
         None => (current_keys, current_values, 0),
     };
     let attended = if past == 0 {
-        Array::sdpa(&query, &keys, &values, 128.0_f32.powf(-0.5), true)?
+        Array::sdpa(&query, &keys, &values, 128.0_f32.powf(-0.5), false)?
     } else {
         let total = past + 8;
         let mut mask = vec![f32::NEG_INFINITY; 8 * total as usize];
         for row in 0..8 {
-            let end = past + row + 1;
-            let begin = (end - 2048).max(0);
-            for column in begin..end {
+            let begin = (past + row + 1 - 2048).max(0);
+            for column in begin..past {
+                mask[row as usize * total as usize + column as usize] = 0.0;
+            }
+            for column in past..total {
                 mask[row as usize * total as usize + column as usize] = 0.0;
             }
         }
-        let mask = Array::from_f32(&mask, &[1, 1, 8, total])?;
+        let mask = Array::from_f32(&mask, &[1, 1, 8, total])?.astype(Dtype::BFloat16)?;
         Array::sdpa_mask(&query, &keys, &values, 128.0_f32.powf(-0.5), &mask)?
     };
     attended
@@ -811,6 +813,55 @@ mod tests {
         assert_eq!(weights.final_norm.shape(), &[2048]);
         assert_eq!(weights.predecessor_codebook.shape(), &[248_320, 256]);
         assert_eq!(weights.successor_codebook.shape(), &[248_320, 256]);
+        Ok(())
+    }
+
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn current_draft_rows_attend_each_other() -> Result<()> {
+        use crate::array::{Array, Dtype};
+        use half::bf16;
+
+        let array = |values: &[bf16], shape: &[i32]| {
+            let bytes = unsafe {
+                std::slice::from_raw_parts(values.as_ptr().cast(), std::mem::size_of_val(values))
+            };
+            Array::from_bytes(bytes, shape, Dtype::BFloat16)
+        };
+        let make_qkv = |last_value: f32| {
+            let mut values = vec![bf16::ZERO; 8 * QKV as usize];
+            for row in 0..8 {
+                let base = row * QKV as usize;
+                values[base..base + 5120].fill(bf16::from_f32(1.0));
+            }
+            values[7 * QKV as usize + 5120..8 * QKV as usize].fill(bf16::from_f32(last_value));
+            array(&values, &[8, QKV as i32])
+        };
+        let norm = array(&vec![bf16::from_f32(1.0); 128], &[128])?;
+        let first = attention(&make_qkv(1.0)?, &norm, &norm, None, 0)?;
+        let changed = attention(&make_qkv(2.0)?, &norm, &norm, None, 0)?;
+        first.eval()?;
+        changed.eval()?;
+        assert_ne!(
+            first.slice(0, 0, 1)?.to_bytes()?,
+            changed.slice(0, 0, 1)?.to_bytes()?,
+            "draft row 0 must see the current block's row 7"
+        );
+        let cache_values = vec![bf16::ZERO; 8 * 128];
+        let cache = DFlashCacheLayer {
+            keys: array(&cache_values, &[1, 8, 1, 128])?,
+            values: array(&cache_values, &[1, 8, 1, 128])?,
+        };
+        let first = attention(&make_qkv(1.0)?, &norm, &norm, Some(&cache), 1)?;
+        let changed = attention(&make_qkv(2.0)?, &norm, &norm, Some(&cache), 1)?;
+        first.eval()?;
+        changed.eval()?;
+        assert_ne!(
+            first.slice(0, 0, 1)?.to_bytes()?,
+            changed.slice(0, 0, 1)?.to_bytes()?,
+            "cached draft row 0 must see the current block's row 7"
+        );
         Ok(())
     }
 

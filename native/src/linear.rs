@@ -218,6 +218,9 @@ impl Exl3Linear {
             return self.forward_qmm_tensor(x);
         }
         if matrix_rows > 1 {
+            if self.k != 7 {
+                return self.forward_qmv_batch(x, matrix_rows);
+            }
             let matrix = x.reshape(&[matrix_rows, self.rows])?;
             let rows = (0..matrix_rows)
                 .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
@@ -276,12 +279,13 @@ impl Exl3Linear {
                 1
             };
             header += &format!(
-                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {}\n",
+                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {}\n",
                 self.simdgroups,
                 self.k,
                 self.k,
                 self.cb as u32,
                 self.k * 8,
+                self.rows,
                 self.cols
             );
             let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
@@ -318,6 +322,84 @@ impl Exl3Linear {
             .reshape(&[1, self.cols / 128, 128])?
             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
             .reshape(&[self.cols])?
+            .mul(&self.svh.astype(Dtype::Float16)?)?;
+        let mut shape = x.shape().to_vec();
+        *shape.last_mut().context("empty input shape")? = self.cols;
+        let y = y.astype(x.dtype())?.reshape(&shape)?;
+        match &self.bias {
+            Some(bias) => y.add(bias),
+            None => Ok(y),
+        }
+    }
+
+    fn forward_qmv_batch(&self, x: &Array, matrix_rows: i32) -> Result<Array> {
+        ensure!(
+            self.k != 7 && (2..24).contains(&matrix_rows),
+            "batch QMV requires 2 to 23 rows"
+        );
+        let xhat = x
+            .astype(Dtype::Float16)?
+            .reshape(&[matrix_rows, self.rows])?
+            .mul(&self.suh.astype(Dtype::Float16)?)?
+            .reshape(&[matrix_rows, self.rows / 128, 128])?
+            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+            .reshape(&[matrix_rows, self.rows])?;
+        let input_tiles = self.rows / 16;
+        let output_tiles = self.cols / 16;
+        let splits = split_count(input_tiles, output_tiles);
+        let nt = if output_tiles >= 1024 {
+            if output_tiles % 2 == 0 { 2 } else { 1 }
+        } else if output_tiles % 4 == 0 {
+            4
+        } else if output_tiles % 2 == 0 {
+            2
+        } else {
+            1
+        };
+        let header = codebook_header(self.cb)
+            + &format!(
+                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {output}\n",
+                self.simdgroups,
+                self.k,
+                self.k,
+                self.cb as u32,
+                self.k * 8,
+                input = self.rows,
+                output = self.cols,
+            );
+        let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+        let partials = array::metal_kernel(
+            &format!(
+                "mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}",
+                self.rows, self.cols, self.k, self.cb as u32, nt, self.simdgroups, splits
+            ),
+            &["xhat", "trellis", "svh"],
+            &["yhat"],
+            &header,
+            include_str!("../shaders/_qmv_tile_kernel.metal"),
+            &[&xhat, &words, &self.svh],
+            &[vec![matrix_rows, splits, self.cols]],
+            &[Dtype::Float32],
+            [
+                (output_tiles / nt)
+                    .checked_mul(self.simdgroups * 32)
+                    .context("QMV grid overflow")?,
+                matrix_rows,
+                splits,
+            ],
+            [self.simdgroups * 32, 1, 1],
+        )?
+        .remove(0);
+        let output = if splits == 1 {
+            partials.reshape(&[matrix_rows, self.cols])?
+        } else {
+            partials.sum(1, false)?
+        };
+        let y = output
+            .astype(Dtype::Float16)?
+            .reshape(&[matrix_rows, self.cols / 128, 128])?
+            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+            .reshape(&[matrix_rows, self.cols])?
             .mul(&self.svh.astype(Dtype::Float16)?)?;
         let mut shape = x.shape().to_vec();
         *shape.last_mut().context("empty input shape")? = self.cols;
@@ -849,10 +931,21 @@ mod tests {
             &checkpoint,
             "model.language_model.layers.0.linear_attn.in_proj_qkv",
         )?;
-        let values = (0..8 * linear.rows)
-            .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
-            .collect::<Vec<_>>();
-        let x = Array::from_f16_bits(&values, &[8, linear.rows])?;
+        let input = |rows| {
+            let values = (0..rows * linear.rows)
+                .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
+                .collect::<Vec<_>>();
+            Array::from_f16_bits(&values, &[rows, linear.rows])
+        };
+        for rows in [2, 4, 16, 23] {
+            let x = input(rows)?;
+            assert_eq!(
+                serial_rows(&linear, &x)?.to_f16_bits()?,
+                linear.forward(&x)?.to_f16_bits()?,
+                "batch QMV differs at M={rows}"
+            );
+        }
+        let x = input(8)?;
 
         let serial = serial_rows(&linear, &x)?;
         let batched = linear.forward(&x)?;

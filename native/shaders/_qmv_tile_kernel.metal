@@ -5,6 +5,7 @@
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
             uint tile_n = threadgroup_position_in_grid.x * MLXL3_QMV_NT;
+            uint row = threadgroup_position_in_grid.y;
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials[MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
             threadgroup float ha[128];
@@ -38,7 +39,9 @@
                 tile_k += MLXL3_QMV_SG
             ) {
                 const device half2* x_pairs =
-                    reinterpret_cast<const device half2*>(xhat + tile_k * 16u);
+                    reinterpret_cast<const device half2*>(
+                        xhat + row * uint(INPUT_DIMS) + tile_k * 16u
+                    );
                 half2 x_pair = x_pairs[lane & 7u];
                 half2 x_pair0 = simd_shuffle(x_pair, ushort(lane & 3u));
                 half2 x_pair1 = simd_shuffle(x_pair, ushort((lane & 3u) + 4u));
@@ -122,7 +125,7 @@
                 }
                 if (MLXL3_FUSE_OUTPUT) ha[tid] = float(half(sum));
                 else yhat[
-                    split * uint(OUTPUT_DIMS)
+                    (row * uint(N_SPLITS) + split) * uint(OUTPUT_DIMS)
                     + (tile_n + output_tile) * 16u + column
                 ] = sum;
             }
@@ -141,6 +144,7 @@
                 if (tid < 128u) {
                     uint index = tile_n * 16u + tid;
                     half rotated = half(float(half(ha[tid])) * 0.08838834764831845f);
-                    yhat[index] = half(rotated * half(svh[index]));
+                    yhat[row * uint(OUTPUT_DIMS) + index] =
+                        half(rotated * half(svh[index]));
                 }
             }
