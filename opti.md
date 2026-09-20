@@ -4450,3 +4450,25 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   2/2 couvertures ; ses bornes portent sur le Rust pur et n'incluent pas MLX ou
   Metal, couverts ici par le différentiel exact sur le modèle réel. Statut :
   **validé, intégré et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-60 — TensorOps MoE dès 64 routes — rejeté
+
+- Observation : le bundle cible M=8 produit 64 routes (`8 × top_k 8`), mais
+  `Exl3SwitchGlu` ne sélectionne le QMM segmenté qu'à partir de 64 lignes, soit
+  512 routes. Le kernel, son plan trié et ses buffers sont dimensionnés en
+  slots/routes ; le seuil de lignes peut donc priver la vérification du chemin
+  TensorOps existant.
+- Hypothèse : choisir le chemin segmenté lorsque `rows × top_k >= 64` partage
+  mieux les poids experts et réduit les QMV, sans nouveau kernel. Baseline :
+  PERF-59 **84,588 ms** groupé contre 85,906 ms série dans sa première ABBA,
+  puis 88,248 contre 89,050 ms sous chauffe, modèle Qwen3.6-35B-A3B EXL3
+  2.49 bpw sur M5, batterie.
+- Protocole : modifier uniquement le seuil, exiger l'identité octet par octet
+  des logits FP16 et des 80 états M=1/2/4/8 avant toute mesure, puis deux séries
+  ABBA. Rejet immédiat au premier écart, crash ou gain non stable. Statut :
+  **en cours**, journalisé avant code.
+- Résultat : **rejeté avant timing**. M=1/2/4 reste sur le chemin canonique,
+  mais M=8 diverge massivement dans les logits FP16 dès que les 64 routes passent
+  par le QMM TensorOps segmenté. Ce chemin ne peut donc pas remplacer le QMV
+  mappé dans la vérification lossless, même si sa géométrie accepte les buffers.
+  Le seuil `rows >= 64` est restauré ; aucune modification exécutable conservée.
