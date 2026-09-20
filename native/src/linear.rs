@@ -347,7 +347,10 @@ impl Exl3Linear {
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
         let splits = split_count(input_tiles, output_tiles);
-        let nt = if output_tiles >= 1024 {
+        let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
+        let nt = if use_nt4 {
+            4
+        } else if output_tiles >= 1024 {
             if output_tiles % 2 == 0 { 2 } else { 1 }
         } else if output_tiles % 4 == 0 {
             4

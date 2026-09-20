@@ -4657,3 +4657,98 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   zéro échec et 2/2 couvertures. Ses propriétés bornées ne couvrent pas MLX ou
   Metal ; le chemin GPU est couvert par le différentiel modèle exact, pas par
   une preuve formelle. Statut : **validé, intégré et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-67 — huit tiles par threadgroup expert M=8 — rejeté
+
+- Hypothèse : après le gain NT4 de PERF-66, `NT=8` divise encore par deux les
+  threadgroups sparse. Il porte toutefois 64 accumulateurs FP32 par thread et
+  peut faire chuter l'occupation ou provoquer du spill ; ce risque impose un
+  essai isolé plutôt qu'une généralisation.
+- Baseline appariée : production NT4 de PERF-66, **81,168–82,508 ms** médian
+  suivant la série pour la cible complète M=8. Protocole : NT4/NT8 alternés sur
+  le même modèle et état, égalité stricte des logits/80 états à chaque passe,
+  deux séries seulement si la première gagne. Rejet au premier écart, erreur
+  Metal ou médiane non meilleure. Statut : **en cours**.
+- Résultat : exact mais nettement plus lent. NT4 **82,843 ms** médian
+  `[82,194; 82,554; 82,827; 82,843; 83,781; 83,909]` contre NT8
+  **111,210 ms** `[109,696; 109,884; 110,480; 111,210; 112,235; 601,130]`,
+  soit une régression médiane de **25,5 %** et un outlier extrême. Le surcoût
+  d'accumulateurs/pression registres domine la réduction de threadgroups.
+- Décision : **rejeté après une série**, comme prévu par le protocole ; NT8,
+  son commutateur et son benchmark temporaire sont retirés. Production reste
+  sur NT4 de PERF-66.
+
+### OPT-2026-09-20-RUST-PERF-68 — épilogue sparse Hadamard/réduction fusionné — en cours
+
+- Observation : après chaque down sparse, `finish_and_reduce` matérialise un
+  Hadamard FP16 de 64×2048, deux multiplications puis une somme top-8. PERF-65
+  inclut cette chaîne dans les **0,857 ms** sparse, mais PERF-09 n'avait testé
+  qu'une compilation MLX explicite, pas un kernel Metal fusionné.
+- Hypothèse : un threadgroup par bloc de 128 sorties peut reproduire le radix
+  16 puis radix 8 du Hadamard MLX, ses arrondis FP16, les scales/scores et la
+  somme top-8 en un dispatch, sans buffer Hadamard intermédiaire. Périmètre
+  initial : mapped sparse avec au moins 64 slots ; chemins decode M=1 et prefill
+  segmenté inchangés.
+- Baseline : production NT4 PERF-66, cible M=8 **~81–83 ms**. Protocole : rejet
+  immédiat si logits/80 états M=1/2/4/8 diffèrent ; sinon deux ABBA complètes
+  fusion/référence. Le kernel est retiré si l'ordre FP16 exact n'est pas
+  reproductible ou si les deux médianes ne gagnent pas. Statut : **en cours**.
+- Premier différentiel modèle : M=1/2/4 passent par la référence, M=8 diverge
+  fortement dans les logits. Aucun timing lancé. Le kernel n'est pas éligible
+  en l'état ; un différentiel isolé de l'épilogue doit déterminer si l'écart
+  vient du Hadamard ou de la somme FP16 avant décision finale.
+- Le premier différentiel isolé confirme une erreur dans le Hadamard : même avec
+  `top_k=1`, **435/8 192** valeurs diffèrent ; avec scales/scores unitaires,
+  **500/8 192** diffèrent. La suite de butterflies radix-2 ne reproduit donc
+  pas les arrondis du kernel MLX, malgré des résultats proches.
+- Révision minimale : le prototype reproduit ensuite exactement le radix-16,
+  cast FP16 intermédiaire puis radix-8 de MLX avec huit threads. Le Hadamard
+  seul devient exact (**0/8 192** écarts), tout comme l'épilogue production
+  top-8 (**0/1 024** écart) ; le différentiel complet logits + 80 états
+  M=1/2/4/8 réussit aussi octet par octet.
+- ABBA cible complète : référence **83,459 ms** médiane
+  `[81,752; 82,383; 83,277; 83,459; 83,673; 88,411]` contre fusion
+  **84,892 ms** `[83,243; 84,102; 84,408; 84,892; 85,400; 86,358]`, soit
+  **−1,7 %**. Le faible nombre de threads et les registres nécessaires aux
+  16 sorties annulent les dispatchs/buffers économisés.
+- Décision : **rejeté après une série**, conformément au protocole. Kernel,
+  commutateur et tests temporaires supprimés ; production reste strictement
+  identique à PERF-66. Le résultat négatif établit aussi qu'une fusion exacte
+  doit préserver le découpage radix-16/radix-8 de MLX, pas sept butterflies
+  radix-2 génériques.
+
+### OPT-2026-09-20-RUST-PERF-69 — NT4 QMV batch pour grandes sorties — en cours
+
+- Observation : PERF-62 mesure encore **13,568 ms** pour le `lm_head` M=8,
+  soit près de 16 % de la cible. Son QMV batch 2048→248 320 utilise `NT=2`
+  dès 1 024 tiles, alors que PERF-66 démontre que `NT=4` gagne sur les QMV
+  mapped M=8 en divisant les threadgroups, sans changer l'accumulation interne.
+- Hypothèse : appliquer `NT=4` uniquement au QMV batch M=8 et aux sorties dont
+  le nombre de tiles est divisible par quatre réduit surtout le coût du
+  `lm_head`; M=1 et les petits batches restent inchangés. Aucun nouveau kernel,
+  seulement la géométrie déjà validée `NT=4`.
+- Baseline : production PERF-66, cible complète M=8 **~81–83 ms** ; `lm_head`
+  diagnostique **13,568 ms**. Protocole : identité stricte logits + 80 états
+  M=1/2/4/8, puis deux ABBA complètes NT2/NT4 si la première gagne. Rejet au
+  premier écart Metal/numérique ou si la médiane n'est pas meilleure. Statut :
+  **en cours**, journalisé avant code.
+- Exactitude : différentiel physique M=1/2/4/8 réussi, logits FP16 et 80 états
+  octet par octet identiques au chemin token-major. Les 24 passages ABBA
+  comparent également sortie et état entre NT2 et NT4.
+- Première ABBA : NT2 **82,504 ms** `[81,448; 82,202; 82,417; 82,504;
+  82,823; 88,334]` contre NT4 **80,339 ms** `[79,315; 80,034; 80,127;
+  80,339; 80,895; 81,314]`, soit **1,027×** et **−2,165 ms**.
+- Deuxième ABBA : NT2 **83,625 ms** `[82,150; 83,268; 83,488; 83,625;
+  83,779; 83,877]` contre NT4 **80,526 ms** `[79,753; 80,149; 80,379;
+  80,526; 80,622; 81,686]`, soit **1,038×** et **−3,098 ms**.
+- Décision : **validé et intégré localement** sur M5 pour `matrix_rows >= 8`
+  et largeur divisible par quatre tiles. M=1 et les autres GPU gardent leur
+  géométrie précédente. Commutateur et benchmark temporaires supprimés ;
+  contrôles complets/Kani requis avant publication.
+- Contrôles finaux réussis : format, `git diff --check`, Clippy strict tous
+  targets/features, 23 tests lib, 1 test CLI, 14 contrats, build release
+  MLX/chat et différentiel physique M=1/2/4/8. Kani 0.68 / CBMC 6.11 vérifie
+  **17/17 harnesses**, zéro échec et 2/2 couvertures. Les propriétés Kani
+  portent sur le Rust pur ; la géométrie MLX/Metal est couverte par le
+  différentiel exact du modèle réel, pas par une preuve formelle. Statut :
+  **validé, intégré et prêt à publier**.
