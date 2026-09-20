@@ -4472,3 +4472,80 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   par le QMM TensorOps segmenté. Ce chemin ne peut donc pas remplacer le QMV
   mappé dans la vérification lossless, même si sa géométrie accepte les buffers.
   Le seuil `rows >= 64` est restauré ; aucune modification exécutable conservée.
+
+### OPT-2026-09-20-RUST-PERF-61 — routeur dense M=8 en un dispatch — validé
+
+- Observation : après PERF-59, chaque couche MoE conserve huit appels séparés
+  à la projection dense FP16 `[2048, 256]` afin de reproduire exactement le
+  résultat M=1 ; seuls softmax et top-k sont regroupés. Sur les 40 couches, cela
+  laisse 320 petits dispatchs de gate dans une vérification de huit tokens.
+- Hypothèse : un kernel Metal à grille 2D peut calculer les huit lignes dans un
+  seul dispatch tout en gardant, pour chaque ligne, le même ordre de réduction
+  que le GEMV M=1. Le gain visé est au moins 1 ms par bundle sans aucun écart de
+  logits, routes ou états. Baseline : PERF-59, **84,588 ms** dans la première
+  ABBA et **88,248 ms** sous chauffe, modèle Qwen3.6-35B-A3B EXL3 2.49 bpw sur
+  M5, batterie.
+- Protocole : tester d'abord les sorties brutes du gate contre huit appels M=1,
+  puis exiger l'identité octet par octet des logits et 80 états pour M=1/2/4/8.
+  Deux séries ABBA seulement après identité complète ; supprimer le prototype
+  au premier écart non corrigeable sans chemin spécial fragile. Statut :
+  **en cours**, journalisé avant code.
+- Incident de validation : la première commande s'est arrêtée avant compilation,
+  car `cargo` n'était pas dans le `PATH` non interactif. Aucun test n'a été
+  exécuté ; reprise avec `/Users/justin/.cargo/bin/cargo` explicite.
+- Deuxième incident de commande : le manifest est à la racine, pas dans
+  `native/`; `cargo fmt --manifest-path native/Cargo.toml` a donc échoué avant
+  compilation. Reprise depuis la racine avec `Cargo.toml`.
+- Troisième incident de commande : le filtre qualifié
+  `qwen35::tests::verification_widths_match_token_major` a compilé le crate mais
+  sélectionné **0 test** (17 tests de lib filtrés). Il ne constitue donc aucune
+  validation ; reprise avec le nom court découvert dans la liste Cargo.
+- La reprise avec `--features mlx` a correctement sélectionné le code GPU mais
+  le build script s'est arrêté avant compilation faute de `MLXL3_MLX_ROOT`.
+  Reprise avec le paquet local `.venv/lib/python3.12/site-packages/mlx` déjà
+  utilisé par les builds de l'app.
+- Premier build du prototype avec l'environnement MLX correct : échec de
+  compilation Rust avant exécution (`array::metal_kernel` non importé dans
+  `lfm2.rs`). Correction limitée à l'import du module, puis même test relancé.
+- Premier test GPU exécuté : échec à M=1 avant comparaison, car le chemin de
+  vérification appelle aussi le helper réservé aux batches 2–8. Aucun résultat
+  numérique obtenu. Le chemin M=1 reste sur `Projection::forward`; le kernel
+  candidat n'est appelé que pour M≥2.
+- Résultat du premier différentiel complet : M=1/2/4 identiques, mais **M=8
+  diverge fortement** dans les logits finaux. Aucun timing conservé. Le kernel
+  ne peut pas être intégré tel quel ; analyse réduite aux sorties brutes du gate
+  avant toute autre modification de production.
+- Test isolé sur un tenseur déterministe `[8,2048]` : sorties du gate strictement
+  identiques pour M=2/4/8. Sur les activations réelles du différentiel M=8, le
+  premier gate fautif ne diffère que sur **1 valeur FP16 / 2 048** ; cette unique
+  différence suffit à changer une route proche de la frontière. Le défaut vient
+  donc de l'ordre de réduction du GEMV MLX sur certaines valeurs, pas de
+  l'adressage 2D du kernel.
+- Révision : le kernel reproduit maintenant la géométrie exacte du GEMV M=1 de
+  MLX 0.32.2 (`BM=4, BN=1, SM=1, SN=32, TM=4, TN=4`) tout en portant les
+  lignes proposées sur la seconde dimension de grille. Le test gate isolé et le
+  différentiel physique complet passent désormais pour M=1/2/4/8 : logits FP16
+  et 80 états strictement identiques. L'instrumentation comparative temporaire
+  est retirée avant benchmark.
+- Contrôle avant ABBA : `cargo fmt --check` a demandé deux reformattages Rust
+  purement mécaniques ; aucun benchmark n'a été lancé avec ce diff non formaté.
+- Première ABBA physique, six paires alternées, sortie et états comparés à
+  chaque passe : série **90,240 ms**, gate groupé **87,123 ms**, soit **1,036×**
+  et **−3,117 ms** pour huit tokens. Échantillons série `[84,713; 87,950;
+  89,542; 90,240; 90,733; 90,805]` ms, groupé `[84,268; 84,398; 86,908;
+  87,123; 87,561; 89,121]` ms. Une seconde ABBA est requise sous la chauffe
+  courante avant décision.
+- Deuxième ABBA sous chauffe : série **87,123 ms**, gate groupé **86,425 ms**,
+  soit **1,008×** et **−0,698 ms**. Échantillons série `[85,635; 86,768;
+  86,786; 87,123; 87,626; 89,252]` ms, groupé `[85,098; 85,908; 86,191;
+  86,425; 86,555; 87,384]` ms. Les deux séries sont positives et toutes leurs
+  sorties/états sont identiques. Le benchmark temporaire est retiré ; le test
+  gate M=2/4/8 et le différentiel modèle M=1/2/4/8 restent. Statut : **validé,
+  intégré localement**.
+- Contrôles finaux réussis : format, Clippy strict tous targets/features,
+  23 tests lib, 1 test CLI, 14 contrats, build release MLX/chat, différentiel
+  gate M=2/4/8 et différentiel modèle M=1/2/4/8. Kani 0.68 / CBMC 6.11
+  vérifie **17/17 harnesses**, zéro échec et 2/2 couvertures. Ces propriétés
+  bornées concernent le Rust pur ; Kani ne couvre ni MLX ni Metal, vérifiés ici
+  uniquement par les différentiels physiques exacts. Statut : **validé,
+  intégré et prêt à publier**.

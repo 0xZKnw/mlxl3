@@ -2,7 +2,7 @@
 //! Weights and operation order follow mlx-lm's `lfm2` implementations.
 // Architecture adapted from mlx-lm, Copyright © 2025 Apple Inc. (MIT).
 use crate::{
-    array::{Array, Dtype},
+    array::{self, Array, Dtype},
     checkpoint::{self, Checkpoint},
     linear::{Exl3Group, Exl3Linear, checkpoint_array},
     moe::Exl3SwitchGlu,
@@ -191,6 +191,75 @@ impl Projection {
             Some(bias) => value.add(bias),
             None => Ok(value),
         }
+    }
+
+    pub(crate) fn forward_dense_rows_exact(&self, x: &Array) -> Result<Array> {
+        let ProjectionWeights::Dense(weight) = &self.weights else {
+            anyhow::bail!("exact dense rows require dense projection weights");
+        };
+        ensure!(
+            self.bias.is_none()
+                && x.shape().len() == 2
+                && (2..=8).contains(&x.shape()[0])
+                && x.shape()[1] == self.logical_input
+                && self.logical_input % 128 == 0
+                && self.logical_output % 16 == 0,
+            "invalid exact dense row input"
+        );
+        let rows = x.shape()[0];
+        let source = format!(
+            r#"
+                constexpr uint INPUT_DIMS = {input}u;
+                constexpr uint OUTPUT_DIMS = {output}u;
+                uint output = threadgroup_position_in_grid.x * 16u
+                    + simdgroup_index_in_threadgroup * 4u;
+                uint row = threadgroup_position_in_grid.y;
+                uint lane = thread_index_in_simdgroup;
+                float result[4] = {{0.0f, 0.0f, 0.0f, 0.0f}};
+                uint k = lane * 4u;
+                for (uint block = 0u; block < INPUT_DIMS / 128u; ++block) {{
+                    float coeff[4];
+                    for (uint n = 0u; n < 4u; ++n) {{
+                        coeff[n] = float(x[row * INPUT_DIMS + k + n]);
+                    }}
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        for (uint n = 0u; n < 4u; ++n) {{
+                            result[m] += float(weight[(output + m) * INPUT_DIMS + k + n])
+                                * coeff[n];
+                        }}
+                    }}
+                    k += 128u;
+                }}
+                for (ushort offset = 16u; offset >= 1u; offset >>= 1u) {{
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        result[m] += simd_shuffle_down(result[m], offset);
+                    }}
+                }}
+                if (lane == 0u) {{
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        y[row * OUTPUT_DIMS + output + m] = half(result[m]);
+                    }}
+                }}
+            "#,
+            input = self.logical_input,
+            output = self.logical_output,
+        );
+        Ok(array::metal_kernel(
+            &format!(
+                "mlxl3_rs_dense_rows_exact_{}_{}_v1",
+                self.logical_input, self.logical_output
+            ),
+            &["x", "weight"],
+            &["y"],
+            "",
+            &source,
+            &[x, weight],
+            &[vec![rows, self.logical_output]],
+            &[Dtype::Float16],
+            [(self.logical_output / 16) * 128, rows, 1],
+            [128, 1, 1],
+        )?
+        .remove(0))
     }
 }
 

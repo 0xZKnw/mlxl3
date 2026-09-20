@@ -95,14 +95,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## MLX LM
+## MLX and MLX LM
 
-Source: <https://github.com/ml-explore/mlx-lm>, version 0.32.0.
+Sources: <https://github.com/ml-explore/mlx>, version 0.32.2, and
+<https://github.com/ml-explore/mlx-lm>, version 0.32.0.
 
 The packed Gated DeltaNet Metal kernel in
 `native/shaders/gated_delta_packed.metal` is carried from MLX LM for exact
 behavior during the native Rust migration. MLX LM is licensed under the MIT
-License.
+License. The dense verification gate in `native/src/lfm2.rs` reproduces MLX's
+GEMV reduction geometry so multi-row verification remains bit-exact; MLX is
+also licensed under the MIT License.
 
 Copyright © 2023 Apple Inc.
 

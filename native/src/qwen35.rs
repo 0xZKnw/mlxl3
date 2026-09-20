@@ -237,12 +237,12 @@ impl Mlp {
         let rows = i32::try_from(values.len())?;
         let batch =
             Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?.reshape(&[rows, hidden])?;
-        let gates = values
-            .iter()
-            .map(|value| mlp.gate.forward(&value.reshape(&[1, hidden])?))
-            .collect::<Result<Vec<_>>>()?;
-        let probabilities =
-            Array::concatenate(&gates.iter().collect::<Vec<_>>(), 0)?.softmax_precise()?;
+        let gates = if rows == 1 {
+            mlp.gate.forward(&batch)?
+        } else {
+            mlp.gate.forward_dense_rows_exact(&batch)?
+        };
+        let probabilities = gates.softmax_precise()?;
         let (selected, scores) = router::topk(&probabilities, mlp.top_k, true)?;
         let routed = mlp.experts.forward(&batch, &selected, &scores)?;
         let shared = mlp.shared(&batch)?;
@@ -1501,6 +1501,37 @@ mod tests {
         let output = model.head.forward(&hidden)?;
         output.eval()?;
         Ok(output)
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn dense_gate_rows_match_serial() -> Result<()> {
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let gate = Projection::load(
+            &checkpoint,
+            "model.language_model.layers.0.mlp.gate",
+            2048,
+            256,
+            false,
+        )?;
+        for rows in [2, 4, 8] {
+            let values = (0..rows * 2048)
+                .map(|index| f16::from_f32(((index % 251) as f32 - 125.0) / 128.0).to_bits())
+                .collect::<Vec<_>>();
+            let input = Array::from_f16_bits(&values, &[rows, 2048])?;
+            let serial = (0..rows)
+                .map(|row| gate.forward(&input.slice(0, row, row + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let serial = Array::concatenate(&serial.iter().collect::<Vec<_>>(), 0)?;
+            let actual = gate.forward_dense_rows_exact(&input)?;
+            assert_eq!(
+                actual.to_f16_bits()?,
+                serial.to_f16_bits()?,
+                "dense gate differs at M={rows}"
+            );
+        }
+        Ok(())
     }
 
     #[test]
