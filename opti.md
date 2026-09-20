@@ -5628,3 +5628,111 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   harnesses Rust existants ; il ne couvre pas le shader Metal, dont l'égalité
   est un contrôle différentiel fini et non une preuve formelle non bornée.
   Statut : **validé, intégré et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-100 — masque d'attention draft partagé — rejeté
+
+- Source : jalon minimal du ticket 23. Les six couches du draft reconstruisent
+  actuellement le même `Vec<f32>` de masque 8×contexte, le transfèrent et le
+  convertissent en BF16 à chaque bloc.
+- Hypothèse : valider que les six caches ont la même longueur, construire le
+  masque une seule fois dans `forward_hidden` et partager son handle MLX entre
+  les six SDPA supprime allocations, copies et dispatchs sans changer un seul
+  élément du masque. Aucun cache circulaire n'est ajouté à ce stade.
+- Baseline après PERF-99 : greedy **51,896 tok/s**, DFlash **74,645 tok/s**,
+  **1,438× (+43,8 %)**, draft 0,122–0,123 s, target 0,507–0,508 s. Protocole :
+  test unitaire des bornes de masque 0/2047/2048/2049, E2E exact puis A/B/B/A
+  strictement séquentiel. Rejet au premier écart ou sans gain reproductible.
+  Statut : **en cours**, journalisé avant code.
+- Exactitude : le test des bornes 0/2047/2048/2049, la visibilité entre les
+  huit lignes draft et la séquence E2E restent strictement identiques.
+- Mesure A/B/B/A, un seul processus à la fois et deux répétitions par
+  processus : ancien chemin **73,339 / 73,566 tok/s**, masque partagé
+  **73,707 / 73,477 tok/s**. Les médianes des quatre mesures sont
+  **73,453** contre **73,592 tok/s (+0,19 %)** ; draft reste 0,124–0,128 s.
+- Décision : **rejeté**. Le faible écart est du bruit thermique et ne réduit
+  pas le temps draft de manière stable. Le partage, le commutateur A/B et ses
+  tests sont retirés ; aucun code exécutable de cet essai n'est conservé.
+
+### OPT-2026-09-20-RUST-PERF-101 — gate/up Q4 draft groupés — rejeté
+
+- Source : premier palier du ticket 22 du rapport. Chacune des six couches
+  lance aujourd'hui deux dispatchs Q4 M=8 successifs sur la même entrée pour
+  gate et up, puis un SwiGLU MLX séparé.
+- Hypothèse : un seul kernel Metal couvrant les deux matrices conserve les
+  sorties BF16 exactes tout en supprimant six dispatchs et une partie du coût
+  de préparation. Ce palier ne fusionne pas encore l'épilogue SwiGLU afin
+  d'attribuer le gain et de limiter la pression registres.
+- Baseline après PERF-99 : greedy **51,896 tok/s**, DFlash **74,645 tok/s**,
+  **1,438× (+43,8 %)**, draft 0,122–0,123 s, target 0,507–0,508 s. Protocole :
+  différentiel physique bit à bit des sorties gate/up groupées contre deux
+  projections indépendantes, séquence E2E exacte, puis A/B/B/A strictement
+  séquentiel avec vérification d'absence du PID précédent. Rejet au premier
+  écart ou si le gain est inférieur au bruit thermique. Statut : **en cours**,
+  journalisé avant code.
+- Exactitude : le kernel groupé reproduit bit à bit les deux sorties BF16
+  calculées par les projections indépendantes ; la séquence E2E, 39/45
+  propositions acceptées, reste identique.
+- Mesure A/B/B/A strictement séquentielle, deux répétitions par processus :
+  groupé **73,450 / 71,561 tok/s**, indépendant **72,985 / 73,558 tok/s**.
+  Les médianes par variante sont **72,506** contre **73,272 tok/s (-1,05 %)**.
+  Le temps draft ne baisse pas (0,127–0,128 s contre 0,124–0,127 s). Un run
+  groupé à 63,788 tok/s, accompagné d'une chute greedy similaire, est traité
+  comme chauffe et non comme signal du kernel.
+- Décision : **rejeté**. Réunir les dispatchs sans partager le calcul interne
+  réduit l'occupation et ne compense pas le lancement économisé. Le kernel,
+  la méthode, le commutateur A/B et le test sont tous retirés ; aucun code
+  exécutable de cet essai n'est conservé. La fusion SwiGLU complète reste une
+  expérience distincte, mais doit partager les sommes d'entrée ou éviter les
+  sorties intermédiaires pour avoir une chance de gagner.
+
+### OPT-2026-09-20-RUST-PERF-102 — épilogue `lm_head` + argmax exact — rejeté
+
+- Source : ticket 18 du rapport, après les épilogues NT8 et Metal séparé de
+  PERF-86/87/88. Le vérificateur M=6 ne consomme les logits target que via un
+  argmax par ligne, mais matérialise actuellement 1 489 920 logits puis les
+  rescane dans un second kernel.
+- Hypothèse : conserver le QMV NT2/MB2 déjà validé, puis fusionner dans un seul
+  épilogue le Hadamard 128, le scale FP16, les frontières BF16→FP16 et la
+  réduction argmax par blocs supprime les logits finaux et leur scan sans la
+  pression registres qui avait fait régresser NT8. Un second petit étage réduit
+  uniquement 1 940 maxima par ligne.
+- Baseline après PERF-99 : greedy **51,896 tok/s**, DFlash **74,645 tok/s**,
+  **1,438× (+43,8 %)**, target 0,507–0,508 s. Protocole : comparer chaque ID
+  aux logits matérialisés pour M=1..8 et des égalités synthétiques, exiger la
+  séquence E2E exacte, puis A/B/B/A avec un seul processus de modèle à la fois.
+  Rejet au premier ID différent ou sans baisse reproductible du temps target.
+  Statut : **en cours**, journalisé avant code.
+- Exactitude : l'épilogue reproduit tous les argmax du chemin matérialisé pour
+  M=2/6/8 et la séquence E2E reste identique avec 39/45 acceptés.
+- Mesure A/B/B/A strictement séquentielle, deux répétitions par processus :
+  fusion **70,387 / 73,958 tok/s**, contrôle **72,314 / 72,875 tok/s**. Les
+  médianes par variante sont **72,173** contre **72,595 tok/s (-0,58 %)** ; le
+  target fusionné varie 0,510–0,538 s contre 0,519–0,548 s sans baisse stable.
+- Décision : **rejeté**. Le Hadamard MLX natif est déjà plus efficace que le
+  kernel 128-thread proposé et le petit scan supprimé ne compense pas les
+  barrières de l'épilogue. Helper Rust, shader, API, commutateur et tests sont
+  entièrement retirés ; aucun code exécutable n'est conservé.
+
+### OPT-2026-09-20-RUST-PERF-103 — profil du sélecteur DFlash — diagnostic terminé
+
+- Source : prérequis minimal aux tickets 24 et 25. Le draft complet coûte
+  0,122–0,128 s sur neuf blocs, mais aucune mesure récente ne sépare les six
+  couches, le `lm_head` limité et les trois étages du sélecteur.
+- Hypothèse : une synchronisation temporaire après réseau, tête et sélection
+  permet de déterminer si fusionner les transitions/greedy ou réécrire le
+  top-16 peut économiser les ~26 ms nécessaires pour atteindre 1,5×.
+- Protocole : une seule génération de 48 tokens, trois répétitions dans un seul
+  processus, mêmes 39/45 propositions ; relever chaque composant. Les barrières
+  rendent le total non comparable au débit normal. Retirer l'instrumentation
+  immédiatement ; n'implémenter #24/#25 que si leur coût mesuré est matériel.
+  Statut : **diagnostic en cours**, journalisé avant code.
+- Trois répétitions, 48 tokens et neuf blocs : réseau draft **0,057–0,058 s**,
+  `lm_head` limité **0,089–0,091 s**, sélecteur complet **0,005–0,006 s**.
+  Les barrières portent le draft instrumenté à 0,151–0,156 s et interdisent de
+  comparer son débit au chemin asynchrone normal, mais classent clairement les
+  composants.
+- Décision : les tickets 24/25 ne peuvent récupérer au maximum que ~6 ms dans
+  ce scénario, très loin des ~26 ms requises pour atteindre 1,5×. Le sélecteur
+  n'est donc pas réécrit maintenant. La tête vocabulaire domine le draft ;
+  l'instrumentation et toutes ses synchronisations sont retirées. Aucun gain
+  revendiqué. Statut : **diagnostic terminé**.
