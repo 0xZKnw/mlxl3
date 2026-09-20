@@ -334,16 +334,19 @@ impl DFlashCache {
                 .forward(&block, Q4Kernel::N128Pipelined, 16)?
                 .rms_norm(&weights.hidden_norm, 1e-6)?;
             for (index, layer) in weights.layers.iter().enumerate() {
-                let qkv = layer.qkv.forward(&hidden, Q4Kernel::N128Pipelined, 48)?;
-                let keys = qkv
-                    .slice(1, 4096, 5120)?
+                let kv =
+                    layer
+                        .qkv
+                        .forward_range(&hidden, Q4Kernel::N128Pipelined, 16, 4096, 6144)?;
+                let keys = kv
+                    .slice(1, 0, 1024)?
                     .reshape(&[1, 8, 8, 128])?
                     .rms_norm(&layer.key_norm, 1e-6)?
                     .transpose(&[0, 2, 1, 3])?
                     .rope(128, 10_000_000.0, start_position + begin)?
                     .slice(2, 0, count)?;
-                let values = qkv
-                    .slice(1, 5120, 6144)?
+                let values = kv
+                    .slice(1, 1024, 2048)?
                     .reshape(&[1, 8, 8, 128])?
                     .transpose(&[0, 2, 1, 3])?
                     .slice(2, 0, count)?;
@@ -917,6 +920,17 @@ impl Q4Projection {
         kernel: Q4Kernel,
         groups: i32,
     ) -> Result<crate::array::Array> {
+        self.forward_range(input, kernel, groups, 0, self.output)
+    }
+
+    fn forward_range(
+        &self,
+        input: &crate::array::Array,
+        kernel: Q4Kernel,
+        groups: i32,
+        begin: i32,
+        end: i32,
+    ) -> Result<crate::array::Array> {
         use crate::array::{self, Dtype};
 
         ensure!(
@@ -928,15 +942,24 @@ impl Q4Projection {
             Q4Kernel::N128Pipelined => (128, true),
             Q4Kernel::N256 => (256, false),
         };
-        let tiles = self.output / tile;
+        let output = end.checked_sub(begin).context("invalid Q4 output range")?;
+        let tiles = output / tile;
         ensure!(
-            self.input % 256 == 0 && self.output % 256 == 0 && groups > 0 && groups <= tiles,
+            self.input % 256 == 0
+                && begin >= 0
+                && end <= self.output
+                && begin % 256 == 0
+                && end % 256 == 0
+                && output > 0
+                && groups > 0
+                && groups <= tiles,
             "invalid DFlash Q4 dispatch geometry"
         );
         let header = format!(
-            "#define DFLASH_INPUT {}\n#define DFLASH_OUTPUT {}\n#define DFLASH_TILE {}\n#define DFLASH_GROUPS {}\n#define DFLASH_PIPELINED {}\n{}\n",
+            "#define DFLASH_INPUT {}\n#define DFLASH_OUTPUT {}\n#define DFLASH_OUTPUT_BEGIN {}\n#define DFLASH_TILE {}\n#define DFLASH_GROUPS {}\n#define DFLASH_PIPELINED {}\n{}\n",
             self.input,
-            self.output,
+            output,
+            begin,
             tile,
             groups,
             if pipelined { "true" } else { "false" },
@@ -944,9 +967,9 @@ impl Q4Projection {
         );
         Ok(array::metal_kernel(
             &format!(
-                "mlxl3_dflash_q4_{}_{}_t{tile}_g{groups}_p{}",
+                "mlxl3_dflash_q4_{}_{}_b{begin}_t{tile}_g{groups}_p{}",
                 self.input,
-                self.output,
+                output,
                 u8::from(pipelined)
             ),
             &["input", "weights", "scales", "biases"],
@@ -954,7 +977,7 @@ impl Q4Projection {
             &header,
             include_str!("../shaders/dflash_q4.metal"),
             &[input, &self.weights, &self.scales, &self.biases],
-            &[vec![8, self.output]],
+            &[vec![8, output]],
             &[Dtype::BFloat16],
             [groups.checked_mul(256).context("Q4 grid overflow")?, 1, 1],
             [256, 1, 1],
@@ -1536,6 +1559,12 @@ mod tests {
         ];
         let reference = projection.forward(&input, Q4Kernel::N128, 48)?;
         reference.eval()?;
+        let kv = projection.forward_range(&input, Q4Kernel::N128, 16, 4096, 6144)?;
+        assert_eq!(
+            kv.to_bytes()?,
+            reference.slice(1, 4096, 6144)?.to_bytes()?,
+            "KV-only Q4 projection changed BF16 output"
+        );
         let reference = reference.to_bytes()?;
         let packed = std::fs::read(&package.layers[0].path)?;
         let weight_bytes = 6144_usize * 2048 / 2;

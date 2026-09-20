@@ -5366,3 +5366,36 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Kani couvre ici le Rust pur, pas le shader Metal ; ce dernier est contrôlé
   par les différentiels physiques bornés et n'est pas formellement prouvé.
   Statut : **validé, intégré et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-91 — projection KV-only du cache draft — validé
+
+- Source : ticket 19 de `MLXL3_Audit_Decode_28_Optimisations.md`. À chaque
+  `append_captured`, les six couches calculent actuellement les 6 144 sorties
+  QKV, puis jettent les 4 096 sorties Q et ne conservent que K/V [4096,6144).
+- Hypothèse : permettre au kernel Q4 existant de projeter une plage de sorties
+  alignée à 256 réduit de deux tiers ce QKV de commit/préfill sans changer les
+  poids, l'ordre des accumulations ni les BF16 K/V.
+- Baseline : PERF-90, greedy médian **47,218 tok/s**, DFlash médian
+  **66,652 tok/s**, **1,412×**, draft **0,129–0,132 s**, 39/45 propositions
+  acceptées. Protocole : comparer bit à bit la plage KV au QKV complet puis
+  slice, vérifier la séquence E2E exacte, et mesurer trois alternances. Rejeter
+  au premier écart ou sans baisse reproductible du coût cache/débit. Statut :
+  **en cours**, journalisé avant code.
+- Exactitude : la projection [4096,6144) reproduit octet par octet le slice K/V
+  de l'ancien QKV complet sur le vrai paquet DFlash ; l'E2E conserve **39/45
+  (86,7 %)** propositions et une séquence strictement égale au greedy target.
+- Contrôle A/B/B/A, deux répétitions par passage : KV-only **67,420 / 67,542
+  tok/s**, QKV complet **67,176 / 66,746 tok/s**. Le draft passe de
+  **0,131–0,133 s** à **0,126–0,127 s** (-3,8 à -5,3 %) ; le contexte mesuré
+  passe de 0,007–0,008 s à 0,006–0,008 s. Le débit livré gagne environ
+  **0,8 %** sur les médianes de campagne, malgré la dérive du target seul.
+- Décision : **validé et intégré localement**. Le commutateur A/B est retiré ;
+  le même kernel Q4 reçoit seulement une origine de sortie alignée, sans
+  nouvelle abstraction ni nouvel ordre d'accumulation. Contrôles complets et
+  publication requis.
+- Contrôles finaux réussis : `git diff --check`, format Rust, Clippy strict tous
+  targets/features, 23 tests lib, 1 test CLI, 14 contrats et build release
+  MLX/chat. Kani 0.68 / CBMC 6.11 vérifie **17/17 harnesses**, zéro échec et
+  2/2 couvertures. Kani ne couvre pas Metal ; la plage GPU est validée par le
+  différentiel physique borné et l'E2E exact, sans constituer une preuve
+  formelle non bornée. Statut : **validé, intégré et prêt à publier**.

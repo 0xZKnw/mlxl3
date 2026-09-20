@@ -115,8 +115,8 @@ inline void dflash_q4_tile(device bfloat *input, device uchar *weights,
 
   dflash_visit(accumulated, [&](ushort index) {
     auto coordinate = accumulated.get_multidimensional_index(index);
-    uint output_index =
-        coordinate[1] * DFLASH_OUTPUT + output_origin + coordinate[0];
+    uint output_index = coordinate[1] * DFLASH_OUTPUT + output_origin -
+                        DFLASH_OUTPUT_BEGIN + coordinate[0];
     output[output_index] = bfloat(accumulated[index]);
   });
   threadgroup_barrier(mem_flags::mem_threadgroup);

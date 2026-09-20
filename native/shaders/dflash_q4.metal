@@ -7,6 +7,6 @@ for (uint tile = group; tile < DFLASH_OUTPUT / DFLASH_TILE;
       const_cast<device uchar *>(weights),
       const_cast<device bfloat *>(scales),
       const_cast<device bfloat *>(biases), output, input_sums,
-      tile * DFLASH_TILE, thread_index_in_simdgroup,
+      DFLASH_OUTPUT_BEGIN + tile * DFLASH_TILE, thread_index_in_simdgroup,
       simdgroup_index_in_threadgroup);
 }
