@@ -5763,3 +5763,27 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   augmente le nombre de threadgroups et perd le parallélisme sur N. MB=2/NT=2
   reste la meilleure géométrie M=6 mesurée. Commutateur et largeur de test
   temporaire retirés ; aucun code exécutable de l'essai n'est conservé.
+
+### OPT-2026-09-20-RUST-PERF-105 — micro-tile EXL3 MB=3/NT=2 — rejeté
+
+- Révision motivée de PERF-104 : MB=3/NT=1 perd 2,01 % parce qu'il augmente la
+  grille malgré le partage des poids. Conserver NT=2 réduit les threadgroups à
+  un tile-N équivalent, soit un tiers de moins que MB=2/NT=2, et garde deux
+  décodages de poids par tile au lieu de trois.
+- Risque : 48 accumulateurs FP32 et 12 entrées par thread contre 32+8 pour la
+  production peuvent réduire l'occupation ou provoquer du spill. Aucun autre
+  chemin ni paramètre n'est changé.
+- Baseline appariée PERF-104 : MB=2 **73,195 tok/s**, target 0,515–0,526 s.
+  Protocole : même différentiel M=1/2/4/6/8 puis A/B/B/A, toujours avec un seul
+  processus de modèle. Rejet au premier écart ou si le gain ne résiste pas aux
+  quatre passages. Statut : **en cours**, journalisé avant code.
+- Exactitude : le différentiel logits/80 états M=1/2/4/6/8 passe sans écart et
+  la génération conserve 39/45 propositions ainsi que la sortie target.
+- Arrêt anticipé motivé après un candidat et son contrôle : MB=3/NT=2 tombe à
+  **62,150 tok/s** au meilleur des deux runs, target **0,622–0,688 s**, contre
+  MB=2/NT=2 **72,901 tok/s**, target **0,518–0,534 s**. La régression est de
+  **14,7 %** sur le meilleur débit et affecte directement le target ; elle est
+  beaucoup trop large pour justifier les quatre passages prévus.
+- Décision : **rejeté**. Les 60 registres environ par thread provoquent une
+  perte d'occupation ou du spill qui domine la grille réduite. Commutateur et
+  largeur M=6 temporaire retirés ; aucun code exécutable n'est conservé.
