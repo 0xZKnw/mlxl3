@@ -1154,7 +1154,14 @@ mod tests {
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(3usize);
-        ensure!(budget >= 8 && repeats > 0, "invalid DFlash benchmark size");
+        let proposal_count = std::env::var("MLXL3_DFLASH_PROPOSALS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(5usize);
+        ensure!(
+            budget >= 8 && repeats > 0 && (1..=7).contains(&proposal_count),
+            "invalid DFlash benchmark size"
+        );
         ensure!(crate::array::is_m5_gpu()?, "benchmark requires Apple M5");
 
         let tokenizer = ChatTokenizer::load(Path::new(TARGET))?;
@@ -1258,6 +1265,7 @@ mod tests {
                 let output = draft.forward_hidden(&input, &cache, target.offset())?;
                 let draft_logits = target.dflash_logits(&output.hidden)?;
                 let proposals = draft.select_greedy(&draft_logits, &output.selector, anchor)?;
+                let proposals = &proposals[..proposal_count];
                 draft_time += draft_started.elapsed();
 
                 let verify = std::iter::once(anchor)
@@ -1276,12 +1284,12 @@ mod tests {
                     .count();
                 let retained = accepted + 1;
                 let commit_started = Instant::now();
-                target.commit_dflash_verification(retained, 8)?;
+                target.commit_dflash_verification(retained, proposal_count + 1)?;
                 let captured = captured.slice(0, 0, i32::try_from(retained)?)?;
                 cache.append_captured(&draft, &captured, verify_position)?;
                 commit_time += commit_started.elapsed();
                 accepted_total += accepted;
-                proposed_total += 7;
+                proposed_total += proposal_count;
                 blocks += 1;
 
                 let mut stop = false;
@@ -1350,11 +1358,12 @@ mod tests {
         plain_rates.sort_by(f64::total_cmp);
         spec_rates.sort_by(f64::total_cmp);
         eprintln!(
-            "DFlash E2E median: plain={:.3} tok/s spec={:.3} tok/s speedup={:.3}x tokens={} repeats={}",
+            "DFlash E2E median: plain={:.3} tok/s spec={:.3} tok/s speedup={:.3}x tokens={} proposals={} repeats={}",
             plain_rates[plain_rates.len() / 2],
             spec_rates[spec_rates.len() / 2],
             spec_rates[spec_rates.len() / 2] / plain_rates[plain_rates.len() / 2],
             budget,
+            proposal_count,
             repeats,
         );
         Ok(())

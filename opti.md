@@ -4897,3 +4897,76 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   harnesses**, zéro échec et 2/2 couvertures. Kani couvre le Rust pur ; les
   kernels Metal et l'état MLX sont couverts par les différentiels physiques,
   pas par une preuve formelle complète. Statut : **validé et prêt à publier**.
+
+### OPT-2026-09-20-RUST-PERF-73 — largeur de vérification DFlash — validé
+
+- Observation : PERF-72 atteint **54,456 tok/s** contre **48,325 tok/s**
+  (`+12,7 %`), mais le target verify M=8 domine encore à environ **0,702 s**
+  sur neuf blocs, contre 0,160 s pour le draft, avec seulement **61,9 %** des
+  propositions acceptées. Le sélecteur greedy a été comparé au code MLX
+  officiel DFlash2 : top-k, score unary + transition et marche depuis l'ancre
+  sont identiques ; aucune correction évidente n'y est disponible.
+- Hypothèse : limiter la vérification exacte aux N premières propositions peut
+  réduire le coût target lorsque les chaînes longues cassent tôt. La doc MLX
+  DFlash recommande aussi des blocs `<=5` avec les matmuls quantifiés, mais ce
+  conseil n'est qu'un indice : MLXL3 emploie ses propres kernels EXL3 et doit
+  être mesuré physiquement.
+- Protocole prévu : ajouter uniquement un réglage de benchmark, balayer N=1..7
+  sur le même prompt, 48 tokens et greedy déterministe, puis confirmer les
+  meilleurs N par trois alternances contre la baseline. Mesurer tok/s bout en
+  bout, acceptation, blocs et temps draft/target/commit. Exiger l'égalité exacte
+  de toute la séquence avec le greedy ordinaire ; rejeter toute largeur qui
+  diverge. Aucun gain ne sera extrapolé au CLI/GUI. Statut : **en cours**,
+  journalisé avant code.
+- Balayage d'orientation, un passage de 32 tokens exacts par largeur : N=1
+  **42,081 tok/s**, N=2 **52,827**, N=3 **56,103**, N=4 **51,624**, N=5
+  **64,269**, N=6 **56,293**, N=7 **65,398**. Toutes les séquences égalent le
+  greedy. Les baselines greedy ont varié de 42,892 à 49,526 tok/s pendant ce
+  balayage ; ces chiffres courts ne suffisent donc pas à départager N=5 et
+  N=7. Confirmation prévue sur 48 tokens et trois alternances pour ces deux
+  largeurs. Statut intermédiaire : **non concluant**.
+- Confirmation 48 tokens, trois alternances exactes : N=5 donne
+  **59,116 tok/s** contre greedy **48,678 tok/s**, soit **1,214× (+21,4 %)**,
+  avec 38/50 propositions acceptées (76,0 %), 10 blocs, draft 0,171–0,172 s,
+  target 0,621–0,627 s et commit 0,001 s. N=7 donne une médiane de
+  **52,182 tok/s** contre greedy **45,032 tok/s** sur une machine qui ralentit
+  pendant la seconde série, avec 39/63 acceptées, 9 blocs et target
+  0,704–0,766 s. Toutes les sorties sont identiques au greedy.
+- Décision : **validé**. N=5 remplace N=7 comme largeur par défaut du benchmark
+  exact ; le gain médian contre sa baseline passe de +12,7 % à **+21,4 %**.
+  Il reste un chemin de benchmark et n'est pas annoncé comme actif dans le
+  CLI/GUI.
+- Revalidation finale après retrait de PERF-74, trois nouvelles alternances :
+  greedy médian **47,545 tok/s**, DFlash **59,345 tok/s**, soit **1,248×
+  (+24,8 %)**, toujours 38/50 acceptées et trois séquences exactes. Draft
+  0,170–0,177 s, target 0,618–0,637 s, commit 0,001 s. Les deux campagnes
+  indépendantes placent donc le gain validé entre **+21,4 % et +24,8 %**, avec
+  un débit DFlash médian stable de 59,116–59,345 tok/s.
+- Contrôles finaux : `git diff --check`, format Rust, Clippy strict tous
+  targets/features, **23 tests lib + 1 CLI + 14 contrats**, build release,
+  différentiel physique des 80 états puis trois passages physiques exacts.
+  Kani 0.68 / CBMC 6.11 vérifie **17/17 harnesses**, zéro échec et 2/2
+  couvertures. Kani ne couvre pas les kernels Metal/MLX ; ceux-ci restent
+  vérifiés par les différentiels physiques bornés. Statut : **validé et prêt à
+  publier**.
+
+### OPT-2026-09-20-RUST-PERF-74 — sélecteur DFlash limité au préfixe — rejeté
+
+- Observation : avec N=5, le draft calcule encore top-k, arêtes et marche du
+  sélecteur pour sept positions alors que les deux dernières sont jetées. Les
+  six couches draft restent M=8 car leur TensorOps est spécialisé, mais le
+  sélecteur Metal peut borner ses grilles et sorties sans toucher aux poids ni
+  à la qualité.
+- Hypothèse : compiler le sélecteur avec le nombre de propositions réellement
+  vérifié réduit un peu le temps draft, sans modifier les cinq premiers choix
+  car la marche greedy est causale.
+- Protocole : même prompt, N=5, 48 tokens, trois alternances ; égalité stricte
+  avec greedy, comparaison aux **59,116 tok/s** et 0,171 s draft de PERF-73.
+  Rejeter si le débit ne progresse pas au-delà du bruit ou si un token diverge.
+  Statut initial : **en cours**, journalisé avant code.
+- Résultat : sorties exactes, mais draft **0,173–0,181 s** et débit médian
+  **57,570 tok/s** sur une machine ralentie, contre 0,171–0,172 s et
+  59,116 tok/s avant changement. La réduction des grilles de sélection est
+  noyée par la compilation/ordonnancement et n'apporte aucun gain mesurable.
+- Décision : **rejeté** ; le sélecteur limité a été retiré. Seule la largeur
+  de vérification N=5 de PERF-73 est conservée.
