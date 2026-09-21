@@ -89,6 +89,11 @@ enum Command {
         #[arg(long, default_value_t = 60)]
         limit: usize,
     },
+    /// Install or validate the pinned Qwen DFlash2 draft (no target weights).
+    DflashDraft {
+        #[arg(long)]
+        inspect: Option<PathBuf>,
+    },
     /// Configure and inspect Model Context Protocol servers.
     Mcp {
         #[command(subcommand)]
@@ -1133,6 +1138,20 @@ fn run(cli: Cli) -> Result<()> {
                     println!("{{}}");
                 }
             }
+        }
+        Command::DflashDraft { inspect } => {
+            let path = if let Some(path) = inspect {
+                mlxl3_native::dflash::inspect(path)?.directory
+            } else {
+                mlxl3_native::hub::download_dflash(|completed, total| {
+                    println!(
+                        "{}",
+                        json!({"type":"progress", "completed":completed, "total":total})
+                    );
+                    let _ = io::stdout().flush();
+                })?
+            };
+            println!("{}", json!({"type":"installed", "path":path}));
         }
         Command::Mcp { action } => {
             let registry_path = cli

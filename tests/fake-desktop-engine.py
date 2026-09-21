@@ -5,6 +5,10 @@ import signal
 import sys
 import time
 
+if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
+    print(json.dumps({'type': 'installed', 'path': '/tmp/mlxl3-fixture-dflash'}), flush=True)
+    sys.exit(0)
+
 model = sys.argv[2]
 signal.signal(signal.SIGUSR1, lambda *_: None)
 def emit(kind, **values):

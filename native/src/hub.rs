@@ -1,4 +1,4 @@
-//! Read-only Hugging Face EXL3 catalogue. Transfers are added separately.
+//! Hugging Face catalogue and resumable model/draft transfers.
 use anyhow::{Context, Result, bail, ensure};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,18 @@ use std::{
 };
 
 const API: &str = "https://huggingface.co/api";
+const DFLASH_REPO: &str = "incoai/Qwen3.6-35B-A3B-Splash";
+const DFLASH_COMMIT: &str = "0f4714b2db37b5f3c42a10de07281e74f88e4adc";
+const DFLASH_NAME: &str = "Qwen3.6-35B-A3B-DFlash2";
+const DFLASH_FILES: [&str; 7] = [
+    "draft/layer-0.bin",
+    "draft/layer-1.bin",
+    "draft/layer-2.bin",
+    "draft/layer-3.bin",
+    "draft/layer-4.bin",
+    "draft/layer-5.bin",
+    "draft/model.bin",
+];
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ModelSummary {
@@ -73,6 +85,12 @@ struct RepoFile {
     rfilename: String,
     #[serde(default)]
     size: u64,
+    lfs: Option<LfsFile>,
+}
+
+#[derive(Deserialize)]
+struct LfsFile {
+    sha256: String,
 }
 
 #[derive(Deserialize)]
@@ -172,6 +190,138 @@ fn managed_models_path() -> Result<PathBuf> {
             "~/Library/Application Support/io.mlxl3.desktop/Models",
         )),
     }
+}
+
+fn managed_drafts_path() -> Result<PathBuf> {
+    Ok(managed_models_path()?
+        .parent()
+        .context("managed models directory has no parent")?
+        .join("Drafts"))
+}
+
+fn dflash_files(info: &RepoInfo) -> Result<Vec<(&str, u64, &str)>> {
+    ensure!(info.sha == DFLASH_COMMIT, "DFlash draft revision changed");
+    let mut result = Vec::with_capacity(7);
+    for name in DFLASH_FILES {
+        let file = info
+            .siblings
+            .iter()
+            .find(|file| file.rfilename == name)
+            .with_context(|| format!("DFlash draft file {name} is missing"))?;
+        let hash = file
+            .lfs
+            .as_ref()
+            .context("DFlash draft has no LFS checksum")?
+            .sha256
+            .as_str();
+        ensure!(
+            file.size > 0 && hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "invalid DFlash draft metadata"
+        );
+        result.push((file.rfilename.as_str(), file.size, hash));
+    }
+    Ok(result)
+}
+
+fn sha256_matches(path: &Path, expected: &str) -> Result<bool> {
+    let output = Command::new("/usr/bin/shasum")
+        .args(["-a", "256"])
+        .arg(path)
+        .output()
+        .context("checking DFlash draft checksum")?;
+    ensure!(output.status.success(), "DFlash checksum check failed");
+    Ok(output
+        .stdout
+        .get(..64)
+        .is_some_and(|hash| hash.eq_ignore_ascii_case(expected.as_bytes())))
+}
+
+/// Download only the seven pinned DFlash2 files, never Splash's target weights.
+/// Partial files stay in a managed staging directory for a later retry.
+pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+    let root = managed_drafts_path()?;
+    fs::create_dir_all(&root)?;
+    let root = root.canonicalize()?;
+    let destination = root.join(DFLASH_NAME);
+    ensure!(
+        !destination
+            .symlink_metadata()
+            .is_ok_and(|meta| meta.file_type().is_symlink()),
+        "invalid DFlash destination"
+    );
+    if destination.exists() {
+        crate::dflash::inspect(&destination)?;
+        return Ok(destination);
+    }
+    let stage = root.join(".downloads").join(DFLASH_COMMIT);
+    ensure!(
+        !stage
+            .symlink_metadata()
+            .is_ok_and(|meta| meta.file_type().is_symlink()),
+        "invalid DFlash staging directory"
+    );
+    fs::create_dir_all(&stage)?;
+    ensure!(
+        !stage
+            .join("draft")
+            .symlink_metadata()
+            .is_ok_and(|meta| meta.file_type().is_symlink()),
+        "invalid DFlash draft staging directory"
+    );
+    let lock = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(root.join(".downloads").join("dflash.lock"))?;
+    lock.try_lock_exclusive()
+        .context("DFlash draft is already downloading")?;
+    let metadata = info(DFLASH_REPO, DFLASH_COMMIT)?;
+    let files = dflash_files(&metadata)?;
+    let total: u64 = files.iter().map(|(_, size, _)| size).sum();
+    let cancelled = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
+    progress(directory_bytes(&stage).min(total), total);
+    for (name, expected_size, expected_hash) in files {
+        let target = stage.join(name);
+        ensure!(
+            !target
+                .symlink_metadata()
+                .is_ok_and(|meta| meta.file_type().is_symlink()),
+            "invalid DFlash staging file"
+        );
+        if target
+            .metadata()
+            .is_ok_and(|meta| meta.len() == expected_size)
+            && sha256_matches(&target, expected_hash)?
+        {
+            continue;
+        }
+        // A complete but corrupt file cannot be resumed safely.
+        if target
+            .metadata()
+            .is_ok_and(|meta| meta.len() >= expected_size)
+        {
+            fs::remove_file(&target)?;
+        }
+        download_file(
+            &format!(
+                "https://huggingface.co/{}/resolve/{}/{}?download=true",
+                encode(DFLASH_REPO),
+                DFLASH_COMMIT,
+                name
+            ),
+            &target,
+            &cancelled,
+            || progress(directory_bytes(&stage).min(total), total),
+        )?;
+        ensure!(
+            target.metadata()?.len() == expected_size && sha256_matches(&target, expected_hash)?,
+            "DFlash draft checksum or size mismatch for {name}"
+        );
+    }
+    crate::dflash::inspect(&stage)?;
+    fs::rename(&stage, &destination)?;
+    progress(total, total);
+    Ok(destination)
 }
 
 fn directory_bytes(path: &Path) -> u64 {
@@ -840,6 +990,48 @@ pub fn logout() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dflash_download_selects_only_pinned_draft_files() {
+        let mut siblings: Vec<RepoFile> = DFLASH_FILES
+            .iter()
+            .map(|name| RepoFile {
+                rfilename: (*name).into(),
+                size: 12,
+                lfs: Some(LfsFile {
+                    sha256: "a".repeat(64),
+                }),
+            })
+            .collect();
+        siblings.push(RepoFile {
+            rfilename: "target/model.bin".into(),
+            size: 999_999,
+            lfs: Some(LfsFile {
+                sha256: "b".repeat(64),
+            }),
+        });
+        let mut info = RepoInfo {
+            id: DFLASH_REPO.into(),
+            sha: DFLASH_COMMIT.into(),
+            gated: Value::Null,
+            downloads: 0,
+            likes: 0,
+            siblings,
+        };
+        let selected = dflash_files(&info).unwrap();
+        assert_eq!(selected.len(), 7);
+        assert_eq!(selected.iter().map(|(_, size, _)| size).sum::<u64>(), 84);
+        assert!(
+            selected
+                .iter()
+                .all(|(name, _, _)| name.starts_with("draft/"))
+        );
+        info.siblings.pop();
+        info.siblings.pop();
+        assert!(dflash_files(&info).is_err());
+        info.sha = "wrong-revision".into();
+        assert!(dflash_files(&info).is_err());
+    }
 
     #[test]
     fn discovers_root_and_named_quantizations() {

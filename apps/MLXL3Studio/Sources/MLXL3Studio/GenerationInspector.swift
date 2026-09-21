@@ -119,34 +119,44 @@ struct GenerationInspector: View {
                             format: "%.2f"
                         )
                     }
+                    .disabled(studio.dflash2Enabled)
 
                     if studio.dflash2Available {
                         SettingCard(title: "DFlash2 · Qwen3.6-35B-A3B", icon: "bolt") {
                             Toggle(
-                                L("Activer le décodage spéculatif", "Enable speculative decoding"),
+                                L("DFlash2 · téléchargement et réglages automatiques", "DFlash2 · automatic download and settings"),
                                 isOn: Binding(
-                                    get: { studio.dflash2Enabled },
+                                    get: { studio.dflash2Enabled || studio.dflashDownloading },
                                     set: { studio.setDFlash2Enabled($0) }
                                 )
                             )
                             .font(.system(size: 11))
+                            if studio.dflashDownloading {
+                                if studio.dflashDownloadTotal > 0 {
+                                    ProgressView(value: studio.dflashDownloadCompleted, total: studio.dflashDownloadTotal)
+                                    Text("\(Int(studio.dflashDownloadCompleted / 1_000_000)) / \(Int(studio.dflashDownloadTotal / 1_000_000)) MB")
+                                        .font(.caption).monospacedDigit()
+                                } else {
+                                    ProgressView(L("Préparation du téléchargement…", "Preparing download…"))
+                                }
+                            }
+                            if let error = studio.dflashDownloadError {
+                                Text(error).font(.caption).foregroundStyle(.red)
+                            }
                             Button(L("Choisir le dossier du draft…", "Choose draft folder…")) {
                                 studio.chooseDFlashDraft()
                             }
                             .buttonStyle(GlassPillButtonStyle())
+                            .disabled(studio.dflashDownloading)
                             Text(studio.dflashDraftPath.isEmpty
-                                 ? L("Draft non configuré", "Draft not configured")
+                                 ? L("Draft téléchargé seulement à l’activation (~457 MiB)", "Draft downloads only when enabled (~457 MiB)")
                                  : studio.dflashDraftPath)
                                 .font(.caption)
                                 .foregroundStyle(StudioTheme.quiet)
                                 .lineLimit(2)
                                 .textSelection(.enabled)
-                            Button(L("Utiliser le préréglage greedy", "Use greedy preset")) {
-                                studio.enableDFlashGreedy()
-                            }
-                            .buttonStyle(GlassPillButtonStyle())
-                            Text(L("Expérimental · Qwen3.6-35B-A3B seulement. Requiert le draft DFlash2 séparé, température 0 ou Top K 1, et répétition 1.0.",
-                                   "Experimental · Qwen3.6-35B-A3B only. Requires the separate DFlash2 draft, temperature 0 or Top K 1, and repetition 1.0."))
+                            Text(L("Expérimental · Qwen3.6-35B-A3B seulement. L’activation récupère uniquement le draft, vérifie les fichiers et règle le mode greedy. Désactive DFlash2 pour modifier l’échantillonnage.",
+                                   "Experimental · Qwen3.6-35B-A3B only. Enabling downloads only the draft, verifies its files and sets greedy sampling. Turn off DFlash2 to change sampling."))
                                 .font(.caption)
                                 .foregroundStyle(StudioTheme.quiet)
                         }

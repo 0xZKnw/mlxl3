@@ -2,6 +2,13 @@ import AppKit
 import Darwin
 import SwiftUI
 
+private struct DFlashInstallEvent: Decodable {
+    let type: String
+    let completed: Double?
+    let total: Double?
+    let path: String?
+}
+
 @MainActor
 final class StudioModel: ObservableObject {
     @Published var models: [LocalModel] = []
@@ -24,6 +31,10 @@ final class StudioModel: ObservableObject {
     @Published var repetitionPenalty = 1.05
     @Published private(set) var dflash2Enabled = false
     @Published private(set) var dflashDraftPath = ""
+    @Published private(set) var dflashDownloading = false
+    @Published private(set) var dflashDownloadCompleted = 0.0
+    @Published private(set) var dflashDownloadTotal = 0.0
+    @Published private(set) var dflashDownloadError: String?
     @Published var systemPrompt = ""
     @Published private(set) var mcpServerCount = 0
     @Published private(set) var mcpToolCount = 0
@@ -44,6 +55,7 @@ final class StudioModel: ObservableObject {
     private let conversationStore: ConversationStore
     private let conversationFileURL: URL
     private var persistenceTask: Task<Void, Never>?
+    private var dflashDownloadTask: Task<Void, Never>?
     private var didStart = false
     private var activeRequestID: String?
     private var activeResponseID: UUID?
@@ -85,6 +97,16 @@ final class StudioModel: ObservableObject {
             persistenceBlocked = true
             storageError = L("Historique illisible : aucune donnée ne sera écrasée. ", "History could not be read: no data will be overwritten. ") + error.localizedDescription
             selectedConversationID = conversations.first?.id
+        }
+        if dflash2Enabled {
+            if dflashDraftPath.isEmpty {
+                dflash2Enabled = false
+                preferences.set(false, forKey: "studio.dflash2Enabled")
+            } else {
+                temperature = 0
+                topK = 1
+                repetitionPenalty = 1
+            }
         }
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         bridge.onExit = { [weak self] message in
@@ -159,7 +181,7 @@ final class StudioModel: ObservableObject {
 
     var canSend: Bool {
         if case .installing = updateManager.state { return false }
-        return engineState.isReady && !mcpUpdating && !modelInstallState.isWorking && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return engineState.isReady && !mcpUpdating && !dflashDownloading && !modelInstallState.isWorking && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var isGenerating: Bool {
@@ -507,8 +529,47 @@ final class StudioModel: ObservableObject {
     }
 
     func setDFlash2Enabled(_ enabled: Bool) {
-        dflash2Enabled = enabled
-        preferences.set(enabled, forKey: "studio.dflash2Enabled")
+        if !enabled {
+            dflashDownloadTask?.cancel()
+            dflash2Enabled = false
+            preferences.set(false, forKey: "studio.dflash2Enabled")
+            return
+        }
+        guard dflash2Available, !isGenerating, !dflashDownloading else { return }
+        dflashDownloadError = nil
+        dflashDownloadCompleted = 0
+        dflashDownloadTotal = 0
+        dflashDownloading = true
+        dflashDownloadTask = Task { [self] in
+            do {
+                var data: Data?
+                if !dflashDraftPath.isEmpty {
+                    data = try? await CLICommand().output(["dflash-draft", "--inspect", dflashDraftPath])
+                }
+                try Task.checkCancellation()
+                if data == nil {
+                    data = try await CLICommand().output(["dflash-draft"]) { [weak self] line in
+                        guard let self,
+                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line),
+                              event.type == "progress" else { return }
+                        self.dflashDownloadCompleted = event.completed ?? self.dflashDownloadCompleted
+                        self.dflashDownloadTotal = event.total ?? self.dflashDownloadTotal
+                    }
+                }
+                try Task.checkCancellation()
+                guard let data,
+                      let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                      event.type == "installed", let path = event.path else {
+                    throw MLXL3BridgeError.invalidResponse
+                }
+                dflashDraftPath = path
+                preferences.set(path, forKey: "studio.dflashDraftPath")
+                enableDFlashGreedy()
+            } catch is CancellationError { }
+            catch { dflashDownloadError = error.localizedDescription }
+            dflashDownloading = false
+            dflashDownloadTask = nil
+        }
     }
 
     func chooseDFlashDraft() {
@@ -526,7 +587,8 @@ final class StudioModel: ObservableObject {
         temperature = 0
         topK = 1
         repetitionPenalty = 1
-        setDFlash2Enabled(true)
+        dflash2Enabled = true
+        preferences.set(true, forKey: "studio.dflash2Enabled")
         settingsDidChange()
     }
 

@@ -98,7 +98,13 @@ enum MCPPreferenceCheck {
         first.enableDFlashGreedy()
         try check(first.temperature == 0 && first.topK == 1 && first.repetitionPenalty == 1,
                   "DFlash2 preset is not greedy")
+        try check(!instance().dflash2Enabled, "DFlash2 with no draft must not survive relaunch")
+        preferences.set("/local/draft", forKey: "studio.dflashDraftPath")
+        first.enableDFlashGreedy()
         try check(instance().dflash2Enabled, "DFlash2 preference was not persisted")
+        let dflashRelaunch = instance()
+        try check(dflashRelaunch.temperature == 0 && dflashRelaunch.topK == 1
+                  && dflashRelaunch.repetitionPenalty == 1, "DFlash2 greedy settings were not restored")
         first.setDFlash2Enabled(false)
         try check(!instance().dflash2Enabled, "DFlash2 disabled state was not persisted")
         first.models = [LocalModel(name: "qwen3.6-35b-a3b", path: "/models/Qwen3.6-35B-A3B-EXL3",

@@ -54,6 +54,17 @@ import Foundation
         message.fail("interrupted")
         precondition(ChatMessage(snapshot: message.snapshot)!.toolActivities[0].state == .failed)
         precondition(SemanticVersion("1.0") == SemanticVersion("1.0.0"))
+        let dflash = StudioModel(conversationFileURL: root.appendingPathComponent("dflash.json"), preferences: prefs)
+        dflash.models = [LocalModel(name: "qwen3.6-35b-a3b", path: root.path + "/Qwen3.6-35B-A3B",
+                                    modelType: "qwen3_5_moe", format: "EXL3", bits: 2.49,
+                                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+        dflash.selectedModelName = "qwen3.6-35b-a3b"
+        dflash.setDFlash2Enabled(true)
+        for _ in 0..<200 where dflash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(dflash.dflash2Enabled && dflash.dflashDraftPath == "/tmp/mlxl3-fixture-dflash")
+        precondition(dflash.temperature == 0 && dflash.topK == 1 && dflash.repetitionPenalty == 1)
+        dflash.setDFlash2Enabled(false)
+        precondition(!dflash.dflash2Enabled)
         MarkdownRegressionCheck.run()
         print("Desktop hardening checks passed: crash, deletion, drafts, recovery, save ordering, tool state")
     }

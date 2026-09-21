@@ -2,7 +2,7 @@
 
 **Native EXL3 inference for Apple Silicon, built with Rust, MLX and custom Metal kernels.**
 
-[Download MLXL3 Desktop v1.1.0](https://github.com/0xZKnw/mlxl3/releases/latest)
+[Download MLXL3 Desktop v1.1.1](https://github.com/0xZKnw/mlxl3/releases/latest)
 · [Validation scope](docs/v1-validation.md)
 · [Optimization journal](opti.md)
 · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -88,11 +88,13 @@ an older document disagree.
 
 ### Optional DFlash2 for Qwen3.6-35B-A3B
 
-Download the `draft/` directory from Inco AI's
-[Qwen3.6-35B-A3B Splash package](https://huggingface.co/incoai/Qwen3.6-35B-A3B-Splash)
-into a local folder. The DMG does not include target or draft weights. In
-**Generation → DFlash2**, choose the folder containing `draft/layer-0.bin` and
-`draft/model.bin`, then select **Use greedy preset**. DFlash2 verifies proposals
+In **Generation → DFlash2**, turn on the switch. MLXL3 downloads and verifies
+only the seven `draft/` files (~457 MiB) from Inco AI's
+[Qwen3.6-35B-A3B Splash package](https://huggingface.co/incoai/Qwen3.6-35B-A3B-Splash),
+then selects the draft and applies greedy sampling automatically. A cancelled
+download can be resumed by turning the switch on again. The DMG does not
+include target or draft weights. You can still choose an existing draft folder
+manually. DFlash2 verifies proposals
 with the EXL3 target model before emitting them; it is not available for
 temperature sampling or a repetition penalty other than 1. Turn off the toggle
 to use the regular decoder. This integration is experimental and has only been
