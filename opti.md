@@ -5986,3 +5986,57 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Kani 0.68.0 / CBMC 6.11.0 (**17/17 harnesses vérifiés, 0 échec**). Kani
   couvre les contrats Rust bornés existants ; le shader Metal est couvert par
   les différentiels physiques finis et n'est pas formellement prouvé.
+
+### OPT-2026-09-20-RUST-PERF-110 — Hadamard SIMD de `glu_down_input` — en cours
+
+- Source : ticket D09 de
+  `MLXL3_Decode_50_Upgrades_Priorises_2026-09-20.md`, quatrième chantier de
+  l'ordre confirmé. Le kernel courant alloue six tableaux threadgroup de 128
+  floats et exécute 23 barrières pour les trois Hadamard gate/up/down.
+- Antécédents : PERF-68 a montré qu'un Hadamard radix-2 naïf ne reproduit pas
+  le découpage radix-16/radix-8 de l'épilogue MLX ; D09 vise toutefois le
+  kernel `glu_down_input`, dont la référence actuelle est précisément sept
+  butterflies radix-2 FP32, avec cast après le quatrième étage pour GELU.
+  Les fusions d'épilogue et de `lm_head` rejetées ne sont pas répétées.
+- Hypothèse : les cinq premiers étages restent à l'intérieur d'un SIMDgroup et
+  peuvent utiliser `simd_shuffle_xor`. Les deux étages inter-SIMD utilisent
+  quatre tableaux partagés double-bufferisés pour gate/up, ensuite réutilisés
+  par down, avec quatre barrières au total. L'ordre add/sub et les casts restent
+  inchangés ; le volume partagé baisse de 3 072 à 2 048 octets.
+- Baseline chaude après PERF-109 : greedy médian **44,636 tok/s**, DFlash
+  médian **67,325 tok/s**, 39/45 propositions. Protocole prévu : différentiel
+  synthétique bit-à-bit SiLU/GELU, valeurs extrêmes et slots 8/48 ;
+  microbenchmark apparié ancien/nouveau kernel ; puis logits + 80 états M=1..8,
+  commit DFlash et A/B/B/A E2E. Un seul processus modèle à la fois. Rejet au
+  premier écart ou si le gain de frontière ne produit aucun signal complet.
+- 2026-09-21, différentiel GPU candidat/référence : sorties FP16 identiques
+  bit-à-bit pour SiLU et GeLU, slots 8/48, largeur 512 et largeur logique GeLU
+  384, y compris activations de grande amplitude. Microbenchmark apparié dans
+  le même processus (8 warmups, 40 mesures par variante, temps d'évaluation
+  MLX inclus) : SiLU 8 slots **0,302 → 0,292 ms**, SiLU 48 slots **0,308 →
+  0,295 ms** ; GeLU 8 slots **0,298 → 0,296 ms**, GeLU 48 slots **0,264 →
+  0,247 ms**. Signal de kernel modeste ; cela ne démontre pas encore un gain
+  de modèle. Commande : `MLXL3_GLU_BENCH=1 cargo test --release --all-features
+  glu_down_simd_matches_reference -- --ignored --nocapture` avec MLX 0.32.2
+  local et SDK macOS 26.2. Logs en sortie terminal, non archivés séparément.
+  Statut toujours **en cours** : essais modèle et benchmark apparié requis.
+- Modèle Qwen complet : `verification_widths_match_token_major` passe pour
+  M=1..8 (logits FP16 et 80 états), avec un seul processus modèle. Premier
+  A/B/B/A DFlash (48 tokens, N=5, deux répétitions par processus, sur batterie
+  à 86 %, 39/45 propositions et texte identique au greedy) : SIMD **72,114 /
+  71,649 / 75,806 / 75,441 tok/s** ; référence **75,277 / 70,875 / 71,548 /
+  73,536 tok/s**. Médianes conventionnelles des quatre passages **73,778**
+  contre **72,542 tok/s (+1,70 %)**, mais dérive de régime importante
+  (70,875–75,806 tok/s). Le ratio DFlash/greedy par processus varie aussi
+  avec le greedy ; ce n'est pas une attribution causale. **Non concluant pour
+  l'intégration** à ce stade ; une seconde série appariée doit confirmer.
+- Seconde série A/B/B/A séquentielle avec trois répétitions par processus :
+  SIMD **73,648 / 71,914 tok/s** (médianes par passage), référence **72,546 /
+  75,760 tok/s**. Médianes combinées **72,781** contre **74,153 tok/s
+  (−1,85 %)**, soit le signe inverse de la première série. Les runs individuels
+  couvrent 68,847–75,921 tok/s selon le régime machine, toujours 39/45 et
+  sorties target exactes. Décision : **rejeté, non intégré** ; le gain isolé du
+  kernel n'est pas reproductible bout en bout et ne justifie pas le shader,
+  l'occupation de registres ni le commutateur. Le prototype est retiré ; aucun
+  gain +50 % n'est attribué à D09. Machine sur batterie pendant les deux
+  séries, ce qui limite la stabilité des chiffres absolus.
