@@ -6142,3 +6142,46 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   Décision : **rejeté** pour N≠5 dans ce workload ; conserver N=5. Aucun code
   exécutable modifié ou intégré, et le gain global +50 % n'est pas atteint à
   128 tokens par simple changement de largeur.
+
+### OPT-2026-09-21-RUST-PERF-114 — D04 repacking des experts sparse — rejeté
+
+- Suite distincte de PERF-111 : le `lm_head` repacké par paires ne gagnait que
+  0,76–1,81 % dans son microbenchmark et a été rejeté. Les poids d'experts sont
+  lus avec des routes sparse ; leur localité et leurs `tile_ns` diffèrent du
+  head dense. Le rejet du head n'est donc pas une mesure des experts.
+- Hypothèse : sur une couche MoE réelle Qwen 2.49 bpw, réordonner les seules
+  tuiles trellis en `[groupe_N/2, tuile_K, paire, mots]` et adapter l'adresse
+  du kernel mapped peut accélérer gate/up et down sans modifier codewords ni
+  FMA. Prototype limité à **une couche et un seul processus**, pas tout le
+  modèle, pour contrôler la RAM ; copies transitoires permises pour l'A/B.
+- Baseline : PERF-112, 128 tokens N=5, **63,682 tok/s** DFlash et **47,630
+  tok/s** greedy, +33,7 %, 101/140 acceptés ; ce benchmark n'est pas un
+  résultat du repacking. Protocole : inversion octet par octet, sorties exactes
+  pour 8/48 routes gate/up et down, puis microbenchmark alterné. Si le gain
+  isolé est net, étudier QMM/prefill et mémoire avant une intégration complète
+  et A/B E2E ; sinon retirer. Versions et températures mesurées dans les
+  résultats, ne pas extrapoler le cas d'une couche aux 40 couches. Statut :
+  **en cours**, journalisé avant code.
+- Premier différentiel de la couche 0 : repacking et inversion octet par octet
+  exacts pour gate/up et down ; sorties FP32 du QMV identiques bit-à-bit aux
+  deux tailles (8 et 48 routes). Microbenchmark alterné dans un seul processus
+  (4 warmups, 24 mesures/variante) : gate/up slots 8 **0,326 → 0,316 ms**,
+  down slots 8 **0,457 → 0,268 ms**, gate/up slots 48 **0,483 → 0,492 ms**,
+  down slots 48 **0,371 → 0,367 ms**. Le fort signal down à 8 routes ne se
+  retrouve pas à 48 et peut être bruit/cache. Ce résultat ne démontre aucun
+  gain DFlash M=6, ni un gain de modèle. Commande :
+  `MLXL3_EXPERT_REPACK_BENCH=1 cargo test --release --all-features
+  sparse_expert_pair_repack_matches_original -- --ignored --nocapture`; batterie
+  ~80 %, MLX 0.32.2, SDK 26.2. Répéter le microbenchmark avec contrôle
+  thermique avant de décider ; un seul processus GPU. Statut **en cours**.
+- Deux répétitions supplémentaires avec le même binaire et les mêmes entrées :
+  slots 8 gate/up **0,253 → 0,256** puis **0,254 → 0,250 ms** ; slots 8 down
+  **0,219 → 0,218** puis **0,220 → 0,220 ms** ; slots 48 gate/up **0,486 →
+  0,484** puis **0,488 → 0,486 ms** ; slots 48 down **0,365 → 0,364** puis
+  **0,369 → 0,365 ms**. Le premier 0,457 → 0,268 ms à 8 routes était donc un
+  transitoire/cache, pas un gain reproductible. L'économie stable est nulle à
+  ~1 % et la forme DFlash slots 48 reste neutre. Décision : **rejeté**, aucun
+  E2E n'est justifié ; prototype et commutateur d'adresse retirés, aucune
+  disposition supplémentaire conservée. Les chemins autres qu'un simple
+  groupement par paires N ne sont pas invalidés par cet essai. Aucun pic RAM
+  physique ni compteur GPU mesuré, absence de Xcode Instruments.
