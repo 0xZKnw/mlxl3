@@ -93,6 +93,19 @@ enum MCPPreferenceCheck {
         relaunched.setMCPEnabled(false)
         try check(!instance().mcpEnabled, "Disabled state was not persisted")
         try check(first.mcpServerCount == 0, "Preview connected to a server")
+        try check(!first.dflash2Enabled, "DFlash2 must default off")
+        try check(!first.dflash2Available, "DFlash2 exposed for an unrelated model")
+        first.enableDFlashGreedy()
+        try check(first.temperature == 0 && first.topK == 1 && first.repetitionPenalty == 1,
+                  "DFlash2 preset is not greedy")
+        try check(instance().dflash2Enabled, "DFlash2 preference was not persisted")
+        first.setDFlash2Enabled(false)
+        try check(!instance().dflash2Enabled, "DFlash2 disabled state was not persisted")
+        first.models = [LocalModel(name: "qwen3.6-35b-a3b", path: "/models/Qwen3.6-35B-A3B-EXL3",
+                                   modelType: "qwen3_5_moe", format: "EXL3", bits: 2.49,
+                                   sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+        first.selectedModelName = "qwen3.6-35b-a3b"
+        try check(first.dflash2Available, "DFlash2 hidden for Qwen3.6-35B-A3B")
 
         var request = GenerationRequest(
             requestID: "test", conversationID: "test", messages: [], maxTokens: -1,
@@ -100,9 +113,14 @@ enum MCPPreferenceCheck {
         )
         for enabled in [false, true] {
             request.mcpEnabled = enabled
+            request.dflash2 = enabled
+            request.dflashDraftPath = "/local/draft"
             let data = try JSONEncoder().encode(request)
             let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             try check(object?["mcp_enabled"] as? Bool == enabled, "MCP request flag missing")
+            try check(object?["dflash2"] as? Bool == enabled, "DFlash2 request flag missing")
+            try check(object?["dflash_draft_path"] as? String == "/local/draft",
+                      "DFlash2 draft path missing")
         }
     }
 }

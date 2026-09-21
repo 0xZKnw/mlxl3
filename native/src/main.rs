@@ -10,17 +10,18 @@ use serde::Deserialize;
 #[cfg(all(feature = "mlx", feature = "chat"))]
 use serde::Serialize;
 use serde_json::{Value, json};
-use std::{
-    io::{self, BufRead, Read, Write},
-    path::PathBuf,
-};
 #[cfg(all(feature = "mlx", feature = "chat"))]
 use std::{
+    collections::VecDeque,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
     time::{Instant, SystemTime, UNIX_EPOCH},
+};
+use std::{
+    io::{self, BufRead, Read, Write},
+    path::PathBuf,
 };
 
 #[derive(Parser)]
@@ -1380,6 +1381,91 @@ struct BridgeRequest {
     enabled: bool,
     #[serde(default)]
     mcp_enabled: bool,
+    #[serde(default)]
+    dflash2: bool,
+    #[serde(default)]
+    dflash_draft_path: String,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct DFlashChat {
+    cache: mlxl3_native::dflash::DFlashCache,
+    pending: VecDeque<u32>,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl DFlashChat {
+    fn new() -> Self {
+        Self {
+            cache: Default::default(),
+            pending: VecDeque::new(),
+        }
+    }
+
+    fn prefill(
+        &mut self,
+        target: &mut mlxl3_native::qwen35::Qwen35Moe,
+        draft: &mlxl3_native::dflash::DFlashWeights,
+        tokens: &[u32],
+    ) -> Result<mlxl3_native::array::Array> {
+        let position = target.offset();
+        let (logits, captured) = target.forward_tokens_with_dflash_capture(tokens)?;
+        self.cache.append_captured(draft, &captured, position)?;
+        self.cache.eval()?;
+        Ok(logits)
+    }
+
+    fn advance(
+        &mut self,
+        target: &mut mlxl3_native::qwen35::Qwen35Moe,
+        draft: &mlxl3_native::dflash::DFlashWeights,
+        anchor: u32,
+        context_limit: usize,
+    ) -> Result<u32> {
+        if let Some(token) = self.pending.pop_front() {
+            return Ok(token);
+        }
+        let remaining = context_limit.saturating_sub(usize::try_from(target.offset())?);
+        if remaining == 1 {
+            return target
+                .forward(anchor)?
+                .log_probs()?
+                .argmax()?
+                .to_u32()?
+                .into_iter()
+                .next()
+                .context("model returned no logits");
+        }
+        anyhow::ensure!(remaining >= 2, "DFlash reached the context limit");
+        let proposals_count = (remaining - 1).min(5);
+        let input = target.dflash_input(anchor, 248_077)?;
+        let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
+        let draft_logits = target.dflash_logits(&output.hidden, proposals_count)?;
+        let proposals = draft.select_greedy(&draft_logits, &output.selector, anchor)?;
+        let verify = std::iter::once(anchor)
+            .chain(proposals.iter().copied())
+            .collect::<Vec<_>>();
+        let position = target.offset();
+        let (target_logits, captured) = target.verify_tokens_exact_with_dflash_capture(&verify)?;
+        // Match the ordinary chat sampler, including its normalization before
+        // greedy argmax. Raw FP16 logits can select differently on ties.
+        let target_tokens = target_logits.log_probs()?.argmax()?.to_u32()?;
+        let acceptance = mlxl3_native::speculative::greedy_accept(&proposals, &target_tokens)
+            .context("invalid DFlash target verification")?;
+        let accepted = acceptance.accepted_draft_tokens;
+        let retained = accepted + 1;
+        target.commit_dflash_verification(retained, verify.len())?;
+        self.cache.append_captured(
+            draft,
+            &captured.slice(0, 0, i32::try_from(retained)?)?,
+            position,
+        )?;
+        self.pending.extend(proposals[..accepted].iter().copied());
+        self.pending.push_back(acceptance.target_token);
+        self.pending
+            .pop_front()
+            .context("DFlash produced no target token")
+    }
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1529,6 +1615,7 @@ fn bridge_generate_round(
     resident_gb: f64,
     cancelled: &AtomicBool,
     random: &mut u64,
+    draft: Option<&mlxl3_native::dflash::DFlashWeights>,
 ) -> Result<RoundOutput> {
     use mlxl3_native::{array::Array, streaming::Channel, tool_call::StreamFilter};
     anyhow::ensure!(!messages.is_empty(), "messages cannot be empty");
@@ -1550,12 +1637,27 @@ fn bridge_generate_round(
     model.reset();
     let started = Instant::now();
     let mut logits: Option<Array> = None;
-    for chunk in tokens.chunks(model.prefill_chunk_size()) {
+    let mut dflash = draft.map(|_| DFlashChat::new());
+    let chunk_size = if dflash.is_some() {
+        128
+    } else {
+        model.prefill_chunk_size()
+    };
+    for chunk in tokens.chunks(chunk_size) {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
         }
-        logits = Some(model.forward_many(chunk)?);
+        logits = Some(
+            if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+                let NativeChatModel::Qwen(target) = &mut *model else {
+                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
+                };
+                session.prefill(target, weights, chunk)?
+            } else {
+                model.forward_many(chunk)?
+            },
+        );
         model.eval_state()?;
     }
     let mut logits = logits.context("no prefill output")?;
@@ -1573,19 +1675,24 @@ fn bridge_generate_round(
     let mut decoded = String::new();
     let mut generated = Vec::new();
     let mut first_token = None;
+    let mut dflash_next = None;
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
         }
-        let next = select_token(
-            &logits,
-            &generated,
-            temperature,
-            top_k,
-            repetition_penalty,
-            random,
-        )?;
+        let next = if let Some(token) = dflash_next.take() {
+            token
+        } else {
+            select_token(
+                &logits,
+                &generated,
+                temperature,
+                top_k,
+                repetition_penalty,
+                random,
+            )?
+        };
         if tokenizer.eos_ids().contains(&next) {
             break;
         }
@@ -1614,7 +1721,14 @@ fn bridge_generate_round(
             }
         }
         if generated.len() < budget {
-            logits = model.forward(next)?;
+            if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+                let NativeChatModel::Qwen(target) = &mut *model else {
+                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
+                };
+                dflash_next = Some(session.advance(target, weights, next, context_limit)?);
+            } else {
+                logits = model.forward(next)?;
+            }
         }
     }
     let complete = tokenizer.decode(&generated)?;
@@ -1727,6 +1841,7 @@ fn bridge_generate(
     cancelled: &AtomicBool,
     random: &mut u64,
     mcp: &mut mlxl3_native::mcp::Manager,
+    draft: Option<&mlxl3_native::dflash::DFlashWeights>,
 ) -> Result<()> {
     let mut dialogue = validated_bridge_messages(messages)?;
     let original_length = dialogue.len();
@@ -1752,6 +1867,7 @@ fn bridge_generate(
             resident_gb,
             cancelled,
             random,
+            draft,
         )?;
         first_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
         let calls = if tools.is_empty() {
@@ -1866,6 +1982,7 @@ fn native_bridge(
         .as_nanos() as u64
         | 1;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
+    let mut dflash_weights: Option<(PathBuf, mlxl3_native::dflash::DFlashWeights)> = None;
     for line in io::stdin().lock().lines() {
         let line = line?;
         if line.trim().is_empty() {
@@ -1894,21 +2011,51 @@ fn native_bridge(
                 cancelled.store(false, Ordering::Relaxed);
                 mcp.set_enabled(&registry_path, request.mcp_enabled, false);
                 let request_id = request.request_id.clone();
-                if let Err(error) = bridge_generate(
-                    &mut model,
-                    &tokenizer,
-                    &request.request_id,
-                    request.messages,
-                    request.max_tokens,
-                    request.temperature,
-                    request.top_k,
-                    request.repetition_penalty,
-                    context_limit,
-                    resident_gb,
-                    &cancelled,
-                    &mut random,
-                    &mut mcp,
-                ) {
+                let result = (|| -> Result<()> {
+                    if request.dflash2 {
+                        anyhow::ensure!(
+                            matches!(&model, NativeChatModel::Qwen(_)),
+                            "DFlash2 currently supports Qwen3.6-35B-A3B only"
+                        );
+                        anyhow::ensure!(
+                            (request.temperature == 0. || request.top_k == 1)
+                                && request.repetition_penalty == 1.,
+                            "DFlash2 requires greedy sampling and repetition penalty 1.0"
+                        );
+                        anyhow::ensure!(
+                            !request.dflash_draft_path.trim().is_empty(),
+                            "DFlash2 draft folder is not configured"
+                        );
+                        let draft_path =
+                            registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
+                        if dflash_weights.as_ref().map(|(path, _)| path) != Some(&draft_path) {
+                            let package = mlxl3_native::dflash::inspect(&draft_path)?;
+                            dflash_weights = Some((
+                                draft_path,
+                                mlxl3_native::dflash::DFlashWeights::load(&package)?,
+                            ));
+                        }
+                    } else {
+                        dflash_weights = None;
+                    }
+                    bridge_generate(
+                        &mut model,
+                        &tokenizer,
+                        &request.request_id,
+                        request.messages,
+                        request.max_tokens,
+                        request.temperature,
+                        request.top_k,
+                        request.repetition_penalty,
+                        context_limit,
+                        resident_gb,
+                        &cancelled,
+                        &mut random,
+                        &mut mcp,
+                        dflash_weights.as_ref().map(|(_, weights)| weights),
+                    )
+                })();
+                if let Err(error) = result {
                     if cancelled.swap(false, Ordering::Relaxed) {
                         emit_event(json!({"type":"cancelled", "request_id":request_id}))?;
                     } else {

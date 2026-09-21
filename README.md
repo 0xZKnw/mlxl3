@@ -2,7 +2,7 @@
 
 **Native EXL3 inference for Apple Silicon, built with Rust, MLX and custom Metal kernels.**
 
-[Download MLXL3 Desktop v1.0.3](https://github.com/0xZKnw/mlxl3/releases/latest)
+[Download MLXL3 Desktop v1.1.0](https://github.com/0xZKnw/mlxl3/releases/latest)
 · [Validation scope](docs/v1-validation.md)
 · [Optimization journal](opti.md)
 · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -62,9 +62,10 @@ The DFlash2 number measures delivered output tokens from a complete draft →
 select → exact target verify → accept → state commit loop. The optimized commit
 costs about **1 ms**, down from 127–132 ms for restore-and-recompute. The target
 sequence and all **80 recurrent/KV state arrays** were compared with ordinary
-greedy execution for retained widths 1 through 8. DFlash2 is currently an
-**experimental benchmark path** and is not automatically enabled by Desktop or
-the CLI.
+greedy execution for retained widths 1 through 8. Since v1.1.0, Desktop can
+also use this experimental path for Qwen3.6-35B-A3B. It is opt-in, greedy-only
+and requires the separate draft weights; the benchmark rate is not a guarantee
+of in-app speed or of performance on another Mac.
 
 Peak MLX allocation is not the model file size, process RSS or total macOS
 physical footprint. Unified memory also holds compiled graphs, caches, recurrent
@@ -84,6 +85,20 @@ an older document disagree.
 4. Open **Models**, then either search Hugging Face or import an existing EXL3
    folder. Select the desired branch, tag or quantization before downloading.
 5. Load the model and start a conversation.
+
+### Optional DFlash2 for Qwen3.6-35B-A3B
+
+Download the `draft/` directory from Inco AI's
+[Qwen3.6-35B-A3B Splash package](https://huggingface.co/incoai/Qwen3.6-35B-A3B-Splash)
+into a local folder. The DMG does not include target or draft weights. In
+**Generation → DFlash2**, choose the folder containing `draft/layer-0.bin` and
+`draft/model.bin`, then select **Use greedy preset**. DFlash2 verifies proposals
+with the EXL3 target model before emitting them; it is not available for
+temperature sampling or a repetition penalty other than 1. Turn off the toggle
+to use the regular decoder. This integration is experimental and has only been
+validated with the Qwen3.6-35B-A3B EXL3 target on M5.
+The first DFlash2 request may be slower while Metal compiles its kernels;
+subsequent requests reuse the compiled shaders.
 
 No Python, Homebrew, Hugging Face CLI or separate MLX installation is required
 for the DMG. Managed weights are stored under:
@@ -358,8 +373,8 @@ Local model weights, build products and benchmark artifacts are not committed.
 
 - Apple Silicon/macOS only for native inference and Desktop.
 - No multimodal Gemma input.
-- No automatic DFlash2 activation yet; its current integration is an exact
-  physical benchmark path.
+- DFlash2 is opt-in, greedy-only and validated for Qwen3.6-35B-A3B on M5;
+  the separate draft weights are not bundled.
 - Performance on M1–M4 is not inferred from M5 measurements.
 - The release is not notarized.
 - MCP processes are trusted external tools, not a sandbox.

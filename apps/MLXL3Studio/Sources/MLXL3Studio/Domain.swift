@@ -196,6 +196,8 @@ struct GenerationRequest: Encodable {
     let topK: Int
     let repetitionPenalty: Double
     var mcpEnabled: Bool = false
+    var dflash2: Bool = false
+    var dflashDraftPath: String = ""
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -205,6 +207,8 @@ struct GenerationRequest: Encodable {
         case topK = "top_k"
         case repetitionPenalty = "repetition_penalty"
         case mcpEnabled = "mcp_enabled"
+        case dflash2
+        case dflashDraftPath = "dflash_draft_path"
     }
 }
 

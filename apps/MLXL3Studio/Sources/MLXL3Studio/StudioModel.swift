@@ -22,6 +22,8 @@ final class StudioModel: ObservableObject {
     @Published var temperature = 0.2
     @Published var topK = 80
     @Published var repetitionPenalty = 1.05
+    @Published private(set) var dflash2Enabled = false
+    @Published private(set) var dflashDraftPath = ""
     @Published var systemPrompt = ""
     @Published private(set) var mcpServerCount = 0
     @Published private(set) var mcpToolCount = 0
@@ -60,6 +62,8 @@ final class StudioModel: ObservableObject {
         self.preferences = preferences
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
+        self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
+        self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
         do {
@@ -96,6 +100,11 @@ final class StudioModel: ObservableObject {
 
     var selectedModel: LocalModel? {
         models.first { $0.name == selectedModelName }
+    }
+
+    var dflash2Available: Bool {
+        guard let model = selectedModel, model.modelType == "qwen3_5_moe" else { return false }
+        return (model.name + model.path).lowercased().contains("qwen3.6-35b-a3b")
     }
 
     var savedContextLength: Int {
@@ -428,7 +437,9 @@ final class StudioModel: ObservableObject {
                     temperature: temperature,
                     topK: topK,
                     repetitionPenalty: repetitionPenalty,
-                    mcpEnabled: mcpEnabled
+                    mcpEnabled: mcpEnabled,
+                    dflash2: dflash2Enabled && dflash2Available,
+                    dflashDraftPath: dflashDraftPath
                 )
             )
         } catch {
@@ -493,6 +504,30 @@ final class StudioModel: ObservableObject {
 
     func settingsDidChange() {
         schedulePersistence()
+    }
+
+    func setDFlash2Enabled(_ enabled: Bool) {
+        dflash2Enabled = enabled
+        preferences.set(enabled, forKey: "studio.dflash2Enabled")
+    }
+
+    func chooseDFlashDraft() {
+        let picker = NSOpenPanel()
+        picker.canChooseDirectories = true
+        picker.canChooseFiles = false
+        picker.allowsMultipleSelection = false
+        picker.prompt = L("Utiliser ce draft", "Use this draft")
+        guard picker.runModal() == .OK, let path = picker.url?.path else { return }
+        dflashDraftPath = path
+        preferences.set(path, forKey: "studio.dflashDraftPath")
+    }
+
+    func enableDFlashGreedy() {
+        temperature = 0
+        topK = 1
+        repetitionPenalty = 1
+        setDFlash2Enabled(true)
+        settingsDidChange()
     }
 
     func selectConversation(_ id: UUID) {

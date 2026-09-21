@@ -6232,3 +6232,62 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   temporaire a été retiré, le code de production est inchangé. Reprendre
   seulement avec une machine moins chargée et un A/B E2E si un micro-signal
   net réapparaît ; logs uniquement dans la sortie terminal, non archivés.
+
+### OPT-2026-09-21-RUST-PERF-116 — D36 épilogue sparse à 32 lanes — interrompu
+
+- Source : D36 du rapport du Bureau, distinct de PERF-68. Ce dernier
+  reproduisait l'épilogue MLX exactement avec seulement 8 threads et 16
+  valeurs par thread, mais régressait de **1,7 %** E2E. Le code courant
+  `finish_and_reduce` matérialise Hadamard FP16, deux multiplications FP16
+  puis une réduction top-k. Le header MLX 0.32.2 confirme le radix-16,
+  cast FP16, puis radix-8 et multiplication de scale pour les blocs N=128.
+- Hypothèse : répartir chaque bloc de 128 sur un SIMDgroup de 32 lanes
+  (4 valeurs/lane), huit SIMDgroups par threadgroup pour top-k=8, puis
+  réduire dans l'ordre canonique diminue registres et dispatchs sans changer
+  les sorties. Première étape : scales déjà rassemblés, pour isoler la
+  transformation ; lecture directe par route seulement si ce test gagne.
+- Baseline E2E : PERF-112, Qwen3.6-35B-A3B EXL3 2.49 bpw, 128 tokens,
+  N=5, greedy **47,630 tok/s**, DFlash **63,682 tok/s** (+33,7 %), mais
+  ce n'est pas un résultat de D36. Protocole prévu : différentiel isolé
+  Hadamard puis épilogue complet sur valeurs FP16 structurées/aléatoires,
+  slots 8/48 et top-k 8, y compris routes/échelles/scores non triviaux ;
+  rejet au premier écart bit-à-bit. Ensuite microbenchmark alterné, puis
+  logits et 80 états M=1..8, puis A/B/B/A 48 et 128 tokens si le gain isolé
+  dépasse le bruit. Un seul processus chargeur de modèle à la fois ; Mac
+  actuellement sur batterie et activité tierce observée, donc ratio exact
+  à confirmer. Aucun changement de poids ni de sampling.
+- Premier prototype limité au Hadamard, 32 lanes et quatre valeurs/lane :
+  sorties FP16 **identiques bit-à-bit** à MLX pour slots 8/48, largeur 2048,
+  entrées structurées signées. Commande :
+  `cargo test --release --all-features d36_hadamard_32_matches_mlx --
+  --ignored --nocapture --test-threads=1` (MLX local, SDK 26.2).
+  Micro-médianes alternées, 40 mesures/variante après 8 warmups : slots 8
+  MLX **0,216 ms** contre 32-lane **0,224 ms** ; slots 48 MLX **0,208 ms**
+  contre 32-lane **0,203 ms**. Ce test isolé est essentiellement neutre ;
+  la raison d'essayer la fusion reste la suppression des multiplications,
+  de la réduction et des buffers intermédiaires. Aucun gain E2E revendiqué.
+- Deuxième étape du même essai : Hadamard 32-lanes **plus les deux produits
+  FP16**, réduction MLX conservée. Pour slots 8 et 48, largeur 2048,
+  scales/scores signés déterministes non triviaux : sorties pondérées
+  **identiques bit-à-bit** à `hadamard_transform().mul(scales).mul(scores)`.
+  Micro-médianes alternées (40 mesures/variante après 8 warmups) : slots 8
+  MLX **0,324 ms** contre fusion **0,301 ms** (−7,1 %), slots 48 MLX
+  **0,346 ms** contre fusion **0,304 ms** (−12,1 %). Commande :
+  `cargo test --release --all-features d36_weighted_hadamard_32_matches_mlx
+  -- --ignored --nocapture --test-threads=1`, MLX 0.32.2 et SDK 26.2,
+  batterie. Ces temps sont des microbenchmarks, pas des gains de couche ou
+  de génération. Étape suivante : conserver le test, brancher le candidat
+  uniquement pour A/B ciblé, comparer logits/états et E2E avant décision.
+- Contrôle supplémentaire de la réduction MLX inchangée : après la fusion,
+  `reshape([rows,8,width]).sum(1)` produit aussi des sorties FP16 bit-à-bit
+  identiques pour slots 8/48. Le second passage micro donne slots 8 **0,309
+  → 0,297 ms** et slots 48 **0,348 → 0,302 ms**, même entrée et même méthode.
+  Prototype branché derrière `MLXL3_D36_EPILOGUE` seulement, désactivé par
+  défaut ; aucun gain de modèle ni d'application n'est encore établi.
+- À la demande de l'utilisateur, campagne arrêtée avant le différentiel
+  modèle référence/candidat et l'A/B E2E. Le test de cohérence interne Qwen
+  M=1..8 avec le kernel candidat a réussi, mais il ne compare pas le modèle
+  complet à la référence. La compilation du test différentiel modèle a été
+  interrompue ; résultat **non mesuré**. Le candidat Metal, son interrupteur
+  d'environnement et les tests temporaires ont été retirés avant la release.
+  Le micro-gain ne doit pas être présenté comme gain d'inférence validé.

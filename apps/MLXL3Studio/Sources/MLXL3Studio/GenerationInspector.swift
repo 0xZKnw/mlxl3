@@ -120,6 +120,38 @@ struct GenerationInspector: View {
                         )
                     }
 
+                    if studio.dflash2Available {
+                        SettingCard(title: "DFlash2 · Qwen3.6-35B-A3B", icon: "bolt") {
+                            Toggle(
+                                L("Activer le décodage spéculatif", "Enable speculative decoding"),
+                                isOn: Binding(
+                                    get: { studio.dflash2Enabled },
+                                    set: { studio.setDFlash2Enabled($0) }
+                                )
+                            )
+                            .font(.system(size: 11))
+                            Button(L("Choisir le dossier du draft…", "Choose draft folder…")) {
+                                studio.chooseDFlashDraft()
+                            }
+                            .buttonStyle(GlassPillButtonStyle())
+                            Text(studio.dflashDraftPath.isEmpty
+                                 ? L("Draft non configuré", "Draft not configured")
+                                 : studio.dflashDraftPath)
+                                .font(.caption)
+                                .foregroundStyle(StudioTheme.quiet)
+                                .lineLimit(2)
+                                .textSelection(.enabled)
+                            Button(L("Utiliser le préréglage greedy", "Use greedy preset")) {
+                                studio.enableDFlashGreedy()
+                            }
+                            .buttonStyle(GlassPillButtonStyle())
+                            Text(L("Expérimental · Qwen3.6-35B-A3B seulement. Requiert le draft DFlash2 séparé, température 0 ou Top K 1, et répétition 1.0.",
+                                   "Experimental · Qwen3.6-35B-A3B only. Requires the separate DFlash2 draft, temperature 0 or Top K 1, and repetition 1.0."))
+                                .font(.caption)
+                                .foregroundStyle(StudioTheme.quiet)
+                        }
+                    }
+
                     SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
                         TextEditor(text: $studio.systemPrompt)
                             .font(.system(size: 11.5))
