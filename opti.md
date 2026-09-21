@@ -6040,3 +6040,44 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   l'occupation de registres ni le commutateur. Le prototype est retiré ; aucun
   gain +50 % n'est attribué à D09. Machine sur batterie pendant les deux
   séries, ce qui limite la stabilité des chiffres absolus.
+
+### OPT-2026-09-21-RUST-PERF-111 — repacking interne du head EXL3 par paires N — en cours
+
+- Source : ticket D04 du rapport du Bureau, après D01/D02/D23 intégrés et D09
+  rejeté. L'adresse QMV du head reste `(tile_k * TILES_N + tile_n) * PACKED_U32` ;
+  pour une même sortie elle saute donc une grande plage en parcourant K. Ce
+  constat d'indexation ne prouve pas à lui seul une perte de bande passante.
+- Antécédents : PERF-104/105 (MB=3) et PERF-106 (extraction 32 bits) rejetés ;
+  aucun essai de repacking de tuiles du head n'est documenté. Xcode complet,
+  `xctrace` et l'outil `metal` sont absents du Mac (CommandLineTools seuls),
+  donc aucun compteur L1/DRAM matériel n'est disponible ici.
+- Hypothèse : conserver les codewords mais disposer les tuiles du seul
+  `lm_head` en `[groupe_N/2, tuile_K, N_local(2), mots]` peut réduire les sauts
+  du QMV M=1/5/6. Prototype de **ce seul head** : deux copies transitoires en
+  RAM sont permises pour l'A/B, mais un résultat positif ne sera pas intégré
+  tant que le QMM/prefill n'utilise pas la même disposition sans copie
+  permanente supplémentaire.
+- Baseline de référence : PERF-109 greedy **44,636 tok/s**, DFlash **67,325
+  tok/s** chaud ; la série D09 a dérivé de 68,847 à 75,921 tok/s sur batterie.
+  Protocole : inversion du repacking octet par octet, sorties du head M=1/5/6/8
+  identiques, microbenchmark alterné ancien/nouveau, puis A/B/B/A E2E 48
+  tokens N=5 avec un seul modèle à la fois. Mesurer aussi taille du buffer,
+  charge et pic mémoire. Rejeter si aucun gain E2E reproductible. Statut :
+  **en cours**, prototype avant code.
+- Prototype du seul `lm_head` (trellis 128×15 520×96 en I16, **381 419 520
+  octets ≈ 0,355 GiB**) : inversion du repacking octet par octet et sorties
+  FP16 M=1/5/6/8 identiques à l'original. Microbenchmark alterné, quatre
+  warmups puis 20 mesures/variante : M=1 **3,314 → 3,254 ms** ; M=5 **7,748
+  → 7,689 ms** ; M=6 **7,839 → 7,738 ms** ; M=8 **10,374 → 10,230 ms**.
+  Baisse isolée de **0,76 à 1,81 %** suivant la largeur, alors que ce seul
+  prototype garde une seconde copie de 0,355 GiB et devrait aussi adapter le
+  QMM/prefill pour remplacer l'original. À neuf blocs, même l'économie M=5
+  mesurée de 0,059 ms/appel ne représenterait qu'environ 0,53 ms sur ~650 ms
+  de decode spéculatif, sous les variations observées du banc E2E. Décision :
+  **rejeté pour le head seul, non intégré** ; un test E2E de ce sous-cas n'aurait
+  pas de pouvoir discriminant. Le repacking des experts (autre mécanisme, accès
+  sparse) reste non testé, pas rejeté par extrapolation. Source de mesure :
+  `MLXL3_HEAD_REPACK_BENCH=1 cargo test --release --all-features
+  head_pair_repack_matches_original -- --ignored --nocapture` avec MLX 0.32.2,
+  SDK 26.2, un processus GPU, sur batterie. Pic RAM processus et compteurs
+  GPU **non mesurés**. Le prototype head est retiré.
