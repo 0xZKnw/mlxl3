@@ -6041,7 +6041,7 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   gain +50 % n'est attribué à D09. Machine sur batterie pendant les deux
   séries, ce qui limite la stabilité des chiffres absolus.
 
-### OPT-2026-09-21-RUST-PERF-111 — repacking interne du head EXL3 par paires N — en cours
+### OPT-2026-09-21-RUST-PERF-111 — repacking interne du head EXL3 par paires N — rejeté
 
 - Source : ticket D04 du rapport du Bureau, après D01/D02/D23 intégrés et D09
   rejeté. L'adresse QMV du head reste `(tile_k * TILES_N + tile_n) * PACKED_U32` ;
@@ -6081,3 +6081,27 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   head_pair_repack_matches_original -- --ignored --nocapture` avec MLX 0.32.2,
   SDK 26.2, un processus GPU, sur batterie. Pic RAM processus et compteurs
   GPU **non mesurés**. Le prototype head est retiré.
+
+### OPT-2026-09-21-RUST-PERF-112 — validation du seuil DFlash +50 % à 128 tokens — validé (diagnostic)
+
+- Répétition de validation, pas une optimisation nouvelle : PERF-109 mesurait
+  1,508× (48 tokens, N=5, un prompt) ; la campagne D09 a trouvé 1,428–1,599×
+  selon passage et régime, sans gain causal D09. Avant de citer « +50 % » dans
+  une communication, vérifier la tenue sur une sortie plus longue avec le code
+  `main` inchangé (`ffb81a2`).
+- Protocole : `MLXL3_DFLASH_TOKENS=128 MLXL3_DFLASH_REPEATS=3
+  MLXL3_DFLASH_PROPOSALS=5 cargo test --release --all-features
+  benchmarks_dflash_end_to_end_greedy -- --ignored --nocapture --test-threads=1`,
+  Qwen3.6-35B-A3B EXL3 2.49 bpw + DFlash2 local, MLX 0.32.2, M5 sur batterie ;
+  séquence greedy exacte obligatoire, un seul processus modèle. Mesurer débit,
+  préfixes acceptés, target/draft et variation entre répétitions. Cette matrice
+  reste limitée à un prompt ; si le seuil échoue, ne pas l'annoncer comme
+  propriété du projet. Statut initial : **en cours**.
+- Résultat : greedy **46,970 / 47,956 / 47,630 tok/s**, DFlash **63,682 /
+  63,935 / 61,669 tok/s** ; médianes **47,630 contre 63,682 tok/s**, soit
+  **1,337× (+33,7 %)**, et séquences strictement identiques. Acceptation
+  **101/140 (72,1 %)**, 28 blocs ; draft 0,372–0,384 s, target 1,612–1,673 s.
+  Batterie 84→82 % pendant la campagne, un seul modèle, aucun OOM. Conclusion
+  **validée pour ce prompt et ce budget seulement** : le seuil +50 % observé
+  à 48 tokens **ne tient pas** à 128 tokens. Ne pas le présenter comme gain
+  général de MLXL3 ou de l'app. Aucun code de production modifié.
