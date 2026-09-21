@@ -6105,3 +6105,40 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   **validée pour ce prompt et ce budget seulement** : le seuil +50 % observé
   à 48 tokens **ne tient pas** à 128 tokens. Ne pas le présenter comme gain
   général de MLXL3 ou de l'app. Aucun code de production modifié.
+
+### OPT-2026-09-21-RUST-PERF-113 — largeur DFlash sur sortie longue — rejeté
+
+- Nouvelle condition par rapport au balayage PERF-73/79 : leurs N=2..7
+  portaient sur la sortie courte de 48 tokens et avaient retenu N=5. PERF-112
+  montre qu'à 128 tokens l'acceptation tombe de 86,7 à 72,1 % et le ratio de
+  +50,8 % environ à +33,7 %. L'hypothèse testée est qu'une largeur plus courte
+  peut éviter les suffixes rejetés en seconde partie de génération.
+- Baseline N=5, 128 tokens, trois répétitions : greedy médian **47,630 tok/s**,
+  DFlash médian **63,682 tok/s**, 101/140 propositions. Protocole paramétré
+  N=3, N=4, puis contrôle N=5 adjacent, deux ou trois répétitions par processus,
+  même prompt/poids/code et texte exact ; éventuellement N=7 seulement si le
+  signal justifie. Mesurer tok/s réel, préfixes acceptés, nombres de blocs et
+  temps draft/target. Un seul modèle en mémoire à chaque moment. Rejet si la
+  différence se noie dans la dérive, même si le ratio DFlash/greedy fluctue.
+  Aucun code modifié avant ce balayage. Statut : **en cours**.
+- Première sous-série longue : N=3 **58,163 / 58,328 tok/s**, 89/117 acceptés
+  et 39 blocs ; N=4 **62,592 / 62,404 tok/s**, 98/124 et 31 blocs ; contrôle
+  N=5 **59,077 / 64,261 tok/s**, 101/140 et 28 blocs. Un passage N=5 a subi
+  une baisse simultanée du greedy (42,076 contre 48,530 tok/s) ; le meilleur
+  contrôle proche reste 64,261, au-dessus des N=3/4. Le raccourcissement de
+  largeur ne récupère donc pas les +50 %. Essai N=6/7 ajouté avant mesure :
+  vérifier si moins de blocs compensent leur vérification plus large sur
+  128 tokens, malgré le résultat court défavorable de PERF-73/79. Deux
+  répétitions par variante, puis contrôle N=5 adjacent.
+- Seconde sous-série : N=6 **56,352 / 56,407 tok/s**, 102/162 acceptés,
+  27 blocs ; N=7 **55,020 / 55,064 tok/s**, 103/182, 26 blocs ; contrôle N=5
+  **63,491 / 62,312 tok/s**, 101/140, 28 blocs. Les séquences sont égales au
+  greedy pour chaque variante ; pas de changement de qualité. La baisse de
+  deux blocs au plus ne compense ni le travail M=7/8 ni les propositions
+  rejetées. Toutes les commandes utilisent `MLXL3_DFLASH_TOKENS=128`,
+  `MLXL3_DFLASH_REPEATS=2`, `MLXL3_DFLASH_PROPOSALS=N`, `--test-threads=1`,
+  MLX 0.32.2 et SDK 26.2. Batterie environ 82 % au départ, valeur finale
+  **non mesurée** ; logs en sortie terminal, pas de fichier brut conservé.
+  Décision : **rejeté** pour N≠5 dans ce workload ; conserver N=5. Aucun code
+  exécutable modifié ou intégré, et le gain global +50 % n'est pas atteint à
+  128 tokens par simple changement de largeur.
