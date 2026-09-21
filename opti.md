@@ -4678,7 +4678,7 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   son commutateur et son benchmark temporaire sont retirés. Production reste
   sur NT4 de PERF-66.
 
-### OPT-2026-09-20-RUST-PERF-68 — épilogue sparse Hadamard/réduction fusionné — en cours
+### OPT-2026-09-20-RUST-PERF-68 — épilogue sparse Hadamard/réduction fusionné — rejeté
 
 - Observation : après chaque down sparse, `finish_and_reduce` matérialise un
   Hadamard FP16 de 64×2048, deux multiplications puis une somme top-8. PERF-65
@@ -5987,7 +5987,7 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   couvre les contrats Rust bornés existants ; le shader Metal est couvert par
   les différentiels physiques finis et n'est pas formellement prouvé.
 
-### OPT-2026-09-20-RUST-PERF-110 — Hadamard SIMD de `glu_down_input` — en cours
+### OPT-2026-09-20-RUST-PERF-110 — Hadamard SIMD de `glu_down_input` — rejeté
 
 - Source : ticket D09 de
   `MLXL3_Decode_50_Upgrades_Priorises_2026-09-20.md`, quatrième chantier de
@@ -6185,3 +6185,50 @@ le 10 septembre. Les gains portent uniquement sur le périmètre indiqué.
   disposition supplémentaire conservée. Les chemins autres qu'un simple
   groupement par paires N ne sont pas invalidés par cet essai. Aucun pic RAM
   physique ni compteur GPU mesuré, absence de Xcode Instruments.
+
+### OPT-2026-09-21-RUST-PERF-115 — D34 choix Q4 par forme du draft — non concluant
+
+- Après relecture du rapport du Bureau : D01/D02/D23 sont intégrés ; D03,
+  D09 et les deux essais D04 sont rejetés sous leurs formes testées. D34 est
+  distinct du balayage QKV historique : les petites projections 2048→512,
+  les projections 4096→2048 et 6144→2048 utilisent encore le réglage QKV
+  `N128Pipelined` sans mesure spécifique à leurs formes.
+- Hypothèse : `N128` ou `N256` avec nombre de groupes adapté réduit le temps
+  réel de certaines projections du draft, en conservant exactement les mêmes
+  sorties BF16. Baseline E2E : PERF-112, 128 tokens, N=5, greedy médian
+  **47,630 tok/s**, DFlash **63,682 tok/s**, +33,7 %, batterie M5, MLX
+  0.32.2 et SDK 26.2. Ce chiffre n'est pas un résultat de D34.
+- Protocole prévu : un seul processus GPU, poids réels de la couche 0,
+  entrées BF16 fixes de 8 lignes ; comparer `N128`, `N128Pipelined` et `N256`
+  avec géométries valides sur projections petites/moyennes/grandes. Vérifier
+  les sorties octet par octet, réchauffer, alterner les ordres et relever des
+  médianes/dispersion par forme. N'intégrer une variante que si le signal
+  dépasse le bruit puis vérifier le draft complet et l'E2E exact A/B/B/A.
+  Si l'écart isolé est faible ou inverse, rejeter et retirer le prototype.
+  Aucune revendication de +50 % à 128 tokens sans nouveau test apparié.
+- Premier microbenchmark avec les quatre formes, MLX 0.32.2/SDK 26.2,
+  `cargo test --release --all-features benchmarks_real_q4_shape_kernels --
+  --ignored --nocapture --test-threads=1` : toutes les variantes reproduisent
+  exactement les sorties BF16. Médianes en ms (`N128Pipelined` actuel →
+  `N128` → `N256`) : 2048→512 **0,230 → 0,230 → 0,255** ;
+  4096→2048 **0,281 → 0,278 → 0,363** ; 6144→2048 **0,312 →
+  0,312 → 0,383** ; 2048→6144 **0,294 → 0,288 → 0,304**.
+  Dispersion p90 importante sur les petites formes : **non concluant** pour
+  les écarts de 0–0,006 ms ; `N256` régresse de manière nette pour les formes
+  moyennes. Le QKV N128 gagne peut-être ~2 % isolé mais avait déjà été étudié
+  historiquement. Répéter avec le même binaire pour voir si l'écart tient avant
+  tout changement de production. Pic RAM processus non mesuré.
+- Répétition immédiate, même binaire/poids/entrées : médianes en ms dans le
+  même ordre : 2048→512 **0,442 → 0,466 → 0,581** ; 4096→2048 **0,554 →
+  0,527 → 0,672** ; 6144→2048 **0,425 → 0,476 → 0,577** ; 2048→6144
+  **0,305 → 0,308 → 0,321**. Les p90 montent jusqu'à **1,856 ms** ; au
+  moment du contrôle, Mac sur batterie à **78 %**, Deezer Renderer ~75 % CPU,
+  WindowServer ~45 %, swap utilisé ~2,83 Go. Cela ne prouve pas la cause de
+  l'instabilité GPU, mais rend ces écarts de quelques microsecondes non
+  attribuables à D34. Les sorties BF16 restent identiques octet par octet sur
+  les quatre formes et trois kernels ; aucun gain E2E ni gain +50 % n'est
+  mesuré. Décision : **non concluant pour N128**, **N256 défavorable** sur les
+  formes moyennes testées ; aucun changement de production. Le test
+  temporaire a été retiré, le code de production est inchangé. Reprendre
+  seulement avec une machine moins chargée et un A/B E2E si un micro-signal
+  net réapparaît ; logs uniquement dans la sortie terminal, non archivés.
