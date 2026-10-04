@@ -19,6 +19,15 @@ pub const INTERMEDIATE: u64 = 6144;
 pub const TARGET_HIDDEN: u64 = 8 * HIDDEN;
 pub const SELECTOR: u64 = 256;
 pub const VOCABULARY: u64 = 248_320;
+pub const CONTEXT_WINDOW: usize = 2048;
+pub const PREFILL_CHUNK: usize = 256;
+
+/// Begin at the whole target chunk preceding the last useful draft window.
+/// WINDOW is a multiple of CHUNK, so the final whole-chunk prompt checkpoint
+/// also has a complete window even when the prompt ends with a partial chunk.
+pub fn prefill_capture_start(tokens: usize) -> usize {
+    tokens.saturating_sub(CONTEXT_WINDOW) / PREFILL_CHUNK * PREFILL_CHUNK
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PackedSection {
@@ -298,6 +307,26 @@ impl Default for DFlashCache {
 
 #[cfg(feature = "mlx")]
 impl DFlashCache {
+    pub fn try_clone(&self) -> Result<Self> {
+        Ok(Self {
+            layers: self
+                .layers
+                .iter()
+                .map(|layer| {
+                    layer
+                        .as_ref()
+                        .map(|layer| {
+                            Ok(DFlashCacheLayer {
+                                keys: layer.keys.try_clone()?,
+                                values: layer.values.try_clone()?,
+                            })
+                        })
+                        .transpose()
+                })
+                .collect::<Result<_>>()?,
+        })
+    }
+
     pub fn append_captured(
         &mut self,
         weights: &DFlashWeights,
@@ -358,7 +387,7 @@ impl DFlashCache {
                     None => (keys, values),
                 };
                 let length = keys.shape()[2];
-                let first = (length - 2048).max(0);
+                let first = (length - CONTEXT_WINDOW as i32).max(0);
                 self.layers[index] = Some(DFlashCacheLayer {
                     keys: keys.slice(2, first, length)?,
                     values: values.slice(2, first, length)?,
@@ -792,7 +821,7 @@ fn attention(
         let total = past + 8;
         let mut mask = vec![f32::NEG_INFINITY; 8 * total as usize];
         for row in 0..8 {
-            let begin = (past + row + 1 - 2048).max(0);
+            let begin = (past + row + 1 - CONTEXT_WINDOW as i32).max(0);
             for column in begin..past {
                 mask[row as usize * total as usize + column as usize] = 0.0;
             }
@@ -989,6 +1018,138 @@ impl Q4Projection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn draft_capture_window_keeps_the_checkpoint_and_prompt_suffix() {
+        for tokens in [
+            0,
+            1,
+            2047,
+            2048,
+            2049,
+            2175,
+            2176,
+            4095,
+            4096,
+            4097,
+            8192,
+            usize::MAX,
+        ] {
+            let first = prefill_capture_start(tokens);
+            let checkpoint = tokens / PREFILL_CHUNK * PREFILL_CHUNK;
+            assert_eq!(first, checkpoint.saturating_sub(CONTEXT_WINDOW));
+            assert!(first <= tokens.saturating_sub(CONTEXT_WINDOW));
+        }
+    }
+
+    #[cfg(feature = "mlx")]
+    fn cache_bytes(cache: &DFlashCache) -> Result<Vec<Vec<u8>>> {
+        cache
+            .layers
+            .iter()
+            .flatten()
+            .flat_map(|layer| [&layer.keys, &layer.values])
+            .map(crate::array::Array::to_bytes)
+            .collect()
+    }
+
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "requires local DFlash checkpoint and Apple GPU"]
+    fn draft_prefill_suffix_matches_full_cache_exactly() -> Result<()> {
+        use crate::array::{Array, Dtype};
+        let package = inspect("models/Qwen3.6-35B-A3B-DFlash2")?;
+        let weights = DFlashWeights::load(&package)?;
+        let values = (0..PREFILL_CHUNK * TARGET_HIDDEN as usize)
+            .map(|i| (i % 251) as f32 / 127. - 1.)
+            .collect::<Vec<_>>();
+        let captured = Array::from_f32(&values, &[PREFILL_CHUNK as i32, TARGET_HIDDEN as i32])?
+            .astype(Dtype::BFloat16)?;
+        let input = Array::from_f32(&values[..8 * HIDDEN as usize], &[8, HIDDEN as i32])?
+            .astype(Dtype::BFloat16)?;
+        captured.eval()?;
+        for tokens in [2047, 2048, 2049, 4096, 4097, 8192] {
+            let mut expected = None;
+            let mut expected_output = None;
+            let mut times = [Vec::new(), Vec::new()];
+            // First pair validates and warms; the next ABBA pair is measured.
+            for (pass, suffix_only) in [false, true, false, true, true, false]
+                .into_iter()
+                .enumerate()
+            {
+                let first = if suffix_only {
+                    prefill_capture_start(tokens)
+                } else {
+                    0
+                };
+                let started = std::time::Instant::now();
+                let mut cache = DFlashCache::default();
+                for position in (first..tokens).step_by(PREFILL_CHUNK) {
+                    let count = (tokens - position).min(PREFILL_CHUNK) as i32;
+                    cache.append_captured(
+                        &weights,
+                        &captured.slice(0, 0, count)?,
+                        position as i32,
+                    )?;
+                    cache.eval()?;
+                }
+                let elapsed = started.elapsed().as_secs_f64() * 1_000.;
+                if pass >= 2 {
+                    times[usize::from(suffix_only)].push(elapsed);
+                }
+                let bytes = cache_bytes(&cache)?;
+                assert_eq!(bytes.len(), 12);
+                if let Some(expected) = &expected {
+                    assert_eq!(&bytes, expected, "KV tokens={tokens}, suffix={suffix_only}");
+                } else {
+                    expected = Some(bytes);
+                }
+                let output = weights.forward_hidden(&input, &cache, tokens as i32)?;
+                let output = (output.hidden.to_bytes()?, output.selector.to_bytes()?);
+                if let Some(expected) = &expected_output {
+                    assert_eq!(&output, expected, "draft output tokens={tokens}");
+                } else {
+                    expected_output = Some(output);
+                }
+            }
+            eprintln!(
+                "draft cache prefill {tokens}: full {:.3} -> suffix {:.3} ms, captured {} / {tokens} rows",
+                (times[0][0] + times[0][1]) / 2.,
+                (times[1][0] + times[1][1]) / 2.,
+                tokens - prefill_capture_start(tokens)
+            );
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "requires local DFlash checkpoint and Apple GPU"]
+    fn draft_prefix_cache_clone_keeps_all_kv_bytes() -> Result<()> {
+        use crate::array::{Array, Dtype};
+        let package = inspect("models/Qwen3.6-35B-A3B-DFlash2")?;
+        let weights = DFlashWeights::load(&package)?;
+        let input = (0..16 * TARGET_HIDDEN)
+            .map(|i| (i % 73) as f32 / 37. - 1.)
+            .collect::<Vec<_>>();
+        let captured =
+            Array::from_f32(&input, &[16, TARGET_HIDDEN as i32])?.astype(Dtype::BFloat16)?;
+        let mut cache = DFlashCache::default();
+        cache.append_captured(&weights, &captured, 0)?;
+        let before = cache_bytes(&cache)?;
+        assert_eq!(before.len(), 12);
+        let mut copy = cache.try_clone()?;
+        assert_eq!(cache_bytes(&copy)?, before);
+        copy.append_captured(&weights, &captured, 16)?;
+        assert_eq!(
+            cache_bytes(&cache)?,
+            before,
+            "extending a fork mutated the saved draft cache"
+        );
+        cache.append_captured(&weights, &captured, 16)?;
+        assert_eq!(cache_bytes(&copy)?, cache_bytes(&cache)?);
+        Ok(())
+    }
     use std::io::{Seek, SeekFrom, Write};
 
     #[test]
@@ -1232,8 +1393,7 @@ mod tests {
         let run_plain = |target: &mut Qwen35Moe, count: usize| -> Result<(Vec<u32>, Duration)> {
             let (logits, _) = prefill_plain(target)?;
             let mut next = logits
-                .argmax()?
-                .to_u32()?
+                .chat_greedy_ids()?
                 .into_iter()
                 .next()
                 .context("empty target logits")?;
@@ -1245,8 +1405,7 @@ mod tests {
             while tokens.len() < count && !eos.contains(&next) {
                 let logits = target.forward(next)?;
                 next = logits
-                    .argmax()?
-                    .to_u32()?
+                    .chat_greedy_ids()?
                     .into_iter()
                     .next()
                     .context("empty target logits")?;
@@ -1275,8 +1434,7 @@ mod tests {
             let prefill = prefill_started.elapsed();
             let mut anchor = logits
                 .context("empty prompt")?
-                .argmax()?
-                .to_u32()?
+                .chat_greedy_ids()?
                 .into_iter()
                 .next()
                 .context("empty target logits")?;
@@ -1306,7 +1464,7 @@ mod tests {
                 let target_started = Instant::now();
                 let (target_logits, captured) =
                     target.verify_tokens_exact_with_dflash_capture(&verify)?;
-                let target_tokens = DFlashWeights::row_argmax(&target_logits)?;
+                let target_tokens = target_logits.chat_greedy_ids()?;
                 target_time += target_started.elapsed();
                 let accepted = proposals
                     .iter()
@@ -1680,6 +1838,22 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    fn draft_capture_keeps_full_window_at_both_boundaries() {
+        let tokens: usize = kani::any();
+        let first = prefill_capture_start(tokens);
+        let checkpoint = tokens - tokens % PREFILL_CHUNK;
+        assert!(CONTEXT_WINDOW.is_multiple_of(PREFILL_CHUNK));
+        assert_eq!(first, checkpoint.saturating_sub(CONTEXT_WINDOW));
+        assert!(first <= tokens);
+        assert!(first.is_multiple_of(PREFILL_CHUNK));
+        assert!(tokens - first <= CONTEXT_WINDOW + PREFILL_CHUNK - 1);
+        assert!(tokens - first >= tokens.min(CONTEXT_WINDOW));
+        kani::cover!(first == 0 && tokens == CONTEXT_WINDOW + 1);
+        kani::cover!(first > 0 && tokens % PREFILL_CHUNK != 0);
+        kani::cover!(tokens == usize::MAX);
+    }
 
     #[kani::proof]
     fn alignment_is_monotonic_and_aligned_when_representable() {

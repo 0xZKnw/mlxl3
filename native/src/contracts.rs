@@ -1,5 +1,58 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
+    capable && rows >= 24
+}
+
+#[test]
+fn older_gpus_never_select_tensor_ops() {
+    for rows in [i32::MIN, 0, 1, 23, 24, 25, 256, i32::MAX] {
+        assert!(!use_tensor_ops(rows, false));
+        assert_eq!(use_tensor_ops(rows, true), rows >= 24);
+    }
+}
+
+/// Only partial commits need history; keep the existing nonempty T=1 output.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn gdn_history_rows(time: i32) -> Option<i32> {
+    match time {
+        1 => Some(1),
+        2..=8 => Some(time - 1),
+        _ => None,
+    }
+}
+
+#[test]
+fn gdn_history_capacity_covers_partial_commits() {
+    for time in [i32::MIN, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, i32::MAX] {
+        match gdn_history_rows(time) {
+            Some(rows) => {
+                assert!((1..=8).contains(&time));
+                assert_eq!(rows, if time == 1 { 1 } else { time - 1 });
+                for retained in 1..time {
+                    assert!((0..rows).contains(&(retained - 1)));
+                }
+            }
+            None => assert!(!(1..=8).contains(&time)),
+        }
+    }
+}
+
+/// Reuse only a whole saved prefill boundary, never a partial recurrent state.
+/// The caller separately checks resident model, draft and conversation identity.
+pub fn reusable_prefix_len(saved: &[u32], next: &[u32], chunk_size: usize) -> usize {
+    if chunk_size != 0
+        && !saved.is_empty()
+        && saved.len().is_multiple_of(chunk_size)
+        && next.starts_with(saved)
+    {
+        saved.len()
+    } else {
+        0
+    }
+}
+
 pub(crate) fn tensor_bytes(shape: &[usize], item_size: u64) -> Option<u64> {
     shape
         .iter()
@@ -47,6 +100,87 @@ pub(crate) fn qmv_words(rows: usize, cols: usize, k: usize) -> Option<usize> {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    fn tensor_dispatch_requires_hardware_and_valid_batch() {
+        let rows: i32 = kani::any();
+        let capable: bool = kani::any();
+        let selected = use_tensor_ops(rows, capable);
+        assert!(!selected || (capable && rows >= 24));
+        assert_eq!(selected, capable && rows >= 24);
+        kani::cover!(rows == 24 && selected);
+        kani::cover!(rows > 24 && !capable && !selected);
+    }
+
+    #[kani::proof]
+    fn gdn_tape_prefix_covers_all_valid_commits() {
+        let time: i32 = kani::any();
+        let retained: i32 = kani::any();
+        let result = gdn_tape_prefix(time, retained);
+        assert_eq!(
+            result.is_some(),
+            time >= 1 && time <= 8 && retained >= 1 && retained <= time
+        );
+        if let Some(count) = result {
+            assert_eq!(count, retained);
+            assert!(count <= 8);
+            kani::cover!(time == 8 && count == 7);
+            kani::cover!(time == 8 && count == 8);
+            kani::cover!(time == 1 && count == 1);
+        } else {
+            kani::cover!(time == i32::MAX);
+            kani::cover!(retained == i32::MIN);
+        }
+    }
+
+    #[kani::proof]
+    fn gdn_history_capacity_is_exact_and_covers_partial_commits() {
+        let time: i32 = kani::any();
+        let retained: i32 = kani::any();
+        match gdn_history_rows(time) {
+            Some(rows) => {
+                assert!(time >= 1 && time <= 8);
+                assert!(rows >= 1 && rows <= 7);
+                assert_eq!(rows, if time == 1 { 1 } else { time - 1 });
+                if retained > 0 && retained < time {
+                    assert!(retained - 1 >= 0 && retained - 1 < rows);
+                    kani::cover!(retained == 1);
+                    kani::cover!(retained == time - 1 && time == 8);
+                }
+                kani::cover!(time == 1);
+            }
+            None => {
+                assert!(time < 1 || time > 8);
+                kani::cover!(time == i32::MIN);
+            }
+        }
+    }
+
+    #[kani::proof]
+    #[kani::unwind(34)] // starts_with uses memcmp over up to 8 * 4 bytes.
+    fn cached_prefix_requires_exact_ids_and_chunk_boundary() {
+        let saved: [u32; 8] = kani::any();
+        let next: [u32; 8] = kani::any();
+        let saved_len: u8 = kani::any();
+        let next_len: u8 = kani::any();
+        let chunk: u8 = kani::any();
+        kani::assume(saved_len <= 8 && next_len <= 8);
+        let a = &saved[..usize::from(saved_len)];
+        let b = &next[..usize::from(next_len)];
+        let actual = reusable_prefix_len(a, b, usize::from(chunk));
+        let mut matches = saved_len > 0 && saved_len <= next_len && chunk > 0;
+        if chunk > 0 {
+            matches &= saved_len % chunk == 0;
+        }
+        for index in 0..usize::from(saved_len.min(next_len)) {
+            matches &= saved[index] == next[index];
+        }
+        assert_eq!(actual, if matches { usize::from(saved_len) } else { 0 });
+        assert!(actual <= b.len());
+        kani::cover!(actual > 0 && actual < b.len());
+        kani::cover!(actual > 0 && actual == b.len());
+        kani::cover!(actual == 0 && chunk == 0);
+    }
 
     #[kani::proof]
     #[kani::unwind(6)]
@@ -126,5 +260,22 @@ mod verification {
         assert_eq!(actual.map(|n| n as u128), Some(expected));
         kani::cover!(k == 1);
         kani::cover!(k == 8);
+    }
+}
+/// Valid accepted prefix of a bounded GDN verification transaction.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn gdn_tape_prefix(time: i32, retained: i32) -> Option<i32> {
+    ((1..=8).contains(&time) && retained > 0 && retained <= time).then_some(retained)
+}
+
+#[test]
+fn gdn_tape_requires_a_valid_commit() {
+    for time in 1..=8 {
+        for retained in 1..=time {
+            assert_eq!(gdn_tape_prefix(time, retained), Some(retained));
+        }
+    }
+    for (time, retained) in [(0, 0), (9, 1), (2, 0), (3, 4), (8, -1), (i32::MAX, 1)] {
+        assert_eq!(gdn_tape_prefix(time, retained), None);
     }
 }

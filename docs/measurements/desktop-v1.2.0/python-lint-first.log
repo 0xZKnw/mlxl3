@@ -1,0 +1,14 @@
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> scripts/package_engine.py:58:9
+   |
+56 |       temporary = destination.with_suffix(".partial")
+57 |       try:
+58 | /         with temporary.open("wb") as raw:
+59 | |             with gzip.GzipFile(fileobj=raw, mode="wb", filename="", mtime=0) as compressed:
+   | |___________________________________________________________________________________________^
+60 |                   with tarfile.open(fileobj=compressed, mode="w", format=tarfile.USTAR_FORMAT) as archive:
+61 |                       for name in ("engine.json", *FILES):
+   |
+help: Combine `with` statements
+
+Found 5 errors (4 fixed, 1 remaining).

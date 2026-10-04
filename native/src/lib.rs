@@ -1,9 +1,12 @@
 //! Native migration. This crate does not call Python or embed an interpreter.
 #[cfg(feature = "mlx")]
+pub mod affine;
+#[cfg(feature = "mlx")]
 pub mod array;
 pub mod checkpoint;
 pub mod codec;
 mod contracts;
+pub use contracts::reusable_prefix_len;
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
@@ -21,6 +24,7 @@ pub mod ling;
 pub mod mcp;
 #[cfg(feature = "mlx")]
 pub mod moe;
+pub mod mtp;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
 pub mod registry;

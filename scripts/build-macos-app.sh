@@ -43,6 +43,11 @@ install -m 755 "${repo_dir}/target/release/mlxl3-rs" "${runtime_dist_dir}/mlxl3"
 install -m 755 "${mlx_root}/lib/libmlx.dylib" "${runtime_dist_dir}/libmlx.dylib"
 install -m 755 "${mlx_root}/lib/libjaccl.dylib" "${runtime_dist_dir}/libjaccl.dylib"
 install -m 644 "${mlx_root}/lib/mlx.metallib" "${runtime_dist_dir}/mlx.metallib"
+for component in mlxl3 libmlx.dylib libjaccl.dylib; do
+    codesign --force --sign - "${runtime_dist_dir}/${component}"
+    lipo -verify_arch arm64 "${runtime_dist_dir}/${component}"
+done
+"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist"
 
 swift_args=(--configuration release --package-path "${package_dir}")
 if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
@@ -67,7 +72,7 @@ icon_work_dir="$(mktemp -d)"
 trap 'rm -rf "${icon_work_dir}"' EXIT
 iconset_dir="${icon_work_dir}/AppIcon.iconset"
 install -d "${iconset_dir}"
-sips -s format png "${package_dir}/Resources/AppIcon.svg" --out "${icon_work_dir}/icon-1024.png" >/dev/null
+sips -z 1024 1024 "${package_dir}/Resources/AppIcon.png" --out "${icon_work_dir}/icon-1024.png" >/dev/null
 for size in 16 32 128 256 512; do
     sips -z "${size}" "${size}" "${icon_work_dir}/icon-1024.png" --out "${iconset_dir}/icon_${size}x${size}.png" >/dev/null
     double_size=$((size * 2))

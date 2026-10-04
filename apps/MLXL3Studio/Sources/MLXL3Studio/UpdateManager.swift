@@ -49,17 +49,15 @@ struct SemanticVersion: Comparable, Sendable {
     let components: [Int]
 
     init?(_ rawValue: String) {
-        let version = rawValue
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-            .split(separator: "-", maxSplits: 1)
-            .first
-            .map(String.init) ?? ""
+        var version = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if version.hasPrefix("v") || version.hasPrefix("V") { version.removeFirst() }
         let pieces = version.split(separator: ".", omittingEmptySubsequences: false)
-        guard !pieces.isEmpty else { return nil }
+        guard (1...3).contains(pieces.count) else { return nil }
         var parsed: [Int] = []
         for piece in pieces {
-            guard !piece.isEmpty, let number = Int(piece), number >= 0 else { return nil }
+            guard !piece.isEmpty, piece.utf8.allSatisfy({ (48...57).contains($0) }),
+                  piece.count == 1 || !piece.hasPrefix("0"),
+                  let number = Int(piece), number >= 0 else { return nil }
             parsed.append(number)
         }
         while parsed.count > 1 && parsed.last == 0 { parsed.removeLast() }
@@ -79,10 +77,13 @@ struct SemanticVersion: Comparable, Sendable {
 
 @MainActor
 final class UpdateManager: ObservableObject {
-    static let repository = "0xZKnw/mlxl3"
+    nonisolated static let repository = "0xZKnw/mlxl3"
 
     @Published private(set) var state: AppUpdateState = .idle
     @Published private(set) var latestRelease: AppUpdateRelease?
+    @Published private(set) var engineState: AppUpdateState = .idle
+    @Published private(set) var engineRelease: AppUpdateRelease?
+    @Published private(set) var currentEngineVersion: String
 
     let currentVersion: String
     let currentBuild: Int
@@ -95,19 +96,20 @@ final class UpdateManager: ObservableObject {
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "0.0.0",
         releasesURL: URL = URL(
-            string: "https://api.github.com/repos/0xZKnw/mlxl3/releases/latest"
+            string: "https://api.github.com/repos/0xZKnw/mlxl3/releases?per_page=100"
         )!
     ) {
         self.currentVersion = currentVersion
         self.currentBuild = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
         self.releasesURL = releasesURL
+        self.currentEngineVersion = EngineRuntimeStore.installedVersion()
     }
 
     deinit {
         updateTask?.cancel()
     }
 
-    var hasAvailableUpdate: Bool {
+    var hasAppUpdate: Bool {
         switch state {
         case .downloading, .ready, .installing:
             return true
@@ -120,6 +122,18 @@ final class UpdateManager: ObservableObject {
         }
     }
 
+    var hasAvailableUpdate: Bool { hasAppUpdate || hasEngineUpdate }
+    var hasEngineUpdate: Bool {
+        switch engineState {
+        case .downloading, .ready, .installing: true
+        default:
+            if let release = engineRelease, let current = SemanticVersion(currentEngineVersion),
+               let latest = SemanticVersion(release.version) { latest > current } else { false }
+        }
+    }
+    var hasReadyUpdate: Bool { state.readyRelease != nil || engineState.readyRelease != nil }
+    var isBusy: Bool { state.isBusy || engineState.isBusy }
+
     func startAutomaticCheck() {
         guard !didRunAutomaticCheck else { return }
         didRunAutomaticCheck = true
@@ -127,43 +141,73 @@ final class UpdateManager: ObservableObject {
     }
 
     func checkForUpdates() {
-        guard !state.isBusy else { return }
+        guard !isBusy else { return }
         updateTask?.cancel()
         state = .checking
+        engineState = .checking
         updateTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let release = try await Self.fetchLatestRelease(
-                    from: releasesURL,
-                    currentVersion: currentVersion
-                )
+                let data = try await Self.fetchReleases(from: releasesURL, currentVersion: currentVersion)
                 try Task.checkCancellation()
+                let release = try Self.selectRelease(data, channel: .app)
                 latestRelease = release
-
-                guard let current = SemanticVersion(currentVersion),
-                      let latest = SemanticVersion(release.version)
-                else {
-                    throw UpdateError.invalidVersion(release.version)
-                }
-                guard latest > current || (latest == current && release.build > currentBuild) else {
+                if let release, let current = SemanticVersion(currentVersion),
+                   let latest = SemanticVersion(release.version),
+                   latest > current || (latest == current && release.build > currentBuild) {
+                    state = .downloading(release)
+                    do {
+                        let diskImage = try await Self.downloadAndVerify(release: release)
+                        try Task.checkCancellation()
+                        state = .ready(release: release, diskImage: diskImage)
+                    } catch { state = .failed(error.localizedDescription) }
+                } else {
                     state = .upToDate(checkedAt: Date())
-                    return
                 }
-
-                state = .downloading(release)
-                let diskImage = try await Self.downloadAndVerify(release: release)
+                let engine = try Self.selectRelease(data, channel: .engine)
+                engineRelease = engine
+                if let engine, let current = SemanticVersion(currentEngineVersion),
+                   let latest = SemanticVersion(engine.version), latest > current {
+                    engineState = .downloading(engine)
+                    do {
+                        let archive = try await Self.downloadAndVerify(release: engine)
+                        try Task.checkCancellation()
+                        engineState = .ready(release: engine, diskImage: archive)
+                    } catch { engineState = .failed(error.localizedDescription) }
+                } else { engineState = .upToDate(checkedAt: Date()) }
                 try Task.checkCancellation()
-                state = .ready(release: release, diskImage: diskImage)
             } catch is CancellationError {
                 state = .idle
+                engineState = .idle
             } catch {
-                state = .failed(error.localizedDescription)
+                if state == .checking { state = .failed(error.localizedDescription) }
+                engineState = .failed(error.localizedDescription)
             }
         }
     }
 
-    func beginInstallation() async -> Bool {
-        guard case let .ready(release, diskImage) = state else { return false }
+    enum Installation { case restartApp, reloadEngine }
+
+    func beginInstallation() async -> Installation? {
+        guard !isBusy, hasReadyUpdate else { return nil }
+        var engineInstalled = false
+        if case let .ready(release, archive) = engineState {
+            engineState = .installing(release)
+            let version = state.readyRelease?.version ?? currentVersion
+            do {
+                try await Task.detached(priority: .userInitiated) {
+                    try EngineRuntimeStore.install(archive: archive, release: release, appVersion: version)
+                }.value
+                currentEngineVersion = release.version
+                engineState = .upToDate(checkedAt: Date())
+                engineInstalled = true
+            } catch {
+                engineState = .failed(error.localizedDescription)
+            }
+        }
+        guard case let .ready(release, diskImage) = state else {
+            return engineInstalled ? .reloadEngine : nil
+        }
         state = .installing(release)
         let currentApp = Bundle.main.bundleURL
         let currentVersion = currentVersion
@@ -171,12 +215,12 @@ final class UpdateManager: ObservableObject {
         do {
             try await Task.detached(priority: .userInitiated) {
                 try Self.stageInstaller(diskImage: diskImage, currentApp: currentApp,
-                                        currentVersion: currentVersion, currentBuild: currentBuild)
+                                        currentVersion: currentVersion, currentBuild: currentBuild, release: release)
             }.value
-            return true
+            return .restartApp
         } catch {
             state = .failed(error.localizedDescription)
-            return false
+            return engineInstalled ? .reloadEngine : nil
         }
     }
 
@@ -185,10 +229,10 @@ final class UpdateManager: ObservableObject {
         NSWorkspace.shared.open(pageURL)
     }
 
-    private static func fetchLatestRelease(
+    private static func fetchReleases(
         from url: URL,
         currentVersion: String
-    ) async throws -> AppUpdateRelease {
+    ) async throws -> Data {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
@@ -199,49 +243,69 @@ final class UpdateManager: ObservableObject {
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw UpdateError.releaseLookupFailed
         }
-        let payload = try JSONDecoder().decode(GitHubRelease.self, from: data)
-        guard !payload.draft,
-              !payload.prerelease,
-              let pageURL = URL(string: payload.htmlURL),
-              let releaseVersion = SemanticVersion(payload.tagName)
-        else { throw UpdateError.invalidRelease }
-
-        let candidates = payload.assets.compactMap { asset -> (GitHubAsset, Int)? in
-            guard asset.name.lowercased().hasSuffix(".dmg"),
-                  let url = URL(string: asset.browserDownloadURL)
-            else { return nil }
-            var score = 0
-            let lower = asset.name.lowercased()
-            if lower.contains("mlxl3-desktop") { score += 4 }
-            if lower.contains("apple-silicon") || lower.contains("arm64") { score += 2 }
-            if url.host == "github.com" || url.host?.hasSuffix("githubusercontent.com") == true {
-                score += 1
+        guard data.count <= 16 * 1_024 * 1_024 else { throw UpdateError.invalidRelease }
+        // Frequent engine releases must never push the latest app out of the
+        // first GitHub page. Engine tags are published with latest=false.
+        if url.host == "api.github.com", url.path == "/repos/\(repository)/releases" {
+            request.url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
+            let (latestData, latestResponse) = try await URLSession.shared.data(for: request)
+            guard let latestHTTP = latestResponse as? HTTPURLResponse, latestHTTP.statusCode == 200,
+                  latestData.count <= 16 * 1_024 * 1_024,
+                  var releases = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                  let latest = try JSONSerialization.jsonObject(with: latestData) as? [String: Any] else {
+                throw UpdateError.releaseLookupFailed
             }
-            return (asset, score)
+            releases.append(latest)
+            return try JSONSerialization.data(withJSONObject: releases)
         }
-        guard let selected = candidates.max(by: { $0.1 < $1.1 })?.0,
-              let downloadURL = URL(string: selected.browserDownloadURL)
-        else { throw UpdateError.missingDiskImage }
+        return data
+    }
 
-        let cleanVersion = payload.tagName.trimmingCharacters(
-            in: CharacterSet(charactersIn: "vV")
-        )
-        _ = releaseVersion
-        return AppUpdateRelease(
-            version: cleanVersion,
-            tag: payload.tagName,
-            title: payload.name?.isEmpty == false
-                ? payload.name!
-                : "MLXL3 Desktop \(cleanVersion)",
-            notes: payload.body ?? "",
-            pageURL: pageURL,
-            asset: AppUpdateAsset(
-                name: selected.name,
-                downloadURL: downloadURL,
-                size: selected.size,
-                digest: selected.digest
-            )
-        )
+    enum ReleaseChannel { case app, engine }
+
+    nonisolated static func selectRelease(_ data: Data, channel: ReleaseChannel) throws -> AppUpdateRelease? {
+        let payloads: [GitHubRelease]
+        if let list = try? JSONDecoder().decode([GitHubRelease].self, from: data) { payloads = list }
+        else { payloads = [try JSONDecoder().decode(GitHubRelease.self, from: data)] }
+        let prefix = channel == .app ? "v" : "engine-v"
+        let releases = payloads.compactMap { payload -> AppUpdateRelease? in
+            guard !payload.draft, !payload.prerelease, payload.tagName.hasPrefix(prefix) else { return nil }
+            let version = String(payload.tagName.dropFirst(prefix.count))
+            guard version.split(separator: ".", omittingEmptySubsequences: false).count == 3,
+                  version.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 }),
+                  SemanticVersion(version) != nil,
+                  let page = URL(string: payload.htmlURL),
+                  trustedURL(page, path: "/\(repository)/releases/tag/\(payload.tagName)") else { return nil }
+            let pattern = channel == .app
+                ? "^MLXL3-Desktop-v\(NSRegularExpression.escapedPattern(for: version))-b[0-9]+-Apple-Silicon\\.dmg$"
+                : "^MLXL3-Engine-v\(NSRegularExpression.escapedPattern(for: version))-arm64\\.tar\\.gz$"
+            let assets = payload.assets.compactMap { asset -> AppUpdateAsset? in
+                guard asset.name.range(of: pattern, options: .regularExpression) != nil,
+                      asset.size > 0, asset.size <= 1_500_000_000,
+                      let digest = asset.digest, validDigest(digest),
+                      let url = URL(string: asset.browserDownloadURL),
+                      trustedURL(url, path: "/\(repository)/releases/download/\(payload.tagName)/\(asset.name)") else { return nil }
+                return AppUpdateAsset(name: asset.name, downloadURL: url, size: asset.size, digest: digest)
+            }
+            guard let asset = assets.max(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) else { return nil }
+            return AppUpdateRelease(version: version, tag: payload.tagName, title: payload.name ?? payload.tagName,
+                                    notes: payload.body ?? "", pageURL: page, asset: asset)
+        }
+        return releases.max {
+            let left = SemanticVersion($0.version)!, right = SemanticVersion($1.version)!
+            return left == right ? $0.build < $1.build : left < right
+        }
+    }
+
+    nonisolated static func trustedURL(_ url: URL, path: String) -> Bool {
+        url.scheme == "https" && url.host == "github.com" && url.port == nil
+            && url.user == nil && url.password == nil && url.query == nil && url.fragment == nil && url.path == path
+    }
+
+    nonisolated static func validDigest(_ digest: String) -> Bool {
+        digest.hasPrefix("sha256:") && digest.count == 71 && digest.dropFirst(7).utf8.allSatisfy {
+            (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
+        }
     }
 
     private static func downloadAndVerify(release: AppUpdateRelease) async throws -> URL {
@@ -279,10 +343,11 @@ final class UpdateManager: ObservableObject {
         }
     }
 
-    private static func verifyAsset(at url: URL, asset: AppUpdateAsset) async throws -> Bool {
-        let values = try url.resourceValues(forKeys: [.fileSizeKey])
+    static func verifyAsset(at url: URL, asset: AppUpdateAsset) async throws -> Bool {
+        let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+        guard values.isRegularFile == true, values.isSymbolicLink != true else { return false }
         if asset.size > 0, Int64(values.fileSize ?? -1) != asset.size { return false }
-        guard let digest = asset.digest, digest.lowercased().hasPrefix("sha256:") else {
+        guard let digest = asset.digest, validDigest(digest) else {
             throw UpdateError.missingDigest
         }
         let expected = String(digest.dropFirst("sha256:".count)).lowercased()
@@ -292,7 +357,7 @@ final class UpdateManager: ObservableObject {
         return actual == expected
     }
 
-    nonisolated private static func sha256(at url: URL) throws -> String {
+    nonisolated static func sha256(at url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
         var hasher = SHA256()
@@ -308,7 +373,8 @@ final class UpdateManager: ObservableObject {
         diskImage: URL,
         currentApp: URL,
         currentVersion: String,
-        currentBuild: Int
+        currentBuild: Int,
+        release: AppUpdateRelease
     ) throws {
         guard currentApp.pathExtension == "app" else { throw UpdateError.notRunningFromApp }
         let parent = currentApp.deletingLastPathComponent()
@@ -316,6 +382,7 @@ final class UpdateManager: ObservableObject {
               try currentApp.resourceValues(forKeys: [.volumeIsReadOnlyKey]).volumeIsReadOnly != true
         else { throw UpdateError.applicationNotWritable }
 
+        guard try verifyFile(source: diskImage, asset: release.asset) else { throw UpdateError.integrityCheckFailed }
         let mount = try mountDiskImage(diskImage)
         var shouldDetach = true
         defer {
@@ -332,7 +399,7 @@ final class UpdateManager: ObservableObject {
         }) ?? entries.first(where: { $0.pathExtension == "app" }) else {
             throw UpdateError.invalidDiskImage
         }
-        try validateApplication(sourceApp, newerThan: currentVersion, currentBuild: currentBuild)
+        try validateApplication(sourceApp, newerThan: currentVersion, currentBuild: currentBuild, release: release)
         // Validate the bundled Rust/Metal runtime before stopping the working app.
         _ = try runProcess(sourceApp.appending(path: "Contents/Resources/runtime/mlxl3").path,
                            arguments: ["list", "--json"])
@@ -362,6 +429,8 @@ final class UpdateManager: ObservableObject {
             currentApp.path,
             mount.path,
             logURL.path,
+            release.version,
+            String(release.build),
             ]
         )
         shouldDetach = false
@@ -397,7 +466,8 @@ final class UpdateManager: ObservableObject {
     nonisolated private static func validateApplication(
         _ app: URL,
         newerThan currentVersion: String,
-        currentBuild: Int
+        currentBuild: Int,
+        release: AppUpdateRelease
     ) throws {
         _ = try runProcess(
             "/usr/bin/codesign",
@@ -413,8 +483,23 @@ final class UpdateManager: ObservableObject {
               let version = info["CFBundleShortVersionString"] as? String,
               let current = SemanticVersion(currentVersion),
               let incoming = SemanticVersion(version),
+              version == release.version,
+              Int(info["CFBundleVersion"] as? String ?? "0") == release.build,
+              let minimumOS = info["LSMinimumSystemVersion"] as? String,
+              let required = SemanticVersion(minimumOS),
+              let installedOS = SemanticVersion(EngineRuntimeStore.osVersion), installedOS >= required,
               incoming > current || (incoming == current && (Int(info["CFBundleVersion"] as? String ?? "0") ?? 0) > currentBuild)
         else { throw UpdateError.invalidApplication }
+        _ = try runProcess("/usr/bin/lipo", arguments: ["-verify_arch", "arm64", app.appending(path: "Contents/MacOS/MLXL3Studio").path])
+        try EngineRuntimeStore.verify(app.appending(path: "Contents/Resources/runtime"), appVersion: version, expectedVersion: version)
+    }
+
+    nonisolated private static func verifyFile(source: URL, asset: AppUpdateAsset) throws -> Bool {
+        let values = try source.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+        guard values.isRegularFile == true, values.isSymbolicLink != true,
+              values.fileSize.map(Int64.init) == asset.size,
+              let digest = asset.digest, validDigest(digest) else { return false }
+        return try sha256(at: source) == digest.dropFirst(7).lowercased()
     }
 
     nonisolated private static func mountDiskImage(_ diskImage: URL) throws -> URL {
@@ -436,9 +521,10 @@ final class UpdateManager: ObservableObject {
         _ = try runProcess("/usr/bin/hdiutil", arguments: ["detach", mount.path, "-quiet"])
     }
 
-    nonisolated private static func runProcess(
+    nonisolated static func runProcess(
         _ executable: String,
-        arguments: [String]
+        arguments: [String],
+        outputLimit: Int = 256 * 1_024 * 1_024
     ) throws -> Data {
         let process = Process()
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-updater-" + UUID().uuidString)
@@ -453,8 +539,10 @@ final class UpdateManager: ObservableObject {
         defer { try? output.close(); try? errors.close() }
         let finished = DispatchSemaphore(value: 0)
         process.terminationHandler = { _ in finished.signal() }
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
+        // Pass metadata as positional arguments and bound output on disk.
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "ulimit -f \"$1\" || exit 77; shift; exec \"$@\"", "mlxl3-helper",
+                             String(max(1, (outputLimit + 511) / 512)), executable] + arguments
         process.standardOutput = output
         process.standardError = errors
         try process.run()
@@ -462,6 +550,10 @@ final class UpdateManager: ObservableObject {
             process.terminate()
             if finished.wait(timeout: .now() + 2) == .timedOut { Darwin.kill(process.processIdentifier, SIGKILL) }
             throw UpdateError.commandFailed("Update helper timed out")
+        }
+        guard (try outURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) <= outputLimit,
+              (try errURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) <= outputLimit else {
+            throw UpdateError.commandFailed("Update helper output limit exceeded")
         }
         let data = try Data(contentsOf: outURL)
         let errorData = try Data(contentsOf: errURL)
@@ -473,7 +565,7 @@ final class UpdateManager: ObservableObject {
         return data
     }
 
-    nonisolated private static let installerScript = #"""
+    nonisolated static let installerScript = #"""
 #!/bin/zsh
 set -u
 parent_pid="$1"
@@ -482,6 +574,22 @@ destination_app="$3"
 mount_path="$4"
 log_path="$5"
 backup_app="${destination_app}.mlxl3-backup"
+staged_app="${destination_app}.mlxl3-stage-${$}"
+expected_version="$6"
+expected_build="$7"
+replacing=0
+cleanup() {
+    local status="$?"
+    if (( replacing )); then
+        /bin/rm -rf "$destination_app"
+        [[ ! -e "$backup_app" ]] || /bin/mv "$backup_app" "$destination_app"
+    fi
+    /bin/rm -rf "$staged_app"
+    /usr/bin/hdiutil detach "$mount_path" -quiet >/dev/null 2>&1 || true
+    return "$status"
+}
+trap cleanup EXIT
+trap 'exit 23' HUP INT TERM
 
 exec >> "$log_path" 2>&1
 echo "[$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)] update start"
@@ -507,27 +615,26 @@ if parent_is_alive; then
     exit 22
 fi
 
-/bin/rm -rf "$backup_app"
-if [[ -e "$destination_app" ]]; then
-    echo "moving current application to backup"
-    /bin/mv "$destination_app" "$backup_app" || exit 20
-fi
+# Copy and verify before moving the working application. A failed copy or
+# signature/version check leaves both the installed app and its backup intact.
+/usr/bin/ditto "$source_app" "$staged_app" || exit 21
+/usr/bin/codesign --verify --deep --strict "$staged_app" || exit 24
+/usr/bin/lipo -verify_arch arm64 "$staged_app/Contents/MacOS/MLXL3Studio" || exit 24
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$staged_app/Contents/Info.plist")" == "$expected_version" ]] || exit 24
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$staged_app/Contents/Info.plist")" == "$expected_build" ]] || exit 24
+"$staged_app/Contents/Resources/runtime/mlxl3" runtime-info || exit 24
 
-if /usr/bin/ditto "$source_app" "$destination_app"; then
-    echo "new application copied"
-    /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$destination_app/Contents/Info.plist" || true
-    # Keep the previous version until the next successful installation.
-    /usr/bin/hdiutil detach "$mount_path" -quiet >/dev/null 2>&1 || true
-    /usr/bin/open -n "$destination_app"
-else
-    echo "copy failed; restoring backup"
-    /bin/rm -rf "$destination_app"
-    if [[ -e "$backup_app" ]]; then
-        /bin/mv "$backup_app" "$destination_app"
-    fi
-    /usr/bin/hdiutil detach "$mount_path" -quiet >/dev/null 2>&1 || true
-    exit 21
+if [[ -e "$backup_app" ]]; then
+    /bin/mv "$backup_app" "${backup_app}.previous-${$}" || exit 20
 fi
+if [[ -e "$destination_app" ]]; then
+    /bin/mv "$destination_app" "$backup_app" || exit 20
+    replacing=1
+fi
+/bin/mv "$staged_app" "$destination_app" || exit 21
+/usr/bin/open -n "$destination_app" || exit 25
+replacing=0
+echo "new application installed; previous application retained"
 
 /bin/rm -f "$0"
 """#
@@ -567,7 +674,7 @@ private struct GitHubAsset: Decodable, Sendable {
     }
 }
 
-private enum UpdateError: LocalizedError {
+enum UpdateError: LocalizedError {
     case releaseLookupFailed
     case invalidRelease
     case invalidVersion(String)

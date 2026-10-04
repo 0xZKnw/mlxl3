@@ -64,8 +64,13 @@ fn sanitized_norm(checkpoint: &Checkpoint, name: &str, expected: &[i32]) -> Resu
             ),
         "{name}: invalid Qwen norm weight"
     );
-    let one = Array::from_f16_bits(&[f16::ONE.to_bits()], &[])?.astype(weight.dtype())?;
-    let weight = weight.add(&one)?.astype(Dtype::Float16)?;
+    let weight = if checkpoint.model_type == "qwen3_5_mtp" {
+        // The supported MLX sidecar already contains absolute-convention gains.
+        weight.astype(Dtype::Float16)?
+    } else {
+        let one = Array::from_f16_bits(&[f16::ONE.to_bits()], &[])?.astype(weight.dtype())?;
+        weight.add(&one)?.astype(Dtype::Float16)?
+    };
     weight.eval()?;
     Ok(weight)
 }
@@ -267,7 +272,7 @@ pub struct GatedDelta {
     conv_state: Option<Array>,
     recurrent_state: Option<Array>,
     verification_conv_input: Option<Array>,
-    verification_recurrent_history: Option<Array>,
+    verification_recurrent_tape: Option<gated_delta::RecurrentTape>,
     hidden: i32,
     key_heads: i32,
     value_heads: i32,
@@ -725,6 +730,7 @@ enum Layer {
     Attention(Box<AttentionLayer>),
 }
 
+#[derive(Clone)]
 enum LayerSnapshot {
     Linear {
         conv: Option<Array>,
@@ -740,9 +746,36 @@ enum LayerSnapshot {
 ///
 /// Arrays are immutable MLX graph handles, so taking a snapshot retains the
 /// current state without copying its GPU storage.
+#[derive(Clone)]
 pub struct QwenSnapshot {
     offset: i32,
     layers: Vec<LayerSnapshot>,
+    last_hidden: Option<Array>,
+}
+
+impl QwenSnapshot {
+    /// Logical payload, excluding shared weights and MLX allocator capacity.
+    pub fn byte_len(&self) -> Result<usize> {
+        self.layers
+            .iter()
+            .flat_map(|layer| match layer {
+                LayerSnapshot::Linear { conv, recurrent } => [conv.as_ref(), recurrent.as_ref()],
+                LayerSnapshot::Attention { keys, values } => [keys.as_ref(), values.as_ref()],
+            })
+            .flatten()
+            .try_fold(
+                self.last_hidden
+                    .as_ref()
+                    .map(Array::byte_len)
+                    .transpose()?
+                    .unwrap_or(0),
+                |bytes, array| {
+                    bytes
+                        .checked_add(array.byte_len()?)
+                        .context("snapshot size overflow")
+                },
+            )
+    }
 }
 
 impl Layer {
@@ -836,6 +869,8 @@ pub struct Qwen35Moe {
     context_limit: i32,
     eps: f32,
     offset: i32,
+    last_hidden: Option<Array>,
+    mtp_layout: crate::mtp::Layout,
 }
 
 impl Qwen35Moe {
@@ -847,6 +882,9 @@ impl Qwen35Moe {
     pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
         let path = &checkpoint.path;
         let root: RootConfig = serde_json::from_reader(File::open(path.join("config.json"))?)?;
+        let json: serde_json::Value =
+            serde_json::from_reader(File::open(path.join("config.json"))?)?;
+        let mtp_layout = serde_json::from_value(json["text_config"].clone())?;
         let config = root.text_config;
         ensure!(
             root.model_type == "qwen3_5" || root.model_type == "qwen3_5_moe",
@@ -935,6 +973,8 @@ impl Qwen35Moe {
             context_limit: config.max_position_embeddings,
             eps: config.rms_norm_eps,
             offset: 0,
+            last_hidden: None,
+            mtp_layout,
         })
     }
 
@@ -946,6 +986,44 @@ impl Qwen35Moe {
                 Err(error.context("Qwen forward failed; its cache was reset"))
             }
         }
+    }
+
+    pub fn prefill_serial(&mut self, tokens: &[u32]) -> Result<Array> {
+        let result = (|| {
+            let (&last, prefix) = tokens.split_last().context("empty Qwen prefill")?;
+            for &token in prefix {
+                let (hidden, _) = self.run_hidden_tokens(&[token], false)?;
+                hidden.eval()?;
+                self.offset += 1;
+            }
+            self.forward(last)
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result
+    }
+
+    pub fn prefill_serial_with_dflash_capture(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
+        let result = (|| {
+            let (&last, prefix) = tokens.split_last().context("empty Qwen prefill")?;
+            let mut captured = Vec::with_capacity(tokens.len());
+            for &token in prefix {
+                let (hidden, capture) = self.run_hidden_tokens_with_dflash_capture(&[token])?;
+                hidden.eval()?;
+                capture.eval()?;
+                self.offset += 1;
+                captured.push(capture);
+            }
+            let (logits, capture) = self.forward_tokens_with_dflash_capture(&[last])?;
+            captured.push(capture);
+            let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 0)?;
+            Ok((logits, capture))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result
     }
 
     pub fn trace(&mut self, token: u32) -> Result<(Array, Vec<Vec<u16>>)> {
@@ -1084,6 +1162,7 @@ impl Qwen35Moe {
                 layers.push(hidden.to_f16_bits()?);
             }
         }
+        self.last_hidden = Some(hidden.slice(1, time - 1, time)?);
         let normalized = hidden
             .slice(1, time - 1, time)?
             .rms_norm(&self.norm, self.eps)?;
@@ -1198,8 +1277,131 @@ impl Qwen35Moe {
         self.context_limit
     }
 
+    pub fn mtp_layout(&self) -> &crate::mtp::Layout {
+        &self.mtp_layout
+    }
+    pub fn mtp_hidden(&self) -> Result<&Array> {
+        self.last_hidden
+            .as_ref()
+            .context("MTP target hidden is unavailable")
+    }
+    pub fn set_mtp_hidden(&mut self, hidden: Array) -> Result<()> {
+        ensure!(
+            hidden.shape() == [1, 1, self.mtp_layout.hidden_size],
+            "invalid MTP target hidden"
+        );
+        self.last_hidden = Some(hidden);
+        Ok(())
+    }
+    pub fn mtp_embeddings(&self, tokens: &[u32]) -> Result<Array> {
+        ensure!(
+            !tokens.is_empty() && tokens.iter().all(|&id| id < self.vocab as u32),
+            "invalid MTP token IDs"
+        );
+        let ids = tokens.iter().map(|&id| id as i32).collect::<Vec<_>>();
+        self.embeddings
+            .take(&Array::from_i32(&ids, &[1, i32::try_from(ids.len())?])?, 0)
+    }
+    pub fn mtp_logits(&self, normalized: &Array) -> Result<Array> {
+        self.head.forward(normalized)
+    }
+
+    /// Return pre-final-norm residuals without re-running the trunk. Used to
+    /// prefill the MTP cache with real target positions, including long prompts.
+    pub fn forward_mtp(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
+        let result = (|| {
+            ensure!(
+                !tokens.is_empty() && tokens.iter().all(|&t| t < self.vocab as u32),
+                "invalid MTP prefill tokens"
+            );
+            let time = i32::try_from(tokens.len())?;
+            ensure!(
+                time <= self.context_limit - self.offset,
+                "MTP target context is full"
+            );
+            // Match the ordinary bridge's short-prefill execution shapes.
+            // A different batch shape can otherwise change floating rounding.
+            if time < 24 {
+                let (&last, prefix) = tokens.split_last().unwrap();
+                let mut raw = Vec::with_capacity(tokens.len());
+                for &token in prefix {
+                    self.run_hidden_tokens(&[token], false)?.0.eval()?;
+                    self.offset += 1;
+                    raw.push(self.mtp_hidden()?.try_clone()?);
+                }
+                let output = self.forward(last)?;
+                raw.push(self.mtp_hidden()?.try_clone()?);
+                let raw = Array::concatenate(&raw.iter().collect::<Vec<_>>(), 1)?;
+                return Ok((output, raw));
+            }
+            let mut raw = self.mtp_embeddings(tokens)?;
+            for layer in &mut self.layers {
+                raw = layer.forward(&raw)?;
+            }
+            let last = raw.slice(1, time - 1, time)?;
+            let logits = self.head.forward(&last.rms_norm(&self.norm, self.eps)?)?;
+            logits.eval()?;
+            self.last_hidden = Some(last);
+            self.offset += time;
+            Ok((logits, raw))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result
+    }
+
+    pub fn verify_mtp(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
+        let result = (|| {
+            ensure!(
+                (1..=8).contains(&tokens.len()) && tokens.iter().all(|&t| t < self.vocab as u32),
+                "invalid MTP verification tokens"
+            );
+            let time = i32::try_from(tokens.len())?;
+            ensure!(
+                time <= self.context_limit - self.offset,
+                "MTP verification exceeds context"
+            );
+            let mut values = tokens
+                .iter()
+                .map(|&t| self.mtp_embeddings(&[t]))
+                .collect::<Result<Vec<_>>>()?;
+            for layer in &mut self.layers {
+                layer.forward_verification_dflash(&mut values)?;
+            }
+            let raw = Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?;
+            let normalized = values
+                .iter()
+                .map(|value| value.rms_norm(&self.norm, self.eps))
+                .collect::<Result<Vec<_>>>()?;
+            let logits = self.head.forward(&Array::concatenate(
+                &normalized.iter().collect::<Vec<_>>(),
+                1,
+            )?)?;
+            logits.eval()?;
+            self.offset += time;
+            Ok((logits, raw))
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result
+    }
+
     pub fn offset(&self) -> i32 {
         self.offset
+    }
+
+    /// The shipped DFlash2 draft expects this hidden/capture layout, not a
+    /// particular directory name. Target verification still decides every token.
+    pub fn supports_dflash(&self) -> bool {
+        self.embeddings.shape() == [248_320, 2048]
+            && self.layers.len() == 40
+            && self
+                .layers
+                .iter()
+                .enumerate()
+                .all(|(index, layer)| matches!(layer, Layer::Attention(_)) == (index % 4 == 3))
     }
 
     pub fn commit_dflash_verification(&mut self, retained: usize, total: usize) -> Result<()> {
@@ -1224,6 +1426,7 @@ impl Qwen35Moe {
     pub fn snapshot(&self) -> Result<QwenSnapshot> {
         Ok(QwenSnapshot {
             offset: self.offset,
+            last_hidden: self.last_hidden.clone(),
             layers: self
                 .layers
                 .iter()
@@ -1260,11 +1463,13 @@ impl Qwen35Moe {
             return Err(error.context("invalid Qwen snapshot; model state was reset"));
         }
         self.offset = snapshot.offset;
+        self.last_hidden = snapshot.last_hidden;
         Ok(())
     }
 
     pub fn reset(&mut self) {
         self.offset = 0;
+        self.last_hidden = None;
         for layer in &mut self.layers {
             layer.reset();
         }
@@ -1501,7 +1706,7 @@ impl GatedDelta {
             conv_state: None,
             recurrent_state: None,
             verification_conv_input: None,
-            verification_recurrent_history: None,
+            verification_recurrent_tape: None,
             hidden,
             key_heads,
             value_heads,
@@ -1530,13 +1735,13 @@ impl GatedDelta {
         self.conv_state = conv;
         self.recurrent_state = recurrent;
         self.verification_conv_input = None;
-        self.verification_recurrent_history = None;
+        self.verification_recurrent_tape = None;
         Ok(())
     }
 
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
         self.verification_conv_input = None;
-        self.verification_recurrent_history = None;
+        self.verification_recurrent_tape = None;
         Ok(self.run(x, false)?.0)
     }
 
@@ -1622,8 +1827,17 @@ impl GatedDelta {
         let inputs = self.inputs.forward(x)?;
         let qkv = inputs[0].try_clone()?;
         let z = inputs[1].reshape(&[1, time, self.value_heads, self.value_dim])?;
-        let b = self.b.forward(x)?;
-        let a = self.a.forward(x)?;
+        let (b, a) = if retain_history && time > 1 {
+            let project = |projection: &Projection| -> Result<Array> {
+                let rows = (0..time)
+                    .map(|row| projection.forward(&x.slice(1, row, row + 1)?))
+                    .collect::<Result<Vec<_>>>()?;
+                Array::concatenate(&rows.iter().collect::<Vec<_>>(), 1)
+            };
+            (project(&self.b)?, project(&self.a)?)
+        } else {
+            (self.b.forward(x)?, self.a.forward(x)?)
+        };
         let (q, k, v, _) = self.prepare_recurrence_inputs(&qkv, time, retain_history, true)?;
         let recurrent_state = match &self.recurrent_state {
             Some(state) => state.try_clone()?,
@@ -1633,7 +1847,7 @@ impl GatedDelta {
             )?,
         };
         let (out, recurrent_state) = if retain_history {
-            let (out, state, history) = gated_delta::step_with_gates_history(
+            let (out, state, tape) = gated_delta::step_with_gates_tape(
                 &q,
                 &k,
                 &v,
@@ -1643,10 +1857,10 @@ impl GatedDelta {
                 &self.dt_bias,
                 &recurrent_state,
             )?;
-            self.verification_recurrent_history = Some(history);
+            self.verification_recurrent_tape = Some(tape);
             (out, state)
         } else {
-            self.verification_recurrent_history = None;
+            self.verification_recurrent_tape = None;
             gated_delta::step_with_gates(
                 &q,
                 &k,
@@ -1673,18 +1887,14 @@ impl GatedDelta {
             .verification_conv_input
             .take()
             .context("GDN has no pending DFlash convolution history")?;
-        let recurrent_history = self
-            .verification_recurrent_history
+        let recurrent_tape = self
+            .verification_recurrent_tape
             .take()
             .context("GDN has no pending DFlash recurrent history")?;
         if retained < total {
             self.conv_state =
                 Some(conv_input.slice(1, retained, retained + self.conv_length - 1)?);
-            self.recurrent_state = Some(
-                recurrent_history
-                    .slice(0, retained - 1, retained)?
-                    .reshape(&[1, self.value_heads, self.value_dim, self.key_dim])?,
-            );
+            self.recurrent_state = Some(recurrent_tape.replay(retained)?);
         }
         Ok(())
     }
@@ -1777,7 +1987,7 @@ impl GatedDelta {
         self.conv_state = None;
         self.recurrent_state = None;
         self.verification_conv_input = None;
-        self.verification_recurrent_history = None;
+        self.verification_recurrent_tape = None;
     }
 }
 
@@ -1802,6 +2012,68 @@ mod tests {
             })
             .map(|state| state.context("missing Qwen test state")?.to_bytes())
             .collect()
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and physical Apple GPU"]
+    fn mtp_prefill_verification_and_rollback_match_target() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        for time in [1, 23, 24, 129, 256] {
+            let prefix = (0..time).map(|i| 1 + i % 31).collect::<Vec<_>>();
+            model.reset();
+            let expected = if time < 24 {
+                model.prefill_serial(&prefix)?
+            } else {
+                model.forward_tokens(&prefix)?
+            }
+            .to_f16_bits()?;
+            let state = state_bytes(&model)?;
+            model.reset();
+            let (actual, raw) = model.forward_mtp(&prefix)?;
+            assert_eq!(actual.to_f16_bits()?, expected, "MTP prefill {time}");
+            assert_eq!(state_bytes(&model)?, state, "MTP prefill states {time}");
+            assert_eq!(raw.shape(), [1, time as i32, model.mtp_layout.hidden_size]);
+            let saved = model.snapshot()?;
+            for retained in [1, 2] {
+                model.restore(saved.clone())?;
+                let mut expected_logits = Vec::new();
+                for token in [1, 2] {
+                    expected_logits.extend(model.forward(token)?.to_f16_bits()?);
+                }
+                model.restore(saved.clone())?;
+                for token in &[1, 2][..retained] {
+                    model.forward(*token)?.eval()?;
+                }
+                let states = state_bytes(&model)?;
+                let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                model.restore(saved.clone())?;
+                let (actual, raw) = model.verify_mtp(&[1, 2])?;
+                assert_eq!(actual.to_f16_bits()?, expected_logits, "MTP verify {time}");
+                model.commit_dflash_verification(retained, 2)?;
+                model.set_mtp_hidden(raw.slice(1, retained as i32 - 1, retained as i32)?)?;
+                assert_eq!(
+                    state_bytes(&model)?,
+                    states,
+                    "MTP rollback {time}/{retained}"
+                );
+                assert_eq!(model.mtp_hidden()?.to_f16_bits()?, hidden);
+            }
+        }
+        for invalid in [vec![], vec![model.vocab as u32], vec![1; 9]] {
+            assert!(model.verify_mtp(&invalid).is_err());
+            assert_eq!(
+                model.offset(),
+                0,
+                "failed verification must discard partial state"
+            );
+        }
+        assert!(model.forward_mtp(&[]).is_err());
+        assert!(model.forward_mtp(&[model.vocab as u32]).is_err());
+        model.context_limit = 1;
+        model.forward_mtp(&[1])?;
+        assert!(model.verify_mtp(&[1]).is_err());
+        assert_eq!(model.offset(), 0);
+        Ok(())
     }
 
     fn batched_head_token_major(model: &mut Qwen35Moe, tokens: &[u32]) -> Result<Array> {
@@ -1993,6 +2265,50 @@ mod tests {
 
     #[test]
     #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn qwen_serial_prefill_skips_only_unused_heads() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        for length in [1, 2, 23, 24, 25] {
+            let tokens: Vec<_> = (1..=length).collect();
+            model.reset();
+            let mut expected = None;
+            for &token in &tokens {
+                expected = Some(model.forward(token)?);
+            }
+            let expected = expected.unwrap().to_f16_bits()?;
+            let expected_state = state_bytes(&model)?;
+            model.reset();
+            assert_eq!(model.prefill_serial(&tokens)?.to_f16_bits()?, expected);
+            assert_eq!(state_bytes(&model)?, expected_state);
+            assert_eq!(model.offset, length as i32);
+            let mut times = [Vec::new(), Vec::new()];
+            for fast in [false, true, true, false, false, true, true, false] {
+                model.reset();
+                let started = std::time::Instant::now();
+                if fast {
+                    model.prefill_serial(&tokens)?.eval()?;
+                } else {
+                    for &token in &tokens {
+                        model.forward(token)?.eval()?;
+                    }
+                }
+                times[usize::from(fast)].push(started.elapsed().as_secs_f64() * 1000.);
+            }
+            for sample in &mut times {
+                sample.sort_by(f64::total_cmp);
+            }
+            eprintln!(
+                "Qwen serial prefill {length}: full head {:.3} ms, final head {:.3} ms; logits + 80 states exact",
+                (times[0][1] + times[0][2]) / 2.,
+                (times[1][1] + times[1][2]) / 2.
+            );
+        }
+        assert!(model.prefill_serial(&[u32::MAX]).is_err());
+        assert_eq!(model.offset, 0);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
     fn snapshot_restore_replays_logits_and_state_exactly() -> Result<()> {
         let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
         for token in [1, 2, 3] {
@@ -2011,6 +2327,198 @@ mod tests {
         }
         assert_eq!(state_bytes(&model)?, expected_state);
         assert_eq!(model.offset, 5);
+        // Bridge cache checkpoints sit on full prefill chunks, not only M=1.
+        for chunk in [128, 256] {
+            model.reset();
+            let prefix: Vec<_> = (0..chunk).map(|index| (index % 97 + 1) as u32).collect();
+            model.forward_tokens(&prefix)?.eval()?;
+            let snapshot = model.snapshot()?;
+            let expected_logits = model.forward_tokens(&[42; 24])?.to_f16_bits()?;
+            let expected_state = state_bytes(&model)?;
+            model.restore(snapshot)?;
+            assert_eq!(
+                model.forward_tokens(&[42; 24])?.to_f16_bits()?,
+                expected_logits
+            );
+            assert_eq!(
+                state_bytes(&model)?,
+                expected_state,
+                "state after chunk {chunk}"
+            );
+            assert_eq!(model.offset, chunk + 24);
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn long_prompt_dflash_capture_keeps_target_exact() -> Result<()> {
+        use crate::tokenizer::ChatTokenizer;
+        let path = Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let tokenizer = ChatTokenizer::load(path)?;
+        let prompt = std::fs::read_to_string("docs/audit-runtime-2026-09-04.md")?;
+        let rendered = tokenizer.render_values(
+            &serde_json::json!([{"role":"user", "content":prompt}]),
+            None,
+        )?;
+        let tokens = tokenizer.encode(&rendered)?;
+        assert_eq!(tokens.len(), 2825);
+        let mut model = Qwen35Moe::load(path)?;
+        let mut run = |capture: bool| -> Result<_> {
+            model.reset();
+            let mut logits = None;
+            for part in tokens.chunks(crate::dflash::PREFILL_CHUNK) {
+                logits = Some(if capture {
+                    model.forward_tokens_with_dflash_capture(part)?.0
+                } else {
+                    model.forward_tokens(part)?
+                });
+            }
+            Ok((
+                logits.context("empty prompt")?.to_f16_bits()?,
+                state_bytes(&model)?,
+            ))
+        };
+        let expected = run(false)?;
+        let actual = run(true)?;
+        ensure!(actual.0 == expected.0, "capture changed final logits");
+        ensure!(actual.1 == expected.1, "capture changed final states");
+        model.reset();
+        let (prefix, tail) = tokens
+            .split_at(tokens.len() / crate::dflash::PREFILL_CHUNK * crate::dflash::PREFILL_CHUNK);
+        for part in prefix.chunks(crate::dflash::PREFILL_CHUNK) {
+            model.forward_tokens(part)?;
+        }
+        let expected_logits = model.prefill_serial(tail)?.to_f16_bits()?;
+        let expected_state = state_bytes(&model)?;
+        model.reset();
+        for part in prefix.chunks(crate::dflash::PREFILL_CHUNK) {
+            model.forward_tokens_with_dflash_capture(part)?;
+        }
+        let (actual_logits, captured) = model.prefill_serial_with_dflash_capture(tail)?;
+        ensure!(
+            actual_logits.to_f16_bits()? == expected_logits,
+            "serial tail logits"
+        );
+        ensure!(state_bytes(&model)? == expected_state, "serial tail states");
+        assert_eq!(captured.shape(), [tail.len() as i32, 8 * 2048]);
+        for length in [1, 23] {
+            model.reset();
+            model.forward_tokens(&tokens[..crate::dflash::PREFILL_CHUNK])?;
+            let expected_logits = model.prefill_serial(&tokens[..length])?.to_f16_bits()?;
+            let expected_state = state_bytes(&model)?;
+            model.reset();
+            model.forward_tokens_with_dflash_capture(&tokens[..crate::dflash::PREFILL_CHUNK])?;
+            let (actual_logits, captured) =
+                model.prefill_serial_with_dflash_capture(&tokens[..length])?;
+            ensure!(
+                actual_logits.to_f16_bits()? == expected_logits,
+                "serial tail logits at {length}"
+            );
+            ensure!(
+                state_bytes(&model)? == expected_state,
+                "serial tail states at {length}"
+            );
+            assert_eq!(captured.shape(), [length as i32, 8 * 2048]);
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn long_prefix_verification_keeps_exact_state() -> Result<()> {
+        use crate::tokenizer::ChatTokenizer;
+        let path = Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let tokenizer = ChatTokenizer::load(path)?;
+        let prompt = std::fs::read_to_string("docs/audit-runtime-2026-09-04.md")?;
+        let tokens = tokenizer.encode(&tokenizer.render_values(
+            &serde_json::json!([{"role":"user", "content":prompt}]),
+            None,
+        )?)?;
+        let mut model = Qwen35Moe::load(path)?;
+        let mut logits = None;
+        for part in tokens.chunks(crate::dflash::PREFILL_CHUNK) {
+            logits = Some(model.forward_tokens(part)?);
+        }
+        let mut logits = logits.context("empty prompt")?;
+        for generated in [0, 48] {
+            let saved = model.snapshot()?;
+            let verify = [1, 2, 3, 4, 5, 6];
+            for retained in 1..=verify.len() {
+                model.restore(saved.clone())?;
+                let expected = batched_head_token_major(&mut model, &verify[..retained])?;
+                let expected_logits = (retained == verify.len())
+                    .then(|| expected.to_f16_bits())
+                    .transpose()?;
+                let expected_state = state_bytes(&model)?;
+                model.restore(saved.clone())?;
+                let (actual, _) = model.verify_tokens_exact_with_dflash_capture(&verify)?;
+                let mismatch = if let Some(expected_logits) = expected_logits {
+                    actual
+                        .to_f16_bits()?
+                        .iter()
+                        .zip(&expected_logits)
+                        .position(|(left, right)| left != right)
+                } else {
+                    None
+                };
+                model.commit_dflash_verification(retained, verify.len())?;
+                let actual_state = state_bytes(&model)?;
+                let state_mismatch = actual_state
+                    .iter()
+                    .zip(&expected_state)
+                    .position(|(left, right)| left != right);
+                eprintln!(
+                    "verify after {generated}, retained={retained}: logit row {:?}, state index {state_mismatch:?}",
+                    mismatch.map(|index| index / model.vocab as usize)
+                );
+                ensure!(
+                    state_mismatch.is_none(),
+                    "verification state differs after {generated} generated tokens, retained={retained}, first state={}",
+                    state_mismatch.unwrap()
+                );
+                ensure!(
+                    mismatch.is_none(),
+                    "verification logits differ after {generated} generated tokens, retained={retained}, first row={}",
+                    mismatch.unwrap() / model.vocab as usize
+                );
+            }
+            model.restore(saved)?;
+            if generated == 0 {
+                for _ in 0..48 {
+                    let next = logits.chat_greedy_ids()?[0];
+                    logits = model.forward(next)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and Apple GPU"]
+    fn captured_prefill_keeps_uncaptured_target_state() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        for length in [23, 24, 127, 128, 129] {
+            model.reset();
+            model.forward_tokens(&[37; 128])?.eval()?;
+            let snapshot = model.snapshot()?;
+            let tokens: Vec<_> = (0..length).map(|i| (i % 97 + 1) as u32).collect();
+            let expected = model.forward_tokens(&tokens)?.to_f16_bits()?;
+            let states = state_bytes(&model)?;
+            model.restore(snapshot)?;
+            let (actual, captured) = model.forward_tokens_with_dflash_capture(&tokens)?;
+            assert_eq!(
+                actual.to_f16_bits()?,
+                expected,
+                "capture changed logits at {length}"
+            );
+            assert_eq!(
+                state_bytes(&model)?,
+                states,
+                "capture changed states at {length}"
+            );
+            assert_eq!(captured.shape(), [length, 8 * 2048]);
+        }
         Ok(())
     }
 

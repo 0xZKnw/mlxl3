@@ -89,6 +89,7 @@ pub(crate) fn half_weight(
 
 enum ProjectionWeights {
     Exl3(Exl3Linear),
+    Affine(crate::affine::AffineLinear),
     Dense(Array),
 }
 
@@ -134,6 +135,12 @@ impl Projection {
                 "{prefix}: invalid EXL3 projection dimensions"
             );
             ProjectionWeights::Exl3(quantized)
+        } else if checkpoint.model_type == "qwen3_5_mtp"
+            && checkpoint.tensors.contains_key(&format!("{prefix}.scales"))
+        {
+            ProjectionWeights::Affine(crate::affine::AffineLinear::load(
+                checkpoint, prefix, input, output, None,
+            )?)
         } else {
             ProjectionWeights::Dense(half_weight(
                 checkpoint,
@@ -166,6 +173,7 @@ impl Projection {
             self.logical_input
         );
         let value = match &self.weights {
+            ProjectionWeights::Affine(linear) => linear.forward(x)?,
             ProjectionWeights::Exl3(linear) => {
                 let padded = if linear.input_dims() == self.logical_input {
                     x.try_clone()?

@@ -1,0 +1,12 @@
+   Compiling mlxl3-native v1.2.0 (/Users/justin/Documents/mix-stq1_0)
+error[E0609]: no field `hidden` on type `qwen35::Qwen35Moe`
+    --> native/src/qwen35.rs:2015:60
+     |
+2015 |             assert_eq!(raw.shape(), [1, time as i32, model.hidden]);
+     |                                                            ^^^^^^ unknown field
+     |
+     = note: available fields are: `embeddings`, `norm`, `head`, `layers`, `vocab` ... and 5 others
+
+For more information about this error, try `rustc --explain E0609`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

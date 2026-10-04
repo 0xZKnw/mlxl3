@@ -1,0 +1,66 @@
+Building for debugging...
+[1 / 7]
+[2 / 8] SwiftMath
+[3 / 57]
+[10 / 57]
+[11 / 57]
+[17 / 57]
+[18 / 57]
+[20 / 57]
+[21 / 57]
+[23 / 57]
+[30 / 57]
+[31 / 57]
+[35 / 57]
+[38 / 57]
+[39 / 57]
+[40 / 57]
+[51 / 57] SwiftMath
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[55 / 60] MLXL3Studio-product
+[56 / 113] SwiftMath
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[58 / 113]
+[65 / 113]
+[67 / 113]
+[72 / 113]
+[73 / 113]
+[74 / 113]
+[77 / 113]
+[79 / 113]
+[89 / 113]
+[93 / 113]
+[96 / 113]
+[97 / 113]
+[99 / 113]
+[110 / 113] MLXL3Studio-product
+error: SwiftCompile normal arm64 /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/SidebarUpdateBadge.swift failed with a nonzero exit code. Command line:     cd /Users/justin/Documents/mix-stq1_0/apps
+    builtin-SwiftPerFileCompile SidebarUpdateBadge.swift
+error: SwiftCompile normal arm64 /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift failed with a nonzero exit code. Command line:     cd /Users/justin/Documents/mix-stq1_0/apps
+    builtin-SwiftPerFileCompile StudioModel.swift
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift:100:76: error: variable 'self.conversationStore' used before being initialized
+  98 |         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
+  99 |         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
+ 100 |         self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled") && !mtpHeadPath.isEmpty
+     |                                                                            `- error: variable 'self.conversationStore' used before being initialized
+ 101 |         conversationStore = ConversationStore(fileURL: conversationFileURL)
+ 102 |         AppLocalization.set(language)
+Failed frontend command:
+/Library/Developer/CommandLineTools/usr/bin/swift-frontend -frontend -c /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AppDelegate.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatAttachment.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatComponents.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatTimelineCheck.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationStore.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3StudioApp.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MenuBarPanel.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MessageCopyButton.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelLibrary.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelManager.swift -primary-file /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/SidebarUpdateBadge.swift -primary-file /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UIPreview.swift /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift -emit-dependencies-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.d -emit-const-values-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.swiftconstvalues -emit-reference-dependencies-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.swiftdeps -serialize-diagnostics-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.dia -emit-dependencies-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.d -emit-const-values-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.swiftconstvalues -emit-reference-dependencies-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.swiftdeps -serialize-diagnostics-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.dia -target arm64-apple-macos26.0 -disable-cross-import-overlay-search -swift-module-cross-import Darwin /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/Darwin.swiftcrossimport/xlocale.swiftoverlay -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libObservationMacros.dylib\#\#ObservationMacros -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#\#SwiftMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio-dependencies-1.json -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk -I /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug -Isystem /Library/Developer/CommandLineTools/Developer/usr/lib -F /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug/PackageFrameworks -F /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug -F /Library/Developer/CommandLineTools/Library/Developer/Frameworks -F /Library/Developer/CommandLineTools/Developer/Library/Frameworks -module-cache-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -no-color-diagnostics -Xcc -fno-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -swift-version 6 -Onone -D SWIFT_PACKAGE -D DEBUG -D Xcode -serialize-debugging-options -enable-experimental-feature DebugDescriptionMacro -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/justin/Documents/mix-stq1_0/apps -enable-anonymous-context-mangled-names -file-compilation-dir /Users/justin/Documents/mix-stq1_0/apps -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/SDKStatCaches.noindex/macosx26.5-25F70-1aa54e4a50e311dbd51de5aafe7eca3d742078817fd907cefe959747f00b8bba.sdkstatcache -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -Xcc -I/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug/include -Xcc -I/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/DerivedSources-normal/arm64 -Xcc -I/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/DerivedSources/arm64 -Xcc -I/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name MLXL3Studio -package-name mlxl3studio -const-gather-protocols-file /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio_const_extract_protocols.json -disable-clang-spi -clang-target arm64-apple-macos26.5 -target-sdk-version 26.5 -target-sdk-name macosx26.5 -in-process-plugin-server-path /Library/Developer/CommandLineTools/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -parse-as-library -o /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.o -o /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.o -debug-module-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out/Intermediates.noindex/MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/MLXL3Studio.swiftmodule -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/SidebarUpdateBadge.o -index-unit-output-path /MLXL3Studio.build/Debug/MLXL3Studio-p.build/Objects-normal/arm64/StudioModel.o -index-store-path /Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/.build/out -index-system-modules
+error: Build failed

@@ -214,8 +214,22 @@ impl Exl3Linear {
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "EXL3 linear input cannot be empty");
-        if matrix_rows >= 24 {
+        if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
             return self.forward_qmm_tensor(x);
+        }
+        if matrix_rows >= 24 {
+            let matrix = x.reshape(&[matrix_rows, self.rows])?;
+            let mut batches = Vec::new();
+            for start in (0..matrix_rows).step_by(23) {
+                batches.push(self.forward(&matrix.slice(
+                    0,
+                    start,
+                    start.saturating_add(23).min(matrix_rows),
+                )?)?);
+            }
+            let mut shape = x.shape().to_vec();
+            *shape.last_mut().context("empty EXL3 input shape")? = self.cols;
+            return Array::concatenate(&batches.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
         }
         if matrix_rows > 1 {
             if self.k != 7 {
@@ -627,14 +641,18 @@ impl Exl3Group {
     }
 
     pub fn forward(&self, x: &Array) -> Result<Vec<Array>> {
-        let elements = x.shape().iter().map(|&n| i64::from(n)).product::<i64>();
+        let elements = x
+            .shape()
+            .iter()
+            .try_fold(1i64, |count, &n| count.checked_mul(i64::from(n)))
+            .context("grouped EXL3 input size overflow")?;
         ensure!(
             x.shape().last() == Some(&self.rows) && elements % i64::from(self.rows) == 0,
             "invalid grouped EXL3 input"
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "grouped EXL3 input cannot be empty");
-        if matrix_rows >= 24 {
+        if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
             let mut tile_cursor = 0;
             let mut scale_cursor = 0;
             let mut outputs = Vec::with_capacity(self.widths.len());
@@ -662,6 +680,28 @@ impl Exl3Group {
                 scale_cursor += width;
             }
             return Ok(outputs);
+        }
+        if matrix_rows >= 24 {
+            let matrix = x.reshape(&[matrix_rows, self.rows])?;
+            let mut batches: Vec<Vec<Array>> = self.widths.iter().map(|_| Vec::new()).collect();
+            for start in (0..matrix_rows).step_by(23) {
+                for (batch, value) in batches.iter_mut().zip(self.forward(&matrix.slice(
+                    0,
+                    start,
+                    start.saturating_add(23).min(matrix_rows),
+                )?)?) {
+                    batch.push(value);
+                }
+            }
+            return batches
+                .into_iter()
+                .zip(&self.widths)
+                .map(|(batch, &width)| {
+                    let mut shape = x.shape().to_vec();
+                    *shape.last_mut().context("empty grouped input shape")? = width;
+                    Array::concatenate(&batch.iter().collect::<Vec<_>>(), 0)?.reshape(&shape)
+                })
+                .collect();
         }
         if matrix_rows > 1 {
             return self.forward_qmv_batch(x, matrix_rows);

@@ -101,12 +101,16 @@ enum MCPPreferenceCheck {
         try check(!instance().dflash2Enabled, "DFlash2 with no draft must not survive relaunch")
         preferences.set("/local/draft", forKey: "studio.dflashDraftPath")
         first.enableDFlashGreedy()
-        try check(instance().dflash2Enabled, "DFlash2 preference was not persisted")
-        let dflashRelaunch = instance()
-        try check(dflashRelaunch.temperature == 0 && dflashRelaunch.topK == 1
-                  && dflashRelaunch.repetitionPenalty == 1, "DFlash2 greedy settings were not restored")
+        try check(!instance().dflash2Enabled, "Legacy DFlash2 must remain disabled on relaunch in v1.2")
         first.setDFlash2Enabled(false)
         try check(!instance().dflash2Enabled, "DFlash2 disabled state was not persisted")
+        preferences.set(true, forKey: "studio.mtpEnabled")
+        preferences.set("/local/mtp", forKey: "studio.mtpHeadPath")
+        try check(instance().mtpEnabled && instance().mtpHeadPath == "/local/mtp", "MTP preference was not restored")
+        let mtpRelaunch = instance()
+        try check(mtpRelaunch.temperature == 0 && mtpRelaunch.topK == 1 && mtpRelaunch.repetitionPenalty == 1,
+                  "MTP greedy settings were not restored")
+        preferences.set(false, forKey: "studio.mtpEnabled")
         first.models = [LocalModel(name: "qwen3.6-35b-a3b", path: "/models/Qwen3.6-35B-A3B-EXL3",
                                    modelType: "qwen3_5_moe", format: "EXL3", bits: 2.49,
                                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]

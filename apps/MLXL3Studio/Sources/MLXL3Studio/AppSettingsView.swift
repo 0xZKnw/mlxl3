@@ -167,7 +167,7 @@ private struct UpdateSettingsCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L("Mises à jour", "Updates"))
                         .font(.system(size: 15, weight: .bold))
-                    Text(L("Version installée · \(updater.currentVersion)", "Installed version · \(updater.currentVersion)"))
+                    Text(L("App \(updater.currentVersion) · Moteur \(updater.currentEngineVersion)", "App \(updater.currentVersion) · Engine \(updater.currentEngineVersion)"))
                         .font(.system(size: 10.5, weight: .medium))
                         .foregroundStyle(StudioTheme.quiet)
                 }
@@ -194,8 +194,20 @@ private struct UpdateSettingsCard: View {
                     .stroke(Color.white.opacity(0.07), lineWidth: 0.7)
             }
 
+            HStack(spacing: 10) {
+                Image(systemName: "cpu")
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L("Moteur indépendant", "Independent engine"))
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(engineDetail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(StudioTheme.quiet)
+                }
+                Spacer()
+            }
+
             if let release = updater.latestRelease,
-               updater.hasAvailableUpdate,
+               updater.hasAppUpdate,
                !release.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
@@ -218,7 +230,7 @@ private struct UpdateSettingsCard: View {
                 }
             }
 
-            if case .ready = updater.state, !canInstall {
+            if updater.hasReadyUpdate && !canInstall {
                 Text(L("Termine ou arrête la génération avant de redémarrer pour installer.", "Finish or stop generation before restarting to install."))
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(Color.orange.opacity(0.82))
@@ -229,21 +241,22 @@ private struct UpdateSettingsCard: View {
 
     @ViewBuilder
     private var updateAction: some View {
-        switch updater.state {
-        case .ready:
+        if updater.hasReadyUpdate && !updater.isBusy {
             Button(action: install) {
-                Label(L("Redémarrer et installer", "Restart and install"), systemImage: "arrow.clockwise")
+                Label(updater.state.readyRelease != nil
+                      ? L("Redémarrer et installer", "Restart and install")
+                      : L("Installer le moteur", "Install engine"), systemImage: "arrow.clockwise")
                     .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 13)
                     .frame(height: 34)
             }
             .buttonStyle(PrimaryGlassButtonStyle())
             .disabled(!canInstall)
-        case .checking, .downloading, .installing:
+        } else if updater.isBusy {
             ProgressView()
                 .controlSize(.small)
                 .frame(width: 34, height: 34)
-        default:
+        } else {
             Button(action: updater.checkForUpdates) {
                 Text(L("Rechercher", "Search"))
                     .font(.system(size: 11, weight: .bold))
@@ -251,6 +264,18 @@ private struct UpdateSettingsCard: View {
                     .frame(height: 34)
             }
             .buttonStyle(GlassPillButtonStyle())
+        }
+    }
+
+    private var engineDetail: String {
+        switch updater.engineState {
+        case .idle: L("Le moteur se met à jour séparément de l’app.", "The engine updates separately from the app.")
+        case .checking: L("Recherche d’un nouveau moteur…", "Checking for a new engine…")
+        case .upToDate: L("Moteur à jour. L’app et tes modèles sont conservés.", "Engine up to date. Your app and models are preserved.")
+        case let .downloading(release): L("Téléchargement du moteur \(release.version)…", "Downloading engine \(release.version)…")
+        case let .ready(release, _): L("Moteur \(release.version) vérifié et prêt à installer.", "Engine \(release.version) verified and ready to install.")
+        case .installing: L("Validation et activation du moteur…", "Validating and activating engine…")
+        case let .failed(message): message
         }
     }
 

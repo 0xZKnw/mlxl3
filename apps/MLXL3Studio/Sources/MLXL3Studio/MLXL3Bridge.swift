@@ -27,6 +27,11 @@ enum CLIResolver {
             candidates.append((override as NSString).expandingTildeInPath)
         }
 
+        if let managed = EngineRuntimeStore.resolve(appVersion: Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0") {
+            candidates.append(managed.path)
+        }
+
         if let resources = Bundle.main.resourceURL {
             candidates.append(resources.appending(path: "runtime/mlxl3").path)
         }
@@ -61,6 +66,7 @@ private struct PendingDelta {
 final class MLXL3Bridge: @unchecked Sendable {
     var onEvent: (@MainActor (BridgeEvent) -> Void)?
     var onExit: (@MainActor (String?) -> Void)?
+    var onRuntimeFallback: (@MainActor () -> Void)?
 
     private let ioQueue = DispatchQueue(label: "com.mlxl3.studio.bridge.io")
     private var process: Process?
@@ -68,6 +74,7 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var outputBuffer = Data()
     private var stderrBuffer = Data()
     private var pendingDelta: PendingDelta?
+    private var receivedReady = false
     private var deltaFlushWorkItem: DispatchWorkItem?
     private let displayFlushInterval = 0.05
     private let generationID = Mutex(UUID())
@@ -139,6 +146,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             outputBuffer.removeAll(keepingCapacity: true)
             stderrBuffer.removeAll(keepingCapacity: true)
             pendingDelta = nil
+            receivedReady = false
             deltaFlushWorkItem?.cancel()
             deltaFlushWorkItem = nil
         }
@@ -185,9 +193,13 @@ final class MLXL3Bridge: @unchecked Sendable {
                     : L("Le moteur MLXL3 s’est arrêté de façon inattendue.", "The MLXL3 engine stopped unexpectedly.")
                 self.process = nil
                 self.inputPipe = nil
+                let recovered = !self.receivedReady && terminatedProcess.executableURL.map {
+                    EngineRuntimeStore.reject($0)
+                } == true
                 DispatchQueue.main.async {
                     guard self.generationID.withLock({ $0 == ticket }) else { return }
-                    self.onExit?(message)
+                    if recovered, let fallback = self.onRuntimeFallback { fallback() }
+                    else { self.onExit?(message) }
                 }
             }
         }
@@ -200,6 +212,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             inputPipe = nil
             output.fileHandleForReading.readabilityHandler = nil
             error.fileHandleForReading.readabilityHandler = nil
+            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength) }
             throw failure
         }
     }
@@ -256,6 +269,13 @@ final class MLXL3Bridge: @unchecked Sendable {
             guard !line.isEmpty else { continue }
             do {
                 let event = try JSONDecoder().decode(BridgeEvent.self, from: line)
+                if event.type == "ready" {
+                    if let protocolVersion = event.bridgeProtocol, protocolVersion != EngineRuntimeStore.protocolVersion {
+                        process?.terminate()
+                        continue
+                    }
+                    receivedReady = true
+                }
                 queueForDisplay(event, ticket: ticket)
             } catch {
                 let raw = String(data: line, encoding: .utf8) ?? ""

@@ -15,12 +15,15 @@
 #include <tuple>
 #include <vector>
 #include <unistd.h>
+#include <libproc.h>
+#include <sys/resource.h>
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
 #include "mlx/device.h"
 #include "mlx/fast.h"
 #include "mlx/ops.h"
+#include "mlx/memory.h"
 #include "mlx/version.h"
 
 namespace mx = mlx::core;
@@ -109,6 +112,20 @@ std::vector<std::string> strings(const char* const* p, size_t n) {
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null memory statistics output");
+    if (reset_peak) mx::reset_peak_memory();
+    out[0] = mx::get_active_memory();
+    out[1] = mx::get_cache_memory();
+    out[2] = std::max(out[0], uint64_t(mx::get_peak_memory()));
+    rusage_info_v4 usage{};
+    const auto ok = proc_pid_rusage(getpid(), RUSAGE_INFO_V4,
+                                   reinterpret_cast<rusage_info_t*>(&usage)) == 0;
+    out[3] = ok ? usage.ri_phys_footprint : 0;
+    out[4] = ok ? usage.ri_lifetime_max_phys_footprint : 0;
+  });
+}
 int mlxl3_mlx_init(const char* metallib) noexcept {
   return protect([&] {
     static std::once_flag initialized;
@@ -295,6 +312,17 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
 }
 int mlxl3_array_concatenate(void* const* inputs, size_t count, int axis, void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::concatenate(arrays(inputs, count), axis)); });
+}
+int mlxl3_array_affine4(void* x, void* w, void* scales, void* biases,
+                        void* indices, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null affine output");
+    auto result = indices
+      ? mx::gather_qmm(arr(x), arr(w), arr(scales), arr(biases),
+                       std::nullopt, arr(indices), true, 64, 4, "affine", false)
+      : mx::quantized_matmul(arr(x), arr(w), arr(scales), arr(biases), true, 64, 4, "affine");
+    *out = new mx::array(std::move(result));
+  });
 }
 int mlxl3_array_sdpa(void* q, void* k, void* v, float scale, int causal, void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::fast::scaled_dot_product_attention(

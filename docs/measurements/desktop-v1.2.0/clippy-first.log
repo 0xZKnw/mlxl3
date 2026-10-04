@@ -1,0 +1,60 @@
+   Compiling mlxl3-native v1.2.0 (/Users/justin/Documents/mix-stq1_0)
+error: large size difference between variants
+   --> native/src/mtp.rs:225:5
+    |
+225 | /       enum Mlp {
+226 | | /         Dense {
+227 | | |             gate: AffineLinear,
+228 | | |             up: AffineLinear,
+229 | | |             down: AffineLinear,
+230 | | |         },
+    | | |_________- the second-largest variant contains at least 408 bytes
+231 | | /         Moe {
+232 | | |             router: AffineLinear,
+233 | | |             gate: AffineLinear,
+234 | | |             up: AffineLinear,
+...   | |
+239 | | |             multiplier: AffineLinear,
+240 | | |         },
+    | | |_________- the largest variant contains at least 1088 bytes
+241 | |       }
+    | |_______^ the entire enum is at least 1088 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#large_enum_variant
+    = note: `-D clippy::large-enum-variant` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::large_enum_variant)]`
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+236 ~             shared_gate: Box<AffineLinear>,
+237 ~             shared_up: Box<AffineLinear>,
+238 ~             shared_down: Box<AffineLinear>,
+239 ~             multiplier: Box<AffineLinear>,
+    |
+
+error: this `impl` can be derived
+   --> native/src/mtp.rs:423:5
+    |
+423 | /     impl Default for Session {
+424 | |         fn default() -> Self {
+425 | |             Self {
+426 | |                 pending: VecDeque::new(),
+...   |
+432 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#derivable_impls
+    = note: `-D clippy::derivable-impls` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::derivable_impls)]`
+help: replace the manual implementation with a derive attribute
+    |
+416 ~     #[derive(Default)]
+417 ~     pub struct Session {
+418 |         pending: VecDeque<u32>,
+...
+423 |
+424 ~     
+    |
+
+error: could not compile `mlxl3-native` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

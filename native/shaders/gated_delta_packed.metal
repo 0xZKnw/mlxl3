@@ -92,6 +92,15 @@
               (static_cast<float>(v_[dv_idx]) - kv_mem) *
               static_cast<float>(beta_t);
 
+#if MLXL3_GDN_SAVE_TAPE
+          if (lane_in_row == 0) {
+            delta_tape[(b_idx * T * Hv + t * Hv + hv_idx) * Dv + dv_idx] = delta;
+            if (dv_idx == 0) {
+              decay_tape[b_idx * T * Hv + t * Hv + hv_idx] = gt;
+            }
+          }
+#endif
+
           for (int pb = 0; pb < partials_per_lane; ++pb) {
             float acc = 0.0f;
             for (int i = 0; i < 4; ++i) {
@@ -111,11 +120,14 @@
           }
 
 #if MLXL3_GDN_SAVE_HISTORY
-          auto h_state = state_history +
-              ((ulong(t) * B * Hv + n) * Dv + dv_idx) * Dk +
-              lane_in_row * values_per_lane;
-          for (int i = 0; i < values_per_lane; ++i) {
-            h_state[i] = static_cast<StT>(state[i]);
+          // A full commit uses state_out. Preserve the legacy T=1 output.
+          if (t + 1 < T || T == 1) {
+            auto h_state = state_history +
+                ((ulong(t) * B * Hv + n) * Dv + dv_idx) * Dk +
+                lane_in_row * values_per_lane;
+            for (int i = 0; i < values_per_lane; ++i) {
+              h_state[i] = static_cast<StT>(state[i]);
+            }
           }
 #endif
 

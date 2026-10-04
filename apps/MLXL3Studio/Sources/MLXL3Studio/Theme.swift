@@ -45,11 +45,10 @@ struct MonogramMark: View {
 
     var body: some View {
         ZStack {
-            Circle().trim(from: 0.08, to: 0.78)
-                .stroke(StudioTheme.ink, style: StrokeStyle(lineWidth: size * 0.1, lineCap: .round))
-                .rotationEffect(.degrees(-38))
-                .padding(size * 0.1)
-            Circle().fill(StudioTheme.ink).frame(width: size * 0.17, height: size * 0.17)
+            Text("M3")
+                .font(.system(size: size * 0.61, weight: .heavy, design: .rounded))
+                .tracking(-size * 0.045)
+                .foregroundStyle(StudioTheme.ink)
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)

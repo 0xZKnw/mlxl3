@@ -1,6 +1,6 @@
 [package]
 name = "mlxl3-native"
-version = "0.1.0"
+version = "1.2.0"
 edition = "2024"
 rust-version = "1.89"
 license = "MIT"
@@ -23,6 +23,10 @@ path = "native/src/main.rs"
 name = "contracts"
 path = "native/tests/contracts.rs"
 
+[[test]]
+name = "runtime_gpu"
+path = "native/tests/runtime_gpu.rs"
+
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
@@ -30,6 +34,9 @@ fs2 = "0.4"
 half = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+hyper = { version = "0.14", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time", "signal"] }
+libc = "0.2"
 signal-hook = "0.3"
 tempfile = "3"
 time = { version = "0.3", features = ["formatting"] }
