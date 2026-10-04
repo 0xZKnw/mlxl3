@@ -1,0 +1,202 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+    Blocking waiting for file lock on package cache
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+Checking harness codec::verification::exl3_permutation_and_inverse_are_bijections...
+
+VERIFICATION RESULT:
+ ** 0 of 192 failed (1 unreachable)
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 51.64691s
+
+Checking harness codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile...
+
+VERIFICATION RESULT:
+ ** 0 of 81 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.15508187s
+
+Checking harness codec::verification::symbolic_pack_indices_stay_inside_one_tile...
+
+VERIFICATION RESULT:
+ ** 0 of 76 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.11023213s
+
+Checking harness codec::verification::bitrate_validation_accepts_exactly_one_through_eight...
+
+VERIFICATION RESULT:
+ ** 0 of 56 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.039413415s
+
+Checking harness contracts::verification::qmv_shape_matches_wide_arithmetic...
+
+VERIFICATION RESULT:
+ ** 0 of 180 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.9473555s
+
+Checking harness contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles...
+
+VERIFICATION RESULT:
+ ** 0 of 192 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.2751882s
+
+Checking harness contracts::verification::accepted_data_ranges_are_exact_and_in_bounds...
+
+VERIFICATION RESULT:
+ ** 0 of 5 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.066671416s
+
+Checking harness contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions...
+
+VERIFICATION RESULT:
+ ** 0 of 352 failed (1 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.9521391s
+
+Checking harness contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions...
+
+VERIFICATION RESULT:
+ ** 0 of 330 failed (5 unreachable)
+
+ ** 1 of 1 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 7.41664s
+
+Checking harness dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples...
+
+VERIFICATION RESULT:
+ ** 0 of 49 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.30853516s
+
+Checking harness dflash::verification::alignment_is_monotonic_and_aligned_when_representable...
+
+VERIFICATION RESULT:
+ ** 0 of 11 failed
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.022372209s
+
+Checking harness hub::verification::accepted_checkpoint_paths_have_no_traversal_component...
+
+VERIFICATION RESULT:
+ ** 0 of 493 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 35.38201s
+
+Checking harness hub::verification::repository_names_have_one_nonempty_safe_separator...
+
+VERIFICATION RESULT:
+ ** 0 of 338 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 4.994088s
+
+Checking harness mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral...
+
+VERIFICATION RESULT:
+ ** 0 of 232 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.5485463s
+
+Checking harness registry::verification::model_name_validation_matches_the_registry_contract...
+
+VERIFICATION RESULT:
+ ** 0 of 235 failed (13 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.9330728s
+
+Checking harness speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix...
+
+VERIFICATION RESULT:
+ ** 0 of 216 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.670394s
+
+Checking harness tool_call::verification::marker_suffix_is_the_longest_possible_prefix...
+
+VERIFICATION RESULT:
+ ** 0 of 162 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 3.9530602s
+
+Manual Harness Summary:
+Complete - 17 successfully verified harnesses, 0 failures, 17 total.

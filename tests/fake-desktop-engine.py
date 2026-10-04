@@ -18,8 +18,16 @@ for line in sys.stdin:
     request = json.loads(line)
     if request['type'] != 'generate':
         continue
-    answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else 'hello'
-    emit('delta', request_id=request['request_id'], phase='answer', text=answer)
+    if model == 'render-stress':
+        emit('delta', request_id=request['request_id'], phase='thinking', text='Internal reasoning')
+        emit('delta', request_id=request['request_id'], phase='answer', text='# Result\n\n```html\n')
+        for _ in range(40):
+            emit('delta', request_id=request['request_id'], phase='answer', text='<div>é 👋</div>\n' * 500)
+            time.sleep(0.005)
+        emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
+    else:
+        answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else 'hello'
+        emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)
     time.sleep(0.2)

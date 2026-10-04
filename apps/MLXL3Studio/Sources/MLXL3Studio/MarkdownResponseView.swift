@@ -2,7 +2,7 @@ import AppKit
 import SwiftMath
 import SwiftUI
 
-private enum MarkdownBlockKind {
+private enum MarkdownBlockKind: Sendable {
     case paragraph(String)
     case heading(level: Int, text: String)
     case unordered(indent: Int, text: String)
@@ -14,13 +14,13 @@ private enum MarkdownBlockKind {
     case rule
 }
 
-private enum MarkdownTableAlignment {
+private enum MarkdownTableAlignment: Sendable {
     case leading
     case center
     case trailing
 }
 
-private struct MarkdownBlock: Identifiable {
+private struct MarkdownBlock: Identifiable, Sendable {
     let id: Int
     let kind: MarkdownBlockKind
 }
@@ -327,36 +327,81 @@ private enum MarkdownParser {
     }
 }
 
-struct StreamingTextChunk: Identifiable, Equatable {
+struct StreamingTextChunk: Identifiable, Equatable, Sendable {
     let id: Int
     let source: String
+    // IDs include repeated table headers; only this offset indexes raw source.
+    var sourceOffset = 0
+    var tableLines: [String] = []
 }
 
 enum StreamingTextChunker {
     static let targetCharacters = 6_000
     static let hardLimitCharacters = 16_000
 
-    static func chunks(_ source: String) -> [StreamingTextChunk] {
-        guard let threshold = source.index(source.startIndex, offsetBy: targetCharacters, limitedBy: source.endIndex),
-              threshold < source.endIndex else {
-            return [StreamingTextChunk(id: 0, source: source)]
+    final class Cache {
+        private var previousSource = ""
+        private var previousChunks: [StreamingTextChunk] = []
+
+        func chunks(_ source: String) -> [StreamingTextChunk] {
+            if source.utf8.count == previousSource.utf8.count,
+               source.utf8.elementsEqual(previousSource.utf8), !previousChunks.isEmpty {
+                return previousChunks
+            }
+            defer { previousSource = source }
+            // ponytail: exact append check still scans bytes; an explicit append
+            // API is only needed if that check, rather than parsing, dominates.
+            guard previousChunks.count > 2, source.utf8.starts(with: previousSource.utf8) else {
+                previousChunks = StreamingTextChunker.chunks(source)
+                return previousChunks
+            }
+            // A full chunk of lookbehind keeps partial fences, headers and
+            // Unicode graphemes out of the frozen prefix.
+            let stableCount = previousChunks.count - 2
+            let restart = previousChunks[stableCount]
+            let boundary = source.utf8.index(source.utf8.startIndex, offsetBy: restart.sourceOffset)
+            let changed = StreamingTextChunker.chunks(String(source[boundary...]), continuingTable: restart.tableLines)
+            previousChunks.removeLast(2)
+            previousChunks += changed.map { chunk in
+                StreamingTextChunk(
+                    id: restart.id + chunk.id, source: chunk.source,
+                    sourceOffset: restart.sourceOffset + chunk.sourceOffset,
+                    tableLines: chunk.tableLines
+                )
+            }
+            return previousChunks
+        }
+    }
+
+    static func chunks(_ source: String, continuingTable: [String] = []) -> [StreamingTextChunk] {
+        let prefix = continuingTable.count == 2 && continuingTable[1].contains("---") ? continuingTable.joined() : ""
+        let rendered = prefix + source
+        guard let threshold = rendered.index(rendered.startIndex, offsetBy: targetCharacters, limitedBy: rendered.endIndex),
+              threshold < rendered.endIndex else {
+            return [StreamingTextChunk(id: 0, source: rendered, tableLines: continuingTable)]
         }
 
         let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
         var chunks: [StreamingTextChunk] = []
-        var current = ""
+        var current = prefix
         var byteOffset = 0
         var insideCodeFence = false
         var fence = ""
-        var tableLines: [String] = []
-        var currentCharacters = 0
+        var tableLines = continuingTable
+        var currentCharacters = prefix.count
+        var sourceOffset = 0
+        var chunkSourceOffset = 0
+        var chunkTableLines = continuingTable
 
         func flush() {
             guard !current.isEmpty else { return }
-            chunks.append(StreamingTextChunk(id: byteOffset, source: current))
+            chunks.append(StreamingTextChunk(id: byteOffset, source: current,
+                                             sourceOffset: chunkSourceOffset, tableLines: chunkTableLines))
             byteOffset += current.utf8.count
+            chunkSourceOffset = sourceOffset
             current = ""
             currentCharacters = 0
+            chunkTableLines = tableLines
         }
 
         for (index, line) in lines.enumerated() {
@@ -364,6 +409,7 @@ enum StreamingTextChunker {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             current += renderedLine
             currentCharacters += renderedLine.count
+            sourceOffset += renderedLine.utf8.count
 
             if !insideCodeFence && (trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")) {
                 fence = String(trimmed.prefix(while: { $0 == trimmed.first }))
@@ -392,9 +438,75 @@ enum StreamingTextChunker {
     }
 }
 
+private struct PreparedMarkdownChunk: Identifiable, Sendable, Equatable {
+    let chunk: StreamingTextChunk
+    let blocks: [MarkdownBlock]
+    var id: Int { chunk.id }
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.chunk == rhs.chunk }
+}
+
+private actor MarkdownPreparation {
+    private let chunkCache = StreamingTextChunker.Cache()
+    private var previous: [PreparedMarkdownChunk] = []
+
+    func prepare(_ source: String) -> [PreparedMarkdownChunk]? {
+        guard !Task.isCancelled else { return nil }
+        let chunks = chunkCache.chunks(source)
+        let old = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+        var prepared: [PreparedMarkdownChunk] = []
+        for chunk in chunks {
+            guard !Task.isCancelled else { return nil }
+            if let cached = old[chunk.id], cached.chunk.source.utf8.elementsEqual(chunk.source.utf8) {
+                prepared.append(cached)
+            } else {
+                prepared.append(PreparedMarkdownChunk(chunk: chunk, blocks: MarkdownParser.parse(chunk.source)))
+            }
+        }
+        previous = prepared
+        return prepared
+    }
+}
+
+@MainActor private final class MarkdownRenderModel: ObservableObject {
+    @Published private(set) var chunks: [PreparedMarkdownChunk] = []
+    private let preparation = MarkdownPreparation()
+    private var pendingSource: String?
+    private var requestedSource = ""
+    private var renderTask: Task<Void, Never>?
+    private var generation = UUID()
+
+    func request(_ source: String) {
+        requestedSource = source
+        pendingSource = source
+        guard renderTask == nil else { return }
+        let ticket = generation
+        renderTask = Task { [weak self, preparation] in
+            while let source = self?.pendingSource {
+                self?.pendingSource = nil
+                guard let prepared = await preparation.prepare(source),
+                      !Task.isCancelled, let self, generation == ticket else { return }
+                // A prepared prefix is still correct while tokens arrive. Keep
+                // displaying progress even when parsing takes longer than one
+                // delta, then prepare only the newest pending snapshot.
+                if requestedSource.utf8.starts(with: source.utf8) { chunks = prepared }
+            }
+            if self?.generation == ticket { self?.renderTask = nil }
+        }
+    }
+
+    func cancel() {
+        generation = UUID()
+        renderTask?.cancel()
+        renderTask = nil
+        pendingSource = nil
+    }
+}
+
 struct MarkdownResponseView: View, Equatable {
     private let source: String
     private let streaming: Bool
+    @StateObject private var renderer = MarkdownRenderModel()
 
     init(_ source: String, streaming: Bool = false) {
         self.source = source
@@ -406,32 +518,34 @@ struct MarkdownResponseView: View, Equatable {
     }
 
     var body: some View {
-        let chunks = StreamingTextChunker.chunks(source)
-        VStack(alignment: .leading, spacing: 10) {
-            ForEach(chunks) { chunk in
+        LazyVStack(alignment: .leading, spacing: 10) {
+            ForEach(renderer.chunks) { chunk in
                 MarkdownChunkView(
-                    source: chunk.source,
-                    streaming: streaming && chunk.id == chunks.last?.id
+                    prepared: chunk,
+                    streaming: streaming && chunk.id == renderer.chunks.last?.id
                 )
                 .equatable()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .textSelection(.enabled)
+        .onAppear { renderer.request(source) }
+        .onChange(of: source) { renderer.request(source) }
+        .onDisappear { renderer.cancel() }
     }
 }
 
 private struct MarkdownChunkView: View, Equatable {
-    let source: String
+    let prepared: PreparedMarkdownChunk
     let streaming: Bool
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.streaming == rhs.streaming
+        lhs.prepared.chunk.source == rhs.prepared.chunk.source && lhs.streaming == rhs.streaming
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(MarkdownParser.parse(source)) { block in
+            ForEach(prepared.blocks) { block in
                 blockView(block.kind)
             }
         }

@@ -2,7 +2,7 @@
 
 **Native EXL3 inference for Apple Silicon, built with Rust, MLX and custom Metal kernels.**
 
-[Download MLXL3 Desktop v1.1.2](https://github.com/0xZKnw/mlxl3/releases/latest)
+[Download MLXL3 Desktop v1.1.3](https://github.com/0xZKnw/mlxl3/releases/latest)
 · [Validation scope](docs/v1-validation.md)
 · [Optimization journal](opti.md)
 · [Third-party notices](THIRD_PARTY_NOTICES.md)

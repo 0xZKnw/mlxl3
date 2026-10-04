@@ -1,0 +1,140 @@
+    Checking onig v6.5.3
+    Checking tokenizers v0.23.2
+    Checking mlxl3-native v0.1.0 (/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.44s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+   Compiling onig_sys v69.9.3
+   Compiling esaxx-rs v0.1.10
+   Compiling onig v6.5.3
+   Compiling tokenizers v0.23.2
+   Compiling mlxl3-native v0.1.0 (/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.33s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-d963ccec7b59bab2)
+
+running 24 tests
+test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+test gpu::tests::metal_codec_matches_cpu ... ignored, requires physical Apple GPU; run cargo test -- --ignored
+test dflash::tests::plans_match_the_published_splash_layout ... ok
+test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+test codec::tests::permutation_is_bijective ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test streaming::tests::prefilled_and_incomplete_markers ... ok
+test streaming::tests::unfinished_cr_is_preserved ... ok
+test mcp::tests::parses_json_and_sse_responses ... ok
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test streaming::tests::markers_split_at_every_character ... ok
+test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+test codec::tests::pack_tail_biting_all_bitrates ... ok
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test codec::tests::codebooks_are_finite_exhaustively ... ok
+
+test result: ok. 21 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests native/src/main.rs (target/debug/deps/mlxl3_rs-a172851e98263d3b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running native/tests/contracts.rs (target/debug/deps/contracts-f76d00c108bc8c47)
+
+running 14 tests
+test checkpoint_round_trip_and_lazy_payload_read ... ok
+test checkpoint_validates_trellis_and_scale_layouts ... ok
+test checkpoint_supports_legacy_scales_and_validates_shard_map ... ok
+test registry_rejects_invalid_names_and_preserves_corrupt_registry ... ok
+test safetensors_accepts_scalars_and_zero_sized_tensors ... ok
+test safetensors_rejects_invalid_headers_and_ranges ... ok
+test checkpoint_rejects_missing_or_inconsistent_files ... ok
+test registry_replacement_and_remove_protect_model_files ... ok
+test cli_codec_recovers_after_invalid_request ... ok
+test concurrent_registry_writers_do_not_lose_entries ... ok
+test cli_default_registry_respects_explicit_app_home ... ok
+test cli_empty_app_home_uses_user_config_directory ... ok
+test cli_relative_registry_mutations_succeed ... ok
+test cli_register_list_inspect_remove_uses_isolated_registry ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+   Doc-tests mlxl3_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Checking mlxl3-native v0.1.0 (/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.38s
+   Compiling mlxl3-native v0.1.0 (/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-bfc42b35b98c0e81)
+
+running 23 tests
+test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+test dflash::tests::plans_match_the_published_splash_layout ... ok
+test codec::tests::permutation_is_bijective ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test streaming::tests::unfinished_cr_is_preserved ... ok
+test streaming::tests::prefilled_and_incomplete_markers ... ok
+test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+test streaming::tests::markers_split_at_every_character ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test mcp::tests::parses_json_and_sse_responses ... ok
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test codec::tests::pack_tail_biting_all_bitrates ... ok
+test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test codec::tests::codebooks_are_finite_exhaustively ... ok
+
+test result: ok. 21 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests native/src/main.rs (target/debug/deps/mlxl3_rs-f81c195d237cd854)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running native/tests/contracts.rs (target/debug/deps/contracts-63bcebef513d73d6)
+
+running 14 tests
+test checkpoint_round_trip_and_lazy_payload_read ... ok
+test checkpoint_validates_trellis_and_scale_layouts ... ok
+test checkpoint_supports_legacy_scales_and_validates_shard_map ... ok
+test safetensors_accepts_scalars_and_zero_sized_tensors ... ok
+test registry_rejects_invalid_names_and_preserves_corrupt_registry ... ok
+test safetensors_rejects_invalid_headers_and_ranges ... ok
+test checkpoint_rejects_missing_or_inconsistent_files ... ok
+test registry_replacement_and_remove_protect_model_files ... ok
+test cli_codec_recovers_after_invalid_request ... ok
+test cli_empty_app_home_uses_user_config_directory ... ok
+test cli_default_registry_respects_explicit_app_home ... ok
+test cli_relative_registry_mutations_succeed ... ok
+test cli_register_list_inspect_remove_uses_isolated_registry ... ok
+test concurrent_registry_writers_do_not_lose_entries ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+   Doc-tests mlxl3_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

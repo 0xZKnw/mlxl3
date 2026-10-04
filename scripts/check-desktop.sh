@@ -59,6 +59,15 @@ swiftc "${swiftc_args[@]}" -O \
     -o "${test_dir}/streaming-check"
 "${test_dir}/streaming-check"
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
+    tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
+response_sources=("${sources[@]}")
+response_sources=("${(@)response_sources:#*/MarkdownResponseView.swift}")
+swiftc "${swiftc_args[@]}" -O \
+    "${response_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/ResponseUICombined.swift" -o "${test_dir}/response-check"
+"${test_dir}/response-check" "$PWD/tests/fake-desktop-engine.py"
+
 # Exercise the cancellable CLICommand transport independently of the model
 # bridge (large pipe output, line progress, cancellation and stderr errors).
 swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.swift \

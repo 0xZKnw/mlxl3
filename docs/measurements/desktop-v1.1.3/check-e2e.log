@@ -1,0 +1,67 @@
+.s.ss                                                                    [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+2 passed, 4 skipped in 1.15s
+Building for debugging...
+[Planning deferred tasks]
+[2 / 8] SwiftMath
+[13 / 19] SwiftMath
+/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[17 / 22] SwiftMath
+[17 / 22] MLXL3Studio-product
+[18 / 75] SwiftMath
+/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[20 / 75]
+[27 / 75]
+[29 / 75]
+[35 / 75]
+[36 / 75]
+[39 / 75]
+[41 / 75]
+[50 / 75]
+[51 / 75]
+[55 / 75]
+[58 / 75]
+[59 / 75]
+[61 / 75]
+[72 / 75] MLXL3Studio-product
+[73 / 75] MLXL3Studio-product
+/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/mlxl3-file-import/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[75 / 77] MLXL3Studio-product
+Build complete! (18,46 secs)
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: crash, deletion, drafts, recovery, save ordering, tool state
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+Metal footprint check passed: +97927168 bytes for a 64 MiB GPU buffer
+MCP checks passed: default off, persisted on/off, request flag, isolated preview
+Bridge callback with 50 ms occupied IO: legacy 53.379 ms; independent UUID 0.022 ms
+Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+Markdown checks passed: fences, 300k code, long tables
+Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+Response UI checks passed: complete copy, native control/clipboard action, 56 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+CLI transport passed: large output, NDJSON, cancellation, error reporting
+Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport
+MLXL3 full E2E suite passed

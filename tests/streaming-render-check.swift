@@ -114,6 +114,46 @@ private struct EquatableStateProbe: View, Equatable {
         }
         print("Incremental code checks passed: \(fragmentIndex) Unicode/escaped/multiline fragments and replacements")
 
+        let markdownCache = StreamingTextChunker.Cache()
+        let prose = String(repeating: "é e\u{301} 👩‍💻 sentence.\n\n", count: 2_500)
+        let table = "| A | B |\n| :--- | ---: |\n" + String(repeating: "| é | `x\\|y` |\n", count: 5_000)
+        let mixed = prose + "````rust\nlet x = 42;\n```\n````\n\n" + table + "\n$$\na^2+b^2\n$$\n\n- one\n- two\n"
+        var markdownFragments = 0
+        for document in [mixed, table + prose, prose + "```html\n" + String(repeating: "<div>é</div>", count: 3_000)] {
+            var streamed = ""
+            var suffix = document[...]
+            while !suffix.isEmpty {
+                let length = [1, 2, 3, 61, 257][markdownFragments % 5]
+                let end = suffix.index(suffix.startIndex, offsetBy: length, limitedBy: suffix.endIndex) ?? suffix.endIndex
+                streamed += suffix[..<end]
+                suffix = suffix[end...]
+                precondition(markdownCache.chunks(streamed) == StreamingTextChunker.chunks(streamed),
+                             "Markdown append changed source/IDs/continuation at fragment \(markdownFragments)")
+                markdownFragments += 1
+            }
+            for fragment in ["e", "\u{301}", "👩", "\u{200D}", "💻", "\r", "\n"] {
+                streamed += fragment
+                precondition(markdownCache.chunks(streamed) == StreamingTextChunker.chunks(streamed))
+            }
+            for replacement in [String(streamed.prefix(8_000)), "x" + streamed.dropFirst(), streamed.precomposedStringWithCanonicalMapping, ""] {
+                precondition(markdownCache.chunks(replacement) == StreamingTextChunker.chunks(replacement), "Markdown replacement reused stale chunks")
+            }
+        }
+        print("Incremental Markdown checks passed: \(markdownFragments) fragments, table continuations and replacements")
+        // A restart must retain even a rejected table header, not reinterpret
+        // arbitrary pipes in later lines as a fresh table. Very wide headers
+        // must not be replayed as raw input and acquire extra flushes either.
+        for edge in [
+            "| not | a table |\n| no | separator |\n" + String(repeating: "| --- | value |\n", count: 3_500),
+            "| " + String(repeating: "x", count: 17_000) + " | B |\n| --- | --- |\n" + String(repeating: "| A | B |\n", count: 1_850)
+        ] {
+            _ = markdownCache.chunks(edge)
+            for suffix in ["|", "| extra | row |\n", "\nEnd."] {
+                let appended = edge + suffix
+                precondition(markdownCache.chunks(appended) == StreamingTextChunker.chunks(appended), "Table continuation state was lost")
+            }
+        }
+
         let source = String(repeating: "A sentence with words and punctuation.\n\n", count: 6_720)
         let frozen = MarkdownResponseView(source)
         precondition(frozen == MarkdownResponseView(source))
@@ -134,6 +174,27 @@ private struct EquatableStateProbe: View, Equatable {
         let gated = Date().timeIntervalSince(gatedStart)
         precondition(processed > 0)
         print(String(format: "Frozen 269 KB text, 100 updates: rechunk %.3f ms; equality gate %.3f ms", full * 1_000, gated * 1_000))
+
+        for bytes in [65_536, 262_144, 1_048_576] {
+            for tableMode in [false, true] {
+                let line = tableMode ? "| hello | world |\n" : "A sentence with words and punctuation.\n\n"
+                var current = (tableMode ? "| A | B |\n| --- | --- |\n" : "") + String(repeating: line, count: bytes / line.utf8.count)
+                let incremental = StreamingTextChunker.Cache()
+                _ = incremental.chunks(current)
+                var times = [0.0, 0.0]
+                for index in 0..<30 {
+                    current += line
+                    var results: [[StreamingTextChunk]] = [[], []]
+                    for mode in index.isMultiple(of: 2) ? [0, 1] : [1, 0] {
+                        let start = Date()
+                        results[mode] = mode == 0 ? StreamingTextChunker.chunks(current) : incremental.chunks(current)
+                        times[mode] += Date().timeIntervalSince(start)
+                    }
+                    precondition(results[0] == results[1])
+                }
+                print(String(format: "Active Markdown %d bytes, table=%d, ms/update: full %.3f; incremental %.3f", bytes, tableMode ? 1 : 0, times[0] * 1_000 / 30, times[1] * 1_000 / 30))
+            }
+        }
 
         for bytes in [65_536, 262_144, 1_048_576] {
             let code = String(repeating: "let value = 42 // comment\n", count: bytes / 26)

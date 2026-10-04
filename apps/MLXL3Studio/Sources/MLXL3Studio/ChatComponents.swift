@@ -107,9 +107,12 @@ private struct MessageView: View {
           HStack(alignment: .top) {
             Spacer(minLength: 64)
             VStack(alignment: .trailing, spacing: 9) {
-                Text(L("Vous", "You"))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(StudioTheme.quiet)
+                HStack(spacing: 9) {
+                    MessageCopyButton(message: message)
+                    Text(L("Vous", "You"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(StudioTheme.quiet)
+                }
                 ForEach(message.attachments) { attachment in
                     ChatAttachmentView(attachment: attachment)
                 }
@@ -146,6 +149,10 @@ private struct AssistantMessageView: View {
                         .foregroundStyle(StudioTheme.secondary)
                     if message.isStreaming {
                         StreamingIndicator()
+                    }
+                    Spacer(minLength: 8)
+                    if !message.content.isEmpty {
+                        MessageCopyButton(message: message)
                     }
                 }
 
@@ -335,6 +342,7 @@ private struct ThinkingBlock: View, Equatable {
     let text: String
     let streaming: Bool
     @State private var expanded = true
+    @State private var chunkCache = StreamingTextChunker.Cache()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.text == rhs.text && lhs.streaming == rhs.streaming
@@ -343,8 +351,8 @@ private struct ThinkingBlock: View, Equatable {
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             ScrollView {
-                let chunks = StreamingTextChunker.chunks(text)
-                VStack(alignment: .leading, spacing: 0) {
+                let chunks = chunkCache.chunks(text)
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(chunks) { chunk in
                         ThinkingTextChunk(
                             source: chunk.source,
