@@ -24,6 +24,29 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
+## v1.2.0
+
+Desktop now uses native **MTP** for Qwen3.5/3.6 checkpoints with a matching
+MLX affine 4-bit/group64 head. The Qwen3.6-35B-A3B head downloads on demand,
+from a pinned revision with full SHA-256 verification. Version 1 uses one
+proposal per verification block in greedy mode (temperature 0 / top-k 1,
+repetition penalty 1); other settings use ordinary decoding. Proposed tokens
+are delivered only after target verification. DFlash is retained as a CLI
+experiment and is disabled in Desktop on relaunch.
+
+The app and engine have independent GitHub release channels: `vX.Y.Z` for
+DMGs and `engine-vX.Y.Z` for `MLXL3-Engine-vX.Y.Z-arm64.tar.gz`. Engine updates
+are validated against manifest/protocol/OS/app versions, file hashes, Mach-O
+architecture and signatures, then activated through an atomic pointer outside
+the app bundle. A managed engine that fails before ready is disabled and the
+bundled engine is selected on the next load. Both channels can be updated in
+one installation action. Publish engine releases with `--latest=false` so
+older Desktop versions keep receiving app DMGs from GitHub's latest endpoint.
+
+M3 branding fills the icon canvas, and whole-message copy is below each
+message. See [release notes](docs/release-v1.2.0.md) and
+[verification and limitations](docs/desktop-v1.2.0-validation.md).
+
 ## Platform and model support
 
 The release build requires an **Apple Silicon Mac (M1–M5) running macOS 26.2 or
@@ -62,9 +85,9 @@ The DFlash2 number measures delivered output tokens from a complete draft →
 select → exact target verify → accept → state commit loop. The optimized commit
 costs about **1 ms**, down from 127–132 ms for restore-and-recompute. The target
 sequence and all **80 recurrent/KV state arrays** were compared with ordinary
-greedy execution for retained widths 1 through 8. Since v1.1.0, Desktop can
-also use this experimental path for Qwen3.6-35B-A3B. It is opt-in, greedy-only
-and requires the separate draft weights; the benchmark rate is not a guarantee
+greedy execution for retained widths 1 through 8. Desktop v1.1.0–v1.1.3 exposed
+this path for Qwen3.6-35B-A3B; v1.2.0 replaces it with MTP. The historical
+DFlash CLI experiment requires separate draft weights; the benchmark rate is not a guarantee
 of in-app speed or of performance on another Mac.
 
 Peak MLX allocation is not the model file size, process RSS or total macOS
@@ -86,21 +109,19 @@ an older document disagree.
    folder. Select the desired branch, tag or quantization before downloading.
 5. Load the model and start a conversation.
 
-### Optional DFlash2 for Qwen3.6-35B-A3B
+### Optional native MTP for Qwen3.5/3.6
 
-In **Generation → DFlash2**, turn on the switch. MLXL3 downloads and verifies
-only the seven `draft/` files (~457 MiB) from Inco AI's
-[Qwen3.6-35B-A3B Splash package](https://huggingface.co/incoai/Qwen3.6-35B-A3B-Splash),
-then selects the draft and applies greedy sampling automatically. A cancelled
-download can be resumed by turning the switch on again. The DMG does not
-include target or draft weights. You can still choose an existing draft folder
-manually. DFlash2 verifies proposals
-with the EXL3 target model before emitting them; it is not available for
-temperature sampling or a repetition penalty other than 1. Turn off the toggle
-to use the regular decoder. This integration is experimental and has only been
-validated with the Qwen3.6-35B-A3B EXL3 target on M5.
-The first DFlash2 request may be slower while Metal compiles its kernels;
-subsequent requests reuse the compiled shaders.
+In **Generation → MTP**, enable the switch. For Qwen3.6-35B-A3B, MLXL3
+downloads and verifies the matching affine 4-bit head (~453 MiB). Downloads
+resume after cancellation. Other Qwen3.5-family models require a matching
+MLX 4-bit/group64 head selected through the folder button; mismatched layouts
+are rejected. The DMG contains neither target nor MTP weights.
+
+MTP applies greedy settings and checks every proposal against the target.
+The first request can take longer while Metal compiles kernels. A prefix
+checkpoint retains both target state and MTP KV when the conversation's
+encoded prefix and chunk boundary match. DFlash remains available to CLI
+experiments; its former Desktop toggle has been replaced.
 
 No Python, Homebrew, Hugging Face CLI or separate MLX installation is required
 for the DMG. Managed weights are stored under:
@@ -303,6 +324,23 @@ cargo build --release --locked --features mlx,chat
 
 Python supplies the optional development/conversion environment only. The
 compiled CLI and distributed Desktop app do not start or embed Python.
+
+### OpenAI-compatible API
+
+Build with `--features mlx,chat`, then serve a registered EXL3 model on
+loopback. The process keeps one model resident and exposes text-only Chat
+Completions (including SSE streaming), model listing and a health endpoint:
+
+```bash
+./target/release/mlxl3-rs serve my-model --port 8000 --api-key local-secret
+curl http://127.0.0.1:8000/v1/chat/completions \
+  -H 'Authorization: Bearer local-secret' -H 'Content-Type: application/json' \
+  -d '{"model":"my-model","messages":[{"role":"user","content":"Hello"}],"stream":true}'
+```
+
+The server binds to `127.0.0.1` by default. A non-loopback host requires
+`--api-key`. OpenAI tool calls, image/audio inputs, stop sequences and output
+constraints are rejected because the native bridge does not support them.
 
 ### Desktop and DMG
 

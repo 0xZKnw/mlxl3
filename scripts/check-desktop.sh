@@ -33,6 +33,12 @@ swiftc "${swiftc_args[@]}" \
     tests/studio-hardening-check.swift -o "${test_dir}/check"
 "${test_dir}/check" "$PWD/tests/fake-desktop-engine.py"
 
+"${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
+swiftc "${swiftc_args[@]}" \
+    "${sources[@]}" "${math_objects[@]}" \
+    tests/updater-check.swift -o "${test_dir}/updater-check"
+"${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"}
+
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/file-import-check.swift -o "${test_dir}/file-import-check"

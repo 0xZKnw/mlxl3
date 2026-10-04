@@ -26,13 +26,30 @@ struct LocalModel: Codable, Hashable, Identifiable {
     }
 }
 
+struct EngineMemoryStats: Codable, Hashable, Sendable {
+    let mlxActiveBytes: UInt64
+    let mlxCacheBytes: UInt64
+    let mlxPeakBytes: UInt64
+    let processFootprintBytes: UInt64?
+    let processLifetimePeakBytes: UInt64?
+
+    enum CodingKeys: String, CodingKey {
+        case mlxActiveBytes = "mlx_active_bytes"
+        case mlxCacheBytes = "mlx_cache_bytes"
+        case mlxPeakBytes = "mlx_peak_bytes"
+        case processFootprintBytes = "process_footprint_bytes"
+        case processLifetimePeakBytes = "process_lifetime_peak_bytes"
+    }
+}
+
 struct GenerationStats: Codable, Hashable, Sendable {
     let ttftSeconds: Double
     let prefillTps: Double
     let decodeTps: Double
     let promptTokens: Int
     let generatedTokens: Int
-    let peakMemoryGB: Double
+    let peakMemoryGB: Double? // Legacy history used this key for checkpoint size, not process peak.
+    let modelSizeGB: Double?
     let cachedPromptTokens: Int?
     let evaluatedPromptTokens: Int?
     var contextUsed: Int? = nil
@@ -40,6 +57,14 @@ struct GenerationStats: Codable, Hashable, Sendable {
     var elapsedSeconds: Double? = nil
     var endToEndTTFTSeconds: Double? = nil
     var toolRounds: Int? = nil
+    var dflashProposedTokens: Int? = nil
+    var dflashAcceptedTokens: Int? = nil
+    var dflashBlocks: Int? = nil
+    var mtpProposedTokens: Int? = nil
+    var mtpAcceptedTokens: Int? = nil
+    var mtpBlocks: Int? = nil
+    var dflashBlockSeconds: Double? = nil
+    var memory: EngineMemoryStats? = nil
 
     var cacheHitPercent: Double {
         let cached = cachedPromptTokens ?? 0
@@ -55,6 +80,7 @@ struct GenerationStats: Codable, Hashable, Sendable {
         case promptTokens = "prompt_tokens"
         case generatedTokens = "generated_tokens"
         case peakMemoryGB = "peak_memory_gb"
+        case modelSizeGB = "model_size_gb"
         case cachedPromptTokens = "cached_prompt_tokens"
         case evaluatedPromptTokens = "evaluated_prompt_tokens"
         case contextUsed = "context_used"
@@ -62,6 +88,14 @@ struct GenerationStats: Codable, Hashable, Sendable {
         case elapsedSeconds = "elapsed_seconds"
         case endToEndTTFTSeconds = "end_to_end_ttft_seconds"
         case toolRounds = "tool_rounds"
+        case dflashProposedTokens = "dflash_proposed_tokens"
+        case dflashAcceptedTokens = "dflash_accepted_tokens"
+        case dflashBlocks = "dflash_blocks"
+        case mtpProposedTokens = "mtp_proposed_tokens"
+        case mtpAcceptedTokens = "mtp_accepted_tokens"
+        case mtpBlocks = "mtp_blocks"
+        case dflashBlockSeconds = "dflash_block_seconds"
+        case memory
     }
 }
 
@@ -91,6 +125,20 @@ struct BridgeEvent: Decodable {
     var contextFull: Bool? = nil
     var contextMemory: ContextMemoryProfile? = nil
     var turnContext: String? = nil
+    var runtimeCommit: String? = nil
+    var runtimeProfile: String? = nil
+    var mlxVersion: String? = nil
+    var runtimeExecutable: String? = nil
+    var dflashRequested: Bool? = nil
+    var dflashActive: Bool? = nil
+    var dflashProposals: Int? = nil
+    var dflashDraftPath: String? = nil
+    var dflashSupported: Bool? = nil
+    var mtpSupported: Bool? = nil
+    var mtpAutoDownloadSupported: Bool? = nil
+    var mtpActive: Bool? = nil
+    var mtpReason: String? = nil
+    var bridgeProtocol: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, model, modules, phase, text, stats, message
@@ -112,6 +160,20 @@ struct BridgeEvent: Decodable {
         case contextFull = "context_full"
         case contextMemory = "context_memory"
         case turnContext = "turn_context"
+        case runtimeCommit = "runtime_commit"
+        case runtimeProfile = "runtime_profile"
+        case mlxVersion = "mlx_version"
+        case runtimeExecutable = "runtime_executable"
+        case dflashRequested = "dflash_requested"
+        case dflashActive = "dflash_active"
+        case dflashProposals = "dflash_proposals"
+        case dflashDraftPath = "dflash_draft_path"
+        case dflashSupported = "dflash_supported"
+        case mtpSupported = "mtp_supported"
+        case mtpAutoDownloadSupported = "mtp_auto_download_supported"
+        case mtpActive = "mtp_active"
+        case mtpReason = "mtp_reason"
+        case bridgeProtocol = "bridge_protocol"
     }
 }
 
@@ -198,6 +260,8 @@ struct GenerationRequest: Encodable {
     var mcpEnabled: Bool = false
     var dflash2: Bool = false
     var dflashDraftPath: String = ""
+    var mtp: Bool = false
+    var mtpHeadPath: String = ""
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -209,6 +273,8 @@ struct GenerationRequest: Encodable {
         case mcpEnabled = "mcp_enabled"
         case dflash2
         case dflashDraftPath = "dflash_draft_path"
+        case mtp
+        case mtpHeadPath = "mtp_head_path"
     }
 }
 

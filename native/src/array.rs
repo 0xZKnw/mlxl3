@@ -60,8 +60,17 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    fn mlxl3_array_affine4(
+        x: *mut c_void,
+        w: *mut c_void,
+        scales: *mut c_void,
+        biases: *mut c_void,
+        indices: *mut c_void,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_mlx_error() -> *const c_char;
     fn mlxl3_mlx_init(metallib: *const c_char) -> i32;
+    fn mlxl3_memory_stats(out: *mut u64, reset_peak: bool) -> i32;
     fn mlxl3_array_free(p: *mut c_void);
     fn mlxl3_array_clone(p: *mut c_void, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_metadata(
@@ -201,8 +210,34 @@ fn bytes_for(shape: &[i32], dtype: Dtype) -> Result<usize> {
     contracts::array_bytes(shape, dtype.item_size())
         .context("negative tensor dimension or tensor byte size overflow")
 }
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+pub struct MemoryStats {
+    pub mlx_active_bytes: u64,
+    pub mlx_cache_bytes: u64,
+    pub mlx_peak_bytes: u64,
+    pub process_footprint_bytes: Option<u64>,
+    pub process_lifetime_peak_bytes: Option<u64>,
+}
+
+pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
+    initialize()?;
+    let mut values = [0u64; 5];
+    checked(unsafe { mlxl3_memory_stats(values.as_mut_ptr(), reset_peak) })?;
+    Ok(MemoryStats {
+        mlx_active_bytes: values[0],
+        mlx_cache_bytes: values[1],
+        mlx_peak_bytes: values[2],
+        process_footprint_bytes: (values[3] != 0).then_some(values[3]),
+        process_lifetime_peak_bytes: (values[4] != 0).then_some(values[4]),
+    })
+}
 pub fn is_m5_gpu() -> Result<bool> {
     initialize()?;
+    // Allow testing the portable path, never force TensorOps on an older GPU.
+    if std::env::var_os("MLXL3_DISABLE_TENSOR_OPS").is_some() {
+        return Ok(false);
+    }
     static IS_M5: OnceLock<bool> = OnceLock::new();
     if let Some(&is_m5) = IS_M5.get() {
         return Ok(is_m5);
@@ -405,6 +440,9 @@ impl Array {
     pub fn dtype(&self) -> Dtype {
         self.dtype
     }
+    pub fn byte_len(&self) -> Result<usize> {
+        bytes_for(&self.shape, self.dtype)
+    }
     pub fn eval(&self) -> Result<()> {
         checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
     }
@@ -527,6 +565,11 @@ impl Array {
     pub fn log_probs(&self) -> Result<Self> {
         self.unary(9, &[], 0., 0)
     }
+    /// The chat bridge's greedy contract: normalize before argmax so BF16/FP16
+    /// rounding and tie-breaking match ordinary generation and DFlash verify.
+    pub fn chat_greedy_ids(&self) -> Result<Vec<u32>> {
+        self.log_probs()?.argmax()?.to_u32()
+    }
     pub fn softmax_precise(&self) -> Result<Self> {
         self.unary(10, &[], 0., 0)
     }
@@ -574,6 +617,25 @@ impl Array {
     }
     pub fn matmul(&self, other: &Self) -> Result<Self> {
         self.binary(other, 2, 0, 0.)
+    }
+
+    pub(crate) fn affine4(
+        &self,
+        weight: &Self,
+        scales: &Self,
+        biases: &Self,
+        indices: Option<&Self>,
+    ) -> Result<Self> {
+        Self::output(|out| unsafe {
+            mlxl3_array_affine4(
+                self.handle.as_ptr(),
+                weight.handle.as_ptr(),
+                scales.handle.as_ptr(),
+                biases.handle.as_ptr(),
+                indices.map_or(std::ptr::null_mut(), |a| a.handle.as_ptr()),
+                out,
+            )
+        })
     }
     pub fn take(&self, indices: &Self, axis: i32) -> Result<Self> {
         self.binary(indices, 3, axis, 0.)
@@ -749,6 +811,15 @@ mod tests {
         assert!((geglu[1] - 2.5236).abs() < 0.001);
         assert!((gate.scalar_mul(2.)?.tanh()?.to_f32()?[1] - 0.964).abs() < 0.001);
         assert_eq!(a.argmax()?.to_u32()?, vec![1, 1]);
+        assert_eq!(a.chat_greedy_ids()?, vec![1, 1]);
+        let tied = Array::from_f32(&[4., 4., -1., -2., 1., 1.], &[2, 3])?;
+        for dtype in [Dtype::Float16, Dtype::BFloat16, Dtype::Float32] {
+            assert_eq!(tied.astype(dtype)?.chat_greedy_ids()?, vec![0, 1]);
+        }
+        let memory = memory_stats(true)?;
+        assert!(memory.mlx_peak_bytes >= memory.mlx_active_bytes);
+        assert!(memory.process_footprint_bytes.unwrap_or(0) > 0);
+        assert!(memory.process_lifetime_peak_bytes >= memory.process_footprint_bytes);
         assert_eq!(
             Array::from_u32(&[2, 0, 1], &[3])?.argsort()?.to_u32()?,
             vec![1, 2, 0]

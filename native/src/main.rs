@@ -19,6 +19,9 @@ use std::{
     },
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+mod openai;
 use std::{
     io::{self, BufRead, Read, Write},
     path::PathBuf,
@@ -35,6 +38,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Machine-readable engine identity; no model or registry mutation.
+    RuntimeInfo,
     #[command(alias = "ls")]
     List {
         #[arg(long)]
@@ -77,6 +82,18 @@ enum Command {
         #[arg(long, default_value_t = 0)]
         context_length: i32,
     },
+    /// Serve an EXL3 model through an OpenAI-compatible HTTP API.
+    Serve {
+        model: String,
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        #[arg(long, default_value_t = 8000)]
+        port: u16,
+        #[arg(long, default_value = "")]
+        api_key: String,
+        #[arg(long, default_value_t = 0)]
+        context_length: i32,
+    },
     /// Browse EXL3 repositories on Hugging Face.
     Hub {
         #[arg(value_enum)]
@@ -91,6 +108,11 @@ enum Command {
     },
     /// Install or validate the pinned Qwen DFlash2 draft (no target weights).
     DflashDraft {
+        #[arg(long)]
+        inspect: Option<PathBuf>,
+    },
+    /// Install or inspect a native Qwen MTP head without downloading the target.
+    MtpHead {
         #[arg(long)]
         inspect: Option<PathBuf>,
     },
@@ -883,6 +905,20 @@ fn main() -> std::process::ExitCode {
 
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
+        Command::RuntimeInfo => {
+            println!(
+                "{}",
+                json!({
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "bridge_protocol": 1,
+                    "architecture": std::env::consts::ARCH,
+                    "mlx_enabled": cfg!(feature = "mlx"),
+                    "chat_enabled": cfg!(feature = "chat"),
+                    "commit": env!("MLXL3_BUILD_REVISION"),
+                    "profile": env!("MLXL3_BUILD_PROFILE")
+                })
+            );
+        }
         Command::List { json: as_json } => {
             let path = cli
                 .registry
@@ -1066,6 +1102,33 @@ fn run(cli: Cli) -> Result<()> {
                 bail!("the Desktop bridge requires a build with --features mlx,chat");
             }
         }
+        Command::Serve {
+            model,
+            host,
+            port,
+            api_key,
+            context_length,
+        } => {
+            #[cfg(all(feature = "mlx", feature = "chat"))]
+            {
+                let runtime = tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()?;
+                runtime.block_on(openai::serve(
+                    cli.registry.as_deref(),
+                    &model,
+                    &host,
+                    port,
+                    &api_key,
+                    context_length,
+                ))?;
+            }
+            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            {
+                let _ = (model, host, port, api_key, context_length);
+                bail!("the OpenAI API requires a build with --features mlx,chat");
+            }
+        }
         Command::Hub {
             action,
             query,
@@ -1144,6 +1207,20 @@ fn run(cli: Cli) -> Result<()> {
                 mlxl3_native::dflash::inspect(path)?.directory
             } else {
                 mlxl3_native::hub::download_dflash(|completed, total| {
+                    println!(
+                        "{}",
+                        json!({"type":"progress", "completed":completed, "total":total})
+                    );
+                    let _ = io::stdout().flush();
+                })?
+            };
+            println!("{}", json!({"type":"installed", "path":path}));
+        }
+        Command::MtpHead { inspect } => {
+            let path = if let Some(path) = inspect {
+                mlxl3_native::mtp::inspect(&path)?.0.path
+            } else {
+                mlxl3_native::hub::download_mtp(|completed, total| {
                     println!(
                         "{}",
                         json!({"type":"progress", "completed":completed, "total":total})
@@ -1322,6 +1399,11 @@ impl NativeChatModel {
     }
 
     fn forward_many_serial(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
+        match self {
+            Self::Qwen(model) => return model.prefill_serial(tokens),
+            Self::Ling(model) => return model.prefill_serial(tokens),
+            _ => {}
+        }
         let mut output = None;
         for &token in tokens {
             output = Some(self.forward(token)?);
@@ -1387,6 +1469,10 @@ struct BridgeRequest {
     #[serde(default)]
     request_id: String,
     #[serde(default)]
+    conversation_id: String,
+    #[serde(default = "reuse_cache_by_default")]
+    reuse_prompt_cache: bool,
+    #[serde(default)]
     messages: Vec<Value>,
     #[serde(default = "unlimited_tokens")]
     max_tokens: i64,
@@ -1404,12 +1490,259 @@ struct BridgeRequest {
     dflash2: bool,
     #[serde(default)]
     dflash_draft_path: String,
+    #[serde(default)]
+    mtp: bool,
+    #[serde(default)]
+    mtp_head_path: String,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 struct DFlashChat {
     cache: mlxl3_native::dflash::DFlashCache,
     pending: VecDeque<u32>,
+    recent: VecDeque<(usize, usize)>,
+    proposed: usize,
+    accepted: usize,
+    blocks: usize,
+    block_seconds: f64,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn reuse_cache_by_default() -> bool {
+    true
+}
+
+/// One prefill checkpoint, never speculative/pending decode state. The resident
+/// bridge owns one immutable model/tokenizer/context configuration. Draft reload
+/// clears this cache; exact rendered IDs cover changes to system/tools/templates.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct PromptCache {
+    conversation: String,
+    tokens: Vec<u32>,
+    state: mlxl3_native::qwen35::QwenSnapshot,
+    logits: mlxl3_native::array::Array,
+    draft: Option<mlxl3_native::dflash::DFlashCache>,
+    mtp: Option<mlxl3_native::mtp::Cache>,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl PromptCache {
+    fn capture(
+        conversation: &str,
+        tokens: &[u32],
+        model: &NativeChatModel,
+        logits: &mlxl3_native::array::Array,
+        dflash: Option<&DFlashChat>,
+    ) -> Result<Option<Self>> {
+        let NativeChatModel::Qwen(target) = model else {
+            return Ok(None);
+        };
+        anyhow::ensure!(
+            usize::try_from(target.offset()).ok() == Some(tokens.len()),
+            "prefix cache position differs from its token history"
+        );
+        let state = target.snapshot()?;
+        // ponytail: one checkpoint, capped at 256 MiB logical target state;
+        // add a multi-session budget only after its extra retained RAM is measured.
+        if state.byte_len()? > 256 * 1024 * 1024 {
+            return Ok(None);
+        }
+        Ok(Some(Self {
+            conversation: conversation.to_owned(),
+            tokens: tokens.to_vec(),
+            state,
+            logits: logits.try_clone()?,
+            draft: dflash
+                .map(|session| session.cache.try_clone())
+                .transpose()?,
+            mtp: None,
+        }))
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn prefill_round(
+    model: &mut NativeChatModel,
+    tokens: &[u32],
+    draft: Option<&mlxl3_native::dflash::DFlashWeights>,
+    cache: &mut Option<PromptCache>,
+    conversation: &str,
+    reuse: bool,
+    cancelled: &AtomicBool,
+) -> Result<(mlxl3_native::array::Array, Option<DFlashChat>, usize)> {
+    if cancelled.load(Ordering::Relaxed) {
+        model.reset();
+        bail!("generation cancelled");
+    }
+    let chunk_size = if draft.is_some() {
+        mlxl3_native::dflash::PREFILL_CHUNK
+    } else {
+        model.prefill_chunk_size()
+    };
+    // Preserve cold-prefill chunk boundaries: changing shapes can change floating
+    // point rounding even when the mathematical prefix is the same.
+    let checkpoint_offset = tokens.len() / chunk_size * chunk_size;
+    let previous = cache.take().filter(|saved| {
+        reuse
+            && saved.conversation == conversation
+            && saved.mtp.is_none()
+            && saved.draft.is_some() == draft.is_some()
+            && mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, chunk_size) > 0
+    });
+    model.reset();
+    let mut cached = 0;
+    let mut logits = None;
+    let mut dflash = draft.map(|_| DFlashChat::new());
+    if let Some(saved) = previous {
+        let NativeChatModel::Qwen(target) = &mut *model else {
+            bail!("invalid prefix cache model")
+        };
+        target.restore(saved.state)?;
+        cached = saved.tokens.len();
+        logits = Some(saved.logits);
+        if let Some(session) = &mut dflash {
+            session.cache = saved.draft.context("missing draft prefix state")?;
+        }
+        if checkpoint_offset == cached {
+            *cache = PromptCache::capture(
+                conversation,
+                &tokens[..cached],
+                model,
+                logits.as_ref().unwrap(),
+                dflash.as_ref(),
+            )?;
+        }
+    }
+    for (index, chunk) in tokens[cached..].chunks(chunk_size).enumerate() {
+        if cancelled.load(Ordering::Relaxed) {
+            model.reset();
+            bail!("generation cancelled");
+        }
+        logits = Some(
+            if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+                let NativeChatModel::Qwen(target) = &mut *model else {
+                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
+                };
+                if usize::try_from(target.offset())?
+                    < mlxl3_native::dflash::prefill_capture_start(tokens.len())
+                {
+                    // The target still reads every token. Only features that
+                    // would be discarded before the first draft are skipped.
+                    target.forward_tokens(chunk)?
+                } else {
+                    session.prefill(target, weights, chunk)?
+                }
+            } else {
+                model.forward_many(chunk)?
+            },
+        );
+        model.eval_state()?;
+        let position = cached + index * chunk_size + chunk.len();
+        if reuse && position == checkpoint_offset {
+            *cache = PromptCache::capture(
+                conversation,
+                &tokens[..position],
+                model,
+                logits.as_ref().unwrap(),
+                dflash.as_ref(),
+            )?;
+        }
+    }
+    let logits = logits.context("no prefill output")?;
+    logits.eval()?;
+    Ok((logits, dflash, cached))
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn prefill_mtp(
+    model: &mut NativeChatModel,
+    head: &mut mlxl3_native::mtp::Head,
+    tokens: &[u32],
+    cache: &mut Option<PromptCache>,
+    conversation: &str,
+    reuse: bool,
+    cancelled: &AtomicBool,
+) -> Result<(mlxl3_native::array::Array, Option<DFlashChat>, usize)> {
+    const CHUNK: usize = 256;
+    let checkpoint = tokens.len() / CHUNK * CHUNK;
+    let previous = cache.take().filter(|saved| {
+        reuse
+            && saved.conversation == conversation
+            && saved.mtp.is_some()
+            && mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, CHUNK) > 0
+    });
+    model.reset();
+    head.reset()?;
+    let mut cached = 0;
+    let mut logits = None;
+    if let Some(saved) = previous {
+        let NativeChatModel::Qwen(target) = &mut *model else {
+            bail!("MTP requires Qwen");
+        };
+        target.restore(saved.state)?;
+        head.restore(saved.mtp.context("missing MTP prefix state")?)?;
+        cached = saved.tokens.len();
+        logits = Some(saved.logits);
+    }
+    if reuse && cached > 0 && checkpoint == cached {
+        let mut saved = PromptCache::capture(
+            conversation,
+            &tokens[..cached],
+            model,
+            logits.as_ref().unwrap(),
+            None,
+        )?;
+        if let Some(saved) = &mut saved {
+            saved.mtp = Some(head.snapshot()?);
+        }
+        *cache = saved;
+    }
+    // At every checkpoint the last trunk hidden is deliberately unpaired.
+    // The next prompt token is supplied only after prefix eligibility is known.
+    for start in (cached..tokens.len()).step_by(CHUNK) {
+        if cancelled.load(Ordering::Relaxed) {
+            model.reset();
+            head.reset()?;
+            bail!("generation cancelled");
+        }
+        let NativeChatModel::Qwen(target) = &mut *model else {
+            bail!("MTP requires Qwen");
+        };
+        if start > 0 {
+            let last = target.mtp_hidden()?.try_clone()?;
+            head.hidden(target, &last, &tokens[start..start + 1])?
+                .eval()?;
+        }
+        let end = start.saturating_add(CHUNK).min(tokens.len());
+        let (output, raw) = target.forward_mtp(&tokens[start..end])?;
+        let paired = end - start - 1;
+        if paired > 0 {
+            head.hidden(
+                target,
+                &raw.slice(1, 0, paired as i32)?,
+                &tokens[start + 1..end],
+            )?
+            .eval()?;
+        }
+        model.eval_state()?;
+        logits = Some(output);
+        if reuse && end == checkpoint {
+            let mut saved = PromptCache::capture(
+                conversation,
+                &tokens[..end],
+                model,
+                logits.as_ref().unwrap(),
+                None,
+            )?;
+            if let Some(saved) = &mut saved {
+                saved.mtp = Some(head.snapshot()?);
+            }
+            *cache = saved;
+        }
+    }
+    let logits = logits.context("empty MTP prefill")?;
+    logits.eval()?;
+    Ok((logits, None, cached))
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1418,7 +1751,28 @@ impl DFlashChat {
         Self {
             cache: Default::default(),
             pending: VecDeque::new(),
+            recent: VecDeque::new(),
+            proposed: 0,
+            accepted: 0,
+            blocks: 0,
+            block_seconds: 0.,
         }
+    }
+
+    fn proposals_count(&self, context_remaining: usize, output_remaining: usize) -> Option<usize> {
+        let (accepted, proposed) = self
+            .recent
+            .iter()
+            .fold((0, 0), |(accepted, proposed), &(a, p)| {
+                (accepted + a, proposed + p)
+            });
+        mlxl3_native::speculative::adaptive_proposals(
+            context_remaining,
+            output_remaining,
+            self.recent.len(),
+            accepted,
+            proposed,
+        )
     }
 
     fn prefill(
@@ -1428,7 +1782,11 @@ impl DFlashChat {
         tokens: &[u32],
     ) -> Result<mlxl3_native::array::Array> {
         let position = target.offset();
-        let (logits, captured) = target.forward_tokens_with_dflash_capture(tokens)?;
+        let (logits, captured) = if tokens.len() < 24 {
+            target.prefill_serial_with_dflash_capture(tokens)?
+        } else {
+            target.forward_tokens_with_dflash_capture(tokens)?
+        };
         self.cache.append_captured(draft, &captured, position)?;
         self.cache.eval()?;
         Ok(logits)
@@ -1440,23 +1798,26 @@ impl DFlashChat {
         draft: &mlxl3_native::dflash::DFlashWeights,
         anchor: u32,
         context_limit: usize,
+        output_remaining: usize,
     ) -> Result<u32> {
+        anyhow::ensure!(output_remaining > 0, "DFlash reached the output limit");
         if let Some(token) = self.pending.pop_front() {
             return Ok(token);
         }
         let remaining = context_limit.saturating_sub(usize::try_from(target.offset())?);
-        if remaining == 1 {
+        let proposals_count = self
+            .proposals_count(remaining, output_remaining)
+            .context("DFlash reached the context limit")?;
+        if proposals_count == 0 {
+            // This is the last deliverable token. No later draft needs captures.
             return target
                 .forward(anchor)?
-                .log_probs()?
-                .argmax()?
-                .to_u32()?
+                .chat_greedy_ids()?
                 .into_iter()
                 .next()
                 .context("model returned no logits");
         }
-        anyhow::ensure!(remaining >= 2, "DFlash reached the context limit");
-        let proposals_count = (remaining - 1).min(5);
+        let block_started = Instant::now();
         let input = target.dflash_input(anchor, 248_077)?;
         let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
         let draft_logits = target.dflash_logits(&output.hidden, proposals_count)?;
@@ -1466,12 +1827,17 @@ impl DFlashChat {
             .collect::<Vec<_>>();
         let position = target.offset();
         let (target_logits, captured) = target.verify_tokens_exact_with_dflash_capture(&verify)?;
-        // Match the ordinary chat sampler, including its normalization before
-        // greedy argmax. Raw FP16 logits can select differently on ties.
-        let target_tokens = target_logits.log_probs()?.argmax()?.to_u32()?;
+        let target_tokens = target_logits.chat_greedy_ids()?;
         let acceptance = mlxl3_native::speculative::greedy_accept(&proposals, &target_tokens)
             .context("invalid DFlash target verification")?;
         let accepted = acceptance.accepted_draft_tokens;
+        self.proposed += proposals.len();
+        self.accepted += accepted;
+        self.blocks += 1;
+        self.recent.push_back((accepted, proposals.len()));
+        if self.recent.len() > 8 {
+            self.recent.pop_front();
+        }
         let retained = accepted + 1;
         target.commit_dflash_verification(retained, verify.len())?;
         self.cache.append_captured(
@@ -1481,6 +1847,9 @@ impl DFlashChat {
         )?;
         self.pending.extend(proposals[..accepted].iter().copied());
         self.pending.push_back(acceptance.target_token);
+        // Wall time through materialized token selection, without extra GPU
+        // barriers. Deferred cache/commit work may be paid by the next block.
+        self.block_seconds += block_started.elapsed().as_secs_f64();
         self.pending
             .pop_front()
             .context("DFlash produced no target token")
@@ -1498,19 +1867,75 @@ fn unit_penalty() -> f32 {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 struct NativeStats {
     ttft_seconds: f64,
     prefill_tps: f64,
     decode_tps: f64,
     prompt_tokens: usize,
     generated_tokens: usize,
-    peak_memory_gb: f64,
+    model_size_gb: f64,
     cached_prompt_tokens: usize,
     evaluated_prompt_tokens: usize,
     context_used: usize,
     context_limit: usize,
     elapsed_seconds: f64,
+    prepare_seconds: f64,
+    prefill_seconds: f64,
+    decode_seconds: f64,
+    decode_tokens: usize,
+    end_to_end_ttft_seconds: Option<f64>,
+    tool_seconds: f64,
+    draft_load_seconds: f64,
+    tool_rounds: usize,
+    round_count: usize,
+    memory: Option<mlxl3_native::array::MemoryStats>,
+    dflash_proposed_tokens: Option<usize>,
+    dflash_accepted_tokens: Option<usize>,
+    dflash_blocks: Option<usize>,
+    dflash_block_seconds: f64,
+    mtp_proposed_tokens: Option<usize>,
+    mtp_accepted_tokens: Option<usize>,
+    mtp_blocks: Option<usize>,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl NativeStats {
+    fn accumulate(&mut self, round: &Self) {
+        self.prompt_tokens += round.prompt_tokens;
+        self.generated_tokens += round.generated_tokens;
+        self.cached_prompt_tokens += round.cached_prompt_tokens;
+        self.evaluated_prompt_tokens += round.evaluated_prompt_tokens;
+        self.prepare_seconds += round.prepare_seconds;
+        self.prefill_seconds += round.prefill_seconds;
+        self.decode_seconds += round.decode_seconds;
+        self.decode_tokens += round.decode_tokens;
+        self.prefill_tps = self.evaluated_prompt_tokens as f64 / self.prefill_seconds.max(1e-9);
+        self.decode_tps = self.decode_tokens as f64 / self.decode_seconds.max(1e-9);
+        self.context_used = round.context_used;
+        self.context_limit = round.context_limit;
+        self.round_count += round.round_count;
+        self.dflash_block_seconds += round.dflash_block_seconds;
+        self.memory = round.memory;
+        for (sum, value) in [
+            (
+                &mut self.dflash_proposed_tokens,
+                round.dflash_proposed_tokens,
+            ),
+            (
+                &mut self.dflash_accepted_tokens,
+                round.dflash_accepted_tokens,
+            ),
+            (&mut self.dflash_blocks, round.dflash_blocks),
+            (&mut self.mtp_proposed_tokens, round.mtp_proposed_tokens),
+            (&mut self.mtp_accepted_tokens, round.mtp_accepted_tokens),
+            (&mut self.mtp_blocks, round.mtp_blocks),
+        ] {
+            if let Some(value) = value {
+                *sum = Some(sum.unwrap_or(0) + value);
+            }
+        }
+    }
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1518,6 +1943,18 @@ struct RoundOutput {
     raw: String,
     stats: NativeStats,
     first_text_seconds: Option<f64>,
+    token_hash: String,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn token_hash(tokens: &[u32]) -> String {
+    let mut hash = 0xcbf29ce484222325u64;
+    for token in tokens {
+        for byte in token.to_le_bytes() {
+            hash = (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3);
+        }
+    }
+    format!("{hash:016x}")
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1546,16 +1983,14 @@ fn select_token(
         repetition_penalty.is_finite() && repetition_penalty > 0.,
         "repetition_penalty must be positive"
     );
-    let log_probs = logits.log_probs()?;
     if (temperature == 0. || top_k == 1) && repetition_penalty == 1. {
-        return log_probs
-            .argmax()?
-            .to_u32()?
+        return logits
+            .chat_greedy_ids()?
             .into_iter()
             .next()
             .context("model returned no logits");
     }
-    let mut values = log_probs.to_f32()?;
+    let mut values = logits.log_probs()?.to_f32()?;
     if repetition_penalty != 1. {
         for &token in generated.iter().rev().take(20) {
             if let Some(value) = values.get_mut(token as usize) {
@@ -1635,8 +2070,13 @@ fn bridge_generate_round(
     cancelled: &AtomicBool,
     random: &mut u64,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
+    mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    cache: &mut Option<PromptCache>,
+    conversation: &str,
+    reuse: bool,
 ) -> Result<RoundOutput> {
-    use mlxl3_native::{array::Array, streaming::Channel, tool_call::StreamFilter};
+    use mlxl3_native::{streaming::Channel, tool_call::StreamFilter};
+    let started = Instant::now();
     anyhow::ensure!(!messages.is_empty(), "messages cannot be empty");
     anyhow::ensure!(
         max_tokens == -1 || max_tokens > 0,
@@ -1653,35 +2093,15 @@ fn bridge_generate_round(
         "type":"context_usage", "request_id":request_id,
         "used_tokens":tokens.len(), "context_limit":context_limit
     }))?;
-    model.reset();
-    let started = Instant::now();
-    let mut logits: Option<Array> = None;
-    let mut dflash = draft.map(|_| DFlashChat::new());
-    let chunk_size = if dflash.is_some() {
-        128
+    let prepare_seconds = started.elapsed().as_secs_f64();
+    let prefill_started = Instant::now();
+    let (mut logits, mut dflash, cached) = if let Some(head) = mtp.as_deref_mut() {
+        prefill_mtp(model, head, &tokens, cache, conversation, reuse, cancelled)?
     } else {
-        model.prefill_chunk_size()
+        prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
     };
-    for chunk in tokens.chunks(chunk_size) {
-        if cancelled.load(Ordering::Relaxed) {
-            model.reset();
-            bail!("generation cancelled");
-        }
-        logits = Some(
-            if let Some((session, weights)) = dflash.as_mut().zip(draft) {
-                let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
-                };
-                session.prefill(target, weights, chunk)?
-            } else {
-                model.forward_many(chunk)?
-            },
-        );
-        model.eval_state()?;
-    }
-    let mut logits = logits.context("no prefill output")?;
-    logits.eval()?;
-    let prefill_seconds = started.elapsed().as_secs_f64();
+    let mut mtp_session = mtp.as_ref().map(|_| mlxl3_native::mtp::Session::default());
+    let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     let available = context_limit - tokens.len();
     let budget = if max_tokens == -1 {
         available
@@ -1694,6 +2114,7 @@ fn bridge_generate_round(
     let mut decoded = String::new();
     let mut generated = Vec::new();
     let mut first_token = None;
+    let mut first_visible_text = None;
     let mut dflash_next = None;
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
@@ -1731,6 +2152,9 @@ fn bridge_generate_round(
                     vec![fragment.text]
                 };
                 for text in visible {
+                    if !text.is_empty() {
+                        first_visible_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
+                    }
                     emit_event(json!({
                         "type":"delta", "request_id":request_id,
                         "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
@@ -1740,11 +2164,28 @@ fn bridge_generate_round(
             }
         }
         if generated.len() < budget {
-            if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+            if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
+                let NativeChatModel::Qwen(target) = &mut *model else {
+                    bail!("MTP requires Qwen3.5/3.6");
+                };
+                dflash_next = Some(session.advance(
+                    target,
+                    head,
+                    next,
+                    context_limit,
+                    budget - generated.len(),
+                )?);
+            } else if let Some((session, weights)) = dflash.as_mut().zip(draft) {
                 let NativeChatModel::Qwen(target) = &mut *model else {
                     bail!("DFlash2 requires Qwen3.6-35B-A3B")
                 };
-                dflash_next = Some(session.advance(target, weights, next, context_limit)?);
+                dflash_next = Some(session.advance(
+                    target,
+                    weights,
+                    next,
+                    context_limit,
+                    budget - generated.len(),
+                )?);
             } else {
                 logits = model.forward(next)?;
             }
@@ -1763,6 +2204,9 @@ fn bridge_generate_round(
             vec![fragment.text]
         };
         for text in visible {
+            if !text.is_empty() {
+                first_visible_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
+            }
             emit_event(json!({
                 "type":"delta", "request_id":request_id,
                 "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
@@ -1772,6 +2216,9 @@ fn bridge_generate_round(
     }
     if let Some(filter) = &mut filter {
         for text in filter.finish() {
+            if !text.is_empty() {
+                first_visible_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
+            }
             emit_event(json!({
                 "type":"delta", "request_id":request_id,
                 "phase":"answer", "text":text
@@ -1782,21 +2229,36 @@ fn bridge_generate_round(
     let ttft = first_token.unwrap_or(elapsed);
     let stats = NativeStats {
         ttft_seconds: ttft,
-        prefill_tps: tokens.len() as f64 / prefill_seconds.max(1e-9),
+        prefill_tps: (tokens.len() - cached) as f64 / prefill_seconds.max(1e-9),
         decode_tps: generated.len().saturating_sub(1) as f64 / (elapsed - ttft).max(1e-9),
         prompt_tokens: tokens.len(),
         generated_tokens: generated.len(),
-        peak_memory_gb: resident_gb,
-        cached_prompt_tokens: 0,
-        evaluated_prompt_tokens: tokens.len(),
+        model_size_gb: resident_gb,
+        cached_prompt_tokens: cached,
+        evaluated_prompt_tokens: tokens.len() - cached,
         context_used: tokens.len() + generated.len(),
         context_limit,
         elapsed_seconds: elapsed,
+        prepare_seconds,
+        prefill_seconds,
+        decode_seconds: elapsed - ttft,
+        decode_tokens: generated.len().saturating_sub(1),
+        round_count: 1,
+        memory: mlxl3_native::array::memory_stats(false).ok(),
+        dflash_proposed_tokens: dflash.as_ref().map(|session| session.proposed),
+        dflash_accepted_tokens: dflash.as_ref().map(|session| session.accepted),
+        dflash_blocks: dflash.as_ref().map(|session| session.blocks),
+        dflash_block_seconds: dflash.as_ref().map_or(0., |session| session.block_seconds),
+        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.proposed),
+        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
+        mtp_blocks: mtp_session.as_ref().map(|s| s.blocks),
+        ..Default::default()
     };
     Ok(RoundOutput {
         raw: complete,
         stats,
-        first_text_seconds: first_token,
+        first_text_seconds: first_visible_text,
+        token_hash: token_hash(&generated),
     })
 }
 
@@ -1861,17 +2323,26 @@ fn bridge_generate(
     random: &mut u64,
     mcp: &mut mlxl3_native::mcp::Manager,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
+    mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    started: Instant,
+    draft_load_seconds: f64,
+    cache: &mut Option<PromptCache>,
+    conversation: &str,
+    reuse: bool,
 ) -> Result<()> {
     let mut dialogue = validated_bridge_messages(messages)?;
     let original_length = dialogue.len();
     let tools = mcp.chat_tools();
-    let started = Instant::now();
     let mut first_text = None;
+    let mut summary: Option<NativeStats> = None;
+    let mut round_stats = Vec::new();
+    let mut tool_seconds = 0.;
     for round in 0..5 {
         emit_event(json!({
             "type":"generation_status", "request_id":request_id,
             "phase":"prefill", "text":if round == 0 { "Preparing context" } else { "Reading MCP results" }
         }))?;
+        let round_start = started.elapsed().as_secs_f64();
         let output = bridge_generate_round(
             model,
             tokenizer,
@@ -1887,8 +2358,24 @@ fn bridge_generate(
             cancelled,
             random,
             draft,
+            mtp.as_deref_mut(),
+            cache,
+            conversation,
+            reuse,
         )?;
-        first_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
+        if first_text.is_none() {
+            first_text = output
+                .first_text_seconds
+                .map(|seconds| round_start + seconds);
+        }
+        if let Some(summary) = &mut summary {
+            summary.accumulate(&output.stats);
+        } else {
+            let mut first = output.stats.clone();
+            first.ttft_seconds += round_start;
+            summary = Some(first);
+        }
+        round_stats.push(output.stats.clone());
         let calls = if tools.is_empty() {
             Vec::new()
         } else {
@@ -1904,13 +2391,20 @@ fn bridge_generate(
                 transcript.push(json!({"role":"assistant", "content":output.raw}));
                 Some(serde_json::to_string(&transcript)?)
             };
+            let mut stats = summary.context("missing generation statistics")?;
+            stats.elapsed_seconds = started.elapsed().as_secs_f64();
+            stats.end_to_end_ttft_seconds = first_text;
+            stats.tool_seconds = tool_seconds;
+            stats.draft_load_seconds = draft_load_seconds;
+            stats.tool_rounds = round;
             return emit_event(json!({
                 "type":"complete", "request_id":request_id,
                 "assistant_context":assistant, "cache_context":output.raw,
-                "stats":output.stats, "context_full":context_full,
+                "token_hash":output.token_hash,
+                "stats":stats, "round_stats":round_stats, "context_full":context_full,
                 "turn_context":turn_context,
                 "elapsed_seconds":started.elapsed().as_secs_f64(),
-                "first_text_seconds":first_text.or(output.first_text_seconds),
+                "first_text_seconds":first_text,
                 "tool_rounds":round
             }));
         }
@@ -1936,7 +2430,9 @@ fn bridge_generate(
                 "tool_call_id":call_id, "tool_name":call.name,
                 "server_name":server
             }))?;
+            let tool_started = Instant::now();
             let mut result = mcp.call(&call.name, call.arguments);
+            tool_seconds += tool_started.elapsed().as_secs_f64();
             let budget = 8192usize.min((context_limit / 8).max(256));
             let result_tokens = tokenizer.encode(&result.text)?;
             if result_tokens.len() > budget {
@@ -1987,9 +2483,20 @@ fn native_bridge(
         requested
     } as usize;
     let resident_gb = checkpoint.size_bytes as f64 / 1e9;
+    let dflash_supported =
+        matches!(&model, NativeChatModel::Qwen(target) if target.supports_dflash());
+    let executable = std::env::current_exe()?.display().to_string();
     emit_event(json!({
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
+        "runtime_commit":env!("MLXL3_BUILD_REVISION"),
+        "runtime_profile":env!("MLXL3_BUILD_PROFILE"),
+        "mlx_version":env!("MLXL3_MLX_VERSION"),
+        "runtime_executable":executable,
+        "dflash_supported":dflash_supported,
+        "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "mtp_auto_download_supported":dflash_supported,
+        "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},
         "context_limit":context_limit, "model_context_limit":model_limit
     }))?;
@@ -2002,6 +2509,8 @@ fn native_bridge(
         | 1;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
     let mut dflash_weights: Option<(PathBuf, mlxl3_native::dflash::DFlashWeights)> = None;
+    let mut mtp_head: Option<(PathBuf, mlxl3_native::mtp::Head)> = None;
+    let mut prompt_cache: Option<PromptCache> = None;
     for line in io::stdin().lock().lines() {
         let line = line?;
         if line.trim().is_empty() {
@@ -2027,13 +2536,47 @@ fn native_bridge(
                 }))?;
             }
             "generate" => {
+                let started = Instant::now();
+                let _ = mlxl3_native::array::memory_stats(true);
                 cancelled.store(false, Ordering::Relaxed);
                 mcp.set_enabled(&registry_path, request.mcp_enabled, false);
                 let request_id = request.request_id.clone();
                 let result = (|| -> Result<()> {
+                    let mut draft_load_seconds = 0.;
+                    anyhow::ensure!(
+                        !(request.mtp && request.dflash2),
+                        "Choose either MTP or DFlash2"
+                    );
+                    let mtp_active = request.mtp
+                        && (request.temperature == 0. || request.top_k == 1)
+                        && request.repetition_penalty == 1.;
+                    if mtp_active {
+                        let NativeChatModel::Qwen(target) = &model else {
+                            bail!("MTP supports Qwen3.5/3.6 targets");
+                        };
+                        anyhow::ensure!(
+                            !request.mtp_head_path.trim().is_empty(),
+                            "MTP head folder is not configured"
+                        );
+                        let path = registry::expand_home(&PathBuf::from(&request.mtp_head_path))?
+                            .canonicalize()?;
+                        if mtp_head.as_ref().map(|(p, _)| p) != Some(&path) {
+                            prompt_cache = None;
+                            emit_event(
+                                json!({"type":"generation_status", "request_id":request.request_id,
+                                "phase":"loading_draft", "text":"Preparing MTP head"}),
+                            )?;
+                            let started = Instant::now();
+                            mtp_head =
+                                Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+                            draft_load_seconds += started.elapsed().as_secs_f64();
+                        }
+                    } else {
+                        mtp_head = None;
+                    }
                     if request.dflash2 {
                         anyhow::ensure!(
-                            matches!(&model, NativeChatModel::Qwen(_)),
+                            dflash_supported,
                             "DFlash2 currently supports Qwen3.6-35B-A3B only"
                         );
                         anyhow::ensure!(
@@ -2048,15 +2591,34 @@ fn native_bridge(
                         let draft_path =
                             registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
                         if dflash_weights.as_ref().map(|(path, _)| path) != Some(&draft_path) {
+                            prompt_cache = None;
+                            emit_event(json!({
+                                "type":"generation_status", "request_id":request.request_id,
+                                "phase":"loading_draft", "text":"Preparing DFlash2"
+                            }))?;
+                            let draft_started = Instant::now();
                             let package = mlxl3_native::dflash::inspect(&draft_path)?;
                             dflash_weights = Some((
                                 draft_path,
                                 mlxl3_native::dflash::DFlashWeights::load(&package)?,
                             ));
+                            draft_load_seconds = draft_started.elapsed().as_secs_f64();
                         }
                     } else {
+                        if dflash_weights.is_some() {
+                            prompt_cache = None;
+                        }
                         dflash_weights = None;
                     }
+                    emit_event(json!({
+                        "type":"generation_mode", "request_id":request.request_id,
+                        "dflash_requested":request.dflash2,
+                        "dflash_active":dflash_weights.is_some(),
+                        "mtp_requested":request.mtp, "mtp_active":mtp_active,
+                        "mtp_reason":if request.mtp && !mtp_active { Some("MTP v1 uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
+                        "dflash_proposals":if dflash_weights.is_some() { 5 } else { 0 },
+                        "dflash_draft_path":dflash_weights.as_ref().map(|(path, _)| path.display().to_string())
+                    }))?;
                     bridge_generate(
                         &mut model,
                         &tokenizer,
@@ -2072,6 +2634,16 @@ fn native_bridge(
                         &mut random,
                         &mut mcp,
                         dflash_weights.as_ref().map(|(_, weights)| weights),
+                        mtp_head.as_mut().map(|(_, head)| head),
+                        started,
+                        draft_load_seconds,
+                        &mut prompt_cache,
+                        if request.conversation_id.is_empty() {
+                            &request.request_id
+                        } else {
+                            &request.conversation_id
+                        },
+                        request.reuse_prompt_cache,
                     )
                 })();
                 if let Err(error) = result {
@@ -2264,6 +2836,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn dflash_width_tracks_recent_acceptance() {
+        let mut session = DFlashChat::new();
+        session.blocks = 16;
+        session.accepted = 48;
+        session.proposed = 80;
+        session.recent = std::iter::repeat_n((1, 5), 8).collect();
+        assert_eq!(session.proposals_count(128, 128), Some(2));
+    }
+
+    #[test]
     fn native_sampler_respects_greedy_argmax() {
         let logits = mlxl3_native::array::Array::from_f32(&[1., 4., 2.], &[1, 3]).unwrap();
         let mut random = 1;
@@ -2271,5 +2853,532 @@ mod tests {
             select_token(&logits, &[], 0., 0, 1., &mut random).unwrap(),
             1
         );
+    }
+
+    #[test]
+    fn bridge_token_hash_uses_ordered_token_ids() {
+        assert_eq!(token_hash(&[]), "cbf29ce484222325");
+        assert_ne!(token_hash(&[1, 2]), token_hash(&[2, 1]));
+    }
+
+    #[test]
+    fn bridge_stats_aggregate_work_not_rates_and_keep_latest_context() {
+        let mut first = NativeStats {
+            ttft_seconds: 0.5,
+            prompt_tokens: 100,
+            evaluated_prompt_tokens: 100,
+            generated_tokens: 11,
+            prefill_seconds: 0.25,
+            decode_seconds: 1.,
+            decode_tokens: 10,
+            round_count: 1,
+            dflash_proposed_tokens: Some(10),
+            dflash_accepted_tokens: Some(6),
+            dflash_blocks: Some(2),
+            ..Default::default()
+        };
+        first.accumulate(&NativeStats {
+            ttft_seconds: 2.,
+            prompt_tokens: 200,
+            evaluated_prompt_tokens: 200,
+            generated_tokens: 31,
+            prefill_seconds: 0.75,
+            decode_seconds: 1.5,
+            decode_tokens: 30,
+            context_used: 231,
+            context_limit: 4096,
+            round_count: 1,
+            dflash_proposed_tokens: Some(40),
+            dflash_accepted_tokens: Some(22),
+            dflash_blocks: Some(8),
+            ..Default::default()
+        });
+        assert_eq!(
+            (
+                first.prompt_tokens,
+                first.generated_tokens,
+                first.round_count
+            ),
+            (300, 42, 2)
+        );
+        assert_eq!(
+            (first.prefill_tps, first.decode_tps, first.ttft_seconds),
+            (300., 16., 0.5)
+        );
+        assert_eq!((first.context_used, first.context_limit), (231, 4096));
+        assert_eq!(
+            (
+                first.dflash_proposed_tokens,
+                first.dflash_accepted_tokens,
+                first.dflash_blocks
+            ),
+            (Some(50), Some(28), Some(10))
+        );
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen and DFlash checkpoints and Apple GPU"]
+    fn bridge_draft_suffix_keeps_full_prefill_and_replay() -> Result<()> {
+        use mlxl3_native::{array::memory_stats, dflash::PREFILL_CHUNK, tokenizer::ChatTokenizer};
+        let path = std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let mut model = NativeChatModel::load(path)?;
+        let tokenizer = ChatTokenizer::load(path)?;
+        let package = mlxl3_native::dflash::inspect("models/Qwen3.6-35B-A3B-DFlash2")?;
+        let weights = mlxl3_native::dflash::DFlashWeights::load(&package)?;
+        let cancelled = AtomicBool::new(false);
+        let suffix = tokenizer.encode(&tokenizer.render_values(
+            &json!([{"role":"user", "content":"Explain how a KV cache reduces latency."}]),
+            None,
+        )?)?;
+        let mut run = |tokens: &[u32], optimized: bool| -> Result<_> {
+            model.reset();
+            let _ = memory_stats(true)?;
+            let started = Instant::now();
+            let (logits, mut session) = if optimized {
+                let (logits, session, cached) = prefill_round(
+                    &mut model,
+                    tokens,
+                    Some(&weights),
+                    &mut None,
+                    "long",
+                    false,
+                    &cancelled,
+                )?;
+                assert_eq!(cached, 0);
+                (logits, session.unwrap())
+            } else {
+                // Original prefill: every target chunk is captured/projected,
+                // including the draft KV subsequently thrown away by its window.
+                let mut session = DFlashChat::new();
+                let mut logits = None;
+                for chunk in tokens.chunks(PREFILL_CHUNK) {
+                    let NativeChatModel::Qwen(target) = &mut model else {
+                        unreachable!()
+                    };
+                    logits = Some(session.prefill(target, &weights, chunk)?);
+                    model.eval_state()?;
+                }
+                (logits.unwrap(), session)
+            };
+            logits.eval()?;
+            let seconds = started.elapsed().as_secs_f64();
+            let memory = memory_stats(false)?;
+            let first_logits = logits.to_f16_bits()?;
+            let mut generated = vec![logits.chat_greedy_ids()?[0]];
+            let NativeChatModel::Qwen(target) = &mut model else {
+                unreachable!()
+            };
+            assert_eq!(
+                usize::try_from(target.offset())?,
+                tokens.len(),
+                "target must read the whole prompt"
+            );
+            let draft = weights.forward_hidden(
+                &target.dflash_input(generated[0], 248_077)?,
+                &session.cache,
+                target.offset(),
+            )?;
+            let features = (draft.hidden.to_bytes()?, draft.selector.to_bytes()?);
+            while generated.len() < 32 {
+                let next = session.advance(
+                    target,
+                    &weights,
+                    *generated.last().unwrap(),
+                    16_384,
+                    32 - generated.len(),
+                )?;
+                generated.push(next);
+            }
+            Ok((
+                first_logits,
+                features,
+                generated,
+                session.proposed,
+                session.accepted,
+                seconds,
+                memory,
+            ))
+        };
+        for length in [2047, 2048, 2049, 4096, 4097, 8192] {
+            let tokens: Vec<u32> = (0..length - suffix.len())
+                .map(|i| (i % 97 + 1) as u32)
+                .chain(suffix.iter().copied())
+                .collect();
+            let baseline = run(&tokens, false)?;
+            let candidate = run(&tokens, true)?;
+            assert_eq!(candidate.0, baseline.0, "prefill logits at {length}");
+            assert_eq!(candidate.1, baseline.1, "draft features at {length}");
+            assert_eq!(candidate.2, baseline.2, "generation at {length}");
+            assert_eq!(
+                (candidate.3, candidate.4),
+                (baseline.3, baseline.4),
+                "acceptance at {length}"
+            );
+            eprintln!(
+                "suffix bridge parity {length}: 32 IDs, logits, draft features and acceptance exact"
+            );
+            if length == 4096 || length == 8192 {
+                let mut times = [Vec::new(), Vec::new()];
+                for optimized in [false, true, true, false] {
+                    let sample = run(&tokens, optimized)?;
+                    assert_eq!(sample.2, baseline.2);
+                    eprintln!(
+                        "suffix prefill {length}, optimized={optimized}: {:.3} s, memory {}",
+                        sample.5,
+                        serde_json::to_string(&sample.6)?
+                    );
+                    times[usize::from(optimized)].push(sample.5);
+                }
+                eprintln!(
+                    "suffix prefill {length} median: {:.3} -> {:.3} s",
+                    (times[0][0] + times[0][1]) / 2.,
+                    (times[1][0] + times[1][1]) / 2.
+                );
+            }
+        }
+        // A partial final chunk must not leave the saved checkpoint with an
+        // incomplete draft window. Extend that checkpoint after live decode.
+        let tokens: Vec<u32> = (0..4097).map(|i| (i % 97 + 1) as u32).collect();
+        let mut saved = None;
+        prefill_round(
+            &mut model,
+            &tokens,
+            Some(&weights),
+            &mut saved,
+            "replay",
+            true,
+            &cancelled,
+        )?;
+        assert!(
+            saved.is_some(),
+            "fixture must exercise an actual saved prefix"
+        );
+        model.forward(37)?.eval()?;
+        let extended: Vec<_> = tokens
+            .iter()
+            .copied()
+            .chain(suffix.iter().copied())
+            .collect();
+        let (warm, mut session, cached) = prefill_round(
+            &mut model,
+            &extended,
+            Some(&weights),
+            &mut saved,
+            "replay",
+            true,
+            &cancelled,
+        )?;
+        assert_eq!(cached, 4096);
+        let mut actual = vec![warm.chat_greedy_ids()?[0]];
+        let NativeChatModel::Qwen(target) = &mut model else {
+            unreachable!()
+        };
+        while actual.len() < 32 {
+            actual.push(session.as_mut().unwrap().advance(
+                target,
+                &weights,
+                *actual.last().unwrap(),
+                16_384,
+                32 - actual.len(),
+            )?);
+        }
+        // Compare to the independent full-capture baseline above, not a second
+        // call to the new suffix-only policy.
+        let NativeChatModel::Qwen(target) = &mut model else {
+            unreachable!()
+        };
+        target.reset();
+        let mut reference = DFlashChat::new();
+        let mut logits = None;
+        for chunk in extended.chunks(PREFILL_CHUNK) {
+            logits = Some(reference.prefill(target, &weights, chunk)?);
+        }
+        let mut expected = vec![logits.unwrap().chat_greedy_ids()?[0]];
+        while expected.len() < 32 {
+            expected.push(reference.advance(
+                target,
+                &weights,
+                *expected.last().unwrap(),
+                16_384,
+                32 - expected.len(),
+            )?);
+        }
+        assert_eq!(actual, expected, "long prefix replay changed tokens");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen and DFlash checkpoints and Apple GPU"]
+    fn long_prompt_dflash_blocks_match_target() -> Result<()> {
+        use mlxl3_native::tokenizer::ChatTokenizer;
+        let path = std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let mut model = NativeChatModel::load(path)?;
+        let tokenizer = ChatTokenizer::load(path)?;
+        let prompt = std::fs::read_to_string("docs/audit-runtime-2026-09-04.md")?;
+        let rendered =
+            tokenizer.render_values(&json!([{"role":"user", "content":prompt}]), None)?;
+        let tokens = tokenizer.encode(&rendered)?;
+        assert_eq!(tokens.len(), 2825);
+        let package = mlxl3_native::dflash::inspect("models/Qwen3.6-35B-A3B-DFlash2")?;
+        let weights = mlxl3_native::dflash::DFlashWeights::load(&package)?;
+        let cancelled = AtomicBool::new(false);
+        let (mut logits, _, _) = prefill_round(
+            &mut model, &tokens, None, &mut None, "normal", false, &cancelled,
+        )?;
+        let normal_prefill = logits.to_f16_bits()?;
+        let NativeChatModel::Qwen(target) = &mut model else {
+            unreachable!()
+        };
+        let mut reference = target.snapshot()?;
+        let mut expected = Vec::new();
+        while expected.len() < 128 {
+            let next = logits.chat_greedy_ids()?[0];
+            expected.push(next);
+            if expected.len() < 128 {
+                logits = target.forward(next)?;
+            }
+        }
+        let (logits, session, _) = prefill_round(
+            &mut model,
+            &tokens,
+            Some(&weights),
+            &mut None,
+            "dflash",
+            false,
+            &cancelled,
+        )?;
+        assert_eq!(logits.to_f16_bits()?, normal_prefill);
+        let mut session = session.context("missing DFlash session")?;
+        let mut generated = vec![logits.chat_greedy_ids()?[0]];
+        assert_eq!(generated[0], expected[0]);
+        let NativeChatModel::Qwen(target) = &mut model else {
+            unreachable!()
+        };
+        let mut block = 0;
+        while generated.len() < expected.len() {
+            let anchor = *generated.last().unwrap();
+            let before = target.offset();
+            let accepted_before = session.accepted;
+            let next = session.advance(
+                target,
+                &weights,
+                anchor,
+                8192,
+                expected.len() - generated.len(),
+            )?;
+            if target.offset() > before {
+                block += 1;
+                let accepted = session.accepted - accepted_before;
+                let mut committed = vec![anchor];
+                if accepted > 0 {
+                    committed.push(next);
+                    committed.extend(session.pending.iter().take(accepted - 1).copied());
+                }
+                assert_eq!(target.offset() - before, committed.len() as i32);
+                let speculative = target.snapshot()?;
+                target.restore(reference)?;
+                for token in committed {
+                    target.forward(token)?;
+                }
+                reference = target.snapshot()?;
+                target.restore(speculative.clone())?;
+                let actual = target.forward(42)?.to_f16_bits()?;
+                target.restore(reference.clone())?;
+                let expected_logits = target.forward(42)?.to_f16_bits()?;
+                target.restore(speculative)?;
+                anyhow::ensure!(
+                    actual == expected_logits,
+                    "DFlash target state differs after block {block}, offset {}",
+                    target.offset()
+                );
+            }
+            anyhow::ensure!(
+                next == expected[generated.len()],
+                "DFlash token differs at index {}, block {block}",
+                generated.len()
+            );
+            generated.push(next);
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen and DFlash checkpoints and Apple GPU"]
+    fn dflash_output_budget_matches_target_and_skips_unused_work() -> Result<()> {
+        use mlxl3_native::{qwen35::Qwen35Moe, tokenizer::ChatTokenizer};
+        let path = std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let mut model = Qwen35Moe::load(path)?;
+        let tokenizer = ChatTokenizer::load(path)?;
+        let package = mlxl3_native::dflash::inspect("models/Qwen3.6-35B-A3B-DFlash2")?;
+        let weights = mlxl3_native::dflash::DFlashWeights::load(&package)?;
+        for prompt in [
+            "Explain lossless speculative decoding in one paragraph.",
+            "Write a Rust function to add two integers.",
+        ] {
+            let rendered =
+                tokenizer.render_values(&json!([{"role":"user", "content":prompt}]), None)?;
+            let tokens = tokenizer.encode(&rendered)?;
+            model.reset();
+            let mut logits = model.forward_tokens(&tokens)?;
+            // Independent, non-speculative target sequence. Deliberately don't
+            // stop at EOS: stopping at every prefix also exercises early stops.
+            let mut expected = Vec::new();
+            for _ in 0..16 {
+                let token = logits.chat_greedy_ids()?[0];
+                expected.push(token);
+                logits = model.forward(token)?;
+            }
+            let mut run = |budget: usize, bounded: bool, tight_context: bool| -> Result<f64> {
+                model.reset();
+                let mut session = DFlashChat::new();
+                let first = session
+                    .prefill(&mut model, &weights, &tokens)?
+                    .chat_greedy_ids()?[0];
+                let mut actual = vec![first];
+                let context = if tight_context {
+                    tokens.len() + budget
+                } else {
+                    4096
+                };
+                let started = Instant::now();
+                while actual.len() < budget {
+                    let remaining = if bounded {
+                        budget - actual.len()
+                    } else {
+                        usize::MAX
+                    };
+                    let token = session.advance(
+                        &mut model,
+                        &weights,
+                        *actual.last().unwrap(),
+                        context,
+                        remaining,
+                    )?;
+                    actual.push(token);
+                }
+                let elapsed = started.elapsed().as_secs_f64();
+                assert_eq!(
+                    actual,
+                    expected[..budget],
+                    "budget {budget}, bounded {bounded}"
+                );
+                if bounded {
+                    assert!(
+                        session.pending.is_empty(),
+                        "no computed tokens may be left past the output limit"
+                    );
+                    assert_eq!(usize::try_from(model.offset())?, tokens.len() + budget - 1);
+                }
+                let position = model.offset();
+                let pending = session.pending.clone();
+                assert!(
+                    session
+                        .advance(&mut model, &weights, first, context, 0)
+                        .is_err()
+                );
+                assert_eq!(
+                    model.offset(),
+                    position,
+                    "invalid budget must not mutate state"
+                );
+                assert_eq!(session.pending, pending);
+                Ok(elapsed)
+            };
+            // All prefixes, including abandoned pending from the old algorithm,
+            // start the next request from a fresh prefill in the same model.
+            for budget in 1..=16 {
+                run(budget, false, false)?;
+                run(budget, true, false)?;
+                run(budget, true, true)?;
+            }
+            for budget in [2, 4, 6, 16] {
+                let mut times = [Vec::new(), Vec::new()];
+                for bounded in [false, true, true, false, false, true, true, false] {
+                    times[usize::from(bounded)].push(run(budget, bounded, false)? * 1000.);
+                }
+                for samples in &mut times {
+                    samples.sort_by(f64::total_cmp);
+                }
+                eprintln!(
+                    "output budget {budget} ({prompt}): unbounded {:.3} -> bounded {:.3} ms",
+                    (times[0][1] + times[0][2]) / 2.,
+                    (times[1][1] + times[1][2]) / 2.
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen and DFlash checkpoints and Apple GPU"]
+    fn bridge_prefix_cache_replays_cold_logits_exactly() -> Result<()> {
+        let mut model =
+            NativeChatModel::load(std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let package = mlxl3_native::dflash::inspect("models/Qwen3.6-35B-A3B-DFlash2")?;
+        let weights = mlxl3_native::dflash::DFlashWeights::load(&package)?;
+        let cancelled = AtomicBool::new(false);
+        let mut cache = None;
+        for draft in [None, Some(&weights)] {
+            let block = if draft.is_some() { 128 } else { 256 };
+            let original: Vec<u32> = (0..block + 17)
+                .map(|index| (index % 97 + 1) as u32)
+                .collect();
+            let (cold, _, count) = prefill_round(
+                &mut model, &original, draft, &mut cache, "a", true, &cancelled,
+            )?;
+            assert_eq!(count, 0, "mode switch must miss");
+            let cold = cold.to_f16_bits()?;
+            model.forward(51)?.eval()?; // Live decode may be ahead of the saved prefix.
+            let (replay, _, count) = prefill_round(
+                &mut model, &original, draft, &mut cache, "a", true, &cancelled,
+            )?;
+            assert_eq!(count, block);
+            assert_eq!(replay.to_f16_bits()?, cold);
+            for suffix in [0, 1, 23, 24, 25] {
+                let extended: Vec<_> = original[..block]
+                    .iter()
+                    .copied()
+                    .chain(std::iter::repeat_n(42, suffix))
+                    .collect();
+                let (expected, _, _) = prefill_round(
+                    &mut model, &extended, draft, &mut None, "a", false, &cancelled,
+                )?;
+                let expected = expected.to_f16_bits()?;
+                let (actual, _, count) = prefill_round(
+                    &mut model, &extended, draft, &mut cache, "a", true, &cancelled,
+                )?;
+                assert_eq!(count, block);
+                assert_eq!(
+                    actual.to_f16_bits()?,
+                    expected,
+                    "prefill suffix {suffix}, DFlash {}",
+                    draft.is_some()
+                );
+            }
+            let mut edited = original.clone();
+            edited[0] += 1;
+            let (_, _, count) = prefill_round(
+                &mut model, &edited, draft, &mut cache, "a", true, &cancelled,
+            )?;
+            assert_eq!(count, 0, "edited history must miss");
+            let (_, _, count) = prefill_round(
+                &mut model, &edited, draft, &mut cache, "b", true, &cancelled,
+            )?;
+            assert_eq!(count, 0, "conversation switch must miss");
+            cancelled.store(true, Ordering::Relaxed);
+            assert!(
+                prefill_round(
+                    &mut model, &edited, draft, &mut cache, "b", true, &cancelled
+                )
+                .is_err()
+            );
+            cancelled.store(false, Ordering::Relaxed);
+            let (_, _, count) = prefill_round(
+                &mut model, &edited, draft, &mut cache, "b", false, &cancelled,
+            )?;
+            assert_eq!(count, 0);
+            assert!(cache.is_none(), "cache OFF must release the saved state");
+        }
+        Ok(())
     }
 }

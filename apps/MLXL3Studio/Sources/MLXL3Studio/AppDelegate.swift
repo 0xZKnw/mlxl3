@@ -53,21 +53,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private static func menuBarIcon() -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { bounds in
-            let arc = NSBezierPath()
-            arc.appendArc(
-                withCenter: NSPoint(x: bounds.midX, y: bounds.midY),
-                radius: 6.2,
-                startAngle: 44,
-                endAngle: 322,
-                clockwise: false
-            )
-            arc.lineWidth = 1.8
-            arc.lineCapStyle = .round
-            NSColor.white.setStroke()
-            arc.stroke()
-
-            NSColor.white.setFill()
-            NSBezierPath(ovalIn: NSRect(x: bounds.midX - 1.25, y: bounds.midY - 1.25, width: 2.5, height: 2.5)).fill()
+            let text = NSAttributedString(string: "M3", attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .heavy),
+                .foregroundColor: NSColor.white,
+                .kern: -0.6
+            ])
+            let size = text.size()
+            text.draw(at: NSPoint(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2))
             return true
         }
         image.isTemplate = true

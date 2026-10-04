@@ -1,0 +1,67 @@
+.....s....................                                               [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+25 passed, 1 skipped in 1.01s
+Building for debugging...
+[2 / 9] SwiftMath
+[3 / 58]
+[10 / 58]
+[11 / 58]
+[17 / 58]
+[18 / 58]
+[21 / 58]
+[23 / 58]
+[31 / 58]
+[35 / 58]
+[38 / 58]
+[39 / 58]
+[40 / 58]
+[51 / 58] SwiftMath
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[55 / 60] SwiftMath
+[55 / 60] MLXL3Studio-product
+[56 / 113] SwiftMath
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[58 / 113]
+[65 / 113]
+[67 / 113]
+[73 / 113]
+[74 / 113]
+[77 / 113]
+[79 / 113]
+[88 / 113]
+[89 / 113]
+[93 / 113]
+[96 / 113]
+[97 / 113]
+[99 / 113]
+[110 / 113] MLXL3Studio-product
+[111 / 113] MLXL3Studio-product
+[113 / 115] MLXL3Studio-product
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+Build complete! (38,17 secs)
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: crash, deletion, drafts, recovery, save ordering, tool state
+Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+Metal footprint check passed: +98041856 bytes for a 64 MiB GPU buffer
+MCP checks failed: Failure(message: "DFlash2 preference was not persisted")

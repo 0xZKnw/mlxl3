@@ -8,7 +8,7 @@ use crate::{
     qwen35::ProjectionBundle,
     router,
 };
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::{fs::File, path::Path};
 
@@ -702,6 +702,27 @@ impl Ling {
     }
 
     fn run(&mut self, tokens: &[u32]) -> Result<Array> {
+        let hidden = self.run_hidden(tokens)?;
+        let logits = self.head.forward(&hidden)?;
+        logits.eval()?;
+        Ok(logits)
+    }
+
+    pub fn prefill_serial(&mut self, tokens: &[u32]) -> Result<Array> {
+        let result = (|| {
+            let (&last, prefix) = tokens.split_last().context("empty Ling prefill")?;
+            for &token in prefix {
+                self.run_hidden(&[token])?.eval()?;
+            }
+            self.forward(last)
+        })();
+        if result.is_err() {
+            self.reset();
+        }
+        result
+    }
+
+    fn run_hidden(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(
             !tokens.is_empty() && tokens.iter().all(|&token| token < self.vocab as u32),
             "Ling token batch is empty or outside vocabulary"
@@ -718,10 +739,9 @@ impl Ling {
             hidden = layer.forward(&hidden, self.offset)?;
         }
         let last = hidden.slice(1, time - 1, time)?;
-        let logits = self.head.forward(&last.rms_norm(&self.norm, self.eps)?)?;
-        logits.eval()?;
+        let hidden = last.rms_norm(&self.norm, self.eps)?;
         self.offset += time;
-        Ok(logits)
+        Ok(hidden)
     }
 
     pub fn context_limit(&self) -> i32 {
@@ -777,6 +797,57 @@ mod tests {
         assert!(is_kda_layer(0, 4));
         assert!(!is_kda_layer(3, 4));
         assert!(!is_kda_layer(23, 4));
+    }
+
+    #[test]
+    #[ignore = "requires local Ling checkpoint and Apple GPU"]
+    fn ling_serial_prefill_skips_only_unused_heads() -> Result<()> {
+        let mut model = Ling::load(Path::new("models/Ling-3.0-tiny-EXL3-4bpw"))?;
+        let state = |model: &Ling| -> Result<Vec<Vec<u8>>> {
+            model
+                .state_arrays()
+                .iter()
+                .map(|(_, value)| value.to_bytes())
+                .collect()
+        };
+        for length in [1, 2, 23, 24, 25] {
+            let tokens: Vec<_> = (1..=length).collect();
+            model.reset();
+            let mut expected = None;
+            for &token in &tokens {
+                expected = Some(model.forward(token)?);
+            }
+            let expected = expected.unwrap().to_f16_bits()?;
+            let expected_state = state(&model)?;
+            model.reset();
+            assert_eq!(model.prefill_serial(&tokens)?.to_f16_bits()?, expected);
+            assert_eq!(state(&model)?, expected_state);
+            assert_eq!(model.offset, length as i32);
+            let mut times = [Vec::new(), Vec::new()];
+            for fast in [false, true, true, false, false, true, true, false] {
+                model.reset();
+                let started = std::time::Instant::now();
+                if fast {
+                    model.prefill_serial(&tokens)?.eval()?;
+                } else {
+                    for &token in &tokens {
+                        model.forward(token)?.eval()?;
+                    }
+                }
+                times[usize::from(fast)].push(started.elapsed().as_secs_f64() * 1000.);
+            }
+            for sample in &mut times {
+                sample.sort_by(f64::total_cmp);
+            }
+            eprintln!(
+                "Ling serial prefill {length}: full head {:.3} ms, final head {:.3} ms; logits + states exact",
+                (times[0][1] + times[0][2]) / 2.,
+                (times[1][1] + times[1][2]) / 2.
+            );
+        }
+        assert!(model.prefill_serial(&[u32::MAX]).is_err());
+        assert_eq!(model.offset, 0);
+        Ok(())
     }
 
     #[test]

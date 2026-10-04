@@ -108,7 +108,6 @@ private struct MessageView: View {
             Spacer(minLength: 64)
             VStack(alignment: .trailing, spacing: 9) {
                 HStack(spacing: 9) {
-                    MessageCopyButton(message: message)
                     Text(L("Vous", "You"))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(StudioTheme.quiet)
@@ -126,6 +125,7 @@ private struct MessageView: View {
                     .padding(.vertical, 13)
                     .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
                 }
+                MessageCopyButton(message: message)
             }
           }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -151,9 +151,6 @@ private struct AssistantMessageView: View {
                         StreamingIndicator()
                     }
                     Spacer(minLength: 8)
-                    if !message.content.isEmpty {
-                        MessageCopyButton(message: message)
-                    }
                 }
 
                 if message.parts.isEmpty && message.isStreaming {
@@ -185,6 +182,9 @@ private struct AssistantMessageView: View {
 
                 if let stats = message.stats {
                     StatsRow(stats: stats)
+                }
+                if !message.content.isEmpty {
+                    MessageCopyButton(message: message)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -413,7 +413,25 @@ private struct StatsRow: View {
             if let elapsed = stats.elapsedSeconds {
                 MetricChip(icon: "clock", value: String(format: "%.1f s", elapsed), label: L("total · outils inclus", "total · incl. tools"))
             }
-            MetricChip(icon: "memorychip", value: String(format: "%.2f GB", stats.peakMemoryGB), label: L("pic", "peak"))
+            if let memory = stats.memory {
+                MetricChip(icon: "memorychip", value: String(format: "%.2f GB", Double(memory.mlxPeakBytes) / 1e9), label: L("pic MLX", "MLX peak"))
+                if let footprint = memory.processFootprintBytes {
+                    MetricChip(icon: "memorychip", value: String(format: "%.2f GB", Double(footprint) / 1e9), label: L("RAM moteur", "engine RAM"))
+                }
+            } else if let size = stats.modelSizeGB {
+                MetricChip(icon: "externaldrive", value: String(format: "%.2f GB", size), label: L("poids disque", "disk weights"))
+            } else if let legacy = stats.peakMemoryGB {
+                MetricChip(icon: "memorychip", value: String(format: "%.2f GB", legacy), label: L("ancienne mesure", "legacy metric"))
+            }
+            if let accepted = stats.dflashAcceptedTokens, let proposed = stats.dflashProposedTokens, proposed > 0 {
+                MetricChip(icon: "checkmark.circle", value: "\(accepted)/\(proposed)", label: String(format: "DFlash %.0f%%", 100 * Double(accepted) / Double(proposed)))
+            }
+            if let accepted = stats.mtpAcceptedTokens, let proposed = stats.mtpProposedTokens, proposed > 0 {
+                MetricChip(icon: "checkmark.circle", value: "\(accepted)/\(proposed)", label: String(format: "MTP %.0f%%", 100 * Double(accepted) / Double(proposed)))
+            }
+            if let blocks = stats.dflashBlocks, blocks > 0, let seconds = stats.dflashBlockSeconds {
+                MetricChip(icon: "square.stack", value: String(format: "%.1f ms", seconds * 1000 / Double(blocks)), label: L("par bloc", "per block"))
+            }
             MetricChip(
                 icon: "externaldrive.badge.checkmark",
                 value: "\(stats.cachedPromptTokens ?? 0)/\(stats.evaluatedPromptTokens ?? stats.promptTokens)",

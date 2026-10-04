@@ -119,47 +119,49 @@ struct GenerationInspector: View {
                             format: "%.2f"
                         )
                     }
-                    .disabled(studio.dflash2Enabled)
+                    .disabled(studio.mtpEnabled)
 
-                    if studio.dflash2Available {
-                        SettingCard(title: "DFlash2 · Qwen3.6-35B-A3B", icon: "bolt") {
-                            Toggle(
-                                L("DFlash2 · téléchargement et réglages automatiques", "DFlash2 · automatic download and settings"),
-                                isOn: Binding(
-                                    get: { studio.dflash2Enabled || studio.dflashDownloading },
-                                    set: { studio.setDFlash2Enabled($0) }
-                                )
-                            )
+                    if studio.mtpAvailable {
+                        SettingCard(title: "MTP · Qwen3.5 / Qwen3.6", icon: "bolt") {
+                            Toggle(L("Prédiction native de tokens", "Native token prediction"), isOn: Binding(
+                                get: { studio.mtpEnabled || studio.mtpDownloading },
+                                set: { studio.setMTPEnabled($0) }
+                            ))
                             .font(.system(size: 11))
-                            if studio.dflashDownloading {
-                                if studio.dflashDownloadTotal > 0 {
-                                    ProgressView(value: studio.dflashDownloadCompleted, total: studio.dflashDownloadTotal)
-                                    Text("\(Int(studio.dflashDownloadCompleted / 1_000_000)) / \(Int(studio.dflashDownloadTotal / 1_000_000)) MB")
-                                        .font(.caption).monospacedDigit()
-                                } else {
-                                    ProgressView(L("Préparation du téléchargement…", "Preparing download…"))
-                                }
+                            .disabled(studio.isGenerating)
+                            if studio.isGenerating {
+                                Text(studio.mtpActive == true
+                                     ? L("MTP actif et vérifié par le moteur", "MTP active and target verified")
+                                     : L("Décodage normal", "Ordinary decoding"))
+                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
                             }
-                            if let error = studio.dflashDownloadError {
+                            if studio.mtpDownloading {
+                                if studio.mtpDownloadTotal > 0 {
+                                    ProgressView(value: studio.mtpDownloadCompleted, total: studio.mtpDownloadTotal)
+                                    Text("\(Int(studio.mtpDownloadCompleted / 1_000_000)) / \(Int(studio.mtpDownloadTotal / 1_000_000)) MB")
+                                        .font(.caption).monospacedDigit()
+                                } else { ProgressView(L("Préparation…", "Preparing…")) }
+                            }
+                            if let error = studio.mtpError {
                                 Text(error).font(.caption).foregroundStyle(.red)
                             }
-                            Button(L("Choisir le dossier du draft…", "Choose draft folder…")) {
-                                studio.chooseDFlashDraft()
-                            }
-                            .buttonStyle(GlassPillButtonStyle())
-                            .disabled(studio.dflashDownloading)
-                            Text(studio.dflashDraftPath.isEmpty
-                                 ? L("Draft téléchargé seulement à l’activation (~457 MiB)", "Draft downloads only when enabled (~457 MiB)")
-                                 : studio.dflashDraftPath)
-                                .font(.caption)
-                                .foregroundStyle(StudioTheme.quiet)
-                                .lineLimit(2)
-                                .textSelection(.enabled)
-                            Text(L("Expérimental · Qwen3.6-35B-A3B seulement. L’activation récupère uniquement le draft, vérifie les fichiers et règle le mode greedy. Désactive DFlash2 pour modifier l’échantillonnage.",
-                                   "Experimental · Qwen3.6-35B-A3B only. Enabling downloads only the draft, verifies its files and sets greedy sampling. Turn off DFlash2 to change sampling."))
-                                .font(.caption)
-                                .foregroundStyle(StudioTheme.quiet)
+                            Button(L("Choisir la tête MTP…", "Choose MTP head…")) { studio.chooseMTPHead() }
+                                .buttonStyle(GlassPillButtonStyle())
+                                .disabled(studio.mtpDownloading || studio.isGenerating)
+                            Text(studio.mtpHeadPath.isEmpty
+                                 ? L("Qwen3.6-35B-A3B : tête 4 bits (~453 MiB) téléchargée à l’activation.", "Qwen3.6-35B-A3B: 4-bit head (~453 MiB) downloads when enabled.")
+                                 : studio.mtpHeadPath)
+                                .font(.caption).foregroundStyle(StudioTheme.quiet).lineLimit(2).textSelection(.enabled)
+                            Text(L("Cette version utilise le mode greedy. Chaque proposition est vérifiée par le modèle cible. Pour les autres Qwen3.5/3.6, choisis une tête MTP MLX 4 bits adaptée. DFlash reste réservé à la CLI.",
+                                   "This version uses greedy sampling. The target model verifies every proposal. For other Qwen3.5/3.6 models, choose a matching MLX 4-bit MTP head. DFlash remains available in the CLI."))
+                                .font(.caption).foregroundStyle(StudioTheme.quiet)
                         }
+                    }
+
+                    if let runtime = studio.runtimeIdentity, !runtime.isEmpty {
+                        Text(L("Moteur chargé : ", "Loaded engine: ") + runtime)
+                            .font(.caption).foregroundStyle(StudioTheme.quiet)
+                            .textSelection(.enabled)
                     }
 
                     SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {

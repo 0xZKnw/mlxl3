@@ -32,6 +32,100 @@ const DFLASH_FILES: [&str; 7] = [
     "draft/model.bin",
 ];
 
+const MTP_REPO: &str = "mlx-community/Qwen3.6-35B-A3B-MTP-4bit";
+const MTP_COMMIT: &str = "0295b81421bf4d0fccca9a7c0fcfb1418dda3516";
+const MTP_FILES: [(&str, u64, &str); 2] = [
+    (
+        "config.json",
+        3180,
+        "7b38a336fa246a285ee23cc990351989bf2ee6c040506a2b793ee24e463f35a7",
+    ),
+    (
+        "model.safetensors",
+        475130833,
+        "77fbc6594cdd830cae89e0b693f18278dd0a7a7c5749fd33d4bc5817dbb91bad",
+    ),
+];
+
+/// The target and tokenizer are never downloaded by this operation.
+pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+    let root = managed_drafts_path()?;
+    fs::create_dir_all(&root)?;
+    let root = root.canonicalize()?;
+    let destination = root.join("Qwen3.6-35B-A3B-MTP-4bit");
+    let regular = |path: &Path| {
+        !path
+            .symlink_metadata()
+            .is_ok_and(|m| m.file_type().is_symlink())
+    };
+    ensure!(regular(&destination), "invalid MTP destination");
+    let verified = |directory: &Path| -> Result<bool> {
+        for (name, size, hash) in MTP_FILES {
+            let file = directory.join(name);
+            if !regular(&file)
+                || !file
+                    .metadata()
+                    .is_ok_and(|m| m.is_file() && m.len() == size)
+                || !sha256_matches(&file, hash)?
+            {
+                return Ok(false);
+            }
+        }
+        crate::mtp::inspect(directory)?;
+        Ok(true)
+    };
+    if destination.exists() && verified(&destination)? {
+        return Ok(destination);
+    }
+    let downloads = root.join(".downloads");
+    ensure!(regular(&downloads), "invalid MTP downloads directory");
+    fs::create_dir_all(&downloads)?;
+    let stage = downloads.join(format!("mtp-{MTP_COMMIT}"));
+    ensure!(regular(&stage), "invalid MTP staging directory");
+    fs::create_dir_all(&stage)?;
+    let lock_path = downloads.join("mtp.lock");
+    ensure!(regular(&lock_path), "invalid MTP download lock");
+    let lock = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(lock_path)?;
+    lock.try_lock_exclusive()
+        .context("MTP head is already downloading")?;
+    let cancelled = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
+    let total = MTP_FILES.iter().map(|(_, size, _)| size).sum();
+    for (name, size, hash) in MTP_FILES {
+        let file = stage.join(name);
+        ensure!(regular(&file), "invalid MTP staging file");
+        if file.metadata().is_ok_and(|m| m.len() == size) && sha256_matches(&file, hash)? {
+            continue;
+        }
+        if file.metadata().is_ok_and(|m| m.len() >= size) {
+            fs::remove_file(&file)?;
+        }
+        download_file(
+            &format!("https://huggingface.co/{MTP_REPO}/resolve/{MTP_COMMIT}/{name}?download=true"),
+            &file,
+            &cancelled,
+            || progress(directory_bytes(&stage).min(total), total),
+        )?;
+        ensure!(
+            file.metadata()?.len() == size && sha256_matches(&file, hash)?,
+            "MTP head integrity check failed for {name}"
+        );
+    }
+    ensure!(verified(&stage)?, "MTP staging verification failed");
+    if destination.exists() {
+        fs::rename(
+            &destination,
+            root.join(format!(".invalid-mtp-{}", std::process::id())),
+        )?;
+    }
+    fs::rename(&stage, &destination)?;
+    progress(total, total);
+    Ok(destination)
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ModelSummary {
     pub id: String,

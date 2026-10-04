@@ -40,6 +40,18 @@ final class StudioModel: ObservableObject {
     @Published private(set) var dflashDownloadCompleted = 0.0
     @Published private(set) var dflashDownloadTotal = 0.0
     @Published private(set) var dflashDownloadError: String?
+    @Published private(set) var dflashActive: Bool?
+    @Published private(set) var dflashSupported: Bool?
+    @Published private(set) var mtpEnabled = false
+    @Published private(set) var mtpHeadPath = ""
+    @Published private(set) var mtpDownloading = false
+    @Published private(set) var mtpDownloadCompleted = 0.0
+    @Published private(set) var mtpDownloadTotal = 0.0
+    @Published private(set) var mtpError: String?
+    @Published private(set) var mtpSupported: Bool?
+    @Published private(set) var mtpAutoDownloadSupported: Bool?
+    @Published private(set) var mtpActive: Bool?
+    @Published private(set) var runtimeIdentity: String?
     @Published var systemPrompt = ""
     @Published private(set) var mcpServerCount = 0
     @Published private(set) var mcpToolCount = 0
@@ -61,6 +73,7 @@ final class StudioModel: ObservableObject {
     private let conversationFileURL: URL
     private var persistenceTask: Task<Void, Never>?
     private var dflashDownloadTask: Task<Void, Never>?
+    private var mtpDownloadTask: Task<Void, Never>?
     private var didStart = false
     private var activeRequestID: String?
     private var activeResponseID: UUID?
@@ -79,8 +92,13 @@ final class StudioModel: ObservableObject {
         self.preferences = preferences
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
-        self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
+        // DFlash remains available to the CLI; Desktop v1.2 moves to native MTP.
+        self.dflash2Enabled = false
+        preferences.set(false, forKey: "studio.dflash2Enabled")
         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
+        self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
+        self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
+            && !(preferences.string(forKey: "studio.mtpHeadPath") ?? "").isEmpty
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
         do {
@@ -103,6 +121,9 @@ final class StudioModel: ObservableObject {
             storageError = L("Historique illisible : aucune donnée ne sera écrasée. ", "History could not be read: no data will be overwritten. ") + error.localizedDescription
             selectedConversationID = conversations.first?.id
         }
+        if mtpEnabled {
+            temperature = 0; topK = 1; repetitionPenalty = 1
+        }
         if dflash2Enabled {
             if dflashDraftPath.isEmpty {
                 dflash2Enabled = false
@@ -114,9 +135,18 @@ final class StudioModel: ObservableObject {
             }
         }
         bridge.onEvent = { [weak self] event in self?.handle(event) }
+        bridge.onRuntimeFallback = { [weak self] in
+            guard let self else { return }
+            self.readyInfo = nil
+            self.loadSelectedModel()
+        }
         bridge.onExit = { [weak self] message in
             guard let self, let message, !message.isEmpty else { return }
             self.readyInfo = nil
+            self.dflashActive = nil
+            self.dflashSupported = nil
+            self.mtpActive = nil; self.mtpSupported = nil; self.mtpAutoDownloadSupported = nil
+            self.runtimeIdentity = nil
             if self.activeRequestID != nil {
                 self.failActiveTurn(message)
             } else {
@@ -130,8 +160,16 @@ final class StudioModel: ObservableObject {
     }
 
     var dflash2Available: Bool {
+        if let dflashSupported { return dflashSupported }
         guard let model = selectedModel, model.modelType == "qwen3_5_moe" else { return false }
         return (model.name + model.path).lowercased().contains("qwen3.6-35b-a3b")
+    }
+
+    var mtpAvailable: Bool {
+        mtpSupported ?? ["qwen3_5", "qwen3_5_moe"].contains(selectedModel?.modelType ?? "")
+    }
+    var mtpAutomaticDownloadAvailable: Bool {
+        mtpAutoDownloadSupported ?? (mtpAvailable && (selectedModel?.name ?? "").lowercased().contains("qwen3.6-35b-a3b"))
     }
 
     var savedContextLength: Int {
@@ -186,7 +224,7 @@ final class StudioModel: ObservableObject {
 
     var canSend: Bool {
         if case .installing = updateManager.state { return false }
-        return engineState.isReady && !mcpUpdating && !dflashDownloading && !modelInstallState.isWorking
+        return engineState.isReady && !mcpUpdating && !dflashDownloading && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isBusy
             && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
     }
 
@@ -398,7 +436,11 @@ final class StudioModel: ObservableObject {
         guard !isGenerating else { return }
         guard persistNow() else { return }
         Task {
-        guard await updateManager.beginInstallation() else { return }
+        guard let installation = await updateManager.beginInstallation() else { return }
+        if installation == .reloadEngine {
+            loadSelectedModel()
+            return
+        }
         bridge.stop()
         persistNow()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -450,6 +492,13 @@ final class StudioModel: ObservableObject {
         activeRequestID = nil
         activeResponseID = nil
         readyInfo = nil
+        dflashActive = nil
+        runtimeIdentity = nil
+        dflashSupported = nil
+        mtpActive = nil
+        mtpSupported = nil
+        mtpAutoDownloadSupported = nil
+        mtpDownloadTask?.cancel()
         activeContextLimit = nil
         modelContextLimit = nil
         contextMemory = nil
@@ -518,6 +567,7 @@ final class StudioModel: ObservableObject {
         let requestID = UUID().uuidString
         activeRequestID = requestID
         activeResponseID = assistant.id
+        dflashActive = nil
         engineState = .generating
 
         var messages: [PromptMessage] = []
@@ -545,7 +595,9 @@ final class StudioModel: ObservableObject {
                     repetitionPenalty: repetitionPenalty,
                     mcpEnabled: mcpEnabled,
                     dflash2: dflash2Enabled && dflash2Available,
-                    dflashDraftPath: dflashDraftPath
+                    dflashDraftPath: dflashDraftPath,
+                    mtp: mtpEnabled && mtpAvailable,
+                    mtpHeadPath: mtpHeadPath
                 )
             )
         } catch {
@@ -656,6 +708,62 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    func setMTPEnabled(_ enabled: Bool) {
+        if !enabled {
+            mtpDownloadTask?.cancel()
+            mtpEnabled = false
+            preferences.set(false, forKey: "studio.mtpEnabled")
+            return
+        }
+        guard mtpAvailable, !isGenerating, !mtpDownloading else { return }
+        let model = selectedModelName
+        mtpError = nil; mtpDownloadCompleted = 0; mtpDownloadTotal = 0
+        mtpDownloading = true
+        mtpDownloadTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                var data: Data?
+                if !mtpHeadPath.isEmpty {
+                    data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath])
+                } else {
+                    guard mtpAutomaticDownloadAvailable else {
+                        throw MLXL3BridgeError.commandFailed(L("Choisis la tête MTP de ce modèle.", "Choose this model’s MTP head."))
+                    }
+                    data = try await CLICommand().output(["mtp-head"]) { [weak self] line in
+                        guard let self, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                        self.mtpDownloadCompleted = event.completed ?? self.mtpDownloadCompleted
+                        self.mtpDownloadTotal = event.total ?? self.mtpDownloadTotal
+                    }
+                }
+                try Task.checkCancellation()
+                guard model == selectedModelName, mtpAvailable else { throw CancellationError() }
+                guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                      event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
+                mtpHeadPath = path
+                preferences.set(path, forKey: "studio.mtpHeadPath")
+                dflash2Enabled = false
+                mtpEnabled = true
+                temperature = 0; topK = 1; repetitionPenalty = 1
+                preferences.set(true, forKey: "studio.mtpEnabled")
+                schedulePersistence()
+            } catch is CancellationError { }
+            catch { mtpError = error.localizedDescription }
+            mtpDownloading = false
+            mtpDownloadTask = nil
+        }
+    }
+
+    func chooseMTPHead() {
+        guard !isGenerating, !mtpDownloading else { return }
+        let picker = NSOpenPanel()
+        picker.canChooseDirectories = true; picker.canChooseFiles = false; picker.allowsMultipleSelection = false
+        picker.prompt = L("Utiliser cette tête MTP", "Use this MTP head")
+        guard picker.runModal() == .OK, let path = picker.url?.path else { return }
+        mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+        mtpHeadPath = path; preferences.set(path, forKey: "studio.mtpHeadPath")
+        setMTPEnabled(true)
+    }
+
     func chooseDFlashDraft() {
         let picker = NSOpenPanel()
         picker.canChooseDirectories = true
@@ -761,6 +869,13 @@ final class StudioModel: ObservableObject {
 
     private func loadSelectedModel() {
         guard !isGenerating else { return }
+        dflashActive = nil
+        dflashSupported = nil
+        mtpActive = nil
+        mtpSupported = nil
+        mtpAutoDownloadSupported = nil
+        mtpDownloadTask?.cancel()
+        runtimeIdentity = nil
         contextLengthDraft = savedContextLength
         if isPreview {
             modelContextLimit = 262144
@@ -823,6 +938,11 @@ final class StudioModel: ObservableObject {
         case "loading":
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
+            dflashSupported = event.dflashSupported
+            mtpSupported = event.mtpSupported
+            mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
+            runtimeIdentity = [event.runtimeCommit, event.runtimeProfile, event.mlxVersion.map { "MLX \($0)" }]
+                .compactMap { $0 }.joined(separator: " · ")
             activeContextLimit = event.contextLimit
             modelContextLimit = event.modelContextLimit
             contextMemory = event.contextMemory
@@ -860,6 +980,11 @@ final class StudioModel: ObservableObject {
                   let message = activeMessage() else { return }
             message.processing(event.text ?? L("Préparation de la réponse", "Preparing response"))
             schedulePersistence()
+        case "generation_mode":
+            guard event.requestID == activeRequestID else { return }
+            dflashActive = event.dflashActive
+            mtpActive = event.mtpActive
+            if let reason = event.mtpReason { mtpError = reason }
         case "delta":
             guard event.requestID == activeRequestID,
                   let text = event.text,
