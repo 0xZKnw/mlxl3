@@ -489,6 +489,11 @@ fn cli_empty_app_home_uses_user_config_directory() {
 #[test]
 fn cli_codec_recovers_after_invalid_request() {
     let root = tempfile::tempdir().unwrap();
+    let unavailable = if cfg!(all(target_os = "macos", feature = "direct-metal")) {
+        "unknown"
+    } else {
+        "metal-pack"
+    };
     let mut child = Command::new(env!("CARGO_BIN_EXE_mlxl3-rs"))
         .arg("--registry")
         .arg(root.path().join("models.json"))
@@ -498,12 +503,11 @@ fn cli_codec_recovers_after_invalid_request() {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(b"not json\n{\"op\":\"unknown\"}\n{\"op\":\"permutation\"}\n")
-        .unwrap();
+    writeln!(
+        child.stdin.take().unwrap(),
+        "not json\n{{\"op\":\"{unavailable}\"}}\n{{\"op\":\"permutation\"}}"
+    )
+    .unwrap();
     let output = child.wait_with_output().unwrap();
     assert_success(&output);
     let responses: Vec<Value> = String::from_utf8(output.stdout)
@@ -514,6 +518,10 @@ fn cli_codec_recovers_after_invalid_request() {
     assert_eq!(responses.len(), 3);
     assert!(responses[0]["error"].is_string());
     assert!(responses[1]["error"].is_string());
+    assert_eq!(
+        responses[1]["error"],
+        format!("unknown or unavailable codec operation {unavailable}")
+    );
     assert!(responses[2]["data"].is_array());
     assert!(!root.path().join("models.json").exists());
 }

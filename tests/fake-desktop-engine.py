@@ -18,7 +18,8 @@ for line in sys.stdin:
     request = json.loads(line)
     if request['type'] != 'generate':
         continue
-    emit('delta', request_id=request['request_id'], phase='answer', text='hello')
+    answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else 'hello'
+    emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)
     time.sleep(0.2)

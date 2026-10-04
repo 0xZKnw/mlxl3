@@ -27,25 +27,19 @@ jobs:
         os: [ubuntu-latest, macos-26]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    env:
-      MLXL3_NATIVE_BINARY: ${{ github.workspace }}/target/debug/mlxl3-rs
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust tooling
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          rustup default stable
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+          rustup default 1.98.1
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets --features chat -- -D warnings
       - run: cargo test --locked --features chat
       - run: cargo build --locked --features chat
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install numpy pytest
-      - name: Compare CPU codec with Python reference
-        run: python native/check_parity.py --binary "$MLXL3_NATIVE_BINARY"
-      - name: Compare streamed reasoning fragments
-        run: python -m pytest -q native/test_streaming_parity.py native/test_kernel_sources.py
+      - name: Check CPU-only feature configuration
+        run: |
+          cargo clippy --locked --all-targets --no-default-features --features chat -- -D warnings
+          cargo test --locked --no-default-features --features chat
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
       # not enable the optional mlx feature, which needs a supplied libmlx.

@@ -159,10 +159,10 @@ struct CodecRequest {
     #[serde(default)]
     data: Vec<u16>,
     #[serde(default)]
-    #[cfg(any(target_os = "macos", feature = "mlx"))]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     x: Vec<u16>,
     #[serde(default)]
-    #[cfg(any(target_os = "macos", feature = "mlx"))]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     cols: usize,
     #[serde(default)]
     #[cfg(feature = "mlx")]
@@ -260,7 +260,7 @@ fn default_k() -> usize {
 }
 
 fn codec_loop() -> Result<()> {
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     let mut gpu = None;
     let stdout = io::stdout();
     let mut output = stdout.lock();
@@ -837,7 +837,7 @@ fn codec_loop() -> Result<()> {
                     let (logits, layers) = model.trace(request.token)?;
                     Ok(json!({ "layers": layers, "logits": logits.to_f16_bits()? }))
                 }
-                #[cfg(target_os = "macos")]
+                #[cfg(all(target_os = "macos", feature = "direct-metal"))]
                 "metal-pack" | "metal-decode" | "metal-qmv" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);

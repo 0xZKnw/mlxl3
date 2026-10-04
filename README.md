@@ -2,7 +2,7 @@
 
 **Native EXL3 inference for Apple Silicon, built with Rust, MLX and custom Metal kernels.**
 
-[Download MLXL3 Desktop v1.1.1](https://github.com/0xZKnw/mlxl3/releases/latest)
+[Download MLXL3 Desktop v1.1.2](https://github.com/0xZKnw/mlxl3/releases/latest)
 · [Validation scope](docs/v1-validation.md)
 · [Optimization journal](opti.md)
 · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -78,7 +78,7 @@ an older document disagree.
 ## Install MLXL3 Desktop
 
 1. Download the latest `MLXL3-Desktop-…-Apple-Silicon.dmg` from
-   [GitHub Releases](https://github.com/0xZKnw/mlxl3/releases/latest).
+    [GitHub Releases](https://github.com/0xZKnw/mlxl3/releases/latest).
 2. Open the DMG and drag **MLXL3 Desktop** to **Applications**.
 3. Launch it. If Gatekeeper blocks the ad-hoc-signed build, approve this specific
    app in **Privacy & Security**.
@@ -117,6 +117,14 @@ remove only its registration, or move its managed files to the Trash.
 ### Desktop behavior
 
 - Return sends; Control-Return inserts a newline.
+- **Attach** (Command-Shift-O) or drag PDF/text files onto the composer. Preview
+  extracted text or remove a file before sending. TXT, Markdown, CSV, JSON and
+  source code are supported in UTF-8 or UTF-16 with a BOM. PDF extraction keeps
+  page numbers; scanned or password-protected PDFs require preparation first.
+  Up to eight files can be attached per message (20 MiB per file, 256 KiB of
+  extracted text per file, 512 KiB total). Their text is included in the model
+  context and saved with the conversation, so the originals can be moved later.
+  The model's context limit still applies; oversized prompts fail visibly.
 - Reasoning, tool calls and final answers stream as separate visual phases.
 - Markdown, tables, LaTeX and syntax-highlighted code render incrementally.
 - Code blocks have a one-click copy action.

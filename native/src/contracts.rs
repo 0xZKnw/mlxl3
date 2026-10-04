@@ -17,16 +17,19 @@ pub(crate) fn valid_data_range(start: u64, end: u64, payload: u64, bytes: u64) -
     end >= start && end <= payload && end - start == bytes
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), kani))]
 pub(crate) fn packed_words(states: usize, k: usize) -> Option<usize> {
     ((1..=8).contains(&k) && states.is_multiple_of(256))
         .then(|| states.checked_div(256)?.checked_mul(16)?.checked_mul(k))?
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), kani))]
 pub(crate) fn decoded_states(words: usize, k: usize) -> Option<usize> {
     ((1..=8).contains(&k) && words.is_multiple_of(16 * k))
         .then(|| words.checked_div(16 * k)?.checked_mul(256))?
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), kani))]
 pub(crate) fn qmv_words(rows: usize, cols: usize, k: usize) -> Option<usize> {
     (rows > 0
         && cols > 0

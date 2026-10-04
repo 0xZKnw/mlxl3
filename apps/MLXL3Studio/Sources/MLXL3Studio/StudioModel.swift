@@ -16,6 +16,11 @@ final class StudioModel: ObservableObject {
     @Published var conversations: [Conversation] = [Conversation()]
     @Published var selectedConversationID: UUID?
     @Published var draft = ""
+    @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:]
+    @Published private(set) var attachmentImportErrors: [UUID: String] = [:]
+    @Published private(set) var isImportingFiles = false
+    private var attachmentImportID: UUID?
+    private var attachmentImportConversationID: UUID?
     @Published var storageError: String?
     private var persistenceBlocked = false
     private var persistenceRevision = 0
@@ -181,7 +186,80 @@ final class StudioModel: ObservableObject {
 
     var canSend: Bool {
         if case .installing = updateManager.state { return false }
-        return engineState.isReady && !mcpUpdating && !dflashDownloading && !modelInstallState.isWorking && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return engineState.isReady && !mcpUpdating && !dflashDownloading && !modelInstallState.isWorking
+            && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
+    }
+
+    var pendingAttachments: [ChatAttachment] {
+        selectedConversationID.flatMap { attachmentDrafts[$0] } ?? []
+    }
+
+    var attachmentImportError: String? {
+        selectedConversationID.flatMap { attachmentImportErrors[$0] }
+    }
+
+    var canImportFiles: Bool {
+        !isGenerating && !isImportingFiles && currentConversation != nil
+    }
+
+    func chooseChatFiles() {
+        guard canImportFiles else { return }
+        let panel = NSOpenPanel()
+        panel.title = L("Joindre des fichiers", "Attach files")
+        panel.message = L("PDF et texte · 8 fichiers maximum · 20 Mio par fichier", "PDF and text · up to 8 files · 20 MiB per file")
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = ChatAttachmentImporter.contentTypes
+        // Extensionless text files are valid too; unsupported formats get an explicit error.
+        panel.allowsOtherFileTypes = true
+        guard panel.runModal() == .OK else { return }
+        let urls = panel.urls
+        Task { await importChatFiles(urls) }
+    }
+
+    func importChatFiles(_ urls: [URL]) async {
+        guard canImportFiles, !urls.isEmpty, let id = selectedConversationID else { return }
+        let token = UUID()
+        attachmentImportID = token
+        attachmentImportConversationID = id
+        isImportingFiles = true
+        attachmentImportErrors[id] = nil
+        let existing = pendingAttachments
+        let task = Task.detached(priority: .userInitiated) {
+            ChatAttachmentImporter.load(urls, existing: existing)
+        }
+        let result = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        guard attachmentImportID == token else { return }
+        attachmentImportID = nil
+        attachmentImportConversationID = nil
+        isImportingFiles = false
+        guard !Task.isCancelled, conversations.contains(where: { $0.id == id }) else { return }
+        attachmentDrafts[id] = result.attachments
+        attachmentImportErrors[id] = result.errors.isEmpty ? nil : result.errors.joined(separator: "\n")
+    }
+
+    func removeChatAttachment(_ attachmentID: UUID) {
+        guard !isGenerating, !isImportingFiles, let id = selectedConversationID else { return }
+        attachmentDrafts[id]?.removeAll { $0.id == attachmentID }
+    }
+
+    func dismissAttachmentImportError() {
+        guard let id = selectedConversationID else { return }
+        attachmentImportErrors[id] = nil
+    }
+
+    private func clearAttachmentDraft(_ id: UUID) {
+        attachmentDrafts[id] = nil
+        attachmentImportErrors[id] = nil
+        if attachmentImportConversationID == id {
+            attachmentImportID = nil
+            attachmentImportConversationID = nil
+            isImportingFiles = false
+        }
     }
 
     var isGenerating: Bool {
@@ -396,6 +474,8 @@ final class StudioModel: ObservableObject {
 
     func deleteConversation(_ id: UUID) {
         guard let removed = conversations.first(where: { $0.id == id }) else { return }
+        clearAttachmentDraft(id)
+        drafts[id] = nil
         if removed.messages.contains(where: { $0.id == activeResponseID }) {
             activeMessage()?.fail(L("Conversation supprimée", "Conversation deleted"))
             _ = bridge.cancelGeneration()
@@ -417,15 +497,19 @@ final class StudioModel: ObservableObject {
     }
 
     func send() {
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard canSend, let conversationIndex else { return }
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = trimmed.isEmpty ? L("Analyse les fichiers joints.", "Analyze the attached files.") : trimmed
+        let attachments = pendingAttachments
 
         draft = ""
+        drafts[conversations[conversationIndex].id] = nil
+        clearAttachmentDraft(conversations[conversationIndex].id)
         if conversations[conversationIndex].messages.isEmpty {
-            conversations[conversationIndex].title = title(for: text)
+            conversations[conversationIndex].title = title(for: trimmed.isEmpty ? attachments.first?.fileName ?? text : text)
         }
         conversations[conversationIndex].messages.append(
-            ChatMessage(role: .user, content: text)
+            ChatMessage(role: .user, content: text, attachments: attachments)
         )
         let assistant = ChatMessage(role: .assistant, content: "", isStreaming: true)
         conversations[conversationIndex].messages.append(assistant)
@@ -445,7 +529,7 @@ final class StudioModel: ObservableObject {
             guard !message.isStreaming else { return nil }
             let context = message.role == .assistant
                 ? (message.cacheContext ?? message.content)
-                : message.content
+                : message.promptContent
             return PromptMessage(role: message.role.rawValue, content: context, turnContext: message.turnContext)
         }
 

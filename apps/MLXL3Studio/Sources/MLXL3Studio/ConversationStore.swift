@@ -52,6 +52,7 @@ struct ChatMessageSnapshot: Codable, Sendable {
     let cacheContext: String?
     var parts: [AssistantPart]? = nil
     var turnContext: String? = nil
+    var attachments: [ChatAttachment]? = nil
 }
 
 final class ConversationStore: @unchecked Sendable {

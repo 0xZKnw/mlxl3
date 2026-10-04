@@ -220,6 +220,7 @@ final class ChatMessage: ObservableObject, Identifiable {
 
     let id: UUID
     let role: Role
+    let attachments: [ChatAttachment]
     private(set) var content: String
     private(set) var thinking: String
     private(set) var isStreaming: Bool
@@ -235,6 +236,7 @@ final class ChatMessage: ObservableObject, Identifiable {
         id: UUID = UUID(),
         role: Role,
         content: String,
+        attachments: [ChatAttachment] = [],
         thinking: String = "",
         isStreaming: Bool = false,
         stats: GenerationStats? = nil,
@@ -245,6 +247,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     ) {
         self.id = id
         self.role = role
+        self.attachments = attachments
         self.content = content
         self.thinking = thinking
         self.isStreaming = isStreaming
@@ -340,6 +343,10 @@ final class ChatMessage: ObservableObject, Identifiable {
         parts[parts.count - 1].interrupted = interrupted
     }
 
+    var promptContent: String {
+        role == .user ? ChatAttachment.promptContent(content, attachments: attachments) : content
+    }
+
     var snapshot: ChatMessageSnapshot {
         ChatMessageSnapshot(
             id: id,
@@ -359,7 +366,8 @@ final class ChatMessage: ObservableObject, Identifiable {
                 }
                 return saved
             },
-            turnContext: turnContext
+            turnContext: turnContext,
+            attachments: attachments.isEmpty ? nil : attachments
         )
     }
 
@@ -369,6 +377,7 @@ final class ChatMessage: ObservableObject, Identifiable {
             id: snapshot.id,
             role: role,
             content: snapshot.content,
+            attachments: snapshot.attachments ?? [],
             thinking: snapshot.thinking,
             isStreaming: false,
             stats: snapshot.stats,

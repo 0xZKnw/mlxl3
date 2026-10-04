@@ -110,7 +110,11 @@ private struct MessageView: View {
                 Text(L("Vous", "You"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(StudioTheme.quiet)
-                Text(message.content)
+                ForEach(message.attachments) { attachment in
+                    ChatAttachmentView(attachment: attachment)
+                }
+                if !message.content.isEmpty {
+                  Text(message.content)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(StudioTheme.ink)
                     .lineSpacing(5)
@@ -118,6 +122,7 @@ private struct MessageView: View {
                     .padding(.horizontal, 17)
                     .padding(.vertical, 13)
                     .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
+                }
             }
           }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -432,12 +437,98 @@ private struct MetricChip: View {
     }
 }
 
+struct ChatAttachmentView: View {
+    let attachment: ChatAttachment
+    var onRemove: (() -> Void)? = nil
+    @State private var showPreview = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button { showPreview = true } label: {
+                Label(attachment.fileName, systemImage: attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .buttonStyle(.plain)
+            .help(L("Afficher le texte extrait", "Preview extracted text"))
+            .popover(isPresented: $showPreview) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(attachment.fileName).font(.headline)
+                    ScrollView {
+                        Text(attachment.text)
+                            .font(.system(size: 12, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(18)
+                .frame(width: 500, height: 360)
+            }
+            if let onRemove {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L("Retirer \(attachment.fileName)", "Remove \(attachment.fileName)"))
+                .help(L("Retirer le fichier", "Remove file"))
+            }
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(StudioTheme.secondary)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: 300)
+    }
+}
+
 struct ComposerView: View {
     @EnvironmentObject private var studio: StudioModel
     @FocusState private var focused: Bool
+    @State private var dropTargeted = false
 
     var body: some View {
         VStack(spacing: 0) {
+            if !studio.pendingAttachments.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 8) {
+                        ForEach(studio.pendingAttachments) { attachment in
+                            ChatAttachmentView(attachment: attachment) {
+                                studio.removeChatAttachment(attachment.id)
+                            }
+                            .disabled(studio.isGenerating || studio.isImportingFiles)
+                        }
+                    }
+                }
+                .scrollIndicators(.never)
+                .padding(.horizontal, 18)
+                .padding(.top, 14)
+            }
+            if studio.isImportingFiles {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.mini)
+                    Text(L("Lecture des fichiers…", "Reading files…"))
+                    Spacer()
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(StudioTheme.secondary)
+                .padding(.horizontal, 18)
+                .padding(.top, 12)
+            }
+            if let error = studio.attachmentImportError {
+                HStack(alignment: .top, spacing: 8) {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .textSelection(.enabled)
+                    Spacer(minLength: 0)
+                    Button(action: studio.dismissAttachmentImportError) { Image(systemName: "xmark") }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L("Fermer l’erreur d’import", "Dismiss import error"))
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 18)
+                .padding(.top, 12)
+            }
             HStack(alignment: .bottom, spacing: 12) {
                 TextField(L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -497,9 +588,14 @@ struct ComposerView: View {
         .background(Color(red: 0.105, green: 0.108, blue: 0.108), in: RoundedRectangle(cornerRadius: 12))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(focused ? 0.22 : 0.10), lineWidth: 0.7)
+                .stroke(dropTargeted ? StudioTheme.accent : Color.white.opacity(focused ? 0.22 : 0.10), lineWidth: dropTargeted ? 1.5 : 0.7)
                 .allowsHitTesting(false)
         }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard studio.canImportFiles, !urls.isEmpty else { return false }
+            Task { await studio.importChatFiles(urls) }
+            return true
+        } isTargeted: { dropTargeted = $0 }
         .frame(maxWidth: 790)
         .frame(maxWidth: .infinity)
         .onAppear { focused = true }
@@ -520,6 +616,15 @@ private struct ComposerFooterView: View {
 
     var body: some View {
             HStack(spacing: 7) {
+                Button(action: studio.chooseChatFiles) {
+                    Label(L("Joindre", "Attach"), systemImage: "paperclip")
+                }
+                .buttonStyle(.plain)
+                .disabled(!studio.canImportFiles)
+                .keyboardShortcut("o", modifiers: [.command, .shift])
+                .accessibilityLabel(L("Joindre des fichiers", "Attach files"))
+                .help(L("Joindre des PDF ou fichiers texte, ou les déposer ici (⌘⇧O).", "Attach PDFs or text files, or drop them here (⌘⇧O)."))
+                Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
                 Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
                     HStack(spacing: 5) {
                         Image(systemName: "network")

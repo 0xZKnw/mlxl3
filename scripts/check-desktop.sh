@@ -33,6 +33,11 @@ swiftc "${swiftc_args[@]}" \
     tests/studio-hardening-check.swift -o "${test_dir}/check"
 "${test_dir}/check" "$PWD/tests/fake-desktop-engine.py"
 
+swiftc "${swiftc_args[@]}" \
+    "${sources[@]}" "${math_objects[@]}" \
+    tests/file-import-check.swift -o "${test_dir}/file-import-check"
+"${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
+
 "${binary_dir}/MLXL3Studio" --check-chat-timeline
 "${binary_dir}/MLXL3Studio" --check-mcp-preferences
 
@@ -60,4 +65,4 @@ swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.sw
     tests/cli-command-check.swift -o "${test_dir}/cli-command-check"
 "${test_dir}/cli-command-check" "${test_python}"
 
-print "Desktop E2E checks passed: lifecycle, bridge, streaming/rendering and CLI transport"
+print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport"
