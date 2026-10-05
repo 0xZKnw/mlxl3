@@ -1,6 +1,32 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
 #[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn mtp_add_norm_launch(rows: i32, width: i32) -> Option<(i32, i32)> {
+    if !(1..=4).contains(&rows) || !matches!(width, 2048 | 5120) {
+        return None;
+    }
+    let threads = (width / 4).min(1024);
+    Some((threads, rows * threads))
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn mtp_add_norm_launch_bounds() {
+    let rows: i32 = kani::any();
+    let width: i32 = kani::any();
+    let launch = mtp_add_norm_launch(rows, width);
+    if let Some((threads, grid)) = launch {
+        assert!((1..=4).contains(&rows) && matches!(width, 2048 | 5120));
+        assert!(threads > 0 && threads <= 1024 && threads % 32 == 0);
+        assert!(grid == rows * threads && grid <= 4096);
+        assert!(rows * width <= 20_480);
+    }
+    kani::cover!(rows == 4 && width == 5120 && launch == Some((1024, 4096)));
+    kani::cover!(rows == 1 && width == 2048 && launch == Some((512, 512)));
+    kani::cover!(launch.is_none());
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
     capable && rows >= 24
 }

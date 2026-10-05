@@ -30,7 +30,11 @@ use std::{
 };
 
 #[derive(Parser)]
-#[command(version, about = "Native MLXL3 Rust/Metal runtime")]
+#[command(
+    version,
+    about = "Native MLXL3 Rust/Metal runtime",
+    after_help = "Powered by MTPLX https://github.com/youssofal/MTPLX"
+)]
 struct Cli {
     #[arg(long, global = true)]
     registry: Option<PathBuf>,
@@ -117,6 +121,9 @@ enum Command {
     MtpHead {
         #[arg(long)]
         inspect: Option<PathBuf>,
+        /// Select/validate the head against this target's configuration.
+        #[arg(long)]
+        target: Option<PathBuf>,
     },
     /// Configure and inspect Model Context Protocol servers.
     Mcp {
@@ -1218,11 +1225,29 @@ fn run(cli: Cli) -> Result<()> {
             };
             println!("{}", json!({"type":"installed", "path":path}));
         }
-        Command::MtpHead { inspect } => {
+        Command::MtpHead { inspect, target } => {
+            let target = target
+                .as_deref()
+                .map(mlxl3_native::mtp::target_layout)
+                .transpose()?;
             let path = if let Some(path) = inspect {
-                mlxl3_native::mtp::inspect(&path)?.0.path
+                let (checkpoint, layout) = mlxl3_native::mtp::inspect(&path)?;
+                if let Some((expected, _)) = &target {
+                    anyhow::ensure!(
+                        &layout == expected,
+                        "MTP head does not match the target model dimensions"
+                    );
+                }
+                checkpoint.path
             } else {
-                mlxl3_native::hub::download_mtp(|completed, total| {
+                let kind = if let Some((layout, layers)) = &target {
+                    layout
+                        .managed_head(*layers)
+                        .context("No managed MTP head for this target")?
+                } else {
+                    mlxl3_native::mtp::ManagedHead::Qwen36Moe
+                };
+                mlxl3_native::hub::download_mtp(kind, |completed, total| {
                     println!(
                         "{}",
                         json!({"type":"progress", "completed":completed, "total":total})
@@ -2469,6 +2494,33 @@ fn bridge_generate(
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn load_mtp_head(
+    head: &mut Option<(PathBuf, mlxl3_native::mtp::Head)>,
+    revision: &mut Option<String>,
+    prompt_cache: &mut Option<PromptCache>,
+    requested: &str,
+    target: &mlxl3_native::qwen35::Qwen35Moe,
+) -> Result<bool> {
+    anyhow::ensure!(
+        !requested.trim().is_empty(),
+        "MTP head folder is not configured"
+    );
+    let path = registry::expand_home(&PathBuf::from(requested))?.canonicalize()?;
+    let next_revision = mtp_tune::artifact_key(&path)?;
+    if head.as_ref().map(|(p, _)| p) == Some(&path) && revision.as_ref() == Some(&next_revision) {
+        return Ok(false);
+    }
+    // Drop the previous head and its cached state before allocating a replacement.
+    *prompt_cache = None;
+    *head = None;
+    *revision = None;
+    mlxl3_native::array::clear_cache()?;
+    *head = Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+    *revision = Some(next_revision);
+    Ok(true)
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn native_bridge(
     registry_path: Option<&std::path::Path>,
     name: &str,
@@ -2506,6 +2558,9 @@ fn native_bridge(
     let resident_gb = checkpoint.size_bytes as f64 / 1e9;
     let dflash_supported =
         matches!(&model, NativeChatModel::Qwen(target) if target.supports_dflash());
+    let mtp_auto_download_supported = matches!(&model, NativeChatModel::Qwen(_))
+        && mlxl3_native::mtp::target_layout(&path)
+            .is_ok_and(|(layout, layers)| layout.managed_head(layers).is_some());
     let executable = std::env::current_exe()?.display().to_string();
     let tuning_key = mtp_tune::runtime_key(&path, context_limit)?;
     emit_event(json!({
@@ -2517,7 +2572,8 @@ fn native_bridge(
         "runtime_executable":executable,
         "dflash_supported":dflash_supported,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)),
-        "mtp_auto_download_supported":dflash_supported,
+        "mtp_auto_download_supported":mtp_auto_download_supported,
+        "mtp_configure_supported":true,
         "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
         "mtp_tuning_key":tuning_key,
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
@@ -2560,31 +2616,60 @@ fn native_bridge(
                     "mcp_tools":mcp.tools.len(), "mcp_errors":mcp.errors
                 }))?;
             }
+            "set_mtp" => {
+                prompt_cache = None;
+                model.reset();
+                let result = (|| -> Result<()> {
+                    if request.enabled {
+                        let NativeChatModel::Qwen(target) = &model else {
+                            bail!("MTP requires a Qwen target");
+                        };
+                        dflash_weights = None;
+                        load_mtp_head(
+                            &mut mtp_head,
+                            &mut mtp_head_revision,
+                            &mut prompt_cache,
+                            &request.mtp_head_path,
+                            target,
+                        )?;
+                    } else {
+                        mtp_head = None;
+                        mtp_head_revision = None;
+                    }
+                    mlxl3_native::array::clear_cache()?;
+                    emit_event(json!({"type":"mtp_status", "request_id":request.request_id,
+                        "mtp_active":mtp_head.is_some(),
+                        "mtp_head_path":mtp_head.as_ref().map(|(path, _)| path),
+                        "memory":mlxl3_native::array::memory_stats(false)?}))
+                })();
+                if let Err(error) = result {
+                    mtp_head = None;
+                    mtp_head_revision = None;
+                    mlxl3_native::array::clear_cache()?;
+                    emit_event(json!({"type":"error", "request_id":request.request_id,
+                        "message":error.to_string(), "mtp_active":false,
+                        "memory":mlxl3_native::array::memory_stats(false)?}))?;
+                }
+            }
             "tune_mtp" => {
                 cancelled.store(false, Ordering::Relaxed);
                 prompt_cache = None;
                 dflash_weights = None;
                 let result = (|| -> Result<()> {
                     let NativeChatModel::Qwen(target) = &model else {
-                        bail!("Tune MTP supports Qwen3.5/3.6 targets");
+                        bail!("Tune MTP supports Qwen3.5/3.6/3.8 targets");
                     };
-                    anyhow::ensure!(
-                        !request.mtp_head_path.trim().is_empty(),
-                        "MTP head folder is not configured"
-                    );
-                    let path = registry::expand_home(&PathBuf::from(&request.mtp_head_path))?
-                        .canonicalize()?;
-                    let revision = mtp_tune::artifact_key(&path)?;
-                    if mtp_head.as_ref().map(|(p, _)| p) != Some(&path)
-                        || mtp_head_revision.as_ref() != Some(&revision)
-                    {
-                        emit_event(
-                            json!({"type":"mtp_tune_progress","request_id":request.request_id,"phase":"loading_head","completed":0,"total":12}),
-                        )?;
-                        mtp_head =
-                            Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
-                        mtp_head_revision = Some(revision);
-                    }
+                    emit_event(
+                        json!({"type":"mtp_tune_progress","request_id":request.request_id,
+                        "phase":"loading_head","completed":0,"total":12}),
+                    )?;
+                    load_mtp_head(
+                        &mut mtp_head,
+                        &mut mtp_head_revision,
+                        &mut prompt_cache,
+                        &request.mtp_head_path,
+                        target,
+                    )?;
                     mtp_tune::run(
                         &mut model,
                         &mut mtp_head.as_mut().context("missing MTP head")?.1,
@@ -2630,31 +2715,22 @@ fn native_bridge(
                             "MTP depth must be 1, 2 or 3"
                         );
                         let NativeChatModel::Qwen(target) = &model else {
-                            bail!("MTP supports Qwen3.5/3.6 targets");
+                            bail!("MTP supports Qwen3.5/3.6/3.8 targets");
                         };
-                        anyhow::ensure!(
-                            !request.mtp_head_path.trim().is_empty(),
-                            "MTP head folder is not configured"
-                        );
-                        let path = registry::expand_home(&PathBuf::from(&request.mtp_head_path))?
-                            .canonicalize()?;
-                        let revision = mtp_tune::artifact_key(&path)?;
-                        if mtp_head.as_ref().map(|(p, _)| p) != Some(&path)
-                            || mtp_head_revision.as_ref() != Some(&revision)
-                        {
+                        let started = Instant::now();
+                        if load_mtp_head(
+                            &mut mtp_head,
+                            &mut mtp_head_revision,
+                            &mut prompt_cache,
+                            &request.mtp_head_path,
+                            target,
+                        )? {
                             prompt_cache = None;
-                            emit_event(
-                                json!({"type":"generation_status", "request_id":request.request_id,
-                                "phase":"loading_draft", "text":"Preparing MTP head"}),
-                            )?;
-                            let started = Instant::now();
-                            mtp_head =
-                                Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
-                            mtp_head_revision = Some(revision);
                             draft_load_seconds += started.elapsed().as_secs_f64();
                         }
                     } else {
                         mtp_head = None;
+                        mtp_head_revision = None;
                     }
                     if request.dflash2 {
                         anyhow::ensure!(

@@ -86,6 +86,9 @@ final class StudioModel: ObservableObject {
     private var persistenceTask: Task<Void, Never>?
     private var dflashDownloadTask: Task<Void, Never>?
     private var mtpDownloadTask: Task<Void, Never>?
+    private var mtpOperationID = UUID()
+    private var mtpConfigureSupported = false
+    private var mtpLegacyModelName: String?
     private var didStart = false
     private var activeRequestID: String?
     private var activeResponseID: UUID?
@@ -110,7 +113,6 @@ final class StudioModel: ObservableObject {
         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
         self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
-            && !(preferences.string(forKey: "studio.mtpHeadPath") ?? "").isEmpty
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
         do {
@@ -146,16 +148,19 @@ final class StudioModel: ObservableObject {
                 repetitionPenalty = 1
             }
         }
+        mtpLegacyModelName = selectedModelName
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         bridge.onRuntimeFallback = { [weak self] in
             guard let self else { return }
             self.readyInfo = nil
+            self.cancelMTPPreparation()
             self.finishMTPTuning(error: nil)
             self.loadSelectedModel()
         }
         bridge.onExit = { [weak self] message in
             guard let self, let message, !message.isEmpty else { return }
             self.readyInfo = nil
+            self.cancelMTPPreparation()
             self.finishMTPTuning(error: message)
             self.mtpTuneSupported = false; self.mtpTuningKey = nil
             self.dflashActive = nil
@@ -185,7 +190,7 @@ final class StudioModel: ObservableObject {
         mtpSupported ?? ["qwen3_5", "qwen3_5_moe"].contains(selectedModel?.modelType ?? "")
     }
     var mtpAutomaticDownloadAvailable: Bool {
-        mtpAutoDownloadSupported ?? (mtpAvailable && (selectedModel?.name ?? "").lowercased().contains("qwen3.6-35b-a3b"))
+        mtpAutoDownloadSupported ?? false
     }
 
     var savedContextLength: Int {
@@ -517,10 +522,11 @@ final class StudioModel: ObservableObject {
         mtpActive = nil
         mtpSupported = nil
         mtpAutoDownloadSupported = nil
+        mtpConfigureSupported = false
         finishMTPTuning(error: nil)
         mtpMaxDepth = 1; mtpTuneSupported = false; mtpTuningKey = nil
         mtpTuneRows = []; mtpTunedAt = nil; mtpDepth = 1
-        mtpDownloadTask?.cancel()
+        cancelMTPPreparation()
         activeContextLimit = nil
         modelContextLimit = nil
         contextMemory = nil
@@ -726,49 +732,83 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    private func cancelMTPPreparation() {
+        mtpOperationID = UUID()
+        mtpDownloadTask?.cancel()
+        mtpDownloadTask = nil
+        mtpDownloading = false
+    }
+
     func setMTPEnabled(_ enabled: Bool) {
-        guard !isTuningMTP else { return }
+        guard !isGenerating else { return }
         if !enabled {
-            mtpDownloadTask?.cancel()
+            cancelMTPPreparation()
             mtpEnabled = false
             preferences.set(false, forKey: "studio.mtpEnabled")
             saveMTPSelection()
+            if mtpConfigureSupported && bridge.isRunning {
+                do { try bridge.setMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
+                catch { mtpError = error.localizedDescription }
+            }
             return
         }
-        guard mtpAvailable, !isGenerating, !mtpDownloading else { return }
-        let model = selectedModelName
+        guard mtpAvailable, engineState.isReady, !mtpDownloading, let model = selectedModel else { return }
+        cancelMTPPreparation()
+        let operation = mtpOperationID
+        preferences.set(true, forKey: "studio.mtpEnabled")
         mtpError = nil; mtpDownloadCompleted = 0; mtpDownloadTotal = 0
         mtpDownloading = true
         mtpDownloadTask = Task { [weak self] in
             guard let self else { return }
             do {
                 var data: Data?
+                let target = mtpConfigureSupported ? ["--target", model.path] : []
                 if !mtpHeadPath.isEmpty {
-                    data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath])
-                } else {
+                    do { data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath] + target) }
+                    catch is CancellationError { throw CancellationError() }
+                    catch { if !mtpAutomaticDownloadAvailable { throw error } }
+                }
+                if data == nil {
                     guard mtpAutomaticDownloadAvailable else {
                         throw MLXL3BridgeError.commandFailed(L("Choisis la tête MTP de ce modèle.", "Choose this model’s MTP head."))
                     }
-                    data = try await CLICommand().output(["mtp-head"]) { [weak self] line in
-                        guard let self, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                    data = try await CLICommand().output(["mtp-head"] + target) { [weak self] line in
+                        guard let self, operation == self.mtpOperationID,
+                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
                         self.mtpDownloadCompleted = event.completed ?? self.mtpDownloadCompleted
                         self.mtpDownloadTotal = event.total ?? self.mtpDownloadTotal
                     }
                 }
                 try Task.checkCancellation()
-                guard model == selectedModelName, mtpAvailable else { throw CancellationError() }
+                guard operation == mtpOperationID, model == selectedModel, mtpAvailable else { throw CancellationError() }
                 guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
                       event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
                 mtpHeadPath = path
                 preferences.set(path, forKey: "studio.mtpHeadPath")
+                preferences.set(path, forKey: "studio.mtpHead.\(model.path)")
                 dflash2Enabled = false
                 mtpEnabled = true
                 temperature = 0; topK = 1; repetitionPenalty = 1
                 preferences.set(true, forKey: "studio.mtpEnabled")
                 saveMTPSelection()
                 schedulePersistence()
+                if mtpConfigureSupported {
+                    try bridge.setMTP(requestID: operation.uuidString, enabled: true, headPath: path)
+                    try await Task.sleep(for: .seconds(30))
+                    throw MLXL3BridgeError.commandFailed(L("Le chargement MTP ne répond pas.", "MTP loading did not respond."))
+                }
             } catch is CancellationError { }
-            catch { mtpError = error.localizedDescription }
+            catch {
+                guard operation == mtpOperationID else { return }
+                mtpEnabled = false; mtpActive = false
+                mtpError = error.localizedDescription
+                cancelMTPPreparation()
+                if mtpConfigureSupported && bridge.isRunning {
+                    try? bridge.setMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "")
+                }
+                return
+            }
+            guard operation == mtpOperationID else { return }
             mtpDownloading = false
             mtpDownloadTask = nil
         }
@@ -813,9 +853,9 @@ final class StudioModel: ObservableObject {
         mtpDepth = 1; mtpTuneRows = []; mtpTunedAt = nil
         guard let key = currentMTPConfiguration,
               let saved = MTPTuning.load(key: key, preferences: preferences), saved.depth <= mtpMaxDepth else { return }
-        mtpDepth = max(1, saved.depth); mtpEnabled = saved.depth > 0
+        mtpDepth = max(1, saved.depth)
+        // The global switch owns ON/OFF; saved tuning only restores the depth.
         mtpTuneRows = saved.rows; mtpTunedAt = saved.tunedAt
-        preferences.set(mtpEnabled, forKey: "studio.mtpEnabled")
         if mtpEnabled { temperature = 0; topK = 1; repetitionPenalty = 1 }
     }
 
@@ -985,7 +1025,12 @@ final class StudioModel: ObservableObject {
         mtpActive = nil
         mtpSupported = nil
         mtpAutoDownloadSupported = nil
-        mtpDownloadTask?.cancel()
+        cancelMTPPreparation()
+        mtpConfigureSupported = false
+        mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
+        mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
+            ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
+        mtpError = nil
         runtimeIdentity = nil
         contextLengthDraft = savedContextLength
         if isPreview {
@@ -1045,6 +1090,12 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
+        if event.requestID == mtpOperationID.uuidString && ["mtp_status", "error"].contains(event.type) {
+            mtpDownloadTask?.cancel(); mtpDownloadTask = nil; mtpDownloading = false
+            if event.type == "mtp_status" { mtpActive = event.mtpActive }
+            else { mtpEnabled = false; mtpActive = false; mtpError = event.message }
+            return
+        }
         if isTuningMTP && event.type == "error" && (event.requestID == nil || event.requestID == "") {
             _ = bridge.cancelGeneration()
             finishMTPTuning(error: event.message ?? L("Réponse du moteur illisible. Réglage conservé.", "Unreadable engine response. Setting preserved."))
@@ -1061,6 +1112,7 @@ final class StudioModel: ObservableObject {
             dflashSupported = event.dflashSupported
             mtpSupported = event.mtpSupported
             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
+            mtpConfigureSupported = event.mtpConfigureSupported == true
             mtpMaxDepth = min(3, max(1, event.mtpMaxDepth ?? 1))
             mtpTuneSupported = event.mtpTuneSupported == true && mtpMaxDepth == 3
             mtpTuningKey = event.mtpTuningKey
@@ -1086,6 +1138,7 @@ final class StudioModel: ObservableObject {
                 residentGB: info.residentGB
             )
             if mcpEnabled { updateMCPConnection() }
+            if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
         case "mcp_status":
             mcpUpdating = false
             mcpServerCount = event.mcpServers ?? 0

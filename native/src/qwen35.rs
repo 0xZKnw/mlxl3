@@ -15,6 +15,24 @@ use std::{fs::File, path::Path};
 
 const DFLASH_CAPTURE_LAYERS: [usize; 8] = [1, 6, 11, 16, 22, 27, 32, 37];
 
+fn post_attention_norm(
+    x: &Array,
+    attention: &Array,
+    weight: &Array,
+    eps: f32,
+) -> Result<(Array, Array)> {
+    static FUSED_NORM: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let fused =
+        *FUSED_NORM.get_or_init(|| std::env::var("MLXL3_QWEN_FUSED_NORM").as_deref() == Ok("1"));
+    if fused && x.shape().last() == Some(&5120) {
+        x.add_rms_norm(attention, weight, eps)
+    } else {
+        let hidden = x.add(attention)?;
+        let normalized = hidden.rms_norm(weight, eps)?;
+        Ok((hidden, normalized))
+    }
+}
+
 pub(crate) enum ProjectionBundle {
     Grouped(Box<Exl3Group>),
     Separate(Vec<Projection>),
@@ -668,12 +686,8 @@ impl AttentionLayer {
         let attention = self
             .attention
             .forward(&x.rms_norm(&self.input_norm, self.eps)?)?;
-        let hidden = x.add(&attention)?;
-        let mlp = self.mlp.forward(
-            &hidden
-                .rms_norm(&self.post_norm, self.eps)?
-                .reshape(&[time, self.hidden])?,
-        )?;
+        let (hidden, post) = post_attention_norm(x, &attention, &self.post_norm, self.eps)?;
+        let mlp = self.mlp.forward(&post.reshape(&[time, self.hidden])?)?;
         hidden.add(&mlp.reshape(&[1, time, self.hidden])?)
     }
 
@@ -703,8 +717,13 @@ impl AttentionLayer {
         let mut residuals = Vec::with_capacity(values.len());
         let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
-            let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
-            posts.push(hidden.rms_norm(&self.post_norm, self.eps)?);
+            let (hidden, post) = post_attention_norm(
+                value,
+                &attention.slice(1, time as i32, time as i32 + 1)?,
+                &self.post_norm,
+                self.eps,
+            )?;
+            posts.push(post);
             residuals.push(hidden);
         }
         let mlp = self.mlp.forward_verification(&posts, self.hidden)?;
@@ -1612,8 +1631,13 @@ impl LinearLayer {
         let mut residuals = Vec::with_capacity(values.len());
         let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
-            let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
-            posts.push(hidden.rms_norm(&self.post_norm, self.eps)?);
+            let (hidden, post) = post_attention_norm(
+                value,
+                &attention.slice(1, time as i32, time as i32 + 1)?,
+                &self.post_norm,
+                self.eps,
+            )?;
+            posts.push(post);
             residuals.push(hidden);
         }
         let mlp = self.mlp.forward_verification(&posts, self.hidden)?;
@@ -1646,8 +1670,7 @@ impl LinearLayer {
         } else {
             (self.attention.forward(&normalized)?, Vec::new())
         };
-        let hidden = x.add(&attention)?;
-        let post = hidden.rms_norm(&self.post_norm, self.eps)?;
+        let (hidden, post) = post_attention_norm(x, &attention, &self.post_norm, self.eps)?;
         let mlp = self.mlp.forward(&post.reshape(&[time, self.hidden])?)?;
         let mlp = mlp.reshape(&[1, time, self.hidden])?;
         let output = hidden.add(&mlp)?;
@@ -2060,7 +2083,20 @@ mod tests {
                     layer.attention.values.as_ref(),
                 ],
             })
-            .map(|state| state.context("missing Qwen test state")?.to_bytes())
+            .map(|state| {
+                let state = state.context("missing Qwen test state")?;
+                let values = state.to_f32()?;
+                let count = state.shape().iter().try_fold(1usize, |count, &dimension| {
+                    count.checked_mul(usize::try_from(dimension).ok()?)
+                });
+                ensure!(
+                    count == Some(values.len())
+                        && !values.is_empty()
+                        && values.iter().all(|value| value.is_finite()),
+                    "empty, malformed or non-finite Qwen test state"
+                );
+                state.to_bytes()
+            })
             .collect()
     }
 
@@ -2086,8 +2122,10 @@ mod tests {
                     logits = model.forward((step * 53) as u32)?;
                 }
                 let bits = logits.to_f16_bits()?;
+                assert_eq!(bits.len(), model.vocab as usize);
                 assert!(bits.iter().all(|&value| f16::from_bits(value).is_finite()));
                 let mut arrays = state_bytes(&model)?;
+                assert_eq!(arrays.len(), model.layers.len() * 2);
                 arrays.push(bits.iter().flat_map(|bits| bits.to_ne_bytes()).collect());
                 for (index, bytes) in arrays.iter().enumerate() {
                     let file =
@@ -2115,7 +2153,10 @@ mod tests {
     #[test]
     #[ignore = "requires local Qwen checkpoint and physical Apple GPU"]
     fn mtp_prefill_verification_and_rollback_match_target() -> Result<()> {
-        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let mut model = Qwen35Moe::load(Path::new(
+            &std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        ))?;
         for time in [1, 23, 24, 129, 256] {
             let prefix = (0..time).map(|i| 1 + i % 31).collect::<Vec<_>>();
             model.reset();
@@ -2181,8 +2222,17 @@ mod tests {
     #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
     fn mtp_recursive_sessions_match_greedy_and_exact_caches() -> Result<()> {
         use crate::mtp::{Head, Session};
-        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
-        let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &model)?;
+        let mut model = Qwen35Moe::load(Path::new(
+            &std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        ))?;
+        let mut head = Head::load(
+            Path::new(
+                &std::env::var("MLXL3_MTP_TEST_HEAD")
+                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
+            ),
+            &model,
+        )?;
         for depth in 1..=3 {
             model.reset();
             head.reset()?;

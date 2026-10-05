@@ -103,6 +103,8 @@ struct AppSettingsView: View {
                     }
                     .padding(.vertical, 17)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    Link("Powered by MTPLX", destination: URL(string: "https://github.com/youssofal/MTPLX")!)
+                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                 }
                 .padding(26)
             }

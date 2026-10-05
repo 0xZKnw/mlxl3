@@ -1,4 +1,4 @@
-//! Native Qwen3.5/3.6 NextN predictor. Architecture follows Qwen and the
+//! Native Qwen3.5/3.6/3.8 NextN predictor. Architecture follows Qwen and the
 //! MLX/MTPLX reference: pre-norm trunk hidden, [embedding, hidden] concat,
 //! one full-attention block, absolute norm gains, shared target lm_head.
 use crate::checkpoint::{Checkpoint, read_header};
@@ -29,6 +29,128 @@ pub struct Layout {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Rope {
     pub rope_theta: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ManagedHead {
+    Qwen38Dense,
+    Qwen36Moe,
+}
+
+impl Layout {
+    /// Choose by the actual architecture, including vocabulary and RoPE, so
+    /// renamed EXL3 folders work and unrelated Qwen sizes never download a head.
+    pub fn managed_head(&self, layers: usize) -> Option<ManagedHead> {
+        if self.vocab_size != 248_320
+            || self.head_dim != 256
+            || self.rms_norm_eps != 1e-6
+            || self.partial_rotary_factor != 0.25
+            || self.rope_parameters.rope_theta != 10_000_000.
+        {
+            return None;
+        }
+        match (
+            self.hidden_size,
+            self.num_attention_heads,
+            self.num_key_value_heads,
+            self.num_experts,
+            layers,
+        ) {
+            (5120, 24, 4, 0, 64)
+                if self.intermediate_size == Some(17_408)
+                    && self.num_experts_per_tok == 0
+                    && self.moe_intermediate_size == 0
+                    && self.shared_expert_intermediate_size == 0 =>
+            {
+                Some(ManagedHead::Qwen38Dense)
+            }
+            (2048, 16, 2, 256, 40)
+                if self.num_experts_per_tok == 8
+                    && self.intermediate_size.is_none()
+                    && self.moe_intermediate_size == 512
+                    && self.shared_expert_intermediate_size == 512 =>
+            {
+                Some(ManagedHead::Qwen36Moe)
+            }
+            _ => None,
+        }
+    }
+}
+
+pub fn target_layout(path: &Path) -> Result<(Layout, usize)> {
+    let config: serde_json::Value = serde_json::from_reader(File::open(path.join("config.json"))?)?;
+    ensure!(
+        matches!(
+            config["model_type"].as_str(),
+            Some("qwen3_5" | "qwen3_5_moe")
+        ),
+        "MTP requires a Qwen3.5/3.6/3.8 target"
+    );
+    let text = &config["text_config"];
+    ensure!(
+        text["mtp_use_dedicated_embeddings"].as_bool() != Some(true),
+        "MTP requires shared target embeddings"
+    );
+    let layers = usize::try_from(
+        text["num_hidden_layers"]
+            .as_u64()
+            .context("missing target layer count")?,
+    )?;
+    Ok((serde_json::from_value(text.clone())?, layers))
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn managed_mtp_never_crosses_architectures() {
+    let layout = Layout {
+        hidden_size: kani::any(),
+        num_attention_heads: kani::any(),
+        num_key_value_heads: kani::any(),
+        head_dim: kani::any(),
+        vocab_size: kani::any(),
+        num_experts: kani::any(),
+        num_experts_per_tok: kani::any(),
+        moe_intermediate_size: kani::any(),
+        shared_expert_intermediate_size: kani::any(),
+        intermediate_size: kani::any(),
+        rms_norm_eps: kani::any(),
+        partial_rotary_factor: kani::any(),
+        rope_parameters: Rope {
+            rope_theta: kani::any(),
+        },
+    };
+    let layers: usize = kani::any();
+    let result = layout.managed_head(layers);
+    if let Some(kind) = result {
+        assert!(layout.vocab_size == 248_320 && layout.head_dim == 256);
+        assert!(layout.rms_norm_eps == 1e-6 && layout.partial_rotary_factor == 0.25);
+        assert!(layout.rope_parameters.rope_theta == 10_000_000.);
+        match kind {
+            ManagedHead::Qwen38Dense => {
+                assert!(layout.hidden_size == 5120 && layers == 64);
+                assert!(layout.num_attention_heads == 24 && layout.num_key_value_heads == 4);
+                assert!(layout.intermediate_size == Some(17_408) && layout.num_experts == 0);
+                assert!(
+                    layout.num_experts_per_tok == 0
+                        && layout.moe_intermediate_size == 0
+                        && layout.shared_expert_intermediate_size == 0
+                );
+            }
+            ManagedHead::Qwen36Moe => {
+                assert!(layout.hidden_size == 2048 && layers == 40);
+                assert!(layout.num_attention_heads == 16 && layout.num_key_value_heads == 2);
+                assert!(layout.intermediate_size.is_none() && layout.num_experts == 256);
+                assert!(
+                    layout.num_experts_per_tok == 8
+                        && layout.moe_intermediate_size == 512
+                        && layout.shared_expert_intermediate_size == 512
+                );
+            }
+        }
+    }
+    kani::cover!(result == Some(ManagedHead::Qwen38Dense));
+    kani::cover!(result == Some(ManagedHead::Qwen36Moe));
+    kani::cover!(result.is_none());
 }
 
 #[derive(Deserialize)]
@@ -356,8 +478,7 @@ mod native {
                 .set_state(Some(cache.keys), Some(cache.values))
         }
 
-        #[cfg(test)]
-        pub(crate) fn cache_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
+        pub fn cache_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
             let (k, v) = self.attention.states()?;
             Ok((k.to_bytes()?, v.to_bytes()?))
         }
@@ -429,10 +550,17 @@ mod native {
             let attention = self
                 .attention
                 .forward(&mixed.rms_norm(&self.input_norm, self.layout.rms_norm_eps)?)?;
-            let residual = mixed.add(&attention)?;
-            let input = residual
-                .rms_norm(&self.post_norm, self.layout.rms_norm_eps)?
-                .reshape(&[time, h])?;
+            static FUSED_NORM: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+            let fused = *FUSED_NORM
+                .get_or_init(|| std::env::var("MLXL3_MTP_FUSED_NORM").as_deref() == Ok("1"));
+            let (residual, normalized) = if fused {
+                mixed.add_rms_norm(&attention, &self.post_norm, self.layout.rms_norm_eps)?
+            } else {
+                let residual = mixed.add(&attention)?;
+                let normalized = residual.rms_norm(&self.post_norm, self.layout.rms_norm_eps)?;
+                (residual, normalized)
+            };
+            let input = normalized.reshape(&[time, h])?;
             let mlp = match &self.mlp {
                 Mlp::Dense(layer) => {
                     let Dense { gate, up, down } = &**layer;
@@ -625,8 +753,17 @@ mod native {
         #[test]
         #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
         fn cache_only_matches_full_head_and_next_prediction() -> Result<()> {
-            let target = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
-            let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &target)?;
+            let target = Qwen35Moe::load(Path::new(
+                &std::env::var("MLXL3_MTP_TEST_MODEL")
+                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+            ))?;
+            let mut head = Head::load(
+                Path::new(
+                    &std::env::var("MLXL3_MTP_TEST_HEAD")
+                        .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
+                ),
+                &target,
+            )?;
             let h = target.mtp_layout().hidden_size;
             let fixture = |time, seed| {
                 let bits = (0..time * h)
@@ -689,6 +826,71 @@ pub use native::{Cache, Head, Session};
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn managed_head_uses_target_geometry_and_rejects_unknown_variants() -> Result<()> {
+        let dense = serde_json::json!({"hidden_size":5120,"num_attention_heads":24,
+            "num_key_value_heads":4,"head_dim":256,"vocab_size":248320,"intermediate_size":17408,
+            "rms_norm_eps":1e-6,"partial_rotary_factor":0.25,"rope_parameters":{"rope_theta":10000000}});
+        let moe = serde_json::json!({"hidden_size":2048,"num_attention_heads":16,
+            "num_key_value_heads":2,"head_dim":256,"vocab_size":248320,"num_experts":256,
+            "num_experts_per_tok":8,"moe_intermediate_size":512,"shared_expert_intermediate_size":512,
+            "rms_norm_eps":1e-6,"partial_rotary_factor":0.25,"rope_parameters":{"rope_theta":10000000}});
+        for (text, layers, kind) in [
+            (dense, 64, ManagedHead::Qwen38Dense),
+            (moe, 40, ManagedHead::Qwen36Moe),
+        ] {
+            let layout: Layout = serde_json::from_value(text.clone())?;
+            assert_eq!(layout.managed_head(layers), Some(kind));
+            for count in [0, 1, layers - 1, layers + 1, usize::MAX] {
+                assert_eq!(layout.managed_head(count), None);
+            }
+            for field in [
+                "hidden_size",
+                "num_attention_heads",
+                "num_key_value_heads",
+                "head_dim",
+                "vocab_size",
+            ] {
+                for value in [i32::MIN, -1, 0, 1, i32::MAX] {
+                    let mut changed = text.clone();
+                    changed[field] = serde_json::json!(value);
+                    assert_eq!(
+                        serde_json::from_value::<Layout>(changed)?.managed_head(layers),
+                        None
+                    );
+                }
+            }
+            let directory = tempfile::tempdir()?;
+            let mut config = serde_json::json!({"model_type":if layers == 64 {"qwen3_5"} else {"qwen3_5_moe"},"text_config":text});
+            config["text_config"]["num_hidden_layers"] = serde_json::json!(layers);
+            std::fs::write(
+                directory.path().join("config.json"),
+                serde_json::to_vec(&config)?,
+            )?;
+            assert_eq!(target_layout(directory.path())?, (layout, layers));
+            for (pointer, value) in [
+                ("/model_type", serde_json::json!("qwen3")),
+                ("/text_config/num_hidden_layers", serde_json::json!(-1)),
+                (
+                    "/text_config/mtp_use_dedicated_embeddings",
+                    serde_json::json!(true),
+                ),
+            ] {
+                let mut changed = config.clone();
+                if pointer.ends_with("mtp_use_dedicated_embeddings") {
+                    changed["text_config"]["mtp_use_dedicated_embeddings"] = value;
+                } else {
+                    *changed.pointer_mut(pointer).unwrap() = value;
+                }
+                std::fs::write(
+                    directory.path().join("config.json"),
+                    serde_json::to_vec(&changed)?,
+                )?;
+                assert!(target_layout(directory.path()).is_err());
+            }
+        }
+        Ok(())
+    }
     use serde_json::{Value, json};
     use std::{collections::BTreeMap, io::Write};
 

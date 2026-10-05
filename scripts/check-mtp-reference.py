@@ -59,7 +59,9 @@ def main():
     parser.add_argument("model", type=Path)
     parser.add_argument("head", type=Path)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--recursive", action="store_true", help="Three recursive pre-norm hidden feedback steps")
+    parser.add_argument(
+        "--recursive", action="store_true", help="Three recursive pre-norm hidden feedback steps"
+    )
     args = parser.parse_args()
     config = json.loads((args.head / "config.json").read_text())
     layout = TextModelArgs.from_dict(config["text_config"])
@@ -76,7 +78,7 @@ def main():
     steps = []
     offset = 0
     previous = None
-    for time in ([1, 1, 1] if args.recursive else [1, 2, 3, 17, 24]):
+    for time in [1, 1, 1] if args.recursive else [1, 2, 3, 17, 24]:
         tokens = [1 + (offset + i) % 31 for i in range(time)]
         values = np.array(
             [
@@ -87,15 +89,26 @@ def main():
         ).reshape(1, time, -1)
         if args.recursive and previous is not None:
             values = previous
-        result = head(mx.array(values), embeddings(args.model, tokens), cache, return_residual=args.recursive)
+        result = head(
+            mx.array(values), embeddings(args.model, tokens), cache, return_residual=args.recursive
+        )
         mx.eval(result)
         output = np.array(result).astype(np.float16)
+        assert output.shape == (1, time, layout.hidden_size) and np.isfinite(output).all()
+        keys, cache_values = [np.array(x).astype(np.float16) for x in cache.state]
+        expected_shape = (1, layout.num_key_value_heads, offset + time, layout.head_dim)
+        assert keys.shape == cache_values.shape == expected_shape
+        assert np.isfinite(keys).all() and np.isfinite(cache_values).all()
         previous = output
         steps.append(
             {
                 "tokens": tokens,
                 "hidden": values.view(np.uint16).reshape(-1).tolist(),
-                "residual" if args.recursive else "normalized": output.view(np.uint16).reshape(-1).tolist(),
+                "residual" if args.recursive else "normalized": output.view(np.uint16)
+                .reshape(-1)
+                .tolist(),
+                "keys": keys.view(np.uint16).reshape(-1).tolist(),
+                "values": cache_values.view(np.uint16).reshape(-1).tolist(),
             }
         )
         offset += time

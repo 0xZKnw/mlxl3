@@ -13,6 +13,13 @@ tuning informed the independent Rust implementation. EXL3 target kernels and
 exact greedy verification remain MLXL3 implementations. Upstream performance
 numbers are not MLXL3 measurements.
 
+The optional `native/shaders/mtp_add_rms.metal` prototype adapts
+`mtplx/kernels/fused_norm.py` at that revision, preserving the rounded
+residual and MLX RMSNorm reduction order. Copyright 2026 Youssof Altoukhi,
+Apache-2.0. Its 5120-wide variant keeps both groups of lane values in
+registers; eligibility is limited to FP16 Qwen MTP rows1..4. The app's
+Settings displays "Powered by MTPLX" with the source link.
+
 `native/src/router.rs` adapts the two-stage SIMD row-owned top-8 structure
 from `mtplx/qwen_row_owned_router.py` to FP16 monotone keys, legacy tie order
 and half accumulation. Copyright MTPLX contributors; Apache-2.0. The small

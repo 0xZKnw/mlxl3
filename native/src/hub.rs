@@ -32,9 +32,7 @@ const DFLASH_FILES: [&str; 7] = [
     "draft/model.bin",
 ];
 
-const MTP_REPO: &str = "mlx-community/Qwen3.6-35B-A3B-MTP-4bit";
-const MTP_COMMIT: &str = "0295b81421bf4d0fccca9a7c0fcfb1418dda3516";
-const MTP_FILES: [(&str, u64, &str); 2] = [
+const MTP_MOE_FILES: [(&str, u64, &str); 2] = [
     (
         "config.json",
         3180,
@@ -46,13 +44,44 @@ const MTP_FILES: [(&str, u64, &str); 2] = [
         "77fbc6594cdd830cae89e0b693f18278dd0a7a7c5749fd33d4bc5817dbb91bad",
     ),
 ];
+const MTP_DENSE_FILES: [(&str, u64, &str); 2] = [
+    (
+        "config.json",
+        3804,
+        "16094efa6177985ab3725a9d6d61d6ab248b71e4b42a114efddcdb2aaddc0a55",
+    ),
+    (
+        "model.safetensors",
+        238934137,
+        "76663c101e7e8ea9c0ae17bcb95183cd7f733ce424c912b8b264a7b1c48e4cc6",
+    ),
+];
 
 /// The target and tokenizer are never downloaded by this operation.
-pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+pub fn download_mtp(
+    kind: crate::mtp::ManagedHead,
+    mut progress: impl FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let (repo, commit, files) = match kind {
+        crate::mtp::ManagedHead::Qwen36Moe => (
+            "mlx-community/Qwen3.6-35B-A3B-MTP-4bit",
+            "0295b81421bf4d0fccca9a7c0fcfb1418dda3516",
+            MTP_MOE_FILES,
+        ),
+        crate::mtp::ManagedHead::Qwen38Dense => (
+            "mlx-community/Qwen3.8-27B-MTP-4bit",
+            "b643c01b6d3b094e325edb6ebd832e16c486c575",
+            MTP_DENSE_FILES,
+        ),
+    };
     let root = managed_drafts_path()?;
     fs::create_dir_all(&root)?;
     let root = root.canonicalize()?;
-    let destination = root.join("Qwen3.6-35B-A3B-MTP-4bit");
+    let destination = root.join(
+        repo.rsplit('/')
+            .next()
+            .context("missing MTP package name")?,
+    );
     let regular = |path: &Path| {
         !path
             .symlink_metadata()
@@ -60,7 +89,7 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
     };
     ensure!(regular(&destination), "invalid MTP destination");
     let verified = |directory: &Path| -> Result<bool> {
-        for (name, size, hash) in MTP_FILES {
+        for (name, size, hash) in files {
             let file = directory.join(name);
             if !regular(&file)
                 || !file
@@ -80,10 +109,10 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
     let downloads = root.join(".downloads");
     ensure!(regular(&downloads), "invalid MTP downloads directory");
     fs::create_dir_all(&downloads)?;
-    let stage = downloads.join(format!("mtp-{MTP_COMMIT}"));
+    let stage = downloads.join(format!("mtp-{commit}"));
     ensure!(regular(&stage), "invalid MTP staging directory");
     fs::create_dir_all(&stage)?;
-    let lock_path = downloads.join("mtp.lock");
+    let lock_path = downloads.join(format!("mtp-{commit}.lock"));
     ensure!(regular(&lock_path), "invalid MTP download lock");
     let lock = OpenOptions::new()
         .create(true)
@@ -93,8 +122,8 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
         .context("MTP head is already downloading")?;
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
-    let total = MTP_FILES.iter().map(|(_, size, _)| size).sum();
-    for (name, size, hash) in MTP_FILES {
+    let total = files.iter().map(|(_, size, _)| size).sum();
+    for (name, size, hash) in files {
         let file = stage.join(name);
         ensure!(regular(&file), "invalid MTP staging file");
         if file.metadata().is_ok_and(|m| m.len() == size) && sha256_matches(&file, hash)? {
@@ -104,7 +133,7 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
             fs::remove_file(&file)?;
         }
         download_file(
-            &format!("https://huggingface.co/{MTP_REPO}/resolve/{MTP_COMMIT}/{name}?download=true"),
+            &format!("https://huggingface.co/{repo}/resolve/{commit}/{name}?download=true"),
             &file,
             &cancelled,
             || progress(directory_bytes(&stage).min(total), total),
@@ -118,7 +147,7 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
     if destination.exists() {
         fs::rename(
             &destination,
-            root.join(format!(".invalid-mtp-{}", std::process::id())),
+            root.join(format!(".invalid-mtp-{commit}-{}", std::process::id())),
         )?;
     }
     fs::rename(&stage, &destination)?;

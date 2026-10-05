@@ -654,6 +654,56 @@ impl Array {
     pub fn conv1d(&self, weight: &Self, groups: i32) -> Result<Self> {
         self.binary(weight, 5, groups, 0.)
     }
+    pub(crate) fn add_rms_norm(
+        &self,
+        residual: &Self,
+        weight: &Self,
+        eps: f32,
+    ) -> Result<(Self, Self)> {
+        let fallback = || {
+            let h = self.add(residual)?;
+            let normalized = h.rms_norm(weight, eps)?;
+            Ok((h, normalized))
+        };
+        let Some((&width, leading)) = self.shape().split_last() else {
+            return fallback();
+        };
+        let rows = leading.iter().try_fold(1i32, |n, &dim| n.checked_mul(dim));
+        let Some((threads, grid)) =
+            rows.and_then(|rows| contracts::mtp_add_norm_launch(rows, width))
+        else {
+            return fallback();
+        };
+        if self.shape() != residual.shape()
+            || weight.shape() != [width]
+            || self.dtype() != Dtype::Float16
+            || residual.dtype() != Dtype::Float16
+            || weight.dtype() != Dtype::Float16
+            || !eps.is_finite()
+            || eps <= 0.
+        {
+            return fallback();
+        }
+        let epsilon = Array::from_f32(&[eps], &[1])?;
+        let mut result = metal_kernel(
+            &format!("mlxl3_mtp_add_norm_{width}"),
+            &["x", "residual", "weight", "eps"],
+            &["h", "normed"],
+            &format!("using namespace metal;\n#define AXIS {width}u\n#define THREADS {threads}u\n"),
+            include_str!("../shaders/mtp_add_rms.metal"),
+            &[self, residual, weight, &epsilon],
+            &[self.shape().to_vec(), self.shape().to_vec()],
+            &[Dtype::Float16, Dtype::Float16],
+            [grid, 1, 1],
+            [threads, 1, 1],
+        )?;
+        let normed = result.pop().context("missing fused RMSNorm output")?;
+        Ok((
+            result.pop().context("missing fused residual output")?,
+            normed,
+        ))
+    }
+
     pub fn swiglu(&self, up: &Self) -> Result<Self> {
         self.binary(up, 6, 0, 0.)
     }
@@ -780,6 +830,130 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical Apple GPU; run alone, optional MLXL3_NORM_BENCH=1 after parity"]
+    fn fused_mtp_norm_matches_stock_outputs_and_fallbacks() -> Result<()> {
+        use half::f16;
+        let evaluate = |pair: (Array, Array)| -> Result<()> {
+            pair.1.eval()?;
+            pair.0.eval()
+        };
+        let mut checked = 0usize;
+        for width in [64, 2048, 5120] {
+            for rows in [1, 2, 3, 4, 5, 24] {
+                for seed in [0, 1, 17, 123] {
+                    let x = (0..rows * width)
+                        .map(|i| {
+                            if seed == 0 {
+                                0
+                            } else {
+                                let bits = (i as u32).wrapping_mul(1777).wrapping_add(seed) as u16;
+                                // Finite FP16 extremes, subnormals, both signs;
+                                // keep the addition finite too, with the sign/mantissa.
+                                (bits & 0x83ff) | (bits & 0x7400)
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let residual = x
+                        .iter()
+                        .enumerate()
+                        .map(|(i, &bits)| {
+                            if seed == 17 {
+                                bits ^ 0x8000
+                            } else {
+                                f16::from_f32(((i % 251) as f32 - 125.) / 128.).to_bits()
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let weight = (0..width)
+                        .map(|i| f16::from_f32(0.5 + (i % 17) as f32 / 16.).to_bits())
+                        .collect::<Vec<_>>();
+                    let x = Array::from_f16_bits(&x, &[1, rows, width])?;
+                    let residual = Array::from_f16_bits(&residual, &[1, rows, width])?;
+                    let weight = Array::from_f16_bits(&weight, &[width])?;
+                    let expected = x.add(&residual)?;
+                    let normalized = expected.rms_norm(&weight, 1e-6)?;
+                    let (actual, actual_norm) = x.add_rms_norm(&residual, &weight, 1e-6)?;
+                    for (a, b) in [(&actual, &expected), (&actual_norm, &normalized)] {
+                        let a = a.to_f16_bits()?;
+                        let b = b.to_f16_bits()?;
+                        assert_eq!(a.len(), (rows * width) as usize);
+                        assert!(a.iter().chain(&b).all(|&x| f16::from_bits(x).is_finite()));
+                        let differences = a.iter().zip(&b).filter(|(a, b)| a != b).count();
+                        assert_eq!(
+                            differences, 0,
+                            "fused norm rows={rows} width={width} seed={seed}"
+                        );
+                        checked += a.len();
+                    }
+                    // Unsupported FP32 follows the original MLX expression.
+                    let x32 = x.astype(Dtype::Float32)?;
+                    let r32 = residual.astype(Dtype::Float32)?;
+                    let w32 = weight.astype(Dtype::Float32)?;
+                    let (h32, n32) = x32.add_rms_norm(&r32, &w32, 1e-6)?;
+                    let expected32 = x32.add(&r32)?;
+                    assert_eq!(h32.to_bytes()?, expected32.to_bytes()?);
+                    assert_eq!(
+                        n32.to_bytes()?,
+                        expected32.rms_norm(&w32, 1e-6)?.to_bytes()?
+                    );
+                }
+            }
+        }
+        eprintln!(
+            "Fused norm: {checked} finite FP16 output words exact, FP32/unsupported shape fallbacks exact"
+        );
+        if std::env::var("MLXL3_NORM_BENCH").as_deref() == Ok("1") {
+            for width in [2048, 5120] {
+                for rows in 1..=4 {
+                    let x = Array::from_f32(
+                        &(0..rows * width)
+                            .map(|i| ((i % 251) as f32 - 125.) / 128.)
+                            .collect::<Vec<_>>(),
+                        &[1, rows, width],
+                    )?
+                    .astype(Dtype::Float16)?;
+                    let residual = x.scalar_mul(0.75)?;
+                    let weight = Array::from_f32(&vec![1.; width as usize], &[width])?
+                        .astype(Dtype::Float16)?;
+                    let operation = |fused| -> Result<(Array, Array)> {
+                        if fused {
+                            x.add_rms_norm(&residual, &weight, 1e-6)
+                        } else {
+                            let h = x.add(&residual)?;
+                            let n = h.rms_norm(&weight, 1e-6)?;
+                            Ok((h, n))
+                        }
+                    };
+                    for _ in 0..10 {
+                        evaluate(operation(false)?)?;
+                        evaluate(operation(true)?)?;
+                    }
+                    let mut timings = [Vec::new(), Vec::new()];
+                    for repeat in 0..60 {
+                        for fused in if repeat % 2 == 0 {
+                            [false, true]
+                        } else {
+                            [true, false]
+                        } {
+                            let start = std::time::Instant::now();
+                            evaluate(operation(fused)?)?;
+                            timings[usize::from(fused)].push(start.elapsed().as_secs_f64() * 1000.);
+                        }
+                    }
+                    for series in &mut timings {
+                        series.sort_by(f64::total_cmp);
+                    }
+                    eprintln!(
+                        "Fused norm width={width} rows={rows}: stock_ms={} fused_ms={} stock_samples={:?} fused_samples={:?}",
+                        timings[0][30], timings[1][30], timings[0], timings[1]
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     #[ignore = "requires physical Apple GPU; run alone (global allocator cache)"]
