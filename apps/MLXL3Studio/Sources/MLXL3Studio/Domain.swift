@@ -464,6 +464,23 @@ struct ContextUsage: Codable, Sendable {
     let used: Int
     let limit: Int
     let model: String
+
+    func finalized(with stats: GenerationStats) -> ContextUsage? {
+        let finalLimit = stats.contextLimit ?? limit
+        guard finalLimit > 0 else { return nil }
+        let total: Int
+        if let exact = stats.contextUsed {
+            total = exact
+        } else {
+            // Older single-round engines reported separate input/output counts.
+            guard (stats.toolRounds ?? 0) == 0, stats.promptTokens >= 0, stats.generatedTokens >= 0 else { return nil }
+            let sum = stats.promptTokens.addingReportingOverflow(stats.generatedTokens)
+            guard !sum.overflow else { return nil }
+            total = sum.partialValue
+        }
+        guard total >= 0 else { return nil }
+        return ContextUsage(used: min(total, finalLimit), limit: finalLimit, model: model)
+    }
 }
 
 struct Conversation: Identifiable {

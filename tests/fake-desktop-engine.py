@@ -93,6 +93,14 @@ for line in sys.stdin:
     request = json.loads(line)
     if request['type'] != 'generate':
         continue
+    if model == 'context-count':
+        emit('context_usage', request_id=request['request_id'], used_tokens=12, context_limit=2048)
+        emit('delta', request_id=request['request_id'], phase='answer', text='hello')
+        time.sleep(0.15)
+        emit('complete', request_id=request['request_id'], assistant_context='done', cache_context='done',
+             stats={'ttft_seconds': 0.1, 'prefill_tps': 100, 'decode_tps': 30,
+                    'prompt_tokens': 12, 'generated_tokens': 30, 'context_used': 42, 'context_limit': 2048})
+        continue
     if model == 'render-stress':
         emit('delta', request_id=request['request_id'], phase='thinking', text='Internal reasoning')
         emit('delta', request_id=request['request_id'], phase='answer', text='# Result\n\n```html\n')

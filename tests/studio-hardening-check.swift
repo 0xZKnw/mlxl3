@@ -6,6 +6,7 @@ import Foundation
         setenv("MLXL3_EXECUTABLE", CommandLine.arguments[1], 1)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-check-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        setenv("MLXL3_HOME", root.path, 1)
         defer { try? FileManager.default.removeItem(at: root) }
         let suite = "io.mlxl3.check." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
@@ -17,6 +18,43 @@ import Foundation
             for _ in 0..<200 where !model.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
+        }
+        let counted = try await make("context-count")
+        counted.draft = "salut"; counted.send()
+        for _ in 0..<200 where counted.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(counted.contextUsed == 42, "Context only shows input tokens after completion")
+        precondition(counted.currentConversation?.contextUsage?.used == 42, "Final context was not saved to the conversation")
+        let mcp = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("mcp.json"))) as! [String: Any]
+        precondition((mcp["mcpServers"] as! [String: Any])["exa"] != nil, "Startup did not register Exa")
+        counted.conversations[0].contextUsage = ContextUsage(used: 12, limit: 2048, model: "context-count")
+        precondition(counted.contextUsed == 42, "Old history still displays only input tokens")
+        counted.settingsDidChange()
+        for _ in 0..<600 where !FileManager.default.fileExists(atPath: root.appendingPathComponent("context-count.json").path) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let reopened = StudioModel(conversationFileURL: root.appendingPathComponent("context-count.json"), isPreview: true, preferences: prefs)
+        precondition(reopened.contextUsed == 42, "Context count did not survive relaunch")
+        reopened.selectedModelName = "other"
+        precondition(reopened.contextUsed == nil, "Token count leaked to another model")
+        var stats = counted.currentConversation!.messages.last!.stats!
+        let baseline = ContextUsage(used: 12, limit: 2048, model: "test")
+        stats.contextUsed = 77; stats.toolRounds = 3
+        precondition(baseline.finalized(with: stats)?.used == 77, "MCP aggregated counts replaced final context")
+        stats.contextUsed = nil
+        precondition(baseline.finalized(with: stats) == nil, "Unknown multi-round context was guessed")
+        stats.toolRounds = 0
+        precondition(baseline.finalized(with: stats)?.used == 42)
+        for value in [-1, 0, 1, 12, 42, 2048, Int.max] {
+            stats.contextUsed = value
+            let actual = baseline.finalized(with: stats)
+            precondition(value < 0 ? actual == nil : actual?.used == min(value, 2048))
+        }
+        stats.contextUsed = 42; stats.contextLimit = 0
+        precondition(baseline.finalized(with: stats) == nil)
+        for (input, output) in [(Int.max, 1), (-1, 30), (12, -1)] {
+            let payload = "{\"ttft_seconds\":0,\"prefill_tps\":0,\"decode_tps\":0,\"prompt_tokens\":\(input),\"generated_tokens\":\(output)}"
+            let invalid = try JSONDecoder().decode(GenerationStats.self, from: Data(payload.utf8))
+            precondition(baseline.finalized(with: invalid) == nil, "Invalid legacy token counts were accepted")
         }
         // Hub metadata crosses the real CLI pipe before ModelLibrary decodes it.
         // The previous Bool-only decoder rejected null/auto/manual.

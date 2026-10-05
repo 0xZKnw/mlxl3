@@ -1,0 +1,15 @@
+apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift:494:109: error: missing argument for parameter 'expectedVersion' in call
+492 |         else { throw UpdateError.invalidApplication }
+493 |         _ = try runProcess("/usr/bin/lipo", arguments: ["-verify_arch", "arm64", app.appending(path: "Contents/MacOS/MLXL3Studio").path])
+494 |         try EngineRuntimeStore.verify(app.appending(path: "Contents/Resources/runtime"), appVersion: version)
+    |                                                                                                             `- error: missing argument for parameter 'expectedVersion' in call
+495 |     }
+496 | 
+
+apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift:144:15: note: 'verify(_:appVersion:expectedVersion:)' declared here
+142 |   }
+143 | 
+144 |   static func verify(_ directory: URL, appVersion: String, expectedVersion: String) throws {
+    |               `- note: 'verify(_:appVersion:expectedVersion:)' declared here
+145 |     let info = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+146 |     guard info.isDirectory == true, info.isSymbolicLink != true else {

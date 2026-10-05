@@ -153,6 +153,7 @@ final class StudioModel: ObservableObject {
                 self.engineState = .failed(message)
             }
         }
+        if !isPreview { prepareMCPConfiguration() }
     }
 
     var selectedModel: LocalModel? {
@@ -194,6 +195,8 @@ final class StudioModel: ObservableObject {
         guard let conversation = currentConversation else { return nil }
         if conversation.messages.isEmpty { return 0 }
         guard let usage = conversation.contextUsage, usage.model == selectedModelName else { return nil }
+        if let stats = conversation.messages.last?.stats,
+           let finalized = usage.finalized(with: stats) { return finalized.used }
         return usage.used
     }
 
@@ -645,19 +648,13 @@ final class StudioModel: ObservableObject {
 
     func openMCPConfiguration() {
         guard !isPreview else { return }
-        let url = mcpConfigurationURL
-        if !FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try? "{\n  \"version\": 1,\n  \"mcpServers\": {}\n}\n".write(
-                to: url,
-                atomically: true,
-                encoding: .utf8
-            )
-        }
-        NSWorkspace.shared.open(url)
+        prepareMCPConfiguration()
+        NSWorkspace.shared.open(mcpConfigurationURL)
+    }
+
+    private func prepareMCPConfiguration() {
+        do { try MCPConfiguration.ensureExa(at: mcpConfigurationURL) }
+        catch { mcpErrors["configuration"] = error.localizedDescription }
     }
 
     func settingsDidChange() {
@@ -1017,6 +1014,12 @@ final class StudioModel: ObservableObject {
             schedulePersistence()
         case "complete":
             guard event.requestID == activeRequestID else { return }
+            if let stats = event.stats, let name = selectedModelName,
+               let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }),
+               let limit = stats.contextLimit ?? conversations[index].contextUsage?.limit ?? activeContextLimit,
+               let finalUsage = ContextUsage(used: 0, limit: limit, model: name).finalized(with: stats) {
+                conversations[index].contextUsage = finalUsage
+            }
             let message = activeMessage()
             message?.turnContext = event.turnContext
             message?.finish(

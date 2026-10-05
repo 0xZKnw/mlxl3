@@ -47,7 +47,8 @@ for component in mlxl3 libmlx.dylib libjaccl.dylib; do
     codesign --force --sign - "${runtime_dist_dir}/${component}"
     lipo -verify_arch arm64 "${runtime_dist_dir}/${component}"
 done
-"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist"
+engine_version="$("${runtime_dist_dir}/mlxl3" runtime-info | "${python_bin}" -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist" --version "${engine_version}"
 
 swift_args=(--configuration release --package-path "${package_dir}")
 if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
