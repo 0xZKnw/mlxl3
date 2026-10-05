@@ -86,6 +86,8 @@
 
 - PréparationGit : retirer uniquement les lignes vides terminales de13logs stdout/stderr pour le contrôle whitespace, contenu numérique/erreurs conservé; originaux bruts archivés temporairement `../work/raw-proof-logs/`. Aucun code ni mesure modifiés.
 
+- Livraison : commits `d628e0b` (lectureDarwin) et `408905a` (optimisations/preuves) poussés sur [HENK0O/optimize/qwen27-m5](https://github.com/HENK0O/mlxl3/tree/optimize/qwen27-m5), empreinte distante408905ab3284704b0be94eb2117ab45102526bc8 confirmée. [Rapport](docs/qwen27-m5-optimization.md). API GitHub au contrôle : Actionsenabled=true mais0workflows/0runs pour ce commit; cause non déterminée, réglages du fork conservés. Kani/suiteCI distante **non exécutés**, ne pas les déclarer verts. Contrôles locaux etGPU ci-dessus réussis. Aucun PR/release/appinstallé; l'utilisateur créera sa PR. Étatfinal : lecture/BM64/nettoyage06A intégrés sur branche;02/05/06B rejetés et retirés; aucun benchmark actif.
+
 
 ### OPT-2026-10-05-MTP-05 — petits batches EXL3 et chaîne GPU sans synchronisations — validé fonctionnellement, publié
 

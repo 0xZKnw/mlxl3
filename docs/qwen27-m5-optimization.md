@@ -168,6 +168,12 @@ MLX/chat, 59 tests Rust release (53 ignorés, contrôles GPU ciblés exécutés 
 build release, Ruff check/format, 16 tests Python bridge/packaging et contrôle du diff.
 La suite Python/Desktop complète et les autres tests GPU ignorés ne sont pas
 relancés localement. Kani n’est pas installé localement; sa nouvelle propriété
-porte uniquement sur le sélecteur de tuiles et attend la CI du fork.
+porte uniquement sur le sélecteur de tuiles. Au contrôle GitHub, aucun
+workflow ni run CI n’est enregistré sur le fork, malgré Actions activé.
+La cause n’est pas déterminée et les réglages du dépôt ne sont pas modifiés.
+La propriété Kani et la suite CI distante restent donc **non exécutées**.
 Les preuves de ces contrôles sont les logs `*-final.log` du dossier de mesures.
 L'application installée n'est pas remplacée, aucune release ni PR n'est créée.
+
+Branche poussée et empreinte distante vérifiée : `408905a` (optimisations),
+`d628e0b` (chargement). [Preuve de livraison](measurements/qwen27-m5/delivery-proof.json).
