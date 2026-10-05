@@ -1,0 +1,65 @@
+[
+  {
+    "check": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "returncode": 0,
+    "seconds": 0.181
+  },
+  {
+    "check": "kani-selector",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes"
+    ],
+    "returncode": 0,
+    "seconds": 6.914
+  },
+  {
+    "check": "clippy-mlx",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "returncode": 0,
+    "seconds": 8.826
+  },
+  {
+    "check": "rust-tests-mlx",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--features",
+      "mlx,chat"
+    ],
+    "returncode": 0,
+    "seconds": 12.673
+  },
+  {
+    "check": "rust-build-mlx",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--features",
+      "mlx,chat"
+    ],
+    "returncode": 0,
+    "seconds": 0.077
+  }
+]
