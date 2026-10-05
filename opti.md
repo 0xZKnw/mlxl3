@@ -14,6 +14,8 @@
 
 - Vérification locale finale **réussie** : compilation des sources complètes Swift6/warnings-as-errors et hardening-check corrigé, compteur42/persistance/historique/réouverture/isolation modèle/MCP/bornes/overflow, plus régressions précédentes catalogue/téléchargement/lifecycle. Migration Exa réussie et appelée par l’initialisation réelle, home/préférences/données jetables. Syntaxe zsh, Python py_compile, plutil et diff-check réussis. Logs dans docs/measurements/desktop-v1.2.2 ; CI complète distante et paquet final suivants, aucune inférence/benchmark.
 
+- Livraison réorientée à la demande « fais pas de pr cette fois ci, push direct sur main et fais direct la1.2.2 » : PR #22 venait d’être créée avant réception de l’instruction, fermée **sans fusion**. Intégration par fast-forward/push direct sur main, puis paquet/publication. Espaces de fin dans un log de diagnostic importé normalisés après diff-check ; sources et résultat négatif conservés.
+
 ### FIX-2026-10-05-DESKTOP-1.2.1 — catalogue, explication MTP et téléchargements — publié
 
 - Demande : réparer l'écran Découvrir montrant « The data couldn't be read because it isn't in the correct format » pour `qwen3.6`, puis publier Desktop1.2.1. Baseline main9642c77, Desktop1.2.0/build19, moteur1.2.1 publié. Aucun benchmark/inférence ni téléchargement de poids autorisé ou nécessaire ; défaut d'activation à chaud antérieur toujours différé.
