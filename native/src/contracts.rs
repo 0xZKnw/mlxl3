@@ -134,6 +134,27 @@ mod verification {
     }
 
     #[kani::proof]
+    fn mtp_cache_append_cannot_wrap_or_accept_empty_rows() {
+        let offset: i32 = kani::any();
+        let rows: i32 = kani::any();
+        let end = mtp_cache_end(offset, rows);
+        let wide = i64::from(offset) + i64::from(rows);
+        assert_eq!(
+            end.is_some(),
+            offset >= 0 && rows > 0 && wide <= i64::from(i32::MAX)
+        );
+        if let Some(end) = end {
+            assert_eq!(i64::from(end), wide);
+            assert!(end > offset);
+            kani::cover!(offset == 0 && rows == 1);
+            kani::cover!(end == i32::MAX);
+        } else {
+            kani::cover!(rows == 0);
+            kani::cover!(offset == i32::MAX && rows == 1);
+        }
+    }
+
+    #[kani::proof]
     fn gdn_history_capacity_is_exact_and_covers_partial_commits() {
         let time: i32 = kani::any();
         let retained: i32 = kani::any();
@@ -277,5 +298,31 @@ fn gdn_tape_requires_a_valid_commit() {
     }
     for (time, retained) in [(0, 0), (9, 1), (2, 0), (3, 4), (8, -1), (i32::MAX, 1)] {
         assert_eq!(gdn_tape_prefix(time, retained), None);
+    }
+}
+
+/// A positive append must fit the signed MLX/RoPE cache position.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn mtp_cache_end(offset: i32, rows: i32) -> Option<i32> {
+    if offset < 0 || rows <= 0 {
+        return None;
+    }
+    offset.checked_add(rows)
+}
+
+#[test]
+fn mtp_cache_append_checks_empty_negative_and_overflowing_positions() {
+    for (offset, rows, expected) in [
+        (0, 1, Some(1)),
+        (255, 1, Some(256)),
+        (256, 255, Some(511)),
+        (i32::MAX - 1, 1, Some(i32::MAX)),
+        (i32::MAX, 1, None),
+        (0, 0, None),
+        (0, -1, None),
+        (-1, 1, None),
+        (i32::MIN, i32::MAX, None),
+    ] {
+        assert_eq!(mtp_cache_end(offset, rows), expected);
     }
 }

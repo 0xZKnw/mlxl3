@@ -356,12 +356,7 @@ mod native {
                 .set_state(Some(cache.keys), Some(cache.values))
         }
 
-        pub fn hidden(
-            &mut self,
-            target: &Qwen35Moe,
-            hidden: &Array,
-            next: &[u32],
-        ) -> Result<Array> {
+        fn mixed(&self, target: &Qwen35Moe, hidden: &Array, next: &[u32]) -> Result<Array> {
             let time = i32::try_from(next.len())?;
             let h = self.layout.hidden_size;
             ensure!(
@@ -372,7 +367,33 @@ mod native {
                 .mtp_embeddings(next)?
                 .rms_norm(&self.embedding_norm, self.layout.rms_norm_eps)?;
             let hidden = hidden.rms_norm(&self.hidden_norm, self.layout.rms_norm_eps)?;
-            let mixed = self.fc.forward(&Array::concatenate(&[&e, &hidden], 2)?)?;
+            self.fc.forward(&Array::concatenate(&[&e, &hidden], 2)?)
+        }
+
+        /// Complete known target pairs without computing an unused prediction.
+        pub fn extend_cache(
+            &mut self,
+            target: &Qwen35Moe,
+            hidden: &Array,
+            next: &[u32],
+        ) -> Result<()> {
+            let mixed = self.mixed(target, hidden, next)?;
+            self.attention
+                .append_kv(&mixed.rms_norm(&self.input_norm, self.layout.rms_norm_eps)?)?;
+            let (keys, values) = self.attention.states()?;
+            keys.eval()?;
+            values.eval()
+        }
+
+        pub fn hidden(
+            &mut self,
+            target: &Qwen35Moe,
+            hidden: &Array,
+            next: &[u32],
+        ) -> Result<Array> {
+            let time = i32::try_from(next.len())?;
+            let h = self.layout.hidden_size;
+            let mixed = self.mixed(target, hidden, next)?;
             let attention = self
                 .attention
                 .forward(&mixed.rms_norm(&self.input_norm, self.layout.rms_norm_eps)?)?;
@@ -488,8 +509,7 @@ mod native {
             if accepted.accepted_draft_tokens == 1 {
                 // Replace approximate drafting history with the real trunk
                 // residual before predicting another position.
-                head.forward(target, &raw.slice(1, 0, 1)?, &[proposal])?
-                    .eval()?;
+                head.extend_cache(target, &raw.slice(1, 0, 1)?, &[proposal])?;
                 self.pending.push_back(accepted.target_token);
             }
             self.proposed += 1;
@@ -500,6 +520,74 @@ mod native {
             } else {
                 accepted.target_token
             })
+        }
+    }
+
+    #[cfg(test)]
+    mod cache_tests {
+        use super::*;
+
+        fn bytes(cache: &Cache) -> Result<(Vec<u8>, Vec<u8>)> {
+            Ok((cache.keys.to_bytes()?, cache.values.to_bytes()?))
+        }
+
+        #[test]
+        #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
+        fn cache_only_matches_full_head_and_next_prediction() -> Result<()> {
+            let target = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+            let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &target)?;
+            let h = target.mtp_layout().hidden_size;
+            let fixture = |time, seed| {
+                let bits = (0..time * h)
+                    .map(|i| half::f16::from_f32(((i + seed) % 251 - 125) as f32 / 128.).to_bits())
+                    .collect::<Vec<_>>();
+                Array::from_f16_bits(&bits, &[1, time, h])
+            };
+            let probe = fixture(1, 13)?;
+            for (index, time) in [1, 2, 3, 17, 23, 24, 255].into_iter().enumerate() {
+                let initial = if index == 0 {
+                    None
+                } else {
+                    Some(head.snapshot()?)
+                };
+                let hidden = fixture(time, time)?;
+                let tokens = (0..time).map(|i| 1 + i as u32 % 31).collect::<Vec<_>>();
+                // Independent expected cache comes from the unchanged full
+                // attention/MoE head; it also predicts the following position.
+                head.hidden(&target, &hidden, &tokens)?.eval()?;
+                let complete = head.snapshot()?;
+                let expected = bytes(&complete)?;
+                let expected_prediction = head.hidden(&target, &probe, &[37])?.to_bytes()?;
+                match initial {
+                    Some(cache) => head.restore(cache)?,
+                    None => head.reset()?,
+                }
+                head.extend_cache(&target, &hidden, &tokens)?;
+                assert_eq!(bytes(&head.snapshot()?)?, expected, "K/V rows={time}");
+                assert!(head.extend_cache(&target, &probe, &[]).is_err());
+                assert!(
+                    head.extend_cache(&target, &probe, &[target.mtp_layout().vocab_size as u32])
+                        .is_err()
+                );
+                assert!(head.extend_cache(&target, &probe, &[1, 2]).is_err());
+                let bad_width = Array::from_f16_bits(&[0; 64], &[1, 1, 64])?;
+                assert!(head.extend_cache(&target, &bad_width, &[1]).is_err());
+                assert_eq!(
+                    bytes(&head.snapshot()?)?,
+                    expected,
+                    "error rollback rows={time}"
+                );
+                assert_eq!(
+                    head.hidden(&target, &probe, &[37])?.to_bytes()?,
+                    expected_prediction,
+                    "next prediction rows={time}"
+                );
+                head.restore(complete)?;
+            }
+            head.reset()?;
+            assert!(head.extend_cache(&target, &probe, &[]).is_err());
+            assert!(head.snapshot().is_err());
+            Ok(())
         }
     }
 }

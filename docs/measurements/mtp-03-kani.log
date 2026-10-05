@@ -1,0 +1,170 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.2.0 (/Users/justin/Documents/mix-stq1_0)
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.00s
+Checking harness contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/f5cc5613fc093e92/out/mlxl3_native-f5cc5613fc093e92__RNvNtNtCsCkNGOdhKD0_12mlxl3_native9contracts12verification49mtp_cache_append_cannot_wrap_or_accept_empty_rows.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<i32>::is_some thread 0
+aborting path on assume(false) at file native/src/contracts.rs line 137 column 5 function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows thread 0
+Runtime Symex: 0.00639213s
+size of program expression: 858 steps
+slicing removed 411 assignments
+Generated 24 VCC(s), 18 remaining after simplification
+Runtime Postprocess Equation: 7.7834e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.000835208s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.2583e-05s
+Solving with CaDiCaL 3.0.0
+1143 variables, 3531 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000103875s
+Runtime decision procedure: 0.000988s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1144 variables, 3532 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 7.3917e-05s
+Runtime decision procedure: 9.4792e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1145 variables, 3533 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 9.975e-05s
+Runtime decision procedure: 0.000129625s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1146 variables, 3534 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000131s
+Runtime decision procedure: 0.000152833s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1147 variables, 3535 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000123833s
+Runtime decision procedure: 0.000141209s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1148 variables, 3536 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00370375s
+Runtime decision procedure: 0.00372792s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1149 variables, 3537 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.000255542s
+Runtime decision procedure: 0.000269875s
+
+RESULTS:
+Check 1: std::option::Option::<i32>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<i32>::is_some
+
+Check 2: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:141:20 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 3: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: end.is_some() == offset >= 0 && rows > 0 && wide <= i64::from(i32::MAX)"
+	 - Location: native/src/contracts.rs:142:9 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 4: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/contracts.rs:137:5 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 5: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: rows == 0"
+	 - Location: native/src/contracts.rs:152:13 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 6: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: offset == i32::MAX && rows == 1"
+	 - Location: native/src/contracts.rs:153:13 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 7: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: i64::from(end) == wide"
+	 - Location: native/src/contracts.rs:147:13 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 8: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: end > offset"
+	 - Location: native/src/contracts.rs:148:13 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 9: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: offset == 0 && rows == 1"
+	 - Location: native/src/contracts.rs:149:13 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 10: contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: end == i32::MAX"
+	 - Location: native/src/contracts.rs:150:13 in function contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows
+
+Check 11: std::option::Option::<i32>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 12: std::option::Option::<i32>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 13: std::option::Option::<i32>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 14: std::option::Option::<i32>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 15: std::option::Option::<i32>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 16: std::option::Option::<i32>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+
+SUMMARY:
+ ** 0 of 12 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.045788083s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.
