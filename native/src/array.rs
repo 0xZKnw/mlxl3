@@ -772,6 +772,50 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires Apple GPU and a temporary 2 GiB allocation"]
+    fn checkpoint_reads_larger_than_darwin_syscall_limit() -> Result<()> {
+        use std::os::unix::fs::FileExt;
+
+        let file = tempfile::tempfile()?;
+        let elements = i32::MAX / 4 + 2;
+        let offset = 3u64;
+        file.set_len(offset + elements as u64 * 4)?;
+        let markers = [
+            0,
+            64 * 1024 * 1024 / 4 - 1,
+            64 * 1024 * 1024 / 4,
+            elements - 1,
+        ];
+        for (number, &index) in markers.iter().enumerate() {
+            file.write_all_at(
+                &(number as u32 + 1).to_ne_bytes(),
+                offset + index as u64 * 4,
+            )?;
+        }
+        for batched in [false, true] {
+            let array = if batched {
+                Array::from_files(&[&file], &[offset], &[vec![elements]], &[Dtype::UInt32], 1)?
+                    .remove(0)
+            } else {
+                Array::from_file(&file, offset, &[elements], Dtype::UInt32)?
+            };
+            for (number, &index) in markers.iter().enumerate() {
+                assert_eq!(
+                    array.slice(0, index, index + 1)?.to_u32()?,
+                    vec![number as u32 + 1]
+                );
+            }
+            assert_eq!(array.slice(0, 1, 2)?.to_u32()?, vec![0]);
+        }
+        assert!(Array::from_file(&file, u64::MAX, &[1], Dtype::UInt32).is_err());
+        assert!(
+            Array::from_file(&file, offset + elements as u64 * 4 - 1, &[1], Dtype::UInt32).is_err()
+        );
+        Ok(())
+    }
+
     #[test]
     fn validates_before_entering_mlx() {
         assert!(Array::from_bytes(&[0], &[1], Dtype::Float32).is_err());

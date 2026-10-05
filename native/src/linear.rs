@@ -36,6 +36,7 @@ pub fn checkpoint_array(checkpoint: &Checkpoint, name: &str) -> Result<Array> {
     }
     let (file, offset) = info.source()?;
     Array::from_file(file, offset, &shape, dtype)
+        .with_context(|| format!("cannot load checkpoint tensor {name}"))
 }
 
 pub fn checkpoint_arrays(
