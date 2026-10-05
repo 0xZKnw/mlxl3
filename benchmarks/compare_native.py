@@ -16,6 +16,35 @@ import time
 from pathlib import Path
 
 
+class ParityError(RuntimeError):
+    """A completed generation differs from the campaign reference."""
+
+
+def record_failure(report: dict, current: dict, error: BaseException) -> None:
+    """Preserve failure state without certifying an incomplete campaign.
+
+    post[report, current, error]: report['status'] == 'failed' and report['parity'] is not True
+    post: current['status'] == 'failed' and report['error'] == current['error']
+    """
+    report["status"] = current["status"] = "failed"
+    report["parity"] = (
+        False if isinstance(error, ParityError) or report.get("parity") is False else None
+    )
+    current["error"] = {"type": type(error).__name__, "message": str(error)}
+    report["error"] = current["error"]
+
+
+def save_report(output, report):
+    snapshots = {"results.json": report}
+    for current in report["passes"]:
+        snapshots[f"{current['index']}-{current['label']}.json"] = current
+    for name, value in snapshots.items():
+        path = output / name
+        temporary = path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(value, indent=2) + "\n")
+        temporary.replace(path)
+
+
 def event(process):
     line = process.stdout.readline()
     if not line:
@@ -112,118 +141,139 @@ def main():
             for label, binary in [("A", args.baseline), ("B", args.candidate)]
         },
         "passes": [],
-        "parity": True,
+        "status": "running",
+        "parity": None,
     }
+    save_report(args.output, report)
     expected = {}
-    for pass_index, label in enumerate(args.order):
-        time.sleep(args.settle_seconds)
-        binary = args.baseline if label == "A" else args.candidate
-        conditions = {"recorded_at_unix": time.time()}
-        for name, command in [
-            ("power", ["pmset", "-g", "batt"]),
-            ("thermal", ["pmset", "-g", "therm"]),
-            ("swap", ["sysctl", "vm.swapusage"]),
-        ]:
-            probe = subprocess.run(command, capture_output=True, text=True, check=False)
-            conditions[name] = {
-                "returncode": probe.returncode,
-                "stdout": probe.stdout,
-                "stderr": probe.stderr,
+    current = {}
+    try:
+        for pass_index, label in enumerate(args.order):
+            current = {
+                "label": label,
+                "index": pass_index,
+                "status": "running",
+                "conditions": {"recorded_at_unix": time.time()},
+                "prompts": {},
             }
-        current = {"label": label, "index": pass_index, "conditions": conditions, "prompts": {}}
-        stderr_path = args.output / f"{pass_index}-{label}.stderr"
-        with stderr_path.open("w") as stderr:
-            started = time.perf_counter()
-            process = subprocess.Popen(
-                [
-                    str(binary.resolve()),
-                    "bridge",
-                    str(args.model.resolve()),
-                    "--context-length",
-                    "4096",
-                ],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=stderr,
-                text=True,
-                bufsize=1,
-                env={**os.environ, **environments[label]},
-            )
-            try:
-                while True:
-                    ready = event(process)
-                    if ready["type"] == "ready":
-                        current["ready"] = ready
-                        break
-                current["ready_seconds"] = time.perf_counter() - started
-                for name, prompt in prompts.items():
-                    warmup = generate(process, prompt, args.tokens, f"warm-{name}")
-                    runs = [
-                        generate(process, prompt, args.tokens, f"run-{name}-{i}")
-                        for i in range(args.repeats)
-                    ]
-                    key = (
-                        warmup["token_hash"],
-                        warmup["text_sha256"],
-                        warmup["stats"]["generated_tokens"],
-                    )
-                    expected.setdefault(name, key)
-                    for run in [warmup, *runs]:
-                        actual = (
-                            run["token_hash"],
-                            run["text_sha256"],
-                            run["stats"]["generated_tokens"],
-                        )
-                        if actual != expected[name]:
-                            raise RuntimeError(f"token/text divergence in {name} pass {label}")
-                    medians = {
-                        metric: statistics.median(run["stats"][metric] for run in runs)
-                        for metric in [
-                            "decode_tps",
-                            "decode_seconds",
-                            "prefill_tps",
-                            "prefill_seconds",
-                            "ttft_seconds",
-                            "elapsed_seconds",
-                        ]
-                    }
-                    current["prompts"][name] = {"warmup": warmup, "runs": runs, "medians": medians}
-                    print(
-                        json.dumps({"pass": pass_index, "label": label, "prompt": name, **medians}),
-                        flush=True,
-                    )
-            finally:
-                if process.poll() is None:
-                    process.stdin.write('{"type":"shutdown"}\n')
-                    process.stdin.flush()
-                    try:
-                        process.wait(timeout=15)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait()
-        report["passes"].append(current)
-        (args.output / f"{pass_index}-{label}.json").write_text(
-            json.dumps(current, indent=2) + "\n"
-        )
-        (args.output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    summary = {}
-    for name in prompts:
-        summary[name] = {}
-        for metric in ["decode_tps", "prefill_tps", "ttft_seconds", "elapsed_seconds"]:
-            medians = {
-                label: statistics.median(
-                    p["prompts"][name]["medians"][metric]
-                    for p in report["passes"]
-                    if p["label"] == label
+            report["passes"].append(current)
+            save_report(args.output, report)
+            time.sleep(args.settle_seconds)
+            binary = args.baseline if label == "A" else args.candidate
+            for name, command in [
+                ("power", ["pmset", "-g", "batt"]),
+                ("thermal", ["pmset", "-g", "therm"]),
+                ("swap", ["sysctl", "vm.swapusage"]),
+            ]:
+                probe = subprocess.run(command, capture_output=True, text=True, check=False)
+                current["conditions"][name] = {
+                    "returncode": probe.returncode,
+                    "stdout": probe.stdout,
+                    "stderr": probe.stderr,
+                }
+            stderr_path = args.output / f"{pass_index}-{label}.stderr"
+            with stderr_path.open("w") as stderr:
+                started = time.perf_counter()
+                process = subprocess.Popen(
+                    [
+                        str(binary.resolve()),
+                        "bridge",
+                        str(args.model.resolve()),
+                        "--context-length",
+                        "4096",
+                    ],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=stderr,
+                    text=True,
+                    bufsize=1,
+                    env={**os.environ, **environments[label]},
                 )
-                for label in "AB"
-            }
-            summary[name][metric] = {
-                **medians,
-                "change_percent": (medians["B"] / medians["A"] - 1) * 100,
-            }
-    report["summary"] = summary
-    (args.output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+                try:
+                    while True:
+                        ready = event(process)
+                        if ready["type"] == "ready":
+                            current["ready"] = ready
+                            break
+                    current["ready_seconds"] = time.perf_counter() - started
+                    save_report(args.output, report)
+                    for name, prompt in prompts.items():
+                        measured = {"runs": []}
+                        current["prompts"][name] = measured
+                        for index in range(args.repeats + 1):
+                            request_id = f"run-{name}-{index - 1}" if index else f"warm-{name}"
+                            run = generate(process, prompt, args.tokens, request_id)
+                            if index:
+                                measured["runs"].append(run)
+                            else:
+                                measured["warmup"] = run
+                            save_report(args.output, report)
+                            actual = (
+                                run["token_hash"],
+                                run["text_sha256"],
+                                run["stats"]["generated_tokens"],
+                            )
+                            expected.setdefault(name, actual)
+                            if actual != expected[name]:
+                                report["parity"] = False
+                                raise ParityError(f"token/text divergence in {name} pass {label}")
+                        measured["medians"] = {
+                            metric: statistics.median(
+                                run["stats"][metric] for run in measured["runs"]
+                            )
+                            for metric in [
+                                "decode_tps",
+                                "decode_seconds",
+                                "prefill_tps",
+                                "prefill_seconds",
+                                "ttft_seconds",
+                                "elapsed_seconds",
+                            ]
+                        }
+                        print(
+                            json.dumps(
+                                {
+                                    "pass": pass_index,
+                                    "label": label,
+                                    "prompt": name,
+                                    **measured["medians"],
+                                }
+                            ),
+                            flush=True,
+                        )
+                finally:
+                    if process.poll() is None:
+                        process.stdin.write('{"type":"shutdown"}\n')
+                        process.stdin.flush()
+                        try:
+                            process.wait(timeout=15)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait()
+            current["status"] = "complete"
+            save_report(args.output, report)
+        summary = {}
+        for name in prompts:
+            summary[name] = {}
+            for metric in ["decode_tps", "prefill_tps", "ttft_seconds", "elapsed_seconds"]:
+                medians = {
+                    label: statistics.median(
+                        p["prompts"][name]["medians"][metric]
+                        for p in report["passes"]
+                        if p["label"] == label
+                    )
+                    for label in "AB"
+                }
+                summary[name][metric] = {
+                    **medians,
+                    "change_percent": (medians["B"] / medians["A"] - 1) * 100,
+                }
+        report.update(summary=summary, status="complete", parity=True)
+    except BaseException as error:
+        record_failure(report, current, error)
+        raise
+    finally:
+        save_report(args.output, report)
     print(json.dumps(summary, indent=2))
 
 

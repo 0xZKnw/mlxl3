@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_divergent_candidate_is_saved_as_a_failed_pass ______________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-19/test_divergent_candidate_is_sa0')
+
+    def test_divergent_candidate_is_saved_as_a_failed_pass(tmp_path):
+        run, output, report = run_campaign(tmp_path, "different")
+        assert run.returncode != 0
+>       assert report["parity"] is False, "a divergent artifact must not certify parity"
+E       AssertionError: a divergent artifact must not certify parity
+E       assert True is False
+
+tests/test_compare_native.py:66: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_compare_native.py::test_divergent_candidate_is_saved_as_a_failed_pass
+1 failed in 0.75s
