@@ -5,6 +5,53 @@ pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
     capable && rows >= 24
 }
 
+/// Conservative M5 dense tile: no padding or changed depth/reduction order.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_qmm_block_rows(rows: i32, input: i32, output: i32, mul1: bool) -> i32 {
+    if mul1 && input >= 4096 && (1..65536).contains(&output) && rows >= 128 && rows % 64 == 0 {
+        64
+    } else {
+        32
+    }
+}
+
+#[test]
+fn dense_qmm_large_tile_preserves_ragged_and_small_fallbacks() {
+    for (rows, input, output, mul1, expected) in [
+        (128, 4096, 5120, true, 64),
+        (256, 5120, 17408, true, 64),
+        (192, 17408, 5120, true, 64),
+        (128, 4096, 65535, true, 64),
+        (128, 4096, 65536, true, 32),
+        (128, 4096, 248320, true, 32),
+        (127, 4096, 5120, true, 32),
+        (129, 4096, 5120, true, 32),
+        (64, 4096, 5120, true, 32),
+        (128, 2048, 5120, true, 32),
+        (128, 4096, 5120, false, 32),
+        (i32::MIN, 4096, 5120, true, 32),
+    ] {
+        assert_eq!(dense_qmm_block_rows(rows, input, output, mul1), expected);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes() {
+    let rows: i32 = kani::any();
+    let input: i32 = kani::any();
+    let output: i32 = kani::any();
+    let mul1: bool = kani::any();
+    let block = dense_qmm_block_rows(rows, input, output, mul1);
+    assert!(block == 32 || block == 64);
+    if block == 64 {
+        assert!(rows >= 128 && rows % block == 0);
+        assert!(input >= 4096 && output > 0 && output < 65536 && mul1);
+    }
+    kani::cover!(block == 64);
+    kani::cover!(rows == 129 && block == 32);
+}
+
 /// Exact QMV batches reuse decoded weights. Odd pairs reserve one padded row;
 /// kernels must zero its loads and never write it. Preserve existing large-M
 /// choices while enabling the small speculative verify shapes.

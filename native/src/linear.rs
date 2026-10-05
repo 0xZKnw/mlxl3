@@ -36,6 +36,7 @@ pub fn checkpoint_array(checkpoint: &Checkpoint, name: &str) -> Result<Array> {
     }
     let (file, offset) = info.source()?;
     Array::from_file(file, offset, &shape, dtype)
+        .with_context(|| format!("cannot load checkpoint tensor {name}"))
 }
 
 pub fn checkpoint_arrays(
@@ -478,7 +479,6 @@ fn qmm_tensor(
     weight_tile_offset: i32,
 ) -> Result<Array> {
     ensure!(array::is_m5_gpu()?, "TensorOps QMM requires Apple M5");
-    let block_rows = 32;
     let block_columns = 32;
     let block_depth = 16;
     ensure!(
@@ -501,6 +501,15 @@ fn qmm_tensor(
     );
     let matrix_rows = i32::try_from(elements / i64::from(input_dims))?;
     ensure!(matrix_rows >= 24, "TensorOps QMM requires at least 24 rows");
+    static DENSE_PREFILL_M64: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let enabled = *DENSE_PREFILL_M64
+        .get_or_init(|| std::env::var("MLXL3_DENSE_PREFILL_M64").as_deref() != Ok("0"));
+    let block_rows = crate::contracts::dense_qmm_block_rows(
+        matrix_rows,
+        input_dims,
+        output_dims,
+        enabled && cb == Codebook::Mul1,
+    );
     let padded_rows = ((matrix_rows + block_rows - 1) / block_rows) * block_rows;
     let xhat = x
         .astype(Dtype::Float16)?
@@ -531,7 +540,7 @@ fn qmm_tensor(
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
     let raw = array::metal_kernel(
             &format!(
-                "mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}",
+                "mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_bm{block_rows}",
                 cb as u32
             ),
             &["xhat", "trellis"],

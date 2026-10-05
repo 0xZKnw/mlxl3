@@ -87,7 +87,11 @@ void pread_exact(int fd, uint64_t offset, mx::array& output) {
     throw std::overflow_error("tensor file offset overflow");
   size_t done = 0;
   while (done < count) {
-    auto read = ::pread(fd, output.data<uint8_t>() + done, count - done,
+    // Darwin rejects nbyte > INT_MAX rather than returning a partial read.
+    // Keep large embeddings in the final MLX buffer without a CPU staging copy.
+    constexpr size_t read_chunk_bytes = 64 * 1024 * 1024;
+    auto read = ::pread(fd, output.data<uint8_t>() + done,
+                        std::min(count - done, read_chunk_bytes),
                         off_t(offset + done));
     if (read < 0 && errno == EINTR) continue;
     if (read < 0)
@@ -112,6 +116,9 @@ std::vector<std::string> strings(const char* const* p, size_t n) {
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_clear_cache() noexcept {
+  return protect([] { mx::clear_cache(); });
+}
 int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
   return protect([&] {
     if (!out) throw std::invalid_argument("null memory statistics output");

@@ -2485,6 +2485,14 @@ fn native_bridge(
     let started = Instant::now();
     let tokenizer = ChatTokenizer::load(&path)?;
     let mut model = NativeChatModel::from_checkpoint(&checkpoint)?;
+    let converted_embedding = checkpoint.tensors.iter().any(|(name, tensor)| {
+        name.ends_with("embed_tokens.weight")
+            && tensor.dtype != "F16"
+            && tensor.data_offsets[1] - tensor.data_offsets[0] >= 64 * 1024 * 1024
+    });
+    if converted_embedding && std::env::var("MLXL3_RETAIN_LOAD_CACHE").as_deref() != Ok("1") {
+        mlxl3_native::array::clear_cache()?;
+    }
     let model_limit = model.context_limit();
     anyhow::ensure!(
         requested >= 0 && requested <= model_limit,

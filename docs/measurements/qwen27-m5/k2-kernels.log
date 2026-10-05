@@ -1,0 +1,37 @@
+{
+  "exact_fp32_cases": 162,
+  "timings": [
+    {
+      "kind": "dense",
+      "input": 17408,
+      "widths": [
+        5120
+      ],
+      "baseline_ms": 0.6765209999999999,
+      "candidate_ms": 0.9380625,
+      "speedup_percent": -27.881031381171304
+    },
+    {
+      "kind": "group",
+      "input": 5120,
+      "widths": [
+        17408,
+        17408
+      ],
+      "baseline_ms": 1.253938,
+      "candidate_ms": 1.218208,
+      "speedup_percent": 2.932996663952303
+    },
+    {
+      "kind": "group",
+      "input": 5120,
+      "widths": [
+        10240,
+        6144
+      ],
+      "baseline_ms": 0.9380839999999999,
+      "candidate_ms": 0.680229,
+      "speedup_percent": 37.90708717211408
+    }
+  ]
+}

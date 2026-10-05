@@ -71,6 +71,7 @@ unsafe extern "C" {
     fn mlxl3_mlx_error() -> *const c_char;
     fn mlxl3_mlx_init(metallib: *const c_char) -> i32;
     fn mlxl3_memory_stats(out: *mut u64, reset_peak: bool) -> i32;
+    fn mlxl3_clear_cache() -> i32;
     fn mlxl3_array_free(p: *mut c_void);
     fn mlxl3_array_clone(p: *mut c_void, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_metadata(
@@ -232,6 +233,13 @@ pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
         process_lifetime_peak_bytes: (values[4] != 0).then_some(values[4]),
     })
 }
+
+/// Release unused allocator buffers; live arrays and their graphs are retained.
+pub fn clear_cache() -> Result<()> {
+    initialize()?;
+    checked(unsafe { mlxl3_clear_cache() })
+}
+
 pub fn is_m5_gpu() -> Result<bool> {
     initialize()?;
     // Allow testing the portable path, never force TensorOps on an older GPU.
@@ -772,6 +780,70 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires physical Apple GPU; run alone (global allocator cache)"]
+    fn clear_cache_preserves_live_arrays_and_releases_unused_buffers() -> Result<()> {
+        let live = Array::from_f32(&[1.0, 2.0, 3.0], &[3])?;
+        live.eval()?;
+        {
+            // zeros() can remain a scalar broadcast without a 32 MiB buffer.
+            let temporary = Array::from_f32(&vec![3.25; 8 * 1024 * 1024], &[8 * 1024 * 1024])?;
+            temporary.eval()?;
+        }
+        let before = memory_stats(false)?;
+        assert!(before.mlx_cache_bytes >= 32 * 1024 * 1024);
+        clear_cache()?;
+        let after = memory_stats(false)?;
+        assert_eq!(after.mlx_active_bytes, before.mlx_active_bytes);
+        assert_eq!(after.mlx_cache_bytes, 0);
+        assert_eq!(live.to_f32()?, [1.0, 2.0, 3.0]);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU and a temporary 2 GiB allocation"]
+    fn checkpoint_reads_larger_than_darwin_syscall_limit() -> Result<()> {
+        use std::os::unix::fs::FileExt;
+
+        let file = tempfile::tempfile()?;
+        let elements = i32::MAX / 4 + 2;
+        let offset = 3u64;
+        file.set_len(offset + elements as u64 * 4)?;
+        let markers = [
+            0,
+            64 * 1024 * 1024 / 4 - 1,
+            64 * 1024 * 1024 / 4,
+            elements - 1,
+        ];
+        for (number, &index) in markers.iter().enumerate() {
+            file.write_all_at(
+                &(number as u32 + 1).to_ne_bytes(),
+                offset + index as u64 * 4,
+            )?;
+        }
+        for batched in [false, true] {
+            let array = if batched {
+                Array::from_files(&[&file], &[offset], &[vec![elements]], &[Dtype::UInt32], 1)?
+                    .remove(0)
+            } else {
+                Array::from_file(&file, offset, &[elements], Dtype::UInt32)?
+            };
+            for (number, &index) in markers.iter().enumerate() {
+                assert_eq!(
+                    array.slice(0, index, index + 1)?.to_u32()?,
+                    vec![number as u32 + 1]
+                );
+            }
+            assert_eq!(array.slice(0, 1, 2)?.to_u32()?, vec![0]);
+        }
+        assert!(Array::from_file(&file, u64::MAX, &[1], Dtype::UInt32).is_err());
+        assert!(
+            Array::from_file(&file, offset + elements as u64 * 4 - 1, &[1], Dtype::UInt32).is_err()
+        );
+        Ok(())
+    }
+
     #[test]
     fn validates_before_entering_mlx() {
         assert!(Array::from_bytes(&[0], &[1], Dtype::Float32).is_err());

@@ -1,0 +1,80 @@
+[
+  {
+    "check": "gpu-large-checkpoint-read",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "array::tests::checkpoint_reads_larger_than_darwin_syscall_limit",
+      "--",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "returncode": 0,
+    "seconds": 3.48
+  },
+  {
+    "check": "gpu-clear-cache",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "array::tests::clear_cache_preserves_live_arrays_and_releases_unused_buffers",
+      "--",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "returncode": 0,
+    "seconds": 0.187
+  },
+  {
+    "check": "gpu-array-smoke",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "array::tests::native_array_and_kernel_smoke",
+      "--",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "returncode": 0,
+    "seconds": 0.95
+  },
+  {
+    "check": "qmm-physical-parity",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "native/check_qmm_tiles.py",
+      "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-pr23-qmm-ono_h73a/bm32",
+      "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-pr23-qmm-ono_h73a/bm64",
+      "--output",
+      "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/docs/measurements/pr23-review/qmm-physical-parity.json"
+    ],
+    "returncode": 0,
+    "seconds": 26.707,
+    "binary_sha256": "aa8ac02d21605687880629110884a8a50b7ade5358867f8ff3eea661cd9ba22b",
+    "baseline_env": {
+      "MLXL3_DENSE_PREFILL_M64": "0"
+    },
+    "candidate_env": {
+      "MLXL3_DENSE_PREFILL_M64": "1"
+    },
+    "independent_size_check": "64 cases, expected M*sum(widths) outputs all present"
+  }
+]
