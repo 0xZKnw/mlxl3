@@ -146,5 +146,9 @@ Les [mesures brutes](measurements/qwen27-m5-round2/) contiennent les campagnes,
 provenances, traces de tests, mutations et tentatives de vérificateurs.
 Le binaire final sans sonde est identifié dans `provenance.json`, SHA-256
 `e28a993cb044310923d862d2f6cd6c6d0f3333dd781e402e9217b0e6a088573f` ;
-il n'est pas commité. La CI du commit final doit être inspectée séparément ;
-les tests locaux seuls ne permettent pas de l'annoncer verte.
+il n'est pas commité. Les workflows du fork étaient initialement désactivés,
+malgré l'indicateur général d'API `enabled=true`. Leur activation a été vérifiée
+dans l'UI du propriétaire et par les deux workflows devenus `active` dans
+l'API. Un nouveau push documentaire déclenche les contrôles du même code.
+Le résultat des jobs du commit exact doit être inspecté séparément ; les
+tests locaux seuls ne permettent pas d'annoncer la CI verte.
