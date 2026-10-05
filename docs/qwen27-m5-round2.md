@@ -115,9 +115,15 @@ sans hypothèse : formes admissibles, codebook/GPU, sortie positive alignée128,
 couvertures K2, K3 et fallback. Il ne prouve pas le calcul Metal, MLX,
 les allocations ni la génération complète.
 
-Kani, CBMC et CrossHair sont absents de l'environnement local ; les commandes
-tentées et les diagnostics sont conservés. Le harnais Rust est intégré à la
-CI Kani existante. Aucune preuve source Python/C++ locale n'est revendiquée.
+Kani, CBMC et CrossHair étaient absents lors des premières tentatives, dont
+les diagnostics restent conservés. Kani officiel0.68.0 a ensuite été installé
+dans l'outillage de travail isolé, sans dépendance projet. Sur ARM Apple, avec
+nightly2026-08-21, le nouveau contrat passe7obligations et3couvertures, sans
+hypothèse ni obligation inatteignable. La suite CPU passe32/32harnais :
+4473obligationsSUCCESS,70UNREACHABLE préexistantes,74couverturesSATISFIED,
+aucun échec ni résultat indéterminé. Les bornes des anciens harnais restent
+celles de leurs sources. C'est du **model checking Rust CPU** ; aucune preuve
+source Python/C++ locale n'est revendiquée.
 Les tests GPU sont des tests échantillonnés, hormis l'exploration finie des
 patterns de gates F16 ; ils ne constituent pas une preuve générale du modèle.
 
@@ -150,5 +156,13 @@ il n'est pas commité. Les workflows du fork étaient initialement désactivés,
 malgré l'indicateur général d'API `enabled=true`. Leur activation a été vérifiée
 dans l'UI du propriétaire et par les deux workflows devenus `active` dans
 l'API. Un nouveau push documentaire déclenche les contrôles du même code.
-Le résultat des jobs du commit exact doit être inspecté séparément ; les
-tests locaux seuls ne permettent pas d'annoncer la CI verte.
+Le commit`2592d95` passe trois jobs GitHub : Linux/macOSnative chacun50testsRust
+et117Python, et DesktopE2E119Python/4skips plus les contrôles Swift/protocole.
+Le job Kani distant a attendu15minutes sans obtenir de runner GitHub puis a
+été annulé ; l'annotation confirme l'échec d'attribution après plusieurs
+tentatives. **La CI entière n'est pas annoncée verte**. Les32preuves Kani
+locales ARM sont distinctes de cette indisponibilité de runner.
+Les [résultats natifs](https://github.com/HENK0O/mlxl3/actions/runs/37372734634)
+et [Desktop](https://github.com/HENK0O/mlxl3/actions/runs/37372734558), leurs JSON
+et logs compressés sont archivés. La clôture documentaire suivante ne change
+aucun fichier exécutable ; ses runs doivent aussi être inspectés séparément.
