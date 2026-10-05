@@ -3,6 +3,21 @@
 MLXL3 is an independent implementation that adapts algorithms and kernel
 structures from the following projects.
 
+## MTPLX
+
+Source: <https://github.com/youssofal/MTPLX>, revision
+`9882703f3105363ddc37eca9f97aa09a1d387112`, Apache-2.0
+(`LICENSES/Apache-2.0.txt`). Qwen MTP pre-normalization residual feedback,
+device-side recursive drafting, accepted-history KV repair and warm candidate
+tuning informed the independent Rust implementation. EXL3 target kernels and
+exact greedy verification remain MLXL3 implementations. Upstream performance
+numbers are not MLXL3 measurements.
+
+`native/src/router.rs` adapts the two-stage SIMD row-owned top-8 structure
+from `mtplx/qwen_row_owned_router.py` to FP16 monotone keys, legacy tie order
+and half accumulation. Copyright MTPLX contributors; Apache-2.0. The small
+EXL3 verify batching uses MLXL3's own trellis kernels and arithmetic.
+
 ## IncoAI Splash
 
 Source: <https://github.com/inco-ai/splash>.

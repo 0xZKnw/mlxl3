@@ -21,12 +21,20 @@ fn native_mtp_head_matches_independent_mlx_reference() -> Result<()> {
     for step in data["steps"].as_array().unwrap() {
         let tokens: Vec<u32> = serde_json::from_value(step["tokens"].clone())?;
         let hidden: Vec<u16> = serde_json::from_value(step["hidden"].clone())?;
-        let expected: Vec<u16> = serde_json::from_value(step["normalized"].clone())?;
+        let recursive = step.get("residual").is_some();
+        let expected: Vec<u16> = serde_json::from_value(
+            step[if recursive { "residual" } else { "normalized" }].clone(),
+        )?;
         let hidden = Array::from_f16_bits(
             &hidden,
             &[1, tokens.len() as i32, model.mtp_layout().hidden_size],
         )?;
-        let actual = head.hidden(&model, &hidden, &tokens)?.to_f16_bits()?;
+        let actual = if recursive {
+            head.draft_residual(&model, &hidden, &tokens)?
+        } else {
+            head.hidden(&model, &hidden, &tokens)?
+        }
+        .to_f16_bits()?;
         let mismatches = actual.iter().zip(&expected).filter(|(a, b)| a != b).count();
         let maximum_error = actual
             .iter()
@@ -72,7 +80,7 @@ fn portable_exl3_prefill_matches_independent_single_rows() -> Result<()> {
     );
     for k in 1..=8 {
         let layer = linear(k, 128)?;
-        for rows in [1, 2, 23, 24, 25, 46, 47, 256, 513] {
+        for rows in [1, 2, 3, 4, 5, 6, 7, 8, 23, 24, 25, 46, 47, 256, 513] {
             let input = (0..rows * 128)
                 .map(|i| f16::from_f32(((i % 251) as f32 - 125.) / 128.).to_bits())
                 .collect::<Vec<_>>();
@@ -92,7 +100,7 @@ fn portable_exl3_prefill_matches_independent_single_rows() -> Result<()> {
             continue;
         }
         let group = Exl3Group::new(vec![linear(k, 128)?, linear(k, 256)?])?;
-        for rows in [24, 25, 46, 47, 256] {
+        for rows in [2, 3, 4, 5, 6, 7, 8, 23, 24, 25, 46, 47, 256] {
             let x = Array::from_f16_bits(
                 &vec![f16::from_f32(0.125).to_bits(); rows as usize * 128],
                 &[rows, 128],

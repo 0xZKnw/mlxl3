@@ -1349,6 +1349,13 @@ impl Qwen35Moe {
         self.head.forward(normalized)
     }
 
+    /// Internal draft IDs come from an argmax over this target's vocabulary.
+    /// Keeping them on device avoids one CPU synchronization per draft depth.
+    pub(crate) fn mtp_embedding_ids(&self, ids: &Array) -> Result<Array> {
+        ensure!(ids.shape() == [1, 1], "invalid MTP device token shape");
+        self.embeddings.take(ids, 0)
+    }
+
     /// Return pre-final-norm residuals without re-running the trunk. Used to
     /// prefill the MTP cache with real target positions, including long prompts.
     pub fn forward_mtp(&mut self, tokens: &[u32]) -> Result<(Array, Array)> {
@@ -2077,29 +2084,32 @@ mod tests {
             assert_eq!(state_bytes(&model)?, state, "MTP prefill states {time}");
             assert_eq!(raw.shape(), [1, time as i32, model.mtp_layout.hidden_size]);
             let saved = model.snapshot()?;
-            for retained in [1, 2] {
-                model.restore(saved.clone())?;
-                let mut expected_logits = Vec::new();
-                for token in [1, 2] {
-                    expected_logits.extend(model.forward(token)?.to_f16_bits()?);
+            for total in 2..=4 {
+                let verification = (1..=total as u32).collect::<Vec<_>>();
+                for retained in 1..=total {
+                    model.restore(saved.clone())?;
+                    let mut expected_logits = Vec::new();
+                    for &token in &verification {
+                        expected_logits.extend(model.forward(token)?.to_f16_bits()?);
+                    }
+                    model.restore(saved.clone())?;
+                    for token in &verification[..retained] {
+                        model.forward(*token)?.eval()?;
+                    }
+                    let states = state_bytes(&model)?;
+                    let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                    model.restore(saved.clone())?;
+                    let (actual, raw) = model.verify_mtp(&verification)?;
+                    assert_eq!(actual.to_f16_bits()?, expected_logits, "MTP verify {time}");
+                    model.commit_dflash_verification(retained, total)?;
+                    model.set_mtp_hidden(raw.slice(1, retained as i32 - 1, retained as i32)?)?;
+                    assert_eq!(
+                        state_bytes(&model)?,
+                        states,
+                        "MTP rollback {time}/{retained}"
+                    );
+                    assert_eq!(model.mtp_hidden()?.to_f16_bits()?, hidden);
                 }
-                model.restore(saved.clone())?;
-                for token in &[1, 2][..retained] {
-                    model.forward(*token)?.eval()?;
-                }
-                let states = state_bytes(&model)?;
-                let hidden = model.mtp_hidden()?.to_f16_bits()?;
-                model.restore(saved.clone())?;
-                let (actual, raw) = model.verify_mtp(&[1, 2])?;
-                assert_eq!(actual.to_f16_bits()?, expected_logits, "MTP verify {time}");
-                model.commit_dflash_verification(retained, 2)?;
-                model.set_mtp_hidden(raw.slice(1, retained as i32 - 1, retained as i32)?)?;
-                assert_eq!(
-                    state_bytes(&model)?,
-                    states,
-                    "MTP rollback {time}/{retained}"
-                );
-                assert_eq!(model.mtp_hidden()?.to_f16_bits()?, hidden);
             }
         }
         for invalid in [vec![], vec![model.vocab as u32], vec![1; 9]] {
@@ -2116,6 +2126,86 @@ mod tests {
         model.forward_mtp(&[1])?;
         assert!(model.verify_mtp(&[1]).is_err());
         assert_eq!(model.offset(), 0);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
+    fn mtp_recursive_sessions_match_greedy_and_exact_caches() -> Result<()> {
+        use crate::mtp::{Head, Session};
+        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &model)?;
+        for depth in 1..=3 {
+            model.reset();
+            head.reset()?;
+            let prefix = vec![1; 24];
+            let (logits, raw) = model.forward_mtp(&prefix)?;
+            head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
+            let mut anchor = logits.chat_greedy_ids()?[0];
+            let mut session = Session::new(depth)?;
+            for block in 0..8 {
+                let saved = model.snapshot()?;
+                let head_saved = head.snapshot()?;
+                let start = model.offset();
+                let first = session.advance(&mut model, &mut head, anchor, 512, 64)?;
+                let retained = (model.offset() - start) as usize;
+                assert!((1..=depth + 1).contains(&retained));
+                let mut actual = vec![first];
+                assert!(
+                    session
+                        .advance(&mut model, &mut head, first, 512, 0)
+                        .is_err()
+                );
+                for _ in 1..retained {
+                    let next =
+                        session.advance(&mut model, &mut head, *actual.last().unwrap(), 512, 64)?;
+                    actual.push(next);
+                }
+                let actual_state = state_bytes(&model)?;
+                let actual_hidden = model.mtp_hidden()?.to_bytes()?;
+                let actual_head = head.cache_bytes()?;
+                model.restore(saved)?;
+                head.restore(head_saved)?;
+                let mut expected = Vec::new();
+                for _ in 0..retained {
+                    let previous_hidden = model.mtp_hidden()?.try_clone()?;
+                    head.extend_cache(&model, &previous_hidden, &[anchor])?;
+                    anchor = model.forward(anchor)?.chat_greedy_ids()?[0];
+                    expected.push(anchor);
+                }
+                assert_eq!(
+                    actual, expected,
+                    "target tokens depth={depth} block={block}"
+                );
+                assert_eq!(
+                    actual_state,
+                    state_bytes(&model)?,
+                    "target states depth={depth} block={block}"
+                );
+                assert_eq!(actual_hidden, model.mtp_hidden()?.to_bytes()?);
+                let expected_head = head.cache_bytes()?;
+                assert!(
+                    actual_head == expected_head,
+                    "head KV depth={depth} block={block}, first key/value byte differences={:?}/{:?}",
+                    actual_head
+                        .0
+                        .iter()
+                        .zip(&expected_head.0)
+                        .position(|(a, b)| a != b),
+                    actual_head
+                        .1
+                        .iter()
+                        .zip(&expected_head.1)
+                        .position(|(a, b)| a != b)
+                );
+            }
+            eprintln!(
+                "MTP{depth}: {}/{} accepted in {} exact blocks",
+                session.accepted, session.proposed, session.blocks
+            );
+        }
+        assert!(Session::new(0).is_err());
+        assert!(Session::new(4).is_err());
         Ok(())
     }
 

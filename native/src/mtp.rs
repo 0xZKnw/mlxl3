@@ -356,6 +356,12 @@ mod native {
                 .set_state(Some(cache.keys), Some(cache.values))
         }
 
+        #[cfg(test)]
+        pub(crate) fn cache_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
+            let (k, v) = self.attention.states()?;
+            Ok((k.to_bytes()?, v.to_bytes()?))
+        }
+
         fn mixed(&self, target: &Qwen35Moe, hidden: &Array, next: &[u32]) -> Result<Array> {
             let time = i32::try_from(next.len())?;
             let h = self.layout.hidden_size;
@@ -363,9 +369,11 @@ mod native {
                 time > 0 && hidden.shape() == [1, time, h],
                 "invalid MTP hidden input"
             );
-            let e = target
-                .mtp_embeddings(next)?
-                .rms_norm(&self.embedding_norm, self.layout.rms_norm_eps)?;
+            self.mixed_embedding(hidden, &target.mtp_embeddings(next)?)
+        }
+
+        fn mixed_embedding(&self, hidden: &Array, embedding: &Array) -> Result<Array> {
+            let e = embedding.rms_norm(&self.embedding_norm, self.layout.rms_norm_eps)?;
             let hidden = hidden.rms_norm(&self.hidden_norm, self.layout.rms_norm_eps)?;
             self.fc.forward(&Array::concatenate(&[&e, &hidden], 2)?)
         }
@@ -377,9 +385,17 @@ mod native {
             hidden: &Array,
             next: &[u32],
         ) -> Result<()> {
+            self.append_cache(target, hidden, next)?;
+            self.eval_cache()
+        }
+
+        fn append_cache(&mut self, target: &Qwen35Moe, hidden: &Array, next: &[u32]) -> Result<()> {
             let mixed = self.mixed(target, hidden, next)?;
             self.attention
-                .append_kv(&mixed.rms_norm(&self.input_norm, self.layout.rms_norm_eps)?)?;
+                .append_kv(&mixed.rms_norm(&self.input_norm, self.layout.rms_norm_eps)?)
+        }
+
+        fn eval_cache(&self) -> Result<()> {
             let (keys, values) = self.attention.states()?;
             keys.eval()?;
             values.eval()
@@ -391,9 +407,25 @@ mod native {
             hidden: &Array,
             next: &[u32],
         ) -> Result<Array> {
-            let time = i32::try_from(next.len())?;
-            let h = self.layout.hidden_size;
+            self.draft_residual(target, hidden, next)?
+                .rms_norm(&self.norm, self.layout.rms_norm_eps)
+        }
+
+        pub fn draft_residual(
+            &mut self,
+            target: &Qwen35Moe,
+            hidden: &Array,
+            next: &[u32],
+        ) -> Result<Array> {
             let mixed = self.mixed(target, hidden, next)?;
+            self.residual(&mixed)
+        }
+
+        /// Recurrent drafting feeds the pre-output-norm residual back, as in
+        /// MTPLX's Qwen MTP chain. The output norm belongs only before lm_head.
+        fn residual(&mut self, mixed: &Array) -> Result<Array> {
+            let time = mixed.shape()[1];
+            let h = self.layout.hidden_size;
             let attention = self
                 .attention
                 .forward(&mixed.rms_norm(&self.input_norm, self.layout.rms_norm_eps)?)?;
@@ -418,15 +450,15 @@ mod native {
                         multiplier,
                     } = &**layer;
                     let probabilities = gate_router.forward(&input)?.softmax_precise()?;
-                    let (indices, scores) =
-                        router::topk(&probabilities, self.layout.num_experts_per_tok, true)?;
+                    let routes =
+                        router::routes(&probabilities, self.layout.num_experts_per_tok, true)?;
                     let broadcast = input.reshape(&[time, 1, 1, h])?;
-                    let gate = gate.gather(&broadcast, &indices)?;
-                    let up = up.gather(&broadcast, &indices)?;
+                    let gate = gate.gather_routed(&broadcast, &routes)?;
+                    let up = up.gather_routed(&broadcast, &routes)?;
                     let routed = down
-                        .gather(&gate.swiglu(&up)?, &indices)?
+                        .gather_routed(&gate.swiglu(&up)?, &routes)?
                         .reshape(&[time, self.layout.num_experts_per_tok as i32, h])?
-                        .mul(&scores.reshape(&[
+                        .mul(&routes.scores().reshape(&[
                             time,
                             self.layout.num_experts_per_tok as i32,
                             1,
@@ -442,10 +474,37 @@ mod native {
                     routed.add(&shared)?
                 }
             };
-            let output = residual
-                .add(&mlp.reshape(&[1, time, h])?)?
-                .rms_norm(&self.norm, self.layout.rms_norm_eps)?;
-            Ok(output)
+            residual.add(&mlp.reshape(&[1, time, h])?)
+        }
+
+        fn draft_chain(
+            &mut self,
+            target: &Qwen35Moe,
+            hidden: &Array,
+            anchor: u32,
+            width: usize,
+        ) -> Result<(Vec<u32>, Cache)> {
+            ensure!((1..=3).contains(&width), "invalid MTP chain width");
+            let mut token = Array::from_u32(&[anchor], &[1, 1])?;
+            let mut hidden = hidden.try_clone()?;
+            let mut proposed = Vec::with_capacity(width);
+            let mut exact = None;
+            for index in 0..width {
+                let mixed = self.mixed_embedding(&hidden, &target.mtp_embedding_ids(&token)?)?;
+                hidden = self.residual(&mixed)?;
+                if index == 0 {
+                    exact = Some(self.snapshot()?);
+                }
+                token = target
+                    .mtp_logits(&hidden.rms_norm(&self.norm, self.layout.rms_norm_eps)?)?
+                    .log_probs()?
+                    .argmax()?
+                    .reshape(&[1, 1])?;
+                proposed.push(token.try_clone()?);
+            }
+            // One lazy device chain / one transfer, rather than D host argmaxes.
+            let proposed = Array::concatenate(&proposed.iter().collect::<Vec<_>>(), 1)?.to_u32()?;
+            Ok((proposed, exact.context("missing MTP first cache")?))
         }
 
         pub fn forward(
@@ -459,17 +518,37 @@ mod native {
         }
     }
 
-    #[derive(Default)]
     pub struct Session {
+        depth: usize,
         pending: VecDeque<u32>,
         pub proposed: usize,
         pub accepted: usize,
         pub blocks: usize,
     }
 
+    impl Default for Session {
+        fn default() -> Self {
+            Self {
+                depth: 1,
+                pending: VecDeque::new(),
+                proposed: 0,
+                accepted: 0,
+                blocks: 0,
+            }
+        }
+    }
+
     impl Session {
-        /// Depth one keeps the draft KV exact: the predictor always consumes a
-        /// real target residual. Every delivered token is chosen by the target.
+        pub fn new(depth: usize) -> Result<Self> {
+            ensure!((1..=3).contains(&depth), "MTP depth must be 1, 2 or 3");
+            Ok(Self {
+                depth,
+                ..Default::default()
+            })
+        }
+
+        /// Every delivered token is selected by the target. Approximate draft
+        /// KV is discarded; repair uses only accepted real trunk residuals.
         pub fn advance(
             &mut self,
             target: &mut Qwen35Moe,
@@ -478,15 +557,15 @@ mod native {
             context_limit: usize,
             output_remaining: usize,
         ) -> Result<u32> {
+            ensure!(output_remaining > 0, "MTP output budget exhausted");
             if let Some(next) = self.pending.pop_front() {
                 return Ok(next);
             }
             let remaining = context_limit
                 .checked_sub(usize::try_from(target.offset())?)
                 .context("MTP context exhausted")?;
-            let width = crate::speculative::bounded_proposals(remaining, output_remaining)
-                .context("MTP budget exhausted")?
-                .min(1);
+            let width = crate::speculative::mtp_width(self.depth, remaining, output_remaining)
+                .context("MTP depth or budget exhausted")?;
             let hidden = target.mtp_hidden()?.try_clone()?;
             if width == 0 {
                 let logits = target.forward(anchor)?;
@@ -496,30 +575,42 @@ mod native {
                     .copied()
                     .context("missing MTP fallback token");
             }
-            let proposal = head
-                .forward(target, &hidden, &[anchor])?
-                .chat_greedy_ids()?[0];
-            let (logits, raw) = target.verify_mtp(&[anchor, proposal])?;
+            let (proposals, exact_first_cache) =
+                head.draft_chain(target, &hidden, anchor, width)?;
+            let verification = std::iter::once(anchor)
+                .chain(proposals.iter().copied())
+                .collect::<Vec<_>>();
+            let (logits, raw) = target.verify_mtp(&verification)?;
             let tokens = logits.chat_greedy_ids()?;
-            let accepted = crate::speculative::greedy_accept(&[proposal], &tokens)
+            let accepted = crate::speculative::greedy_accept(&proposals, &tokens)
                 .context("invalid MTP verification output")?;
             let retained = 1 + accepted.accepted_draft_tokens;
-            target.commit_dflash_verification(retained, 2)?;
+            target.commit_dflash_verification(retained, width + 1)?;
             target.set_mtp_hidden(raw.slice(1, retained as i32 - 1, retained as i32)?)?;
-            if accepted.accepted_draft_tokens == 1 {
-                // Replace approximate drafting history with the real trunk
-                // residual before predicting another position.
-                head.extend_cache(target, &raw.slice(1, 0, 1)?, &[proposal])?;
-                self.pending.push_back(accepted.target_token);
+            head.restore(exact_first_cache)?;
+            if accepted.accepted_draft_tokens > 0 {
+                // Keep single-row arithmetic (batched RoPE can round differently)
+                // but evaluate only the final K/V graph. No output attention/MoE
+                // or vocabulary projection is needed for known history.
+                for (index, &token) in proposals[..accepted.accepted_draft_tokens]
+                    .iter()
+                    .enumerate()
+                {
+                    head.append_cache(
+                        target,
+                        &raw.slice(1, index as i32, index as i32 + 1)?,
+                        &[token],
+                    )?;
+                }
+                head.eval_cache()?;
             }
-            self.proposed += 1;
+            self.pending
+                .extend(proposals[..accepted.accepted_draft_tokens].iter().copied());
+            self.pending.push_back(accepted.target_token);
+            self.proposed += width;
             self.accepted += accepted.accepted_draft_tokens;
             self.blocks += 1;
-            Ok(if accepted.accepted_draft_tokens == 1 {
-                proposal
-            } else {
-                accepted.target_token
-            })
+            self.pending.pop_front().context("missing MTP target token")
         }
     }
 

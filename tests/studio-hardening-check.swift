@@ -19,6 +19,69 @@ import Foundation
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
         }
+        let tuned = try await make("mtp-good")
+        tuned.setMTPEnabled(true)
+        for _ in 0..<200 where tuned.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(tuned.canTuneMTP && tuned.mtpMaxDepth == 3)
+        let before = tuned.conversations[0].messages.count
+        tuned.tuneMTP()
+        precondition(tuned.isTuningMTP && tuned.isGenerating)
+        tuned.draft = "should wait"; tuned.send()
+        precondition(tuned.conversations[0].messages.count == before && !tuned.canSend)
+        for _ in 0..<200 where tuned.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(tuned.mtpEnabled && tuned.mtpDepth == 2 && tuned.mtpTuneRows.count == 4 && tuned.mtpTuneProgress == 1)
+        precondition(tuned.conversations[0].messages.count == before, "Tuning must not enter chat history")
+        tuned.send()
+        for _ in 0..<200 where tuned.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(tuned.conversations[0].messages.last!.content.contains("\"mtp_depth\": 2"), "Selected depth must reach the bridge")
+        tuned.ejectModel()
+        let restoredTune = try await make("mtp-good")
+        precondition(restoredTune.mtpEnabled && restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4)
+        restoredTune.tuneMTP()
+        for _ in 0..<200 where restoredTune.mtpTuneProgress == 0 { try await Task.sleep(for: .milliseconds(10)) }
+        restoredTune.cancelMTPTuning()
+        for _ in 0..<200 where restoredTune.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4 && restoredTune.mtpError != nil)
+        restoredTune.setMTPDepth(3); restoredTune.ejectModel()
+        let manual = try await make("mtp-good")
+        precondition(manual.mtpDepth == 3, "Manual depth selection must persist")
+        manual.ejectModel()
+        for name in ["mtp-baseline", "mtp-collapse", "mtp-invalid", "mtp-error", "mtp-malformed"] {
+            let candidate = try await make(name)
+            candidate.setMTPEnabled(true)
+            for _ in 0..<200 where candidate.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            candidate.tuneMTP()
+            for _ in 0..<200 where candidate.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
+            if name == "mtp-baseline" {
+                precondition(!candidate.mtpEnabled && candidate.mtpTuneRows.count == 4)
+            } else if name == "mtp-collapse" {
+                precondition(candidate.mtpDepth == 2 && candidate.mtpEnabled, "Zero acceptance must not win")
+            } else {
+                precondition(candidate.mtpDepth == 1 && candidate.mtpEnabled && candidate.mtpError != nil)
+            }
+            candidate.ejectModel()
+        }
+        let old = try await make("mtp-old")
+        precondition(old.mtpAvailable && old.mtpMaxDepth == 1 && !old.canTuneMTP)
+        old.setMTPDepth(3); precondition(old.mtpDepth == 1)
+        old.ejectModel()
+        let baselineAgain = try await make("mtp-baseline")
+        precondition(!baselineAgain.mtpEnabled && baselineAgain.mtpTuneRows.count == 4, "Baseline winner must also persist")
+        baselineAgain.ejectModel()
+        let key = MTPConfigurationKey(modelPath: root.path, headPath: "/tmp/mlxl3-fixture-mtp", runtime: "fixture-runtime:mtp-good")
+        precondition(MTPTuning.load(key: key, preferences: prefs)?.depth == 3)
+        precondition(MTPTuning.load(key: MTPConfigurationKey(modelPath: root.path, headPath: key.headPath, runtime: "new-engine"), preferences: prefs) == nil)
+        let tuningHead = root.appendingPathComponent("head")
+        try FileManager.default.createDirectory(at: tuningHead, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: tuningHead.appendingPathComponent("config.json"))
+        let keyBefore = MTPConfigurationKey(modelPath: root.path, headPath: tuningHead.path, runtime: "engine-context-4096")
+        MTPTuning.save(MTPSelection(key: keyBefore, depth: 2, rows: [], tunedAt: nil), preferences: prefs)
+        try Data("{\"changed\":true}".utf8).write(to: tuningHead.appendingPathComponent("config.json"))
+        let keyAfter = MTPConfigurationKey(modelPath: root.path, headPath: tuningHead.path, runtime: "engine-context-4096")
+        precondition(keyAfter != keyBefore && MTPTuning.load(key: keyAfter, preferences: prefs) == nil)
+        let interrupted = try await make("mtp-good")
+        interrupted.tuneMTP(); interrupted.ejectModel()
+        precondition(!interrupted.isTuningMTP && interrupted.mtpTuneRows.isEmpty)
         let counted = try await make("context-count")
         counted.draft = "salut"; counted.send()
         for _ in 0..<200 where counted.isGenerating { try await Task.sleep(for: .milliseconds(20)) }

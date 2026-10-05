@@ -1,0 +1,7 @@
+tests/mtp-tuning-check.swift:43:43: error: call can throw, but it is executed in a non-throwing autoclosure
+41 |         _ = nearMax.score // must not trap in Double -> UInt64 conversion
+42 |         let encoded = try JSONEncoder().encode(valid)
+43 |         precondition(MTPTuning.winner(try JSONDecoder().decode([MTPTuningRow].self, from: encoded)) == 3)
+   |                                           `- error: call can throw, but it is executed in a non-throwing autoclosure
+44 |         print("MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding")
+45 |     }

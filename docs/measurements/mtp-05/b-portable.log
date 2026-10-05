@@ -1,0 +1,18 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/Documents/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 29.95s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running native/tests/runtime_gpu.rs (target/release/deps/runtime_gpu-4b055c0e6bb1ceac)
+
+running 1 test
+Error: this check must exercise the non-TensorOps path
+test portable_exl3_prefill_matches_independent_single_rows ... FAILED
+
+failures:
+
+failures:
+    portable_exl3_prefill_matches_independent_single_rows
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test runtime_gpu`

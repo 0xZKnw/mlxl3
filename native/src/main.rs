@@ -21,6 +21,8 @@ use std::{
 };
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+mod mtp_tune;
+#[cfg(all(feature = "mlx", feature = "chat"))]
 mod openai;
 use std::{
     io::{self, BufRead, Read, Write},
@@ -1494,6 +1496,13 @@ struct BridgeRequest {
     mtp: bool,
     #[serde(default)]
     mtp_head_path: String,
+    #[serde(default = "default_mtp_depth")]
+    mtp_depth: usize,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn default_mtp_depth() -> usize {
+    1
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -2069,6 +2078,7 @@ fn bridge_generate_round(
     random: &mut u64,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
     mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    mtp_depth: usize,
     cache: &mut Option<PromptCache>,
     conversation: &str,
     reuse: bool,
@@ -2098,7 +2108,10 @@ fn bridge_generate_round(
     } else {
         prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
     };
-    let mut mtp_session = mtp.as_ref().map(|_| mlxl3_native::mtp::Session::default());
+    let mut mtp_session = mtp
+        .as_ref()
+        .map(|_| mlxl3_native::mtp::Session::new(mtp_depth))
+        .transpose()?;
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     let available = context_limit - tokens.len();
     let budget = if max_tokens == -1 {
@@ -2322,6 +2335,7 @@ fn bridge_generate(
     mcp: &mut mlxl3_native::mcp::Manager,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
     mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    mtp_depth: usize,
     started: Instant,
     draft_load_seconds: f64,
     cache: &mut Option<PromptCache>,
@@ -2357,6 +2371,7 @@ fn bridge_generate(
             random,
             draft,
             mtp.as_deref_mut(),
+            mtp_depth,
             cache,
             conversation,
             reuse,
@@ -2484,6 +2499,7 @@ fn native_bridge(
     let dflash_supported =
         matches!(&model, NativeChatModel::Qwen(target) if target.supports_dflash());
     let executable = std::env::current_exe()?.display().to_string();
+    let tuning_key = mtp_tune::runtime_key(&path, context_limit)?;
     emit_event(json!({
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
@@ -2494,6 +2510,8 @@ fn native_bridge(
         "dflash_supported":dflash_supported,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)),
         "mtp_auto_download_supported":dflash_supported,
+        "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "mtp_tuning_key":tuning_key,
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},
         "context_limit":context_limit, "model_context_limit":model_limit
@@ -2508,6 +2526,7 @@ fn native_bridge(
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
     let mut dflash_weights: Option<(PathBuf, mlxl3_native::dflash::DFlashWeights)> = None;
     let mut mtp_head: Option<(PathBuf, mlxl3_native::mtp::Head)> = None;
+    let mut mtp_head_revision = None;
     let mut prompt_cache: Option<PromptCache> = None;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -2533,6 +2552,55 @@ fn native_bridge(
                     "mcp_tools":mcp.tools.len(), "mcp_errors":mcp.errors
                 }))?;
             }
+            "tune_mtp" => {
+                cancelled.store(false, Ordering::Relaxed);
+                prompt_cache = None;
+                dflash_weights = None;
+                let result = (|| -> Result<()> {
+                    let NativeChatModel::Qwen(target) = &model else {
+                        bail!("Tune MTP supports Qwen3.5/3.6 targets");
+                    };
+                    anyhow::ensure!(
+                        !request.mtp_head_path.trim().is_empty(),
+                        "MTP head folder is not configured"
+                    );
+                    let path = registry::expand_home(&PathBuf::from(&request.mtp_head_path))?
+                        .canonicalize()?;
+                    let revision = mtp_tune::artifact_key(&path)?;
+                    if mtp_head.as_ref().map(|(p, _)| p) != Some(&path)
+                        || mtp_head_revision.as_ref() != Some(&revision)
+                    {
+                        emit_event(
+                            json!({"type":"mtp_tune_progress","request_id":request.request_id,"phase":"loading_head","completed":0,"total":12}),
+                        )?;
+                        mtp_head =
+                            Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+                        mtp_head_revision = Some(revision);
+                    }
+                    mtp_tune::run(
+                        &mut model,
+                        &mut mtp_head.as_mut().context("missing MTP head")?.1,
+                        &tokenizer,
+                        &request.request_id,
+                        &tuning_key,
+                        context_limit,
+                        &cancelled,
+                    )
+                })();
+                model.reset();
+                if let Some((_, head)) = &mut mtp_head {
+                    head.reset()?;
+                }
+                if let Err(error) = result {
+                    if cancelled.swap(false, Ordering::Relaxed) {
+                        emit_event(json!({"type":"cancelled","request_id":request.request_id}))?;
+                    } else {
+                        emit_event(
+                            json!({"type":"error","request_id":request.request_id,"message":error.to_string()}),
+                        )?;
+                    }
+                }
+            }
             "generate" => {
                 let started = Instant::now();
                 let _ = mlxl3_native::array::memory_stats(true);
@@ -2549,6 +2617,10 @@ fn native_bridge(
                         && (request.temperature == 0. || request.top_k == 1)
                         && request.repetition_penalty == 1.;
                     if mtp_active {
+                        anyhow::ensure!(
+                            (1..=3).contains(&request.mtp_depth),
+                            "MTP depth must be 1, 2 or 3"
+                        );
                         let NativeChatModel::Qwen(target) = &model else {
                             bail!("MTP supports Qwen3.5/3.6 targets");
                         };
@@ -2558,7 +2630,10 @@ fn native_bridge(
                         );
                         let path = registry::expand_home(&PathBuf::from(&request.mtp_head_path))?
                             .canonicalize()?;
-                        if mtp_head.as_ref().map(|(p, _)| p) != Some(&path) {
+                        let revision = mtp_tune::artifact_key(&path)?;
+                        if mtp_head.as_ref().map(|(p, _)| p) != Some(&path)
+                            || mtp_head_revision.as_ref() != Some(&revision)
+                        {
                             prompt_cache = None;
                             emit_event(
                                 json!({"type":"generation_status", "request_id":request.request_id,
@@ -2567,6 +2642,7 @@ fn native_bridge(
                             let started = Instant::now();
                             mtp_head =
                                 Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+                            mtp_head_revision = Some(revision);
                             draft_load_seconds += started.elapsed().as_secs_f64();
                         }
                     } else {
@@ -2613,7 +2689,8 @@ fn native_bridge(
                         "dflash_requested":request.dflash2,
                         "dflash_active":dflash_weights.is_some(),
                         "mtp_requested":request.mtp, "mtp_active":mtp_active,
-                        "mtp_reason":if request.mtp && !mtp_active { Some("MTP v1 uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
+                        "mtp_depth":if mtp_active { request.mtp_depth } else { 0 },
+                        "mtp_reason":if request.mtp && !mtp_active { Some("MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
                         "dflash_proposals":if dflash_weights.is_some() { 5 } else { 0 },
                         "dflash_draft_path":dflash_weights.as_ref().map(|(path, _)| path.display().to_string())
                     }))?;
@@ -2633,6 +2710,7 @@ fn native_bridge(
                         &mut mcp,
                         dflash_weights.as_ref().map(|(_, weights)| weights),
                         mtp_head.as_mut().map(|(_, head)| head),
+                        request.mtp_depth,
                         started,
                         draft_load_seconds,
                         &mut prompt_cache,

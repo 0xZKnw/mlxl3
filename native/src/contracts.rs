@@ -5,6 +5,88 @@ pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
     capable && rows >= 24
 }
 
+/// Exact QMV batches reuse decoded weights. Odd pairs reserve one padded row;
+/// kernels must zero its loads and never write it. Preserve existing large-M
+/// choices while enabling the small speculative verify shapes.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn qmv_batch_layout(rows: i32, grouped: bool, wide: bool) -> Option<(i32, i32)> {
+    if !(2..24).contains(&rows) {
+        return None;
+    }
+    let paired = matches!(rows, 2 | 4)
+        || if grouped {
+            matches!(rows, 6 | 8)
+        } else {
+            (5..=8).contains(&rows)
+        };
+    let mb = if rows == 3 && !grouped && wide {
+        3
+    } else if paired {
+        2
+    } else {
+        1
+    };
+    Some((mb, (rows + mb - 1) / mb))
+}
+
+#[test]
+fn qmv_pair_layout_covers_rows_and_bounds_padding() {
+    for grouped in [false, true] {
+        for wide in [false, true] {
+            for rows in [i32::MIN, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 23, 24, i32::MAX] {
+                match qmv_batch_layout(rows, grouped, wide) {
+                    Some((mb, groups)) => {
+                        assert!((2..24).contains(&rows));
+                        assert!((groups - 1) * mb < rows && groups * mb >= rows);
+                        assert!(groups * mb - rows < mb);
+                        for row in 0..rows {
+                            assert!(row / mb < groups);
+                        }
+                        if matches!(rows, 2 | 4) {
+                            assert_eq!(mb, 2);
+                        }
+                        if rows == 3 {
+                            assert_eq!(
+                                (mb, groups),
+                                if !grouped && wide { (3, 1) } else { (1, 3) }
+                            );
+                        }
+                    }
+                    None => assert!(!(2..24).contains(&rows)),
+                }
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row() {
+    let rows: i32 = kani::any();
+    let grouped: bool = kani::any();
+    let wide: bool = kani::any();
+    match qmv_batch_layout(rows, grouped, wide) {
+        Some((mb, groups)) => {
+            assert!((2..24).contains(&rows));
+            assert!((1..=3).contains(&mb));
+            assert!((groups - 1) * mb < rows && groups * mb >= rows);
+            assert!(groups * mb - rows < mb);
+            assert!(groups * mb - rows <= 1);
+            assert_eq!(mb == 3, rows == 3 && !grouped && wide);
+            if mb == 3 {
+                assert!(rows == 3 && !grouped && wide && groups == 1);
+            }
+            let row: i32 = kani::any();
+            kani::assume(0 <= row && row < rows);
+            assert!(row / mb < groups);
+            kani::cover!(rows == 3 && grouped && row == 2);
+            kani::cover!(mb == 3 && row == 2);
+            kani::cover!(rows == 4 && !grouped && row == 3);
+        }
+        None => assert!(!(2..24).contains(&rows)),
+    }
+}
+
 #[test]
 fn older_gpus_never_select_tensor_ops() {
     for rows in [i32::MIN, 0, 1, 23, 24, 25, 256, i32::MAX] {

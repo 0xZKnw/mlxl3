@@ -83,14 +83,49 @@ if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
     sys.exit(0)
 
 model = sys.argv[2]
-signal.signal(signal.SIGUSR1, lambda *_: None)
+cancelled = False
+def cancel(*_):
+    global cancelled
+    cancelled = True
+signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
+mtp_capable = model == 'renamed' or model.startswith('mtp-')
+tuning_key = 'fixture-runtime:' + model
+capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 3, 'mtp_tune_supported': mtp_capable, 'mtp_tuning_key': tuning_key}
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
-     dflash_supported=model == 'renamed', mtp_supported=model == 'renamed', mtp_auto_download_supported=model == 'renamed',
+     dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
+     **capabilities,
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
     request = json.loads(line)
+    if request['type'] == 'tune_mtp':
+        cancelled = False
+        for step in range(12):
+            emit('mtp_tune_progress', request_id=request['request_id'], phase='warmup' if step < 4 else 'measure',
+                 depth=step % 4, completed=step, total=12)
+            time.sleep(0.04)
+            if cancelled:
+                emit('cancelled', request_id=request['request_id'])
+                break
+        else:
+            if model == 'mtp-error':
+                emit('error', request_id=request['request_id'], message='fixture tuning failed')
+                continue
+            if model == 'mtp-malformed':
+                emit('error', message='unreadable engine response')
+                continue
+            rates = [50, 60, 75, 70] if model != 'mtp-baseline' else [50, 49, 51, 50]
+            rows = [dict(depth=d, decode_tps=rate, decode_tokens=190, decode_seconds=190/rate,
+                         accepted_tokens=0 if d == 0 else 40, proposed_tokens=0 if d == 0 else 80,
+                         eligible=True, reason=None, token_hashes=['prompt-a', 'prompt-b']) for d, rate in enumerate(rates)]
+            if model == 'mtp-collapse':
+                rows[3].update(decode_tps=100, decode_seconds=1.9, accepted_tokens=0, eligible=False, reason='zero_acceptance')
+            if model == 'mtp-invalid':
+                rows[3]['depth'] = 2
+            emit('mtp_tune_complete', request_id=request['request_id'], tuning_key=tuning_key,
+                 best_depth=0 if model == 'mtp-baseline' else 2, rows=rows)
+        continue
     if request['type'] != 'generate':
         continue
     if model == 'context-count':
@@ -109,7 +144,8 @@ for line in sys.stdin:
             time.sleep(0.005)
         emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
     else:
-        answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else 'hello'
+        answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else (
+            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth')}) if model.startswith('mtp-') else 'hello')
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)

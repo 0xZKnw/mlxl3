@@ -1,0 +1,679 @@
+{"model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw", "type": "loading"}
+{"bridge_protocol": 1, "context_limit": 4096, "dflash_supported": true, "load_seconds": 3.256092167, "mcp_errors": {}, "mcp_servers": 0, "mcp_tools": 0, "mlx_version": "0.32.2", "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw", "model_context_limit": 262144, "modules": 30971, "mtp_auto_download_supported": true, "mtp_max_depth": 3, "mtp_supported": true, "mtp_tune_supported": true, "mtp_tuning_key": "f90cb83f932cfa8c:1.3.0:d0160f43a3c0-dirty:release:0.32.2:Apple M5:4096", "resident_gb": 13.064371907, "runtime_commit": "d0160f43a3c0-dirty", "runtime_executable": "/Users/justin/Documents/mix-stq1_0/target/release/mlxl3-rs", "runtime_profile": "release", "runtime_version": "1.3.0", "type": "ready"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": false, "mtp_depth": 0, "mtp_reason": null, "mtp_requested": false, "request_id": "1", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "1", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "1", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "1", "text": "Here", "type": "delta"}
+{"assistant_context": "Here", "cache_context": "Here", "context_full": false, "elapsed_seconds": 2.177436958, "first_text_seconds": 2.1773986659999998, "request_id": "1", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 5.21670000002139e-05, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 2.177379375, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12144210368, "mlx_cache_bytes": 1550439750, "mlx_peak_bytes": 12157289508, "process_footprint_bytes": 14070108144, "process_lifetime_peak_bytes": 14070108144}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 2.175196459, "prefill_tps": 10.57375755869599, "prepare_seconds": 0.000873167, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 2.177327208}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 5.21670000002139e-05, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 2.177428125, "end_to_end_ttft_seconds": 2.1773986659999998, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12144210368, "mlx_cache_bytes": 1550439750, "mlx_peak_bytes": 12157289508, "process_footprint_bytes": 14070108144, "process_lifetime_peak_bytes": 14070108144}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 2.175196459, "prefill_tps": 10.57375755869599, "prepare_seconds": 0.000873167, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 2.1773532909999997}, "token_hash": "3d4b16b4e74c17e0", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"phase": "loading_draft", "request_id": "2", "text": "Preparing MTP head", "type": "generation_status"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 1, "mtp_reason": null, "mtp_requested": true, "request_id": "2", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "2", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "2", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "2", "text": "Here", "type": "delta"}
+{"assistant_context": "Here", "cache_context": "Here", "context_full": false, "elapsed_seconds": 0.541169958, "first_text_seconds": 0.541146541, "request_id": "2", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 1.6584000000041677e-05, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.423139042, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12619369024, "mlx_cache_bytes": 1541243302, "mlx_peak_bytes": 12632472740, "process_footprint_bytes": 14536593752, "process_lifetime_peak_bytes": 14536593752}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.422660208, "prefill_tps": 54.41723532204385, "prepare_seconds": 0.00018675, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.423122458}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 1.6584000000041677e-05, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.117878333, "elapsed_seconds": 0.541162625, "end_to_end_ttft_seconds": 0.541146541, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12619369024, "mlx_cache_bytes": 1541243302, "mlx_peak_bytes": 12632472740, "process_footprint_bytes": 14536593752, "process_lifetime_peak_bytes": 14536593752}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.422660208, "prefill_tps": 54.41723532204385, "prepare_seconds": 0.00018675, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.541137166}, "token_hash": "3d4b16b4e74c17e0", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "3", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "3", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "3", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "3", "text": "Here", "type": "delta"}
+{"assistant_context": "Here", "cache_context": "Here", "context_full": false, "elapsed_seconds": 0.435400333, "first_text_seconds": 0.435376958, "request_id": "3", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 0.00011087499999995476, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.435277292, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12619876934, "mlx_cache_bytes": 1540735392, "mlx_peak_bytes": 12632472740, "process_footprint_bytes": 14536593752, "process_lifetime_peak_bytes": 14536593752}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.433669084, "prefill_tps": 53.035830425947545, "prepare_seconds": 0.000127667, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.435166417}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 0.00011087499999995476, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.43539275, "end_to_end_ttft_seconds": 0.435376958, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12619876934, "mlx_cache_bytes": 1540735392, "mlx_peak_bytes": 12632472740, "process_footprint_bytes": 14536593752, "process_lifetime_peak_bytes": 14536593752}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.433669084, "prefill_tps": 53.035830425947545, "prepare_seconds": 0.000127667, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.43527375}, "token_hash": "3d4b16b4e74c17e0", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "4", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "4", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "4", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "4", "text": "Here", "type": "delta"}
+{"assistant_context": "Here", "cache_context": "Here", "context_full": false, "elapsed_seconds": 0.523270041, "first_text_seconds": 0.523228499, "request_id": "4", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 3.4042000000011896e-05, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.523126958, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12619401792, "mlx_cache_bytes": 1541210540, "mlx_peak_bytes": 12632472740, "process_footprint_bytes": 14536593752, "process_lifetime_peak_bytes": 14536593752}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.522618458, "prefill_tps": 44.00916126846787, "prepare_seconds": 0.000179083, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.523092916}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 24, "decode_seconds": 3.4042000000011896e-05, "decode_tokens": 0, "decode_tps": 0.0, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.523259791, "end_to_end_ttft_seconds": 0.523228499, "evaluated_prompt_tokens": 23, "generated_tokens": 1, "memory": {"mlx_active_bytes": 12619401792, "mlx_cache_bytes": 1541210540, "mlx_peak_bytes": 12632472740, "process_footprint_bytes": 14536593752, "process_lifetime_peak_bytes": 14536593752}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.522618458, "prefill_tps": 44.00916126846787, "prepare_seconds": 0.000179083, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.523211957}, "token_hash": "3d4b16b4e74c17e0", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": false, "mtp_depth": 0, "mtp_reason": null, "mtp_requested": false, "request_id": "5", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "5", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "5", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "5", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "5", "text": "'s", "type": "delta"}
+{"assistant_context": "Here's", "cache_context": "Here's", "context_full": false, "elapsed_seconds": 0.496755084, "first_text_seconds": 0.469903666, "request_id": "5", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.02683370800000001, "decode_tokens": 1, "decode_tps": 37.26656040231188, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.496669958, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12144193984, "mlx_cache_bytes": 2016418348, "mlx_peak_bytes": 12157764644, "process_footprint_bytes": 14536659288, "process_lifetime_peak_bytes": 14536659288}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.469390208, "prefill_tps": 48.999743940120716, "prepare_seconds": 0.000205583, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.46983625}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.02683370800000001, "decode_tokens": 1, "decode_tps": 37.26656040231188, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.496742584, "end_to_end_ttft_seconds": 0.469903666, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12144193984, "mlx_cache_bytes": 2016418348, "mlx_peak_bytes": 12157764644, "process_footprint_bytes": 14536659288, "process_lifetime_peak_bytes": 14536659288}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.469390208, "prefill_tps": 48.999743940120716, "prepare_seconds": 0.000205583, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.469898125}, "token_hash": "131f601c940414a9", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"phase": "loading_draft", "request_id": "6", "text": "Preparing MTP head", "type": "generation_status"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 1, "mtp_reason": null, "mtp_requested": true, "request_id": "6", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "6", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "6", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "6", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "6", "text": "'s", "type": "delta"}
+{"assistant_context": "Here's", "cache_context": "Here's", "context_full": false, "elapsed_seconds": 0.564354041, "first_text_seconds": 0.54268125, "request_id": "6", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.02165979200000001, "decode_tokens": 1, "decode_tps": 46.16849506218709, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.466511292, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12619401792, "mlx_cache_bytes": 1541751212, "mlx_peak_bytes": 12632992932, "process_footprint_bytes": 14537199960, "process_lifetime_peak_bytes": 14537199960}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.444484333, "prefill_tps": 51.74535589311761, "prepare_seconds": 9.025e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.4448515}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.02165979200000001, "decode_tokens": 1, "decode_tps": 46.16849506218709, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.097686291, "elapsed_seconds": 0.56434725, "end_to_end_ttft_seconds": 0.54268125, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12619401792, "mlx_cache_bytes": 1541751212, "mlx_peak_bytes": 12632992932, "process_footprint_bytes": 14537199960, "process_lifetime_peak_bytes": 14537199960}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.444484333, "prefill_tps": 51.74535589311761, "prepare_seconds": 9.025e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.54267625}, "token_hash": "131f601c940414a9", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "7", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "7", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "7", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "7", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "7", "text": "'s", "type": "delta"}
+{"assistant_context": "Here's", "cache_context": "Here's", "context_full": false, "elapsed_seconds": 0.446410417, "first_text_seconds": 0.425277751, "request_id": "7", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.021119, "decode_tokens": 1, "decode_tps": 47.3507268336569, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.446253875, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12619418176, "mlx_cache_bytes": 1541734828, "mlx_peak_bytes": 12632992932, "process_footprint_bytes": 14537216344, "process_lifetime_peak_bytes": 14537216344}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.424780875, "prefill_tps": 54.14556387455061, "prepare_seconds": 9.3875e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.425134875}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.021119, "decode_tokens": 1, "decode_tps": 47.3507268336569, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.44640325, "end_to_end_ttft_seconds": 0.425277751, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12619418176, "mlx_cache_bytes": 1541734828, "mlx_peak_bytes": 12632992932, "process_footprint_bytes": 14537216344, "process_lifetime_peak_bytes": 14537216344}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.424780875, "prefill_tps": 54.14556387455061, "prepare_seconds": 9.3875e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.425273292}, "token_hash": "131f601c940414a9", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "8", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "8", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "8", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "8", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "8", "text": "'s", "type": "delta"}
+{"assistant_context": "Here's", "cache_context": "Here's", "context_full": false, "elapsed_seconds": 0.465227834, "first_text_seconds": 0.443251167, "request_id": "8", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.021963041000000016, "decode_tokens": 1, "decode_tps": 45.531035524634284, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.465090958, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12619385408, "mlx_cache_bytes": 1541800364, "mlx_peak_bytes": 12633013456, "process_footprint_bytes": 14537249112, "process_lifetime_peak_bytes": 14537249112}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.442766917, "prefill_tps": 51.946067144849486, "prepare_seconds": 8.3333e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.443127917}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 25, "decode_seconds": 0.021963041000000016, "decode_tokens": 1, "decode_tps": 45.531035524634284, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.465220625, "end_to_end_ttft_seconds": 0.443251167, "evaluated_prompt_tokens": 23, "generated_tokens": 2, "memory": {"mlx_active_bytes": 12619385408, "mlx_cache_bytes": 1541800364, "mlx_peak_bytes": 12633013456, "process_footprint_bytes": 14537249112, "process_lifetime_peak_bytes": 14537249112}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 0, "mtp_blocks": 0, "mtp_proposed_tokens": 0, "prefill_seconds": 0.442766917, "prefill_tps": 51.946067144849486, "prepare_seconds": 8.3333e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.443246292}, "token_hash": "131f601c940414a9", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": false, "mtp_depth": 0, "mtp_reason": null, "mtp_requested": false, "request_id": "9", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "9", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "9", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "9", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "9", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "9", "text": " a", "type": "delta"}
+{"assistant_context": "Here's a", "cache_context": "Here's a", "context_full": false, "elapsed_seconds": 0.50949925, "first_text_seconds": 0.460145041, "request_id": "9", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.049339458, "decode_tokens": 2, "decode_tps": 40.53550811198615, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.509451958, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12144177600, "mlx_cache_bytes": 2017008172, "mlx_peak_bytes": 12157764644, "process_footprint_bytes": 14537265496, "process_lifetime_peak_bytes": 14537265496}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.459778292, "prefill_tps": 50.02411031619562, "prepare_seconds": 9.0875e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.4601125}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.049339458, "decode_tokens": 2, "decode_tps": 40.53550811198615, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.509491708, "end_to_end_ttft_seconds": 0.460145041, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12144177600, "mlx_cache_bytes": 2017008172, "mlx_peak_bytes": 12157764644, "process_footprint_bytes": 14537265496, "process_lifetime_peak_bytes": 14537265496}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.459778292, "prefill_tps": 50.02411031619562, "prepare_seconds": 9.0875e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.46013941599999997}, "token_hash": "d88bc6b12be2ec86", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"phase": "loading_draft", "request_id": "10", "text": "Preparing MTP head", "type": "generation_status"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 1, "mtp_reason": null, "mtp_requested": true, "request_id": "10", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "10", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "10", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "10", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "10", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "10", "text": " a", "type": "delta"}
+{"assistant_context": "Here's a", "cache_context": "Here's a", "context_full": false, "elapsed_seconds": 0.892208625, "first_text_seconds": 0.49397025000000006, "request_id": "10", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.398227708, "decode_tokens": 2, "decode_tps": 5.022252243683656, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.828028458, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12619422272, "mlx_cache_bytes": 1603229812, "mlx_peak_bytes": 12694015132, "process_footprint_bytes": 14601228632, "process_lifetime_peak_bytes": 14601228632}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.429454083, "prefill_tps": 53.55636588510442, "prepare_seconds": 8.6416e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.42980075}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.398227708, "decode_tokens": 2, "decode_tps": 5.022252243683656, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.06398025, "elapsed_seconds": 0.892201875, "end_to_end_ttft_seconds": 0.49397025000000006, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12619422272, "mlx_cache_bytes": 1603229812, "mlx_peak_bytes": 12694015132, "process_footprint_bytes": 14601228632, "process_lifetime_peak_bytes": 14601228632}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.429454083, "prefill_tps": 53.55636588510442, "prepare_seconds": 8.6416e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.493965}, "token_hash": "d88bc6b12be2ec86", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "11", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "11", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "11", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "11", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "11", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "11", "text": " a", "type": "delta"}
+{"assistant_context": "Here's a", "cache_context": "Here's a", "context_full": false, "elapsed_seconds": 0.495588834, "first_text_seconds": 0.46316725000000003, "request_id": "11", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.032409332999999985, "decode_tokens": 2, "decode_tps": 61.710618975095876, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.495437166, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12619471424, "mlx_cache_bytes": 1603278964, "mlx_peak_bytes": 12694586480, "process_footprint_bytes": 14601441624, "process_lifetime_peak_bytes": 14601441624}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.462671583, "prefill_tps": 49.711287325809245, "prepare_seconds": 8.75e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.463027833}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.032409332999999985, "decode_tokens": 2, "decode_tps": 61.710618975095876, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.495582084, "end_to_end_ttft_seconds": 0.46316725000000003, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12619471424, "mlx_cache_bytes": 1603278964, "mlx_peak_bytes": 12694586480, "process_footprint_bytes": 14601441624, "process_lifetime_peak_bytes": 14601441624}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.462671583, "prefill_tps": 49.711287325809245, "prepare_seconds": 8.75e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.463162208}, "token_hash": "d88bc6b12be2ec86", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "12", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "12", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "12", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "12", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "12", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "12", "text": " a", "type": "delta"}
+{"assistant_context": "Here's a", "cache_context": "Here's a", "context_full": false, "elapsed_seconds": 0.4537885, "first_text_seconds": 0.423508709, "request_id": "12", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.030269708999999978, "decode_tokens": 2, "decode_tps": 66.07265368821356, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.453641417, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12619471424, "mlx_cache_bytes": 1603328116, "mlx_peak_bytes": 12694635632, "process_footprint_bytes": 14601490776, "process_lifetime_peak_bytes": 14601490776}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.423026042, "prefill_tps": 54.370175158152556, "prepare_seconds": 8.2708e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.423371708}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 26, "decode_seconds": 0.030269708999999978, "decode_tokens": 2, "decode_tps": 66.07265368821356, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.453781875, "end_to_end_ttft_seconds": 0.423508709, "evaluated_prompt_tokens": 23, "generated_tokens": 3, "memory": {"mlx_active_bytes": 12619471424, "mlx_cache_bytes": 1603328116, "mlx_peak_bytes": 12694635632, "process_footprint_bytes": 14601490776, "process_lifetime_peak_bytes": 14601490776}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.423026042, "prefill_tps": 54.370175158152556, "prepare_seconds": 8.2708e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.423504417}, "token_hash": "d88bc6b12be2ec86", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": false, "mtp_depth": 0, "mtp_reason": null, "mtp_requested": false, "request_id": "13", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "13", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "13", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "13", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "13", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "13", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "13", "text": " thinking", "type": "delta"}
+{"assistant_context": "Here's a thinking", "cache_context": "Here's a thinking", "context_full": false, "elapsed_seconds": 0.475889875, "first_text_seconds": 0.413196833, "request_id": "13", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.06268066700000002, "decode_tokens": 3, "decode_tps": 47.86164767519144, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.47584925, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12144030144, "mlx_cache_bytes": 2078769396, "mlx_peak_bytes": 12157568036, "process_footprint_bytes": 14601490776, "process_lifetime_peak_bytes": 14601490776}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.412818291, "prefill_tps": 55.714585572953695, "prepare_seconds": 8.0625e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.413168583}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.06268066700000002, "decode_tokens": 3, "decode_tps": 47.86164767519144, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.475882958, "end_to_end_ttft_seconds": 0.413196833, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12144030144, "mlx_cache_bytes": 2078769396, "mlx_peak_bytes": 12157568036, "process_footprint_bytes": 14601490776, "process_lifetime_peak_bytes": 14601490776}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.412818291, "prefill_tps": 55.714585572953695, "prepare_seconds": 8.0625e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.41319149899999996}, "token_hash": "82dbbadf7d157738", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"phase": "loading_draft", "request_id": "14", "text": "Preparing MTP head", "type": "generation_status"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 1, "mtp_reason": null, "mtp_requested": true, "request_id": "14", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "14", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "14", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "14", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "14", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "14", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "14", "text": " thinking", "type": "delta"}
+{"assistant_context": "Here's a thinking", "cache_context": "Here's a thinking", "context_full": false, "elapsed_seconds": 0.494782834, "first_text_seconds": 0.444833958, "request_id": "14", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.04993429100000002, "decode_tokens": 3, "decode_tps": 60.0789545605043, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.453806166, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12619221572, "mlx_cache_bytes": 1603577968, "mlx_peak_bytes": 12694635632, "process_footprint_bytes": 14601490776, "process_lifetime_peak_bytes": 14601490776}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.403519083, "prefill_tps": 56.99854348647992, "prepare_seconds": 8.9125e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.403871875}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.04993429100000002, "decode_tokens": 3, "decode_tps": 60.0789545605043, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.040834416, "elapsed_seconds": 0.494775542, "end_to_end_ttft_seconds": 0.444833958, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12619221572, "mlx_cache_bytes": 1603577968, "mlx_peak_bytes": 12694635632, "process_footprint_bytes": 14601490776, "process_lifetime_peak_bytes": 14601490776}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 1, "mtp_blocks": 1, "mtp_proposed_tokens": 1, "prefill_seconds": 0.403519083, "prefill_tps": 56.99854348647992, "prepare_seconds": 8.9125e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.444829292}, "token_hash": "82dbbadf7d157738", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "15", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "15", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "15", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "15", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "15", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "15", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "15", "text": " thinking", "type": "delta"}
+{"assistant_context": "Here's a thinking", "cache_context": "Here's a thinking", "context_full": false, "elapsed_seconds": 0.731131125, "first_text_seconds": 0.406994043, "request_id": "15", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.32412233299999993, "decode_tokens": 3, "decode_tps": 9.255764551096208, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.730931292, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12619469376, "mlx_cache_bytes": 1617073668, "mlx_peak_bytes": 12699319476, "process_footprint_bytes": 14616318344, "process_lifetime_peak_bytes": 14616318344}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 2, "mtp_blocks": 1, "mtp_proposed_tokens": 2, "prefill_seconds": 0.406460458, "prefill_tps": 56.586070175613486, "prepare_seconds": 8.325e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.406808959}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.32412233299999993, "decode_tokens": 3, "decode_tps": 9.255764551096208, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.731121917, "end_to_end_ttft_seconds": 0.406994043, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12619469376, "mlx_cache_bytes": 1617073668, "mlx_peak_bytes": 12699319476, "process_footprint_bytes": 14616318344, "process_lifetime_peak_bytes": 14616318344}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 2, "mtp_blocks": 1, "mtp_proposed_tokens": 2, "prefill_seconds": 0.406460458, "prefill_tps": 56.586070175613486, "prepare_seconds": 8.325e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.40698941800000005}, "token_hash": "82dbbadf7d157738", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "16", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "16", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "16", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "16", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "16", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "16", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "16", "text": " thinking", "type": "delta"}
+{"assistant_context": "Here's a thinking", "cache_context": "Here's a thinking", "context_full": false, "elapsed_seconds": 0.450762417, "first_text_seconds": 0.408151417, "request_id": "16", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.042596374999999964, "decode_tokens": 3, "decode_tps": 70.4285282491762, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.450615, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12619360832, "mlx_cache_bytes": 1617264196, "mlx_peak_bytes": 12700333236, "process_footprint_bytes": 14616629640, "process_lifetime_peak_bytes": 14616629640}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 2, "mtp_blocks": 1, "mtp_proposed_tokens": 2, "prefill_seconds": 0.407663917, "prefill_tps": 56.41902322201354, "prepare_seconds": 8.25e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.408018625}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 27, "decode_seconds": 0.042596374999999964, "decode_tokens": 3, "decode_tps": 70.4285282491762, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.450754625, "end_to_end_ttft_seconds": 0.408151417, "evaluated_prompt_tokens": 23, "generated_tokens": 4, "memory": {"mlx_active_bytes": 12619360832, "mlx_cache_bytes": 1617264196, "mlx_peak_bytes": 12700333236, "process_footprint_bytes": 14616629640, "process_lifetime_peak_bytes": 14616629640}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 2, "mtp_blocks": 1, "mtp_proposed_tokens": 2, "prefill_seconds": 0.407663917, "prefill_tps": 56.41902322201354, "prepare_seconds": 8.25e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.40814641700000004}, "token_hash": "82dbbadf7d157738", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": false, "mtp_depth": 0, "mtp_reason": null, "mtp_requested": false, "request_id": "17", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "17", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "17", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "17", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "17", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.74519525, "first_text_seconds": 0.412348834, "request_id": "17", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.3328371660000001, "decode_tokens": 16, "decode_tps": 48.0715546051729, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.745154708, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12144357824, "mlx_cache_bytes": 2092267204, "mlx_peak_bytes": 12157928484, "process_footprint_bytes": 14616629640, "process_lifetime_peak_bytes": 14616629640}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.41199475, "prefill_tps": 55.825954092861615, "prepare_seconds": 9.0833e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.412317542}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.3328371660000001, "decode_tokens": 16, "decode_tps": 48.0715546051729, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.745188667, "end_to_end_ttft_seconds": 0.412348834, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12144357824, "mlx_cache_bytes": 2092267204, "mlx_peak_bytes": 12157928484, "process_footprint_bytes": 14616629640, "process_lifetime_peak_bytes": 14616629640}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.41199475, "prefill_tps": 55.825954092861615, "prepare_seconds": 9.0833e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.412342084}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"phase": "loading_draft", "request_id": "18", "text": "Preparing MTP head", "type": "generation_status"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 1, "mtp_reason": null, "mtp_requested": true, "request_id": "18", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "18", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "18", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "18", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "18", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.694025625, "first_text_seconds": 0.45160241700000003, "request_id": "18", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24241108299999997, "decode_tokens": 16, "decode_tps": 66.00358284773638, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.64942375, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1618087492, "mlx_peak_bytes": 12695098456, "process_footprint_bytes": 14617874824, "process_lifetime_peak_bytes": 14617874824}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 8, "mtp_blocks": 8, "mtp_proposed_tokens": 8, "prefill_seconds": 0.406643958, "prefill_tps": 56.56053544511289, "prepare_seconds": 0.000103417, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.407012667}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24241108299999997, "decode_tokens": 16, "decode_tps": 66.00358284773638, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.044466375, "elapsed_seconds": 0.694018834, "end_to_end_ttft_seconds": 0.45160241700000003, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1618087492, "mlx_peak_bytes": 12695098456, "process_footprint_bytes": 14617874824, "process_lifetime_peak_bytes": 14617874824}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 8, "mtp_blocks": 8, "mtp_proposed_tokens": 8, "prefill_seconds": 0.406643958, "prefill_tps": 56.56053544511289, "prepare_seconds": 0.000103417, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.451597042}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "19", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "19", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "19", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "19", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "19", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.654367542, "first_text_seconds": 0.407818542, "request_id": "19", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24653629099999996, "decode_tokens": 16, "decode_tps": 64.89916731975173, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.654228791, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1627850052, "mlx_peak_bytes": 12706482612, "process_footprint_bytes": 14628278664, "process_lifetime_peak_bytes": 14628278664}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.407344458, "prefill_tps": 56.4632697175421, "prepare_seconds": 8.1958e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.4076925}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24653629099999996, "decode_tokens": 16, "decode_tps": 64.89916731975173, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.654360542, "end_to_end_ttft_seconds": 0.407818542, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1627850052, "mlx_peak_bytes": 12706482612, "process_footprint_bytes": 14628278664, "process_lifetime_peak_bytes": 14628278664}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.407344458, "prefill_tps": 56.4632697175421, "prepare_seconds": 8.1958e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.407812917}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "20", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "20", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "20", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "20", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "20", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 1.006429375, "first_text_seconds": 0.416267917, "request_id": "20", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.590149334, "decode_tokens": 16, "decode_tps": 27.111781846050512, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.006285834, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619586112, "mlx_cache_bytes": 1643738016, "mlx_peak_bytes": 12706024140, "process_footprint_bytes": 14645072288, "process_lifetime_peak_bytes": 14645072288}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 11, "mtp_blocks": 5, "mtp_proposed_tokens": 13, "prefill_seconds": 0.415796708, "prefill_tps": 55.31549326263545, "prepare_seconds": 8.1542e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.4161365}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.590149334, "decode_tokens": 16, "decode_tps": 27.111781846050512, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.00642225, "end_to_end_ttft_seconds": 0.416267917, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619586112, "mlx_cache_bytes": 1643738016, "mlx_peak_bytes": 12706024140, "process_footprint_bytes": 14645072288, "process_lifetime_peak_bytes": 14645072288}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 11, "mtp_blocks": 5, "mtp_proposed_tokens": 13, "prefill_seconds": 0.415796708, "prefill_tps": 55.31549326263545, "prepare_seconds": 8.1542e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.41626345800000003}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": false, "mtp_depth": 0, "mtp_reason": null, "mtp_requested": false, "request_id": "21", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "21", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "21", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "21", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "Task", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Write", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " complete", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " code", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " to", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " multiply", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " two", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " matrices", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "Requirements", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Include", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " comments", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " and", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " examples", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "Language", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "2", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "Key", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Concepts", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " for", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Matrix", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " Multip", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "lication", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "21", "text": " -", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "context_full": false, "elapsed_seconds": 1.780678083, "first_text_seconds": 0.426381542, "request_id": "21", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 1.354283, "decode_tokens": 63, "decode_tps": 46.519080576216346, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.7806351249999999, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12145340864, "mlx_cache_bytes": 2117983264, "mlx_peak_bytes": 12159009828, "process_footprint_bytes": 14645137824, "process_lifetime_peak_bytes": 14645137824}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.425977542, "prefill_tps": 53.993456772422995, "prepare_seconds": 8.5625e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.426352125}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 1.354283, "decode_tokens": 63, "decode_tps": 46.519080576216346, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.780671458, "end_to_end_ttft_seconds": 0.426381542, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12145340864, "mlx_cache_bytes": 2117983264, "mlx_peak_bytes": 12159009828, "process_footprint_bytes": 14645137824, "process_lifetime_peak_bytes": 14645137824}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.425977542, "prefill_tps": 53.993456772422995, "prepare_seconds": 8.5625e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.42637675}, "token_hash": "02b7c5c11721c8be", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"phase": "loading_draft", "request_id": "22", "text": "Preparing MTP head", "type": "generation_status"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 1, "mtp_reason": null, "mtp_requested": true, "request_id": "22", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "22", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "22", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "22", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "Task", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Write", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " complete", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " code", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " to", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " multiply", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " two", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " matrices", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "Requirements", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Include", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " comments", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " and", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " examples", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "Language", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "2", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "Key", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Concepts", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " for", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Matrix", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " Multip", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "lication", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "22", "text": " -", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "context_full": false, "elapsed_seconds": 1.442255167, "first_text_seconds": 0.47103470799999997, "request_id": "22", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 0.971206167, "decode_tokens": 63, "decode_tps": 64.86779238089414, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.389022625, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12620663360, "mlx_cache_bytes": 1642660768, "mlx_peak_bytes": 12695917656, "process_footprint_bytes": 14645137824, "process_lifetime_peak_bytes": 14645154208}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 31, "mtp_blocks": 31, "mtp_proposed_tokens": 31, "prefill_seconds": 0.417467458, "prefill_tps": 55.094114665100435, "prepare_seconds": 8.9583e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.417816458}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 0.971206167, "decode_tokens": 63, "decode_tps": 64.86779238089414, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0530865, "elapsed_seconds": 1.442248083, "end_to_end_ttft_seconds": 0.47103470799999997, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12620663360, "mlx_cache_bytes": 1642660768, "mlx_peak_bytes": 12695917656, "process_footprint_bytes": 14645137824, "process_lifetime_peak_bytes": 14645154208}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 31, "mtp_blocks": 31, "mtp_proposed_tokens": 31, "prefill_seconds": 0.417467458, "prefill_tps": 55.094114665100435, "prepare_seconds": 8.9583e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.471029875}, "token_hash": "02b7c5c11721c8be", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "23", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "23", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "23", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "23", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "Task", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Write", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " complete", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " code", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " to", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " multiply", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " two", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " matrices", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "Requirements", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Include", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " comments", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " and", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " examples", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "Language", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "2", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "Key", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Concepts", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " for", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Matrix", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " Multip", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "lication", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "23", "text": " -", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "context_full": false, "elapsed_seconds": 1.3836765, "first_text_seconds": 0.41538287399999996, "request_id": "23", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 0.968280458, "decode_tokens": 63, "decode_tps": 65.0637937381568, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.3835284159999999, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12620667456, "mlx_cache_bytes": 1642886048, "mlx_peak_bytes": 12707301812, "process_footprint_bytes": 14645285280, "process_lifetime_peak_bytes": 14645285280}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 41, "mtp_blocks": 22, "mtp_proposed_tokens": 43, "prefill_seconds": 0.414904292, "prefill_tps": 55.434471138225774, "prepare_seconds": 8.1916e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.415247958}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 0.968280458, "decode_tokens": 63, "decode_tps": 65.0637937381568, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.383669875, "end_to_end_ttft_seconds": 0.41538287399999996, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12620667456, "mlx_cache_bytes": 1642886048, "mlx_peak_bytes": 12707301812, "process_footprint_bytes": 14645285280, "process_lifetime_peak_bytes": 14645285280}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 41, "mtp_blocks": 22, "mtp_proposed_tokens": 43, "prefill_seconds": 0.414904292, "prefill_tps": 55.434471138225774, "prepare_seconds": 8.1916e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.41537829099999996}, "token_hash": "02b7c5c11721c8be", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "24", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "24", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "24", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "24", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "Task", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Write", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " complete", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " code", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " to", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " multiply", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " two", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " matrices", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "Requirements", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Include", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " comments", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " and", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " examples", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " -", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "Language", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Python", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "2", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "Key", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Concepts", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " for", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Matrix", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " Multip", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "lication", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "\n", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": "  ", "type": "delta"}
+{"phase": "thinking", "request_id": "24", "text": " -", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -", "context_full": false, "elapsed_seconds": 1.515317333, "first_text_seconds": 0.483545999, "request_id": "24", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 1.0317561249999998, "decode_tokens": 63, "decode_tps": 61.060941121139464, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.515149583, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12620671552, "mlx_cache_bytes": 1644193696, "mlx_peak_bytes": 12710350224, "process_footprint_bytes": 14646792608, "process_lifetime_peak_bytes": 14646792608}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 45, "mtp_blocks": 18, "mtp_proposed_tokens": 53, "prefill_seconds": 0.483075709, "prefill_tps": 47.61158462637582, "prepare_seconds": 8.5958e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.483393458}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 87, "decode_seconds": 1.0317561249999998, "decode_tokens": 63, "decode_tps": 61.060941121139464, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.515309916, "end_to_end_ttft_seconds": 0.483545999, "evaluated_prompt_tokens": 23, "generated_tokens": 64, "memory": {"mlx_active_bytes": 12620671552, "mlx_cache_bytes": 1644193696, "mlx_peak_bytes": 12710350224, "process_footprint_bytes": 14646792608, "process_lifetime_peak_bytes": 14646792608}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 45, "mtp_blocks": 18, "mtp_proposed_tokens": 53, "prefill_seconds": 0.483075709, "prefill_tps": 47.61158462637582, "prepare_seconds": 8.5958e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.483539874}, "token_hash": "02b7c5c11721c8be", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"message": "MTP depth must be 1, 2 or 3", "request_id": "25", "type": "error"}
+{"message": "MTP depth must be 1, 2 or 3", "request_id": "26", "type": "error"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": false, "mtp_depth": 0, "mtp_reason": null, "mtp_requested": false, "request_id": "27", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "27", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "27", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "27", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "27", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.83189575, "first_text_seconds": 0.490576625, "request_id": "27", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.34130620899999997, "decode_tokens": 16, "decode_tps": 46.878725256357704, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.831855209, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12144357824, "mlx_cache_bytes": 2120507424, "mlx_peak_bytes": 12157928484, "process_footprint_bytes": 14646776224, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.490191792, "prefill_tps": 46.92041028708208, "prepare_seconds": 8.3375e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.490549}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.34130620899999997, "decode_tokens": 16, "decode_tps": 46.878725256357704, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.831888792, "end_to_end_ttft_seconds": 0.490576625, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12144357824, "mlx_cache_bytes": 2120507424, "mlx_peak_bytes": 12157928484, "process_footprint_bytes": 14646776224, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": null, "mtp_blocks": null, "mtp_proposed_tokens": null, "prefill_seconds": 0.490191792, "prefill_tps": 46.92041028708208, "prepare_seconds": 8.3375e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.490571458}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"phase": "loading_draft", "request_id": "28", "text": "Preparing MTP head", "type": "generation_status"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "28", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "28", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "28", "type": "context_usage", "used_tokens": 23}
+{"request_id": "28", "type": "cancelled"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "29", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "29", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "29", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "29", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "29", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.671178292, "first_text_seconds": 0.417031375, "request_id": "29", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.254134208, "decode_tokens": 16, "decode_tps": 62.95885991074449, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.671058792, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1645098912, "mlx_peak_bytes": 12706204084, "process_footprint_bytes": 14646579616, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.41657525, "prefill_tps": 55.212113537710174, "prepare_seconds": 8.7959e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.416924584}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.254134208, "decode_tokens": 16, "decode_tps": 62.95885991074449, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.671170833, "end_to_end_ttft_seconds": 0.417031375, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1645098912, "mlx_peak_bytes": 12706204084, "process_footprint_bytes": 14646579616, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.41657525, "prefill_tps": 55.212113537710174, "prepare_seconds": 8.7959e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.417026584}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "30", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "30", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "30", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "30", "text": "Here", "type": "delta"}
+{"request_id": "30", "type": "cancelled"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "31", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "31", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "31", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "31", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "31", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.663764584, "first_text_seconds": 0.416452084, "request_id": "31", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.247293708, "decode_tokens": 16, "decode_tps": 64.70039261977503, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.663610625, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1645098912, "mlx_peak_bytes": 12706204084, "process_footprint_bytes": 14646792608, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.415947, "prefill_tps": 55.29550639865175, "prepare_seconds": 9.2542e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.416316917}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.247293708, "decode_tokens": 16, "decode_tps": 64.70039261977503, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.663754959, "end_to_end_ttft_seconds": 0.416452084, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619766336, "mlx_cache_bytes": 1645098912, "mlx_peak_bytes": 12706204084, "process_footprint_bytes": 14646792608, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.415947, "prefill_tps": 55.29550639865175, "prepare_seconds": 9.2542e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.416446959}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "32", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "32", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "32", "type": "context_usage", "used_tokens": 23}
+{"request_id": "32", "type": "cancelled"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "33", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "33", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "33", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "33", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "33", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.660894041, "first_text_seconds": 0.418540333, "request_id": "33", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24234233300000002, "decode_tokens": 16, "decode_tps": 66.02230737788597, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.660821375, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619586112, "mlx_cache_bytes": 1645279136, "mlx_peak_bytes": 12705860300, "process_footprint_bytes": 14646825376, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 11, "mtp_blocks": 5, "mtp_proposed_tokens": 13, "prefill_seconds": 0.418135583, "prefill_tps": 55.00608160391842, "prepare_seconds": 6.125e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.418479042}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24234233300000002, "decode_tokens": 16, "decode_tps": 66.02230737788597, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.660886625, "end_to_end_ttft_seconds": 0.418540333, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619586112, "mlx_cache_bytes": 1645279136, "mlx_peak_bytes": 12705860300, "process_footprint_bytes": 14646825376, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 11, "mtp_blocks": 5, "mtp_proposed_tokens": 13, "prefill_seconds": 0.418135583, "prefill_tps": 55.00608160391842, "prepare_seconds": 6.125e-05, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.4185355}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "34", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "34", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "34", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "34", "text": "Here", "type": "delta"}
+{"request_id": "34", "type": "cancelled"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "35", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "35", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "35", "type": "context_usage", "used_tokens": 23}
+{"phase": "thinking", "request_id": "35", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": "Under", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": "stand", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": " Request", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "35", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**", "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n", "context_full": false, "elapsed_seconds": 0.663240208, "first_text_seconds": 0.419466041, "request_id": "35", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24376016700000003, "decode_tokens": 16, "decode_tps": 65.63828781754977, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.663010167, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619586112, "mlx_cache_bytes": 1645279136, "mlx_peak_bytes": 12705860300, "process_footprint_bytes": 14646825376, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 11, "mtp_blocks": 5, "mtp_proposed_tokens": 13, "prefill_seconds": 0.41888925, "prefill_tps": 54.907114469994156, "prepare_seconds": 0.000100167, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.41925}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 40, "decode_seconds": 0.24376016700000003, "decode_tokens": 16, "decode_tps": 65.63828781754977, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.663232666, "end_to_end_ttft_seconds": 0.419466041, "evaluated_prompt_tokens": 23, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12619586112, "mlx_cache_bytes": 1645279136, "mlx_peak_bytes": 12705860300, "process_footprint_bytes": 14646825376, "process_lifetime_peak_bytes": 14646825376}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 11, "mtp_blocks": 5, "mtp_proposed_tokens": 13, "prefill_seconds": 0.41888925, "prefill_tps": 54.907114469994156, "prepare_seconds": 0.000100167, "prompt_tokens": 23, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.419460541}, "token_hash": "6930133b52d9b9ee", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "36", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "36", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "36", "type": "context_usage", "used_tokens": 395}
+{"phase": "thinking", "request_id": "36", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": "An", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": "alyze", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": " Input", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "36", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**", "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n", "context_full": false, "elapsed_seconds": 1.122419542, "first_text_seconds": 0.868525334, "request_id": "36", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.2538797089999999, "decode_tokens": 16, "decode_tps": 63.02197234675421, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.122254709, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 395, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12627876416, "mlx_cache_bytes": 2387786360, "mlx_peak_bytes": 13054441860, "process_footprint_bytes": 15407632848, "process_lifetime_peak_bytes": 15407632848}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.867523625, "prefill_tps": 455.31901220557535, "prepare_seconds": 0.0005845, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.868375}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.2538797089999999, "decode_tokens": 16, "decode_tps": 63.02197234675421, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.12241175, "end_to_end_ttft_seconds": 0.868525334, "evaluated_prompt_tokens": 395, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12627876416, "mlx_cache_bytes": 2387786360, "mlx_peak_bytes": 13054441860, "process_footprint_bytes": 15407632848, "process_lifetime_peak_bytes": 15407632848}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.867523625, "prefill_tps": 455.31901220557535, "prepare_seconds": 0.0005845, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.868519709}, "token_hash": "2a2a24f90474d54e", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 2, "mtp_reason": null, "mtp_requested": true, "request_id": "37", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "37", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "37", "type": "context_usage", "used_tokens": 395}
+{"phase": "thinking", "request_id": "37", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": "An", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": "alyze", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": " Input", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "37", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**", "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n", "context_full": false, "elapsed_seconds": 1.124993917, "first_text_seconds": 0.868049125, "request_id": "37", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.25693058300000005, "decode_tokens": 16, "decode_tps": 62.27362976092261, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.124833041, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 395, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12825418304, "mlx_cache_bytes": 2248964728, "mlx_peak_bytes": 13109867058, "process_footprint_bytes": 15466910160, "process_lifetime_peak_bytes": 15466910160}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.867285292, "prefill_tps": 455.44413544603265, "prepare_seconds": 0.000349541, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.867902458}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.25693058300000005, "decode_tokens": 16, "decode_tps": 62.27362976092261, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.124986209, "end_to_end_ttft_seconds": 0.868049125, "evaluated_prompt_tokens": 395, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12825418304, "mlx_cache_bytes": 2248964728, "mlx_peak_bytes": 13109867058, "process_footprint_bytes": 15466910160, "process_lifetime_peak_bytes": 15466910160}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 10, "mtp_blocks": 6, "mtp_proposed_tokens": 11, "prefill_seconds": 0.867285292, "prefill_tps": 455.44413544603265, "prepare_seconds": 0.000349541, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.868043625}, "token_hash": "2a2a24f90474d54e", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "38", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "38", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "38", "type": "context_usage", "used_tokens": 395}
+{"phase": "thinking", "request_id": "38", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": "An", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": "alyze", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": " Input", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "38", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**", "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n", "context_full": false, "elapsed_seconds": 0.574167042, "first_text_seconds": 0.355398333, "request_id": "38", "round_stats": [{"cached_prompt_tokens": 256, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.21875641699999998, "decode_tokens": 16, "decode_tps": 73.1407115705319, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.574009417, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 139, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12825426496, "mlx_cache_bytes": 2248956536, "mlx_peak_bytes": 13109867058, "process_footprint_bytes": 15467090384, "process_lifetime_peak_bytes": 15467106768}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 12, "mtp_blocks": 4, "mtp_proposed_tokens": 12, "prefill_seconds": 0.354711416, "prefill_tps": 391.86785011734725, "prepare_seconds": 0.000300875, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.355253}], "stats": {"cached_prompt_tokens": 256, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.21875641699999998, "decode_tokens": 16, "decode_tps": 73.1407115705319, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 0.574159375, "end_to_end_ttft_seconds": 0.355398333, "evaluated_prompt_tokens": 139, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12825426496, "mlx_cache_bytes": 2248956536, "mlx_peak_bytes": 13109867058, "process_footprint_bytes": 15467090384, "process_lifetime_peak_bytes": 15467106768}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 12, "mtp_blocks": 4, "mtp_proposed_tokens": 12, "prefill_seconds": 0.354711416, "prefill_tps": 391.86785011734725, "prepare_seconds": 0.000300875, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.355392875}, "token_hash": "2a2a24f90474d54e", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"dflash_active": false, "dflash_draft_path": null, "dflash_proposals": 0, "dflash_requested": false, "mtp_active": true, "mtp_depth": 3, "mtp_reason": null, "mtp_requested": true, "request_id": "39", "type": "generation_mode"}
+{"phase": "prefill", "request_id": "39", "text": "Preparing context", "type": "generation_status"}
+{"context_limit": 4096, "request_id": "39", "type": "context_usage", "used_tokens": 395}
+{"phase": "thinking", "request_id": "39", "text": "Here", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": "'s", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": " a", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": " thinking", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": " process", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": ":", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": "\n\n", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": "1", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": ".", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": " ", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": " **", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": "An", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": "alyze", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": " User", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": " Input", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": ":**", "type": "delta"}
+{"phase": "thinking", "request_id": "39", "text": "\n", "type": "delta"}
+{"assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**", "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n", "context_full": false, "elapsed_seconds": 1.081039167, "first_text_seconds": 0.860453667, "request_id": "39", "round_stats": [{"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.22056612500000006, "decode_tokens": 16, "decode_tps": 72.54060431990631, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.080885375, "end_to_end_ttft_seconds": null, "evaluated_prompt_tokens": 395, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12825426496, "mlx_cache_bytes": 2248956536, "mlx_peak_bytes": 13109867058, "process_footprint_bytes": 15467385296, "process_lifetime_peak_bytes": 15467385296}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 12, "mtp_blocks": 4, "mtp_proposed_tokens": 12, "prefill_seconds": 0.859782209, "prefill_tps": 459.41867122305155, "prepare_seconds": 0.000268833, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.86031925}], "stats": {"cached_prompt_tokens": 0, "context_limit": 4096, "context_used": 412, "decode_seconds": 0.22056612500000006, "decode_tokens": 16, "decode_tps": 72.54060431990631, "dflash_accepted_tokens": null, "dflash_block_seconds": 0.0, "dflash_blocks": null, "dflash_proposed_tokens": null, "draft_load_seconds": 0.0, "elapsed_seconds": 1.081025334, "end_to_end_ttft_seconds": 0.860453667, "evaluated_prompt_tokens": 395, "generated_tokens": 17, "memory": {"mlx_active_bytes": 12825426496, "mlx_cache_bytes": 2248956536, "mlx_peak_bytes": 13109867058, "process_footprint_bytes": 15467385296, "process_lifetime_peak_bytes": 15467385296}, "model_size_gb": 13.064371907, "mtp_accepted_tokens": 12, "mtp_blocks": 4, "mtp_proposed_tokens": 12, "prefill_seconds": 0.859782209, "prefill_tps": 459.41867122305155, "prepare_seconds": 0.000268833, "prompt_tokens": 395, "round_count": 1, "tool_rounds": 0, "tool_seconds": 0.0, "ttft_seconds": 0.860448042}, "token_hash": "2a2a24f90474d54e", "tool_rounds": 0, "turn_context": null, "type": "complete"}
+{"all_depths_parity": true, "prefix_parity": true, "cancel_recovery": true, "tuner_verified": false}

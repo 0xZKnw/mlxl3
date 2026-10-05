@@ -1,0 +1,79 @@
+tests/mtp-tuning-check.swift:13:21: error: expected member name following '.'
+11 |     }
+12 |     static func main() throws {
+13 |         for a in [20., 20.6, 21., 30.] {
+   |                     `- error: expected member name following '.'
+14 |             for b in [20., 20.6, 21., 30.] {
+15 |                 for c in [20., 20.6, 21., 30.] {
+
+tests/mtp-tuning-check.swift:13:32: error: expected member name following '.'
+11 |     }
+12 |     static func main() throws {
+13 |         for a in [20., 20.6, 21., 30.] {
+   |                                `- error: expected member name following '.'
+14 |             for b in [20., 20.6, 21., 30.] {
+15 |                 for c in [20., 20.6, 21., 30.] {
+
+tests/mtp-tuning-check.swift:13:37: error: expected member name following '.'
+11 |     }
+12 |     static func main() throws {
+13 |         for a in [20., 20.6, 21., 30.] {
+   |                                     `- error: expected member name following '.'
+14 |             for b in [20., 20.6, 21., 30.] {
+15 |                 for c in [20., 20.6, 21., 30.] {
+
+tests/mtp-tuning-check.swift:14:25: error: expected member name following '.'
+12 |     static func main() throws {
+13 |         for a in [20., 20.6, 21., 30.] {
+14 |             for b in [20., 20.6, 21., 30.] {
+   |                         `- error: expected member name following '.'
+15 |                 for c in [20., 20.6, 21., 30.] {
+16 |                     let rates = [20., a, b, c]
+
+tests/mtp-tuning-check.swift:14:36: error: expected member name following '.'
+12 |     static func main() throws {
+13 |         for a in [20., 20.6, 21., 30.] {
+14 |             for b in [20., 20.6, 21., 30.] {
+   |                                    `- error: expected member name following '.'
+15 |                 for c in [20., 20.6, 21., 30.] {
+16 |                     let rates = [20., a, b, c]
+
+tests/mtp-tuning-check.swift:14:41: error: expected member name following '.'
+12 |     static func main() throws {
+13 |         for a in [20., 20.6, 21., 30.] {
+14 |             for b in [20., 20.6, 21., 30.] {
+   |                                         `- error: expected member name following '.'
+15 |                 for c in [20., 20.6, 21., 30.] {
+16 |                     let rates = [20., a, b, c]
+
+tests/mtp-tuning-check.swift:15:29: error: expected member name following '.'
+13 |         for a in [20., 20.6, 21., 30.] {
+14 |             for b in [20., 20.6, 21., 30.] {
+15 |                 for c in [20., 20.6, 21., 30.] {
+   |                             `- error: expected member name following '.'
+16 |                     let rates = [20., a, b, c]
+17 |                     let rows = rates.enumerated().map { row($0.offset, $0.element) }
+
+tests/mtp-tuning-check.swift:15:40: error: expected member name following '.'
+13 |         for a in [20., 20.6, 21., 30.] {
+14 |             for b in [20., 20.6, 21., 30.] {
+15 |                 for c in [20., 20.6, 21., 30.] {
+   |                                        `- error: expected member name following '.'
+16 |                     let rates = [20., a, b, c]
+17 |                     let rows = rates.enumerated().map { row($0.offset, $0.element) }
+
+tests/mtp-tuning-check.swift:15:45: error: expected member name following '.'
+13 |         for a in [20., 20.6, 21., 30.] {
+14 |             for b in [20., 20.6, 21., 30.] {
+15 |                 for c in [20., 20.6, 21., 30.] {
+   |                                             `- error: expected member name following '.'
+16 |                     let rates = [20., a, b, c]
+17 |                     let rows = rates.enumerated().map { row($0.offset, $0.element) }
+
+tests/mtp-tuning-check.swift:16:36: error: expected member name following '.'
+14 |             for b in [20., 20.6, 21., 30.] {
+15 |                 for c in [20., 20.6, 21., 30.] {
+16 |                     let rates = [20., a, b, c]
+   |                                    `- error: expected member name following '.'
+17 |                     let rows = rates.enumerated().map { row($0.offset, $0.element) }
+18 |                     let candidates = (1...3).filter { rates[$0] > 20.6 }

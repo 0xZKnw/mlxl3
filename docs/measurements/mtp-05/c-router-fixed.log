@@ -1,0 +1,14 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/Documents/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 21.45s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-9fc02287ba069c4d)
+
+running 1 test
+router rows=1 legacy_us=318.375 simd_us=311.75 repetitions=40 host+GPU
+router rows=2 legacy_us=250.792 simd_us=246.54199999999997 repetitions=40 host+GPU
+router rows=3 legacy_us=251.958 simd_us=244 repetitions=40 host+GPU
+router rows=4 legacy_us=223.708 simd_us=221.333 repetitions=40 host+GPU
+test router::tests::simd_top8_matches_legacy_bits_and_profiles_small_rows ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.29s

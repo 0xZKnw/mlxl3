@@ -25,13 +25,14 @@ class Head(nn.Module):
         self.layers = [DecoderLayer(args, args.full_attention_interval - 1)]
         self.norm = nn.RMSNorm(args.hidden_size, eps=args.rms_norm_eps)
 
-    def __call__(self, hidden, embedding, cache):
+    def __call__(self, hidden, embedding, cache, return_residual=False):
         x = self.fc(
             mx.concatenate(
                 [self.pre_fc_norm_embedding(embedding), self.pre_fc_norm_hidden(hidden)], axis=-1
             )
         )
-        return self.norm(self.layers[0](x, mask="causal", cache=cache))
+        residual = self.layers[0](x, mask="causal", cache=cache)
+        return residual if return_residual else self.norm(residual)
 
 
 def embeddings(model, tokens):
@@ -58,6 +59,7 @@ def main():
     parser.add_argument("model", type=Path)
     parser.add_argument("head", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--recursive", action="store_true", help="Three recursive pre-norm hidden feedback steps")
     args = parser.parse_args()
     config = json.loads((args.head / "config.json").read_text())
     layout = TextModelArgs.from_dict(config["text_config"])
@@ -73,7 +75,8 @@ def main():
     cache = KVCache()
     steps = []
     offset = 0
-    for time in [1, 2, 3, 17, 24]:
+    previous = None
+    for time in ([1, 1, 1] if args.recursive else [1, 2, 3, 17, 24]):
         tokens = [1 + (offset + i) % 31 for i in range(time)]
         values = np.array(
             [
@@ -82,14 +85,17 @@ def main():
             ],
             dtype=np.float16,
         ).reshape(1, time, -1)
-        result = head(mx.array(values), embeddings(args.model, tokens), cache)
+        if args.recursive and previous is not None:
+            values = previous
+        result = head(mx.array(values), embeddings(args.model, tokens), cache, return_residual=args.recursive)
         mx.eval(result)
         output = np.array(result).astype(np.float16)
+        previous = output
         steps.append(
             {
                 "tokens": tokens,
                 "hidden": values.view(np.uint16).reshape(-1).tolist(),
-                "normalized": output.view(np.uint16).reshape(-1).tolist(),
+                "residual" if args.recursive else "normalized": output.view(np.uint16).reshape(-1).tolist(),
             }
         )
         offset += time

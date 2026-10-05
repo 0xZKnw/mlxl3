@@ -16,6 +16,51 @@ pub fn bounded_proposals(context_remaining: usize, output_remaining: usize) -> O
         .map(|n| n.min(5))
 }
 
+/// Public MTP depths are 1..=3. Reserve the target token even at the last step.
+pub fn mtp_width(depth: usize, context: usize, output: usize) -> Option<usize> {
+    if !(1..=3).contains(&depth) {
+        return None;
+    }
+    bounded_proposals(context, output).map(|n| n.min(depth))
+}
+
+/// Scores are positive milli-tokens/second, after quality/acceptance validation.
+/// Prefer the shallower mode on ties and baseline inside the 3% noise margin.
+pub fn best_mtp_depth(scores: [Option<u64>; 4]) -> Option<usize> {
+    let baseline = scores[0].filter(|&score| score > 0)?;
+    let mut best = 0;
+    let mut fastest = baseline;
+    for (depth, score) in scores.into_iter().enumerate().skip(1) {
+        if let Some(score) = score
+            && score > fastest
+            && u128::from(score) * 100 > u128::from(baseline) * 103
+        {
+            best = depth;
+            fastest = score;
+        }
+    }
+    Some(best)
+}
+
+pub fn mtp_tuning_score(
+    depth: usize,
+    tps: f64,
+    parity: bool,
+    accepted: usize,
+    proposed: usize,
+) -> Option<u64> {
+    if depth > 3
+        || !parity
+        || !tps.is_finite()
+        || tps <= 0.
+        || tps >= u64::MAX as f64 / 1000.
+        || (depth > 0 && (accepted == 0 || proposed == 0 || accepted > proposed))
+    {
+        return None;
+    }
+    Some((tps * 1000.) as u64).filter(|&score| score > 0)
+}
+
 /// Shorter verification blocks after repeated low draft acceptance.
 pub fn adaptive_proposals(
     context_remaining: usize,
@@ -56,6 +101,61 @@ pub fn greedy_accept(proposals: &[u32], target_tokens: &[u32]) -> Option<GreedyA
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mtp_depths_budgets_and_invalid_depths() {
+        for depth in 0..=4 {
+            for context in [0, 1, 2, 3, 4, 17, usize::MAX] {
+                for output in 0..=17 {
+                    let expected = (1..=3)
+                        .contains(&depth)
+                        .then(|| (0..=depth).rev().find(|&n| n < context && n < output))
+                        .flatten();
+                    assert_eq!(mtp_width(depth, context, output), expected);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn tuning_requires_valid_baseline_and_selects_eligible_gain() {
+        assert_eq!(best_mtp_depth([None, Some(100), Some(200), None]), None);
+        assert_eq!(best_mtp_depth([Some(0), Some(1), None, None]), None);
+        assert_eq!(best_mtp_depth([Some(100), Some(103), None, None]), Some(0));
+        assert_eq!(
+            best_mtp_depth([Some(100), Some(104), Some(104), None]),
+            Some(1)
+        );
+        assert_eq!(
+            best_mtp_depth([Some(100), Some(120), Some(140), Some(150)]),
+            Some(3)
+        );
+        assert_eq!(
+            best_mtp_depth([Some(u64::MAX), Some(u64::MAX), None, None]),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn tuning_excludes_collapsed_acceptance_divergence_and_invalid_rates() {
+        assert_eq!(mtp_tuning_score(0, 42., true, 0, 0), Some(42000));
+        assert_eq!(mtp_tuning_score(3, 62., true, 50, 80), Some(62000));
+        for rate in [f64::NAN, f64::INFINITY, -1., 0., f64::MAX] {
+            assert_eq!(mtp_tuning_score(1, rate, true, 1, 2), None);
+        }
+        for (depth, parity, accepted, proposed) in [
+            (4, true, 1, 2),
+            (1, false, 1, 2),
+            (2, true, 0, 2),
+            (3, true, 2, 1),
+            (1, true, 0, 0),
+        ] {
+            assert_eq!(
+                mtp_tuning_score(depth, 100., parity, accepted, proposed),
+                None
+            );
+        }
+    }
 
     #[test]
     fn speculative_work_stays_inside_both_budgets() {
@@ -100,6 +200,86 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    fn tuning_requires_parity_and_nonzero_acceptance() {
+        let depth: usize = kani::any();
+        let parity: bool = kani::any();
+        let accepted: usize = kani::any();
+        let proposed: usize = kani::any();
+        let score = mtp_tuning_score(depth, 64., parity, accepted, proposed);
+        assert_eq!(
+            score.is_some(),
+            depth <= 3 && parity && (depth == 0 || (accepted > 0 && proposed >= accepted))
+        );
+        if let Some(score) = score {
+            assert_eq!(score, 64000);
+        }
+        kani::cover!(depth == 3 && accepted == 0 && score.is_none());
+        kani::cover!(depth == 3 && score.is_some());
+    }
+
+    #[kani::proof]
+    #[kani::unwind(6)]
+    fn mtp_all_depths_commit_target_prefix_within_budgets() {
+        let depth: usize = kani::any();
+        let context: usize = kani::any();
+        let output: usize = kani::any();
+        let draft: [u32; 3] = kani::any();
+        let target: [u32; 4] = kani::any();
+        let width = mtp_width(depth, context, output);
+        assert_eq!(
+            width.is_some(),
+            (1..=3).contains(&depth) && context > 0 && output > 0
+        );
+        if let Some(width) = width {
+            assert!(width <= depth && width <= 3);
+            assert!(width < context && width < output);
+            let accepted = greedy_accept(&draft[..width], &target[..=width]).unwrap();
+            let retained = 1 + accepted.accepted_draft_tokens;
+            assert!(retained <= context && retained <= output && retained <= width + 1);
+            for i in 0..accepted.accepted_draft_tokens {
+                assert_eq!(draft[i], target[i]);
+            }
+            assert_eq!(
+                accepted.target_token,
+                target[accepted.accepted_draft_tokens]
+            );
+            kani::cover!(depth == 3 && accepted.accepted_draft_tokens == 3);
+            kani::cover!(depth == 2 && accepted.accepted_draft_tokens == 1);
+            kani::cover!(depth == 3 && accepted.accepted_draft_tokens == 0);
+            kani::cover!(width == 0);
+        }
+    }
+
+    #[kani::proof]
+    #[kani::unwind(6)]
+    fn tuning_never_selects_missing_or_slower_candidate() {
+        let scores: [Option<u64>; 4] = kani::any();
+        let result = best_mtp_depth(scores);
+        assert_eq!(result.is_some(), scores[0].is_some_and(|s| s > 0));
+        if let Some(depth) = result {
+            assert!(depth <= 3);
+            let baseline = scores[0].unwrap();
+            let winner = scores[depth].unwrap();
+            assert!(winner >= baseline);
+            if depth > 0 {
+                assert!(u128::from(winner) * 100 > u128::from(baseline) * 103);
+            }
+            for (i, score) in scores.into_iter().enumerate() {
+                if let Some(score) = score
+                    && u128::from(score) * 100 > u128::from(baseline) * 103
+                {
+                    assert!(winner >= score);
+                    if depth > 0 && score == winner {
+                        assert!(depth <= i);
+                    }
+                }
+            }
+            kani::cover!(depth == 0);
+            kani::cover!(depth == 3);
+        }
+    }
 
     #[kani::proof]
     #[kani::unwind(4)]

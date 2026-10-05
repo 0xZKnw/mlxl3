@@ -134,7 +134,8 @@ struct GenerationInspector: View {
                             ))
                             .font(.system(size: 11))
                             .disabled(studio.isGenerating)
-                            if studio.isGenerating {
+                            MTPTuningControls()
+                            if studio.isGenerating && !studio.isTuningMTP {
                                 Text(studio.mtpActive == true
                                      ? L("MTP actif et vérifié par le moteur", "MTP active and target verified")
                                      : L("Décodage normal", "Ordinary decoding"))

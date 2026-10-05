@@ -373,9 +373,14 @@ impl Exl3Linear {
         } else {
             1
         };
-        let mb = if matches!(matrix_rows, 5..=8) { 2 } else { 1 };
+        let (mb, batch_groups) =
+            crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
+                .context("invalid batch QMV rows")?;
         if mb == 2 {
             nt = nt.min(2);
+        }
+        if mb == 3 {
+            nt = 1;
         }
         let header = codebook_header(self.cb)
             + &format!(
@@ -413,7 +418,7 @@ impl Exl3Linear {
                 (output_tiles / nt)
                     .checked_mul(self.simdgroups * 32)
                     .context("QMV grid overflow")?,
-                (matrix_rows + mb - 1) / mb,
+                batch_groups,
                 splits,
             ],
             [self.simdgroups * 32, 1, 1],
@@ -812,13 +817,15 @@ impl Exl3Group {
         } else {
             1
         };
-        let mb = if matches!(matrix_rows, 6 | 8) { 2 } else { 1 };
+        let (mb, batch_groups) =
+            crate::contracts::qmv_batch_layout(matrix_rows, true, tiles >= 1024)
+                .context("invalid grouped batch QMV rows")?;
         if mb == 2 {
             nt = nt.min(2);
         }
         let header = codebook_header(self.cb)
             + &format!(
-                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 1\n#define GROUPS {groups}\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
+                "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_MATRIX_ROWS {matrix_rows}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 1\n#define GROUPS {groups}\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
                 sg = self.simdgroups,
                 k = self.k,
                 cb = self.cb as u32,
@@ -844,7 +851,7 @@ impl Exl3Group {
                 (tiles / nt)
                     .checked_mul(self.simdgroups * 32)
                     .context("grouped batch grid overflow")?,
-                matrix_rows / mb,
+                batch_groups,
                 splits,
             ],
             [self.simdgroups * 32, 1, 1],

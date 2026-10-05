@@ -138,6 +138,15 @@ struct BridgeEvent: Decodable {
     var mtpAutoDownloadSupported: Bool? = nil
     var mtpActive: Bool? = nil
     var mtpReason: String? = nil
+    var mtpMaxDepth: Int? = nil
+    var mtpTuneSupported: Bool? = nil
+    var mtpTuningKey: String? = nil
+    var depth: Int? = nil
+    var completed: Int? = nil
+    var total: Int? = nil
+    var bestDepth: Int? = nil
+    var tuningKey: String? = nil
+    var rows: [MTPTuningRow]? = nil
     var bridgeProtocol: Int? = nil
 
     enum CodingKeys: String, CodingKey {
@@ -173,6 +182,9 @@ struct BridgeEvent: Decodable {
         case mtpAutoDownloadSupported = "mtp_auto_download_supported"
         case mtpActive = "mtp_active"
         case mtpReason = "mtp_reason"
+        case mtpMaxDepth = "mtp_max_depth", mtpTuneSupported = "mtp_tune_supported", mtpTuningKey = "mtp_tuning_key"
+        case depth, completed, total, rows
+        case bestDepth = "best_depth", tuningKey = "tuning_key"
         case bridgeProtocol = "bridge_protocol"
     }
 }
@@ -262,6 +274,7 @@ struct GenerationRequest: Encodable {
     var dflashDraftPath: String = ""
     var mtp: Bool = false
     var mtpHeadPath: String = ""
+    var mtpDepth: Int = 1
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -275,6 +288,7 @@ struct GenerationRequest: Encodable {
         case dflashDraftPath = "dflash_draft_path"
         case mtp
         case mtpHeadPath = "mtp_head_path"
+        case mtpDepth = "mtp_depth"
     }
 }
 

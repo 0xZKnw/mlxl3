@@ -235,6 +235,13 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
+    func tuneMTP(requestID: String, headPath: String) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
     func cancelGeneration() -> Bool {
         guard let process, process.isRunning else { return false }
         return Darwin.kill(process.processIdentifier, SIGUSR1) == 0

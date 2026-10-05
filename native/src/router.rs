@@ -1,8 +1,52 @@
 //! Stable MoE top-k through the production MLXL3 Metal kernel.
 use crate::array::{self, Array, Dtype};
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
+
+/// Only the validated top-k kernel can construct these device-side routes.
+/// Consumers verify the expert count against their weights without reading IDs
+/// back to the CPU (which would break a recursive MTP graph).
+pub(crate) struct RoutedExperts {
+    indices: Array,
+    scores: Array,
+    experts: i32,
+}
+
+impl RoutedExperts {
+    pub(crate) fn indices(&self) -> &Array {
+        &self.indices
+    }
+
+    pub(crate) fn scores(&self) -> &Array {
+        &self.scores
+    }
+
+    pub(crate) fn experts(&self) -> i32 {
+        self.experts
+    }
+}
+
+pub(crate) fn routes(values: &Array, top_k: usize, normalize: bool) -> Result<RoutedExperts> {
+    let (indices, scores) = topk(values, top_k, normalize)?;
+    Ok(RoutedExperts {
+        indices,
+        scores,
+        experts: values.shape()[1],
+    })
+}
 
 pub fn topk(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Array)> {
+    if values.shape().len() == 2
+        && values.shape()[1] == 256
+        && (1..=4).contains(&values.shape()[0])
+        && top_k == 8
+        && values.dtype() == Dtype::Float16
+    {
+        return top8_simd(values, normalize);
+    }
+    topk_legacy(values, top_k, normalize)
+}
+
+fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Array)> {
     let [rows, experts]: [i32; 2] = values
         .shape()
         .try_into()
@@ -83,6 +127,85 @@ pub fn topk(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Arr
     );
     let scores = outputs.pop().expect("checked output count");
     let indices = outputs.pop().expect("checked output count");
+    Ok((indices, scores))
+}
+
+/// MTPLX's row-owned two-stage selection, adapted to MLXL3's FP16 sort keys.
+/// The tombstone key is below every finite/inf/NaN FP16 key. Index breaks ties;
+/// the final eight scores retain the legacy ascending half-add/divide order.
+fn top8_simd(values: &Array, normalize: bool) -> Result<(Array, Array)> {
+    ensure!(
+        values.shape().len() == 2 && values.shape()[1] == 256 && values.dtype() == Dtype::Float16,
+        "SIMD router requires FP16 rows of 256 experts"
+    );
+    let rows = values.shape()[0];
+    ensure!((1..=4).contains(&rows), "SIMD router requires 1..4 rows");
+    let score = if normalize { "score / sum" } else { "score" };
+    let source = format!(
+        r#"
+        uint row = threadgroup_position_in_grid.y;
+        uint sg = simdgroup_index_in_threadgroup;
+        uint lane = thread_index_in_simdgroup;
+        uint index = sg * 32u + lane;
+        float value = float(values[row * 256u + index]);
+        uint bits = value == 0.0f ? 0u : as_type<uint>(value);
+        uint key = isnan(value) ? 0xffffffffu
+            : bits ^ uint((int(bits) >> 31) | int(0x80000000u));
+        threadgroup uint local_keys[64];
+        threadgroup uint local_ids[64];
+        threadgroup uint selected[8];
+        for (uint rank = 0u; rank < 8u; ++rank) {{
+            uint best = simd_max(key);
+            uint winner = simd_max(key == best ? index : 0u);
+            if (lane == 0u) {{
+                local_keys[sg * 8u + rank] = best;
+                local_ids[sg * 8u + rank] = winner;
+            }}
+            if (index == winner) key = 0u;
+        }}
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (sg == 0u) {{
+            uint k0 = local_keys[lane], k1 = local_keys[lane + 32u];
+            uint i0 = local_ids[lane], i1 = local_ids[lane + 32u];
+            for (uint rank = 0u; rank < 8u; ++rank) {{
+                bool second = k1 > k0 || (k1 == k0 && i1 > i0);
+                uint candidate = second ? k1 : k0;
+                uint id = second ? i1 : i0;
+                uint best = simd_max(candidate);
+                uint winner = simd_max(candidate == best ? id : 0u);
+                if (lane == 0u) selected[7u - rank] = winner;
+                if (id == winner) {{ if (second) k1 = 0u; else k0 = 0u; }}
+            }}
+            if (lane == 0u) {{
+                half sum = half(0);
+                for (uint slot = 0u; slot < 8u; ++slot) {{
+                    float value = float(values[row * 256u + selected[slot]]);
+                    sum = half(isnan(value) ? NAN : value) + sum;
+                }}
+                for (uint slot = 0u; slot < 8u; ++slot) {{
+                    indices[row * 8u + slot] = selected[slot];
+                    float value = float(values[row * 256u + selected[slot]]);
+                    half score = half(isnan(value) ? NAN : value);
+                    scores[row * 8u + slot] = {score};
+                }}
+            }}
+        }}
+    "#
+    );
+    let mut out = array::metal_kernel(
+        &format!("mlxl3_rs_router_e256_k8_simd_n{}", u8::from(normalize)),
+        &["values"],
+        &["indices", "scores"],
+        "",
+        &source,
+        &[values],
+        &[vec![rows, 8], vec![rows, 8]],
+        &[Dtype::UInt32, Dtype::Float16],
+        [256, rows, 1],
+        [256, 1, 1],
+    )?;
+    let scores = out.pop().context("missing SIMD scores")?;
+    let indices = out.pop().context("missing SIMD indices")?;
     Ok((indices, scores))
 }
 
@@ -321,6 +444,89 @@ pub fn grouped_topk_biased(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical Apple GPU, preregistered MTP-05 router trial"]
+    fn simd_top8_matches_legacy_bits_and_profiles_small_rows() -> Result<()> {
+        use std::time::Instant;
+        for rows in 1..=4 {
+            for fixture in 0..12 {
+                let bits = (0..rows * 256)
+                    .map(|i| match fixture {
+                        0 => 0x3800,
+                        1 => {
+                            if i % 2 == 0 {
+                                0
+                            } else {
+                                0x8000
+                            }
+                        }
+                        2 => [0x7c00, 0xfc00, 0x7e00, 0xfe00, 1, 0x8001, 0x3c00, 0xbc00]
+                            [i as usize % 8],
+                        _ => (i as u16).wrapping_mul(179).wrapping_add(fixture * 5557),
+                    })
+                    .collect::<Vec<_>>();
+                let values = Array::from_f16_bits(&bits, &[rows, 256])?;
+                for normalize in [false, true] {
+                    let old = topk_legacy(&values, 8, normalize)?;
+                    let new = top8_simd(&values, normalize)?;
+                    let dispatched = topk(&values, 8, normalize)?;
+                    assert_eq!(dispatched.0.to_u32()?, new.0.to_u32()?);
+                    assert_eq!(dispatched.1.to_f16_bits()?, new.1.to_f16_bits()?);
+                    assert_eq!(
+                        new.0.to_u32()?,
+                        old.0.to_u32()?,
+                        "IDs rows={rows} fixture={fixture}"
+                    );
+                    assert_eq!(
+                        new.1.to_f16_bits()?,
+                        old.1.to_f16_bits()?,
+                        "scores rows={rows} fixture={fixture} normalize={normalize}"
+                    );
+                }
+            }
+            let values = Array::from_f16_bits(
+                &(0..rows * 256)
+                    .map(|i| half::f16::from_f32((1 + i % 256) as f32 / 512.).to_bits())
+                    .collect::<Vec<_>>(),
+                &[rows, 256],
+            )?;
+            let mut elapsed = [Vec::new(), Vec::new()];
+            for repetition in 0..44 {
+                for variant in if repetition % 2 == 0 { [0, 1] } else { [1, 0] } {
+                    let start = Instant::now();
+                    let result = if variant == 0 {
+                        topk_legacy(&values, 8, true)?
+                    } else {
+                        top8_simd(&values, true)?
+                    };
+                    result.0.eval()?;
+                    result.1.eval()?;
+                    if repetition >= 4 {
+                        elapsed[variant].push(start.elapsed().as_secs_f64() * 1e6);
+                    }
+                }
+            }
+            for values in &mut elapsed {
+                values.sort_by(f64::total_cmp);
+            }
+            eprintln!(
+                "router rows={rows} legacy_us={} simd_us={} repetitions=40 host+GPU",
+                elapsed[0][20], elapsed[1][20]
+            );
+        }
+        let wrong_dtype = Array::from_f32(&[0.; 256], &[1, 256])?;
+        assert!(topk(&wrong_dtype, 8, true).is_err());
+        assert!(topk(&wrong_dtype.astype(Dtype::Float16)?, 0, true).is_err());
+        assert!(topk(&wrong_dtype.astype(Dtype::Float16)?, 257, true).is_err());
+        let fallback = Array::from_f16_bits(&[0x3800; 1280], &[5, 256])?;
+        assert!(top8_simd(&fallback, true).is_err());
+        assert_eq!(
+            topk(&fallback, 8, true)?.0.to_u32()?,
+            topk_legacy(&fallback, 8, true)?.0.to_u32()?
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "requires Apple GPU"]
