@@ -163,7 +163,7 @@ private struct HubBrowserView: View {
                             }.buttonStyle(StudioControlStyle())
                             Divider().overlay(StudioTheme.edge)
                         }
-                        if library.results.isEmpty && !library.searching {
+                        if library.results.isEmpty && !library.searching && library.error == nil {
                             Text(L("Aucun résultat. Essayez un autre nom ou un dépôt exact.", "No results. Try another name or an exact repository."))
                                 .font(.callout).foregroundStyle(StudioTheme.quiet).padding(.vertical, 40)
                         }
@@ -255,20 +255,16 @@ private struct PendingDownloadsView: View {
 
 private struct LibraryDownloadView: View {
     @ObservedObject var library: ModelLibrary
+    @EnvironmentObject private var studio: StudioModel
     var body: some View {
-        if library.downloading != nil || library.downloadMessage != nil {
-            VStack(alignment: .leading, spacing: 8) {
-                Divider().overlay(StudioTheme.edge)
-                if let name = library.downloading {
-                    HStack {
-                        Text(name).lineLimit(1)
-                        Spacer()
-                        Text("\(ByteCountFormatter.string(fromByteCount: Int64(library.completed), countStyle: .file)) / \(ByteCountFormatter.string(fromByteCount: Int64(library.total), countStyle: .file))").monospacedDigit()
-                        Button(L("Suspendre", "Pause"), action: library.cancelDownload).buttonStyle(.plain)
-                    }
-                    ProgressView(value: min(library.completed, max(library.total, 1)), total: max(library.total, 1)).tint(StudioTheme.accent)
-                } else if let message = library.downloadMessage { Text(message).textSelection(.enabled).lineLimit(3) }
-            }.font(.system(size: 11)).padding(.horizontal, 25).padding(.bottom, 17)
+        if let repo = library.lastDownloadRepo {
+            let job = library.pending.first { $0.repo == repo }
+            DownloadProgressCard(repository: repo, progress: library.downloadProgress,
+                                 status: library.downloadStatus, message: library.downloadMessage,
+                                 pause: library.cancelDownload,
+                                 resume: library.downloadStatus == .paused && job != nil
+                                    ? { if let job { library.resume(job, studio: studio) } } : nil)
+                .padding(.horizontal, 25).padding(.vertical, 16)
         }
     }
 }

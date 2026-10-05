@@ -18,6 +18,92 @@ import Foundation
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
         }
+        // Hub metadata crosses the real CLI pipe before ModelLibrary decodes it.
+        // The previous Bool-only decoder rejected null/auto/manual.
+        for (fragment, expected) in [
+            ("", false), (",\"gated\":null", false),
+            (",\"gated\":false", false), (",\"gated\":true", true),
+            (",\"gated\":\"auto\"", true), (",\"gated\":\"manual\"", true),
+            (",\"gated\":\"false\"", false), (",\"gated\":\"true\"", true),
+        ] {
+            let data = Data(("{\"id\":\"fixture/model-exl3\",\"downloads\":73,\"likes\":0" + fragment + "}").utf8)
+            let value = try JSONDecoder().decode(HubModel.self, from: data)
+            precondition(value.id == "fixture/model-exl3" && value.downloads == 73 && value.likes == 0)
+            precondition(value.gated == expected, fragment)
+        }
+        for invalid in ["0", "1", "[]", "{}", "\"unknown\""] {
+            do {
+                _ = try JSONDecoder().decode(HubModel.self, from: Data(
+                    ("{\"id\":\"fixture/model\",\"downloads\":1,\"likes\":0,\"gated\":" + invalid + "}").utf8))
+                preconditionFailure("Invalid access metadata accepted: " + invalid)
+            } catch is DecodingError {}
+        }
+        let library = ModelLibrary()
+        func search(_ query: String) async throws {
+            library.query = query
+            library.search()
+            for _ in 0..<200 where library.searching { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!library.searching, "Catalogue search timed out")
+        }
+        try await search("qwen3.6")
+        precondition(library.error == nil && library.results.count == 3)
+        precondition(library.results[0].id == "fixture/qwen3.6-exl3" && !library.results[0].gated)
+        precondition(library.results[1].gated && !library.results[2].gated)
+        library.open(library.results[0].id)
+        for _ in 0..<200 where library.loadingDetail { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(library.detail?.id == "fixture/qwen3.6-exl3")
+        precondition(library.selectedVariant?.sizeBytes == 128)
+        library.back()
+        try await search("error")
+        precondition(library.error?.contains("fixture catalogue unavailable") == true)
+        try await search("invalid")
+        precondition(library.error != nil)
+        try await search("empty")
+        precondition(library.error == nil && library.results.isEmpty)
+        library.query = "slow"; library.search()
+        try await Task.sleep(for: .milliseconds(400))
+        try await search("latest")
+        try await Task.sleep(for: .milliseconds(750))
+        precondition(library.results[0].id == "fixture/latest-exl3" && library.error == nil,
+                     "Cancelled search replaced the current results")
+        // Previously cancelled/failed commands must not poison cached results.
+        try await search("qwen3.6")
+        precondition(library.results[0].id == "fixture/qwen3.6-exl3" && library.error == nil)
+        library.moreResults()
+        for _ in 0..<200 where library.searching { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(library.error == nil && library.results.count == 3)
+        library.refresh()
+        for _ in 0..<200 where library.searching { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(library.error == nil && library.results.count == 3)
+        let downloadStudio = StudioModel(conversationFileURL: root.appendingPathComponent("downloads.json"),
+                                         isPreview: true, preferences: prefs)
+        library.open("fixture/download-exl3")
+        for _ in 0..<200 where library.loadingDetail { try await Task.sleep(for: .milliseconds(20)) }
+        library.download(studio: downloadStudio)
+        for _ in 0..<200 where library.downloadProgress.bytesPerSecond == nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        precondition(library.downloadStatus == .transferring && library.downloading != nil)
+        precondition((library.downloadProgress.bytesPerSecond ?? 0) > 0)
+        precondition((library.downloadProgress.fraction ?? 0) > 0)
+        library.cancelDownload()
+        for _ in 0..<200 where library.downloading != nil || library.pending.isEmpty {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        precondition(library.downloadStatus == .paused && library.downloadProgress.completed > 0)
+        precondition(library.lastDownloadRepo == "fixture/download-exl3")
+        let paused = library.pending.first!
+        library.resume(paused, studio: downloadStudio)
+        precondition(library.downloadProgress.bytesPerSecond == nil && library.downloadStatus == .transferring,
+                     "Resume retained the previous transfer's speed")
+        for _ in 0..<200 where library.downloading != nil { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(library.downloadStatus == .complete && library.downloadProgress.fraction == 1)
+        precondition(library.downloadMessage?.contains("fixture-model") == true)
+        library.open("fixture/fail-exl3")
+        for _ in 0..<200 where library.loadingDetail { try await Task.sleep(for: .milliseconds(20)) }
+        library.download(studio: downloadStudio)
+        for _ in 0..<200 where library.downloading != nil { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(library.downloadStatus == .failed && library.downloadMessage?.contains("fixture download failed") == true)
         let crash = try await make("crash")
         crash.draft = "test"; crash.send()
         try await Task.sleep(for: .milliseconds(500))
@@ -84,6 +170,6 @@ import Foundation
         let legacy = try JSONDecoder().decode(GenerationStats.self, from: Data(#"{"ttft_seconds":1,"prefill_tps":1,"decode_tps":1,"prompt_tokens":1,"generated_tokens":1,"peak_memory_gb":12}"#.utf8))
         precondition(legacy.peakMemoryGB == 12 && legacy.memory == nil)
         MarkdownRegressionCheck.run()
-        print("Desktop hardening checks passed: crash, deletion, drafts, recovery, save ordering, tool state")
+        print("Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state")
     }
 }

@@ -1,0 +1,8 @@
+build/desktop-v1.2.1/decode-after.swift:15:37: error: operator can throw but expression is not marked with 'try'
+13 |         downloads = try values.decode(Int.self, forKey: .downloads)
+14 |         likes = try values.decode(Int.self, forKey: .likes)
+15 |         if !values.contains(.gated) || (try values.decodeNil(forKey: .gated)) {
+   |                                     |  `- note: call is to 'rethrows' function, but argument function can throw
+   |                                     `- error: operator can throw but expression is not marked with 'try'
+16 |             gated = false
+17 |         } else if let flag = try? values.decode(Bool.self, forKey: .gated) {

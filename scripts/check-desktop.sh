@@ -80,4 +80,8 @@ swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.sw
     tests/cli-command-check.swift -o "${test_dir}/cli-command-check"
 "${test_dir}/cli-command-check" "${test_python}"
 
+swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift \
+    tests/download-progress-check.swift -o "${test_dir}/download-progress-check"
+"${test_dir}/download-progress-check"
+
 print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport"
