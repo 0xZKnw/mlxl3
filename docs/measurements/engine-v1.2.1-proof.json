@@ -93,5 +93,35 @@
   "merge_commit": "1f9ba848d6ea58478d9aa490e38404d01034706f",
   "download_verification": "GitHub download has identical size/SHA-256 to locally installed archive",
   "production_release_selection": "engine 1.2.1, Desktop 1.2.0; GitHub latest=v1.2.0",
-  "installed_in_user_app": false
+  "installed_in_user_app": false,
+  "completed_source_ci": {
+    "regression": {
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/37274850631",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "desktop-and-protocol",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "rust": {
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/37274850532",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "kani",
+          "conclusion": "success"
+        },
+        {
+          "name": "native (macos-26)",
+          "conclusion": "success"
+        },
+        {
+          "name": "native (ubuntu-latest)",
+          "conclusion": "success"
+        }
+      ]
+    }
+  }
 }

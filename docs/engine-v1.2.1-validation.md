@@ -29,6 +29,8 @@ Les tests MTP terminés avant livraison sont conservés dans [opti.md](../opti.m
 
 La [CI Rust/Kani de la PR](https://github.com/0xZKnw/mlxl3/actions/runs/37274850532) est réussie. La [CI Desktop/Python de la PR](https://github.com/0xZKnw/mlxl3/actions/runs/37274850631) et les runs déclenchés par le merge restent **en cours au relevé après publication** ; aucune validation complète de ces runs n'est revendiquée. Aucun nouveau benchmark/inférence lancé. L'avertissement futur préexistant de `block0.1.6` persiste sans échec de compilation.
 
+Révision finale : **les deux runs PR sont maintenant terminés et réussis**, tous leurs jobs inspectés, sur le commit source exact954cfe37167f : Rust Linux/macOS, Kani et régression Desktop/Python/protocole. Aucun échec observé à corriger. La note précédente décrit le relevé au moment de la publication ; les runs du merge/documentation sont distincts. Cela ne couvre toujours pas les chemins GPU non exécutés ni le défaut d'activation à chaud signalé ci-dessous.
+
 Les [empreintes et le relevé CI](measurements/engine-v1.2.1-proof.json), [log build](measurements/engine-v1.2.1-build.log), [log installation](measurements/engine-v1.2.1-install.log), [log sélection](measurements/engine-v1.2.1-selection.log) et [tests packaging](measurements/engine-v1.2.1-package-tests.log) sont conservés dans le dépôt. Les fichiers temporaires supplémentaires restent sous `build/engine-v1.2.1/`, hors Git.
 
 ## Activation dans l'app ouverte — à corriger plus tard
