@@ -1,5 +1,13 @@
 # MLXL3 — journal des optimisations
 
+### ENGINE-2026-10-05-1.3.1 — livraison de la PR23 — en cours
+
+- Demande utilisateur : « fais une nouvelle version du moteur pour ça », après fusion de PR23. Publier le canal moteur `engine-v1.3.1`, dernière version publique `engine-v1.3.0`. Baseline source fusionnée `f43118519d6af6cb15496e23520d4f61bd47e913`, tête revue/corrigée `a2b2d31a5d8995ff8d4c0102123004de539943be`, même arbre validé. Travail isolé ; modifications MTP locales du checkout principal préservées.
+- Périmètre : Cargo/lock 1.3.1 et notes de release ; lecture Darwin bornée, cache de chargement, dispatch BM64 M5 et corrections des comparateurs déjà fusionnés. Pas de nouveau code d'optimisation ni benchmark. Protocole bridge1, MLX0.32.2, arm64, macOS≥26.2/Desktop≥1.2.0 ; canal Desktop conserve sa version1.3.0.
+- Antécédents : revue PR23 et FIX01..03, 31 harnais Kani CPU, 64 cas QMM debug exacts ; livraisons engine1.2.1 et engine/Desktop1.3.0, installation/relocation/repli en store jetable et défaut d'activation à chaud différé. Nouvelle répétition justifiée par la variante **release 1.3.1 réellement packagée**, ses versions/empreintes/signatures et la compatibilité d'installation, sans réestimer un gain.
+- Protocole préenregistré : commit source propre ; fmt/Clippy strict, build/tests release `--locked --features mlx,chat`, packaging/tests existants ; signatures ad hoc/architectures/minOS/manifestes ; QMM synthétique BM32/BM64 sur le moteur packagé après compilations, 64 cas attendus/1 887 232 mots FP16. Updater Swift de production : archive installée/activée/déplacée/exécutée/rejetée dans un dossier jetable, runtime-info et list sans poids ; sélection des deux canaux sur métadonnées GitHub, taille/SHA-256 de l'asset téléversé puis retéléchargé. CI existante PR/push lue et vérification du commit source exact, dont Kani31 ; publication finale après inspections.
+- Conditions : Apple M5/macOS27.2 arm64, SDK26.5, Rust1.98.1, Python3.12.14, MLX0.32.2 ; aucun modèle chargé pour cette livraison, température/débit/gain/RAM **non mesurés**. Kani borné CPU et tests finis ne prouvent pas Metal/MLX/la génération ; parité checkpoint Qwen complet non rejouée, CrossHair antérieur inconclusif. Preuves prévues sous `docs/measurements/engine-v1.3.1/`, rapport `docs/engine-v1.3.1-validation.md`. État : préparation, publication non effectuée.
+
 ### FIX-2026-10-05-PR23-03 — deadlines et nettoyage des processus de vérification — validé par tests, poussé
 
 - Livraison précédente : correctif 02 poussé (`c1a3bf3d657d1b9d723ba80b345ba1a13e07340c`), tête GitHub vérifiée. Antécédent REVIEW-PR23 : un bridge silencieux reste vivant et bloque `readline`; l'attente finale de 15 s ne borne pas la génération et `cancelled` est ignoré.
