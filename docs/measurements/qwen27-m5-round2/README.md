@@ -35,6 +35,16 @@ Les matrices, calculs et frontières des mesures sont identiques ; les nouveaux
 rapports ajoutent l'état de campagne et conservent aussi les erreurs.
 Les logs d'échecs de compilation de la fusion GDN sont volontairement présents.
 
+Le microfiltre actuel ajoute deux grandes formes MLP K1/K3 en SG8 aux quatre
+formes initiales de08. Les fenêtres `tiles-remaining-screen/confirm.json`
+valident leurs partielles et microtimings. Le prototype Rust correspondant
+est **retiré** après deux comparaisons natives dominées par l'ordre des paires
+(`extra-bits-paired-screen/confirm.json`). `extra-bits-prototype.patch` et
+`extra-bits-provenance.json` identifient ce source expérimental et son binaire ;
+les tests extra-bits et l'option de comparaison n'existent pas dans le source
+retenu. Les logs de ses oracles, mutations, Kani et limites restent conservés.
+Ne pas attribuer ses 77 couvertures Kani au source retenu (74 couvertures).
+
 ## Checkpoint exact et paires natives
 
 La référence numérique a été sauvegardée avec la baseline de la première
@@ -70,7 +80,9 @@ python benchmarks/compare_native.py "$MLXL3_QWEN_TEST_MODEL" \
 
 Le contexte est4096, cache/MTP/DFlash/MCP désactivés, température0. Le résultat
 bridge conservé est numériquement fonctionnel mais son débit est non concluant
-à cause des dérives de performance, dont celles du contrôle préfill inchangé.
+à cause des dérives de performance. Le corps multi-token du préfill est
+inchangé, mais sa tête finale M=1 utilise aussi le nouveau réglage ; le temps
+préfill complet n'est donc pas un contrôle entièrement intact.
 La répétition ABBA utilise les mêmes paramètres avec `--order ABBA`.
 
 ## Preuve et limites

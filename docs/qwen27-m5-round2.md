@@ -15,7 +15,9 @@ La sélection s'applique au GPU M5, en MUL1, avec une entrée de 5120 valeurs :
 | Bundle MLP gate/up | 2 | 34816 |
 | Tête vocabulaire | 3 | 248320 |
 
-Les autres formes et le calcul multi-token gardent leur dispatch existant.
+Les autres formes et le corps multi-token du transformeur gardent leur
+dispatch existant. La tête finale ne traite que le dernier token après un
+préfill et peut donc aussi bénéficier du nouveau réglage mono-token.
 `MLXL3_DENSE_DECODE_NT4=0` rétablit le réglage précédent pour comparaison.
 Les shaders et leurs réductions ne sont pas modifiés. Le choix passe par
 `contracts::dense_decode_nt4`, appelé par `Exl3Linear::forward` et
@@ -73,8 +75,10 @@ forward natif d'environ **5 % sur ce Mac et ce protocole**.
 La première campagne bridge ABBA donne un signal positif de 6,32 % et 10,27 %
 sur les deux prompts, mais une forte dérive de la référence interdit d'en
 faire un gain causal établi. La confirmation BAAB donne −6,33 % sur le prompt
-court et +5,85 % sur le document ; le préfill court dérive lui aussi de −5,87 %,
-bien qu'il ne soit pas modifié par le changement. La dernière passe B chute
+court et +5,85 % sur le document ; le préfill court varie aussi de −5,87 %.
+Son corps multi-token est inchangé, mais sa tête finale est en M=1 et bénéficie
+du changement : le temps préfill n'est donc pas un contrôle totalement intact.
+La dernière passe B chute
 de 8,040 à 6,749 tok/s sur le court et de 7,921 à 6,166 sur le document.
 **Le gain de débit bridge reste non concluant.** Tous les tokens et le texte
 sont identiques, cache désactivé, greedy, 24 tokens, deux mesures et un warmup
@@ -83,6 +87,20 @@ Les campagnes sont sur batterie, températures/fréquences non mesurées ;
 l'absence d'avertissement `pmset` n'établit pas une fréquence stable.
 
 ## Autres pistes examinées
+
+L'audit des métadonnées du checkpoint trouve aussi six grands bundles MLP
+encore en NT2 : cinq K1 et un K3, tous 5120 → 34816, avec huit SIMD groups.
+Deux fenêtres de 40 passages confirment un gain micro de 8,73–9,17 % pour K1
+et 3,94–4,44 % pour K3, avec partielles FP32 exactes. Le prototype passe les
+12 étapes de l'oracle checkpoint, les tests et Kani. Dans le modèle, toutefois,
+deux fenêtres de huit paires donnent seulement +0,218 % puis +0,547 % médian,
+avec quatre paires gagnantes sur huit à chaque fois. Toutes les paires AB
+perdent et toutes les BA gagnent : l'effet d'ordre domine le petit signal.
+**L'extension K1/K3 est retirée de la production.** Les sources Rust retenues
+sont restaurées en bits à celles de la campagne08 ; seuls le microfiltre
+élargi, le patch expérimental et les preuves restent archivés. Les 77
+couvertures Kani du prototype sont distinctes des 74 du code retenu.
+Ces microgains ne sont pas des gains supplémentaires de génération.
 
 Une fusion RMSNorm128 + gate SiLU utilise une table F32 de 256 Kio calculée
 par le même graphe MLX pour tous les patterns F16. Elle conserve les deux
@@ -150,7 +168,7 @@ automatiques des kernels EXL3/F16.
 Le [journal](../opti.md) contient les protocoles, échecs et décisions.
 Les [mesures brutes](measurements/qwen27-m5-round2/) contiennent les campagnes,
 provenances, traces de tests, mutations et tentatives de vérificateurs.
-Le binaire final sans sonde est identifié dans `provenance.json`, SHA-256
+Le binaire mesuré sans sonde est identifié dans `provenance.json`, SHA-256
 `e28a993cb044310923d862d2f6cd6c6d0f3333dd781e402e9217b0e6a088573f` ;
 il n'est pas commité. Les workflows du fork étaient initialement désactivés,
 malgré l'indicateur général d'API `enabled=true`. Leur activation a été vérifiée
@@ -166,3 +184,29 @@ Les [résultats natifs](https://github.com/HENK0O/mlxl3/actions/runs/37372734634
 et [Desktop](https://github.com/HENK0O/mlxl3/actions/runs/37372734558), leurs JSON
 et logs compressés sont archivés. La clôture documentaire suivante ne change
 aucun fichier exécutable ; ses runs doivent aussi être inspectés séparément.
+
+Révision après inspection de `20debe916f2f77cdbfe068a0e85e54a3ec6c43d5` : les
+trois jobs [Native/Kani](https://github.com/HENK0O/mlxl3/actions/runs/37374854568)
+sont réussis. Les logs confirment 32 harnais, 4473 checks SUCCESS, 70
+UNREACHABLE préexistants et 74 couvertures satisfaites, sans échec. Les jobs
+Linux/macOS passent chacun 50 tests Rust et 117 Python. Le premier essai
+[Desktop](https://github.com/HENK0O/mlxl3/actions/runs/37374854512) est annulé
+après la limite configurée de 25 minutes ; ses logs sont absents et aucune
+assertion défaillante n'est disponible. Une relance unique du même job/SHA
+est demandée. Les JSON, annotations et diagnostics sont conservés dans
+`ci-20debe9/` ; la réussite native ne suffit pas à annoncer toute la CI verte.
+Les commits documentaires suivants devront être distingués de ce SHA.
+
+Clôture : la deuxième tentative Desktop sur ce même SHA est **réussie**,
+119 tests Python passent avec quatre skips, puis les contrôles Swift,
+lifecycle, imports, streaming, bridge et CLI passent. Les **quatre jobs de
+20debe9 sont verts**, Kani compris. La première annulation reste archivée.
+Les métadonnées et logs de la tentative2 sont dans `ci-20debe9/`.
+
+Après retrait du prototype K1/K3, les empreintes des sources Rust, FFI et
+build sont identiques à celles de08. Fmt, Clippy, build et 61 tests Rust
+passent à nouveau (54 ignorés). La reconstruction porte une autre empreinte
+binaire, `53335a7b9740e2a6d9150f71c4eb63f71ee2bc698af378bb0c03047f575ebba1` :
+le build inclut la révision Git dans les diagnostics. Il n'est pas présenté
+comme le binaire chronométré. `final-source-provenance.json` distingue ces
+artefacts ; le binaire mesuré original reste conservé.
