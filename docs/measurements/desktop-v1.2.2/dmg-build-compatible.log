@@ -1,0 +1,69 @@
+   Compiling mlxl3-native v1.2.2 (/Users/justin/Documents/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 30.11s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+/Users/justin/Documents/mix-stq1_0/build/rust-runtime/mlxl3: replacing existing signature
+/Users/justin/Documents/mix-stq1_0/build/rust-runtime/libmlx.dylib: replacing existing signature
+/Users/justin/Documents/mix-stq1_0/build/rust-runtime/libjaccl.dylib: replacing existing signature
+/Users/justin/Documents/mix-stq1_0/dist/MLXL3-Engine-v1.2.2-arm64.tar.gz
+Building for production...
+[Planning deferred tasks]
+[1 / 1]
+[5 / 13] SwiftMath
+[7 / 51]
+[13 / 51]
+[14 / 51]
+[20 / 51]
+[21 / 51]
+[23 / 51]
+[25 / 51]
+[26 / 51]
+[34 / 51]
+[38 / 51]
+[41 / 51]
+[42 / 51]
+[43 / 51]
+[44 / 51] SwiftMath
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[49 / 54] MLXL3Studio-product
+[51 / 96]
+[57 / 96]
+[59 / 96]
+[65 / 96]
+[66 / 96]
+[68 / 96]
+[70 / 96]
+[71 / 96]
+[81 / 96]
+[85 / 96]
+[88 / 96]
+[89 / 96]
+[91 / 96]
+[92 / 96] MLXL3Studio-product
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/Documents/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[94 / 96] MLXL3Studio-product
+[95 / 96] MLXL3Studio-product
+Build complete! (46,97 secs)
+/Users/justin/Documents/mix-stq1_0/dist/MLXL3 Desktop.app: replacing existing signature
+Application créée : /Users/justin/Documents/mix-stq1_0/dist/MLXL3 Desktop.app
+created: /Users/justin/Documents/mix-stq1_0/dist/MLXL3-Desktop-v1.2.2-b21-Apple-Silicon.dmghdiutil: WARNING: 'hdiutil create -volname -format ...' is deprecated. Please use 'diskutil image create from/blank --volumeName --format ...' instead.
+
+DMG autonome créé : /Users/justin/Documents/mix-stq1_0/dist/MLXL3-Desktop-v1.2.2-b21-Apple-Silicon.dmg
