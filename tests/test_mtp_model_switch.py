@@ -18,6 +18,8 @@ SPEC.loader.exec_module(switch)
 FAKE = r"""#!/usr/bin/env python3
 import json, os, sys, time
 case = os.environ['MTP_SWITCH_CASE']
+if case.startswith('slow_'):
+    case = case[5:]; time.sleep(0.6)
 with open(os.environ['MTP_SWITCH_PIDS'], 'a') as f: f.write(str(os.getpid()) + '\n')
 def emit(kind, **kw): print(json.dumps(dict(type=kind, **kw)), flush=True)
 if sys.argv[1] == 'mtp-head':
@@ -72,6 +74,8 @@ for line in sys.stdin:
         "cancelled",
         "empty",
         "mismatch",
+        "slow_success",
+        "slow_reuse_growth",
     ],
 )
 def test_production_verifier_reports_failures_and_reaps_processes(tmp_path, case):
@@ -88,20 +92,38 @@ def test_production_verifier_reports_failures_and_reaps_processes(tmp_path, case
             "dense",
             "moe",
             "--timeout",
-            "0.4",
+            "2",
             "--output",
             str(output),
         ],
         env={**os.environ, "MTP_SWITCH_CASE": case, "MTP_SWITCH_PIDS": str(pids)},
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=15,
         check=False,
     )
     report = json.loads(output.read_text())
+    case = case.removeprefix("slow_")
     assert (result.returncode == 0) == (case == "success"), result.stderr
     assert report["status"] == ("passed" if case == "success" else "failed")
     assert report["parity"] is (case == "success")
+    errors = {
+        "download_error": "CalledProcessError",
+        "same_heads": "same MTP head",
+        "missing_caps": "managed MTP capabilities missing",
+        "silent": "TimeoutError",
+        "stream": "TimeoutError",
+        "invalid_json": "invalid JSON",
+        "retained_failure": "failed MTP load retained the previous head",
+        "retained_off": "MTP OFF retained head allocations",
+        "reuse_growth": "MTP load/reuse memory mismatch",
+        "missing_memory": "KeyError",
+        "cancelled": "cancelled",
+        "empty": "MTP changed target IDs/history/budget",
+        "mismatch": "MTP changed target IDs/history/budget",
+    }
+    if case != "success":
+        assert errors[case] in report["error"], report
     if case == "success":
         assert [item["model"] for item in report["models"]] == ["dense", "moe", "dense"]
         assert all(len(item["cases"]) == 12 for item in report["models"])

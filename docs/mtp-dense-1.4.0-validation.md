@@ -112,10 +112,14 @@ Aucun benchmark en cours. Tune MTP reste le contrôle prévu pour un autre workl
   CPU/chat : **50 passés/3 ignorés**. Les tests physiques ci-dessus sont
   sélectionnés séparément, un par processus ; les autres ignorés ne sont pas
   attribués à une exécution GPU.
-- Suite Python : **190 passés/4 skips** (ponyexl3 absent, modèle Ling absent).
-  Ruff/format/py_compile réussis. Contrôleur de switch : **74 cas** de parité,
+- Suite Python finale : **192 passés/4 skips** (ponyexl3 absent, modèle Ling absent),
+  après190/4 avant les deux contre-exemples de démarrage lent.
+  Ruff/format/py_compile réussis. Contrôleur de switch : **76 cas** de parité,
   budgets, sorties vides/incomplètes, JSON invalide, enfant silencieux,
   annulation et nettoyage. Comparateur : régressions MTP/warmup et faux rapports.
+  Un démarrage artificiel600ms reproduit l'échec CI du délai400ms ; délai2s
+  et watchdog15s restent bornés. Chaque scénario exige son erreur spécifique,
+  donc un timeout ne peut masquer une régression mémoire ou parité.
 - `scripts/check-desktop.sh` : succès complet, lifecycle, transport CLI,
   bridge, téléchargements, rendu, MCP, annulation, tuner et updater. Contre-
   exemples ON/OFF avec anciens profils Tune et OFF livré sur erreur conservés.
