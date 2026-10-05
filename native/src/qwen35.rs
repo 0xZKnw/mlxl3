@@ -2065,6 +2065,64 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone, no concurrent builds"]
+    fn checkpoint_dense_decode_tiles_paired() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let prefix = (0..69).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+        model.forward_tokens(&prefix)?;
+        let snapshot = model.snapshot()?;
+        let mut execute = |enabled| -> Result<(f64, Vec<u16>, Vec<Vec<u8>>)> {
+            crate::linear::with_dense_decode_nt4_test(enabled, || {
+                model.restore(snapshot.clone())?;
+                let started = Instant::now();
+                let mut last = None;
+                for i in 0..16 {
+                    last = Some(model.forward((i * 53 + 1) as u32)?);
+                }
+                let seconds = started.elapsed().as_secs_f64();
+                let logits = last
+                    .context("missing decode benchmark logits")?
+                    .to_f16_bits()?;
+                ensure!(
+                    logits.len() == 248320 && logits.iter().all(|&v| f16::from_bits(v).is_finite()),
+                    "invalid dense benchmark logits"
+                );
+                let states = state_bytes(&model)?;
+                ensure!(states.len() == 128, "invalid dense benchmark state count");
+                Ok((seconds, logits, states))
+            })
+        };
+        for enabled in [false, true, true, false] {
+            execute(enabled)?;
+        }
+        for pair in 0..8 {
+            let (a, b) = if pair % 2 == 0 {
+                (execute(false)?, execute(true)?)
+            } else {
+                let b = execute(true)?;
+                (execute(false)?, b)
+            };
+            ensure!(a.1 == b.1, "paired benchmark logits differ at pair={pair}");
+            for (index, (expected, actual)) in a.2.iter().zip(&b.2).enumerate() {
+                ensure!(
+                    expected == actual,
+                    "paired benchmark state differs at pair={pair}, array={index}"
+                );
+            }
+            println!(
+                "{}",
+                serde_json::json!({
+                    "pair": pair, "tokens": 16, "A_seconds": a.0, "B_seconds": b.0,
+                    "bit_exact": true, "state_arrays": a.2.len(), "logits": a.1.len(),
+                    "boundary": "eager model forward only, forced IDs, one checkpoint and snapshot"
+                })
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "requires MLXL3_QWEN_TEST_MODEL, reference directory and physical Apple GPU"]
     fn checkpoint_optimization_matches_saved_logits_and_states() -> Result<()> {
         let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;

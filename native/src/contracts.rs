@@ -5,6 +5,54 @@ pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
     capable && rows >= 24
 }
 
+/// Shapes measured on the M5 dense checkpoint, with unchanged per-output sums.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_decode_nt4(input: i32, output: i32, k: usize, mul1: bool, m5: bool) -> bool {
+    m5 && mul1
+        && input == 5120
+        && ((k == 2 && matches!(output, 16384 | 34816)) || (k == 3 && output == 248320))
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries() {
+    let input: i32 = kani::any();
+    let output: i32 = kani::any();
+    let k: usize = kani::any();
+    let mul1: bool = kani::any();
+    let m5: bool = kani::any();
+    let enabled = dense_decode_nt4(input, output, k, mul1, m5);
+    if enabled {
+        assert!(input == 5120 && m5 && mul1);
+        assert!(output > 0 && output % 128 == 0);
+        assert!((k == 2 && (output == 16384 || output == 34816)) || (k == 3 && output == 248320));
+    }
+    kani::cover!(enabled && k == 2);
+    kani::cover!(enabled && k == 3);
+    kani::cover!(!enabled && input == 5120 && k == 2);
+}
+
+#[test]
+fn dense_decode_nt4_keeps_other_shapes_on_existing_tiles() {
+    for (input, output, k, mul1, m5, expected) in [
+        (5120, 16384, 2, true, true, true),
+        (5120, 34816, 2, true, true, true),
+        (5120, 248320, 3, true, true, true),
+        (5120, 248320, 2, true, true, false),
+        (2048, 16384, 2, true, true, false),
+        (5120, 34816, 4, true, true, false),
+        (5120, 34816, 2, false, true, false),
+        (5120, 34816, 2, true, false, false),
+        (5120, 34815, 2, true, true, false),
+        (17408, 5120, 2, true, true, false),
+    ] {
+        assert_eq!(dense_decode_nt4(input, output, k, mul1, m5), expected);
+        if expected {
+            assert_eq!((output / 16) % 4, 0);
+        }
+    }
+}
+
 /// Conservative M5 dense tile: no padding or changed depth/reduction order.
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn dense_qmm_block_rows(rows: i32, input: i32, output: i32, mul1: bool) -> i32 {

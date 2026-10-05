@@ -1,0 +1,101 @@
+
+running 1 test
+test contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles ... FAILED
+
+failures:
+
+---- contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles stdout ----
+
+thread 'contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles' (3575551) panicked at native/src/contracts.rs:49:9:
+assertion `left == right` failed
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+   Compiling pin-project-lite v0.2.17
+   Compiling bytes v1.11.1
+   Compiling once_cell v1.21.4
+   Compiling itoa v1.0.18
+   Compiling futures-core v0.3.34
+   Compiling utf8parse v0.2.2
+   Compiling fnv v1.0.7
+   Compiling libc v0.2.189
+   Compiling serde_core v1.0.229
+   Compiling syn v2.0.119
+   Compiling cfg-if v1.0.4
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle-parse v1.0.0
+   Compiling colorchoice v1.0.5
+   Compiling tracing-core v0.1.36
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.16.1
+   Compiling futures-sink v0.3.32
+   Compiling futures-task v0.3.34
+   Compiling serde v1.0.229
+   Compiling futures-util v0.3.34
+   Compiling anstream v1.0.0
+   Compiling try-lock v0.2.5
+   Compiling strsim v0.11.1
+   Compiling errno v0.3.14
+   Compiling socket2 v0.6.3
+   Compiling mio v1.2.0
+   Compiling signal-hook-registry v1.4.8
+   Compiling http v0.2.12
+   Compiling indexmap v2.13.0
+   Compiling tracing v0.1.44
+   Compiling clap_lex v1.1.0
+   Compiling slab v0.4.12
+   Compiling bitflags v2.13.2
+   Compiling clap_builder v4.6.6
+   Compiling socket2 v0.5.10
+   Compiling rustix v1.1.4
+   Compiling getrandom v0.4.3
+   Compiling http-body v0.4.6
+   Compiling want v0.3.1
+   Compiling zmij v1.0.23
+   Compiling httparse v1.10.1
+   Compiling futures-channel v0.3.32
+   Compiling mlxl3-native v1.3.1 (/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3)
+   Compiling time-core v0.1.9
+   Compiling tower-service v0.3.3
+   Compiling httpdate v1.0.3
+   Compiling powerfmt v0.2.0
+   Compiling deranged v0.5.8
+   Compiling memchr v2.8.3
+   Compiling fastrand v2.5.0
+   Compiling num-conv v0.2.2
+   Compiling anyhow v1.0.104
+   Compiling signal-hook v0.3.18
+   Compiling fs2 v0.4.3
+   Compiling tempfile v3.27.0
+   Compiling time v0.3.55
+   Compiling tokio-macros v2.6.1
+   Compiling zerocopy-derive v0.8.57
+   Compiling clap v4.6.6
+   Compiling serde_json v1.0.151
+   Compiling tokio v1.50.0
+   Compiling zerocopy v0.8.57
+   Compiling tokio-util v0.7.18
+   Compiling h2 v0.3.27
+   Compiling half v2.7.1
+   Compiling hyper v0.14.32
+warning: unused variable: `m5`
+  --> native/src/contracts.rs:10:79
+   |
+10 | pub(crate) fn dense_decode_nt4(input: i32, output: i32, k: usize, mul1: bool, m5: bool) -> bool {
+   |                                                                               ^^ help: if this is intentional, prefix it with an underscore: `_m5`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (lib test) generated 1 warning (run `cargo fix --lib -p mlxl3-native --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.83s
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-5f853ca7410c5e91)
+error: test failed, to rerun pass `--lib`

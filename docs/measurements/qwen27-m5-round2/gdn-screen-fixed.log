@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_gdn_norm_gate.py", line 117, in <module>
+    result = run(args.iterations)
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_gdn_norm_gate.py", line 86, in run
+    mx.eval(a, b)
+RuntimeError: [metal::Device] Unable to build metal library from source
+mlx/backend/metal/kernels/utils.h:494:66: error: subscripted value is not an array, pointer, or vector
+if (lane == 0u) inv[0] = metal::precise::rsqrt(acc / 128.0f + eps[0]);
+                                                              ~~~^~
+
+
