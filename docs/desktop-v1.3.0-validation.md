@@ -1,6 +1,6 @@
 # MTP1/2/3 and Tune MTP · 1.3.0 validation
 
-Implementation and checks on 2026-10-05, Apple M5/24 GB, MLX 0.32.2, Swift 6/SDK 26.5, Rust and Kani 0.68.0. Baseline source `d0160f43a3c0379ab3c2bfa0d289b62b4ab885f8`. Checkpoints: local Qwen3.6-35B-A3B EXL3 2.49 bpw and MLX affine4/group64 MTP head. No weight download or change. Publication evidence will be appended after package verification.
+Implementation and checks on 2026-10-05, Apple M5/24 GB, MLX 0.32.2, Swift 6/SDK 26.5, Rust and Kani 0.68.0. Baseline source `d0160f43a3c0379ab3c2bfa0d289b62b4ab885f8`. Checkpoints: local Qwen3.6-35B-A3B EXL3 2.49 bpw and MLX affine4/group64 MTP head. No weight download or change. App and engine published from clean source `3733e9df7cbc0298e81e778865e3abd8ac1ebd4b`; delivery evidence follows below.
 
 ## Implementation
 
@@ -64,4 +64,21 @@ Full final `cargo kani --lib --no-default-features --output-format terse`: **30/
 
 ## Delivery
 
-CI, clean-source engine archive and Desktop DMG validation/publication: pending.
+Pushed directly to main without a PR. Both release tags resolve to `3733e9df7cbc0298e81e778865e3abd8ac1ebd4b`. Packages were built before this documentation-only delivery record, from a clean tracked checkout. [Remote refs](measurements/mtp-05/release/refs.txt).
+
+- [Rust workflow](https://github.com/0xZKnw/mlxl3/actions/runs/37304447742): all jobs succeeded on the release source. Linux/macOS formatting, strict Clippy, native tests/build, bridge benchmark validation and Kani completed; **30 successfully verified harnesses,0 failures**. [Status](measurements/mtp-05/release/ci-rust.json), [full log](measurements/mtp-05/release/ci-rust.log).
+- [Desktop/protocol workflow](https://github.com/0xZKnw/mlxl3/actions/runs/37304447782): complete success on the same source. Python18pass/4optional skips in CI, full Desktop hardening, updater and MTP64-grid checks passed. Hardware/model checks were executed locally as described above; CI does not supply those checkpoints. [Status](measurements/mtp-05/release/ci-desktop.json), [full log](measurements/mtp-05/release/ci-desktop.log).
+- `scripts/build-macos-dmg.sh`: Desktop1.3.0/build22, embedded engine1.3.0/protocol1/release/MLX0.32.2; clean build-info source matches the release commit. Existing SwiftMath/CLT-path warnings did not fail the build. [Build log](measurements/mtp-05/release/dmg-build.log).
+- `build/mtp-v1.3.0/release-check --dmg "$PWD/dist/MLXL3-Desktop-v1.3.0-b22-Apple-Silicon.dmg" 3733e9df7cbc0298e81e778865e3abd8ac1ebd4b`: the real production updater validates digest, mounted DMG, deep/strict signature, arm64, version/build/minimum OS and runtime manifest hashes. Runtime-info/list execute without loading a model. [Proof](measurements/mtp-05/release/dmg-proof.json).
+- `build/mtp-v1.3.0/updater-check "$PWD/build/mtp-v1.3.0/archive-fixtures" "$PWD/dist/MLXL3-Engine-v1.3.0-arm64.tar.gz"`: real archive signed installation, relocation, execution, fallback and hostile archive rejection passed in disposable directories. The actual-archive fixture uses engine1.3.0 with app/bundled version1.2.0 to check older-client compatibility. [Result](measurements/mtp-05/release/engine-install.log). This does not validate activation of an already-loaded model without restarting.
+
+[Desktop v1.3.0](https://github.com/0xZKnw/mlxl3/releases/tag/v1.3.0) was published at11:52:39UTC and selected as latest. [Engine v1.3.0](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.3.0) was published at11:52:34UTC as the independent engine channel, not latest. Neither is a draft/prerelease. Draft lookup by tag returned404 before publication; the authenticated release inventory provided the asset metadata before publishing. Both uploads completed before publication and matched the local sizes/SHA-256 values:
+
+| Asset | Bytes | SHA-256 |
+|---|---:|---|
+| `MLXL3-Desktop-v1.3.0-b22-Apple-Silicon.dmg` | 73252487 | `bf5ec38cdeb1d022a79ccd70d029e2f54b6837bc74699c43ca6a6857dc850d72` |
+| `MLXL3-Engine-v1.3.0-arm64.tar.gz` | 66851015 | `ab2cbf3f756468e1606ed29b9e900c5ee7ee8aa7ac1843c6664b3f82a2709530` |
+
+`gh release download` retrieved both published assets again and both files matched their local/GitHub sizes and SHA-256 values. [Publication metadata](measurements/mtp-05/release/publication.json), [download proof](measurements/mtp-05/release/download-proof.json). `build/mtp-v1.3.0/release-check --channels build/mtp-v1.3.0/published-releases.json` applied the production updater selection to the live GitHub release list and selected Desktop1.3.0/build22 and engine1.3.0. [Channel result](measurements/mtp-05/release/channels-proof.txt).
+
+Delivery is published, not installed on the user's Mac. Signatures are ad hoc; the packages are not notarized. Hot activation after engine download remains deferred. Actual M1–M4 hardware, all GPU/FFI/Swift states, whole-engine correctness and universal MTP2/MTP3 performance are unverified; the bounded CPU proofs and finite tests above do not establish them. No optimization trial or test inference process started by this work remains running.
