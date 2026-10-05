@@ -4,6 +4,6 @@ Le compteur de contexte inclut maintenant les tokens de la réponse une fois la 
 
 **Exa est ajouté automatiquement à la configuration MCP** dès le lancement de l’app, sur une installation neuve comme après une mise à jour. Les autres serveurs et un Exa déjà personnalisé ou désactivé sont conservés. La préférence d’activation globale MCP reste mémorisée. Configuration hébergée officielle : [Exa MCP](https://exa.ai/docs/get-started/exa-mcp).
 
-Cette mise à jour Desktop1.2.2/build21 garde le moteur1.2.1. Le packaging et la validation de l’updater respectent désormais leurs versions indépendantes. Apple Silicon, macOS26.2 ou supérieur, signature ad hoc ; aucun poids inclus.
+Cette mise à jour Desktop1.2.2/build21 embarque le moteur identifié1.2.2 pour assurer la compatibilité avec l’updater des versions précédentes. Les algorithmes d’inférence et l’optimisation MTP de1.2.1 sont conservés. Apple Silicon, macOS26.2 ou supérieur, signature ad hoc ; aucun poids inclus.
 
 [Validation](desktop-v1.2.2-validation.md). Le défaut d’activation à chaud d’un moteur mis à jour dans une app déjà ouverte reste prévu pour plus tard.

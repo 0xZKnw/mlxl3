@@ -16,6 +16,8 @@
 
 - Livraison réorientée à la demande « fais pas de pr cette fois ci, push direct sur main et fais direct la1.2.2 » : PR #22 venait d’être créée avant réception de l’instruction, fermée **sans fusion**. Intégration par fast-forward/push direct sur main, puis paquet/publication. Espaces de fin dans un log de diagnostic importé normalisés après diff-check ; sources et résultat négatif conservés.
 
+- Révision technique avant publication : l’updater de **l’ancienne** app1.2.1 exige app entrante/moteur de même version ; modifier seulement l’updater nouveau ne résout pas sa validation. Abandon du découplage proposé, packager/validateur/tests updater restaurés. Version Cargo/lock1.2.2 pour identifier le moteur embarqué sans changement d’algorithme ; asset public engine-v1.2.1 inchangé. Paquet sur002b02c **interrompu volontairement** durant le build Swift, descendants du seul processus packaging arrêtés ; aucun artefact publié. Nouvelle compilation prévue sur source finale, justifiée par la compatibilité avec le client installé.
+
 ### FIX-2026-10-05-DESKTOP-1.2.1 — catalogue, explication MTP et téléchargements — publié
 
 - Demande : réparer l'écran Découvrir montrant « The data couldn't be read because it isn't in the correct format » pour `qwen3.6`, puis publier Desktop1.2.1. Baseline main9642c77, Desktop1.2.0/build19, moteur1.2.1 publié. Aucun benchmark/inférence ni téléchargement de poids autorisé ou nécessaire ; défaut d'activation à chaud antérieur toujours différé.

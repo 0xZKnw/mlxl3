@@ -491,9 +491,7 @@ final class UpdateManager: ObservableObject {
               incoming > current || (incoming == current && (Int(info["CFBundleVersion"] as? String ?? "0") ?? 0) > currentBuild)
         else { throw UpdateError.invalidApplication }
         _ = try runProcess("/usr/bin/lipo", arguments: ["-verify_arch", "arm64", app.appending(path: "Contents/MacOS/MLXL3Studio").path])
-        let runtime = app.appending(path: "Contents/Resources/runtime")
-        let engine = try EngineRuntimeStore.readManifest(runtime)
-        try EngineRuntimeStore.verify(runtime, appVersion: version, expectedVersion: engine.version)
+        try EngineRuntimeStore.verify(app.appending(path: "Contents/Resources/runtime"), appVersion: version, expectedVersion: version)
     }
 
     nonisolated private static func verifyFile(source: URL, asset: AppUpdateAsset) throws -> Bool {

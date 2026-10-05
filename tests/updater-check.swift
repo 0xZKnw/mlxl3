@@ -82,7 +82,6 @@ import Foundation
     try EngineRuntimeStore.stage(
       archive: valid, directory: staged, releaseVersion: "1.2.0", appVersion: "1.2.0")
     try EngineRuntimeStore.verify(staged, appVersion: "1.2.0", expectedVersion: "1.2.0")
-    try EngineRuntimeStore.verify(staged, appVersion: "1.2.2", expectedVersion: "1.2.0")
     let manifest = try EngineRuntimeStore.readManifest(staged)
     fails("old app") { try manifest.validate(appVersion: "1.1.3") }
     fails("old OS") { try manifest.validate(appVersion: "1.2.0", osVersion: "26.1.9") }
