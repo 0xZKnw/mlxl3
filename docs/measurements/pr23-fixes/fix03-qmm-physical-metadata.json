@@ -1,0 +1,31 @@
+{
+  "binary": "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/target/debug/mlxl3-rs",
+  "binary_sha256": "aa8ac02d21605687880629110884a8a50b7ade5358867f8ff3eea661cd9ba22b",
+  "binary_source_head": "0e6dc2f9bafcb2586f19f8e480555fddea41fc53",
+  "platform": "macOS-27.2-arm64-arm-64bit",
+  "python": "3.12.14 (main, Aug 12 2026, 13:57:54) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/native/check_qmm_tiles.py",
+    "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-pr23-fixed-qmm-pj_ljxn9/bm32",
+    "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-pr23-fixed-qmm-pj_ljxn9/bm64",
+    "--output",
+    "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/docs/measurements/pr23-fixes/fix03-qmm-physical.json",
+    "--request-timeout",
+    "120"
+  ],
+  "wrapper_environments": [
+    {
+      "MLXL3_DENSE_PREFILL_M64": "0"
+    },
+    {
+      "MLXL3_DENSE_PREFILL_M64": "1"
+    }
+  ],
+  "status": "passed",
+  "performance": "not measured",
+  "returncode": 0,
+  "check_seconds": 17.046254792017862,
+  "cases": 64,
+  "independently_expected_values": 1887232
+}

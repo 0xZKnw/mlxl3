@@ -2,8 +2,10 @@
 
 import json
 import os
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -14,25 +16,45 @@ ROOT = Path(__file__).resolve().parents[1]
 def write_bridge(path, behavior="valid", speed=2):
     path.write_text(
         f"#!{sys.executable}\n"
-        "import json, sys\n"
+        "import json, os, sys, time\n"
+        "from pathlib import Path\n"
+        "Path(__file__).with_suffix('.pid').write_text(str(os.getpid()))\n"
         f"behavior, speed = {behavior!r}, {speed!r}\n"
         "if behavior == 'load_error':\n"
         "    print(json.dumps({'type': 'error', 'message': 'fixture loading failed'}), flush=True)\n"
         "    sys.exit(1)\n"
+        "if behavior == 'silent_load': time.sleep(60)\n"
+        "if behavior == 'partial_ready':\n"
+        "    os.write(1, b'{\"type\":'); time.sleep(60)\n"
+        "if behavior == 'closed_stdin': os.close(0)\n"
         "print(json.dumps({'type': 'ready'}), flush=True)\n"
+        "if behavior == 'closed_stdin': time.sleep(60)\n"
         "count = 0\n"
         "for line in sys.stdin:\n"
         "    request = json.loads(line)\n"
         "    if request['type'] == 'shutdown': break\n"
         "    count += 1\n"
         "    rid = request['request_id']\n"
+        "    if behavior == 'silent_request': time.sleep(60)\n"
+        "    if behavior == 'eof': sys.exit(0)\n"
+        "    if behavior == 'invalid': print('invalid JSON', flush=True); continue\n"
+        "    if behavior == 'partial_complete':\n"
+        '        os.write(1, b\'{"type":"complete"\'); time.sleep(60)\n'
+        "    if behavior == 'flood':\n"
+        "        while True:\n"
+        "            print(json.dumps({'type': 'delta', 'request_id': rid, 'text': ''}), flush=True)\n"
+        "            time.sleep(0.005)\n"
         "    if behavior == 'error_on_third' and count == 3:\n"
         "        print(json.dumps({'type': 'error', 'message': 'fixture request failed'}), flush=True)\n"
+        "        continue\n"
+        "    if behavior == 'cancelled':\n"
+        "        print(json.dumps({'type': 'cancelled', 'request_id': rid}), flush=True)\n"
         "        continue\n"
         "    stats = dict(generated_tokens=request['max_tokens'], cached_prompt_tokens=0,\n"
         "                 decode_tps=speed, decode_seconds=2, prefill_tps=speed,\n"
         "                 prefill_seconds=1, ttft_seconds=1, elapsed_seconds=3)\n"
         "    token_hash = 'different' if behavior == 'different' else 'fixture-hash'\n"
+        "    if behavior == 'wrong_id': rid = 'unrelated-request'\n"
         "    print(json.dumps({'type': 'delta', 'request_id': rid, 'text': 'same text'}), flush=True)\n"
         "    print(json.dumps({'type': 'complete', 'request_id': rid,\n"
         "                      'token_hash': token_hash, 'stats': stats}), flush=True)\n"
@@ -40,7 +62,7 @@ def write_bridge(path, behavior="valid", speed=2):
     path.chmod(0o755)
 
 
-def run_campaign(tmp_path, behavior="valid", order="ABBA"):
+def run_campaign(tmp_path, behavior="valid", order="ABBA", timeout=30, extra_args=()):
     baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
     write_bridge(baseline)
     write_bridge(candidate, behavior, speed=4)
@@ -67,12 +89,14 @@ def run_campaign(tmp_path, behavior="valid", order="ABBA"):
             "2",
             "--order",
             order,
+            *extra_args,
         ],
         env={**os.environ, "PATH": str(tmp_path) + os.pathsep + os.environ.get("PATH", "")},
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
+        timeout=timeout,
     )
     return run, output, json.loads((output / "results.json").read_text())
 
@@ -125,3 +149,48 @@ def test_loading_failure_has_an_explicit_incomplete_report(tmp_path):
     assert failed["status"] == "failed" and failed["prompts"] == {}
     assert failed["error"]["message"] == "fixture loading failed"
     assert json.loads((output / "0-B.json").read_text()) == failed
+
+
+def test_cancelled_generation_terminates_and_records_failure(tmp_path):
+    run, _, report = run_campaign(tmp_path, "cancelled", timeout=3)
+    assert run.returncode != 0
+    assert report["status"] == "failed" and report["parity"] is None
+    assert "cancelled" in report["error"]["message"]
+
+
+@pytest.mark.parametrize(
+    "behavior,message",
+    [
+        ("silent_load", "timed out"),
+        ("partial_ready", "timed out"),
+        ("silent_request", "timed out"),
+        ("partial_complete", "timed out"),
+        ("flood", "timed out"),
+        ("wrong_id", "timed out"),
+        ("eof", "complete JSON"),
+        ("invalid", "invalid JSON"),
+        ("closed_stdin", "closed stdin"),
+    ],
+)
+def test_cli_protocol_failures_are_bounded_and_reaped(tmp_path, behavior, message):
+    run, _, report = run_campaign(
+        tmp_path,
+        behavior,
+        order="BAAB",
+        timeout=10,
+        extra_args=["--load-timeout", "0.5", "--request-timeout", "0.15"],
+    )
+    assert run.returncode != 0
+    assert report["status"] == "failed" and report["parity"] is None
+    assert message in report["error"]["message"]
+    pid = int((tmp_path / "candidate.pid").read_text())
+    deadline = time.monotonic() + 2
+    while True:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        if time.monotonic() >= deadline:
+            os.kill(pid, signal.SIGKILL)
+            pytest.fail("native benchmark left its child alive")
+        time.sleep(0.01)

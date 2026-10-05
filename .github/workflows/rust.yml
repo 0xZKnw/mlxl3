@@ -40,8 +40,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install pytest==8.4.2 numpy==2.5.2
+      - run: python -m pip install pytest==8.4.2 numpy==2.5.2 ruff==0.16.5
+      - name: Lint native verification scripts and regressions
+        run: |
+          ruff format --check benchmarks/compare_native.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py
+          ruff check benchmarks/compare_native.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py
+          python -m py_compile benchmarks/compare_native.py native/check_qmm_tiles.py scripts/native_json_process.py
       - name: Check bridge and QMM validation tools
-        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
       # not enable the optional mlx feature, which needs a supplied libmlx.

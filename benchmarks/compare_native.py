@@ -9,11 +9,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import statistics
 import subprocess
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from native_json_process import JsonProcess, positive_seconds
 
 
 class ParityError(RuntimeError):
@@ -45,43 +50,42 @@ def save_report(output, report):
         temporary.replace(path)
 
 
-def event(process):
-    line = process.stdout.readline()
-    if not line:
-        raise RuntimeError(f"native bridge exited ({process.poll()})")
-    value = json.loads(line)
+def event(process, deadline):
+    value = process.receive(deadline)
+    if not isinstance(value.get("type"), str) or not value.get("type"):
+        raise RuntimeError("native bridge response has no event type")
     if value.get("type") == "error":
         raise RuntimeError(value["message"])
     return value
 
 
-def generate(process, prompt, tokens, request_id):
-    process.stdin.write(
-        json.dumps(
-            {
-                "type": "generate",
-                "request_id": request_id,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": tokens,
-                "temperature": 0.0,
-                "top_k": 0,
-                "repetition_penalty": 1.0,
-                "reuse_prompt_cache": False,
-                "mcp_enabled": False,
-                "mtp": False,
-                "dflash2": False,
-            }
-        )
-        + "\n"
+def generate(process, prompt, tokens, request_id, timeout):
+    deadline = time.monotonic() + timeout
+    process.send(
+        {
+            "type": "generate",
+            "request_id": request_id,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": tokens,
+            "temperature": 0.0,
+            "top_k": 0,
+            "repetition_penalty": 1.0,
+            "reuse_prompt_cache": False,
+            "mcp_enabled": False,
+            "mtp": False,
+            "dflash2": False,
+        },
+        deadline,
     )
-    process.stdin.flush()
     text = []
     while True:
-        value = event(process)
+        value = event(process, deadline)
         if value.get("request_id") != request_id:
             continue
         if value["type"] == "delta":
             text.append(value.get("text", ""))
+        if value["type"] == "cancelled":
+            raise RuntimeError(f"native generation cancelled ({request_id})")
         if value["type"] == "complete":
             stats = value["stats"]
             if value.get("token_hash") is None:
@@ -106,10 +110,17 @@ def main():
     parser.add_argument("--repeats", type=int, default=2)
     parser.add_argument("--order", choices=["ABBA", "BAAB"], default="ABBA")
     parser.add_argument("--settle-seconds", type=float, default=0.0)
+    parser.add_argument("--load-timeout", type=positive_seconds, default=600.0)
+    parser.add_argument("--request-timeout", type=positive_seconds, default=600.0)
     parser.add_argument("--baseline-env", action="append", default=[], metavar="NAME=VALUE")
     parser.add_argument("--candidate-env", action="append", default=[], metavar="NAME=VALUE")
     args = parser.parse_args()
-    if args.tokens <= 1 or args.repeats <= 0 or args.settle_seconds < 0:
+    if (
+        args.tokens <= 1
+        or args.repeats <= 0
+        or not math.isfinite(args.settle_seconds)
+        or args.settle_seconds < 0
+    ):
         parser.error("tokens > 1, repeats > 0 and settle-seconds >= 0 are required")
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("output directory must be empty; preserve previous campaigns")
@@ -129,6 +140,8 @@ def main():
             "repeats": args.repeats,
             "warmup_per_prompt": 1,
             "settle_seconds": args.settle_seconds,
+            "load_timeout": args.load_timeout,
+            "request_timeout": args.request_timeout,
             "context": 4096,
             "cache": False,
         },
@@ -165,16 +178,26 @@ def main():
                 ("thermal", ["pmset", "-g", "therm"]),
                 ("swap", ["sysctl", "vm.swapusage"]),
             ]:
-                probe = subprocess.run(command, capture_output=True, text=True, check=False)
-                current["conditions"][name] = {
-                    "returncode": probe.returncode,
-                    "stdout": probe.stdout,
-                    "stderr": probe.stderr,
-                }
+                try:
+                    probe = subprocess.run(
+                        command, capture_output=True, text=True, check=False, timeout=5
+                    )
+                    current["conditions"][name] = {
+                        "returncode": probe.returncode,
+                        "stdout": probe.stdout,
+                        "stderr": probe.stderr,
+                    }
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    current["conditions"][name] = {
+                        "returncode": None,
+                        "stdout": "",
+                        "stderr": str(error),
+                    }
             stderr_path = args.output / f"{pass_index}-{label}.stderr"
             with stderr_path.open("w") as stderr:
                 started = time.perf_counter()
-                process = subprocess.Popen(
+                deadline = time.monotonic() + args.load_timeout
+                with JsonProcess(
                     [
                         str(binary.resolve()),
                         "bridge",
@@ -182,16 +205,11 @@ def main():
                         "--context-length",
                         "4096",
                     ],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
                     stderr=stderr,
-                    text=True,
-                    bufsize=1,
                     env={**os.environ, **environments[label]},
-                )
-                try:
+                ) as process:
                     while True:
-                        ready = event(process)
+                        ready = event(process, deadline)
                         if ready["type"] == "ready":
                             current["ready"] = ready
                             break
@@ -202,7 +220,9 @@ def main():
                         current["prompts"][name] = measured
                         for index in range(args.repeats + 1):
                             request_id = f"run-{name}-{index - 1}" if index else f"warm-{name}"
-                            run = generate(process, prompt, args.tokens, request_id)
+                            run = generate(
+                                process, prompt, args.tokens, request_id, args.request_timeout
+                            )
                             if index:
                                 measured["runs"].append(run)
                             else:
@@ -241,15 +261,6 @@ def main():
                             ),
                             flush=True,
                         )
-                finally:
-                    if process.poll() is None:
-                        process.stdin.write('{"type":"shutdown"}\n')
-                        process.stdin.flush()
-                        try:
-                            process.wait(timeout=15)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                            process.wait()
             current["status"] = "complete"
             save_report(args.output, report)
         summary = {}

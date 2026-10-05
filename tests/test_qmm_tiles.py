@@ -3,9 +3,12 @@
 import importlib.util
 import json
 import math
+import os
+import signal
 import struct
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -176,3 +179,94 @@ def test_all_fp16_bit_patterns_match_an_independent_decoder():
             with pytest.raises(ValueError, match="finite"):
                 qmm_tiles.validate_output([word], 1, [1])
     assert qmm_tiles.validate_output(finite, 1, [len(finite)]) == finite
+
+
+@pytest.mark.parametrize(
+    "behavior,message",
+    [
+        ("silent", "timed out"),
+        ("partial", "timed out"),
+        ("closed_stdin", "closed stdin"),
+        ("eof", "complete JSON"),
+        ("invalid", "invalid JSON"),
+        ("error", "fixture codec failed"),
+        ("missing", "no data"),
+    ],
+)
+def test_cli_codec_protocol_failure_is_recorded_and_reaped(tmp_path, behavior, message):
+    codec = tmp_path / "failing-codec"
+    codec.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, sys, time\nfrom pathlib import Path\n"
+        "with Path(__file__).with_suffix('.pids').open('a') as f: f.write(str(os.getpid()) + '\\n')\n"
+        f"behavior = {behavior!r}\n"
+        "if behavior == 'closed_stdin': os.close(0); time.sleep(60)\n"
+        "for line in sys.stdin:\n"
+        "    if behavior == 'silent': time.sleep(60)\n"
+        "    if behavior == 'partial': os.write(1, b'{\"data\":'); time.sleep(60)\n"
+        "    if behavior == 'eof': sys.exit(0)\n"
+        "    if behavior == 'invalid': print('invalid JSON', flush=True)\n"
+        "    if behavior == 'error': print(json.dumps({'error': 'fixture codec failed'}), flush=True)\n"
+        "    if behavior == 'missing': print('{}', flush=True)\n"
+    )
+    codec.chmod(0o755)
+    output = tmp_path / "result.json"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "native/check_qmm_tiles.py"),
+            str(codec),
+            str(codec),
+            "--output",
+            str(output),
+            "--request-timeout",
+            "0.3",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    assert run.returncode != 0
+    report = json.loads(output.read_text())
+    assert report["status"] == "failed" and report["parity"] is None
+    assert report["cases"] == [] and message in report["error"]["message"]
+    for word in codec.with_suffix(".pids").read_text().splitlines():
+        pid = int(word)
+        deadline = time.monotonic() + 2
+        while True:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            if time.monotonic() >= deadline:
+                os.kill(pid, signal.SIGKILL)
+                pytest.fail("QMM comparison left a codec alive")
+            time.sleep(0.01)
+
+
+def test_cli_second_codec_startup_failure_is_saved(tmp_path):
+    codec = tmp_path / "first-codec"
+    codec.write_text(f"#!{sys.executable}\nimport sys\nfor line in sys.stdin: pass\n")
+    codec.chmod(0o755)
+    output = tmp_path / "result.json"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "native/check_qmm_tiles.py"),
+            str(codec),
+            str(tmp_path / "absent"),
+            "--output",
+            str(output),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    assert run.returncode != 0
+    report = json.loads(output.read_text())
+    assert report["status"] == "failed" and report["parity"] is None
+    assert report["error"]["type"] == "FileNotFoundError" and report["cases"] == []
