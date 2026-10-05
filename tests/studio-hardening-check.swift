@@ -75,6 +75,35 @@ import Foundation
         library.refresh()
         for _ in 0..<200 where library.searching { try await Task.sleep(for: .milliseconds(20)) }
         precondition(library.error == nil && library.results.count == 3)
+        let downloadStudio = StudioModel(conversationFileURL: root.appendingPathComponent("downloads.json"),
+                                         isPreview: true, preferences: prefs)
+        library.open("fixture/download-exl3")
+        for _ in 0..<200 where library.loadingDetail { try await Task.sleep(for: .milliseconds(20)) }
+        library.download(studio: downloadStudio)
+        for _ in 0..<200 where library.downloadProgress.bytesPerSecond == nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        precondition(library.downloadStatus == .transferring && library.downloading != nil)
+        precondition((library.downloadProgress.bytesPerSecond ?? 0) > 0)
+        precondition((library.downloadProgress.fraction ?? 0) > 0)
+        library.cancelDownload()
+        for _ in 0..<200 where library.downloading != nil || library.pending.isEmpty {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        precondition(library.downloadStatus == .paused && library.downloadProgress.completed > 0)
+        precondition(library.lastDownloadRepo == "fixture/download-exl3")
+        let paused = library.pending.first!
+        library.resume(paused, studio: downloadStudio)
+        precondition(library.downloadProgress.bytesPerSecond == nil && library.downloadStatus == .transferring,
+                     "Resume retained the previous transfer's speed")
+        for _ in 0..<200 where library.downloading != nil { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(library.downloadStatus == .complete && library.downloadProgress.fraction == 1)
+        precondition(library.downloadMessage?.contains("fixture-model") == true)
+        library.open("fixture/fail-exl3")
+        for _ in 0..<200 where library.loadingDetail { try await Task.sleep(for: .milliseconds(20)) }
+        library.download(studio: downloadStudio)
+        for _ in 0..<200 where library.downloading != nil { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(library.downloadStatus == .failed && library.downloadMessage?.contains("fixture download failed") == true)
         let crash = try await make("crash")
         crash.draft = "test"; crash.send()
         try await Task.sleep(for: .milliseconds(500))
@@ -141,6 +170,6 @@ import Foundation
         let legacy = try JSONDecoder().decode(GenerationStats.self, from: Data(#"{"ttft_seconds":1,"prefill_tps":1,"decode_tps":1,"prompt_tokens":1,"generated_tokens":1,"peak_memory_gb":12}"#.utf8))
         precondition(legacy.peakMemoryGB == 12 && legacy.memory == nil)
         MarkdownRegressionCheck.run()
-        print("Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, crash, deletion, drafts, recovery, save ordering, tool state")
+        print("Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state")
     }
 }

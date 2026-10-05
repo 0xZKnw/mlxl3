@@ -73,8 +73,9 @@ final class ModelLibrary: ObservableObject {
     @Published private(set) var loadingDetail = false
     @Published private(set) var error: String?
     @Published private(set) var downloading: String?
-    @Published private(set) var completed = 0.0
-    @Published private(set) var total = 0.0
+    @Published private(set) var downloadProgress = ModelDownloadProgress()
+    @Published private(set) var downloadStatus = ModelDownloadStatus.idle
+    @Published private(set) var lastDownloadRepo: String?
     @Published private(set) var downloadMessage: String?
     @Published var variantID = ""
     @Published private(set) var pending: [PendingDownload] = []
@@ -86,6 +87,7 @@ final class ModelLibrary: ObservableObject {
     private var downloadTask: Task<Void, Never>?
     private var searchCache: [String: [HubModel]] = [:]
     private var detailCache: [String: HubDetails] = [:]
+    private var downloadID: UUID?
 
     var selectedVariant: HubVariant? { detail?.variants.first { $0.id == variantID } }
 
@@ -158,25 +160,38 @@ final class ModelLibrary: ObservableObject {
     private func startDownload(repo: String, size: Int64, arguments: [String], studio: StudioModel) {
         guard downloading == nil else { return }
         downloading = repo
-        completed = 0
-        total = Double(size)
+        lastDownloadRepo = repo
+        downloadProgress = ModelDownloadProgress(total: Double(size))
+        downloadStatus = .transferring
+        let id = UUID()
+        downloadID = id
         downloadMessage = nil
         downloadTask = Task { [weak self] in
             guard let self else { return }
             do {
                 let data = try await CLICommand().output(arguments) { line in
-                    guard let event = try? JSONDecoder().decode(HubDownloadEvent.self, from: line), event.type == "progress" else { return }
-                    self.completed = event.completed ?? self.completed
-                    self.total = event.total ?? self.total
+                    guard self.downloadID == id, self.downloading != nil,
+                          let event = try? JSONDecoder().decode(HubDownloadEvent.self, from: line),
+                          event.type == "progress" else { return }
+                    self.downloadProgress.update(
+                        completed: event.completed ?? self.downloadProgress.completed,
+                        total: event.total ?? self.downloadProgress.total,
+                        at: ProcessInfo.processInfo.systemUptime)
                 }
                 let event = try JSONDecoder().decode(HubDownloadEvent.self, from: data)
                 guard event.type == "installed", let model = event.model else { throw MLXL3BridgeError.invalidResponse }
-                completed = total
+                downloadProgress.update(completed: downloadProgress.total, total: downloadProgress.total,
+                                        at: ProcessInfo.processInfo.systemUptime)
+                downloadStatus = .complete
                 downloadMessage = L("\(model.name) ajouté à la bibliothèque.", "\(model.name) added to your library.")
                 studio.refreshModels(autoLoad: false)
             } catch is CancellationError {
+                downloadStatus = .paused
                 downloadMessage = L("Téléchargement suspendu. Relance la même variante pour reprendre.", "Download paused. Download the same variant again to resume.")
-            } catch { downloadMessage = error.localizedDescription }
+            } catch {
+                downloadStatus = .failed
+                downloadMessage = error.localizedDescription
+            }
             downloading = nil
             downloadTask = nil
             refreshPending()

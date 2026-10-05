@@ -1,0 +1,7 @@
+build/desktop-v1.2.1/render-download-preview.swift:20:26: error: cannot convert value of type 'any KeyPath<EnvironmentValues, Bool> & Sendable' to expected argument type 'WritableKeyPath<EnvironmentValues, Bool>'
+18 |                                  status: .complete, message: "Votre modèle est prêt dans la bibliothèque.", pause: {}, resume: nil)
+19 |         }.padding(24).frame(width: 900).background(StudioTheme.canvas)
+20 |             .environment(\.accessibilityReduceMotion, true).preferredColorScheme(.dark)
+   |                          `- error: cannot convert value of type 'any KeyPath<EnvironmentValues, Bool> & Sendable' to expected argument type 'WritableKeyPath<EnvironmentValues, Bool>'
+21 |         let host = NSHostingView(rootView: view)
+22 |         host.frame = NSRect(x: 0, y: 0, width: 900, height: 590)

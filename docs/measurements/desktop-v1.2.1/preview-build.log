@@ -1,0 +1,15 @@
+apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift:136:16: error: cannot find type 'EngineState' in scope
+134 | 
+135 | struct StatusDot: View {
+136 |     let state: EngineState
+    |                `- error: cannot find type 'EngineState' in scope
+137 | 
+138 |     private var color: Color {
+
+apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift:148:25: error: failed to produce diagnostic for expression; please submit a bug report (https://swift.org/contributing/#reporting-bugs)
+146 |     }
+147 | 
+148 |     var body: some View {
+    |                         `- error: failed to produce diagnostic for expression; please submit a bug report (https://swift.org/contributing/#reporting-bugs)
+149 |         Circle()
+150 |             .fill(color)
