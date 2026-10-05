@@ -1,0 +1,593 @@
+{
+  "protocol": "128 tokens, greedy, cache OFF, context4096, 128-token warmups for normal and MTP, 2 measured repetitions each per pass, A/B/B/A binaries",
+  "rows": [
+    {
+      "case": "long",
+      "variant": "a1",
+      "hash": "cea6d766333b2e34",
+      "mtp": {
+        "decode_seconds": 2.7972638334999993,
+        "decode_tps": 45.43629523635393,
+        "elapsed_seconds": 9.120219082999999,
+        "ttft_seconds": 6.322943333,
+        "prefill_seconds": 6.219412354499999,
+        "peak_bytes": 13166055020.0,
+        "process_footprint_bytes": 16339727232.0
+      },
+      "normal": {
+        "decode_seconds": 2.776754417,
+        "decode_tps": 45.73695580556668,
+        "elapsed_seconds": 8.668972437499999,
+        "ttft_seconds": 5.892204375,
+        "prefill_seconds": 5.8894759585
+      },
+      "counts": {
+        "mtp_proposed_tokens": 74,
+        "mtp_accepted_tokens": 52,
+        "mtp_blocks": 74
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.325720542,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-a",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-long-a1.jsonl",
+      "sha256": "3b1b9bfe38ce02eb557ae6d93276cf219a831eed5ab2b3b36d3f6982b07d4a7b"
+    },
+    {
+      "case": "long",
+      "variant": "a2",
+      "hash": "cea6d766333b2e34",
+      "mtp": {
+        "decode_seconds": 2.638821875,
+        "decode_tps": 48.12767834670336,
+        "elapsed_seconds": 8.760394104,
+        "ttft_seconds": 6.1215605415,
+        "prefill_seconds": 6.052011229,
+        "peak_bytes": 13166055020.0,
+        "process_footprint_bytes": 16342373080.0
+      },
+      "normal": {
+        "decode_seconds": 2.7339813330000005,
+        "decode_tps": 46.452412177833764,
+        "elapsed_seconds": 8.524490582999999,
+        "ttft_seconds": 5.7904977705,
+        "prefill_seconds": 5.788420771
+      },
+      "counts": {
+        "mtp_proposed_tokens": 74,
+        "mtp_accepted_tokens": 52,
+        "mtp_blocks": 74
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.275363792,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-a",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-long-a2.jsonl",
+      "sha256": "328db138c5ae06a01738e77af8c089aa615a8dfc2da0dd52539f2c86d193f1ca"
+    },
+    {
+      "case": "long",
+      "variant": "b1",
+      "hash": "cea6d766333b2e34",
+      "mtp": {
+        "decode_seconds": 2.502910854,
+        "decode_tps": 50.753358338446546,
+        "elapsed_seconds": 8.451312896000001,
+        "ttft_seconds": 5.948389625000001,
+        "prefill_seconds": 5.8470742085000005,
+        "peak_bytes": 13166055020.0,
+        "process_footprint_bytes": 16209638176.0
+      },
+      "normal": {
+        "decode_seconds": 2.837969417,
+        "decode_tps": 44.770775985656336,
+        "elapsed_seconds": 8.6166539375,
+        "ttft_seconds": 5.7786726665,
+        "prefill_seconds": 5.7767537495
+      },
+      "counts": {
+        "mtp_proposed_tokens": 74,
+        "mtp_accepted_tokens": 52,
+        "mtp_blocks": 74
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.131944416,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-b",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-long-b1.jsonl",
+      "sha256": "262e1905265e641ae71fbe8f53304bdc592b0216ce33677f3718cd5e2291eee3"
+    },
+    {
+      "case": "long",
+      "variant": "b2",
+      "hash": "cea6d766333b2e34",
+      "mtp": {
+        "decode_seconds": 2.6773756045000003,
+        "decode_tps": 47.4430687093577,
+        "elapsed_seconds": 9.087372833,
+        "ttft_seconds": 6.409985729000001,
+        "prefill_seconds": 6.3298531665,
+        "peak_bytes": 13166055020.0,
+        "process_footprint_bytes": 16211276816.0
+      },
+      "normal": {
+        "decode_seconds": 2.7686384375,
+        "decode_tps": 45.8780756950037,
+        "elapsed_seconds": 8.612248917,
+        "ttft_seconds": 5.843599604,
+        "prefill_seconds": 5.841072229
+      },
+      "counts": {
+        "mtp_proposed_tokens": 74,
+        "mtp_accepted_tokens": 52,
+        "mtp_blocks": 74
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.27750425,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-b",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-long-b2.jsonl",
+      "sha256": "37d7ed08a2e042110523421d59a8798ca277b267cd5792c9b4ad5d9bfa587b15"
+    },
+    {
+      "case": "matrice",
+      "variant": "a1",
+      "hash": "70fb796b1d06bb21",
+      "mtp": {
+        "decode_seconds": 2.1982802710000002,
+        "decode_tps": 57.77243708347724,
+        "elapsed_seconds": 2.3615795000000004,
+        "ttft_seconds": 0.163288625,
+        "prefill_seconds": 0.13625427099999998,
+        "peak_bytes": 12707514444.0,
+        "process_footprint_bytes": 14694453760.0
+      },
+      "normal": {
+        "decode_seconds": 2.5569077289999997,
+        "decode_tps": 49.66944720046395,
+        "elapsed_seconds": 2.6872813745,
+        "ttft_seconds": 0.130362104,
+        "prefill_seconds": 0.12999349999999998
+      },
+      "counts": {
+        "mtp_proposed_tokens": 65,
+        "mtp_accepted_tokens": 61,
+        "mtp_blocks": 65
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.225993292,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-a",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-matrice-a1.jsonl",
+      "sha256": "66dd03890fb1f34083ca8577c0b27349b4ce1a73199fdcf3484dda778231845b"
+    },
+    {
+      "case": "matrice",
+      "variant": "a2",
+      "hash": "70fb796b1d06bb21",
+      "mtp": {
+        "decode_seconds": 2.241149708,
+        "decode_tps": 56.67237316230626,
+        "elapsed_seconds": 2.4057466874999998,
+        "ttft_seconds": 0.16458656300000002,
+        "prefill_seconds": 0.137920021,
+        "peak_bytes": 12707514444.0,
+        "process_footprint_bytes": 14686744920.0
+      },
+      "normal": {
+        "decode_seconds": 2.6275368335,
+        "decode_tps": 48.34951392710234,
+        "elapsed_seconds": 2.759929438,
+        "ttft_seconds": 0.132382459,
+        "prefill_seconds": 0.132029
+      },
+      "counts": {
+        "mtp_proposed_tokens": 65,
+        "mtp_accepted_tokens": 61,
+        "mtp_blocks": 65
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.277925375,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-a",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-matrice-a2.jsonl",
+      "sha256": "fe69465b306158cc7b7307c1da55cb9376ff41b8a5478030f1b21fd6bae6731c"
+    },
+    {
+      "case": "matrice",
+      "variant": "b1",
+      "hash": "70fb796b1d06bb21",
+      "mtp": {
+        "decode_seconds": 1.942427104,
+        "decode_tps": 65.38310836791504,
+        "elapsed_seconds": 2.097411063,
+        "ttft_seconds": 0.1549735415,
+        "prefill_seconds": 0.1283946045,
+        "peak_bytes": 12707514444.0,
+        "process_footprint_bytes": 14691963392.0
+      },
+      "normal": {
+        "decode_seconds": 2.4909068750000003,
+        "decode_tps": 50.98687195543663,
+        "elapsed_seconds": 2.6190530415,
+        "ttft_seconds": 0.1281342915,
+        "prefill_seconds": 0.1277398125
+      },
+      "counts": {
+        "mtp_proposed_tokens": 65,
+        "mtp_accepted_tokens": 61,
+        "mtp_blocks": 65
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.260259042,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-b",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-matrice-b1.jsonl",
+      "sha256": "fcf928819eda9fe53b5686c026a2e5d4fd9a7aab2f03a5f8052ad26ef42419b4"
+    },
+    {
+      "case": "matrice",
+      "variant": "b2",
+      "hash": "70fb796b1d06bb21",
+      "mtp": {
+        "decode_seconds": 2.036064125,
+        "decode_tps": 62.39536926694983,
+        "elapsed_seconds": 2.1989720210000003,
+        "ttft_seconds": 0.16289647950000002,
+        "prefill_seconds": 0.1356822085,
+        "peak_bytes": 12707514444.0,
+        "process_footprint_bytes": 14692872752.0
+      },
+      "normal": {
+        "decode_seconds": 2.6742448335,
+        "decode_tps": 47.491390043730206,
+        "elapsed_seconds": 2.8059110835,
+        "ttft_seconds": 0.1316545415,
+        "prefill_seconds": 0.1312823755
+      },
+      "counts": {
+        "mtp_proposed_tokens": 65,
+        "mtp_accepted_tokens": 61,
+        "mtp_blocks": 65
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.230141416,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-b",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-matrice-b2.jsonl",
+      "sha256": "c0b5ad855945d698045798a5cc6bffd28bdc5511e8bb177428c7ebd0a89f51d5"
+    },
+    {
+      "case": "salut",
+      "variant": "a1",
+      "hash": "b38c8e6fb96d7548",
+      "mtp": {
+        "decode_seconds": 2.2404392705,
+        "decode_tps": 56.68547930834072,
+        "elapsed_seconds": 2.5569767705,
+        "ttft_seconds": 0.3165247295,
+        "prefill_seconds": 0.28768862549999996,
+        "peak_bytes": 12706678220.0,
+        "process_footprint_bytes": 14619431160.0
+      },
+      "normal": {
+        "decode_seconds": 2.5412262295000003,
+        "decode_tps": 49.97587516988957,
+        "elapsed_seconds": 2.822604375,
+        "ttft_seconds": 0.281366583,
+        "prefill_seconds": 0.2810215625
+      },
+      "counts": {
+        "mtp_proposed_tokens": 67,
+        "mtp_accepted_tokens": 59,
+        "mtp_blocks": 67
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.452550958,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-a",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-salut-a1.jsonl",
+      "sha256": "4ed9c92fb7a3f8dd4cccd2814364a5d0838cc06bfc5b513061e90df7f791cc68"
+    },
+    {
+      "case": "salut",
+      "variant": "a2",
+      "hash": "b38c8e6fb96d7548",
+      "mtp": {
+        "decode_seconds": 2.1914458125,
+        "decode_tps": 57.952883656424376,
+        "elapsed_seconds": 2.506666417,
+        "ttft_seconds": 0.31520939549999993,
+        "prefill_seconds": 0.2865258335,
+        "peak_bytes": 12706678220.0,
+        "process_footprint_bytes": 14619972096.0
+      },
+      "normal": {
+        "decode_seconds": 2.470242229,
+        "decode_tps": 51.41198970423606,
+        "elapsed_seconds": 2.763404688,
+        "ttft_seconds": 0.2931514165,
+        "prefill_seconds": 0.2927977085
+      },
+      "counts": {
+        "mtp_proposed_tokens": 67,
+        "mtp_accepted_tokens": 59,
+        "mtp_blocks": 67
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.2823714170000002,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-a",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-salut-a2.jsonl",
+      "sha256": "5e7bc2a0e0c124b532402cdb8c921319c1b80ab8610c2f5ac7c67198330f439a"
+    },
+    {
+      "case": "salut",
+      "variant": "b1",
+      "hash": "b38c8e6fb96d7548",
+      "mtp": {
+        "decode_seconds": 2.110404292,
+        "decode_tps": 60.27699022539491,
+        "elapsed_seconds": 2.4367377709999998,
+        "ttft_seconds": 0.3263214995,
+        "prefill_seconds": 0.299389187,
+        "peak_bytes": 12706670028.0,
+        "process_footprint_bytes": 14623093344.0
+      },
+      "normal": {
+        "decode_seconds": 2.5834646875000002,
+        "decode_tps": 49.21919101050406,
+        "elapsed_seconds": 2.8712973545,
+        "ttft_seconds": 0.287821708,
+        "prefill_seconds": 0.28747870799999997
+      },
+      "counts": {
+        "mtp_proposed_tokens": 67,
+        "mtp_accepted_tokens": 59,
+        "mtp_blocks": 67
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.263506417,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-b",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-salut-b1.jsonl",
+      "sha256": "d443084dd25073511219670141a5edb57f4802f4a9e84e7be1f75c777c3d88e6"
+    },
+    {
+      "case": "salut",
+      "variant": "b2",
+      "hash": "b38c8e6fb96d7548",
+      "mtp": {
+        "decode_seconds": 2.197801104,
+        "decode_tps": 57.785130912513395,
+        "elapsed_seconds": 2.5209096045,
+        "ttft_seconds": 0.3230982495,
+        "prefill_seconds": 0.2942312705,
+        "peak_bytes": 12706678220.0,
+        "process_footprint_bytes": 14620701184.0
+      },
+      "normal": {
+        "decode_seconds": 2.5636877085,
+        "decode_tps": 49.55095962180922,
+        "elapsed_seconds": 2.8576950835,
+        "ttft_seconds": 0.2939953335,
+        "prefill_seconds": 0.2936522505
+      },
+      "counts": {
+        "mtp_proposed_tokens": 67,
+        "mtp_accepted_tokens": 59,
+        "mtp_blocks": 67
+      },
+      "runtime": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": true,
+        "load_seconds": 3.403543375,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "model_context_limit": 262144,
+        "modules": 30971,
+        "mtp_auto_download_supported": true,
+        "mtp_supported": true,
+        "resident_gb": 13.064371907,
+        "runtime_commit": "0d89e013899b-dirty",
+        "runtime_executable": "/tmp/mlxl3-mtp03-b",
+        "runtime_profile": "release",
+        "runtime_version": "1.2.0",
+        "type": "ready"
+      },
+      "proof": "docs/measurements/mtp-03-salut-b2.jsonl",
+      "sha256": "d213652db33795cc082f4a1cc8ddf6dfdf5c0873dd9b8ea96c489974f9a096bd"
+    }
+  ]
+}

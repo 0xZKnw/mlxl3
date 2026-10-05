@@ -439,6 +439,49 @@ impl Attention {
         self.output.forward(&attended)
     }
 
+    /// Populate the same K/V cache when the attention output is unused.
+    pub(crate) fn append_kv(&mut self, x: &Array) -> Result<()> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("Qwen cache input must have time")?;
+        ensure!(
+            x.shape().len() == 3 && x.shape()[0] == 1 && time > 0,
+            "invalid Qwen cache input"
+        );
+        let offset = self.keys.as_ref().map_or(0, |keys| keys.shape()[2]);
+        crate::contracts::mtp_cache_end(offset, time).context("MTP cache position overflow")?;
+        let (k, v) = match &self.qkv {
+            ProjectionBundle::Separate(projections) => {
+                (projections[1].forward(x)?, projections[2].forward(x)?)
+            }
+            ProjectionBundle::Grouped(group) => {
+                let qkv = group.forward(x)?;
+                (qkv[1].try_clone()?, qkv[2].try_clone()?)
+            }
+        };
+        let k = k
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
+            .rms_norm(&self.k_norm, self.eps)?
+            .transpose(&[0, 2, 1, 3])?
+            .rope(self.rope_dims, self.theta, offset)?;
+        let v = v
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
+            .transpose(&[0, 2, 1, 3])?;
+        let keys = match &self.keys {
+            Some(previous) => Array::concatenate(&[previous, &k], 2)?,
+            None => k,
+        };
+        let values = match &self.values {
+            Some(previous) => Array::concatenate(&[previous, &v], 2)?,
+            None => v,
+        };
+        self.keys = Some(keys);
+        self.values = Some(values);
+        self.verification_base = None;
+        Ok(())
+    }
+
     fn forward_verification(&mut self, x: &Array) -> Result<Array> {
         self.forward_verification_impl(x, false)
     }

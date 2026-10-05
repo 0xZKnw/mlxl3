@@ -1710,19 +1710,17 @@ fn prefill_mtp(
         };
         if start > 0 {
             let last = target.mtp_hidden()?.try_clone()?;
-            head.hidden(target, &last, &tokens[start..start + 1])?
-                .eval()?;
+            head.extend_cache(target, &last, &tokens[start..start + 1])?;
         }
         let end = start.saturating_add(CHUNK).min(tokens.len());
         let (output, raw) = target.forward_mtp(&tokens[start..end])?;
         let paired = end - start - 1;
         if paired > 0 {
-            head.hidden(
+            head.extend_cache(
                 target,
                 &raw.slice(1, 0, paired as i32)?,
                 &tokens[start + 1..end],
-            )?
-            .eval()?;
+            )?;
         }
         model.eval_state()?;
         logits = Some(output);

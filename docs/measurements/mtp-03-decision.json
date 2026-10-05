@@ -1,0 +1,221 @@
+{
+  "protocol": "A/B/B/A, median of each 2-repetition pass; comparisons against median of A1/A2 pass medians. Speed adjusted by adjacent ordinary decode is descriptive, not a randomized statistical proof.",
+  "results": [
+    {
+      "case": "salut",
+      "baseline": {
+        "mtp": {
+          "decode_seconds": 2.2159425415,
+          "decode_tps": 57.31918148238255,
+          "elapsed_seconds": 2.53182159375,
+          "ttft_seconds": 0.31586706249999996,
+          "prefill_seconds": 0.2871072295,
+          "peak_bytes": 12706678220.0,
+          "process_footprint_bytes": 14619701628.0
+        },
+        "normal": {
+          "decode_seconds": 2.5057342292500002,
+          "decode_tps": 50.69393243706281,
+          "elapsed_seconds": 2.7930045315000003,
+          "ttft_seconds": 0.28725899975,
+          "prefill_seconds": 0.2869096355
+        }
+      },
+      "candidate": {
+        "mtp": {
+          "decode_seconds": 2.154102698,
+          "decode_tps": 59.03106056895415,
+          "elapsed_seconds": 2.47882368775,
+          "ttft_seconds": 0.3247098745,
+          "prefill_seconds": 0.29681022874999996,
+          "peak_bytes": 12706674124.0,
+          "process_footprint_bytes": 14621897264.0
+        },
+        "normal": {
+          "decode_seconds": 2.573576198,
+          "decode_tps": 49.385075316156644,
+          "elapsed_seconds": 2.864496219,
+          "ttft_seconds": 0.29090852075,
+          "prefill_seconds": 0.29056547925
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "b1",
+          "decode_duration_change_percent": -4.762679876553088,
+          "speed_change_percent": 5.000854570854885,
+          "normal_duration_change_percent": 3.1021030619542422,
+          "normal_adjusted_speed_percent": 8.258089295575498,
+          "complete_duration_change_percent": -3.755549877002484,
+          "ttft_change_percent": 3.3097585158946563,
+          "process_footprint_change_mib": 3.2345924377441406
+        },
+        {
+          "variant": "b2",
+          "decode_duration_change_percent": -0.8186781543405797,
+          "speed_change_percent": 0.8254358170528997,
+          "normal_duration_change_percent": 2.312834241297246,
+          "normal_adjusted_speed_percent": 3.1573610205668734,
+          "complete_duration_change_percent": -0.43099360859143454,
+          "ttft_change_percent": 2.289313403799431,
+          "process_footprint_change_mib": 0.9532508850097656
+        }
+      ],
+      "reproduced_speed_gain": false,
+      "hash": "b38c8e6fb96d7548",
+      "counts": {
+        "mtp_proposed_tokens": 67,
+        "mtp_accepted_tokens": 59,
+        "mtp_blocks": 67
+      }
+    },
+    {
+      "case": "matrice",
+      "baseline": {
+        "mtp": {
+          "decode_seconds": 2.2197149895,
+          "decode_tps": 57.22240512289175,
+          "elapsed_seconds": 2.38366309375,
+          "ttft_seconds": 0.16393759400000002,
+          "prefill_seconds": 0.137087146,
+          "peak_bytes": 12707514444.0,
+          "process_footprint_bytes": 14690599340.0
+        },
+        "normal": {
+          "decode_seconds": 2.5922222812499998,
+          "decode_tps": 49.00948056378314,
+          "elapsed_seconds": 2.72360540625,
+          "ttft_seconds": 0.13137228150000002,
+          "prefill_seconds": 0.13101125
+        }
+      },
+      "candidate": {
+        "mtp": {
+          "decode_seconds": 1.9892456145,
+          "decode_tps": 63.889238817432435,
+          "elapsed_seconds": 2.148191542,
+          "ttft_seconds": 0.15893501050000003,
+          "prefill_seconds": 0.1320384065,
+          "peak_bytes": 12707514444.0,
+          "process_footprint_bytes": 14692418072.0
+        },
+        "normal": {
+          "decode_seconds": 2.58257585425,
+          "decode_tps": 49.239130999583416,
+          "elapsed_seconds": 2.7124820625,
+          "ttft_seconds": 0.1298944165,
+          "prefill_seconds": 0.129511094
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "b1",
+          "decode_duration_change_percent": -12.492049060877852,
+          "speed_change_percent": 14.27533032920445,
+          "normal_duration_change_percent": -3.908438214686749,
+          "normal_adjusted_speed_percent": 9.808949648658306,
+          "complete_duration_change_percent": -12.008913151382728,
+          "ttft_change_percent": -5.467966365298748,
+          "process_footprint_change_mib": 1.3008613586425781
+        },
+        {
+          "variant": "b2",
+          "decode_duration_change_percent": -8.27362365748444,
+          "speed_change_percent": 9.019895898416275,
+          "normal_duration_change_percent": 3.1641789688825694,
+          "normal_adjusted_speed_percent": 12.469480516331632,
+          "complete_duration_change_percent": -7.748203730395565,
+          "ttft_change_percent": -0.6350675733352462,
+          "process_footprint_change_mib": 2.1680946350097656
+        }
+      ],
+      "reproduced_speed_gain": true,
+      "hash": "70fb796b1d06bb21",
+      "counts": {
+        "mtp_proposed_tokens": 65,
+        "mtp_accepted_tokens": 61,
+        "mtp_blocks": 65
+      }
+    },
+    {
+      "case": "long",
+      "baseline": {
+        "mtp": {
+          "decode_seconds": 2.7180428542499997,
+          "decode_tps": 46.781986791528645,
+          "elapsed_seconds": 8.940306593499999,
+          "ttft_seconds": 6.22225193725,
+          "prefill_seconds": 6.1357117917499995,
+          "peak_bytes": 13166055020.0,
+          "process_footprint_bytes": 16341050156.0
+        },
+        "normal": {
+          "decode_seconds": 2.755367875,
+          "decode_tps": 46.09468399170022,
+          "elapsed_seconds": 8.596731510249999,
+          "ttft_seconds": 5.84135107275,
+          "prefill_seconds": 5.83894836475
+        }
+      },
+      "candidate": {
+        "mtp": {
+          "decode_seconds": 2.59014322925,
+          "decode_tps": 49.098213523902125,
+          "elapsed_seconds": 8.7693428645,
+          "ttft_seconds": 6.179187677000001,
+          "prefill_seconds": 6.088463687500001,
+          "peak_bytes": 13166055020.0,
+          "process_footprint_bytes": 16210457496.0
+        },
+        "normal": {
+          "decode_seconds": 2.80330392725,
+          "decode_tps": 45.32442584033002,
+          "elapsed_seconds": 8.61445142725,
+          "ttft_seconds": 5.81113613525,
+          "prefill_seconds": 5.80891298925
+        }
+      },
+      "comparisons": [
+        {
+          "variant": "b1",
+          "decode_duration_change_percent": -7.91495983639896,
+          "speed_change_percent": 8.595272177040925,
+          "normal_duration_change_percent": 2.9978407874120983,
+          "normal_adjusted_speed_percent": 11.850785539565422,
+          "complete_duration_change_percent": -5.469540584385757,
+          "ttft_change_percent": -4.401337570574748,
+          "process_footprint_change_mib": -125.3242301940918
+        },
+        {
+          "variant": "b2",
+          "decode_duration_change_percent": -1.4961960473291014,
+          "speed_change_percent": 1.5189220997475328,
+          "normal_duration_change_percent": 0.48162579742641043,
+          "normal_adjusted_speed_percent": 2.0078634178491317,
+          "complete_duration_change_percent": 1.6449798221341183,
+          "ttft_change_percent": 3.0171358158308736,
+          "process_footprint_change_mib": -123.76150131225586
+        }
+      ],
+      "reproduced_speed_gain": false,
+      "hash": "cea6d766333b2e34",
+      "counts": {
+        "mtp_proposed_tokens": 74,
+        "mtp_accepted_tokens": 52,
+        "mtp_blocks": 74
+      }
+    }
+  ],
+  "binaries_sha256": {
+    "baseline": "c2a9e0eb01dd30236a923dee44eab8f37fa930c00a3ace0772f8aa1159b38d9d",
+    "candidate": "c77c56a9b0c936728999fa7f582c8816d7b01fac83114ecfdc989dc2ca929287"
+  },
+  "decision": "Retain local cache-only candidate: >=3 percent decode reduction reproduced on matrix with >=3 percent gain beyond normal drift; short and long gains non-conclusive under this criterion. No stable >3 percent complete-time regression on recorded cases.",
+  "limitations": [
+    "M5 24 GiB only, battery power, other apps open, temperature not measured.",
+    "Two repetitions per pass; no general speed guarantee.",
+    "No peak MLX allocation improvement demonstrated; process footprint is a separate metric.",
+    "Kani covers cache position arithmetic; GPU and FFI remain tested, not formally proved.",
+    "Source/release local; installed app and publication not updated by this task."
+  ]
+}
