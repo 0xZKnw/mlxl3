@@ -1,0 +1,9 @@
+{"model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0", "head": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit", "cases": 12, "parity": true}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/scripts/check-mtp-model-switch.py", line 225, in <module>
+    main()
+  File "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/scripts/check-mtp-model-switch.py", line 215, in main
+    run(args.engine, [args.dense, args.moe], args.timeout, report)
+  File "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/scripts/check-mtp-model-switch.py", line 122, in run
+    raise RuntimeError("MTP load/reuse memory mismatch")
+RuntimeError: MTP load/reuse memory mismatch

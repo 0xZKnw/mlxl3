@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+    "build/mtp-bridge-verifier.ii",
+    "--cpp11",
+    "--function",
+    "mlxl3_synchronize",
+    "--bounds-check",
+    "--pointer-check",
+    "--signed-overflow-check",
+    "--unwinding-assertions"
+  ],
+  "returncode": 6,
+  "status": "unverified"
+}
