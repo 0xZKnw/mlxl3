@@ -1,0 +1,97 @@
+{
+  "source_commit": "954cfe37167f9f877b04dc840394d303106be687",
+  "asset": "MLXL3-Engine-v1.2.1-arm64.tar.gz",
+  "size": 66827147,
+  "sha256": "ffa0300d89c03562c56b3a05b4eca8c1fc29d245b20bf3a2169b7f611f147902",
+  "runtime_info": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "954cfe37167f",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.2.1"
+  },
+  "manifest": {
+    "architecture": "arm64",
+    "bridge_protocol": 1,
+    "files": {
+      "libjaccl.dylib": {
+        "sha256": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3",
+        "size": 1546672
+      },
+      "libmlx.dylib": {
+        "sha256": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2",
+        "size": 21815104
+      },
+      "mlx.metallib": {
+        "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed",
+        "size": 182351120
+      },
+      "mlxl3": {
+        "sha256": "5c7bef2f6b1b4ab44fe60d622a7b243f9005589d0b6312c84baaf78c4d7af909",
+        "size": 9635152
+      }
+    },
+    "minimum_app_version": "1.2.0",
+    "minimum_macos": "26.2.0",
+    "schema": 1,
+    "version": "1.2.1"
+  },
+  "local_checks": {
+    "release_build": "pass,32.18s",
+    "minimum_macos": "26.2 on executable and both dylibs",
+    "ad_hoc_signatures": "codesign --verify --strict passed",
+    "architecture": "lipo -verify_arch arm64 passed",
+    "package_unit_tests": "15 passed",
+    "production_updater_install_relocation_fallback": "passed; disposable root, appVersion 1.2.0, no model loaded"
+  },
+  "ci": [
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37275310207/job/111650919956",
+      "name": "native (macos-26)",
+      "state": "IN_PROGRESS"
+    },
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37275310176/job/111650919439",
+      "name": "desktop-and-protocol",
+      "state": "IN_PROGRESS"
+    },
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37275310207/job/111650919775",
+      "name": "kani",
+      "state": "IN_PROGRESS"
+    },
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37275310207/job/111650919995",
+      "name": "native (ubuntu-latest)",
+      "state": "IN_PROGRESS"
+    },
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37274850631/job/111649518853",
+      "name": "desktop-and-protocol",
+      "state": "IN_PROGRESS"
+    },
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37274850532/job/111649518921",
+      "name": "native (macos-26)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37274850532/job/111649518612",
+      "name": "kani",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/0xZKnw/mlxl3/actions/runs/37274850532/job/111649518958",
+      "name": "native (ubuntu-latest)",
+      "state": "SUCCESS"
+    }
+  ],
+  "publication": "published,2026-10-05T07:00:09Z",
+  "release_url": "https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.2.1",
+  "merge_commit": "1f9ba848d6ea58478d9aa490e38404d01034706f",
+  "download_verification": "GitHub download has identical size/SHA-256 to locally installed archive",
+  "production_release_selection": "engine 1.2.1, Desktop 1.2.0; GitHub latest=v1.2.0",
+  "installed_in_user_app": false
+}
