@@ -10,10 +10,39 @@ import json
 import subprocess
 from pathlib import Path
 
-import numpy as np
+
+def validate_output(data: list[int] | list[list[int]], rows: int, widths: list[int]) -> list[int]:
+    """Validate the codec's flat FP16 words for every requested projection.
+
+    raises: ValueError
+    post: len(__return__) == rows * sum(widths) > 0
+    post: all(type(word) is int and 0 <= word < 65536 and (word & 0x7C00) != 0x7C00 for word in __return__)
+    """
+    if type(rows) is not int or rows <= 0 or not widths:
+        raise ValueError("output dimensions must be positive")
+    if any(type(width) is not int or width <= 0 for width in widths):
+        raise ValueError("output widths must be positive integers")
+    if not isinstance(data, list) or not data:
+        raise ValueError("output data must be a nonempty list")
+    parts = [data] if len(widths) == 1 else data
+    if len(parts) != len(widths):
+        raise ValueError("output must contain one group per projection")
+    flat = []
+    for part, width in zip(parts, widths):
+        if not isinstance(part, list) or len(part) != rows * width:
+            raise ValueError(f"output must contain exactly {rows * width} words per projection")
+        for word in part:
+            if type(word) is not int or not 0 <= word < 65536:
+                raise ValueError("output words must be uint16 integers")
+            if (word & 0x7C00) == 0x7C00:
+                raise ValueError("output FP16 words must be finite")
+            flat.append(word)
+    return flat
 
 
 def main():
+    import numpy as np
+
     parser = argparse.ArgumentParser()
     parser.add_argument("baseline", type=Path)
     parser.add_argument("candidate", type=Path)
@@ -84,24 +113,16 @@ def main():
                 value = json.loads(line)
                 if "error" in value:
                     raise RuntimeError(value["error"])
-                outputs.append(value["data"])
+                outputs.append(validate_output(value["data"], rows, widths))
             if outputs[0] != outputs[1]:
                 raise AssertionError(f"QMM parity differs at K{k}/CB{cb}/M{rows}/{dims}/{widths}")
-            flat = (
-                np.asarray(outputs[1], dtype=np.uint16).reshape(-1)
-                if len(widths) == 1
-                else np.concatenate(
-                    [np.asarray(part, dtype=np.uint16).reshape(-1) for part in outputs[1]]
-                )
-            )
-            assert np.isfinite(flat.view(np.float16)).all()
             result = {
                 "k": k,
                 "cb": cb,
                 "rows": rows,
                 "input": dims,
                 "widths": widths,
-                "finite_fp16_outputs": len(flat),
+                "finite_fp16_outputs": len(outputs[1]),
                 "bit_exact": True,
             }
             results.append(result)
