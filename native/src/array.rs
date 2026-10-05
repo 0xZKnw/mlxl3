@@ -71,6 +71,7 @@ unsafe extern "C" {
     fn mlxl3_mlx_error() -> *const c_char;
     fn mlxl3_mlx_init(metallib: *const c_char) -> i32;
     fn mlxl3_memory_stats(out: *mut u64, reset_peak: bool) -> i32;
+    fn mlxl3_synchronize() -> i32;
     fn mlxl3_clear_cache() -> i32;
     fn mlxl3_array_free(p: *mut c_void);
     fn mlxl3_array_clone(p: *mut c_void, out: *mut *mut c_void) -> i32;
@@ -238,6 +239,12 @@ pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
 pub fn clear_cache() -> Result<()> {
     initialize()?;
     checked(unsafe { mlxl3_clear_cache() })
+}
+
+/// Finish submitted GPU work before reporting a settled load/unload state.
+pub fn synchronize() -> Result<()> {
+    initialize()?;
+    checked(unsafe { mlxl3_synchronize() })
 }
 
 pub fn is_m5_gpu() -> Result<bool> {

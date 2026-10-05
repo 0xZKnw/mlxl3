@@ -2514,6 +2514,7 @@ fn load_mtp_head(
     *prompt_cache = None;
     *head = None;
     *revision = None;
+    mlxl3_native::array::synchronize()?;
     mlxl3_native::array::clear_cache()?;
     *head = Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
     *revision = Some(next_revision);
@@ -2636,6 +2637,7 @@ fn native_bridge(
                         mtp_head = None;
                         mtp_head_revision = None;
                     }
+                    mlxl3_native::array::synchronize()?;
                     mlxl3_native::array::clear_cache()?;
                     emit_event(json!({"type":"mtp_status", "request_id":request.request_id,
                         "mtp_active":mtp_head.is_some(),
@@ -2645,6 +2647,7 @@ fn native_bridge(
                 if let Err(error) = result {
                     mtp_head = None;
                     mtp_head_revision = None;
+                    mlxl3_native::array::synchronize()?;
                     mlxl3_native::array::clear_cache()?;
                     emit_event(json!({"type":"error", "request_id":request.request_id,
                         "message":error.to_string(), "mtp_active":false,

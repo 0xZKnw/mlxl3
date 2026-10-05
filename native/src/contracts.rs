@@ -1,6 +1,6 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(feature = "mlx", kani))]
 pub(crate) fn mtp_add_norm_launch(rows: i32, width: i32) -> Option<(i32, i32)> {
     if !(1..=4).contains(&rows) || !matches!(width, 2048 | 5120) {
         return None;

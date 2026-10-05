@@ -87,6 +87,15 @@ def run(engine, models, timeout, report):
                             return event
 
                 ready = exchange()
+                current = {
+                    "model": models[index],
+                    "pid": process.process.pid,
+                    "head": heads[index],
+                    "ready": ready,
+                    "status": "running",
+                    "cases": [],
+                }
+                report["models"].append(current)
                 if not ready.get("mtp_auto_download_supported") or not ready.get(
                     "mtp_configure_supported"
                 ):
@@ -109,8 +118,11 @@ def run(engine, models, timeout, report):
                     )
 
                 before = configure(False)
+                current["before"] = before
                 loaded = configure(True)
+                current["loaded"] = loaded
                 again = configure(True)
+                current["reused"] = again
                 base = before["memory"]["mlx_active_bytes"]
                 if (
                     before.get("mtp_active") is not False
@@ -120,8 +132,10 @@ def run(engine, models, timeout, report):
                     or again["memory"]["mlx_active_bytes"] != loaded["memory"]["mlx_active_bytes"]
                 ):
                     raise RuntimeError("MTP load/reuse memory mismatch")
+                current["invalid_loads"] = []
                 for invalid in (heads[1 - index], str(Path(directory) / "missing-head")):
                     failure = configure(True, invalid, error=True)
+                    current["invalid_loads"].append(failure)
                     if (
                         failure.get("mtp_active") is not False
                         or failure["memory"]["mlx_active_bytes"] != base
@@ -129,12 +143,13 @@ def run(engine, models, timeout, report):
                         raise RuntimeError("failed MTP load retained the previous head")
                     configure(True)
                 unloaded = configure(False)
+                current["unloaded"] = unloaded
                 if (
                     unloaded.get("mtp_active") is not False
                     or unloaded["memory"]["mlx_active_bytes"] != base
                 ):
                     raise RuntimeError("MTP OFF retained head allocations")
-                cases = []
+                cases = current["cases"]
                 for budget in (1, 3, 17):
                     baseline = None
                     for depth in range(4):
@@ -174,17 +189,14 @@ def run(engine, models, timeout, report):
                                 "stats": result["stats"],
                             }
                         )
-                report["models"].append(
-                    {
-                        "model": models[index],
-                        "pid": process.process.pid,
-                        "ready": ready,
-                        "before": before,
-                        "loaded": loaded,
-                        "unloaded": unloaded,
-                        "cases": cases,
-                    }
-                )
+                after = configure(False)
+                current["after_generation_off"] = after
+                if (
+                    after.get("mtp_active") is not False
+                    or after["memory"]["mlx_active_bytes"] != base
+                ):
+                    raise RuntimeError("MTP OFF retained head or target cache after generation")
+                current["status"] = "passed"
             if process.process.poll() is None:
                 raise RuntimeError("previous model process was not reaped")
             print(
@@ -216,6 +228,8 @@ def main():
         report.update(status="passed", parity=True)
     except BaseException as error:
         report.update(status="failed", parity=False, error=f"{type(error).__name__}: {error}")
+        if report["models"] and report["models"][-1]["status"] == "running":
+            report["models"][-1].update(status="failed", error=report["error"])
         raise
     finally:
         args.output.write_text(json.dumps(report, indent=2) + "\n")
