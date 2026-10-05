@@ -6,6 +6,29 @@ struct HubModel: Decodable, Identifiable, Hashable, Sendable {
     let downloads: Int
     let likes: Int
     let gated: Bool
+
+    enum CodingKeys: String, CodingKey { case id, downloads, likes, gated }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        downloads = try values.decode(Int.self, forKey: .downloads)
+        likes = try values.decode(Int.self, forKey: .likes)
+        if try !values.contains(.gated) || values.decodeNil(forKey: .gated) {
+            gated = false
+        } else if let flag = try? values.decode(Bool.self, forKey: .gated) {
+            gated = flag
+        } else {
+            let mode = try values.decode(String.self, forKey: .gated)
+            switch mode {
+            case "auto", "manual", "true": gated = true
+            case "false": gated = false
+            default:
+                throw DecodingError.dataCorruptedError(
+                    forKey: .gated, in: values, debugDescription: "Invalid model access mode")
+            }
+        }
+    }
 }
 
 struct HubVariant: Decodable, Identifiable, Hashable, Sendable {

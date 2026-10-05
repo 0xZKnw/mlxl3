@@ -163,7 +163,7 @@ private struct HubBrowserView: View {
                             }.buttonStyle(StudioControlStyle())
                             Divider().overlay(StudioTheme.edge)
                         }
-                        if library.results.isEmpty && !library.searching {
+                        if library.results.isEmpty && !library.searching && library.error == nil {
                             Text(L("Aucun résultat. Essayez un autre nom ou un dépôt exact.", "No results. Try another name or an exact repository."))
                                 .font(.callout).foregroundStyle(StudioTheme.quiet).padding(.vertical, 40)
                         }

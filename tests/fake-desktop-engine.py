@@ -5,6 +5,35 @@ import signal
 import sys
 import time
 
+if len(sys.argv) > 1 and sys.argv[1] == 'hub':
+    command = sys.argv[2]
+    query = sys.argv[3]
+    if command == 'search':
+        if query == 'error':
+            print('fixture catalogue unavailable', file=sys.stderr)
+            sys.exit(3)
+        if query == 'slow':
+            time.sleep(0.7)
+        if query == 'empty':
+            rows = []
+        elif query == 'invalid':
+            rows = [{'id': 'fixture/bad-exl3', 'downloads': 0, 'likes': 0, 'gated': []}]
+        else:
+            rows = [
+                {'id': f'fixture/{query}-exl3', 'downloads': 73, 'likes': 2, 'gated': None},
+                {'id': 'fixture/manual-exl3', 'downloads': 9, 'likes': 1, 'gated': 'manual'},
+                {'id': 'fixture/open-exl3', 'downloads': 0, 'likes': 0, 'gated': False},
+            ]
+        print(json.dumps(rows), flush=True)
+    elif command == 'details':
+        print(json.dumps({'id': query, 'revision': 'main', 'commit': 'fixture',
+                          'branches': ['main'], 'variants': [
+                              {'id': '.', 'label': '2.49 bpw', 'size_bytes': 128}],
+                          'readme': '# Fixture', 'gated': False, 'downloads': 73, 'likes': 2}), flush=True)
+    else:
+        sys.exit(2)
+    sys.exit(0)
+
 if len(sys.argv) > 1 and sys.argv[1] == 'mcp-fixture':
     for line in sys.stdin:
         request = json.loads(line)

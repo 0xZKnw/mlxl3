@@ -118,6 +118,11 @@ struct GenerationInspector: View {
                             range: 1...1.3,
                             format: "%.2f"
                         )
+                        if studio.mtpEnabled {
+                            Label(L("MTP est activé : ces paramètres sont verrouillés. Désactive MTP pour les modifier.",
+                                    "MTP is enabled: these settings are locked. Disable MTP to change them."), systemImage: "lock")
+                                .font(.caption).foregroundStyle(StudioTheme.quiet)
+                        }
                     }
                     .disabled(studio.mtpEnabled)
 
