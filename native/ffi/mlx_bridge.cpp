@@ -116,6 +116,9 @@ std::vector<std::string> strings(const char* const* p, size_t n) {
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_clear_cache() noexcept {
+  return protect([] { mx::clear_cache(); });
+}
 int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
   return protect([&] {
     if (!out) throw std::invalid_argument("null memory statistics output");

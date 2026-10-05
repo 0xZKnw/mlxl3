@@ -1,0 +1,21 @@
+   Compiling mlxl3-native v1.3.0 (/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3)
+    Finished `release` profile [optimized] target(s) in 35.14s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-12ff64d81cca70c9)
+
+running 1 test
+
+thread 'array::tests::clear_cache_preserves_live_arrays_and_releases_unused_buffers' (3466881) panicked at native/src/array.rs:794:9:
+assertion failed: before.mlx_cache_bytes >= 32 * 1024 * 1024
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test array::tests::clear_cache_preserves_live_arrays_and_releases_unused_buffers ... FAILED
+
+failures:
+
+failures:
+    array::tests::clear_cache_preserves_live_arrays_and_releases_unused_buffers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `--lib`

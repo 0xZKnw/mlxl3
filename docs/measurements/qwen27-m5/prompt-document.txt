@@ -1,0 +1,17 @@
+# Audit runtime — premier lot vérifié
+
+Source : audit de 31 pages « MLXL3 sur Apple M5 », fourni le 4 septembre
+2026. Branche `codex/audit-exact-runtime`, base production `1334391`.
+Le rapport prescrit une progression par validations, pas l'activation simultanée
+de toutes les pistes. Ce lot ne prétend pas terminer le backlog.
+
+## Changements
+
+| Point | Implémentation | Contrat et limites |
+| --- | --- | --- |
+| D01 | L'historique stable donné aux pénalités est borné par leur fenêtre explicite, 20 pour la répétition actuellement configurée. | Q0 : ordre et multiplicité conservés ; processeur inconnu = historique complet. L'accumulation interne de MLX-LM reste inchangée. |
+| P01 | Inversion de la permutation de routage par scatter entier Metal, au lieu d'un second argsort. | Q0 : le premier argsort, les slots experts et la réduction ne changent pas. Précondition : une permutation issue d'argsort, pas des IDs experts bruts. |
+| M01 | Estimation et admission des snapshots avant copie ; éviction des anciens blocs avant allocation. | Q0 pour les valeurs. Un snapshot refusé peut modifier les futurs cache hits, pas le contexte logique. |
+| M02 | Fork KV de génération avec réserve arrondie au pas du cache ; snapshots compacts. | Q0 sur le préfixe utile, stockage indépendant. Compte la réserve réelle des KVCache ; les autres alias restent estimés conservativement. |
+| T01 | Annulation et garde mémoire aux frontières de chunks, y compris le callback de prefill MLX-LM. Cache partiel invalidé. | Pas de synchronisation GPU supplémentaire ; les chunks déjà soumis ne sont pas interrompus. Le scheduler peut réduire son chunk à mesure que la mémoire augmente. |
+| V01/T01 | Benchmark sans liste de réponses/logprobs, manifeste, lignes brutes, mesures template / prefill stable / fork / prem

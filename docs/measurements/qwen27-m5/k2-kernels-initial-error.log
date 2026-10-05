@@ -1,0 +1,65 @@
+Traceback (most recent call last):
+  File "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_k2_windows.py", line 148, in <module>
+    result = check_and_benchmark(args.iterations)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_k2_windows.py", line 110, in check_and_benchmark
+    pair(kind, inputs, shape, rows, mb, sg, nt, splits, dims, widths, cb)
+  File "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_k2_windows.py", line 90, in pair
+    mx.eval(a, b)
+RuntimeError: [metal::Device] Unable to build metal library from source
+mlx/backend/metal/kernels/utils.h:494:34: error: 'buffer' attribute only applies to parameters, global constant variables, and non-static data members
+  const device float16_t* xhat [[buffer(0)]],
+                                 ^
+mlx/backend/metal/kernels/utils.h:494:27: error: program scope variable must reside in constant address space
+  const device float16_t* xhat [[buffer(0)]],
+                          ^
+mlx/backend/metal/kernels/utils.h:494:45: error: expected ';' at end of declaration
+  const device float16_t* xhat [[buffer(0)]],
+                                            ^
+                                            ;
+mlx/backend/metal/kernels/utils.h:495:36: error: 'buffer' attribute only applies to parameters, global constant variables, and non-static data members
+  const device uint32_t* trellis [[buffer(1)]],
+                                   ^
+mlx/backend/metal/kernels/utils.h:495:26: error: program scope variable must reside in constant address space
+  const device uint32_t* trellis [[buffer(1)]],
+                         ^
+mlx/backend/metal/kernels/utils.h:495:47: error: expected ';' at end of declaration
+  const device uint32_t* trellis [[buffer(1)]],
+                                              ^
+                                              ;
+mlx/backend/metal/kernels/utils.h:496:33: error: 'buffer' attribute only applies to parameters, global constant variables, and non-static data members
+  const device float16_t* svh [[buffer(2)]],
+                                ^
+mlx/backend/metal/kernels/utils.h:496:27: error: program scope variable must reside in constant address space
+  const device float16_t* svh [[buffer(2)]],
+                          ^
+mlx/backend/metal/kernels/utils.h:496:44: error: expected ';' at end of declaration
+  const device float16_t* svh [[buffer(2)]],
+                                           ^
+                                           ;
+mlx/backend/metal/kernels/utils.h:497:24: error: 'buffer' attribute only applies to parameters, global constant variables, and non-static data members
+  device float* yhat [[buffer(3)]],
+                       ^
+mlx/backend/metal/kernels/utils.h:497:17: error: program scope variable must reside in constant address space
+  device float* yhat [[buffer(3)]],
+                ^
+mlx/backend/metal/kernels/utils.h:497:35: error: expected ';' at end of declaration
+  device float* yhat [[buffer(3)]],
+                                  ^
+                                  ;
+mlx/backend/metal/kernels/utils.h:498:73: error: expected ';' at end of declaration
+  uint simdgroup_index_in_threadgroup [[simdgroup_index_in_threadgroup]],
+                                                                        ^
+                                                                        ;
+mlx/backend/metal/kernels/utils.h:499:63: error: expected ';' at end of declaration
+  uint thread_index_in_simdgroup [[thread_index_in_simdgroup]],
+                                                              ^
+                                                              ;
+mlx/backend/metal/kernels/utils.h:500:74: error: expected ';' at end of declaration
+  uint3 thread_position_in_threadgroup [[thread_position_in_threadgroup]],
+                                                                         ^
+                                                                         ;
+mlx/backend/metal/kernels/utils.h:501:70: error: expected ';' after top level declarator
+  uint3 threadgroup_position_in_grid [[threadgroup_position_in_grid]]) {
+                                                                     ^
+                                                                     ;

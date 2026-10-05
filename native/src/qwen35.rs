@@ -2065,6 +2065,54 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires MLXL3_QWEN_TEST_MODEL, reference directory and physical Apple GPU"]
+    fn checkpoint_optimization_matches_saved_logits_and_states() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let reference = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_REFERENCE_DIR")?);
+        let write = std::env::var("MLXL3_QWEN_WRITE_REFERENCE").as_deref() == Ok("1");
+        if write {
+            std::fs::create_dir_all(&reference)?;
+        }
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        if std::env::var("MLXL3_QWEN_TEST_CLEAR_CACHE").as_deref() == Ok("1") {
+            crate::array::clear_cache()?;
+        }
+        for length in [23, 128, 256] {
+            model.reset();
+            let tokens = (0..length).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+            let mut logits = model.forward_tokens(&tokens)?;
+            for step in 0..=3 {
+                if step > 0 {
+                    logits = model.forward((step * 53) as u32)?;
+                }
+                let bits = logits.to_f16_bits()?;
+                assert!(bits.iter().all(|&value| f16::from_bits(value).is_finite()));
+                let mut arrays = state_bytes(&model)?;
+                arrays.push(bits.iter().flat_map(|bits| bits.to_ne_bytes()).collect());
+                for (index, bytes) in arrays.iter().enumerate() {
+                    let file =
+                        reference.join(format!("prefill{length}-step{step}-array{index}.bin"));
+                    if write {
+                        std::fs::write(file, bytes)?;
+                    } else {
+                        ensure!(
+                            std::fs::read(&file)? == *bytes,
+                            "optimization parity differs at prefill={length} step={step} array={index}"
+                        );
+                    }
+                }
+                println!(
+                    "prefill={length} step={step}: {} state arrays and {} finite logits {}",
+                    arrays.len() - 1,
+                    bits.len(),
+                    if write { "saved" } else { "bit-identical" }
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "requires local Qwen checkpoint and physical Apple GPU"]
     fn mtp_prefill_verification_and_rollback_match_target() -> Result<()> {
         let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;

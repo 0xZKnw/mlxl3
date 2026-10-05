@@ -1,0 +1,25 @@
+   Compiling mlxl3-native v1.3.0 (/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3)
+error[E0433]: cannot find module or crate `array` in this scope
+    --> native/src/qwen35.rs:2077:13
+     |
+2077 |             array::WiredMemoryGuard::for_model(
+     |             ^^^^^ use of unresolved module or unlinked crate `array`
+     |
+help: to make use of source file native/src/array.rs, use `mod array` in this file to declare the module
+    -->  native/src/lib.rs:2:1
+     |
+   2 + mod array;
+     |
+help: consider importing this struct
+     |
+2046 +     use crate::array::WiredMemoryGuard;
+     |
+help: if you import `WiredMemoryGuard`, refer to it directly
+     |
+2077 -             array::WiredMemoryGuard::for_model(
+2077 +             WiredMemoryGuard::for_model(
+     |
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
