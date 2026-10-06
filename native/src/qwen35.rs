@@ -2284,13 +2284,9 @@ mod tests {
             &std::env::var("MLXL3_MTP_TEST_MODEL")
                 .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
         ))?;
-        let mut head = Head::load(
-            Path::new(
-                &std::env::var("MLXL3_MTP_TEST_HEAD")
-                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
-            ),
-            &model,
-        )?;
+        let head_path = std::env::var("MLXL3_MTP_TEST_HEAD")
+            .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into());
+        let mut head = Head::load(Path::new(&head_path), &model)?;
         for depth in 1..=3 {
             model.reset();
             head.reset()?;
@@ -2298,6 +2294,13 @@ mod tests {
             let (logits, raw) = model.forward_mtp(&prefix)?;
             head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
             let mut anchor = logits.chat_greedy_ids()?[0];
+            let saved_head = head.snapshot()?;
+            let standalone = head.forward(&model, &raw.slice(1, 23, 24)?, &[anchor])?;
+            assert_eq!(standalone.shape(), &[1, 1, model.mtp_layout().vocab_size]);
+            let values = standalone.to_f32()?;
+            assert_eq!(values.len(), model.mtp_layout().vocab_size as usize);
+            assert!(values.iter().all(|v| v.is_finite()) && values.iter().any(|&v| v != 0.));
+            head.restore(saved_head)?;
             let mut session = Session::new(depth)?;
             for block in 0..8 {
                 let saved = model.snapshot()?;
@@ -2362,6 +2365,101 @@ mod tests {
         }
         assert!(Session::new(0).is_err());
         assert!(Session::new(4).is_err());
+        // Exercise the actual optional artifact loader, including incomplete
+        // conversions, without rewriting either original checkpoint.
+        let temporary = tempfile::tempdir()?;
+        for file in ["config.json", "model.safetensors"] {
+            std::os::unix::fs::symlink(
+                Path::new(&head_path).join(file).canonicalize()?,
+                temporary.path().join(file),
+            )?;
+        }
+        let h = model.mtp_layout();
+        let metadata = serde_json::json!({"input":h.hidden_size,"output":h.vocab_size,
+                                         "bits":4,"group_size":64,"mode":"affine"});
+        let mut invalid = vec![serde_json::Value::Null, serde_json::json!({})];
+        for (key, value) in [
+            ("input", serde_json::json!(h.hidden_size + 64)),
+            ("output", serde_json::json!(h.vocab_size + 1)),
+            ("bits", serde_json::json!(8)),
+            ("group_size", serde_json::json!(32)),
+            ("mode", serde_json::json!("symmetric")),
+            ("unknown", serde_json::json!(true)),
+        ] {
+            let mut altered = metadata.clone();
+            altered[key] = value;
+            invalid.push(altered);
+        }
+        invalid.push(metadata.clone()); // valid metadata, missing weight payload
+        for ids in [
+            serde_json::json!([]),
+            serde_json::json!([0]),
+            serde_json::json!([1, 1]),
+            serde_json::json!([2, 1]),
+            serde_json::json!([0, h.vocab_size]),
+            serde_json::json!([-1, 0]),
+            serde_json::json!([0, 4294967296u64]),
+            serde_json::Value::Null,
+        ] {
+            let mut altered = metadata.clone();
+            altered["output"] = serde_json::json!(2);
+            altered["token_ids"] = ids;
+            invalid.push(altered);
+        }
+        let offset = model.offset();
+        for metadata in invalid {
+            std::fs::write(
+                temporary.path().join("draft_head_q4.json"),
+                serde_json::to_vec(&metadata)?,
+            )?;
+            assert!(Head::load(temporary.path(), &model).is_err());
+            assert_eq!(model.offset(), offset);
+        }
+        // Sparse disposable payloads exercise real header validation without
+        // reading or allocating an incompatible projection on the GPU.
+        std::fs::write(
+            temporary.path().join("draft_head_q4.json"),
+            serde_json::to_vec(&metadata)?,
+        )?;
+        for (weight_dtype, scales_dtype, biases_dtype) in [
+            ("F32", "F16", "F16"),
+            ("U32", "U16", "F16"),
+            ("U32", "F16", "U16"),
+        ] {
+            use std::io::Write;
+            let mut header = serde_json::Map::new();
+            let mut end = 0u64;
+            for (name, dtype, width, bytes) in [
+                ("weight", weight_dtype, h.hidden_size / 8, 4),
+                ("scales", scales_dtype, h.hidden_size / 64, 2),
+                ("biases", biases_dtype, h.hidden_size / 64, 2),
+            ] {
+                let start = end;
+                end += h.vocab_size as u64 * width as u64 * bytes;
+                header.insert(
+                    format!("lm_head.{name}"),
+                    serde_json::json!({
+                        "dtype":dtype, "shape":[h.vocab_size,width], "data_offsets":[start,end]
+                    }),
+                );
+            }
+            let encoded = serde_json::to_vec(&header)?;
+            let mut file =
+                std::fs::File::create(temporary.path().join("draft_head_q4.safetensors"))?;
+            file.write_all(&(encoded.len() as u64).to_le_bytes())?;
+            file.write_all(&encoded)?;
+            file.set_len(8 + encoded.len() as u64 + end)?;
+            let error = Head::load(temporary.path(), &model)
+                .err()
+                .expect("incompatible dtype must fail before GPU allocation");
+            assert!(
+                error
+                    .to_string()
+                    .contains("invalid draft Q4 tensor coverage, shapes or dtypes"),
+                "dtype fixture failed before the tensor validator: {error}"
+            );
+            assert_eq!(model.offset(), offset);
+        }
         Ok(())
     }
 

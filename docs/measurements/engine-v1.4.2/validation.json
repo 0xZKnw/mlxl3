@@ -1,0 +1,356 @@
+{
+  "status": "first_stage_validated; further_boosts_in_progress",
+  "version": "1.4.2",
+  "base": "5de518e0fbe7d3367416b9bc5999c7bd1f92c74d",
+  "baseline": {
+    "version": "1.4.1",
+    "release_source": "71588ab9c758ad95bb6b0041bed6c061fb7a70c7",
+    "sha256": "79f027af26c18cb4fecead8d55b0dfbf3500671d8a2b42360bc1bc4d7dc28721"
+  },
+  "candidate": {
+    "sha256": "f11cdc13d17598589f5b3934056f381300391b696f3c5b6f2753cd947f491c8e",
+    "identity": "frspec-identity.json",
+    "final_source": "delivery-source.json",
+    "post_measurement_changes": "qwen35.rs test-only dtype diagnostic correction and Python file publication hardening; Rust production arithmetic unchanged"
+  },
+  "platform": {
+    "hardware": "Apple M5 / 24 GiB",
+    "os": "macOS-27.2-arm64-arm-64bit",
+    "mlx": "0.32.2",
+    "power": "Full Q4/NT4 on battery; compact versus baseline on AC charging. Each pass has probes. No energy setting changed.",
+    "thermal": "No warning recorded; temperature and GPU clocks not measured",
+    "model": "Qwen3.6-35B-A3B EXL3 2.49 bpw, H2048/V248320, MCG6 vocabulary head",
+    "checkpoint_identity": "candidate-identity.json"
+  },
+  "compact_draft": {
+    "selected_ids": 79591,
+    "padded_rows": 79616,
+    "target_vocab": 248320,
+    "projection_tensor_bytes": 91717632,
+    "map_gpu_bytes": 318464,
+    "extra_total_mib": 87.7724609375,
+    "full_q4_extra_mib": 272.8125,
+    "default": "stock head; compact projection requires an explicitly prepared folder"
+  },
+  "performance": {
+    "code_abba": {
+      "short": {
+        "decode_tps": {
+          "A": 56.47625493343058,
+          "B": 62.42364315810318,
+          "change_percent": 10.53077657447874
+        },
+        "prefill_tps": {
+          "A": 201.65419505207018,
+          "B": 197.75107032546896,
+          "change_percent": -1.9355534486120485
+        },
+        "ttft_seconds": {
+          "A": 0.13444224,
+          "B": 0.13735962525,
+          "change_percent": 2.169991551762318
+        },
+        "elapsed_seconds": {
+          "A": 2.38335946875,
+          "B": 2.1721823752500002,
+          "change_percent": -8.86048018643012
+        }
+      },
+      "document": {
+        "decode_tps": {
+          "A": 64.09326607902513,
+          "B": 69.34885089151176,
+          "change_percent": 8.199901696391398
+        },
+        "prefill_tps": {
+          "A": 224.56360285318615,
+          "B": 230.50468305496625,
+          "change_percent": 2.6456113663549496
+        },
+        "ttft_seconds": {
+          "A": 0.1966037605,
+          "B": 0.191352646,
+          "change_percent": -2.670912543404791
+        },
+        "elapsed_seconds": {
+          "A": 2.17977328125,
+          "B": 2.02398644775,
+          "change_percent": -7.146928299380906
+        }
+      }
+    },
+    "long_baab": {
+      "short": {
+        "decode_tps": {
+          "A": 57.91318430471007,
+          "B": 62.845037370809976,
+          "change_percent": 8.515941793410931
+        },
+        "prefill_tps": {
+          "A": 203.1683985380611,
+          "B": 200.8255609606527,
+          "change_percent": -1.1531505855569835
+        },
+        "ttft_seconds": {
+          "A": 0.13336770850000002,
+          "B": 0.1351123125,
+          "change_percent": 1.3081157497730977
+        },
+        "elapsed_seconds": {
+          "A": 2.3263365,
+          "B": 2.1561563230000003,
+          "change_percent": -7.315372346176052
+        }
+      },
+      "document": {
+        "decode_tps": {
+          "A": 59.93579614968459,
+          "B": 65.52088582503829,
+          "change_percent": 9.318454136164988
+        },
+        "prefill_tps": {
+          "A": 511.37863648897337,
+          "B": 508.38710958425304,
+          "change_percent": -0.5849925458872418
+        },
+        "ttft_seconds": {
+          "A": 3.8499352812499996,
+          "B": 3.8729354272500003,
+          "change_percent": 0.597416432219422
+        },
+        "elapsed_seconds": {
+          "A": 5.96890405225,
+          "B": 5.811317479,
+          "change_percent": -2.64012575626168
+        }
+      }
+    },
+    "tuner_abba": {
+      "status": "completed",
+      "order": "ABBA",
+      "parity": true,
+      "summary": [
+        {
+          "depth": 0,
+          "A": 48.03283026094677,
+          "B": 49.14430628353642,
+          "change_percent": 2.3139923601240397
+        },
+        {
+          "depth": 1,
+          "A": 64.75279214915557,
+          "B": 70.29938225759025,
+          "change_percent": 8.565792955550599
+        },
+        {
+          "depth": 2,
+          "A": 62.7460015524117,
+          "B": 72.34897633330837,
+          "change_percent": 15.304520675911615
+        },
+        {
+          "depth": 3,
+          "A": 61.63927814739867,
+          "B": 70.69257251937879,
+          "change_percent": 14.687541197888265
+        }
+      ],
+      "ordinary_drift_percent": {
+        "A": 1.5288790102530259,
+        "B": -0.5315679417364327
+      },
+      "best_depths": [
+        1,
+        2,
+        2,
+        1
+      ]
+    },
+    "tuner_baab": {
+      "status": "completed",
+      "order": "BAAB",
+      "parity": true,
+      "summary": [
+        {
+          "depth": 0,
+          "A": 47.55056528098089,
+          "B": 46.32290203879275,
+          "change_percent": -2.5818057786143322
+        },
+        {
+          "depth": 1,
+          "A": 62.148548542326665,
+          "B": 65.08637085903204,
+          "change_percent": 4.727097230122035
+        },
+        {
+          "depth": 2,
+          "A": 61.48540099874599,
+          "B": 68.63298820535942,
+          "change_percent": 11.624852551192145
+        },
+        {
+          "depth": 3,
+          "A": 61.07065534634832,
+          "B": 68.63731956586221,
+          "change_percent": 12.390016410666105
+        }
+      ],
+      "ordinary_drift_percent": {
+        "A": 1.738097084276058,
+        "B": -1.7473474713925352
+      },
+      "best_depths": [
+        2,
+        1,
+        1,
+        3
+      ]
+    },
+    "protocol": {
+      "order": "ABBA",
+      "tokens": 128,
+      "repeats": 2,
+      "warmup_per_prompt": 1,
+      "warmup_tokens": 32,
+      "mtp_depth": 2,
+      "mtp_head": "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/frspec-head",
+      "settle_seconds": 2.0,
+      "load_timeout": 600.0,
+      "request_timeout": 600.0,
+      "context": 4096,
+      "cache": false
+    },
+    "limits": [
+      "Fixed generated-token budgets, not complete-task evaluations",
+      "Same-depth D2 comparisons; no forced Tune depth",
+      "First long ABBA has >5% control drift; BAAB confirmation is retained separately",
+      "No automatic compact-head activation; no speed claim for other models or hardware"
+    ]
+  },
+  "checks": {
+    "rust_mlx_chat": {
+      "command": "MLXL3_MLX_ROOT=<MLX0.32.2 package> cargo test --locked --release --features mlx,chat",
+      "passed": 64,
+      "ignored": 56,
+      "raw": "rust-delivery.log"
+    },
+    "rust_cpu_chat": {
+      "command": "cargo test --locked --no-default-features --features chat",
+      "passed": 53,
+      "ignored": 2,
+      "raw": "frspec-rust-cpu.log"
+    },
+    "python": {
+      "command": "python -m pytest -q",
+      "passed": 229,
+      "skipped": 4,
+      "raw": "python-delivery.log",
+      "skips": [
+        "PonyEXL3 conversion module absent (three tests)",
+        "Ling checkpoint absent (one test)"
+      ]
+    },
+    "format_lint_build": "cargo fmt, strict Clippy for mlx/chat and CPU/chat, release build, Ruff check/format, py_compile and zsh -n passed",
+    "desktop": "scripts/check-e2e.sh with SDK26.5 passed; 49 update-state pairs, publisher refresh, real send/complete through disposable fake engine and existing lifecycle/bridge/update/import/render checks",
+    "swift_strict": "All app sources passed Swift6 typecheck with warnings-as-errors. Global package strict build fails on pre-existing vendored SwiftMath CTFontManager deprecations.",
+    "physical_numeric": {
+      "tests_passed": 2,
+      "compact": "3 x 79616 finite FP16 logits bit-exact to CPU-selected full Q4 rows",
+      "reference": "NumPy reconstruction from MTP08, independent of native Metal; separate scalar codec/Hadamard matrix tests",
+      "rmse_scope": "3 x 4096 reference rows, all248320 full logits finite",
+      "exl3_relative_rmse_range": [
+        0.000617502,
+        0.000623774
+      ],
+      "q4_relative_rmse_range": [
+        0.089403976,
+        0.091902656
+      ],
+      "thresholds": [
+        0.01,
+        0.2
+      ],
+      "recursive": "24 blocks D1..3, 80 target states/raw hidden/MTP KV bit-exact; full-vocab standalone; 20 invalid loader cases after dtype-test correction"
+    },
+    "physical_bridge": {
+      "status": "passed",
+      "requests": 39,
+      "nonempty_completions": 33,
+      "cancelled": 4,
+      "expected_errors": 2,
+      "properties": {
+        "all_depths_parity": true,
+        "prefix_parity": true,
+        "cancel_recovery": true,
+        "tuner_verified": false
+      }
+    },
+    "model_switch": {
+      "status": "passed",
+      "cases": 36,
+      "path": "dense Qwen3.8-27B -> MoE Qwen3.6-35B -> dense",
+      "checks": [
+        "nonempty greedy parity D0..3/budgets1,3,17",
+        "head reuse/OFF allocation release",
+        "foreign/missing head failures",
+        "previous process reaped before next model"
+      ],
+      "raw": "model-switch.json"
+    },
+    "mutation_oracles": [
+      "Original composer disabled Send during checking (expected failing regression)",
+      "Hadamard sign mutation detected/restored",
+      "Contiguous-row selection mutation detected/restored",
+      "Original full exporter followed dangling symlink (expected failing regression)"
+    ]
+  },
+  "verification": {
+    "kani": {
+      "harnesses": {
+        "total_harnesses": 36,
+        "executed": 36,
+        "status": "completed",
+        "successful": 36,
+        "failed": 0,
+        "duration_ms": 227094
+      },
+      "properties": {
+        "total_properties": 5234,
+        "passed": 5078,
+        "failed": 0,
+        "unreachable": 71,
+        "undetermined": 0,
+        "solver_error": 0,
+        "satisfied": 85,
+        "unsatisfiable": 0,
+        "covered": 0,
+        "uncovered": 0
+      }
+    },
+    "command": "cargo kani --lib --no-default-features",
+    "kind": "bounded model checking, not a whole-program proof",
+    "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable.",
+    "unverified": [
+      "Maps beyond8 entries by Kani (physical79616-row checks only)",
+      "Serde/file IO, MLX/Metal, allocation/concurrency, whole generation",
+      "Python compact IDs four CrossHair postconditions not confirmed at40s/condition",
+      "Swift Combine/AppKit formal verification unavailable"
+    ],
+    "crosshair": "Three chunk_end postconditions confirmed by symbolic search; no deductive proof"
+  },
+  "negative_results": [
+    "Full Q4 code -8.26% decode/+9.29% total, rejected as general boost",
+    "MCG6 MoE head NT4 micro +0.0263%, rejected, prototype withdrawn",
+    "Initial Kani60s timeout and initial lint/test failures preserved",
+    "Initial long ABBA drift retained, confirmation separate"
+  ],
+  "publication": {
+    "pull_request": "draft_pending_creation",
+    "merge": "not authorized; keep open",
+    "release": "not requested",
+    "personal_app": "unchanged",
+    "ui_delivery": "Needs a new Desktop build; independent engine update alone cannot deliver the Swift fix"
+  },
+  "evidence": "stage-1-raw.tar.gz contains all raw logs/JSON and negative evidence with original relative paths; unpack inside this directory. Model weights/binaries/external token list are not committed."
+}

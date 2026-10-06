@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Darwin
 import SwiftUI
 
@@ -94,6 +95,7 @@ final class StudioModel: ObservableObject {
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
     private let preferences: UserDefaults
+    private var updateObservation: AnyCancellable?
 
     init(
         conversationFileURL: URL = ConversationStore.defaultFileURL(),
@@ -173,6 +175,9 @@ final class StudioModel: ObservableObject {
                 self.engineState = .failed(message)
             }
         }
+        updateObservation = updateManager.objectWillChange.sink { [weak self] in
+            self?.objectWillChange.send()
+        }
         if !isPreview { prepareMCPConfiguration() }
     }
 
@@ -246,8 +251,7 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        if case .installing = updateManager.state { return false }
-        return engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isBusy
+        engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
     }
 
@@ -833,7 +837,7 @@ final class StudioModel: ObservableObject {
 
     var canTuneMTP: Bool {
         mtpAvailable && mtpTuneSupported && engineState.isReady && !isGenerating
-            && !mtpDownloading && !mcpUpdating && !updateManager.isBusy && !modelInstallState.isWorking
+            && !mtpDownloading && !mcpUpdating && !updateManager.isInstalling && !modelInstallState.isWorking
             && currentMTPConfiguration != nil
     }
 

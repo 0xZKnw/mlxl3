@@ -13,6 +13,11 @@ tuning informed the independent Rust implementation. EXL3 target kernels and
 exact greedy verification remain MLXL3 implementations. Upstream performance
 numbers are not MLXL3 measurements.
 
+The optional full-vocabulary affine4 draft projection and output-chunked
+conversion in `scripts/experimental-draft-head.py` are independently implemented,
+informed by `mtplx/draft_lm_head.py`. EXL3 reconstruction/rotations are MLXL3's
+implementation; no upstream timing is treated as a local result.
+
 The optional `native/shaders/mtp_add_rms.metal` prototype adapts
 `mtplx/kernels/fused_norm.py` at that revision, preserving the rounded
 residual and MLX RMSNorm reduction order. Copyright 2026 Youssof Altoukhi,
@@ -24,6 +29,16 @@ Settings displays "Powered by MTPLX" with the source link.
 from `mtplx/qwen_row_owned_router.py` to FP16 monotone keys, legacy tie order
 and half accumulation. Copyright MTPLX contributors; Apache-2.0. The small
 EXL3 verify batching uses MLXL3's own trellis kernels and arithmetic.
+
+## TensorFold
+
+Source: <https://github.com/ashhart/TensorFold>, revision
+`cb2ebf0540f42604e2759b2ddef497861e928248`, Apache-2.0
+(`LICENSES/Apache-2.0.txt`). Its draft-only vocabulary pruning informed the
+independent Q4 row selection and native token-ID remapping. The public
+`src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt` list was used for local
+measurements; neither that list nor upstream implementation code is bundled.
+The target retains its full vocabulary and exact verification.
 
 ## IncoAI Splash
 
