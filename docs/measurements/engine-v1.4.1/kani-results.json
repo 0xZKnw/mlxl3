@@ -1,0 +1,368 @@
+{
+  "status": "passed",
+  "harnesses": [
+    {
+      "name": "codec::verification::exl3_permutation_and_inverse_are_bijections",
+      "statuses": {
+        "SUCCESS": 191,
+        "UNREACHABLE": 1
+      },
+      "successful": true
+    },
+    {
+      "name": "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+      "statuses": {
+        "SUCCESS": 81,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+      "statuses": {
+        "SUCCESS": 76,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+      "statuses": {
+        "SUCCESS": 56,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::qmv_shape_matches_wide_arithmetic",
+      "statuses": {
+        "SUCCESS": 180,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+      "statuses": {
+        "SUCCESS": 192,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+      "statuses": {
+        "SUCCESS": 5,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+      "statuses": {
+        "SUCCESS": 351,
+        "UNREACHABLE": 1,
+        "SATISFIED": 1
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "statuses": {
+        "SUCCESS": 325,
+        "SATISFIED": 1,
+        "UNREACHABLE": 5
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+      "statuses": {
+        "SUCCESS": 96,
+        "UNREACHABLE": 1,
+        "SATISFIED": 3
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+      "statuses": {
+        "SUCCESS": 11,
+        "SATISFIED": 4
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+      "statuses": {
+        "SUCCESS": 12,
+        "SATISFIED": 4
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+      "statuses": {
+        "SUCCESS": 66,
+        "SATISFIED": 5
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+      "statuses": {
+        "SUCCESS": 2,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+      "statuses": {
+        "SUCCESS": 85,
+        "SATISFIED": 3
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+      "statuses": {
+        "SUCCESS": 61,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+      "statuses": {
+        "SUCCESS": 7,
+        "SATISFIED": 3
+      },
+      "successful": true
+    },
+    {
+      "name": "contracts::mtp_add_norm_launch_bounds",
+      "statuses": {
+        "SUCCESS": 109,
+        "SATISFIED": 3
+      },
+      "successful": true
+    },
+    {
+      "name": "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+      "statuses": {
+        "SUCCESS": 49,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+      "statuses": {
+        "SUCCESS": 11
+      },
+      "successful": true
+    },
+    {
+      "name": "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+      "statuses": {
+        "SUCCESS": 34,
+        "SATISFIED": 3
+      },
+      "successful": true
+    },
+    {
+      "name": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "statuses": {
+        "SUCCESS": 480,
+        "UNREACHABLE": 13,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "statuses": {
+        "SUCCESS": 325,
+        "SATISFIED": 2,
+        "UNREACHABLE": 13
+      },
+      "successful": true
+    },
+    {
+      "name": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "statuses": {
+        "SUCCESS": 219,
+        "UNREACHABLE": 13,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "mtp::managed_mtp_never_crosses_architectures",
+      "statuses": {
+        "SUCCESS": 181,
+        "SATISFIED": 3
+      },
+      "successful": true
+    },
+    {
+      "name": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "statuses": {
+        "UNREACHABLE": 13,
+        "SUCCESS": 222,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix",
+      "statuses": {
+        "SUCCESS": 215,
+        "SATISFIED": 2,
+        "UNREACHABLE": 1
+      },
+      "successful": true
+    },
+    {
+      "name": "speculative::verification::adaptive_work_never_exceeds_the_existing_budget",
+      "statuses": {
+        "SUCCESS": 34,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "speculative::verification::speculative_work_reserves_target_within_both_budgets",
+      "statuses": {
+        "SUCCESS": 28,
+        "SATISFIED": 3
+      },
+      "successful": true
+    },
+    {
+      "name": "speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "statuses": {
+        "SUCCESS": 219,
+        "SATISFIED": 4,
+        "UNREACHABLE": 1
+      },
+      "successful": true
+    },
+    {
+      "name": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "statuses": {
+        "SUCCESS": 389,
+        "UNREACHABLE": 6,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "speculative::verification::mtp_all_depths_commit_target_prefix_within_budgets",
+      "statuses": {
+        "SUCCESS": 273,
+        "SATISFIED": 4,
+        "UNREACHABLE": 1
+      },
+      "successful": true
+    },
+    {
+      "name": "speculative::verification::tuning_requires_parity_and_nonzero_acceptance",
+      "statuses": {
+        "SUCCESS": 17,
+        "SATISFIED": 2
+      },
+      "successful": true
+    },
+    {
+      "name": "tool_call::verification::marker_suffix_is_the_longest_possible_prefix",
+      "statuses": {
+        "SUCCESS": 161,
+        "SATISFIED": 2,
+        "UNREACHABLE": 1
+      },
+      "successful": true
+    }
+  ],
+  "statuses": {
+    "SUCCESS": 4763,
+    "UNREACHABLE": 70,
+    "SATISFIED": 80
+  },
+  "unreachable_checks": [
+    "Check 12: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 22: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 29: kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with a divisor of zero\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u8>\n",
+    "Check 30: kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with overflow\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u8>\n",
+    "Check 34: kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u8>\n",
+    "Check 35: kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide with overflow\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u8>\n",
+    "Check 51: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 15: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 12: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to\n",
+    "Check 28: core::ub_checks::is_valid_allocation_size.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size\n",
+    "Check 36: core::slice::memchr::memchr_aligned::runtime.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 37: core::slice::memchr::memchr_aligned::runtime.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 38: core::slice::memchr::memchr_aligned::runtime.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 39: core::slice::memchr::memchr_aligned::runtime.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 40: core::slice::memchr::memchr_aligned::runtime.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 41: core::slice::memchr::memchr_aligned::runtime.assertion.6\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 43: core::slice::memchr::memchr_aligned::runtime.assertion.7\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 98: std::ptr::align_offset::mod_inv.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv\n",
+    "Check 99: std::ptr::align_offset::mod_inv.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift right with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv\n",
+    "Check 100: std::ptr::align_offset::mod_inv.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv\n",
+    "Check 113: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 14: core::slice::memchr::memchr_aligned::runtime.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 15: core::slice::memchr::memchr_aligned::runtime.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 16: core::slice::memchr::memchr_aligned::runtime.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 17: core::slice::memchr::memchr_aligned::runtime.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 18: core::slice::memchr::memchr_aligned::runtime.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 19: core::slice::memchr::memchr_aligned::runtime.assertion.6\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 21: core::slice::memchr::memchr_aligned::runtime.assertion.7\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 22: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to\n",
+    "Check 30: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 51: core::ub_checks::is_valid_allocation_size.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size\n",
+    "Check 55: std::ptr::align_offset::mod_inv.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv\n",
+    "Check 56: std::ptr::align_offset::mod_inv.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift right with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv\n",
+    "Check 57: std::ptr::align_offset::mod_inv.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv\n",
+    "Check 12: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to\n",
+    "Check 26: std::ptr::align_offset::mod_inv.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv\n",
+    "Check 27: std::ptr::align_offset::mod_inv.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift right with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv\n",
+    "Check 28: std::ptr::align_offset::mod_inv.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv\n",
+    "Check 32: core::ub_checks::is_valid_allocation_size.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size\n",
+    "Check 58: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 65: core::slice::memchr::memchr_aligned::runtime.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 66: core::slice::memchr::memchr_aligned::runtime.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 67: core::slice::memchr::memchr_aligned::runtime.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 68: core::slice::memchr::memchr_aligned::runtime.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 69: core::slice::memchr::memchr_aligned::runtime.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 70: core::slice::memchr::memchr_aligned::runtime.assertion.6\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 72: core::slice::memchr::memchr_aligned::runtime.assertion.7\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 1: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 2: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to\n",
+    "Check 8: core::slice::memchr::memchr_aligned::runtime.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 9: core::slice::memchr::memchr_aligned::runtime.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 10: core::slice::memchr::memchr_aligned::runtime.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 11: core::slice::memchr::memchr_aligned::runtime.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 12: core::slice::memchr::memchr_aligned::runtime.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 13: core::slice::memchr::memchr_aligned::runtime.assertion.6\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 15: core::slice::memchr::memchr_aligned::runtime.assertion.7\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime\n",
+    "Check 41: std::ptr::align_offset::mod_inv.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv\n",
+    "Check 42: std::ptr::align_offset::mod_inv.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift right with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv\n",
+    "Check 43: std::ptr::align_offset::mod_inv.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv\n",
+    "Check 71: core::ub_checks::is_valid_allocation_size.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size\n",
+    "Check 26: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 37: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 12: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"Cannot compute offset of a ZST\"\n\t - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n",
+    "Check 14: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with a divisor of zero\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n",
+    "Check 15: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with overflow\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n",
+    "Check 19: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n",
+    "Check 20: kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide with overflow\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n",
+    "Check 24: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 72: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n",
+    "Check 34: std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n"
+  ],
+  "method": "bounded CPU Rust model checking; original harness bounds and unwinding assertions retained; new dense selector uses all scalar values with no assumptions/loops/stubs",
+  "timeout_seconds_per_harness": 120,
+  "unverified": "Metal/MLX/FFI/allocator/concurrency/Swift/full generation"
+}

@@ -1,0 +1,17 @@
+{
+  "verifier": "Kani0.68.0/CBMC6.11.0",
+  "target": "aarch64-apple-darwin",
+  "harnesses": 32,
+  "status_counts": {
+    "SUCCESS": 4473,
+    "UNREACHABLE": 70,
+    "SATISFIED": 74
+  },
+  "new_harness": {
+    "name": "dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+    "inputs": "all i32/i32/usize/bool/bool; no assumptions, loops, stubs",
+    "safety_checks": 7,
+    "covers": 3
+  },
+  "scope": "bounded Rust CPU contracts, not Metal/MLX/FFI/allocator/concurrency/generation"
+}
