@@ -1,0 +1,104 @@
+desktop-and-protocol	Run scripts/check-e2e.sh	﻿2026-10-05T21:43:41.0526660Z ##[group]Run scripts/check-e2e.sh
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0527140Z ^[[36;1mscripts/check-e2e.sh^[[0m
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0661110Z shell: /bin/bash -e {0}
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0662010Z env:
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0662590Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0663740Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0665050Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0666570Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0667930Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0669150Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:43:41.0670270Z ##[endgroup]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:03.5612430Z .........................s.ss.........F................................. [ 37%]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:09.1150970Z ........................................................................ [ 74%]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7408410Z .................................................                        [100%]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7410170Z =================================== FAILURES ===================================
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7410830Z _ test_production_verifier_reports_failures_and_reaps_processes[reuse_growth] __
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7411150Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7411590Z tmp_path = PosixPath('/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pytest-of-runner/pytest-0/test_production_verifier_repor9')
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7412250Z case = 'reuse_growth'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7412460Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7412550Z     @pytest.mark.parametrize(
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7413140Z         "case",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7413530Z         [
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7414000Z             "success",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7414400Z             "download_error",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7414780Z             "same_heads",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7415000Z             "missing_caps",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7415290Z             "silent",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7415630Z             "stream",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7415970Z             "invalid_json",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7416310Z             "retained_failure",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7416980Z             "retained_off",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7417340Z             "reuse_growth",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7417630Z             "missing_memory",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7417970Z             "cancelled",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7418240Z             "empty",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7418450Z             "mismatch",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7418790Z         ],
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7419120Z     )
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7419540Z     def test_production_verifier_reports_failures_and_reaps_processes(tmp_path, case):
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7420010Z         fake = tmp_path / "engine"
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7420290Z         fake.write_text(FAKE)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7421330Z         fake.chmod(0o755)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7422490Z         pids = tmp_path / "pids"
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7422880Z         output = tmp_path / "report.json"
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7423330Z         result = subprocess.run(
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7423600Z             [
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7424070Z                 sys.executable,
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7424390Z                 str(SCRIPT),
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7424770Z                 str(fake),
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7425000Z                 "dense",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7425320Z                 "moe",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7426160Z                 "--timeout",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7426460Z                 "0.4",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7426810Z                 "--output",
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7427140Z                 str(output),
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7427430Z             ],
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7427860Z             env={**os.environ, "MTP_SWITCH_CASE": case, "MTP_SWITCH_PIDS": str(pids)},
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7437900Z             capture_output=True,
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7438730Z             text=True,
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7439400Z             timeout=10,
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7439980Z             check=False,
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7440700Z         )
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7441270Z         report = json.loads(output.read_text())
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7452050Z         assert (result.returncode == 0) == (case == "success"), result.stderr
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7453340Z         assert report["status"] == ("passed" if case == "success" else "failed")
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7454370Z         assert report["parity"] is (case == "success")
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7455320Z         if case == "success":
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7456390Z             assert [item["model"] for item in report["models"]] == ["dense", "moe", "dense"]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7457600Z             assert all(len(item["cases"]) == 12 for item in report["models"])
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7458740Z >       for pid in map(int, pids.read_text().splitlines()):
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7459690Z                             ^^^^^^^^^^^^^^^^
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7460110Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7460450Z tests/test_mtp_model_switch.py:108: 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7461400Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7462640Z /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1027: in read_text
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7464150Z     with self.open(mode='r', encoding=encoding, errors=errors) as f:
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7465230Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7466110Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7466810Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7468030Z self = PosixPath('/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pytest-of-runner/pytest-0/test_production_verifier_repor9/pids')
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7470100Z mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7470980Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7471310Z     def open(self, mode='r', buffering=-1, encoding=None,
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7472910Z              errors=None, newline=None):
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7473780Z         """
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7474560Z         Open the file pointed to by this path and return a file object, as
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7475670Z         the built-in open() function does.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7476470Z         """
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7477000Z         if "b" not in mode:
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7477840Z             encoding = io.text_encoding(encoding)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7478810Z >       return io.open(self, mode, buffering, encoding, errors, newline)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7479960Z                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7482090Z E       FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pytest-of-runner/pytest-0/test_production_verifier_repor9/pids'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7484510Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7485360Z /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1013: FileNotFoundError
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7487050Z =========================== short test summary info ============================
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7488710Z SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7490570Z SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7494560Z SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7496360Z SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7500150Z FAILED tests/test_mtp_model_switch.py::test_production_verifier_reports_failures_and_reaps_processes[reuse_growth] - FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pytest-of-runner/pytest-0/test_production_verifier_repor9/pids'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.7504540Z 1 failed, 189 passed, 4 skipped in 50.88s
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-05T21:44:32.9036830Z ##[error]Process completed with exit code 1.

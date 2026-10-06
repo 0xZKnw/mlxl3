@@ -2,7 +2,7 @@
 
 **Native EXL3 inference for Apple Silicon, built with Rust, MLX and custom Metal kernels.**
 
-[Download MLXL3 Desktop v1.1.3](https://github.com/0xZKnw/mlxl3/releases/latest)
+[Download MLXL3 Desktop](https://github.com/0xZKnw/mlxl3/releases/latest)
 · [Validation scope](docs/v1-validation.md)
 · [Optimization journal](opti.md)
 · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -24,7 +24,16 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
-## v1.2.0
+## v1.4.0
+
+MTP automatically selects and downloads the pinned head for **Qwen3.8-27B**
+or **Qwen3.6-35B-A3B**. Switching models unloads the previous head; the global
+ON/OFF preference remains in force even with saved Tune MTP results. Desktop
+build23 includes engine1.4.0; the independent engine update requires Desktop
+1.4.0. [Release notes](docs/release-v1.4.0.md) and
+[validation/measurements](docs/mtp-dense-1.4.0-validation.md).
+
+## MTP and independent updates
 
 Desktop now uses native **MTP** for Qwen3.5/3.6 checkpoints with a matching
 MLX affine 4-bit/group64 head. The Qwen3.6-35B-A3B head downloads on demand,
@@ -109,11 +118,13 @@ an older document disagree.
    folder. Select the desired branch, tag or quantization before downloading.
 5. Load the model and start a conversation.
 
-### Optional native MTP for Qwen3.5/3.6
+### Optional native MTP for Qwen3.5/3.6/3.8
 
-In **Generation → MTP**, enable the switch. For Qwen3.6-35B-A3B, MLXL3
-downloads and verifies the matching affine 4-bit head (~453 MiB). Downloads
-resume after cancellation. Other Qwen3.5-family models require a matching
+In **Generation → MTP**, enable the switch. For Qwen3.8-27B (~228 MiB) or
+Qwen3.6-35B-A3B (~453 MiB), MLXL3 downloads and verifies the matching affine
+4-bit head. Switching models cancels obsolete preparation and loads the
+matching head before chat becomes available; OFF releases head and caches.
+Downloads resume after cancellation. Other Qwen3.5-family models require a matching
 MLX 4-bit/group64 head selected through the folder button; mismatched layouts
 are rejected. The DMG contains neither target nor MTP weights.
 

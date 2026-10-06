@@ -37,7 +37,7 @@ swiftc "${swiftc_args[@]}" \
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/updater-check.swift -o "${test_dir}/updater-check"
-"${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"}
+"${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"} ${MLXL3_TEST_ENGINE_VERSION:+"${MLXL3_TEST_ENGINE_VERSION}"}
 
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \

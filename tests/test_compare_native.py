@@ -13,13 +13,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def write_bridge(path, behavior="valid", speed=2):
+def write_bridge(path, behavior="valid", speed=2, expected_mtp=None):
     path.write_text(
         f"#!{sys.executable}\n"
         "import json, os, sys, time\n"
         "from pathlib import Path\n"
         "Path(__file__).with_suffix('.pid').write_text(str(os.getpid()))\n"
         f"behavior, speed = {behavior!r}, {speed!r}\n"
+        f"expected_mtp = {expected_mtp!r}\n"
         "if behavior == 'load_error':\n"
         "    print(json.dumps({'type': 'error', 'message': 'fixture loading failed'}), flush=True)\n"
         "    sys.exit(1)\n"
@@ -33,6 +34,10 @@ def write_bridge(path, behavior="valid", speed=2):
         "for line in sys.stdin:\n"
         "    request = json.loads(line)\n"
         "    if request['type'] == 'shutdown': break\n"
+        "    if expected_mtp is not None:\n"
+        "        assert request['mtp'] == (expected_mtp > 0)\n"
+        "        assert request['mtp_depth'] == max(1, expected_mtp)\n"
+        "        assert request['mtp_head_path'] == (str(Path(__file__).parent / 'head') if expected_mtp else '')\n"
         "    count += 1\n"
         "    rid = request['request_id']\n"
         "    if behavior == 'silent_request': time.sleep(60)\n"
@@ -54,6 +59,10 @@ def write_bridge(path, behavior="valid", speed=2):
         "                 decode_tps=speed, decode_seconds=2, prefill_tps=speed,\n"
         "                 prefill_seconds=1, ttft_seconds=1, elapsed_seconds=3)\n"
         "    token_hash = 'different' if behavior == 'different' else 'fixture-hash'\n"
+        "    if behavior == 'empty_hash': token_hash = ''\n"
+        "    if behavior == 'empty_tokens': stats['generated_tokens'] = 0\n"
+        "    if behavior == 'oversize_tokens': stats['generated_tokens'] += 1\n"
+        "    if behavior == 'bool_tokens': stats['generated_tokens'] = True\n"
         "    if behavior == 'wrong_id': rid = 'unrelated-request'\n"
         "    print(json.dumps({'type': 'delta', 'request_id': rid, 'text': 'same text'}), flush=True)\n"
         "    print(json.dumps({'type': 'complete', 'request_id': rid,\n"
@@ -62,10 +71,12 @@ def write_bridge(path, behavior="valid", speed=2):
     path.chmod(0o755)
 
 
-def run_campaign(tmp_path, behavior="valid", order="ABBA", timeout=30, extra_args=()):
+def run_campaign(
+    tmp_path, behavior="valid", order="ABBA", timeout=30, extra_args=(), expected_mtp=None
+):
     baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
-    write_bridge(baseline)
-    write_bridge(candidate, behavior, speed=4)
+    write_bridge(baseline, expected_mtp=expected_mtp)
+    write_bridge(candidate, behavior, speed=4, expected_mtp=expected_mtp)
     # Disposable condition probes keep this process integration portable.
     for name in ["pmset", "sysctl"]:
         probe = tmp_path / name
@@ -99,6 +110,32 @@ def run_campaign(tmp_path, behavior="valid", order="ABBA", timeout=30, extra_arg
         timeout=timeout,
     )
     return run, output, json.loads((output / "results.json").read_text())
+
+
+@pytest.mark.parametrize("depth", range(4))
+def test_explicit_mtp_modes_and_short_warmup_reach_both_engines(tmp_path, depth):
+    arguments = ["--mtp-depth", str(depth), "--warmup-tokens", "2"]
+    if depth:
+        arguments += ["--mtp-head", str(tmp_path / "head")]
+    run, _, report = run_campaign(tmp_path, extra_args=arguments, expected_mtp=depth)
+    assert run.returncode == 0, run.stderr
+    assert report["status"] == "complete" and report["parity"] is True
+    assert report["protocol"]["mtp_depth"] == depth
+    assert report["protocol"]["warmup_tokens"] == 2
+    for current in report["passes"]:
+        prompt = current["prompts"]["short"]
+        assert prompt["warmup"]["stats"]["generated_tokens"] == 2
+        assert [r["stats"]["generated_tokens"] for r in prompt["runs"]] == [4, 4]
+
+
+@pytest.mark.parametrize(
+    "behavior", ["empty_hash", "empty_tokens", "oversize_tokens", "bool_tokens"]
+)
+def test_empty_or_invalid_outputs_never_certify_a_campaign(tmp_path, behavior):
+    run, _, report = run_campaign(tmp_path, behavior, order="BAAB")
+    assert run.returncode != 0
+    assert report["status"] == "failed" and report["parity"] is None
+    assert "summary" not in report
 
 
 def test_divergent_candidate_is_saved_as_a_failed_pass(tmp_path):

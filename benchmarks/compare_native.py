@@ -1,6 +1,6 @@
 """Alternate two native binaries, warm each prompt and check token/text parity.
 
-No cache reuse, speculative decoding or external tools. Run one campaign at a
+No cache reuse or external tools; optional explicit MTP depth. Run one campaign at a
 time on the physical GPU, with no concurrent builds or other inference.
 """
 
@@ -59,7 +59,7 @@ def event(process, deadline):
     return value
 
 
-def generate(process, prompt, tokens, request_id, timeout):
+def generate(process, prompt, tokens, request_id, timeout, mtp_depth=0, mtp_head=None):
     deadline = time.monotonic() + timeout
     process.send(
         {
@@ -72,7 +72,9 @@ def generate(process, prompt, tokens, request_id, timeout):
             "repetition_penalty": 1.0,
             "reuse_prompt_cache": False,
             "mcp_enabled": False,
-            "mtp": False,
+            "mtp": mtp_depth > 0,
+            "mtp_depth": max(1, mtp_depth),
+            "mtp_head_path": str(mtp_head.resolve()) if mtp_head else "",
             "dflash2": False,
         },
         deadline,
@@ -88,8 +90,11 @@ def generate(process, prompt, tokens, request_id, timeout):
             raise RuntimeError(f"native generation cancelled ({request_id})")
         if value["type"] == "complete":
             stats = value["stats"]
-            if value.get("token_hash") is None:
-                raise RuntimeError("native bridge did not provide a token hash")
+            if not isinstance(value.get("token_hash"), str) or not value["token_hash"]:
+                raise RuntimeError("native bridge did not provide a nonempty token hash")
+            count = stats.get("generated_tokens")
+            if type(count) is not int or not 0 < count <= tokens:
+                raise RuntimeError("native bridge returned an invalid generated token count")
             if stats["cached_prompt_tokens"] != 0:
                 raise RuntimeError("benchmark unexpectedly reused a prompt cache")
             return {
@@ -107,6 +112,9 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--prompt-file", type=Path)
     parser.add_argument("--tokens", type=int, default=48)
+    parser.add_argument("--warmup-tokens", type=int)
+    parser.add_argument("--mtp-depth", type=int, choices=range(4), default=0)
+    parser.add_argument("--mtp-head", type=Path)
     parser.add_argument("--repeats", type=int, default=2)
     parser.add_argument("--order", choices=["ABBA", "BAAB"], default="ABBA")
     parser.add_argument("--settle-seconds", type=float, default=0.0)
@@ -115,13 +123,19 @@ def main():
     parser.add_argument("--baseline-env", action="append", default=[], metavar="NAME=VALUE")
     parser.add_argument("--candidate-env", action="append", default=[], metavar="NAME=VALUE")
     args = parser.parse_args()
+    warmup_tokens = args.tokens if args.warmup_tokens is None else args.warmup_tokens
     if (
         args.tokens <= 1
+        or warmup_tokens <= 0
         or args.repeats <= 0
         or not math.isfinite(args.settle_seconds)
         or args.settle_seconds < 0
     ):
-        parser.error("tokens > 1, repeats > 0 and settle-seconds >= 0 are required")
+        parser.error(
+            "tokens > 1, warmup-tokens > 0, repeats > 0 and settle-seconds >= 0 are required"
+        )
+    if args.mtp_depth > 0 and args.mtp_head is None:
+        parser.error("--mtp-head is required when --mtp-depth > 0")
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("output directory must be empty; preserve previous campaigns")
     environments = {}
@@ -139,6 +153,9 @@ def main():
             "tokens": args.tokens,
             "repeats": args.repeats,
             "warmup_per_prompt": 1,
+            "warmup_tokens": warmup_tokens,
+            "mtp_depth": args.mtp_depth,
+            "mtp_head": str(args.mtp_head.resolve()) if args.mtp_head else None,
             "settle_seconds": args.settle_seconds,
             "load_timeout": args.load_timeout,
             "request_timeout": args.request_timeout,
@@ -221,7 +238,13 @@ def main():
                         for index in range(args.repeats + 1):
                             request_id = f"run-{name}-{index - 1}" if index else f"warm-{name}"
                             run = generate(
-                                process, prompt, args.tokens, request_id, args.request_timeout
+                                process,
+                                prompt,
+                                args.tokens if index else warmup_tokens,
+                                request_id,
+                                args.request_timeout,
+                                args.mtp_depth,
+                                args.mtp_head,
                             )
                             if index:
                                 measured["runs"].append(run)
@@ -233,8 +256,9 @@ def main():
                                 run["text_sha256"],
                                 run["stats"]["generated_tokens"],
                             )
-                            expected.setdefault(name, actual)
-                            if actual != expected[name]:
+                            key = (name, index == 0)
+                            expected.setdefault(key, actual)
+                            if actual != expected[key]:
                                 report["parity"] = False
                                 raise ParityError(f"token/text divergence in {name} pass {label}")
                         measured["medians"] = {

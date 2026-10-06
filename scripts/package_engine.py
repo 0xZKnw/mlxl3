@@ -45,8 +45,18 @@ def manifest(runtime: Path, version: str) -> dict:
         "bridge_protocol": 1,
         "architecture": "arm64",
         "minimum_macos": "26.2.0",
-        "minimum_app_version": "1.2.0",
+        # Older Desktop versions do not pass a target to the MTP downloader.
+        "minimum_app_version": "1.4.0"
+        if tuple(map(int, version.split("."))) >= (1, 4, 0)
+        else "1.2.0",
         "files": records,
+        "notices": {
+            name: (Path(__file__).resolve().parents[1] / path).read_text()
+            for name, path in {
+                "MTPLX": "LICENSES/MTPLX-NOTICE.txt",
+                "Apache-2.0": "LICENSES/Apache-2.0.txt",
+            }.items()
+        },
     }
 
 

@@ -1,0 +1,466 @@
+﻿2026-10-05T21:09:24.7407505Z Current runner version: '2.337.0'
+2026-10-05T21:09:24.7445392Z ##[group]Runner Image Provisioner
+2026-10-05T21:09:24.7446620Z Hosted Compute Agent
+2026-10-05T21:09:24.7447502Z Version: 20260901.588
+2026-10-05T21:09:24.7448821Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-05T21:09:24.7449996Z Build Date: 2026-09-01T19:56:44Z
+2026-10-05T21:09:24.7451154Z Worker ID: {4563b303-6427-4390-b331-a0549937467f}
+2026-10-05T21:09:24.7452651Z Azure Region: eastus2
+2026-10-05T21:09:24.7453739Z ##[endgroup]
+2026-10-05T21:09:24.7456040Z ##[group]Operating System
+2026-10-05T21:09:24.7457055Z Ubuntu
+2026-10-05T21:09:24.7458157Z 24.04.5
+2026-10-05T21:09:24.7459032Z LTS
+2026-10-05T21:09:24.7459808Z ##[endgroup]
+2026-10-05T21:09:24.7460903Z ##[group]Runner Image
+2026-10-05T21:09:24.7462213Z Image: ubuntu-24.04
+2026-10-05T21:09:24.7463283Z Version: 20260927.320.1
+2026-10-05T21:09:24.7465291Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-05T21:09:24.7468125Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+2026-10-05T21:09:24.7469817Z ##[endgroup]
+2026-10-05T21:09:24.7472015Z ##[group]GITHUB_TOKEN Permissions
+2026-10-05T21:09:24.7474647Z Contents: read
+2026-10-05T21:09:24.7475692Z Metadata: read
+2026-10-05T21:09:24.7476600Z ##[endgroup]
+2026-10-05T21:09:24.7479635Z Secret source: Actions
+2026-10-05T21:09:24.7481085Z Cache mode: write
+2026-10-05T21:09:24.7482706Z Prepare workflow directory
+2026-10-05T21:09:24.7963427Z Prepare all required actions
+2026-10-05T21:09:24.8035160Z Getting action download info
+2026-10-05T21:09:25.0445775Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-05T21:09:25.1724815Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-05T21:09:25.3575646Z Complete job name: native (ubuntu-latest)
+2026-10-05T21:09:25.4420555Z ##[group]Run actions/checkout@v4
+2026-10-05T21:09:25.4421901Z with:
+2026-10-05T21:09:25.4422496Z   repository: 0xZKnw/mlxl3
+2026-10-05T21:09:25.4426270Z   token: ***
+2026-10-05T21:09:25.4426725Z   ssh-strict: true
+2026-10-05T21:09:25.4427183Z   ssh-user: git
+2026-10-05T21:09:25.4427634Z   persist-credentials: true
+2026-10-05T21:09:25.4428127Z   clean: true
+2026-10-05T21:09:25.4428585Z   sparse-checkout-cone-mode: true
+2026-10-05T21:09:25.4429112Z   fetch-depth: 1
+2026-10-05T21:09:25.4429539Z   fetch-tags: false
+2026-10-05T21:09:25.4429983Z   show-progress: true
+2026-10-05T21:09:25.4430429Z   lfs: false
+2026-10-05T21:09:25.4430844Z   submodules: false
+2026-10-05T21:09:25.4431296Z   set-safe-directory: true
+2026-10-05T21:09:25.4432013Z   allow-unsafe-pr-checkout: false
+2026-10-05T21:09:25.4432882Z ##[endgroup]
+2026-10-05T21:09:25.5604438Z Syncing repository: 0xZKnw/mlxl3
+2026-10-05T21:09:25.5607139Z ##[group]Getting Git version info
+2026-10-05T21:09:25.5608509Z Working directory is '/home/runner/work/mlxl3/mlxl3'
+2026-10-05T21:09:25.5610189Z [command]/usr/bin/git version
+2026-10-05T21:09:25.5687058Z git version 2.55.0
+2026-10-05T21:09:25.5711176Z ##[endgroup]
+2026-10-05T21:09:25.5731433Z Temporarily overriding HOME='/home/runner/work/_temp/0cbfaa65-aa2c-4d0e-acdd-5145d4ff376f' before making global git config changes
+2026-10-05T21:09:25.5734348Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-05T21:09:25.5737828Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mlxl3/mlxl3
+2026-10-05T21:09:25.5799777Z Deleting the contents of '/home/runner/work/mlxl3/mlxl3'
+2026-10-05T21:09:25.5806078Z ##[group]Initializing the repository
+2026-10-05T21:09:25.5811135Z [command]/usr/bin/git init /home/runner/work/mlxl3/mlxl3
+2026-10-05T21:09:25.5940004Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-05T21:09:25.5942180Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-05T21:09:25.5943862Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-05T21:09:25.5945582Z hint: call:
+2026-10-05T21:09:25.5946345Z hint:
+2026-10-05T21:09:25.5947189Z hint: 	git config --global init.defaultBranch <name>
+2026-10-05T21:09:25.5948218Z hint:
+2026-10-05T21:09:25.5949212Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-05T21:09:25.5950790Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-05T21:09:25.5952325Z hint:
+2026-10-05T21:09:25.5953060Z hint: 	git branch -m <name>
+2026-10-05T21:09:25.5953848Z hint:
+2026-10-05T21:09:25.5954884Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-05T21:09:25.5956437Z Initialized empty Git repository in /home/runner/work/mlxl3/mlxl3/.git/
+2026-10-05T21:09:25.5961851Z [command]/usr/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+2026-10-05T21:09:25.6023038Z ##[endgroup]
+2026-10-05T21:09:25.6024423Z ##[group]Disabling automatic garbage collection
+2026-10-05T21:09:25.6028018Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-05T21:09:25.6065851Z ##[endgroup]
+2026-10-05T21:09:25.6067045Z ##[group]Setting up auth
+2026-10-05T21:09:25.6075286Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-05T21:09:25.6112205Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-05T21:09:25.6537192Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-05T21:09:25.6575762Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-05T21:09:25.6808397Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-05T21:09:25.6846257Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-05T21:09:25.7082778Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-05T21:09:25.7125380Z ##[endgroup]
+2026-10-05T21:09:25.7126334Z ##[group]Fetching the repository
+2026-10-05T21:09:25.7136122Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +637fc8cea26765442a888212744aca98ef4adc9c:refs/remotes/pull/24/merge
+2026-10-05T21:09:26.2352886Z From https://github.com/0xZKnw/mlxl3
+2026-10-05T21:09:26.2354268Z  * [new ref]         637fc8cea26765442a888212744aca98ef4adc9c -> pull/24/merge
+2026-10-05T21:09:26.2357416Z ##[endgroup]
+2026-10-05T21:09:26.2358451Z ##[group]Determining the checkout info
+2026-10-05T21:09:26.2361412Z ##[endgroup]
+2026-10-05T21:09:26.2382708Z [command]/usr/bin/git sparse-checkout disable
+2026-10-05T21:09:26.2446806Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-05T21:09:26.2482760Z ##[group]Checking out the ref
+2026-10-05T21:09:26.2488136Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/24/merge
+2026-10-05T21:09:26.3336048Z Note: switching to 'refs/remotes/pull/24/merge'.
+2026-10-05T21:09:26.3337235Z 
+2026-10-05T21:09:26.3338007Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-05T21:09:26.3339806Z changes and commit them, and you can discard any commits you make in this
+2026-10-05T21:09:26.3341886Z state without impacting any branches by switching back to a branch.
+2026-10-05T21:09:26.3342785Z 
+2026-10-05T21:09:26.3343302Z If you want to create a new branch to retain commits you create, you may
+2026-10-05T21:09:26.3344389Z do so (now or later) by using -c with the switch command. Example:
+2026-10-05T21:09:26.3345054Z 
+2026-10-05T21:09:26.3345392Z   git switch -c <new-branch-name>
+2026-10-05T21:09:26.3345872Z 
+2026-10-05T21:09:26.3346186Z Or undo this operation with:
+2026-10-05T21:09:26.3346911Z 
+2026-10-05T21:09:26.3347120Z   git switch -
+2026-10-05T21:09:26.3347477Z 
+2026-10-05T21:09:26.3348029Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-05T21:09:26.3348934Z 
+2026-10-05T21:09:26.3349979Z HEAD is now at 637fc8c Merge fc41314aa8f82f3b859e668eaaea9685c59a4d13 into c73c2a8414f68acf2b70b1a7e8ccba4a334e8639
+2026-10-05T21:09:26.3358087Z ##[endgroup]
+2026-10-05T21:09:26.3405875Z [command]/usr/bin/git log -1 --format=%H
+2026-10-05T21:09:26.3433782Z 637fc8cea26765442a888212744aca98ef4adc9c
+2026-10-05T21:09:26.3692438Z ##[group]Run rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+2026-10-05T21:09:26.3695133Z [36;1mrustup toolchain install stable --profile minimal --component rustfmt --component clippy[0m
+2026-10-05T21:09:26.3696843Z [36;1mrustup default stable[0m
+2026-10-05T21:09:26.3990875Z shell: /usr/bin/bash -e {0}
+2026-10-05T21:09:26.3992038Z ##[endgroup]
+2026-10-05T21:09:26.6223246Z info: syncing channel updates for stable-x86_64-unknown-linux-gnu
+2026-10-05T21:09:26.7827063Z info: latest update on 2026-10-01 for version 1.99.0 (b940084d7 2026-09-28)
+2026-10-05T21:09:26.7954856Z info: removing previous version of component rustfmt
+2026-10-05T21:09:26.8033809Z info: removing previous version of component clippy
+2026-10-05T21:09:26.8047383Z info: removing previous version of component cargo
+2026-10-05T21:09:26.8141466Z info: removing previous version of component rust-std
+2026-10-05T21:09:26.8193763Z info: removing previous version of component rustc
+2026-10-05T21:09:26.8294842Z info: downloading 5 components
+2026-10-05T21:09:35.0446607Z 
+2026-10-05T21:09:35.0521035Z   stable-x86_64-unknown-linux-gnu updated - rustc 1.99.0 (b940084d7 2026-09-28) (from rustc 1.98.1 (48a229cea 2026-09-01))
+2026-10-05T21:09:35.0521936Z 
+2026-10-05T21:09:35.0640689Z info: using existing install for stable-x86_64-unknown-linux-gnu
+2026-10-05T21:09:35.0650172Z info: default toolchain set to stable-x86_64-unknown-linux-gnu
+2026-10-05T21:09:35.0651034Z 
+2026-10-05T21:09:35.0714073Z   stable-x86_64-unknown-linux-gnu unchanged - rustc 1.99.0 (b940084d7 2026-09-28)
+2026-10-05T21:09:35.0714875Z 
+2026-10-05T21:09:35.0790494Z ##[group]Run cargo fmt --check
+2026-10-05T21:09:35.0790841Z [36;1mcargo fmt --check[0m
+2026-10-05T21:09:35.0857197Z shell: /usr/bin/bash -e {0}
+2026-10-05T21:09:35.0857485Z ##[endgroup]
+2026-10-05T21:09:35.4336884Z ##[group]Run cargo clippy --locked --all-targets --features chat -- -D warnings
+2026-10-05T21:09:35.4337531Z [36;1mcargo clippy --locked --all-targets --features chat -- -D warnings[0m
+2026-10-05T21:09:35.4407012Z shell: /usr/bin/bash -e {0}
+2026-10-05T21:09:35.4407327Z ##[endgroup]
+2026-10-05T21:09:35.5044628Z     Updating crates.io index
+2026-10-05T21:09:35.8557299Z  Downloading crates ...
+2026-10-05T21:09:35.9985396Z   Downloaded anstyle-query v1.1.5
+2026-10-05T21:09:36.0022469Z   Downloaded ryu v1.0.23
+2026-10-05T21:09:36.0061381Z   Downloaded serde_derive v1.0.229
+2026-10-05T21:09:36.0126455Z   Downloaded serde_core v1.0.229
+2026-10-05T21:09:36.0158169Z   Downloaded clap_lex v1.1.0
+2026-10-05T21:09:36.0186600Z   Downloaded anstyle v1.0.14
+2026-10-05T21:09:36.0204726Z   Downloaded pin-project-lite v0.2.17
+2026-10-05T21:09:36.0274127Z   Downloaded anstyle-parse v1.0.0
+2026-10-05T21:09:36.0294505Z   Downloaded serde_json v1.0.151
+2026-10-05T21:09:36.0385364Z   Downloaded tokenizers v0.23.2
+2026-10-05T21:09:36.0506228Z   Downloaded time-core v0.1.9
+2026-10-05T21:09:36.0525011Z   Downloaded anstream v1.0.0
+2026-10-05T21:09:36.0556138Z   Downloaded console v0.16.6
+2026-10-05T21:09:36.0578626Z   Downloaded cfg-if v1.0.4
+2026-10-05T21:09:36.0593506Z   Downloaded version_check v0.9.5
+2026-10-05T21:09:36.0607809Z   Downloaded unit-prefix v0.5.2
+2026-10-05T21:09:36.0624954Z   Downloaded want v0.3.1
+2026-10-05T21:09:36.0633549Z   Downloaded minijinja-contrib v2.24.0
+2026-10-05T21:09:36.0659886Z   Downloaded num-conv v0.2.2
+2026-10-05T21:09:36.0670231Z   Downloaded castaway v0.2.4
+2026-10-05T21:09:36.0688480Z   Downloaded dary_heap v0.3.9
+2026-10-05T21:09:36.0704017Z   Downloaded either v1.18.0
+2026-10-05T21:09:36.0725249Z   Downloaded find-msvc-tools v0.1.12
+2026-10-05T21:09:36.0749129Z   Downloaded http-body v0.4.6
+2026-10-05T21:09:36.0772530Z   Downloaded serde v1.0.229
+2026-10-05T21:09:36.0827119Z   Downloaded slab v0.4.12
+2026-10-05T21:09:36.0843278Z   Downloaded thiserror v2.0.20
+2026-10-05T21:09:36.0908860Z   Downloaded thiserror-impl v2.0.20
+2026-10-05T21:09:36.0924213Z   Downloaded ahash v0.8.12
+2026-10-05T21:09:36.0947464Z   Downloaded strsim v0.11.1
+2026-10-05T21:09:36.0960742Z   Downloaded shlex v2.0.1
+2026-10-05T21:09:36.0973709Z   Downloaded socket2 v0.6.3
+2026-10-05T21:09:36.0991653Z   Downloaded utf8parse v0.2.2
+2026-10-05T21:09:36.1001304Z   Downloaded zmij v1.0.23
+2026-10-05T21:09:36.1018883Z   Downloaded tokio-macros v2.6.1
+2026-10-05T21:09:36.1029639Z   Downloaded tower-service v0.3.3
+2026-10-05T21:09:36.1037337Z   Downloaded try-lock v0.2.5
+2026-10-05T21:09:36.1046104Z   Downloaded base64 v0.13.1
+2026-10-05T21:09:36.1075347Z   Downloaded bytes v1.11.1
+2026-10-05T21:09:36.1116903Z   Downloaded signal-hook-registry v1.4.8
+2026-10-05T21:09:36.1131037Z   Downloaded daachorse v3.0.3
+2026-10-05T21:09:36.1164043Z   Downloaded darling_core v0.20.11
+2026-10-05T21:09:36.1215562Z   Downloaded deranged v0.5.8
+2026-10-05T21:09:36.1229474Z   Downloaded time-macros v0.2.32
+2026-10-05T21:09:36.1254559Z   Downloaded crossbeam-utils v0.8.23
+2026-10-05T21:09:36.1282845Z   Downloaded clap v4.6.6
+2026-10-05T21:09:36.1381557Z   Downloaded http v0.2.12
+2026-10-05T21:09:36.1417876Z   Downloaded smallvec v1.16.1
+2026-10-05T21:09:36.1431761Z   Downloaded compact_str v0.9.1
+2026-10-05T21:09:36.1465355Z   Downloaded derive_builder_core v0.20.2
+2026-10-05T21:09:36.1485175Z   Downloaded unicode-ident v1.0.24
+2026-10-05T21:09:36.1512993Z   Downloaded fnv v1.0.7
+2026-10-05T21:09:36.1521683Z   Downloaded futures-channel v0.3.32
+2026-10-05T21:09:36.1539991Z   Downloaded futures-core v0.3.34
+2026-10-05T21:09:36.1553534Z   Downloaded quote v1.0.47
+2026-10-05T21:09:36.1580682Z   Downloaded colorchoice v1.0.5
+2026-10-05T21:09:36.1590489Z   Downloaded darling v0.20.11
+2026-10-05T21:09:36.1640482Z   Downloaded indicatif v0.18.6
+2026-10-05T21:09:36.1676169Z   Downloaded signal-hook v0.3.18
+2026-10-05T21:09:36.1706486Z   Downloaded tempfile v3.27.0
+2026-10-05T21:09:36.1731863Z   Downloaded unicode_categories v0.1.1
+2026-10-05T21:09:36.1749381Z   Downloaded zerocopy-derive v0.8.57
+2026-10-05T21:09:36.1844724Z   Downloaded derive_builder v0.20.2
+2026-10-05T21:09:36.1895516Z   Downloaded half v2.7.1
+2026-10-05T21:09:36.1922842Z   Downloaded log v0.4.34
+2026-10-05T21:09:36.1947800Z   Downloaded unicode-normalization-alignments v0.1.12
+2026-10-05T21:09:36.1975316Z   Downloaded errno v0.3.14
+2026-10-05T21:09:36.1990099Z   Downloaded rayon-cond v0.4.0
+2026-10-05T21:09:36.2000954Z   Downloaded static_assertions v1.1.0
+2026-10-05T21:09:36.2015368Z   Downloaded tracing-core v0.1.36
+2026-10-05T21:09:36.2041606Z   Downloaded socket2 v0.5.10
+2026-10-05T21:09:36.2059705Z   Downloaded macro_rules_attribute v0.2.3
+2026-10-05T21:09:36.2074959Z   Downloaded futures-task v0.3.34
+2026-10-05T21:09:36.2087109Z   Downloaded is_terminal_polyfill v1.70.2
+2026-10-05T21:09:36.2096782Z   Downloaded paste v1.0.15
+2026-10-05T21:09:36.2130607Z   Downloaded memo-map v0.3.4
+2026-10-05T21:09:36.2145358Z   Downloaded tokio-util v0.7.18
+2026-10-05T21:09:36.2225987Z   Downloaded clap_builder v4.6.6
+2026-10-05T21:09:36.2291075Z   Downloaded fs2 v0.4.3
+2026-10-05T21:09:36.2303945Z   Downloaded httpdate v1.0.3
+2026-10-05T21:09:36.2317219Z   Downloaded ident_case v1.0.1
+2026-10-05T21:09:36.2326717Z   Downloaded pastey v0.2.3
+2026-10-05T21:09:36.2340343Z   Downloaded pkg-config v0.3.34
+2026-10-05T21:09:36.2356895Z   Downloaded unicode-segmentation v1.13.3
+2026-10-05T21:09:36.2386624Z   Downloaded memchr v2.8.3
+2026-10-05T21:09:36.2445400Z   Downloaded time v0.3.55
+2026-10-05T21:09:36.2595403Z   Downloaded httparse v1.10.1
+2026-10-05T21:09:36.2622177Z   Downloaded proc-macro2 v1.0.107
+2026-10-05T21:09:36.2651875Z   Downloaded bitflags v2.13.2
+2026-10-05T21:09:36.2697544Z   Downloaded indexmap v2.13.0
+2026-10-05T21:09:36.2740200Z   Downloaded rayon-core v1.13.0
+2026-10-05T21:09:36.2777613Z   Downloaded rand v0.9.5
+2026-10-05T21:09:36.2815428Z   Downloaded futures-util v0.3.34
+2026-10-05T21:09:36.2950122Z   Downloaded nom v7.1.3
+2026-10-05T21:09:36.3001168Z   Downloaded zerocopy v0.8.57
+2026-10-05T21:09:36.3218920Z   Downloaded unicode-width v0.2.2
+2026-10-05T21:09:36.3274589Z   Downloaded syn v2.0.119
+2026-10-05T21:09:36.3381526Z   Downloaded syn v3.0.5
+2026-10-05T21:09:36.3487888Z   Downloaded tracing v0.1.44
+2026-10-05T21:09:36.3643274Z   Downloaded regex-syntax v0.8.11
+2026-10-05T21:09:36.3710150Z   Downloaded spm_precompiled v0.1.4
+2026-10-05T21:09:36.3781028Z   Downloaded regex-automata v0.4.18
+2026-10-05T21:09:36.3923559Z   Downloaded crossbeam-epoch v0.9.21
+2026-10-05T21:09:36.3948074Z   Downloaded libc v0.2.189
+2026-10-05T21:09:36.4399040Z   Downloaded tokio v1.50.0
+2026-10-05T21:09:36.4854954Z   Downloaded getrandom v0.3.4
+2026-10-05T21:09:36.4891980Z   Downloaded clap_derive v4.6.4
+2026-10-05T21:09:36.4915339Z   Downloaded itertools v0.14.0
+2026-10-05T21:09:36.4987769Z   Downloaded crossbeam-deque v0.8.8
+2026-10-05T21:09:36.5004021Z   Downloaded linux-raw-sys v0.12.1
+2026-10-05T21:09:36.5637938Z   Downloaded regex v1.13.1
+2026-10-05T21:09:36.5693383Z   Downloaded derive_builder_macro v0.20.2
+2026-10-05T21:09:36.5701299Z   Downloaded esaxx-rs v0.1.10
+2026-10-05T21:09:36.5735951Z   Downloaded cc v1.4.5
+2026-10-05T21:09:36.5766716Z   Downloaded darling_macro v0.20.11
+2026-10-05T21:09:36.5773702Z   Downloaded anyhow v1.0.104
+2026-10-05T21:09:36.5814861Z   Downloaded macro_rules_attribute-proc_macro v0.2.3
+2026-10-05T21:09:36.5823434Z   Downloaded once_cell v1.21.4
+2026-10-05T21:09:36.5848416Z   Downloaded rand_chacha v0.9.0
+2026-10-05T21:09:36.5860614Z   Downloaded monostate v0.1.18
+2026-10-05T21:09:36.5883746Z   Downloaded aho-corasick v1.1.5
+2026-10-05T21:09:36.5945180Z   Downloaded fastrand v2.5.0
+2026-10-05T21:09:36.5959928Z   Downloaded equivalent v1.0.2
+2026-10-05T21:09:36.5971396Z   Downloaded heck v0.5.0
+2026-10-05T21:09:36.5984768Z   Downloaded powerfmt v0.2.0
+2026-10-05T21:09:36.5996121Z   Downloaded futures-sink v0.3.32
+2026-10-05T21:09:36.6005203Z   Downloaded itoa v1.0.18
+2026-10-05T21:09:36.6021283Z   Downloaded monostate-impl v0.1.18
+2026-10-05T21:09:36.6031047Z   Downloaded mio v1.2.0
+2026-10-05T21:09:36.6096066Z   Downloaded ppv-lite86 v0.2.21
+2026-10-05T21:09:36.6110730Z   Downloaded rand_core v0.9.5
+2026-10-05T21:09:36.6124741Z   Downloaded getrandom v0.4.3
+2026-10-05T21:09:36.6163691Z   Downloaded onig v6.5.3
+2026-10-05T21:09:36.6186565Z   Downloaded minimal-lexical v0.2.1
+2026-10-05T21:09:36.6234753Z   Downloaded hashbrown v0.16.1
+2026-10-05T21:09:36.6287571Z   Downloaded rustix v1.1.4
+2026-10-05T21:09:36.6566839Z   Downloaded h2 v0.3.27
+2026-10-05T21:09:36.6630453Z   Downloaded portable-atomic v1.15.0
+2026-10-05T21:09:36.6705713Z   Downloaded hyper v0.14.32
+2026-10-05T21:09:36.6781823Z   Downloaded minijinja v2.24.0
+2026-10-05T21:09:36.6838980Z   Downloaded rayon v1.12.0
+2026-10-05T21:09:36.6935789Z   Downloaded rustversion v1.0.23
+2026-10-05T21:09:36.6964754Z   Downloaded onig_sys v69.9.3
+2026-10-05T21:09:36.7644878Z    Compiling proc-macro2 v1.0.107
+2026-10-05T21:09:36.7645570Z    Compiling quote v1.0.47
+2026-10-05T21:09:36.7646292Z    Compiling unicode-ident v1.0.24
+2026-10-05T21:09:36.7647384Z    Compiling libc v0.2.189
+2026-10-05T21:09:36.8212562Z    Compiling serde_core v1.0.229
+2026-10-05T21:09:36.9344734Z     Checking cfg-if v1.0.4
+2026-10-05T21:09:36.9577867Z    Compiling serde v1.0.229
+2026-10-05T21:09:37.1552410Z    Compiling shlex v2.0.1
+2026-10-05T21:09:37.3222520Z    Compiling find-msvc-tools v0.1.12
+2026-10-05T21:09:37.7412426Z    Compiling cc v1.4.5
+2026-10-05T21:09:37.8722562Z    Compiling syn v2.0.119
+2026-10-05T21:09:38.0892662Z    Compiling syn v3.0.5
+2026-10-05T21:09:38.7672671Z    Compiling zerocopy v0.8.57
+2026-10-05T21:09:39.1588498Z    Compiling crossbeam-utils v0.8.23
+2026-10-05T21:09:39.3112669Z     Checking once_cell v1.21.4
+2026-10-05T21:09:39.4317723Z    Compiling strsim v0.11.1
+2026-10-05T21:09:39.6523039Z    Compiling fnv v1.0.7
+2026-10-05T21:09:39.6833288Z     Checking itoa v1.0.18
+2026-10-05T21:09:39.6902653Z    Compiling crossbeam-epoch v0.9.21
+2026-10-05T21:09:39.7622922Z     Checking pin-project-lite v0.2.17
+2026-10-05T21:09:39.7973233Z    Compiling ident_case v1.0.1
+2026-10-05T21:09:39.8133283Z    Compiling getrandom v0.3.4
+2026-10-05T21:09:39.8462993Z     Checking memchr v2.8.3
+2026-10-05T21:09:40.2043157Z     Checking errno v0.3.14
+2026-10-05T21:09:40.2523362Z    Compiling crossbeam-deque v0.8.8
+2026-10-05T21:09:40.2922632Z     Checking bytes v1.11.1
+2026-10-05T21:09:40.5232525Z     Checking signal-hook-registry v1.4.8
+2026-10-05T21:09:40.6763130Z    Compiling rustversion v1.0.23
+2026-10-05T21:09:40.6882634Z     Checking futures-core v0.3.34
+2026-10-05T21:09:40.7402448Z    Compiling rayon-core v1.13.0
+2026-10-05T21:09:40.8303110Z    Compiling pkg-config v0.3.34
+2026-10-05T21:09:40.9847309Z    Compiling darling_core v0.20.11
+2026-10-05T21:09:41.2670571Z    Compiling onig_sys v69.9.3
+2026-10-05T21:09:41.4333137Z     Checking mio v1.2.0
+2026-10-05T21:09:41.6723076Z     Checking socket2 v0.6.3
+2026-10-05T21:09:41.9313005Z     Checking bitflags v2.13.2
+2026-10-05T21:09:41.9403444Z    Compiling serde_derive v1.0.229
+2026-10-05T21:09:42.0242550Z     Checking either v1.18.0
+2026-10-05T21:09:42.1652743Z    Compiling version_check v0.9.5
+2026-10-05T21:09:42.3633813Z    Compiling zmij v1.0.23
+2026-10-05T21:09:42.5046858Z     Checking utf8parse v0.2.2
+2026-10-05T21:09:42.5382997Z    Compiling portable-atomic v1.15.0
+2026-10-05T21:09:42.7013338Z    Compiling zerocopy-derive v0.8.57
+2026-10-05T21:09:42.8242837Z    Compiling tokio-macros v2.6.1
+2026-10-05T21:09:43.3073129Z     Checking tokio v1.50.0
+2026-10-05T21:09:43.4283143Z    Compiling darling_macro v0.20.11
+2026-10-05T21:09:43.6303106Z    Compiling darling v0.20.11
+2026-10-05T21:09:43.6724397Z    Compiling derive_builder_core v0.20.2
+2026-10-05T21:09:44.5732806Z     Checking anstyle-parse v1.0.0
+2026-10-05T21:09:44.6758477Z    Compiling ahash v0.8.12
+2026-10-05T21:09:44.7733041Z     Checking http v0.2.12
+2026-10-05T21:09:46.0286902Z     Checking rand_core v0.9.5
+2026-10-05T21:09:46.1258564Z     Checking aho-corasick v1.1.5
+2026-10-05T21:09:46.3785602Z    Compiling esaxx-rs v0.1.10
+2026-10-05T21:09:46.4897818Z     Checking tracing-core v0.1.36
+2026-10-05T21:09:46.7532732Z    Compiling serde_json v1.0.151
+2026-10-05T21:09:46.7752763Z     Checking futures-sink v0.3.32
+2026-10-05T21:09:46.8238098Z     Checking colorchoice v1.0.5
+2026-10-05T21:09:46.8493878Z     Checking anstyle v1.0.14
+2026-10-05T21:09:46.8653092Z    Compiling httparse v1.10.1
+2026-10-05T21:09:46.9543141Z     Checking hashbrown v0.16.1
+2026-10-05T21:09:47.0424114Z     Checking equivalent v1.0.2
+2026-10-05T21:09:47.0673524Z     Checking unicode-width v0.2.2
+2026-10-05T21:09:47.2202624Z    Compiling thiserror v2.0.20
+2026-10-05T21:09:47.3873335Z     Checking futures-task v0.3.34
+2026-10-05T21:09:47.3994280Z     Checking is_terminal_polyfill v1.70.2
+2026-10-05T21:09:47.4273042Z    Compiling paste v1.0.15
+2026-10-05T21:09:47.4300214Z     Checking regex-syntax v0.8.11
+2026-10-05T21:09:47.5582657Z     Checking minimal-lexical v0.2.1
+2026-10-05T21:09:47.6622739Z     Checking ppv-lite86 v0.2.21
+2026-10-05T21:09:47.7033136Z    Compiling rustix v1.1.4
+2026-10-05T21:09:47.9003525Z     Checking anstyle-query v1.1.5
+2026-10-05T21:09:47.9322515Z    Compiling getrandom v0.4.3
+2026-10-05T21:09:47.9389836Z     Checking rand_chacha v0.9.0
+2026-10-05T21:09:48.0530593Z     Checking anstream v1.0.0
+2026-10-05T21:09:48.1252721Z     Checking nom v7.1.3
+2026-10-05T21:09:48.1893592Z     Checking futures-util v0.3.34
+2026-10-05T21:09:48.7962681Z     Checking regex-automata v0.4.18
+2026-10-05T21:09:49.3332931Z     Checking indexmap v2.13.0
+2026-10-05T21:09:49.3722751Z     Checking console v0.16.6
+2026-10-05T21:09:49.6502663Z     Checking tokio-util v0.7.18
+2026-10-05T21:09:49.9012713Z     Checking tracing v0.1.44
+2026-10-05T21:09:50.0142770Z     Checking castaway v0.2.4
+2026-10-05T21:09:50.0530931Z     Checking rayon v1.12.0
+2026-10-05T21:09:50.7103816Z    Compiling derive_builder_macro v0.20.2
+2026-10-05T21:09:50.8196698Z    Compiling monostate-impl v0.1.18
+2026-10-05T21:09:50.9465541Z     Checking itertools v0.14.0
+2026-10-05T21:09:51.2844996Z    Compiling thiserror-impl v2.0.20
+2026-10-05T21:09:51.7302765Z     Checking static_assertions v1.1.0
+2026-10-05T21:09:51.7476729Z    Compiling heck v0.5.0
+2026-10-05T21:09:51.8308859Z    Compiling anyhow v1.0.104
+2026-10-05T21:09:51.9423219Z     Checking base64 v0.13.1
+2026-10-05T21:09:52.1264780Z    Compiling macro_rules_attribute-proc_macro v0.2.3
+2026-10-05T21:09:52.1297657Z    Compiling signal-hook v0.3.18
+2026-10-05T21:09:52.1807680Z     Checking memo-map v0.3.4
+2026-10-05T21:09:52.2284800Z     Checking unicode-segmentation v1.13.3
+2026-10-05T21:09:52.2908202Z     Checking smallvec v1.16.1
+2026-10-05T21:09:52.3745315Z    Compiling pastey v0.2.3
+2026-10-05T21:09:52.4202767Z     Checking slab v0.4.12
+2026-10-05T21:09:52.4824879Z     Checking clap_lex v1.1.0
+2026-10-05T21:09:52.5422750Z     Checking ryu v1.0.23
+2026-10-05T21:09:52.5955306Z     Checking linux-raw-sys v0.12.1
+2026-10-05T21:09:52.6169634Z     Checking try-lock v0.2.5
+2026-10-05T21:09:52.6410560Z     Checking unit-prefix v0.5.2
+2026-10-05T21:09:52.6751357Z     Checking indicatif v0.18.6
+2026-10-05T21:09:52.8819517Z     Checking want v0.3.1
+2026-10-05T21:09:52.9146804Z     Checking macro_rules_attribute v0.2.3
+2026-10-05T21:09:52.9317198Z     Checking compact_str v0.9.1
+2026-10-05T21:09:53.1429271Z     Checking clap_builder v4.6.6
+2026-10-05T21:09:53.6776537Z     Checking h2 v0.3.27
+2026-10-05T21:09:54.1145317Z     Checking spm_precompiled v0.1.4
+2026-10-05T21:09:54.1948829Z     Checking unicode-normalization-alignments v0.1.12
+2026-10-05T21:09:54.4937506Z     Checking minijinja v2.24.0
+2026-10-05T21:09:55.1174499Z    Compiling clap_derive v4.6.4
+2026-10-05T21:09:55.7320608Z     Checking rayon-cond v0.4.0
+2026-10-05T21:09:55.7996453Z     Checking monostate v0.1.18
+2026-10-05T21:09:55.8972152Z     Checking derive_builder v0.20.2
+2026-10-05T21:09:56.2270898Z     Checking regex v1.13.1
+2026-10-05T21:09:56.5024759Z     Checking rand v0.9.5
+2026-10-05T21:09:56.5834176Z     Checking http-body v0.4.6
+2026-10-05T21:09:56.6913667Z     Checking dary_heap v0.3.9
+2026-10-05T21:09:56.7642224Z     Checking futures-channel v0.3.32
+2026-10-05T21:09:56.8722902Z     Checking socket2 v0.5.10
+2026-10-05T21:09:56.8872499Z     Checking daachorse v3.0.3
+2026-10-05T21:09:56.9137831Z     Checking deranged v0.5.8
+2026-10-05T21:09:57.0372684Z     Checking onig v6.5.3
+2026-10-05T21:09:57.0793039Z     Checking httpdate v1.0.3
+2026-10-05T21:09:57.1482582Z     Checking tower-service v0.3.3
+2026-10-05T21:09:57.1832312Z     Checking log v0.4.34
+2026-10-05T21:09:57.1882493Z     Checking fastrand v2.5.0
+2026-10-05T21:09:57.2662962Z     Checking time-core v0.1.9
+2026-10-05T21:09:57.2882270Z     Checking powerfmt v0.2.0
+2026-10-05T21:09:57.3732493Z     Checking num-conv v0.2.2
+2026-10-05T21:09:57.4122547Z     Checking unicode_categories v0.1.1
+2026-10-05T21:09:57.4723294Z    Compiling mlxl3-native v1.4.0 (/home/runner/work/mlxl3/mlxl3)
+2026-10-05T21:09:57.4823125Z     Checking tempfile v3.27.0
+2026-10-05T21:09:57.5162116Z     Checking tokenizers v0.23.2
+2026-10-05T21:09:57.6193469Z     Checking hyper v0.14.32
+2026-10-05T21:09:57.8302816Z     Checking clap v4.6.6
+2026-10-05T21:09:57.8552424Z     Checking minijinja-contrib v2.24.0
+2026-10-05T21:09:57.9052982Z     Checking time v0.3.55
+2026-10-05T21:09:58.2152535Z     Checking half v2.7.1
+2026-10-05T21:09:58.4333107Z     Checking fs2 v0.4.3
+2026-10-05T21:10:00.6895491Z error: function `mtp_add_norm_launch` is never used
+2026-10-05T21:10:00.6922490Z  --> native/src/contracts.rs:4:15
+2026-10-05T21:10:00.6952461Z   |
+2026-10-05T21:10:00.6982862Z 4 | pub(crate) fn mtp_add_norm_launch(rows: i32, width: i32) -> Option<(i32, i32)> {
+2026-10-05T21:10:00.6992317Z   |               ^^^^^^^^^^^^^^^^^^^
+2026-10-05T21:10:00.7012150Z   |
+2026-10-05T21:10:00.7102783Z   = note: `-D dead-code` implied by `-D warnings`
+2026-10-05T21:10:00.7104088Z   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+2026-10-05T21:10:00.7131993Z 
+2026-10-05T21:10:00.8712416Z error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+2026-10-05T21:10:00.8713396Z warning: build failed, waiting for other jobs to finish...
+2026-10-05T21:10:01.0285206Z ##[error]Process completed with exit code 101.
+2026-10-05T21:10:01.0470794Z Post job cleanup.
+2026-10-05T21:10:01.1362161Z [command]/usr/bin/git version
+2026-10-05T21:10:01.1409205Z git version 2.55.0
+2026-10-05T21:10:01.1459766Z Temporarily overriding HOME='/home/runner/work/_temp/3bc74255-6ece-4e91-9291-b14196da3ac6' before making global git config changes
+2026-10-05T21:10:01.1460552Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-05T21:10:01.1461150Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mlxl3/mlxl3
+2026-10-05T21:10:01.1505131Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-05T21:10:01.1545629Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-05T21:10:01.1802725Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-05T21:10:01.1834609Z http.https://github.com/.extraheader
+2026-10-05T21:10:01.1851685Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-05T21:10:01.1892122Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-05T21:10:01.2157685Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-05T21:10:01.2195746Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-05T21:10:01.2586668Z Cleaning up orphan processes
+2026-10-05T21:10:01.2879972Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

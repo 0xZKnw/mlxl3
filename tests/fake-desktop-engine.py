@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Isolated engine lifecycle fixture, never imports MLX or user configuration."""
 import json
+import os
 import signal
 import sys
 import time
@@ -79,7 +80,21 @@ if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
     sys.exit(0)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
-    print(json.dumps({'type': 'installed', 'path': '/tmp/mlxl3-fixture-mtp'}), flush=True)
+    target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
+    if '/auto-' in target:
+        with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
+            log.write(json.dumps({'args': sys.argv[1:], 'pid': os.getpid()}) + '\n')
+        if target.endswith('auto-fail'):
+            print('fixture head download failed', file=sys.stderr)
+            sys.exit(1)
+        if target.endswith('auto-slow'):
+            print(json.dumps({'type': 'progress', 'completed': 1, 'total': 100}), flush=True)
+            time.sleep(1)
+    head = '/tmp/mlxl3-fixture-mtp-' + ('dense' if target.endswith(('auto-dense', 'auto-slow')) else 'moe') if '/auto-' in target else '/tmp/mlxl3-fixture-mtp'
+    if '--inspect' in sys.argv and sys.argv[sys.argv.index('--inspect') + 1] != head:
+        print('fixture head incompatible with target', file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({'type': 'installed', 'path': head}), flush=True)
     sys.exit(0)
 
 model = sys.argv[2]
@@ -90,15 +105,26 @@ def cancel(*_):
 signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
-mtp_capable = model == 'renamed' or model.startswith('mtp-')
+mtp_capable = model == 'renamed' or model.startswith(('mtp-', 'auto-'))
 tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 3, 'mtp_tune_supported': mtp_capable, 'mtp_tuning_key': tuning_key}
+if model.startswith('auto-'):
+    capabilities['mtp_configure_supported'] = True
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
      **capabilities,
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
     request = json.loads(line)
+    if request['type'] == 'set_mtp':
+        with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
+            log.write(json.dumps({'model': model, 'request': request, 'pid': os.getpid()}) + '\n')
+        expected = '/tmp/mlxl3-fixture-mtp-' + ('dense' if model in ('auto-dense', 'auto-slow') else 'moe')
+        if request['enabled'] and request['mtp_head_path'] != expected:
+            emit('error', request_id=request['request_id'], message='foreign head reached bridge')
+        else:
+            emit('mtp_status', request_id=request['request_id'], mtp_active=request['enabled'])
+        continue
     if request['type'] == 'tune_mtp':
         cancelled = False
         for step in range(12):
@@ -116,9 +142,9 @@ for line in sys.stdin:
                 emit('error', message='unreadable engine response')
                 continue
             rates = [50, 60, 75, 70] if model != 'mtp-baseline' else [50, 49, 51, 50]
-            rows = [dict(depth=d, decode_tps=rate, decode_tokens=190, decode_seconds=190/rate,
-                         accepted_tokens=0 if d == 0 else 40, proposed_tokens=0 if d == 0 else 80,
-                         eligible=True, reason=None, token_hashes=['prompt-a', 'prompt-b']) for d, rate in enumerate(rates)]
+            rows = [{"depth": d, "decode_tps": rate, "decode_tokens": 190, "decode_seconds": 190/rate,
+                     "accepted_tokens": 0 if d == 0 else 40, "proposed_tokens": 0 if d == 0 else 80,
+                     "eligible": True, "reason": None, "token_hashes": ['prompt-a', 'prompt-b']} for d, rate in enumerate(rates)]
             if model == 'mtp-collapse':
                 rows[3].update(decode_tps=100, decode_seconds=1.9, accepted_tokens=0, eligible=False, reason='zero_acceptance')
             if model == 'mtp-invalid':

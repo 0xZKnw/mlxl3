@@ -1,0 +1,148 @@
+   Compiling mlxl3-native v1.4.0 (/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 33.87s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-4065964590dc0f58)
+
+running 87 tests
+test affine::tests::routed_gather_matches_checked_and_rejects_wrong_experts ... ignored, physical Apple GPU
+test array::tests::checkpoint_reads_larger_than_darwin_syscall_limit ... ignored, requires Apple GPU and a temporary 2 GiB allocation
+test array::tests::clear_cache_preserves_live_arrays_and_releases_unused_buffers ... ignored, requires physical Apple GPU; run alone (global allocator cache)
+test array::tests::fused_mtp_norm_matches_stock_outputs_and_fallbacks ... ignored, physical Apple GPU; run alone, optional MLXL3_NORM_BENCH=1 after parity
+test array::tests::native_array_and_kernel_smoke ... ignored, requires Apple GPU; run explicitly outside sandbox
+test codec::tests::permutation_is_bijective ... ok
+test contracts::gdn_history_capacity_covers_partial_commits ... ok
+test contracts::dense_qmm_large_tile_preserves_ragged_and_small_fallbacks ... ok
+test contracts::gdn_tape_requires_a_valid_commit ... ok
+test array::tests::validates_before_entering_mlx ... ok
+test contracts::mtp_cache_append_checks_empty_negative_and_overflowing_positions ... ok
+test contracts::older_gpus_never_select_tensor_ops ... ok
+test contracts::qmv_pair_layout_covers_rows_and_bounds_padding ... ok
+test codec::tests::codebooks_are_finite_exhaustively ... ok
+test dflash::tests::benchmarks_dflash_convolution_kernels ... ignored, requires Apple M5
+test dflash::tests::benchmarks_dflash_end_to_end_greedy ... ignored, requires Apple M5 plus the local Qwen target and DFlash package
+test dflash::tests::benchmarks_real_q4_qkv_kernels ... ignored, requires Apple M5 and the downloaded DFlash package
+test dflash::tests::benchmarks_the_six_layer_draft_graph ... ignored, requires Apple M5 and the downloaded DFlash package
+test dflash::tests::current_draft_rows_attend_each_other ... ignored, requires Apple GPU
+test codec::tests::pack_tail_biting_all_bitrates ... ok
+test dflash::tests::draft_capture_window_keeps_the_checkpoint_and_prompt_suffix ... ok
+test dflash::tests::draft_prefill_suffix_matches_full_cache_exactly ... ignored, requires local DFlash checkpoint and Apple GPU
+test dflash::tests::draft_prefix_cache_clone_keeps_all_kv_bytes ... ignored, requires local DFlash checkpoint and Apple GPU
+test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+test dflash::tests::loads_the_complete_real_draft_weights ... ignored, requires Apple M5 and the downloaded DFlash package
+test gated_delta::tests::compact_gate_history_matches_every_serial_prefix ... ignored, requires Apple GPU
+test gated_delta::tests::packed_step_with_gates_matches_graph ... ignored, requires Apple GPU
+test dflash::tests::plans_match_the_published_splash_layout ... ok
+test gated_delta::tests::tape_replay_matches_every_serial_prefix ... ignored, requires Apple GPU
+test gated_delta::tests::vector_batch_matches_serial_steps ... ignored, requires Apple GPU
+test gated_delta::tests::vector_step_matches_one_hot_update ... ignored, requires Apple GPU
+test gated_delta::tests::vector_step_with_beta_matches_graph ... ignored, requires Apple GPU
+test gpu::tests::metal_codec_matches_cpu ... ignored, requires physical Apple GPU; run cargo test -- --ignored
+test linear::tests::batch_grouped_qmv_shared_rows_match_serial ... ignored, requires local Qwen checkpoint and Apple M5 GPU
+test linear::tests::batch_qmv_eight_rows_matches_serial ... ignored, requires local Qwen checkpoint and Apple M5 GPU
+test ling::tests::batched_prefill_matches_serial_state ... ignored, requires local Ling checkpoint and Apple GPU
+test ling::tests::ling_serial_prefill_skips_only_unused_heads ... ignored, requires local Ling checkpoint and Apple GPU
+test gemma4::tests::parses_gemma_rope_defaults ... ok
+test ling::tests::parses_ling_tiny_config ... ok
+test ling::tests::profile_batched_prefill_layers ... ignored, requires local Ling checkpoint and Apple GPU
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test ling::tests::profile_decode_components ... ignored, requires local Ling checkpoint and Apple GPU
+test ling::tests::profile_decode_moe ... ignored, requires local Ling checkpoint and Apple GPU
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test moe::tests::small_routed_input_matches_array_reference ... ignored, requires an Apple GPU
+test mtp::native::cache_tests::cache_only_matches_full_head_and_next_prediction ... ignored, requires local Qwen/MTP checkpoints and physical Apple GPU
+test mcp::tests::parses_json_and_sse_responses ... ok
+test qwen35::tests::captured_prefill_keeps_uncaptured_target_state ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::checkpoint_optimization_matches_saved_logits_and_states ... ignored, requires MLXL3_QWEN_TEST_MODEL, reference directory and physical Apple GPU
+test qwen35::tests::deferred_target_verification_matches_sequential ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::dense_gate_rows_match_serial ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::dflash_limited_head_matches_full_rows ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::fused_gdn_preparation_matches_mlx ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::long_prefix_verification_keeps_exact_state ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::long_prompt_dflash_capture_keeps_target_exact ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::mtp_prefill_verification_and_rollback_match_target ... ignored, requires local Qwen checkpoint and physical Apple GPU
+test qwen35::tests::mtp_recursive_sessions_match_greedy_and_exact_caches ... ignored, requires local Qwen/MTP checkpoints and physical Apple GPU
+test qwen35::tests::qwen_serial_prefill_skips_only_unused_heads ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::selective_dflash_commit_matches_exact_prefix ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::snapshot_restore_replays_logits_and_state_exactly ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::verification_widths_match_token_major ... ignored, requires local Qwen checkpoint and Apple GPU
+test router::tests::grouped_router_batch_matches_serial ... ignored, requires Apple GPU
+test router::tests::grouped_router_masks_unselected_groups ... ignored, requires Apple GPU
+test router::tests::simd_top8_matches_legacy_bits_and_profiles_small_rows ... ignored, physical Apple GPU, preregistered MTP-05 router trial
+test speculative::tests::adapts_only_after_sustained_low_acceptance ... ok
+test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+test speculative::tests::mtp_depths_budgets_and_invalid_depths ... ok
+test speculative::tests::speculative_work_stays_inside_both_budgets ... ok
+test speculative::tests::tuning_excludes_collapsed_acceptance_divergence_and_invalid_rates ... ok
+test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+test speculative::tests::tuning_requires_valid_baseline_and_selects_eligible_gain ... ok
+test streaming::tests::markers_split_at_every_character ... ok
+test streaming::tests::prefilled_and_incomplete_markers ... ok
+test streaming::tests::unfinished_cr_is_preserved ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test mtp::tests::canonical_dense_and_moe_checkpoints_are_inspected_without_gpu ... ok
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test mtp::tests::managed_head_uses_target_geometry_and_rejects_unknown_variants ... ok
+test mtp::tests::incompatible_or_incomplete_heads_fail_before_gpu_loading ... ok
+
+test result: ok. 39 passed; 0 failed; 48 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests native/src/main.rs (target/release/deps/mlxl3_rs-2502fb44ef5b4c23)
+
+running 11 tests
+test tests::bridge_draft_suffix_keeps_full_prefill_and_replay ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::bridge_prefix_cache_replays_cold_logits_exactly ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::dflash_output_budget_matches_target_and_skips_unused_work ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::long_prompt_dflash_blocks_match_target ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::bridge_stats_aggregate_work_not_rates_and_keep_latest_context ... ok
+test tests::bridge_token_hash_uses_ordered_token_ids ... ok
+test tests::dflash_width_tracks_recent_acceptance ... ok
+test openai::tests::malformed_and_silently_ignored_options_are_rejected ... ok
+test openai::tests::text_request_maps_to_bridge_and_unsupported_inputs_fail ... ok
+test openai::tests::http_routes_enforce_session_key_and_validate_before_inference ... ok
+test tests::native_sampler_respects_greedy_argmax ... ok
+
+test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running native/tests/contracts.rs (target/release/deps/contracts-9e93c66676ed8770)
+
+running 14 tests
+test checkpoint_round_trip_and_lazy_payload_read ... ok
+test checkpoint_supports_legacy_scales_and_validates_shard_map ... ok
+test checkpoint_validates_trellis_and_scale_layouts ... ok
+test safetensors_accepts_scalars_and_zero_sized_tensors ... ok
+test registry_rejects_invalid_names_and_preserves_corrupt_registry ... ok
+test safetensors_rejects_invalid_headers_and_ranges ... ok
+test checkpoint_rejects_missing_or_inconsistent_files ... ok
+test registry_replacement_and_remove_protect_model_files ... ok
+test cli_codec_recovers_after_invalid_request ... ok
+test cli_default_registry_respects_explicit_app_home ... ok
+test cli_empty_app_home_uses_user_config_directory ... ok
+test cli_relative_registry_mutations_succeed ... ok
+test concurrent_registry_writers_do_not_lose_entries ... ok
+test cli_register_list_inspect_remove_uses_isolated_registry ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running native/tests/runtime_gpu.rs (target/release/deps/runtime_gpu-1800187d32d42aef)
+
+running 2 tests
+test native_mtp_head_matches_independent_mlx_reference ... ignored, physical GPU and fixture from scripts/check-mtp-reference.py
+test portable_exl3_prefill_matches_independent_single_rows ... ignored, physical Apple GPU; run with MLXL3_DISABLE_TENSOR_OPS=1
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mlxl3_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

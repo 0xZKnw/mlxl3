@@ -1,0 +1,1054 @@
+diff --git a/apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift b/apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift
+index 236fa9a..9d97ac8 100644
+--- a/apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift
++++ b/apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift
+@@ -136,6 +136,7 @@ struct BridgeEvent: Decodable {
+     var dflashSupported: Bool? = nil
+     var mtpSupported: Bool? = nil
+     var mtpAutoDownloadSupported: Bool? = nil
++    var mtpConfigureSupported: Bool? = nil
+     var mtpActive: Bool? = nil
+     var mtpReason: String? = nil
+     var mtpMaxDepth: Int? = nil
+@@ -180,6 +181,7 @@ struct BridgeEvent: Decodable {
+         case dflashSupported = "dflash_supported"
+         case mtpSupported = "mtp_supported"
+         case mtpAutoDownloadSupported = "mtp_auto_download_supported"
++        case mtpConfigureSupported = "mtp_configure_supported"
+         case mtpActive = "mtp_active"
+         case mtpReason = "mtp_reason"
+         case mtpMaxDepth = "mtp_max_depth", mtpTuneSupported = "mtp_tune_supported", mtpTuningKey = "mtp_tuning_key"
+diff --git a/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift b/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift
+index e422d52..04268fa 100644
+--- a/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift
++++ b/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift
+@@ -235,6 +235,14 @@ final class MLXL3Bridge: @unchecked Sendable {
+         try inputPipe.fileHandleForWriting.write(contentsOf: data)
+     }
+ 
++    func setMTP(requestID: String, enabled: Bool, headPath: String) throws {
++        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
++        var data = try JSONSerialization.data(withJSONObject: ["type": "set_mtp", "request_id": requestID,
++            "enabled": enabled, "mtp_head_path": headPath])
++        data.append(0x0A)
++        try inputPipe.fileHandleForWriting.write(contentsOf: data)
++    }
++
+     func tuneMTP(requestID: String, headPath: String) throws {
+         guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+         var data = try JSONSerialization.data(withJSONObject: ["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath])
+diff --git a/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift b/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift
+index 75a69f2..575586a 100644
+--- a/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift
++++ b/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift
+@@ -86,6 +86,9 @@ final class StudioModel: ObservableObject {
+     private var persistenceTask: Task<Void, Never>?
+     private var dflashDownloadTask: Task<Void, Never>?
+     private var mtpDownloadTask: Task<Void, Never>?
++    private var mtpOperationID = UUID()
++    private var mtpConfigureSupported = false
++    private var mtpLegacyModelName: String?
+     private var didStart = false
+     private var activeRequestID: String?
+     private var activeResponseID: UUID?
+@@ -110,7 +113,6 @@ final class StudioModel: ObservableObject {
+         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
+         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
+         self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
+-            && !(preferences.string(forKey: "studio.mtpHeadPath") ?? "").isEmpty
+         conversationStore = ConversationStore(fileURL: conversationFileURL)
+         AppLocalization.set(language)
+         do {
+@@ -146,16 +148,19 @@ final class StudioModel: ObservableObject {
+                 repetitionPenalty = 1
+             }
+         }
++        mtpLegacyModelName = selectedModelName
+         bridge.onEvent = { [weak self] event in self?.handle(event) }
+         bridge.onRuntimeFallback = { [weak self] in
+             guard let self else { return }
+             self.readyInfo = nil
++            self.cancelMTPPreparation()
+             self.finishMTPTuning(error: nil)
+             self.loadSelectedModel()
+         }
+         bridge.onExit = { [weak self] message in
+             guard let self, let message, !message.isEmpty else { return }
+             self.readyInfo = nil
++            self.cancelMTPPreparation()
+             self.finishMTPTuning(error: message)
+             self.mtpTuneSupported = false; self.mtpTuningKey = nil
+             self.dflashActive = nil
+@@ -185,7 +190,7 @@ final class StudioModel: ObservableObject {
+         mtpSupported ?? ["qwen3_5", "qwen3_5_moe"].contains(selectedModel?.modelType ?? "")
+     }
+     var mtpAutomaticDownloadAvailable: Bool {
+-        mtpAutoDownloadSupported ?? (mtpAvailable && (selectedModel?.name ?? "").lowercased().contains("qwen3.6-35b-a3b"))
++        mtpAutoDownloadSupported ?? false
+     }
+ 
+     var savedContextLength: Int {
+@@ -517,10 +522,11 @@ final class StudioModel: ObservableObject {
+         mtpActive = nil
+         mtpSupported = nil
+         mtpAutoDownloadSupported = nil
++        mtpConfigureSupported = false
+         finishMTPTuning(error: nil)
+         mtpMaxDepth = 1; mtpTuneSupported = false; mtpTuningKey = nil
+         mtpTuneRows = []; mtpTunedAt = nil; mtpDepth = 1
+-        mtpDownloadTask?.cancel()
++        cancelMTPPreparation()
+         activeContextLimit = nil
+         modelContextLimit = nil
+         contextMemory = nil
+@@ -726,49 +732,78 @@ final class StudioModel: ObservableObject {
+         }
+     }
+ 
++    private func cancelMTPPreparation() {
++        mtpOperationID = UUID()
++        mtpDownloadTask?.cancel()
++        mtpDownloadTask = nil
++        mtpDownloading = false
++    }
++
+     func setMTPEnabled(_ enabled: Bool) {
+-        guard !isTuningMTP else { return }
++        guard !isGenerating else { return }
+         if !enabled {
+-            mtpDownloadTask?.cancel()
++            cancelMTPPreparation()
+             mtpEnabled = false
+             preferences.set(false, forKey: "studio.mtpEnabled")
+             saveMTPSelection()
++            if mtpConfigureSupported && bridge.isRunning {
++                do { try bridge.setMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
++                catch { mtpError = error.localizedDescription }
++            }
+             return
+         }
+-        guard mtpAvailable, !isGenerating, !mtpDownloading else { return }
+-        let model = selectedModelName
++        guard mtpAvailable, engineState.isReady, !mtpDownloading, let model = selectedModel else { return }
++        cancelMTPPreparation()
++        let operation = mtpOperationID
++        preferences.set(true, forKey: "studio.mtpEnabled")
+         mtpError = nil; mtpDownloadCompleted = 0; mtpDownloadTotal = 0
+         mtpDownloading = true
+         mtpDownloadTask = Task { [weak self] in
+             guard let self else { return }
+             do {
+                 var data: Data?
++                let target = mtpConfigureSupported ? ["--target", model.path] : []
+                 if !mtpHeadPath.isEmpty {
+-                    data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath])
+-                } else {
++                    do { data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath] + target) }
++                    catch is CancellationError { throw CancellationError() }
++                    catch { if !mtpAutomaticDownloadAvailable { throw error } }
++                }
++                if data == nil {
+                     guard mtpAutomaticDownloadAvailable else {
+                         throw MLXL3BridgeError.commandFailed(L("Choisis la tête MTP de ce modèle.", "Choose this model’s MTP head."))
+                     }
+-                    data = try await CLICommand().output(["mtp-head"]) { [weak self] line in
+-                        guard let self, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
++                    data = try await CLICommand().output(["mtp-head"] + target) { [weak self] line in
++                        guard let self, operation == self.mtpOperationID,
++                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                         self.mtpDownloadCompleted = event.completed ?? self.mtpDownloadCompleted
+                         self.mtpDownloadTotal = event.total ?? self.mtpDownloadTotal
+                     }
+                 }
+                 try Task.checkCancellation()
+-                guard model == selectedModelName, mtpAvailable else { throw CancellationError() }
++                guard operation == mtpOperationID, model == selectedModel, mtpAvailable else { throw CancellationError() }
+                 guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                       event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
+                 mtpHeadPath = path
+                 preferences.set(path, forKey: "studio.mtpHeadPath")
++                preferences.set(path, forKey: "studio.mtpHead.\(model.path)")
+                 dflash2Enabled = false
+                 mtpEnabled = true
+                 temperature = 0; topK = 1; repetitionPenalty = 1
+                 preferences.set(true, forKey: "studio.mtpEnabled")
+                 saveMTPSelection()
+                 schedulePersistence()
++                if mtpConfigureSupported {
++                    try bridge.setMTP(requestID: operation.uuidString, enabled: true, headPath: path)
++                    try await Task.sleep(for: .seconds(30))
++                    throw MLXL3BridgeError.commandFailed(L("Le chargement MTP ne répond pas.", "MTP loading did not respond."))
++                }
+             } catch is CancellationError { }
+-            catch { mtpError = error.localizedDescription }
++            catch {
++                guard operation == mtpOperationID else { return }
++                mtpEnabled = false; mtpActive = false
++                mtpError = error.localizedDescription
++            }
++            guard operation == mtpOperationID else { return }
+             mtpDownloading = false
+             mtpDownloadTask = nil
+         }
+@@ -985,7 +1020,12 @@ final class StudioModel: ObservableObject {
+         mtpActive = nil
+         mtpSupported = nil
+         mtpAutoDownloadSupported = nil
+-        mtpDownloadTask?.cancel()
++        cancelMTPPreparation()
++        mtpConfigureSupported = false
++        mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
++        mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
++            ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
++        mtpError = nil
+         runtimeIdentity = nil
+         contextLengthDraft = savedContextLength
+         if isPreview {
+@@ -1045,6 +1085,12 @@ final class StudioModel: ObservableObject {
+     }
+ 
+     private func handle(_ event: BridgeEvent) {
++        if event.requestID == mtpOperationID.uuidString && ["mtp_status", "error"].contains(event.type) {
++            mtpDownloadTask?.cancel(); mtpDownloadTask = nil; mtpDownloading = false
++            if event.type == "mtp_status" { mtpActive = event.mtpActive }
++            else { mtpEnabled = false; mtpActive = false; mtpError = event.message }
++            return
++        }
+         if isTuningMTP && event.type == "error" && (event.requestID == nil || event.requestID == "") {
+             _ = bridge.cancelGeneration()
+             finishMTPTuning(error: event.message ?? L("Réponse du moteur illisible. Réglage conservé.", "Unreadable engine response. Setting preserved."))
+@@ -1061,6 +1107,7 @@ final class StudioModel: ObservableObject {
+             dflashSupported = event.dflashSupported
+             mtpSupported = event.mtpSupported
+             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
++            mtpConfigureSupported = event.mtpConfigureSupported == true
+             mtpMaxDepth = min(3, max(1, event.mtpMaxDepth ?? 1))
+             mtpTuneSupported = event.mtpTuneSupported == true && mtpMaxDepth == 3
+             mtpTuningKey = event.mtpTuningKey
+@@ -1086,6 +1133,7 @@ final class StudioModel: ObservableObject {
+                 residentGB: info.residentGB
+             )
+             if mcpEnabled { updateMCPConnection() }
++            if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
+         case "mcp_status":
+             mcpUpdating = false
+             mcpServerCount = event.mcpServers ?? 0
+diff --git a/native/src/hub.rs b/native/src/hub.rs
+index 1ce4e3c..af165b8 100644
+--- a/native/src/hub.rs
++++ b/native/src/hub.rs
+@@ -32,9 +32,7 @@ const DFLASH_FILES: [&str; 7] = [
+     "draft/model.bin",
+ ];
+ 
+-const MTP_REPO: &str = "mlx-community/Qwen3.6-35B-A3B-MTP-4bit";
+-const MTP_COMMIT: &str = "0295b81421bf4d0fccca9a7c0fcfb1418dda3516";
+-const MTP_FILES: [(&str, u64, &str); 2] = [
++const MTP_MOE_FILES: [(&str, u64, &str); 2] = [
+     (
+         "config.json",
+         3180,
+@@ -46,13 +44,44 @@ const MTP_FILES: [(&str, u64, &str); 2] = [
+         "77fbc6594cdd830cae89e0b693f18278dd0a7a7c5749fd33d4bc5817dbb91bad",
+     ),
+ ];
++const MTP_DENSE_FILES: [(&str, u64, &str); 2] = [
++    (
++        "config.json",
++        3804,
++        "16094efa6177985ab3725a9d6d61d6ab248b71e4b42a114efddcdb2aaddc0a55",
++    ),
++    (
++        "model.safetensors",
++        238934137,
++        "76663c101e7e8ea9c0ae17bcb95183cd7f733ce424c912b8b264a7b1c48e4cc6",
++    ),
++];
+ 
+ /// The target and tokenizer are never downloaded by this operation.
+-pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
++pub fn download_mtp(
++    kind: crate::mtp::ManagedHead,
++    mut progress: impl FnMut(u64, u64),
++) -> Result<PathBuf> {
++    let (repo, commit, files) = match kind {
++        crate::mtp::ManagedHead::Qwen36Moe => (
++            "mlx-community/Qwen3.6-35B-A3B-MTP-4bit",
++            "0295b81421bf4d0fccca9a7c0fcfb1418dda3516",
++            MTP_MOE_FILES,
++        ),
++        crate::mtp::ManagedHead::Qwen38Dense => (
++            "mlx-community/Qwen3.8-27B-MTP-4bit",
++            "b643c01b6d3b094e325edb6ebd832e16c486c575",
++            MTP_DENSE_FILES,
++        ),
++    };
+     let root = managed_drafts_path()?;
+     fs::create_dir_all(&root)?;
+     let root = root.canonicalize()?;
+-    let destination = root.join("Qwen3.6-35B-A3B-MTP-4bit");
++    let destination = root.join(
++        repo.rsplit('/')
++            .next()
++            .context("missing MTP package name")?,
++    );
+     let regular = |path: &Path| {
+         !path
+             .symlink_metadata()
+@@ -60,7 +89,7 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+     };
+     ensure!(regular(&destination), "invalid MTP destination");
+     let verified = |directory: &Path| -> Result<bool> {
+-        for (name, size, hash) in MTP_FILES {
++        for (name, size, hash) in files {
+             let file = directory.join(name);
+             if !regular(&file)
+                 || !file
+@@ -80,10 +109,10 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+     let downloads = root.join(".downloads");
+     ensure!(regular(&downloads), "invalid MTP downloads directory");
+     fs::create_dir_all(&downloads)?;
+-    let stage = downloads.join(format!("mtp-{MTP_COMMIT}"));
++    let stage = downloads.join(format!("mtp-{commit}"));
+     ensure!(regular(&stage), "invalid MTP staging directory");
+     fs::create_dir_all(&stage)?;
+-    let lock_path = downloads.join("mtp.lock");
++    let lock_path = downloads.join(format!("mtp-{commit}.lock"));
+     ensure!(regular(&lock_path), "invalid MTP download lock");
+     let lock = OpenOptions::new()
+         .create(true)
+@@ -93,8 +122,8 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+         .context("MTP head is already downloading")?;
+     let cancelled = Arc::new(AtomicBool::new(false));
+     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
+-    let total = MTP_FILES.iter().map(|(_, size, _)| size).sum();
+-    for (name, size, hash) in MTP_FILES {
++    let total = files.iter().map(|(_, size, _)| size).sum();
++    for (name, size, hash) in files {
+         let file = stage.join(name);
+         ensure!(regular(&file), "invalid MTP staging file");
+         if file.metadata().is_ok_and(|m| m.len() == size) && sha256_matches(&file, hash)? {
+@@ -104,7 +133,7 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+             fs::remove_file(&file)?;
+         }
+         download_file(
+-            &format!("https://huggingface.co/{MTP_REPO}/resolve/{MTP_COMMIT}/{name}?download=true"),
++            &format!("https://huggingface.co/{repo}/resolve/{commit}/{name}?download=true"),
+             &file,
+             &cancelled,
+             || progress(directory_bytes(&stage).min(total), total),
+@@ -118,7 +147,7 @@ pub fn download_mtp(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+     if destination.exists() {
+         fs::rename(
+             &destination,
+-            root.join(format!(".invalid-mtp-{}", std::process::id())),
++            root.join(format!(".invalid-mtp-{commit}-{}", std::process::id())),
+         )?;
+     }
+     fs::rename(&stage, &destination)?;
+diff --git a/native/src/main.rs b/native/src/main.rs
+index b9d3a9f..016cb13 100644
+--- a/native/src/main.rs
++++ b/native/src/main.rs
+@@ -117,6 +117,9 @@ enum Command {
+     MtpHead {
+         #[arg(long)]
+         inspect: Option<PathBuf>,
++        /// Select/validate the head against this target's configuration.
++        #[arg(long)]
++        target: Option<PathBuf>,
+     },
+     /// Configure and inspect Model Context Protocol servers.
+     Mcp {
+@@ -1218,11 +1221,29 @@ fn run(cli: Cli) -> Result<()> {
+             };
+             println!("{}", json!({"type":"installed", "path":path}));
+         }
+-        Command::MtpHead { inspect } => {
++        Command::MtpHead { inspect, target } => {
++            let target = target
++                .as_deref()
++                .map(mlxl3_native::mtp::target_layout)
++                .transpose()?;
+             let path = if let Some(path) = inspect {
+-                mlxl3_native::mtp::inspect(&path)?.0.path
++                let (checkpoint, layout) = mlxl3_native::mtp::inspect(&path)?;
++                if let Some((expected, _)) = &target {
++                    anyhow::ensure!(
++                        &layout == expected,
++                        "MTP head does not match the target model dimensions"
++                    );
++                }
++                checkpoint.path
+             } else {
+-                mlxl3_native::hub::download_mtp(|completed, total| {
++                let kind = if let Some((layout, layers)) = &target {
++                    layout
++                        .managed_head(*layers)
++                        .context("No managed MTP head for this target")?
++                } else {
++                    mlxl3_native::mtp::ManagedHead::Qwen36Moe
++                };
++                mlxl3_native::hub::download_mtp(kind, |completed, total| {
+                     println!(
+                         "{}",
+                         json!({"type":"progress", "completed":completed, "total":total})
+@@ -2468,6 +2489,33 @@ fn bridge_generate(
+     bail!("the model exceeded the limit of 5 consecutive MCP tool rounds")
+ }
+ 
++#[cfg(all(feature = "mlx", feature = "chat"))]
++fn load_mtp_head(
++    head: &mut Option<(PathBuf, mlxl3_native::mtp::Head)>,
++    revision: &mut Option<String>,
++    prompt_cache: &mut Option<PromptCache>,
++    requested: &str,
++    target: &mlxl3_native::qwen35::Qwen35Moe,
++) -> Result<bool> {
++    anyhow::ensure!(
++        !requested.trim().is_empty(),
++        "MTP head folder is not configured"
++    );
++    let path = registry::expand_home(&PathBuf::from(requested))?.canonicalize()?;
++    let next_revision = mtp_tune::artifact_key(&path)?;
++    if head.as_ref().map(|(p, _)| p) == Some(&path) && revision.as_ref() == Some(&next_revision) {
++        return Ok(false);
++    }
++    // Drop the previous head and its cached state before allocating a replacement.
++    *prompt_cache = None;
++    *head = None;
++    *revision = None;
++    mlxl3_native::array::clear_cache()?;
++    *head = Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
++    *revision = Some(next_revision);
++    Ok(true)
++}
++
+ #[cfg(all(feature = "mlx", feature = "chat"))]
+ fn native_bridge(
+     registry_path: Option<&std::path::Path>,
+@@ -2506,6 +2554,10 @@ fn native_bridge(
+     let resident_gb = checkpoint.size_bytes as f64 / 1e9;
+     let dflash_supported =
+         matches!(&model, NativeChatModel::Qwen(target) if target.supports_dflash());
++    let mtp_auto_download_supported = matches!(&model, NativeChatModel::Qwen(_)) && {
++        let (layout, layers) = mlxl3_native::mtp::target_layout(&path)?;
++        layout.managed_head(layers).is_some()
++    };
+     let executable = std::env::current_exe()?.display().to_string();
+     let tuning_key = mtp_tune::runtime_key(&path, context_limit)?;
+     emit_event(json!({
+@@ -2517,7 +2569,8 @@ fn native_bridge(
+         "runtime_executable":executable,
+         "dflash_supported":dflash_supported,
+         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)),
+-        "mtp_auto_download_supported":dflash_supported,
++        "mtp_auto_download_supported":mtp_auto_download_supported,
++        "mtp_configure_supported":true,
+         "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
+         "mtp_tuning_key":tuning_key,
+         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
+@@ -2560,6 +2613,37 @@ fn native_bridge(
+                     "mcp_tools":mcp.tools.len(), "mcp_errors":mcp.errors
+                 }))?;
+             }
++            "set_mtp" => {
++                prompt_cache = None;
++                model.reset();
++                let result = (|| -> Result<()> {
++                    if request.enabled {
++                        let NativeChatModel::Qwen(target) = &model else {
++                            bail!("MTP requires a Qwen target");
++                        };
++                        dflash_weights = None;
++                        load_mtp_head(
++                            &mut mtp_head,
++                            &mut mtp_head_revision,
++                            &mut prompt_cache,
++                            &request.mtp_head_path,
++                            target,
++                        )?;
++                    } else {
++                        mtp_head = None;
++                        mtp_head_revision = None;
++                    }
++                    mlxl3_native::array::clear_cache()?;
++                    emit_event(json!({"type":"mtp_status", "request_id":request.request_id,
++                        "mtp_active":mtp_head.is_some(),
++                        "mtp_head_path":mtp_head.as_ref().map(|(path, _)| path),
++                        "memory":mlxl3_native::array::memory_stats(false)?}))
++                })();
++                if let Err(error) = result {
++                    emit_event(json!({"type":"error", "request_id":request.request_id,
++                        "message":error.to_string()}))?;
++                }
++            }
+             "tune_mtp" => {
+                 cancelled.store(false, Ordering::Relaxed);
+                 prompt_cache = None;
+@@ -2568,23 +2652,17 @@ fn native_bridge(
+                     let NativeChatModel::Qwen(target) = &model else {
+                         bail!("Tune MTP supports Qwen3.5/3.6 targets");
+                     };
+-                    anyhow::ensure!(
+-                        !request.mtp_head_path.trim().is_empty(),
+-                        "MTP head folder is not configured"
+-                    );
+-                    let path = registry::expand_home(&PathBuf::from(&request.mtp_head_path))?
+-                        .canonicalize()?;
+-                    let revision = mtp_tune::artifact_key(&path)?;
+-                    if mtp_head.as_ref().map(|(p, _)| p) != Some(&path)
+-                        || mtp_head_revision.as_ref() != Some(&revision)
+-                    {
+-                        emit_event(
+-                            json!({"type":"mtp_tune_progress","request_id":request.request_id,"phase":"loading_head","completed":0,"total":12}),
+-                        )?;
+-                        mtp_head =
+-                            Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+-                        mtp_head_revision = Some(revision);
+-                    }
++                    emit_event(
++                        json!({"type":"mtp_tune_progress","request_id":request.request_id,
++                        "phase":"loading_head","completed":0,"total":12}),
++                    )?;
++                    load_mtp_head(
++                        &mut mtp_head,
++                        &mut mtp_head_revision,
++                        &mut prompt_cache,
++                        &request.mtp_head_path,
++                        target,
++                    )?;
+                     mtp_tune::run(
+                         &mut model,
+                         &mut mtp_head.as_mut().context("missing MTP head")?.1,
+@@ -2632,29 +2710,20 @@ fn native_bridge(
+                         let NativeChatModel::Qwen(target) = &model else {
+                             bail!("MTP supports Qwen3.5/3.6 targets");
+                         };
+-                        anyhow::ensure!(
+-                            !request.mtp_head_path.trim().is_empty(),
+-                            "MTP head folder is not configured"
+-                        );
+-                        let path = registry::expand_home(&PathBuf::from(&request.mtp_head_path))?
+-                            .canonicalize()?;
+-                        let revision = mtp_tune::artifact_key(&path)?;
+-                        if mtp_head.as_ref().map(|(p, _)| p) != Some(&path)
+-                            || mtp_head_revision.as_ref() != Some(&revision)
+-                        {
++                        let started = Instant::now();
++                        if load_mtp_head(
++                            &mut mtp_head,
++                            &mut mtp_head_revision,
++                            &mut prompt_cache,
++                            &request.mtp_head_path,
++                            target,
++                        )? {
+                             prompt_cache = None;
+-                            emit_event(
+-                                json!({"type":"generation_status", "request_id":request.request_id,
+-                                "phase":"loading_draft", "text":"Preparing MTP head"}),
+-                            )?;
+-                            let started = Instant::now();
+-                            mtp_head =
+-                                Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+-                            mtp_head_revision = Some(revision);
+                             draft_load_seconds += started.elapsed().as_secs_f64();
+                         }
+                     } else {
+                         mtp_head = None;
++                        mtp_head_revision = None;
+                     }
+                     if request.dflash2 {
+                         anyhow::ensure!(
+diff --git a/native/src/mtp.rs b/native/src/mtp.rs
+index 6fa25bf..4388d89 100644
+--- a/native/src/mtp.rs
++++ b/native/src/mtp.rs
+@@ -1,4 +1,4 @@
+-//! Native Qwen3.5/3.6 NextN predictor. Architecture follows Qwen and the
++//! Native Qwen3.5/3.6/3.8 NextN predictor. Architecture follows Qwen and the
+ //! MLX/MTPLX reference: pre-norm trunk hidden, [embedding, hidden] concat,
+ //! one full-attention block, absolute norm gains, shared target lm_head.
+ use crate::checkpoint::{Checkpoint, read_header};
+@@ -31,6 +31,128 @@ pub struct Rope {
+     pub rope_theta: f32,
+ }
+ 
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum ManagedHead {
++    Qwen38Dense,
++    Qwen36Moe,
++}
++
++impl Layout {
++    /// Choose by the actual architecture, including vocabulary and RoPE, so
++    /// renamed EXL3 folders work and unrelated Qwen sizes never download a head.
++    pub fn managed_head(&self, layers: usize) -> Option<ManagedHead> {
++        if self.vocab_size != 248_320
++            || self.head_dim != 256
++            || self.rms_norm_eps != 1e-6
++            || self.partial_rotary_factor != 0.25
++            || self.rope_parameters.rope_theta != 10_000_000.
++        {
++            return None;
++        }
++        match (
++            self.hidden_size,
++            self.num_attention_heads,
++            self.num_key_value_heads,
++            self.num_experts,
++            layers,
++        ) {
++            (5120, 24, 4, 0, 64)
++                if self.intermediate_size == Some(17_408)
++                    && self.num_experts_per_tok == 0
++                    && self.moe_intermediate_size == 0
++                    && self.shared_expert_intermediate_size == 0 =>
++            {
++                Some(ManagedHead::Qwen38Dense)
++            }
++            (2048, 16, 2, 256, 40)
++                if self.num_experts_per_tok == 8
++                    && self.intermediate_size.is_none()
++                    && self.moe_intermediate_size == 512
++                    && self.shared_expert_intermediate_size == 512 =>
++            {
++                Some(ManagedHead::Qwen36Moe)
++            }
++            _ => None,
++        }
++    }
++}
++
++pub fn target_layout(path: &Path) -> Result<(Layout, usize)> {
++    let config: serde_json::Value = serde_json::from_reader(File::open(path.join("config.json"))?)?;
++    ensure!(
++        matches!(
++            config["model_type"].as_str(),
++            Some("qwen3_5" | "qwen3_5_moe")
++        ),
++        "MTP requires a Qwen3.5/3.6/3.8 target"
++    );
++    let text = &config["text_config"];
++    ensure!(
++        text["mtp_use_dedicated_embeddings"].as_bool() != Some(true),
++        "MTP requires shared target embeddings"
++    );
++    let layers = usize::try_from(
++        text["num_hidden_layers"]
++            .as_u64()
++            .context("missing target layer count")?,
++    )?;
++    Ok((serde_json::from_value(text.clone())?, layers))
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn managed_mtp_never_crosses_architectures() {
++    let layout = Layout {
++        hidden_size: kani::any(),
++        num_attention_heads: kani::any(),
++        num_key_value_heads: kani::any(),
++        head_dim: kani::any(),
++        vocab_size: kani::any(),
++        num_experts: kani::any(),
++        num_experts_per_tok: kani::any(),
++        moe_intermediate_size: kani::any(),
++        shared_expert_intermediate_size: kani::any(),
++        intermediate_size: kani::any(),
++        rms_norm_eps: kani::any(),
++        partial_rotary_factor: kani::any(),
++        rope_parameters: Rope {
++            rope_theta: kani::any(),
++        },
++    };
++    let layers: usize = kani::any();
++    let result = layout.managed_head(layers);
++    if let Some(kind) = result {
++        assert!(layout.vocab_size == 248_320 && layout.head_dim == 256);
++        assert!(layout.rms_norm_eps == 1e-6 && layout.partial_rotary_factor == 0.25);
++        assert!(layout.rope_parameters.rope_theta == 10_000_000.);
++        match kind {
++            ManagedHead::Qwen38Dense => {
++                assert!(layout.hidden_size == 5120 && layers == 64);
++                assert!(layout.num_attention_heads == 24 && layout.num_key_value_heads == 4);
++                assert!(layout.intermediate_size == Some(17_408) && layout.num_experts == 0);
++                assert!(
++                    layout.num_experts_per_tok == 0
++                        && layout.moe_intermediate_size == 0
++                        && layout.shared_expert_intermediate_size == 0
++                );
++            }
++            ManagedHead::Qwen36Moe => {
++                assert!(layout.hidden_size == 2048 && layers == 40);
++                assert!(layout.num_attention_heads == 16 && layout.num_key_value_heads == 2);
++                assert!(layout.intermediate_size.is_none() && layout.num_experts == 256);
++                assert!(
++                    layout.num_experts_per_tok == 8
++                        && layout.moe_intermediate_size == 512
++                        && layout.shared_expert_intermediate_size == 512
++                );
++            }
++        }
++    }
++    kani::cover!(result == Some(ManagedHead::Qwen38Dense));
++    kani::cover!(result == Some(ManagedHead::Qwen36Moe));
++    kani::cover!(result.is_none());
++}
++
+ #[derive(Deserialize)]
+ struct Config {
+     model_type: String,
+@@ -625,8 +747,17 @@ mod native {
+         #[test]
+         #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
+         fn cache_only_matches_full_head_and_next_prediction() -> Result<()> {
+-            let target = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+-            let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &target)?;
++            let target = Qwen35Moe::load(Path::new(
++                &std::env::var("MLXL3_MTP_TEST_MODEL")
++                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
++            ))?;
++            let mut head = Head::load(
++                Path::new(
++                    &std::env::var("MLXL3_MTP_TEST_HEAD")
++                        .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
++                ),
++                &target,
++            )?;
+             let h = target.mtp_layout().hidden_size;
+             let fixture = |time, seed| {
+                 let bits = (0..time * h)
+@@ -689,6 +820,71 @@ pub use native::{Cache, Head, Session};
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++    #[test]
++    fn managed_head_uses_target_geometry_and_rejects_unknown_variants() -> Result<()> {
++        let dense = serde_json::json!({"hidden_size":5120,"num_attention_heads":24,
++            "num_key_value_heads":4,"head_dim":256,"vocab_size":248320,"intermediate_size":17408,
++            "rms_norm_eps":1e-6,"partial_rotary_factor":0.25,"rope_parameters":{"rope_theta":10000000}});
++        let moe = serde_json::json!({"hidden_size":2048,"num_attention_heads":16,
++            "num_key_value_heads":2,"head_dim":256,"vocab_size":248320,"num_experts":256,
++            "num_experts_per_tok":8,"moe_intermediate_size":512,"shared_expert_intermediate_size":512,
++            "rms_norm_eps":1e-6,"partial_rotary_factor":0.25,"rope_parameters":{"rope_theta":10000000}});
++        for (text, layers, kind) in [
++            (dense, 64, ManagedHead::Qwen38Dense),
++            (moe, 40, ManagedHead::Qwen36Moe),
++        ] {
++            let layout: Layout = serde_json::from_value(text.clone())?;
++            assert_eq!(layout.managed_head(layers), Some(kind));
++            for count in [0, 1, layers - 1, layers + 1, usize::MAX] {
++                assert_eq!(layout.managed_head(count), None);
++            }
++            for field in [
++                "hidden_size",
++                "num_attention_heads",
++                "num_key_value_heads",
++                "head_dim",
++                "vocab_size",
++            ] {
++                for value in [i32::MIN, -1, 0, 1, i32::MAX] {
++                    let mut changed = text.clone();
++                    changed[field] = serde_json::json!(value);
++                    assert_eq!(
++                        serde_json::from_value::<Layout>(changed)?.managed_head(layers),
++                        None
++                    );
++                }
++            }
++            let directory = tempfile::tempdir()?;
++            let mut config = serde_json::json!({"model_type":if layers == 64 {"qwen3_5"} else {"qwen3_5_moe"},"text_config":text});
++            config["text_config"]["num_hidden_layers"] = serde_json::json!(layers);
++            std::fs::write(
++                directory.path().join("config.json"),
++                serde_json::to_vec(&config)?,
++            )?;
++            assert_eq!(target_layout(directory.path())?, (layout, layers));
++            for (pointer, value) in [
++                ("/model_type", serde_json::json!("qwen3")),
++                ("/text_config/num_hidden_layers", serde_json::json!(-1)),
++                (
++                    "/text_config/mtp_use_dedicated_embeddings",
++                    serde_json::json!(true),
++                ),
++            ] {
++                let mut changed = config.clone();
++                if pointer.ends_with("mtp_use_dedicated_embeddings") {
++                    changed["text_config"]["mtp_use_dedicated_embeddings"] = value;
++                } else {
++                    *changed.pointer_mut(pointer).unwrap() = value;
++                }
++                std::fs::write(
++                    directory.path().join("config.json"),
++                    serde_json::to_vec(&changed)?,
++                )?;
++                assert!(target_layout(directory.path()).is_err());
++            }
++        }
++        Ok(())
++    }
+     use serde_json::{Value, json};
+     use std::{collections::BTreeMap, io::Write};
+ 
+diff --git a/native/src/qwen35.rs b/native/src/qwen35.rs
+index 52452cb..9ce8128 100644
+--- a/native/src/qwen35.rs
++++ b/native/src/qwen35.rs
+@@ -2115,7 +2115,10 @@ mod tests {
+     #[test]
+     #[ignore = "requires local Qwen checkpoint and physical Apple GPU"]
+     fn mtp_prefill_verification_and_rollback_match_target() -> Result<()> {
+-        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
++        let mut model = Qwen35Moe::load(Path::new(
++            &std::env::var("MLXL3_MTP_TEST_MODEL")
++                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
++        ))?;
+         for time in [1, 23, 24, 129, 256] {
+             let prefix = (0..time).map(|i| 1 + i % 31).collect::<Vec<_>>();
+             model.reset();
+@@ -2181,8 +2184,17 @@ mod tests {
+     #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
+     fn mtp_recursive_sessions_match_greedy_and_exact_caches() -> Result<()> {
+         use crate::mtp::{Head, Session};
+-        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+-        let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &model)?;
++        let mut model = Qwen35Moe::load(Path::new(
++            &std::env::var("MLXL3_MTP_TEST_MODEL")
++                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
++        ))?;
++        let mut head = Head::load(
++            Path::new(
++                &std::env::var("MLXL3_MTP_TEST_HEAD")
++                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
++            ),
++            &model,
++        )?;
+         for depth in 1..=3 {
+             model.reset();
+             head.reset()?;
+diff --git a/native/tests/runtime_gpu.rs b/native/tests/runtime_gpu.rs
+index b44220e..1c93d37 100644
+--- a/native/tests/runtime_gpu.rs
++++ b/native/tests/runtime_gpu.rs
+@@ -1,5 +1,5 @@
+ #![cfg(feature = "mlx")]
+-use anyhow::{Result, ensure};
++use anyhow::{Context, Result, ensure};
+ use half::f16;
+ use mlxl3_native::{
+     array::Array,
+@@ -13,18 +13,34 @@ fn native_mtp_head_matches_independent_mlx_reference() -> Result<()> {
+     use mlxl3_native::{mtp::Head, qwen35::Qwen35Moe};
+     let fixture = std::env::var("MLXL3_MTP_REFERENCE")?;
+     let data: serde_json::Value = serde_json::from_slice(&std::fs::read(fixture)?)?;
+-    let model = Qwen35Moe::load(std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+-    let mut head = Head::load(
+-        std::path::Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"),
+-        &model,
+-    )?;
+-    for step in data["steps"].as_array().unwrap() {
++    let target = std::env::var("MLXL3_MTP_TEST_MODEL")
++        .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into());
++    let head_path = std::env::var("MLXL3_MTP_TEST_HEAD")
++        .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into());
++    let model = Qwen35Moe::load(std::path::Path::new(&target))?;
++    let mut head = Head::load(std::path::Path::new(&head_path), &model)?;
++    let steps = data["steps"]
++        .as_array()
++        .context("missing MTP reference steps")?;
++    ensure!(!steps.is_empty(), "empty MTP reference");
++    for step in steps {
+         let tokens: Vec<u32> = serde_json::from_value(step["tokens"].clone())?;
+         let hidden: Vec<u16> = serde_json::from_value(step["hidden"].clone())?;
+         let recursive = step.get("residual").is_some();
+         let expected: Vec<u16> = serde_json::from_value(
+             step[if recursive { "residual" } else { "normalized" }].clone(),
+         )?;
++        ensure!(
++            !tokens.is_empty()
++                && expected.len() == tokens.len() * model.mtp_layout().hidden_size as usize,
++            "invalid MTP reference dimensions"
++        );
++        ensure!(
++            expected
++                .iter()
++                .all(|&bits| f16::from_bits(bits).is_finite()),
++            "nonfinite MTP reference"
++        );
+         let hidden = Array::from_f16_bits(
+             &hidden,
+             &[1, tokens.len() as i32, model.mtp_layout().hidden_size],
+@@ -35,6 +51,11 @@ fn native_mtp_head_matches_independent_mlx_reference() -> Result<()> {
+             head.hidden(&model, &hidden, &tokens)?
+         }
+         .to_f16_bits()?;
++        ensure!(
++            actual.len() == expected.len()
++                && actual.iter().all(|&bits| f16::from_bits(bits).is_finite()),
++            "invalid native MTP output"
++        );
+         let mismatches = actual.iter().zip(&expected).filter(|(a, b)| a != b).count();
+         let maximum_error = actual
+             .iter()
+diff --git a/opti.md b/opti.md
+index c22216f..02203ec 100644
+--- a/opti.md
++++ b/opti.md
+@@ -1,5 +1,25 @@
+ # MLXL3 — journal des optimisations
+ 
++### MTP-2026-10-05-NORM-FUSION — addition/RMSNorm MTPLX sur tête dense — préenregistré
++
++- Hypothèse : réduire un lancement et une relecture du résidu avant le MLP MTP, avec un kernel Metal retournant simultanément le résidu FP16 et sa normalisation. MTPLX révision `9882703f3105363ddc37eca9f97aa09a1d387112`, `mtplx/kernels/fused_norm.py` : H5120 exige la variante bouclée ; H2048 tient en registres. Conserver le cast FP16 de l'addition et l'ordre de réduction MLX ; aucune approximation sur la cible/acceptation.
++- Antécédent distinct : piste3 MTP-09, recherche seule ; regroupements de lignes PERF98/133 rejetés, boucle MTPLX H3072 signalée plus lente. Première mesure locale de cette fusion/H5120/27B ; ne pas reprendre leurs gains annoncés. Baseline release1.3.1 SHA-256 à relever + version automatique sans fusion à archiver avant activation ; MTP dense de238 934 137octets, affine4/group64, cibleEXL3/2bpw.
++- Protocole avant prototype : port minimal au wrapper Metal Rust existant, garde de formes CPU/Kani ; oracle `Array::add` puis RMSNorm MLX, deux sorties/dimensions/comptes/finitude/bits, entrées déterministes nulles/annulations/extremums et M1..4/H2048/H5120. Référence indépendante MLX-LM sur vrais poids et récursion, cache K/V et vérification logits/états/greedy. Si divergence : conserver erreur et rejeter/corriger avant tout benchmark.
++- Si qualité valide : microbenchmark warmup10,60paires alternées AB/BA, mesures ms/op et distribution ; parcours bridge MTP off/on D1..3 avec prompts français/code, budget128 et ordre ABBA, hashes/acceptations/mémoire. Séparer compilations/provers/inférences, un modèle GPU à la fois. MesuresM5/24Gio/macOS27.2/MLX0.32.2, alimentation à relever. Retenir uniquement sans régression démontrée ; distinguer gain local et vrai débit. Preuves `docs/measurements/mtp-dense-1.4.0/`, statut **préenregistré**, vitesse/RAM **non mesurées**, aucune activation/kernel lancé.
++
++### MTP-2026-10-05-DENSE-AUTO — MTP27B et changement automatique de tête — recherche en cours
++
++- Première implémentation automatique compilée avec MLX/chat (`initial-rust-check.log`), régression CPU de sélection de tête réussie (1test, autres filtrés explicitement) ; Kani ciblé réussi :181obligations/0échec/3covers, entrées scalaires symboliques complètes, sans assume/boucle/stub. Cela vérifie la classification CPU, pas téléchargements/Swift/GPU. Premier contrôle Desktop interrompu : fichier du harnais modifié pendant sa compilation ; log négatif conservé, relance après stabilisation du fichier. Ajustement des chemins GPU de test : un format a détecté2points-virgules manquants dans le harnais, corrigés avant build. Aucun benchmark ni conclusion vitesse.
++
++- Identités locales confirmées : registre `~/.config/mlxl3/models.json`, dense Qwen3.8-27B EXL3/2,0bpw/9 696 705 133octets dans le store Desktop, modèle_type `qwen3_5` ; MoE Qwen3.6-35B-A3B EXL3/2,49bpw/13 064 365 759octets, `qwen3_5_moe`. Instruction complémentaire utilisateur : examiner les kernels MLX/MTP ou hors MTP de MTPLX ; recherche source sur révision épinglée, comparaison aux chemins existants, attribution/licence conservées si code repris. Aucun essai kernel lancé, nouvelle piste à préenregistrer avant prototype.
++
++- Demande : MTP pour Qwen3.8-27B, kernels optimisés et sélection automatique de la tête selon le modèle actif ; libérer l'ancienne lors du passage au Qwen3.6 MoE, publier une nouvelle app et un nouveau moteur. « Qwen3?6 25B A3B » interprété provisoirement comme le Qwen3.6-35B-A3B déjà installé, identité à confirmer par configurations.
++- Baseline : moteur1.3.1 source69fa928, main documentationc73c2a8 ; version app1.3.0/build22. Branche isolée `codex/qwen-dense-mtp-1.4.0`. Travaux MTP06..09 locaux antérieurs préservés, sans intégration implicite. Nouvelle version envisagée app/moteur1.4.0.
++- Antécédents : PR23/64casQMM/31harnaisKani validés ; `docs/qwen38-decode-local.md` et MTP04..09 relus pour éviter de répéter MUL1SWAR/BM64, LUT/transpose/shuffles/unrolling rejetés, cacheK/V/chaîneGPU/kernelspetitsbatches déjà intégrés. Pas de nouveau gain à ce stade.
++- Recherche prévue : tracer Head/Session/cache Rust, bridge/ready/download managed et état Swift ; vérifier configurations/têtes officielles, checkpointdense local/available et compatibilité dimensions/vocabulaire/tokenizer, identité/fingerprint de tête ; réutiliser le chargeur et downloader existants. Publication de1.3.1 close avant ce travail, téléchargement public/hash et updater validés.
++- Protocole d'implémentation/validation : régression tête MoE→dense→MoE/MTPoff/annulation/erreurs, arrêt de l'ancien subprocess et absence de cache/tête étrangère ; états/logits/IDs et cache exacts via référence indépendante avant vitesse ; Kani sur contrats Rust touchés, Swift6 strict/tests d'intégration, fmt/Clippy/build/suites et CI source exacte. Chaque essai kernel aura son préenregistrement séparé, baseline binaire archivée, A/B/B/A après warmup sans compilations/provers ni autre modèle GPU, qualité et conditions explicites.
++- Conditions : M5/24Gio/macOS27.2/MLX0.32.2, détails du 27B à inventorier. Performances/RAM nouvelles **non mesurées**, aucun modèle chargé par cette tâche à ce relevé. Pas de nouvelle publication tant que le code/paquets/parcours demandés ne sont pas vérifiés ; limites CPU/Kani/GPU et parcours non exécutés seront conservés.
++
+ ### ENGINE-2026-10-05-1.3.1 — livraison de la PR23 — validée, publiée
+ 
+ - Clôture : téléchargement HTTPS **public sans authentification réussi**, HTTP200/66 851 669octets, SHA-256 `4e60f147d67fb10d588954a8063ff03102444906d8651ee34f5e1e44dd771853` identique à l'archive locale installée/testée et au digest GitHub. Tag/source, manifeste, updater et canal latest revérifiés ; `download-proof.json` et réponse publique archivée. **Moteur1.3.1 publié/proposé par l'updater**, aucun processus local/test actif ni essai encore en cours. Activation à chaud antérieure reste différée, redémarrer l'app après installation. Demande suivante MTP27B/app+moteur distincte ; aucune répétition de ces benchmarks prévue.
+diff --git a/tests/fake-desktop-engine.py b/tests/fake-desktop-engine.py
+index e2573be..ac5be1d 100755
+--- a/tests/fake-desktop-engine.py
++++ b/tests/fake-desktop-engine.py
+@@ -79,7 +79,21 @@ if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
+     sys.exit(0)
+ 
+ if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
+-    print(json.dumps({'type': 'installed', 'path': '/tmp/mlxl3-fixture-mtp'}), flush=True)
++    target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
++    if '/auto-' in target:
++        with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
++            log.write(json.dumps({'args': sys.argv[1:], 'pid': os.getpid()}) + '\n')
++        if target.endswith('auto-fail'):
++            print('fixture head download failed', file=sys.stderr)
++            sys.exit(1)
++        if target.endswith('auto-slow'):
++            print(json.dumps({'type': 'progress', 'completed': 1, 'total': 100}), flush=True)
++            time.sleep(1)
++    head = '/tmp/mlxl3-fixture-mtp-' + ('dense' if target.endswith(('auto-dense', 'auto-slow')) else 'moe') if '/auto-' in target else '/tmp/mlxl3-fixture-mtp'
++    if '--inspect' in sys.argv and sys.argv[sys.argv.index('--inspect') + 1] != head:
++        print('fixture head incompatible with target', file=sys.stderr)
++        sys.exit(1)
++    print(json.dumps({'type': 'installed', 'path': head}), flush=True)
+     sys.exit(0)
+ 
+ model = sys.argv[2]
+@@ -90,15 +104,26 @@ def cancel(*_):
+ signal.signal(signal.SIGUSR1, cancel)
+ def emit(kind, **values):
+     print(json.dumps({'type': kind, **values}), flush=True)
+-mtp_capable = model == 'renamed' or model.startswith('mtp-')
++mtp_capable = model == 'renamed' or model.startswith(('mtp-', 'auto-'))
+ tuning_key = 'fixture-runtime:' + model
+ capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 3, 'mtp_tune_supported': mtp_capable, 'mtp_tuning_key': tuning_key}
++if model.startswith('auto-'):
++    capabilities['mtp_configure_supported'] = True
+ emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
+      dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
+      **capabilities,
+      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
+ for line in sys.stdin:
+     request = json.loads(line)
++    if request['type'] == 'set_mtp':
++        with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
++            log.write(json.dumps({'model': model, 'request': request, 'pid': os.getpid()}) + '\n')
++        expected = '/tmp/mlxl3-fixture-mtp-' + ('dense' if model in ('auto-dense', 'auto-slow') else 'moe')
++        if request['enabled'] and request['mtp_head_path'] != expected:
++            emit('error', request_id=request['request_id'], message='foreign head reached bridge')
++        else:
++            emit('mtp_status', request_id=request['request_id'], mtp_active=request['enabled'])
++        continue
+     if request['type'] == 'tune_mtp':
+         cancelled = False
+         for step in range(12):
+diff --git a/tests/studio-hardening-check.swift b/tests/studio-hardening-check.swift
+index 4f82b51..05f9212 100644
+--- a/tests/studio-hardening-check.swift
++++ b/tests/studio-hardening-check.swift
+@@ -15,7 +15,7 @@ import Foundation
+             let model = StudioModel(conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
+             model.models = [LocalModel(name: name, path: root.path, modelType: "audit", format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+             model.selectModel(name)
+-            for _ in 0..<200 where !model.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
++            for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+             precondition(model.engineState.isReady, "Fixture not ready")
+             return model
+         }
+@@ -68,6 +68,62 @@ import Foundation
+         let baselineAgain = try await make("mtp-baseline")
+         precondition(!baselineAgain.mtpEnabled && baselineAgain.mtpTuneRows.count == 4, "Baseline winner must also persist")
+         baselineAgain.ejectModel()
++        // The real StudioModel/CLI pipe/bridge must select per-target heads,
++        // preserve the user's ON preference, and suppress cancelled callbacks.
++        let automatic = StudioModel(conversationFileURL: root.appendingPathComponent("automatic.json"), preferences: prefs)
++        automatic.models = ["auto-dense", "auto-moe", "auto-slow", "auto-fail", "plain"].map {
++            LocalModel(name: $0, path: root.appendingPathComponent($0).path, modelType: "qwen3_5",
++                format: "EXL3", bits: 2, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")
++        }
++        func waitAutomatic() async throws {
++            for _ in 0..<300 where !automatic.engineState.isReady || automatic.mtpDownloading {
++                try await Task.sleep(for: .milliseconds(20))
++            }
++            precondition(automatic.engineState.isReady && !automatic.mtpDownloading, "Automatic head load timed out")
++        }
++        prefs.set(true, forKey: "studio.mtpEnabled")
++        // Migrate an old, foreign head: inspection must reject it and install
++        // the managed head selected from the new target, never forward it.
++        prefs.set("/tmp/mlxl3-fixture-mtp-moe", forKey: "studio.mtpHead.\(root.appendingPathComponent("auto-dense").path)")
++        automatic.selectModel("auto-dense"); try await waitAutomatic()
++        precondition(automatic.mtpHeadPath == "/tmp/mlxl3-fixture-mtp-dense" && automatic.mtpEnabled && automatic.mtpActive == true)
++        automatic.selectModel("auto-moe"); try await waitAutomatic()
++        precondition(automatic.mtpHeadPath == "/tmp/mlxl3-fixture-mtp-moe" && automatic.mtpEnabled && automatic.mtpActive == true)
++        automatic.selectModel("auto-dense"); try await waitAutomatic()
++        precondition(automatic.mtpHeadPath == "/tmp/mlxl3-fixture-mtp-dense" && automatic.mtpActive == true)
++        automatic.setMTPEnabled(false)
++        for _ in 0..<200 where automatic.mtpActive != false { try await Task.sleep(for: .milliseconds(10)) }
++        precondition(automatic.mtpActive == false && !prefs.bool(forKey: "studio.mtpEnabled"))
++        automatic.selectModel("auto-moe"); try await waitAutomatic()
++        precondition(!automatic.mtpEnabled && automatic.mtpActive == nil, "MTP OFF must stay off on model switch")
++        automatic.setMTPEnabled(true); try await waitAutomatic()
++        automatic.selectModel("auto-slow")
++        for _ in 0..<200 where automatic.mtpDownloadCompleted == 0 { try await Task.sleep(for: .milliseconds(10)) }
++        precondition(automatic.mtpDownloading)
++        automatic.selectModel("auto-moe"); try await waitAutomatic()
++        try await Task.sleep(for: .milliseconds(1100))
++        precondition(automatic.selectedModelName == "auto-moe" && automatic.mtpHeadPath.hasSuffix("-moe")
++            && automatic.mtpActive == true && !automatic.mtpDownloading && automatic.mtpError == nil)
++        automatic.selectModel("auto-fail"); try await waitAutomatic()
++        precondition(automatic.mtpError?.contains("fixture head download failed") == true && !automatic.mtpEnabled)
++        automatic.selectModel("plain"); try await waitAutomatic()
++        precondition(!automatic.mtpAvailable && automatic.mtpHeadPath.isEmpty && !automatic.mtpDownloading)
++        automatic.selectModel("auto-dense"); try await waitAutomatic()
++        precondition(automatic.mtpActive == true && automatic.mtpError == nil, "Failure must not disable the saved ON preference")
++        automatic.ejectModel()
++        let operations = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8)
++            .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
++        let configured = operations.compactMap { $0["request"] as? [String: Any] }
++        precondition(configured.contains { $0["enabled"] as? Bool == false }, "MTP OFF did not reach the engine")
++        for _ in 0..<200 where operations.contains(where: {
++            ($0["pid"] as? Int32).map { kill($0, 0) == 0 } ?? false
++        }) { try await Task.sleep(for: .milliseconds(20)) }
++        for operation in operations {
++            if let pid = operation["pid"] as? Int32 {
++                precondition(kill(pid, 0) == -1 && errno == ESRCH, "Previous engine/download process still lives")
++            }
++        }
++        print("Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup")
+         let key = MTPConfigurationKey(modelPath: root.path, headPath: "/tmp/mlxl3-fixture-mtp", runtime: "fixture-runtime:mtp-good")
+         precondition(MTPTuning.load(key: key, preferences: prefs)?.depth == 3)
+         precondition(MTPTuning.load(key: MTPConfigurationKey(modelPath: root.path, headPath: key.headPath, runtime: "new-engine"), preferences: prefs) == nil)

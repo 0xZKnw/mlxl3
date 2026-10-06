@@ -1,0 +1,13 @@
+   Compiling mlxl3-native v1.4.0 (/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0)
+error[E0599]: no method named `mul_scalar` found for struct `array::Array` in the current scope
+   --> native/src/array.rs:917:38
+    |
+260 | pub struct Array {
+    | ---------------- method `mul_scalar` not found for this struct
+...
+917 |                     let residual = x.mul_scalar(0.75)?;
+    |                                      ^^^^^^^^^^ method not found in `array::Array`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
