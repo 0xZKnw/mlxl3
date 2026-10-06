@@ -6,6 +6,33 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 
+fn dense_decode_nt4_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_DENSE_DECODE_NT4").as_deref() != Ok("0"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static DENSE_DECODE_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test-only override: compare geometries with one model and the same GPU clock.
+#[cfg(test)]
+pub(crate) fn with_dense_decode_nt4_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
 fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
     Ok(match dtype {
         "F16" => Dtype::Float16,
@@ -284,7 +311,16 @@ impl Exl3Linear {
             .remove(0)
         } else {
             let splits = split_count(input_tiles, output_tiles);
-            let nt = if output_tiles >= 1024 {
+            let nt = if dense_decode_nt4_enabled()
+                && crate::contracts::dense_decode_nt4(
+                    self.rows,
+                    self.cols,
+                    self.k,
+                    self.cb == Codebook::Mul1,
+                    array::is_m5_gpu()?,
+                ) {
+                4
+            } else if output_tiles >= 1024 {
                 if output_tiles % 2 == 0 { 2 } else { 1 }
             } else if output_tiles % 4 == 0 {
                 4
@@ -730,7 +766,16 @@ impl Exl3Group {
             .reshape(&[-1])?;
         let tiles = self.cols / 16;
         let splits = split_count(self.rows / 16, tiles);
-        let nt = if tiles >= 1024 {
+        let nt = if dense_decode_nt4_enabled()
+            && crate::contracts::dense_decode_nt4(
+                self.rows,
+                self.cols,
+                self.k,
+                self.cb == Codebook::Mul1,
+                array::is_m5_gpu()?,
+            ) {
+            4
+        } else if tiles >= 1024 {
             if tiles % 2 == 0 { 2 } else { 1 }
         } else if tiles % 4 == 0 {
             4
@@ -1065,6 +1110,28 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dense_decode_test_override_restores_and_stays_thread_local() {
+        assert_eq!(DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+        with_dense_decode_nt4_test(false, || {
+            assert!(!dense_decode_nt4_enabled());
+            with_dense_decode_nt4_test(true, || {
+                assert!(dense_decode_nt4_enabled());
+            });
+            assert!(!dense_decode_nt4_enabled());
+            let other = std::thread::spawn(|| {
+                assert_eq!(DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+            });
+            other.join().unwrap();
+            let panicked = std::panic::catch_unwind(|| {
+                with_dense_decode_nt4_test(true, || panic!("temporary benchmark failure"));
+            });
+            assert!(panicked.is_err());
+            assert!(!dense_decode_nt4_enabled());
+        });
+        assert_eq!(DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+    }
     use half::f16;
     use std::{path::Path, time::Instant};
 

@@ -1,0 +1,67 @@
+.....................................................F.................. [ 61%]
+.............................................                            [100%]
+=================================== FAILURES ===================================
+_ test_cli_codec_protocol_failure_is_recorded_and_reaped[closed_stdin-closed stdin] _
+
+tmp_path = PosixPath('/private/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/pytest-of-henko/pytest-2/test_cli_codec_protocol_failur2')
+behavior = 'closed_stdin', message = 'closed stdin'
+
+    @pytest.mark.parametrize(
+        "behavior,message",
+        [
+            ("silent", "timed out"),
+            ("partial", "timed out"),
+            ("closed_stdin", "closed stdin"),
+            ("eof", "complete JSON"),
+            ("invalid", "invalid JSON"),
+            ("error", "fixture codec failed"),
+            ("missing", "no data"),
+        ],
+    )
+    def test_cli_codec_protocol_failure_is_recorded_and_reaped(tmp_path, behavior, message):
+        codec = tmp_path / "failing-codec"
+        codec.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, sys, time\nfrom pathlib import Path\n"
+            "with Path(__file__).with_suffix('.pids').open('a') as f: f.write(str(os.getpid()) + '\\n')\n"
+            f"behavior = {behavior!r}\n"
+            "if behavior == 'closed_stdin': os.close(0); time.sleep(60)\n"
+            "for line in sys.stdin:\n"
+            "    if behavior == 'silent': time.sleep(60)\n"
+            "    if behavior == 'partial': os.write(1, b'{\"data\":'); time.sleep(60)\n"
+            "    if behavior == 'eof': sys.exit(0)\n"
+            "    if behavior == 'invalid': print('invalid JSON', flush=True)\n"
+            "    if behavior == 'error': print(json.dumps({'error': 'fixture codec failed'}), flush=True)\n"
+            "    if behavior == 'missing': print('{}', flush=True)\n"
+        )
+        codec.chmod(0o755)
+        output = tmp_path / "result.json"
+        run = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "native/check_qmm_tiles.py"),
+                str(codec),
+                str(codec),
+                "--output",
+                str(output),
+                "--request-timeout",
+                "0.3",
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        assert run.returncode != 0
+        report = json.loads(output.read_text())
+        assert report["status"] == "failed" and report["parity"] is None
+>       assert report["cases"] == [] and message in report["error"]["message"]
+E       AssertionError: assert ([] == []
+E         
+E         Use -v to get more diff and 'closed stdin' in 'native process timed out writing request')
+
+tests/test_qmm_tiles.py:234: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_qmm_tiles.py::test_cli_codec_protocol_failure_is_recorded_and_reaped[closed_stdin-closed stdin]
+1 failed, 116 passed in 26.18s

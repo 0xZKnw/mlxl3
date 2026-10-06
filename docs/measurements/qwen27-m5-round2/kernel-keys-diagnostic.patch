@@ -1,0 +1,55 @@
+diff --git a/native/ffi/mlx_bridge.cpp b/native/ffi/mlx_bridge.cpp
+index 61b55b0..d4e07d1 100644
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -3,6 +3,9 @@
+ #include <array>
+ #include <atomic>
+ #include <cerrno>
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
+ #include <cstdint>
+ #include <cstring>
+ #include <limits>
+@@ -351,15 +354,39 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
+                       const size_t* output_ranks, const int32_t* output_types, size_t noutputs,
+                       const int32_t* grid, const int32_t* threadgroup, void** outputs) noexcept {
+   return protect([&] {
++    struct Profile {
++      bool enabled = std::getenv("MLXL3_PROFILE_KERNEL_KEYS") != nullptr;
++      uint64_t calls = 0, misses = 0, evictions = 0, key_ns = 0, bytes = 0, maximum = 0;
++      ~Profile() {
++        if (enabled) std::fprintf(stderr,
++          "{\"kernel_keys\":{\"calls\":%llu,\"misses\":%llu,\"evictions\":%llu,\"key_ns\":%llu,\"metadata_bytes\":%llu,\"max_entries\":%llu}}\n",
++          (unsigned long long)calls, (unsigned long long)misses, (unsigned long long)evictions,
++          (unsigned long long)key_ns, (unsigned long long)bytes, (unsigned long long)maximum);
++      }
++    };
++    thread_local Profile profile;
++    const auto started = profile.enabled ? std::chrono::steady_clock::now()
++      : std::chrono::steady_clock::time_point{};
+     using Key = std::tuple<std::string, std::vector<std::string>, std::vector<std::string>, std::string, std::string>;
+     thread_local std::map<Key, mx::fast::CustomKernelFunction> cache;
+     Key key{name, strings(input_names, ninputs), strings(output_names, noutputs), header, source};
+     auto found = cache.find(key);
++    if (profile.enabled) {
++      ++profile.calls;
++      profile.key_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
++        std::chrono::steady_clock::now() - started).count();
++      profile.bytes += std::strlen(name) + std::strlen(header) + std::strlen(source);
++      if (found == cache.end()) ++profile.misses;
++    }
+     if (found == cache.end()) {
+       // ponytail: bounded key-ordered eviction; use LRU only if dynamic factories churn.
+-      if (cache.size() >= 128) cache.erase(cache.begin());
++      if (cache.size() >= 128) {
++        cache.erase(cache.begin());
++        if (profile.enabled) ++profile.evictions;
++      }
+       found = cache.emplace(key, mx::fast::metal_kernel(name, std::get<1>(key), std::get<2>(key),
+         source, header, true, false, mx::CompileOptions{})).first;
++      profile.maximum = std::max<uint64_t>(profile.maximum, cache.size());
+     }
+     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
+     for (size_t i = 0; i < noutputs; ++i) {
