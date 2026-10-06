@@ -1,0 +1,7 @@
+{
+  "state": "failed",
+  "exit_code": 1,
+  "diagnostic": "AttributeError: module 'hashlib' has no attribute 'file_digest'",
+  "cause": "Public audit invoked the macOS system python3 rather than the configured Python 3.12 runtime. Engine download succeeded; hash validation did not run.",
+  "correction": "Use the project Python 3.12 and streaming SHA-256; reuse an already downloaded asset only after validating its bytes and hash."
+}

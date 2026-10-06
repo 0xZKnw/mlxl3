@@ -139,8 +139,9 @@ Aucun benchmark en cours. Tune MTP reste le contrôle prévu pour un autre workl
 Les tests échantillonnés et le model checking CPU borné ne prouvent pas
 MLX/Metal, allocateur, concurrence ou génération complète. Swift est contrôlé
 par compilation Swift6 et les parcours E2E, sans preuve formelle de concurrence.
-CI du SHA final de livraison, paquets signés/updater réel et publication restent
-à compléter.
+Les contrôles du SHA livré, le packaging et la publication sont clos ci-dessous.
+Aucun benchmark ne reste en cours ; les limites de preuve ci-dessus restent
+applicables au binaire publié.
 
 ## Échecs conservés
 
@@ -158,3 +159,95 @@ séparément. **4/4 jobs PR réussis sur6e79de6** :
 [Desktop/E2E](https://github.com/0xZKnw/mlxl3/actions/runs/37375917879).
 Logs/status inspectés dans `ci-pinned-*`, mêmes4826obligations et77covers.
 Aucune app personnelle remplacée.
+
+## Livraison vérifiée — 6 octobre 2026
+
+La [PR24](https://github.com/0xZKnw/mlxl3/pull/24) est mergée par
+`80cfe9e57184a8e2363bce1292196e6a2e728b7b`. Les deux paquets et tags proviennent
+exactement de la source propre `3515f5493013c2f84419b3fc06b6601d6bf0f37a` ;
+l'arbre du merge est identique. Les commits ultérieurs de preuves/documentation
+ne changent pas ces artefacts.
+
+**8/8 jobs réussis** pour ce SHA (PR et push) :
+[PR native/Kani](https://github.com/0xZKnw/mlxl3/actions/runs/37378527131),
+[PR Desktop](https://github.com/0xZKnw/mlxl3/actions/runs/37378527077),
+[push native/Kani](https://github.com/0xZKnw/mlxl3/actions/runs/37378521349),
+[push Desktop](https://github.com/0xZKnw/mlxl3/actions/runs/37378521285).
+Les **4/4 jobs après merge** sont aussi réussis :
+[native/Kani](https://github.com/0xZKnw/mlxl3/actions/runs/37505980313) et
+[Desktop](https://github.com/0xZKnw/mlxl3/actions/runs/37505980290), statuts
+`ci-merge-*.json` inspectés sur80cfe9e.
+Les logs et chaque étape ont été inspectés : Kani33/33,4826assertions,
+77covers,0échec ; Python Desktop192/4skips et natifs190 chacun ; Rust CPU50
+passés avec2ignorés Linux/3macOS. `ci-final-*` conserve les résultats exacts.
+
+Le build livré utilise MLX/chat, Swift6 et SDK26.5 ; metadata `tracked_changes`
+false, app1.4.0/build23, moteur1.4.0, bridge1. Signatures ad hoc strictes
+vérifiées sur l'app et les bibliothèques ; paquets non notarialisés. Le manifeste
+moteur reste sous64Kio avec cinq fichiers racine et leurs tailles/SHA-256,
+Desktop minimum1.4.0 et macOS minimum26.2. Aucun poids n'est embarqué.
+Preuves : `package-final-{build.log,proof.json}` et `dmg-proof.json`.
+
+Le **binaire signé du paquet, fusions OFF par défaut**, repasse le bridge
+physique dense→MoE→dense : **36 cas**, budgets1/3/17 et D0..3, réutilisation,
+chemins invalides/étrangers, mémoire ON/OFF exacte avant et après génération,
+parité non vide et enfants rejoints (`packaged-model-switch.{json,log}`). Les
+27 fichiers checkpoint ont été rehachés : identité égale à la campagne initiale
+(`checkpoint-release-identity.json`). Ce contrôle répète les propriétés affectées
+par la nouvelle identité du binaire ; ses durées ne sont pas des mesures de gain.
+
+L'updater **de production** compilé en Swift6/warnings-as-errors installe et
+active l'archive réelle dans des stores temporaires, vérifie signatures/hashes,
+exécute le moteur après déplacement et rejette une app1.3.0 incompatible
+(`updater-final.log`). Le DMG a été monté en lecture seule : Info.plist,
+metadata, quatre fichiers runtime et exécutable égaux au bundle construit,
+signature stricte, `--check-chat-timeline` et `--check-mcp-preferences` réussis.
+Le volume a été démonté ; l'app personnelle n'a pas été remplacée.
+
+| Publication | Taille (octets) | SHA-256 |
+|---|---:|---|
+| [Desktop1.4.0/build23](https://github.com/0xZKnw/mlxl3/releases/tag/v1.4.0) | 73 305 316 | `40b26ed3ca391ad9c673ae084e28c071094b830b47ced892fd7f73cdfb9a649a` |
+| [Moteur1.4.0](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.0) | 66 867 081 | `9ad7d85bb77b9f9eb9280c6a155590a149141e5f7763802b30b27425b96d1b82` |
+
+Desktop est la dernière release du canal app ; moteur publié séparément et
+non marqué latest. Les uploads ont été contrôlés avant publication puis les
+deux téléchargements HTTPS publics sans authentification ont été vérifiés en
+taille/SHA-256. Les deux tags pointent sur3515f54. La sélection des canaux par
+`UpdateManager.selectRelease` réel, compilé depuis les trois fichiers Swift
+livrés, retrouve app1.4.0/build23 et moteur1.4.0 avec les bons fichiers,
+URLs, tailles et digests. `publication-proof.json`, `published-releases.json`,
+`updater-selection.json` et `release-*-tag.json` conservent ces contrôles.
+
+Commandes finales (worktree isolé, Python3.12 du projet) :
+
+```sh
+MLXL3_MLX_ROOT=/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx \
+MLXL3_BUILD_PYTHON=/Users/justin/Documents/mix-stq1_0/.venv/bin/python \
+MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk \
+scripts/build-macos-dmg.sh
+build/mtp-updater-check build/mtp-updater-archives dist/MLXL3-Engine-v1.4.0-arm64.tar.gz 1.4.0
+swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
+  -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk \
+  apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+  apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+  apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+  docs/measurements/mtp-dense-1.4.0/updater-select.swift -o build/mtp-release-updater-select
+/Users/justin/Documents/mix-stq1_0/.venv/bin/python scripts/check-mtp-model-switch.py \
+  'dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3' \
+  '/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0' \
+  '/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw' \
+  --output build/mtp-packaged-model-switch.json
+build/mtp-release-updater-select --select build/mtp-published-releases.json
+curl --proto '=https' --proto-redir '=https' --fail --location --max-time 120 --retry 2 "$ASSET_URL" --output "$PUBLIC_FILE"
+shasum -a 256 build/public-MLXL3-Engine-v1.4.0-arm64.tar.gz build/public-MLXL3-Desktop-v1.4.0-b23-Apple-Silicon.dmg
+```
+
+`ASSET_URL` et `PUBLIC_FILE` correspondent à chacune des deux entrées de
+`updater-selection.json`, téléchargées séparément. Les commandes/builds/tests
+précédents restent dans leurs logs. Deux erreurs du harnais de publication sont
+conservées : invocation sans `--select` (exit133), puis Python système ne
+supportant pas `hashlib.file_digest` (exit1, hash non exécuté). Invocation
+corrigée et runtime Python3.12/lecture SHA-256 en blocs ont terminé le contrôle ;
+les téléchargements existants sont réutilisés seulement après taille/hash exacts.
+Ces échecs ne sont pas attribués à l'updater produit ; leurs diagnostics restent
+`updater-selection-initial-failure.json` et `publication-hash-initial-failure.json`.
