@@ -1,0 +1,24 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_empty_results_cannot_certify_parity[benchmark_decode_tiles] _______
+
+benchmark = <module 'benchmark_decode_tiles' from '/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_decode_tiles.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b654dd0>
+tmp_path = PosixPath('/private/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/pytest-of-henko/pytest-3/test_empty_results_cannot_cert0')
+
+    def test_empty_results_cannot_certify_parity(benchmark, monkeypatch, tmp_path):
+        output = tmp_path / "result.json"
+        monkeypatch.setattr(benchmark, "run", lambda _: {"checks": [], "timings": []})
+>       with pytest.raises(RuntimeError, match="empty comparison"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RuntimeError
+
+tests/test_decode_microbenchmarks.py:66: Failed
+----------------------------- Captured stdout call -----------------------------
+{
+  "checks": 0,
+  "timings": []
+}
+=========================== short test summary info ============================
+FAILED tests/test_decode_microbenchmarks.py::test_empty_results_cannot_certify_parity[benchmark_decode_tiles]
+1 failed, 1 passed, 14 deselected in 0.03s

@@ -1,0 +1,67 @@
+B023 Function definition does not bind loop variable `x`
+  --> benchmarks/benchmark_gdn_norm_gate.py:95:36
+   |
+93 |         gate = mx.array(rng.normal(0, 2, (rows, 128)).astype(np.float16))
+94 |         w = mx.array(rng.uniform(0.25, 1.25, 128).astype(np.float16))
+95 |         funcs = [lambda: reference(x, gate, w, 1e-6), lambda: fused(x, gate, w, 1e-6)]
+   |                                    ^
+96 |         for _ in range(4):
+97 |             for fn in funcs:
+   |
+
+B023 Function definition does not bind loop variable `gate`
+  --> benchmarks/benchmark_gdn_norm_gate.py:95:39
+   |
+93 |         gate = mx.array(rng.normal(0, 2, (rows, 128)).astype(np.float16))
+94 |         w = mx.array(rng.uniform(0.25, 1.25, 128).astype(np.float16))
+95 |         funcs = [lambda: reference(x, gate, w, 1e-6), lambda: fused(x, gate, w, 1e-6)]
+   |                                       ^^^^
+96 |         for _ in range(4):
+97 |             for fn in funcs:
+   |
+
+B023 Function definition does not bind loop variable `w`
+  --> benchmarks/benchmark_gdn_norm_gate.py:95:45
+   |
+93 |         gate = mx.array(rng.normal(0, 2, (rows, 128)).astype(np.float16))
+94 |         w = mx.array(rng.uniform(0.25, 1.25, 128).astype(np.float16))
+95 |         funcs = [lambda: reference(x, gate, w, 1e-6), lambda: fused(x, gate, w, 1e-6)]
+   |                                             ^
+96 |         for _ in range(4):
+97 |             for fn in funcs:
+   |
+
+B023 Function definition does not bind loop variable `x`
+  --> benchmarks/benchmark_gdn_norm_gate.py:95:69
+   |
+93 |         gate = mx.array(rng.normal(0, 2, (rows, 128)).astype(np.float16))
+94 |         w = mx.array(rng.uniform(0.25, 1.25, 128).astype(np.float16))
+95 |         funcs = [lambda: reference(x, gate, w, 1e-6), lambda: fused(x, gate, w, 1e-6)]
+   |                                                                     ^
+96 |         for _ in range(4):
+97 |             for fn in funcs:
+   |
+
+B023 Function definition does not bind loop variable `gate`
+  --> benchmarks/benchmark_gdn_norm_gate.py:95:72
+   |
+93 |         gate = mx.array(rng.normal(0, 2, (rows, 128)).astype(np.float16))
+94 |         w = mx.array(rng.uniform(0.25, 1.25, 128).astype(np.float16))
+95 |         funcs = [lambda: reference(x, gate, w, 1e-6), lambda: fused(x, gate, w, 1e-6)]
+   |                                                                        ^^^^
+96 |         for _ in range(4):
+97 |             for fn in funcs:
+   |
+
+B023 Function definition does not bind loop variable `w`
+  --> benchmarks/benchmark_gdn_norm_gate.py:95:78
+   |
+93 |         gate = mx.array(rng.normal(0, 2, (rows, 128)).astype(np.float16))
+94 |         w = mx.array(rng.uniform(0.25, 1.25, 128).astype(np.float16))
+95 |         funcs = [lambda: reference(x, gate, w, 1e-6), lambda: fused(x, gate, w, 1e-6)]
+   |                                                                              ^
+96 |         for _ in range(4):
+97 |             for fn in funcs:
+   |
+
+Found 16 errors (10 fixed, 6 remaining).
