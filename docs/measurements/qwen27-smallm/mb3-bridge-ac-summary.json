@@ -1,0 +1,56 @@
+{
+  "status": "complete",
+  "runs": 8,
+  "generated_tokens": 2048,
+  "warmup_tokens": 512,
+  "rates": [
+    4.808212891469756,
+    2.4149295900075978,
+    2.5642882558311757,
+    2.4808774070644355,
+    2.645232848574663,
+    2.425308529139688,
+    2.6687149675975665,
+    2.750469833167084
+  ],
+  "same_mtp_counters": [
+    141,
+    225,
+    113
+  ],
+  "all_ac": false,
+  "conditions_after": {
+    "battery": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36110435)\t78%; discharging; 3:23 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "swap": "vm.swapusage: total = 4096.00M  used = 2564.69M  free = 1531.31M  (encrypted)"
+  },
+  "control_max_min_ratio": 1.9825159701126103,
+  "paired_gain_pct_diagnostic": [
+    -49.774902972954436,
+    3.362151169953953,
+    9.06789040621514,
+    3.0634543801848935
+  ],
+  "window_median_gain_pct_diagnostic": [
+    -23.20637590150024,
+    6.065672393200017
+  ],
+  "promotion_criteria": {
+    "control_ratio_at_most_1_10": false,
+    "both_windows_at_least_3_percent": false,
+    "all_ac": false
+  },
+  "promoted": false,
+  "decision": "non-conclusive for causal delivered gain: control drift and changed power fail preregistered conditions; prototype remains withdrawn",
+  "token_text_history_count_parity": true,
+  "power_at_pass_start": [
+    "AC",
+    "AC",
+    "AC",
+    "AC",
+    "battery",
+    "battery",
+    "battery",
+    "battery"
+  ]
+}
