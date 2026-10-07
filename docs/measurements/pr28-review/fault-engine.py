@@ -119,16 +119,12 @@ for line in sys.stdin:
     if request['type'] == 'set_mtp':
         with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
             log.write(json.dumps({'model': model, 'request': request, 'pid': os.getpid()}) + '\n')
-        if not request['enabled']:
-            if model == 'auto-idle-malformed':
-                emit('mtp_status', request_id=request['request_id'], mtp_active='invalid boolean')
-                continue
-            if model in ('auto-idle-error', 'auto-idle-empty-error'):
-                emit('error', request_id='' if model.endswith('empty-error') else request['request_id'],
-                     message='fixture MTP configuration failed')
-                continue
-            if model == 'auto-idle-silent':
-                continue
+        if not request['enabled'] and model == 'auto-malformed':
+            emit('mtp_status', request_id=request['request_id'], mtp_active='invalid boolean')
+            continue
+        if not request['enabled'] and model == 'auto-error':
+            emit('error', request_id=request['request_id'], message='fixture MTP configuration failed')
+            continue
         expected = '/tmp/mlxl3-fixture-mtp-' + ('dense' if model in ('auto-dense', 'auto-slow') else 'moe')
         if request['enabled'] and request['mtp_head_path'] != expected:
             emit('error', request_id=request['request_id'], message='foreign head reached bridge')
@@ -185,14 +181,5 @@ for line in sys.stdin:
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)
-    if model == 'auto-idle-silent':
-        for _ in range(2000):
-            if os.path.exists(os.path.join(os.environ['MLXL3_HOME'], 'release-idle-generation')):
-                break
-            time.sleep(0.02)
-        else:
-            emit('error', request_id=request['request_id'], message='fixture generation release timed out')
-            continue
-    else:
-        time.sleep(0.2)
+    time.sleep(0.2)
     emit('complete', request_id=request['request_id'], assistant_context='done', cache_context='done')

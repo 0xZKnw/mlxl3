@@ -68,3 +68,21 @@ La CI existante passe par `scripts/check-desktop.sh`, qui exécute maintenant
 le nouveau harnais. La branche locale n'est pas publiée ; aucun run GitHub
 de cette fonctionnalité n'est annoncé vert. L'app personnelle reste à sa
 version installée ; le réglage nécessite un nouveau build de **Desktop**.
+
+## Récupération MTP — correctif de la revue PR28
+
+Une réponse MTP illisible produit une erreur sans identifiant de requête.
+La préparation est maintenant annulée dans ce cas, tout en conservant le
+traitement des erreurs de génération et de tuning. Une demande MTP OFF
+sans réponse récupère après30secondes ; sa tâche est annulée lors d'un
+acquittement, d'une éjection ou d'un rechargement. Le délai idle complet
+repart après récupération ou fin de génération, sans interrompre une
+génération active àl'échéance MTP.
+
+La régression échoue sur la source originale. Le harnais final exécute
+114assertions, avec attente MTP30s réelle et génération libérée par un
+signal fichier jetable ; le contrôle indépendant de revue passe3/3cas.
+Build et suite Desktop réussis. Commandes, hashes et limites :
+[vérification du correctif](measurements/pr28-fixes/verification-summary.json).
+La preuve formelle Swift et le déchargement d'un modèle physique restent
+non exécutés ; les résultats locaux ne valent pas résultat de CI distante.

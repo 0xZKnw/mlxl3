@@ -783,6 +783,19 @@ final class StudioModel: ObservableObject {
         mtpConfigurationPending = true
         do { try bridge.setMTP(requestID: requestID, enabled: enabled, headPath: headPath) }
         catch { mtpConfigurationPending = false; throw error }
+        // ON already has the preparation task's timeout; OFF must also recover
+        // if a live engine never acknowledges the request.
+        if !enabled {
+            let operation = mtpOperationID
+            mtpDownloadTask = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(30)) }
+                catch { return }
+                guard let self, operation == self.mtpOperationID, self.mtpConfigurationPending else { return }
+                self.mtpError = L("La configuration MTP ne répond pas.", "MTP configuration did not respond.")
+                self.mtpActive = nil
+                self.cancelMTPPreparation()
+            }
+        }
     }
 
     func setMTPEnabled(_ enabled: Bool) {
@@ -1137,6 +1150,13 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
+        if mtpConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
+            mtpError = event.message ?? L("La configuration MTP a échoué.", "MTP configuration failed.")
+            mtpEnabled = false; mtpActive = nil
+            cancelMTPPreparation()
+            // Keep dispatching: an uncorrelated error may also fail an active
+            // generation or tuning request, whose existing cleanup must run.
+        }
         if event.requestID == mtpOperationID.uuidString && ["mtp_status", "error"].contains(event.type) {
             mtpConfigurationPending = false
             mtpDownloadTask?.cancel(); mtpDownloadTask = nil; mtpDownloading = false
