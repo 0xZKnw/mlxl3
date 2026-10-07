@@ -1,5 +1,12 @@
 # MLXL3 — journal des optimisations
 
+### REVIEW-2026-10-07-SMALLM-PR — préparation de branche pour revue — terminée localement
+
+- Demande utilisateur : rendre le travail partageable dans une PR qu'il créera. Base de campagne `5de518e0fbe7d3367416b9bc5999c7bd1f92c74d`, sources testées au commit `25e1fef`. Main parent récupéré `fba63b840f9b9997bcb38fb4d5d5c96ef26a35d9` : seul README différent depuis la base ; fusion simulée sans conflit, aucun merge/rebase ni changement moteur requis.
+- Portée : PR d'outils de benchmark, tests, CI et preuves ; MB3 reste patch expérimental archivé, GDN non intégré, TensorOps rejeté. Les gains micro/verify court restent distincts du débit livré non concluant. Aucun nouvel essai d'optimisation ni répétition GPU ; aucun modèle, réglage, binaire installé ou source exécutable modifié.
+- Préparation : [guide de revue](docs/measurements/qwen27-smallm/README.md), attributs GitHub pour replier les sorties machine seulement, espaces des logs/patch bruts conservés et empreintes originales inchangées. Vérification prévue avant envoi sur le fork : index des preuves, hashes sources finales, liens du guide, attributs et diff sans erreur de whitespace ; aucun run GitHub vert revendiqué avant inspection du commit exact. L'utilisateur créera la PR ; aucune PR/merge/release automatique. État distant et contrôle de publication conservés dans le dossier local `../work/smallm-pr/`.
+- Clôture locale : 78 artefacts vérifiés en taille/SHA256, 14 empreintes sources identiques aux sources testées, 6 liens du guide valides, attributs ciblés contrôlés et diff sans erreur de whitespace. Aucun fichier exécutable/CI retouché depuis `25e1fef`, donc résultats 258 Python / 62 Rust et 55 ignorés conservés sans nouveau test GPU. Titre et description de PR prêts dans `../work/smallm-pr/`. Publication de la branche prévue ensuite sur le fork, création de la PR laissée à l'utilisateur ; contrôle distant du SHA et de la CI enregistré séparément.
+
 ### HARNESS-2026-10-07-QMM-START — démarrage lent du codec de test — corrigé, validé
 
 - Constat avant modification : les fixtures protocole QMM existantes expirent parfois sur écriture avant d’atteindre l’erreur spécifique attendue, deadline300ms. Deux échecs en trois suites, cas closed_stdin/invalid puis closed_stdin/eof, y compris modèle Desktop éjecté ; septcas passent seuls. Cause de charge physique non démontrée, mais défaut du budget de test reproductible en retardant explicitement le démarrage.
