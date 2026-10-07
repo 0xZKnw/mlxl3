@@ -109,6 +109,7 @@ unsafe extern "C" {
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
+    fn mlxl3_arrays_async_eval(inputs: *const *mut c_void, count: usize) -> i32;
     fn mlxl3_array_copy_bytes(p: *mut c_void, out: *mut u8, count: usize) -> i32;
     fn mlxl3_array_unary(
         p: *mut c_void,
@@ -460,6 +461,11 @@ impl Array {
     }
     pub fn eval(&self) -> Result<()> {
         checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
+    }
+    /// Submit graphs together; reading an output still waits for completion.
+    pub fn async_eval_all(inputs: &[&Self]) -> Result<()> {
+        let pointers: Vec<_> = inputs.iter().map(|value| value.handle.as_ptr()).collect();
+        checked(unsafe { mlxl3_arrays_async_eval(pointers.as_ptr(), pointers.len()) })
     }
     pub fn try_clone(&self) -> Result<Self> {
         Self::output(|out| unsafe { mlxl3_array_clone(self.handle.as_ptr(), out) })
@@ -839,6 +845,30 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires physical Apple GPU; run alone"]
+    fn async_group_retains_parents_and_rejects_null() -> Result<()> {
+        let (first, second) = {
+            let input = Array::from_u32(&[1, 7, 19, u32::MAX], &[2, 2])?;
+            let first = input.transpose(&[1, 0])?;
+            let second = input.reshape(&[4])?;
+            Array::async_eval_all(&[&first, &second])?;
+            (first, second)
+        };
+        assert_eq!(first.shape(), &[2, 2]);
+        assert_eq!(first.to_u32()?, [1, 19, 7, u32::MAX]);
+        assert_eq!(second.shape(), &[4]);
+        assert_eq!(second.to_u32()?, [1, 7, 19, u32::MAX]);
+        Array::async_eval_all(&[])?;
+        let empty = Array::from_u32(&[], &[0])?;
+        Array::async_eval_all(&[&empty])?;
+        assert!(empty.to_u32()?.is_empty());
+        assert!(checked(unsafe { mlxl3_arrays_async_eval(std::ptr::null(), 1) }).is_err());
+        let invalid = [first.handle.as_ptr(), std::ptr::null_mut()];
+        assert!(checked(unsafe { mlxl3_arrays_async_eval(invalid.as_ptr(), 2) }).is_err());
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "physical Apple GPU; run alone, optional MLXL3_NORM_BENCH=1 after parity"]
     fn fused_mtp_norm_matches_stock_outputs_and_fallbacks() -> Result<()> {
         use half::f16;
@@ -1114,5 +1144,19 @@ mod tests {
         assert!(a.reshape(&[3]).is_err());
         assert_eq!(a.to_f32()?, vec![1., 2., 3., 4.]);
         Ok(())
+    }
+}
+
+#[cfg(kani)]
+mod verification {
+    use super::*;
+    #[kani::proof]
+    fn async_group_preserves_values() {
+        let values: [u32; 2] = kani::any();
+        let input = Array::from_u32(&values, &[2]).unwrap();
+        let other = input.reshape(&[1, 2]).unwrap();
+        Array::async_eval_all(&[&input, &other]).unwrap();
+        assert_eq!(input.to_u32().unwrap(), values);
+        assert_eq!(other.to_u32().unwrap(), values);
     }
 }

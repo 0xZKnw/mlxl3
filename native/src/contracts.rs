@@ -1,5 +1,95 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn mtp_pipeline_default(
+    hidden: i32,
+    layers: usize,
+    experts: i32,
+    top_k: usize,
+    m5: bool,
+) -> bool {
+    m5 && hidden == 2048 && layers == 40 && experts == 256 && top_k == 8
+}
+
+#[test]
+fn mtp_pipeline_default_requires_measured_geometry() {
+    assert!(mtp_pipeline_default(2048, 40, 256, 8, true));
+    for (hidden, layers, experts, top_k, m5) in [
+        (2048, 40, 256, 8, false),
+        (5120, 64, 0, 0, true),
+        (2048, 39, 256, 8, true),
+        (2048, 40, 0, 0, true),
+        (2048, 40, 128, 8, true),
+        (2048, 40, 256, 4, true),
+        (i32::MAX, usize::MAX, i32::MAX, usize::MAX, true),
+    ] {
+        assert!(!mtp_pipeline_default(hidden, layers, experts, top_k, m5));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn mtp_pipeline_default_is_limited_to_measured_target() {
+    let hidden: i32 = kani::any();
+    let layers: usize = kani::any();
+    let experts: i32 = kani::any();
+    let top_k: usize = kani::any();
+    let m5: bool = kani::any();
+    let enabled = mtp_pipeline_default(hidden, layers, experts, top_k, m5);
+    assert_eq!(
+        enabled,
+        m5 && hidden == 2048 && layers == 40 && experts == 256 && top_k == 8
+    );
+    kani::cover!(enabled);
+    kani::cover!(!enabled && !m5);
+    kani::cover!(!enabled && experts == 0);
+    kani::cover!(!enabled && layers == 0);
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn pipeline_layer(index: usize, layers: usize, enabled: bool) -> bool {
+    enabled && index < layers.saturating_sub(1) && (index == 0 || index % 4 == 3)
+}
+
+#[test]
+fn pipeline_layer_stays_inside_model() {
+    for layers in 0..=12 {
+        let expected = [0, 3, 7, 11]
+            .into_iter()
+            .filter(|&index| index + 1 < layers)
+            .collect::<Vec<_>>();
+        let actual = (0..=13)
+            .filter(|&index| pipeline_layer(index, layers, true))
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+        assert!((0..=13).all(|index| !pipeline_layer(index, layers, false)));
+    }
+    assert!(!pipeline_layer(usize::MAX, usize::MAX, true));
+    assert!(!pipeline_layer(usize::MAX - 1, usize::MAX, true));
+    assert!(pipeline_layer(usize::MAX - 4, usize::MAX, true));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn pipeline_layer_has_no_final_or_outside_submission() {
+    let index: usize = kani::any();
+    let layers: usize = kani::any();
+    let enabled: bool = kani::any();
+    let submit = pipeline_layer(index, layers, enabled);
+    if submit {
+        assert!(enabled && layers > 1 && index < layers - 1);
+        assert!(index == 0 || (index + 1) % 4 == 0);
+    }
+    assert_eq!(
+        submit,
+        enabled && layers > 1 && index < layers - 1 && (index == 0 || index % 4 == 3)
+    );
+    kani::cover!(submit && index == 0);
+    kani::cover!(submit && index > 0);
+    kani::cover!(!submit && layers > 0 && index == layers - 1);
+    kani::cover!(!submit && !enabled);
+}
+
 #[cfg(any(feature = "mlx", kani))]
 pub(crate) fn mtp_add_norm_launch(rows: i32, width: i32) -> Option<(i32, i32)> {
     if !(1..=4).contains(&rows) || !matches!(width, 2048 | 5120) {

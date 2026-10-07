@@ -34,8 +34,13 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
         .unwrap_or_else(|| std::env::consts::ARCH.to_owned());
+    let pipeline = match std::env::var("MLXL3_QWEN_PIPELINE").as_deref() {
+        Ok("0") => "off",
+        Ok("1") => "all",
+        _ => "mtp-m5-v1",
+    };
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:lookup={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),

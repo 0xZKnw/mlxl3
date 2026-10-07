@@ -34,8 +34,9 @@ EXL3 verify batching uses MLXL3's own trellis kernels and arithmetic.
 
 Source: <https://github.com/ashhart/TensorFold>, revision
 `cb2ebf0540f42604e2759b2ddef497861e928248`, Apache-2.0
-(`LICENSES/Apache-2.0.txt`). Its draft-only vocabulary pruning informed the
-independent Q4 row selection and native token-ID remapping. The public
+(`LICENSES/Apache-2.0.txt`). Its draft-only vocabulary pruning and grouped target-layer submission
+informed independent Q4 row selection, native token-ID remapping and MLX
+graph submission. The public
 `src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt` list was used for local
 measurements; neither that list nor upstream implementation code is bundled.
 The target retains its full vocabulary and exact verification.

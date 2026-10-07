@@ -34,6 +34,15 @@ the full Q4 prototype used 272.81 MiB and regressed on code, so it is not a
 general speed recommendation. These measurements use fixed token budgets,
 not complete-task accuracy evaluations, and do not establish gains for other models.
 
+MTP target-layer graphs are also submitted progressively on the measured
+Qwen3.6-35B-A3B geometry on **Apple M5**. With the stock head, MTP2 code
+decode improved **7.16–7.80%** versus the same 1.4.2 binary with submission
+disabled; complete time fell **6.27–6.80%**, confirmed in opposite pass orders.
+This result is separate from the compact-head gain above. The default applies
+to MTP only; `MLXL3_QWEN_PIPELINE=0` disables it. Value `1` experimentally
+extends submission to all Qwen trunk paths. Other geometries and devices keep
+the previous default. See [protocols and limits](docs/engine-v1.4.2-pipeline.md).
+
 A separate prompt-lookup experiment can draft continuations of repeated code
 with `MLXL3_MTP_LOOKUP=1`. It is **off by default**: the initial copy speed
 signal was not reproduced within the control-drift limits. The full target

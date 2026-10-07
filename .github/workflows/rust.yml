@@ -54,5 +54,13 @@ jobs:
           python -m py_compile scripts/experimental-draft-head.py
       - name: Check bridge and QMM validation tools
         run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py
+      - name: Compile and lint the shipped MLX bridge
+        if: matrix.os == 'macos-26'
+        run: |
+          python -m pip install mlx==0.32.2
+          mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
+          cargo build --locked --release --features mlx,chat
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
-      # not enable the optional mlx feature, which needs a supplied libmlx.
+      # not run inference or numeric GPU checks; the macOS build uses pinned libmlx.

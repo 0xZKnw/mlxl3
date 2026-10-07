@@ -1,5 +1,5 @@
 {
-  "status": "local_validated_draft_PR; compact_boost_confirmed_lookup_experimental_async_rejected",
+  "status": "local_validated_draft_PR; compact_and_MTP_layer_pipeline_confirmed; lookup_OFF; last_fusion_removed_no_gain",
   "version": "1.4.2",
   "base": "5de518e0fbe7d3367416b9bc5999c7bd1f92c74d",
   "baseline": {
@@ -232,15 +232,15 @@
   "checks": {
     "rust_mlx_chat": {
       "command": "MLXL3_MLX_ROOT=<MLX0.32.2 package> cargo test --locked --release --features mlx,chat",
-      "passed": 66,
-      "ignored": 58,
-      "raw": "lookup-final-rust-full.log"
+      "passed": 68,
+      "ignored": 60,
+      "raw": "phase-3-restore-rust-mlx.log"
     },
     "rust_cpu_chat": {
       "command": "cargo test --locked --no-default-features --features chat",
-      "passed": 54,
+      "passed": 56,
       "ignored": 2,
-      "raw": "lookup-final-rust-cpu.log"
+      "raw": "phase-3-restore-rust-cpu.log"
     },
     "python": {
       "command": "python -m pytest -q",
@@ -252,7 +252,7 @@
         "Ling checkpoint absent (one test)"
       ]
     },
-    "format_lint_build": "Phase2 final cargo fmt, strict Clippy MLX/chat + CPU/chat, release mlx/chat build passed; commands/results in phase-2-checks.json. Firststage Python/Ruff/Swift/E2E unchanged and their historical results retained.",
+    "format_lint_build": "Phase3 fmt/strict Clippy CPU+mlx,chat/release build and strict C++20 checks passed. Exact measured binary and14 sources matched after prototype removal. Commands/results: phase-3-checks.json and phase-3-restored-checks.json. Python/Ruff/Desktop sources unchanged; historical checks retained.",
     "desktop": "scripts/check-e2e.sh with SDK26.5 passed; 49 update-state pairs, publisher refresh, real send/complete through disposable fake engine and existing lifecycle/bridge/update/import/render checks",
     "swift_strict": "All app sources passed Swift6 typecheck with warnings-as-errors. Global package strict build fails on pre-existing vendored SwiftMath CTFontManager deprecations.",
     "physical_numeric": {
@@ -275,20 +275,89 @@
       "recursive": "24 blocks D1..3, 80 target states/raw hidden/MTP KV bit-exact; full-vocab standalone; 20 invalid loader cases after dtype-test correction"
     },
     "physical_bridge": {
-      "status": "passed",
+      "status": "complete",
       "requests": 43,
-      "nonempty_completions": 35,
-      "cancelled": 5,
-      "expected_errors": 2,
-      "tune_complete": 1,
-      "properties": {
+      "events": {
+        "loading": 1,
+        "ready": 1,
+        "generation_mode": 39,
+        "generation_status": 39,
+        "context_usage": 39,
+        "delta": 553,
+        "complete": 35,
+        "error": 2,
+        "cancelled": 5,
+        "mtp_tune_progress": 23,
+        "mtp_tune_complete": 1,
+        "null": 1
+      },
+      "verified": {
         "all_depths_parity": true,
         "prefix_parity": true,
         "cancel_recovery": true,
         "tuner_verified": true
       },
-      "runtime_key_lookup_1": true,
-      "tuning_key": "f90cb83f932cfa8c:1.4.2:3ed683617e50-dirty:release:0.32.2:Apple M5:4096:lookup=1"
+      "log": "pipeline-default-depths-tune.log",
+      "tuning_key": "f90cb83f932cfa8c:1.4.2:79ec53586697-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0",
+      "best_depth": 1,
+      "rows": [
+        {
+          "accepted_tokens": 0,
+          "decode_seconds": 3.737157625,
+          "decode_tokens": 190,
+          "decode_tps": 50.840777688631746,
+          "depth": 0,
+          "eligible": true,
+          "proposed_tokens": 0,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        },
+        {
+          "accepted_tokens": 89,
+          "decode_seconds": 2.601433332,
+          "decode_tokens": 190,
+          "decode_tps": 73.0366593150118,
+          "depth": 1,
+          "eligible": true,
+          "proposed_tokens": 99,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        },
+        {
+          "accepted_tokens": 117,
+          "decode_seconds": 2.7421447929999996,
+          "decode_tokens": 190,
+          "decode_tps": 69.28882839630563,
+          "depth": 2,
+          "eligible": true,
+          "proposed_tokens": 142,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        },
+        {
+          "accepted_tokens": 129,
+          "decode_seconds": 2.818371291,
+          "decode_tokens": 190,
+          "decode_tps": 67.41482238579898,
+          "depth": 3,
+          "eligible": true,
+          "proposed_tokens": 176,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        }
+      ]
     },
     "model_switch": {
       "status": "passed",
@@ -311,36 +380,37 @@
       "Lookup latest-match mutation detected/restored",
       "Lookup newline-filter bypass mutation detected/restored",
       "Withdrawn async CABI NULL-guard mutation detected/restored; actual Array test passed"
-    ]
+    ],
+    "pipeline_physical": "13 final explicit GPU executions passed:11 planned plus2 stronger hidden-finitude repeats. Stock/dense numeric and exact states, recursive stock/compact, rollback1..8/all retained prefixes, DFlash capture/verify/selective commit. Runtime APINULL/lifetime mutation detection preserved; not all60 ignored tests executed."
   },
   "verification": {
     "kani": {
       "harnesses": {
-        "total_harnesses": 37,
-        "executed": 37,
+        "total_harnesses": 39,
+        "executed": 39,
         "status": "completed",
-        "successful": 37,
+        "successful": 39,
         "failed": 0,
-        "duration_ms": 477916
+        "duration_ms": 471921
       },
       "properties": {
-        "total_properties": 5611,
-        "passed": 5449,
+        "total_properties": 5633,
+        "passed": 5463,
         "failed": 0,
         "unreachable": 72,
         "undetermined": 0,
         "solver_error": 0,
-        "satisfied": 90,
+        "satisfied": 98,
         "unsatisfiable": 0,
         "covered": 0,
         "uncovered": 0
       },
-      "raw": "kani-phase-2.json",
-      "summary": "kani-phase-2-summary.json"
+      "raw": "kani-phase-3.json",
+      "summary": "kani-phase-3-summary.json"
     },
-    "command": "cargo kani --lib --no-default-features -Z unstable-options --harness-timeout 600s --export-json kani-phase-2.json",
+    "command": "/Users/justin/.cargo/bin/cargo kani --lib --no-default-features -Z unstable-options --harness-timeout 600s --export-json docs/measurements/engine-v1.4.2/kani-phase-3.json",
     "kind": "bounded model checking, not a whole-program proof",
-    "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable. Lookup: actual prompt_lookup,20 symbolic u32 IDs/len0..20, full u32 anchor/full usize width, symbolic bool predicate,unwind33,no assume,371passed assertions/1internal unreachable/5satisfied covers.",
+    "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable. Lookup: actual prompt_lookup,20 symbolic u32 IDs/len0..20, full u32 anchor/full usize width, symbolic bool predicate,unwind33,no assume,371passed assertions/1internal unreachable/5satisfied covers. Phase3: actual layer submission/default guards on full usize/i32/bool domains without assume;13+1 passed checks and8satisfied covers. All72 unreachable obligations match inspected phase2 internals by harness/function/description/file; no newly unreachable assertion.",
     "unverified": [
       "Maps beyond8 entries by Kani (physical79616-row checks only)",
       "Serde/file IO, MLX/Metal, allocation/concurrency, whole generation",
@@ -348,7 +418,8 @@
       "Swift Combine/AppKit formal verification unavailable",
       "Lookup histories beyond20 entries by Kani; deterministic1024/1025 boundary tests only",
       "Production tokenizer/newline decoding, Session MLX/Metal cache and concurrency not formally verified",
-      "Withdrawn TensorFold async prototype: Kani real MLX library compiler ICE; CBMC real C++20-preprocessed bridge libc++ parse failure"
+      "Withdrawn TensorFold async prototype: Kani real MLX library compiler ICE; CBMC real C++20-preprocessed bridge libc++ parse failure",
+      "Retained grouped async API MLX/FFI/Metal/concurrency: actual MLX Kani ICE intrinsics243, real C++20 bridge CBMC rejects libc++/SDK. Physical checks and CPU proofs do not prove this boundary."
     ],
     "crosshair": "Three chunk_end postconditions confirmed by symbolic search; no deductive proof"
   },
@@ -369,16 +440,153 @@
     "ui_delivery": "Needs a new Desktop build; independent engine update alone cannot deliver the Swift fix",
     "first_stage_head": "3ed683617e5090a179fb4888c3db03f8cb79b5fd",
     "first_stage_ci": "8jobs success on exact3ed6836; Native Ubuntu/macOS/Kani plus Desktop E2E, push andPR",
-    "phase_2_ci": "Inspect PR26 live checks on final head after push; no pre-push success claim. Exact-SHA results will be recorded in PR description."
+    "phase_2_ci": "Exact79ec535: four runs/eight jobs success, phase-2-ci-summary.json",
+    "phase_3_ci": "Pending new final commit push. Exact-SHA run/job results will be recorded in PR description; no success inferred from workflow files."
   },
-  "evidence": "Immutable stage-1-raw.tar.gz and phase-2-raw.tar.gz contain their respective raw experiments, failures, hashes and independently identified prototypes. Unpack inside this directory. Phase2 manifest identifies every file; no weights/binaries/foreign implementation source bundled. Post-push exact-SHA CI is linked from PR description.",
-  "retained_source": "phase-2-source.json",
+  "evidence": "Immutable stage-1-raw.tar.gz, phase-2-raw.tar.gz and phase-3-raw.tar.gz retain respective raw experiments, failures, source/model/binary hashes and independent prototype snapshots. Extract inside this directory; each manifest verifies every member. No weights/binaries/foreign implementation or vocab lists bundled. Exact post-push CI linked from PR description.",
+  "retained_source": "phase-3-source.json",
   "phase_2": {
     "research": "sushi-tensorfold-deepening.json",
     "lookup": "lookup-decision.json",
     "tensorfold_async": "async-decision.json",
     "stock_compact_gpu": "Exact cache24blocks +bridge37completions/306copylookup/inline0, each variant",
     "dense_gpu": "24blocks/128states exact +37productioncompletions/6lookupblocks/inline0, budgets1..1024 and prefix exact; initial256 coverage failure preserved.",
-    "tune_model_switch": "Passed43requests with actual Tune/lookup1 key;36model-switch completions with cleanup and managed head selection"
+    "tune_model_switch": "Passed43requests with actual Tune/lookup1 key;36model-switch completions with cleanup and managed head selection",
+    "historical_checks": {
+      "rust_mlx_chat": {
+        "command": "MLXL3_MLX_ROOT=<MLX0.32.2 package> cargo test --locked --release --features mlx,chat",
+        "passed": 66,
+        "ignored": 58,
+        "raw": "lookup-final-rust-full.log"
+      },
+      "rust_cpu_chat": {
+        "command": "cargo test --locked --no-default-features --features chat",
+        "passed": 54,
+        "ignored": 2,
+        "raw": "lookup-final-rust-cpu.log"
+      },
+      "python": {
+        "command": "python -m pytest -q",
+        "passed": 229,
+        "skipped": 4,
+        "raw": "python-delivery.log",
+        "skips": [
+          "PonyEXL3 conversion module absent (three tests)",
+          "Ling checkpoint absent (one test)"
+        ]
+      },
+      "format_lint_build": "Phase2 final cargo fmt, strict Clippy MLX/chat + CPU/chat, release mlx/chat build passed; commands/results in phase-2-checks.json. Firststage Python/Ruff/Swift/E2E unchanged and their historical results retained.",
+      "desktop": "scripts/check-e2e.sh with SDK26.5 passed; 49 update-state pairs, publisher refresh, real send/complete through disposable fake engine and existing lifecycle/bridge/update/import/render checks",
+      "swift_strict": "All app sources passed Swift6 typecheck with warnings-as-errors. Global package strict build fails on pre-existing vendored SwiftMath CTFontManager deprecations.",
+      "physical_numeric": {
+        "tests_passed": 2,
+        "compact": "3 x 79616 finite FP16 logits bit-exact to CPU-selected full Q4 rows",
+        "reference": "NumPy reconstruction from MTP08, independent of native Metal; separate scalar codec/Hadamard matrix tests",
+        "rmse_scope": "3 x 4096 reference rows, all248320 full logits finite",
+        "exl3_relative_rmse_range": [
+          0.000617502,
+          0.000623774
+        ],
+        "q4_relative_rmse_range": [
+          0.089403976,
+          0.091902656
+        ],
+        "thresholds": [
+          0.01,
+          0.2
+        ],
+        "recursive": "24 blocks D1..3, 80 target states/raw hidden/MTP KV bit-exact; full-vocab standalone; 20 invalid loader cases after dtype-test correction"
+      },
+      "physical_bridge": {
+        "status": "passed",
+        "requests": 43,
+        "nonempty_completions": 35,
+        "cancelled": 5,
+        "expected_errors": 2,
+        "tune_complete": 1,
+        "properties": {
+          "all_depths_parity": true,
+          "prefix_parity": true,
+          "cancel_recovery": true,
+          "tuner_verified": true
+        },
+        "runtime_key_lookup_1": true,
+        "tuning_key": "f90cb83f932cfa8c:1.4.2:3ed683617e50-dirty:release:0.32.2:Apple M5:4096:lookup=1"
+      },
+      "model_switch": {
+        "status": "passed",
+        "cases": 36,
+        "path": "dense Qwen3.8-27B -> MoE Qwen3.6-35B -> dense",
+        "checks": [
+          "nonempty greedy parity D0..3/budgets1,3,17",
+          "head reuse/OFF allocation release",
+          "foreign/missing head failures",
+          "previous process reaped before next model"
+        ],
+        "raw": "lookup-final-model-switch.json",
+        "lookup": "enabled in final check"
+      },
+      "mutation_oracles": [
+        "Original composer disabled Send during checking (expected failing regression)",
+        "Hadamard sign mutation detected/restored",
+        "Contiguous-row selection mutation detected/restored",
+        "Original full exporter followed dangling symlink (expected failing regression)",
+        "Lookup latest-match mutation detected/restored",
+        "Lookup newline-filter bypass mutation detected/restored",
+        "Withdrawn async CABI NULL-guard mutation detected/restored; actual Array test passed"
+      ]
+    },
+    "historical_verification": {
+      "kani": {
+        "harnesses": {
+          "total_harnesses": 37,
+          "executed": 37,
+          "status": "completed",
+          "successful": 37,
+          "failed": 0,
+          "duration_ms": 477916
+        },
+        "properties": {
+          "total_properties": 5611,
+          "passed": 5449,
+          "failed": 0,
+          "unreachable": 72,
+          "undetermined": 0,
+          "solver_error": 0,
+          "satisfied": 90,
+          "unsatisfiable": 0,
+          "covered": 0,
+          "uncovered": 0
+        },
+        "raw": "kani-phase-2.json",
+        "summary": "kani-phase-2-summary.json"
+      },
+      "command": "cargo kani --lib --no-default-features -Z unstable-options --harness-timeout 600s --export-json kani-phase-2.json",
+      "kind": "bounded model checking, not a whole-program proof",
+      "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable. Lookup: actual prompt_lookup,20 symbolic u32 IDs/len0..20, full u32 anchor/full usize width, symbolic bool predicate,unwind33,no assume,371passed assertions/1internal unreachable/5satisfied covers.",
+      "unverified": [
+        "Maps beyond8 entries by Kani (physical79616-row checks only)",
+        "Serde/file IO, MLX/Metal, allocation/concurrency, whole generation",
+        "Python compact IDs four CrossHair postconditions not confirmed at40s/condition",
+        "Swift Combine/AppKit formal verification unavailable",
+        "Lookup histories beyond20 entries by Kani; deterministic1024/1025 boundary tests only",
+        "Production tokenizer/newline decoding, Session MLX/Metal cache and concurrency not formally verified",
+        "Withdrawn TensorFold async prototype: Kani real MLX library compiler ICE; CBMC real C++20-preprocessed bridge libc++ parse failure"
+      ],
+      "crosshair": "Three chunk_end postconditions confirmed by symbolic search; no deductive proof"
+    }
+  },
+  "phase_3": {
+    "report": "../../engine-v1.4.2-pipeline.md",
+    "source": "phase-3-source.json",
+    "performance": "phase-3-performance.json",
+    "pipeline": "Default MTP only on measured M5/H2048/40layers/256experts/top8; stockcode+7.16..7.80%, compactcode+7.53..9.80%; no gains added",
+    "absolute_code_tps": "69\u201370 stock MTP2,75\u201377 compact MTP2 on fixed prompts/128warmup+128measured/2repeats",
+    "long": "Nonconclusive, confirmation control drift9.23%, apparent+16.24% discarded. No more long timing.",
+    "mtplx_64k": "Quality valid, local optional72.25MiB projection/map; D2+0.78% below threshold. mtplx-64k-decision.json",
+    "last_fusion": "Removed bit-for-bit after micro\u22120.27..+0.19%; no ~10% gain established. last-reduce-decision.json",
+    "formal": "CPU39harnesses/5463checks/98covers, zero failures/timeouts;72matched preexisting unreachable. Does not proveGPU.",
+    "raw": "phase-3-raw.tar.gz",
+    "manifest": "phase-3-manifest.json"
   }
 }

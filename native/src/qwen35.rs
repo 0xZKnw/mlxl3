@@ -933,6 +933,8 @@ pub struct Qwen35Moe {
     offset: i32,
     last_hidden: Option<Array>,
     mtp_layout: crate::mtp::Layout,
+    pipeline: bool,
+    mtp_pipeline: bool,
 }
 
 impl Qwen35Moe {
@@ -1026,6 +1028,19 @@ impl Qwen35Moe {
                 other => anyhow::bail!("unsupported Qwen layer type {other}"),
             });
         }
+        let pipeline_override = std::env::var("MLXL3_QWEN_PIPELINE").ok();
+        let pipeline = pipeline_override.as_deref() == Some("1");
+        let mtp_pipeline = match pipeline_override.as_deref() {
+            Some("0") => false,
+            Some("1") => true,
+            _ => crate::contracts::mtp_pipeline_default(
+                hidden,
+                layers.len(),
+                config.num_experts,
+                config.num_experts_per_tok,
+                crate::array::is_m5_gpu()?,
+            ),
+        };
         Ok(Self {
             embeddings,
             norm,
@@ -1037,6 +1052,8 @@ impl Qwen35Moe {
             offset: 0,
             last_hidden: None,
             mtp_layout,
+            pipeline,
+            mtp_pipeline,
         })
     }
 
@@ -1218,8 +1235,12 @@ impl Qwen35Moe {
         if trace {
             layers.push(hidden.to_f16_bits()?);
         }
-        for layer in &mut self.layers {
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&[&hidden])?;
+            }
             if trace {
                 layers.push(hidden.to_f16_bits()?);
             }
@@ -1248,8 +1269,12 @@ impl Qwen35Moe {
         let id = Array::from_i32(&ids, &[1, time])?;
         let mut hidden = self.embeddings.take(&id, 0)?;
         let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&[&hidden])?;
+            }
             if DFLASH_CAPTURE_LAYERS.contains(&index) {
                 captured.push(hidden.try_clone()?);
             }
@@ -1284,8 +1309,12 @@ impl Qwen35Moe {
                 self.embeddings.take(&id, 0)
             })
             .collect::<Result<Vec<_>>>()?;
-        for layer in &mut self.layers {
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification(&mut hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
+            }
         }
         let normalized = hidden
             .into_iter()
@@ -1312,8 +1341,12 @@ impl Qwen35Moe {
             })
             .collect::<Result<Vec<_>>>()?;
         let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification_dflash(&mut hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
+            }
             if DFLASH_CAPTURE_LAYERS.contains(&index) {
                 captured.push(Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?);
             }
@@ -1404,8 +1437,12 @@ impl Qwen35Moe {
                 return Ok((output, raw));
             }
             let mut raw = self.mtp_embeddings(tokens)?;
-            for layer in &mut self.layers {
+            let layer_count = self.layers.len();
+            for (index, layer) in self.layers.iter_mut().enumerate() {
                 raw = layer.forward(&raw)?;
+                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                    Array::async_eval_all(&[&raw])?;
+                }
             }
             let last = raw.slice(1, time - 1, time)?;
             let logits = self.head.forward(&last.rms_norm(&self.norm, self.eps)?)?;
@@ -1435,8 +1472,12 @@ impl Qwen35Moe {
                 .iter()
                 .map(|&t| self.mtp_embeddings(&[t]))
                 .collect::<Result<Vec<_>>>()?;
-            for layer in &mut self.layers {
+            let layer_count = self.layers.len();
+            for (index, layer) in self.layers.iter_mut().enumerate() {
                 layer.forward_verification_dflash(&mut values)?;
+                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                    Array::async_eval_all(&values.iter().collect::<Vec<_>>())?;
+                }
             }
             let raw = Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?;
             let normalized = values
@@ -2231,7 +2272,7 @@ mod tests {
             assert_eq!(state_bytes(&model)?, state, "MTP prefill states {time}");
             assert_eq!(raw.shape(), [1, time as i32, model.mtp_layout.hidden_size]);
             let saved = model.snapshot()?;
-            for total in 2..=4 {
+            for total in 1..=8 {
                 let verification = (1..=total as u32).collect::<Vec<_>>();
                 for retained in 1..=total {
                     model.restore(saved.clone())?;
@@ -2273,6 +2314,74 @@ mod tests {
         model.forward_mtp(&[1])?;
         assert!(model.verify_mtp(&[1]).is_err());
         assert_eq!(model.offset(), 0);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn layer_pipeline_matches_unscheduled_logits_and_states() -> Result<()> {
+        let path = std::env::var("MLXL3_MTP_TEST_MODEL")
+            .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into());
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        match std::env::var("MLXL3_QWEN_PIPELINE").as_deref() {
+            Ok("0") => assert!(!model.pipeline && !model.mtp_pipeline),
+            Ok("1") => assert!(model.pipeline && model.mtp_pipeline),
+            _ => {
+                assert!(!model.pipeline);
+                assert_eq!(
+                    model.mtp_pipeline,
+                    crate::array::is_m5_gpu()?
+                        && model.mtp_layout.hidden_size == 2048
+                        && model.layers.len() == 40
+                );
+            }
+        }
+        for length in [23, 24, 257] {
+            let tokens = (0..length)
+                .map(|index| (index * 37 + 1) as u32)
+                .collect::<Vec<_>>();
+            let mut expected = Vec::new();
+            for enabled in [false, true] {
+                model.pipeline = enabled;
+                model.mtp_pipeline = enabled;
+                model.reset();
+                let mut logits = model.forward_mtp(&tokens)?.0;
+                for step in 0..=16 {
+                    if step > 0 {
+                        logits = model.forward((step * 53) as u32)?;
+                    }
+                    let bits = logits.to_f16_bits()?;
+                    assert_eq!(bits.len(), model.vocab as usize);
+                    assert!(bits.iter().all(|&value| f16::from_bits(value).is_finite()));
+                    let state = state_bytes(&model)?;
+                    assert_eq!(state.len(), model.layers.len() * 2);
+                    assert_eq!(
+                        model.mtp_hidden()?.shape(),
+                        [1, 1, model.mtp_layout.hidden_size]
+                    );
+                    let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                    assert_eq!(hidden.len(), model.mtp_layout.hidden_size as usize);
+                    assert!(
+                        hidden
+                            .iter()
+                            .all(|&value| f16::from_bits(value).is_finite())
+                    );
+                    let row = (bits, state, hidden);
+                    if enabled {
+                        assert!(
+                            row == expected[step],
+                            "pipeline parity length={length} step={step}"
+                        );
+                    } else {
+                        expected.push(row);
+                    }
+                }
+            }
+            println!(
+                "pipeline exact: prefill={length}, 17 finite logits/hidden/states, {} state arrays",
+                model.layers.len() * 2
+            );
+        }
         Ok(())
     }
 
