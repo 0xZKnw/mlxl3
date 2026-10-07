@@ -1,0 +1,10 @@
+/Users/henko/Documents/Codex/2026-10-05/chec/work/idle-unload-focused/ModelIdleUnloadCombined.swift:1453:18: error: weak variable 'weakTimer' was never mutated; consider changing to 'let' constant [#VariableNeverMutated::WeakMutability]
+1451 |         check(timerCalls == 1, "Cancelled sleeping task fired")
+1452 |         var disposable: ModelIdleUnloader? = ModelIdleUnloader { timerCalls += 1 }
+1453 |         weak var weakTimer = disposable
+     |                  `- error: weak variable 'weakTimer' was never mutated; consider changing to 'let' constant [#VariableNeverMutated::WeakMutability]
+1454 |         disposable?.update(isIdle: true, after: .milliseconds(40))
+1455 |         disposable = nil
+
+[#VariableNeverMutated]: <https://docs.swift.org/compiler/documentation/diagnostics/variable-never-mutated>
+[#WeakMutability]: <https://docs.swift.org/compiler/documentation/diagnostics/weak-mutability>
