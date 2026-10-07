@@ -1,0 +1,820 @@
+FFF.FFF....FFFFF                                                         [100%]
+=================================== FAILURES ===================================
+_________ test_bridge_complete_nonempty_result_is_accepted[150-190-95] _________
+
+accepted = 150, proposed = 190, blocks = 95
+
+    @pytest.mark.parametrize("accepted,proposed,blocks", [(150, 190, 95), (0, 1, 1), (256, 512, 256)])
+    def test_bridge_complete_nonempty_result_is_accepted(accepted, proposed, blocks):
+        event = {
+            "stats": {
+                "generated_tokens": 256,
+                "decode_tps": 8.0,
+                "decode_seconds": 32.0,
+                "mtp_accepted_tokens": accepted,
+                "mtp_proposed_tokens": proposed,
+                "mtp_blocks": blocks,
+            },
+            "token_hash": "1234",
+            "cache_context": "test",
+        }
+        signature = BRIDGE.fingerprint(event, "target", 256)
+        assert signature[:3] == ("1234", "test", 256)
+>       assert signature[-3:] == (accepted, proposed, blocks)
+E       AssertionError: assert ('test', 256,...17f4c956eb5c') == (150, 190, 95)
+E         
+E         At index 0 diff: 'test' != 150
+E         Use -v to get more diff
+
+tests/test_smallm_benchmark.py:271: AssertionError
+___________ test_bridge_complete_nonempty_result_is_accepted[0-1-1] ____________
+
+accepted = 0, proposed = 1, blocks = 1
+
+    @pytest.mark.parametrize("accepted,proposed,blocks", [(150, 190, 95), (0, 1, 1), (256, 512, 256)])
+    def test_bridge_complete_nonempty_result_is_accepted(accepted, proposed, blocks):
+        event = {
+            "stats": {
+                "generated_tokens": 256,
+                "decode_tps": 8.0,
+                "decode_seconds": 32.0,
+                "mtp_accepted_tokens": accepted,
+                "mtp_proposed_tokens": proposed,
+                "mtp_blocks": blocks,
+            },
+            "token_hash": "1234",
+            "cache_context": "test",
+        }
+        signature = BRIDGE.fingerprint(event, "target", 256)
+        assert signature[:3] == ("1234", "test", 256)
+>       assert signature[-3:] == (accepted, proposed, blocks)
+E       AssertionError: assert ('test', 256,...17f4c956eb5c') == (0, 1, 1)
+E         
+E         At index 0 diff: 'test' != 0
+E         Use -v to get more diff
+
+tests/test_smallm_benchmark.py:271: AssertionError
+________ test_bridge_complete_nonempty_result_is_accepted[256-512-256] _________
+
+accepted = 256, proposed = 512, blocks = 256
+
+    @pytest.mark.parametrize("accepted,proposed,blocks", [(150, 190, 95), (0, 1, 1), (256, 512, 256)])
+    def test_bridge_complete_nonempty_result_is_accepted(accepted, proposed, blocks):
+        event = {
+            "stats": {
+                "generated_tokens": 256,
+                "decode_tps": 8.0,
+                "decode_seconds": 32.0,
+                "mtp_accepted_tokens": accepted,
+                "mtp_proposed_tokens": proposed,
+                "mtp_blocks": blocks,
+            },
+            "token_hash": "1234",
+            "cache_context": "test",
+        }
+        signature = BRIDGE.fingerprint(event, "target", 256)
+        assert signature[:3] == ("1234", "test", 256)
+>       assert signature[-3:] == (accepted, proposed, blocks)
+E       AssertionError: assert ('test', 256,...17f4c956eb5c') == (256, 512, 256)
+E         
+E         At index 0 diff: 'test' != 256
+E         Use -v to get more diff
+
+tests/test_smallm_benchmark.py:271: AssertionError
+_____ test_bridge_cli_checks_work_and_reaps_children[mtp_accepted_tokens] ______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_bridge_cli_checks_work_an1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107767470>
+behavior = 'mtp_accepted_tokens'
+
+    @pytest.mark.parametrize(
+        "behavior",
+        [None, "mtp_accepted_tokens", "mtp_proposed_tokens", "mtp_blocks", "invalid", "eof", "silent"],
+    )
+    def test_bridge_cli_checks_work_and_reaps_children(tmp_path, monkeypatch, behavior):
+        engine = tmp_path / "engine"
+        pids = tmp_path / "pids"
+        engine.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, sys, time\n"
+            f"with open({str(pids)!r}, 'a') as f: f.write(str(os.getpid()) + '\\n')\n"
+            "print(json.dumps({'type':'ready'}), flush=True)\n"
+            "for line in sys.stdin:\n"
+            " r=json.loads(line)\n"
+            " if r['type']=='shutdown': break\n"
+            " count=r['max_tokens']\n"
+            f" behavior={behavior!r}\n"
+            " if behavior=='invalid': print('invalid JSON', flush=True); continue\n"
+            " if behavior=='eof': sys.exit(0)\n"
+            " if behavior=='silent': time.sleep(60); continue\n"
+            " stats={'generated_tokens':count,'decode_tps':8.0,'decode_seconds':count/8,\n"
+            "        'mtp_accepted_tokens':count//2,'mtp_proposed_tokens':count,'mtp_blocks':count//2}\n"
+            " if behavior in stats and os.environ.get('MLXL3_EXPERIMENTAL_GROUPED_MB3')=='1':\n"
+            "  stats[behavior]+=1\n"
+            " print(json.dumps({'type':'delta','request_id':r['request_id'],'text':'target'}),flush=True)\n"
+            " print(json.dumps({'type':'complete','request_id':r['request_id'],'stats':stats,\n"
+            "                   'token_hash':'stable','cache_context':'stable history'}),flush=True)\n"
+        )
+        engine.chmod(0o700)
+        monkeypatch.setattr(BRIDGE.subprocess, "check_output", lambda *args, **kwargs: "fixture")
+        original_until = BRIDGE.until
+        monkeypatch.setattr(
+            BRIDGE,
+            "until",
+            lambda process, kind, deadline, request=None: original_until(
+                process, kind, min(deadline, time.monotonic() + 3), request
+            ),
+        )
+        output = tmp_path / "result.json"
+        args = [
+            "--engine",
+            str(engine),
+            "--model",
+            str(tmp_path),
+            "--head",
+            str(tmp_path),
+            "--output",
+            str(output),
+        ]
+        try:
+            if behavior is None:
+                BRIDGE.main(args)
+            else:
+>               with pytest.raises((AssertionError, RuntimeError, TimeoutError)):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE any of (AssertionError, RuntimeError, TimeoutError)
+
+tests/test_smallm_benchmark.py:327: Failed
+----------------------------- Captured stdout call -----------------------------
+{"index": 0, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 1, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 129, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 2, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 129, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 3, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 4, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 129, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 5, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 6, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 7, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 129, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+_____ test_bridge_cli_checks_work_and_reaps_children[mtp_proposed_tokens] ______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_bridge_cli_checks_work_an2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107780e60>
+behavior = 'mtp_proposed_tokens'
+
+    @pytest.mark.parametrize(
+        "behavior",
+        [None, "mtp_accepted_tokens", "mtp_proposed_tokens", "mtp_blocks", "invalid", "eof", "silent"],
+    )
+    def test_bridge_cli_checks_work_and_reaps_children(tmp_path, monkeypatch, behavior):
+        engine = tmp_path / "engine"
+        pids = tmp_path / "pids"
+        engine.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, sys, time\n"
+            f"with open({str(pids)!r}, 'a') as f: f.write(str(os.getpid()) + '\\n')\n"
+            "print(json.dumps({'type':'ready'}), flush=True)\n"
+            "for line in sys.stdin:\n"
+            " r=json.loads(line)\n"
+            " if r['type']=='shutdown': break\n"
+            " count=r['max_tokens']\n"
+            f" behavior={behavior!r}\n"
+            " if behavior=='invalid': print('invalid JSON', flush=True); continue\n"
+            " if behavior=='eof': sys.exit(0)\n"
+            " if behavior=='silent': time.sleep(60); continue\n"
+            " stats={'generated_tokens':count,'decode_tps':8.0,'decode_seconds':count/8,\n"
+            "        'mtp_accepted_tokens':count//2,'mtp_proposed_tokens':count,'mtp_blocks':count//2}\n"
+            " if behavior in stats and os.environ.get('MLXL3_EXPERIMENTAL_GROUPED_MB3')=='1':\n"
+            "  stats[behavior]+=1\n"
+            " print(json.dumps({'type':'delta','request_id':r['request_id'],'text':'target'}),flush=True)\n"
+            " print(json.dumps({'type':'complete','request_id':r['request_id'],'stats':stats,\n"
+            "                   'token_hash':'stable','cache_context':'stable history'}),flush=True)\n"
+        )
+        engine.chmod(0o700)
+        monkeypatch.setattr(BRIDGE.subprocess, "check_output", lambda *args, **kwargs: "fixture")
+        original_until = BRIDGE.until
+        monkeypatch.setattr(
+            BRIDGE,
+            "until",
+            lambda process, kind, deadline, request=None: original_until(
+                process, kind, min(deadline, time.monotonic() + 3), request
+            ),
+        )
+        output = tmp_path / "result.json"
+        args = [
+            "--engine",
+            str(engine),
+            "--model",
+            str(tmp_path),
+            "--head",
+            str(tmp_path),
+            "--output",
+            str(output),
+        ]
+        try:
+            if behavior is None:
+                BRIDGE.main(args)
+            else:
+>               with pytest.raises((AssertionError, RuntimeError, TimeoutError)):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE any of (AssertionError, RuntimeError, TimeoutError)
+
+tests/test_smallm_benchmark.py:327: Failed
+----------------------------- Captured stdout call -----------------------------
+{"index": 0, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 1, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 257, "mtp_blocks": 128}}
+{"index": 2, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 257, "mtp_blocks": 128}}
+{"index": 3, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 4, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 257, "mtp_blocks": 128}}
+{"index": 5, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 6, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 7, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 257, "mtp_blocks": 128}}
+__________ test_bridge_cli_checks_work_and_reaps_children[mtp_blocks] __________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_bridge_cli_checks_work_an3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1076e3740>
+behavior = 'mtp_blocks'
+
+    @pytest.mark.parametrize(
+        "behavior",
+        [None, "mtp_accepted_tokens", "mtp_proposed_tokens", "mtp_blocks", "invalid", "eof", "silent"],
+    )
+    def test_bridge_cli_checks_work_and_reaps_children(tmp_path, monkeypatch, behavior):
+        engine = tmp_path / "engine"
+        pids = tmp_path / "pids"
+        engine.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, sys, time\n"
+            f"with open({str(pids)!r}, 'a') as f: f.write(str(os.getpid()) + '\\n')\n"
+            "print(json.dumps({'type':'ready'}), flush=True)\n"
+            "for line in sys.stdin:\n"
+            " r=json.loads(line)\n"
+            " if r['type']=='shutdown': break\n"
+            " count=r['max_tokens']\n"
+            f" behavior={behavior!r}\n"
+            " if behavior=='invalid': print('invalid JSON', flush=True); continue\n"
+            " if behavior=='eof': sys.exit(0)\n"
+            " if behavior=='silent': time.sleep(60); continue\n"
+            " stats={'generated_tokens':count,'decode_tps':8.0,'decode_seconds':count/8,\n"
+            "        'mtp_accepted_tokens':count//2,'mtp_proposed_tokens':count,'mtp_blocks':count//2}\n"
+            " if behavior in stats and os.environ.get('MLXL3_EXPERIMENTAL_GROUPED_MB3')=='1':\n"
+            "  stats[behavior]+=1\n"
+            " print(json.dumps({'type':'delta','request_id':r['request_id'],'text':'target'}),flush=True)\n"
+            " print(json.dumps({'type':'complete','request_id':r['request_id'],'stats':stats,\n"
+            "                   'token_hash':'stable','cache_context':'stable history'}),flush=True)\n"
+        )
+        engine.chmod(0o700)
+        monkeypatch.setattr(BRIDGE.subprocess, "check_output", lambda *args, **kwargs: "fixture")
+        original_until = BRIDGE.until
+        monkeypatch.setattr(
+            BRIDGE,
+            "until",
+            lambda process, kind, deadline, request=None: original_until(
+                process, kind, min(deadline, time.monotonic() + 3), request
+            ),
+        )
+        output = tmp_path / "result.json"
+        args = [
+            "--engine",
+            str(engine),
+            "--model",
+            str(tmp_path),
+            "--head",
+            str(tmp_path),
+            "--output",
+            str(output),
+        ]
+        try:
+            if behavior is None:
+                BRIDGE.main(args)
+            else:
+>               with pytest.raises((AssertionError, RuntimeError, TimeoutError)):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE any of (AssertionError, RuntimeError, TimeoutError)
+
+tests/test_smallm_benchmark.py:327: Failed
+----------------------------- Captured stdout call -----------------------------
+{"index": 0, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 1, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 129}}
+{"index": 2, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 129}}
+{"index": 3, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 4, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 129}}
+{"index": 5, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 6, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 7, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 129}}
+_______ test_inventory_cli_validates_each_scaled_step_before_timing[nan] _______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_inventory_cli_validates_e1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107754fe0>
+case = 'nan'
+
+    @pytest.mark.parametrize("case", ["finite", "nan", "inf", "overflow", "late_overflow", "partial"])
+    def test_inventory_cli_validates_each_scaled_step_before_timing(tmp_path, monkeypatch, case):
+        tensors = {}
+        for index, (dims, cols) in enumerate(
+            (d, c) for d in (128, 256, 384, 512) for c in (128, 256, 384, 512)
+        ):
+            prefix = f"model.language_model.layers.{index}.self_attn.q_proj"
+            tensors[prefix + ".trellis"] = np.zeros((dims // 16, cols // 16, 16), np.int16)
+            tensors[prefix + ".suh"] = np.ones(dims, np.float16)
+            scale = (
+                np.nan
+                if case == "nan" or case == "partial" and index == 1
+                else np.inf
+                if case == "inf"
+                else 1
+            )
+            tensors[prefix + ".svh"] = np.full(cols, scale, np.float16)
+        header, chunks, offset = {}, [], 0
+        for name, value in tensors.items():
+            raw = value.tobytes()
+            header[name] = {
+                "dtype": "I16" if value.dtype == np.int16 else "F16",
+                "shape": list(value.shape),
+                "data_offsets": [offset, offset + len(raw)],
+            }
+            chunks.append(raw)
+            offset += len(raw)
+        raw = json.dumps(header).encode()
+        raw += b" " * (-len(raw) % 8)
+        (tmp_path / "model.safetensors").write_bytes(
+            struct.pack("<Q", len(raw)) + raw + b"".join(chunks)
+        )
+        # CPU adapter for the validation boundary; it does not verify Metal arithmetic.
+        mx = SimpleNamespace(
+            array=np.array,
+            float16=np.float16,
+            uint32=np.uint32,
+            concatenate=np.concatenate,
+            hadamard_transform=lambda value, scale: value,
+            eval=lambda *values: None,
+            tile=np.tile,
+            tanh=np.tanh,
+        )
+        monkeypatch.setitem(sys.modules, "mlx", SimpleNamespace(core=mx))
+        monkeypatch.setitem(sys.modules, "mlx.core", mx)
+    
+        def qmv(_, shape, rows, *geometry):
+            calls = 0
+    
+            def project(*inputs):
+                nonlocal calls
+                calls += 1
+                overflow = case == "overflow" or case == "late_overflow" and calls >= 4
+                return np.full((rows, 1, sum(shape["widths"])), 1e10 if overflow else 1, np.float32)
+    
+            return project
+    
+        monkeypatch.setattr(INVENTORY, "qmv", qmv)
+        timed = []
+    
+        def paired(_, functions, iterations, steps=1):
+            timed.append(steps)
+            if case not in ("finite", "partial"):
+                pytest.fail("invalid scaled outputs reached timing")
+            for function in functions:
+                assert np.isfinite(function(steps)).all()
+            return {"medians_ms": [None, None]}
+    
+        monkeypatch.setattr(INVENTORY, "paired", paired)
+        output = tmp_path / "result.json"
+        with np.errstate(over="ignore", invalid="ignore"):
+            if case == "finite":
+                INVENTORY.main(screen_args(tmp_path))
+            else:
+                with pytest.raises(AssertionError, match="non-finite dependent output"):
+>                   INVENTORY.main(screen_args(tmp_path))
+
+tests/test_smallm_benchmark.py:420: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+benchmarks/benchmark_smallm_inventory.py:125: in main
+    run(args.checkpoint, args.iterations, report)
+benchmarks/benchmark_smallm_inventory.py:87: in run
+    isolated = paired(mx, [isolated_fn, isolated_fn], iterations)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = namespace(array=<built-in function array>, float16=<class 'numpy.float16'>, uint32=<class 'numpy.uint32'>, concatenate..._scaled_step_before_timing.<locals>.<lambda> at 0x10770a980>, tile=<function tile at 0x1076748b0>, tanh=<ufunc 'tanh'>)
+functions = [<function run.<locals>.<lambda> at 0x107749260>, <function run.<locals>.<lambda> at 0x107749260>]
+iterations = 20, steps = 1
+
+    def paired(_, functions, iterations, steps=1):
+        timed.append(steps)
+        if case not in ("finite", "partial"):
+>           pytest.fail("invalid scaled outputs reached timing")
+E           Failed: invalid scaled outputs reached timing
+
+tests/test_smallm_benchmark.py:408: Failed
+_______ test_inventory_cli_validates_each_scaled_step_before_timing[inf] _______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_inventory_cli_validates_e2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107756d50>
+case = 'inf'
+
+    @pytest.mark.parametrize("case", ["finite", "nan", "inf", "overflow", "late_overflow", "partial"])
+    def test_inventory_cli_validates_each_scaled_step_before_timing(tmp_path, monkeypatch, case):
+        tensors = {}
+        for index, (dims, cols) in enumerate(
+            (d, c) for d in (128, 256, 384, 512) for c in (128, 256, 384, 512)
+        ):
+            prefix = f"model.language_model.layers.{index}.self_attn.q_proj"
+            tensors[prefix + ".trellis"] = np.zeros((dims // 16, cols // 16, 16), np.int16)
+            tensors[prefix + ".suh"] = np.ones(dims, np.float16)
+            scale = (
+                np.nan
+                if case == "nan" or case == "partial" and index == 1
+                else np.inf
+                if case == "inf"
+                else 1
+            )
+            tensors[prefix + ".svh"] = np.full(cols, scale, np.float16)
+        header, chunks, offset = {}, [], 0
+        for name, value in tensors.items():
+            raw = value.tobytes()
+            header[name] = {
+                "dtype": "I16" if value.dtype == np.int16 else "F16",
+                "shape": list(value.shape),
+                "data_offsets": [offset, offset + len(raw)],
+            }
+            chunks.append(raw)
+            offset += len(raw)
+        raw = json.dumps(header).encode()
+        raw += b" " * (-len(raw) % 8)
+        (tmp_path / "model.safetensors").write_bytes(
+            struct.pack("<Q", len(raw)) + raw + b"".join(chunks)
+        )
+        # CPU adapter for the validation boundary; it does not verify Metal arithmetic.
+        mx = SimpleNamespace(
+            array=np.array,
+            float16=np.float16,
+            uint32=np.uint32,
+            concatenate=np.concatenate,
+            hadamard_transform=lambda value, scale: value,
+            eval=lambda *values: None,
+            tile=np.tile,
+            tanh=np.tanh,
+        )
+        monkeypatch.setitem(sys.modules, "mlx", SimpleNamespace(core=mx))
+        monkeypatch.setitem(sys.modules, "mlx.core", mx)
+    
+        def qmv(_, shape, rows, *geometry):
+            calls = 0
+    
+            def project(*inputs):
+                nonlocal calls
+                calls += 1
+                overflow = case == "overflow" or case == "late_overflow" and calls >= 4
+                return np.full((rows, 1, sum(shape["widths"])), 1e10 if overflow else 1, np.float32)
+    
+            return project
+    
+        monkeypatch.setattr(INVENTORY, "qmv", qmv)
+        timed = []
+    
+        def paired(_, functions, iterations, steps=1):
+            timed.append(steps)
+            if case not in ("finite", "partial"):
+                pytest.fail("invalid scaled outputs reached timing")
+            for function in functions:
+                assert np.isfinite(function(steps)).all()
+            return {"medians_ms": [None, None]}
+    
+        monkeypatch.setattr(INVENTORY, "paired", paired)
+        output = tmp_path / "result.json"
+        with np.errstate(over="ignore", invalid="ignore"):
+            if case == "finite":
+                INVENTORY.main(screen_args(tmp_path))
+            else:
+                with pytest.raises(AssertionError, match="non-finite dependent output"):
+>                   INVENTORY.main(screen_args(tmp_path))
+
+tests/test_smallm_benchmark.py:420: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+benchmarks/benchmark_smallm_inventory.py:125: in main
+    run(args.checkpoint, args.iterations, report)
+benchmarks/benchmark_smallm_inventory.py:87: in run
+    isolated = paired(mx, [isolated_fn, isolated_fn], iterations)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = namespace(array=<built-in function array>, float16=<class 'numpy.float16'>, uint32=<class 'numpy.uint32'>, concatenate..._scaled_step_before_timing.<locals>.<lambda> at 0x107749da0>, tile=<function tile at 0x1076748b0>, tanh=<ufunc 'tanh'>)
+functions = [<function run.<locals>.<lambda> at 0x10774a340>, <function run.<locals>.<lambda> at 0x10774a340>]
+iterations = 20, steps = 1
+
+    def paired(_, functions, iterations, steps=1):
+        timed.append(steps)
+        if case not in ("finite", "partial"):
+>           pytest.fail("invalid scaled outputs reached timing")
+E           Failed: invalid scaled outputs reached timing
+
+tests/test_smallm_benchmark.py:408: Failed
+____ test_inventory_cli_validates_each_scaled_step_before_timing[overflow] _____
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_inventory_cli_validates_e3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1077c8bf0>
+case = 'overflow'
+
+    @pytest.mark.parametrize("case", ["finite", "nan", "inf", "overflow", "late_overflow", "partial"])
+    def test_inventory_cli_validates_each_scaled_step_before_timing(tmp_path, monkeypatch, case):
+        tensors = {}
+        for index, (dims, cols) in enumerate(
+            (d, c) for d in (128, 256, 384, 512) for c in (128, 256, 384, 512)
+        ):
+            prefix = f"model.language_model.layers.{index}.self_attn.q_proj"
+            tensors[prefix + ".trellis"] = np.zeros((dims // 16, cols // 16, 16), np.int16)
+            tensors[prefix + ".suh"] = np.ones(dims, np.float16)
+            scale = (
+                np.nan
+                if case == "nan" or case == "partial" and index == 1
+                else np.inf
+                if case == "inf"
+                else 1
+            )
+            tensors[prefix + ".svh"] = np.full(cols, scale, np.float16)
+        header, chunks, offset = {}, [], 0
+        for name, value in tensors.items():
+            raw = value.tobytes()
+            header[name] = {
+                "dtype": "I16" if value.dtype == np.int16 else "F16",
+                "shape": list(value.shape),
+                "data_offsets": [offset, offset + len(raw)],
+            }
+            chunks.append(raw)
+            offset += len(raw)
+        raw = json.dumps(header).encode()
+        raw += b" " * (-len(raw) % 8)
+        (tmp_path / "model.safetensors").write_bytes(
+            struct.pack("<Q", len(raw)) + raw + b"".join(chunks)
+        )
+        # CPU adapter for the validation boundary; it does not verify Metal arithmetic.
+        mx = SimpleNamespace(
+            array=np.array,
+            float16=np.float16,
+            uint32=np.uint32,
+            concatenate=np.concatenate,
+            hadamard_transform=lambda value, scale: value,
+            eval=lambda *values: None,
+            tile=np.tile,
+            tanh=np.tanh,
+        )
+        monkeypatch.setitem(sys.modules, "mlx", SimpleNamespace(core=mx))
+        monkeypatch.setitem(sys.modules, "mlx.core", mx)
+    
+        def qmv(_, shape, rows, *geometry):
+            calls = 0
+    
+            def project(*inputs):
+                nonlocal calls
+                calls += 1
+                overflow = case == "overflow" or case == "late_overflow" and calls >= 4
+                return np.full((rows, 1, sum(shape["widths"])), 1e10 if overflow else 1, np.float32)
+    
+            return project
+    
+        monkeypatch.setattr(INVENTORY, "qmv", qmv)
+        timed = []
+    
+        def paired(_, functions, iterations, steps=1):
+            timed.append(steps)
+            if case not in ("finite", "partial"):
+                pytest.fail("invalid scaled outputs reached timing")
+            for function in functions:
+                assert np.isfinite(function(steps)).all()
+            return {"medians_ms": [None, None]}
+    
+        monkeypatch.setattr(INVENTORY, "paired", paired)
+        output = tmp_path / "result.json"
+        with np.errstate(over="ignore", invalid="ignore"):
+            if case == "finite":
+                INVENTORY.main(screen_args(tmp_path))
+            else:
+                with pytest.raises(AssertionError, match="non-finite dependent output"):
+>                   INVENTORY.main(screen_args(tmp_path))
+
+tests/test_smallm_benchmark.py:420: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+benchmarks/benchmark_smallm_inventory.py:125: in main
+    run(args.checkpoint, args.iterations, report)
+benchmarks/benchmark_smallm_inventory.py:87: in run
+    isolated = paired(mx, [isolated_fn, isolated_fn], iterations)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = namespace(array=<built-in function array>, float16=<class 'numpy.float16'>, uint32=<class 'numpy.uint32'>, concatenate..._scaled_step_before_timing.<locals>.<lambda> at 0x10774a7a0>, tile=<function tile at 0x1076748b0>, tanh=<ufunc 'tanh'>)
+functions = [<function run.<locals>.<lambda> at 0x10774ae80>, <function run.<locals>.<lambda> at 0x10774ae80>]
+iterations = 20, steps = 1
+
+    def paired(_, functions, iterations, steps=1):
+        timed.append(steps)
+        if case not in ("finite", "partial"):
+>           pytest.fail("invalid scaled outputs reached timing")
+E           Failed: invalid scaled outputs reached timing
+
+tests/test_smallm_benchmark.py:408: Failed
+__ test_inventory_cli_validates_each_scaled_step_before_timing[late_overflow] __
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_inventory_cli_validates_e4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1077c9d90>
+case = 'late_overflow'
+
+    @pytest.mark.parametrize("case", ["finite", "nan", "inf", "overflow", "late_overflow", "partial"])
+    def test_inventory_cli_validates_each_scaled_step_before_timing(tmp_path, monkeypatch, case):
+        tensors = {}
+        for index, (dims, cols) in enumerate(
+            (d, c) for d in (128, 256, 384, 512) for c in (128, 256, 384, 512)
+        ):
+            prefix = f"model.language_model.layers.{index}.self_attn.q_proj"
+            tensors[prefix + ".trellis"] = np.zeros((dims // 16, cols // 16, 16), np.int16)
+            tensors[prefix + ".suh"] = np.ones(dims, np.float16)
+            scale = (
+                np.nan
+                if case == "nan" or case == "partial" and index == 1
+                else np.inf
+                if case == "inf"
+                else 1
+            )
+            tensors[prefix + ".svh"] = np.full(cols, scale, np.float16)
+        header, chunks, offset = {}, [], 0
+        for name, value in tensors.items():
+            raw = value.tobytes()
+            header[name] = {
+                "dtype": "I16" if value.dtype == np.int16 else "F16",
+                "shape": list(value.shape),
+                "data_offsets": [offset, offset + len(raw)],
+            }
+            chunks.append(raw)
+            offset += len(raw)
+        raw = json.dumps(header).encode()
+        raw += b" " * (-len(raw) % 8)
+        (tmp_path / "model.safetensors").write_bytes(
+            struct.pack("<Q", len(raw)) + raw + b"".join(chunks)
+        )
+        # CPU adapter for the validation boundary; it does not verify Metal arithmetic.
+        mx = SimpleNamespace(
+            array=np.array,
+            float16=np.float16,
+            uint32=np.uint32,
+            concatenate=np.concatenate,
+            hadamard_transform=lambda value, scale: value,
+            eval=lambda *values: None,
+            tile=np.tile,
+            tanh=np.tanh,
+        )
+        monkeypatch.setitem(sys.modules, "mlx", SimpleNamespace(core=mx))
+        monkeypatch.setitem(sys.modules, "mlx.core", mx)
+    
+        def qmv(_, shape, rows, *geometry):
+            calls = 0
+    
+            def project(*inputs):
+                nonlocal calls
+                calls += 1
+                overflow = case == "overflow" or case == "late_overflow" and calls >= 4
+                return np.full((rows, 1, sum(shape["widths"])), 1e10 if overflow else 1, np.float32)
+    
+            return project
+    
+        monkeypatch.setattr(INVENTORY, "qmv", qmv)
+        timed = []
+    
+        def paired(_, functions, iterations, steps=1):
+            timed.append(steps)
+            if case not in ("finite", "partial"):
+                pytest.fail("invalid scaled outputs reached timing")
+            for function in functions:
+                assert np.isfinite(function(steps)).all()
+            return {"medians_ms": [None, None]}
+    
+        monkeypatch.setattr(INVENTORY, "paired", paired)
+        output = tmp_path / "result.json"
+        with np.errstate(over="ignore", invalid="ignore"):
+            if case == "finite":
+                INVENTORY.main(screen_args(tmp_path))
+            else:
+                with pytest.raises(AssertionError, match="non-finite dependent output"):
+>                   INVENTORY.main(screen_args(tmp_path))
+
+tests/test_smallm_benchmark.py:420: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+benchmarks/benchmark_smallm_inventory.py:125: in main
+    run(args.checkpoint, args.iterations, report)
+benchmarks/benchmark_smallm_inventory.py:87: in run
+    isolated = paired(mx, [isolated_fn, isolated_fn], iterations)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = namespace(array=<built-in function array>, float16=<class 'numpy.float16'>, uint32=<class 'numpy.uint32'>, concatenate..._scaled_step_before_timing.<locals>.<lambda> at 0x10774a480>, tile=<function tile at 0x1076748b0>, tanh=<ufunc 'tanh'>)
+functions = [<function run.<locals>.<lambda> at 0x10774b880>, <function run.<locals>.<lambda> at 0x10774b880>]
+iterations = 20, steps = 1
+
+    def paired(_, functions, iterations, steps=1):
+        timed.append(steps)
+        if case not in ("finite", "partial"):
+>           pytest.fail("invalid scaled outputs reached timing")
+E           Failed: invalid scaled outputs reached timing
+
+tests/test_smallm_benchmark.py:408: Failed
+_____ test_inventory_cli_validates_each_scaled_step_before_timing[partial] _____
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_inventory_cli_validates_e5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107757860>
+case = 'partial'
+
+    @pytest.mark.parametrize("case", ["finite", "nan", "inf", "overflow", "late_overflow", "partial"])
+    def test_inventory_cli_validates_each_scaled_step_before_timing(tmp_path, monkeypatch, case):
+        tensors = {}
+        for index, (dims, cols) in enumerate(
+            (d, c) for d in (128, 256, 384, 512) for c in (128, 256, 384, 512)
+        ):
+            prefix = f"model.language_model.layers.{index}.self_attn.q_proj"
+            tensors[prefix + ".trellis"] = np.zeros((dims // 16, cols // 16, 16), np.int16)
+            tensors[prefix + ".suh"] = np.ones(dims, np.float16)
+            scale = (
+                np.nan
+                if case == "nan" or case == "partial" and index == 1
+                else np.inf
+                if case == "inf"
+                else 1
+            )
+            tensors[prefix + ".svh"] = np.full(cols, scale, np.float16)
+        header, chunks, offset = {}, [], 0
+        for name, value in tensors.items():
+            raw = value.tobytes()
+            header[name] = {
+                "dtype": "I16" if value.dtype == np.int16 else "F16",
+                "shape": list(value.shape),
+                "data_offsets": [offset, offset + len(raw)],
+            }
+            chunks.append(raw)
+            offset += len(raw)
+        raw = json.dumps(header).encode()
+        raw += b" " * (-len(raw) % 8)
+        (tmp_path / "model.safetensors").write_bytes(
+            struct.pack("<Q", len(raw)) + raw + b"".join(chunks)
+        )
+        # CPU adapter for the validation boundary; it does not verify Metal arithmetic.
+        mx = SimpleNamespace(
+            array=np.array,
+            float16=np.float16,
+            uint32=np.uint32,
+            concatenate=np.concatenate,
+            hadamard_transform=lambda value, scale: value,
+            eval=lambda *values: None,
+            tile=np.tile,
+            tanh=np.tanh,
+        )
+        monkeypatch.setitem(sys.modules, "mlx", SimpleNamespace(core=mx))
+        monkeypatch.setitem(sys.modules, "mlx.core", mx)
+    
+        def qmv(_, shape, rows, *geometry):
+            calls = 0
+    
+            def project(*inputs):
+                nonlocal calls
+                calls += 1
+                overflow = case == "overflow" or case == "late_overflow" and calls >= 4
+                return np.full((rows, 1, sum(shape["widths"])), 1e10 if overflow else 1, np.float32)
+    
+            return project
+    
+        monkeypatch.setattr(INVENTORY, "qmv", qmv)
+        timed = []
+    
+        def paired(_, functions, iterations, steps=1):
+            timed.append(steps)
+            if case not in ("finite", "partial"):
+                pytest.fail("invalid scaled outputs reached timing")
+            for function in functions:
+                assert np.isfinite(function(steps)).all()
+            return {"medians_ms": [None, None]}
+    
+        monkeypatch.setattr(INVENTORY, "paired", paired)
+        output = tmp_path / "result.json"
+        with np.errstate(over="ignore", invalid="ignore"):
+            if case == "finite":
+                INVENTORY.main(screen_args(tmp_path))
+            else:
+>               with pytest.raises(AssertionError, match="non-finite dependent output"):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: Regex pattern did not match.
+E                 Expected regex: 'non-finite dependent output'
+E                 Actual message: "assert np.False_\n +  where np.False_ = <built-in method all of numpy.ndarray object at 0x10778abb0>()\n +    where <built-in method all of numpy.ndarray object at 0x10778abb0> = array([[False, False, False, False, False, False, False, False, False,\\n        False, False, False, False, False, Fals...se, False, False, False,\\n        False, False, False, False, False, False, False, False, False,\\n        False, False]]).all\n +      where array([[False, False, False, False, False, False, False, False, False,\\n        False, False, False, False, False, Fals...se, False, False, False,\\n        False, False, False, False, False, False, False, False, False,\\n        False, False]]) = <ufunc 'isfinite'>(array([[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,\\n        nan, nan, nan, nan, nan, nan, nan, na...an, nan, nan, nan, nan, nan, nan,\\n        nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]],\\n      dtype=float16))\n +        where <ufunc 'isfinite'> = np.isfinite\n +        and   array([[nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,\\n        nan, nan, nan, nan, nan, nan, nan, na...an, nan, nan, nan, nan, nan, nan,\\n        nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]],\\n      dtype=float16) = <function run.<locals>.chain at 0x10774aac0>(8)"
+
+tests/test_smallm_benchmark.py:419: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"input": 128, "widths": [128], "k": 1, "m": 2, "isolated_ms": null, "dependent_ms": null}
+{"input": 128, "widths": [128], "k": 1, "m": 3, "isolated_ms": null, "dependent_ms": null}
+{"input": 128, "widths": [128], "k": 1, "m": 4, "isolated_ms": null, "dependent_ms": null}
+{"input": 128, "widths": [128], "k": 1, "m": 6, "isolated_ms": null, "dependent_ms": null}
+{"input": 128, "widths": [128], "k": 1, "m": 8, "isolated_ms": null, "dependent_ms": null}
+=========================== short test summary info ============================
+FAILED tests/test_smallm_benchmark.py::test_bridge_complete_nonempty_result_is_accepted[150-190-95]
+FAILED tests/test_smallm_benchmark.py::test_bridge_complete_nonempty_result_is_accepted[0-1-1]
+FAILED tests/test_smallm_benchmark.py::test_bridge_complete_nonempty_result_is_accepted[256-512-256]
+FAILED tests/test_smallm_benchmark.py::test_bridge_cli_checks_work_and_reaps_children[mtp_accepted_tokens]
+FAILED tests/test_smallm_benchmark.py::test_bridge_cli_checks_work_and_reaps_children[mtp_proposed_tokens]
+FAILED tests/test_smallm_benchmark.py::test_bridge_cli_checks_work_and_reaps_children[mtp_blocks]
+FAILED tests/test_smallm_benchmark.py::test_inventory_cli_validates_each_scaled_step_before_timing[nan]
+FAILED tests/test_smallm_benchmark.py::test_inventory_cli_validates_each_scaled_step_before_timing[inf]
+FAILED tests/test_smallm_benchmark.py::test_inventory_cli_validates_each_scaled_step_before_timing[overflow]
+FAILED tests/test_smallm_benchmark.py::test_inventory_cli_validates_each_scaled_step_before_timing[late_overflow]
+FAILED tests/test_smallm_benchmark.py::test_inventory_cli_validates_each_scaled_step_before_timing[partial]
+11 failed, 5 passed, 50 deselected in 5.55s

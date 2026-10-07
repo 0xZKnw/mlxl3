@@ -74,8 +74,12 @@ prototype : le moteur final de cette branche n'implémente pas le flag MB3,
 et le driver ne détecte pas à lui seul la prise en charge du flag par un
 binaire arbitraire. Le binaire et le `.gputrace` historiques restent hors Git.
 
-Les sources exécutables sont celles déjà validées au commit `25e1fef`.
-La préparation pour la PR ne modifie que la documentation et les attributs
-de revue. L'absence de push/PR décrite dans les preuves correspond à la
-clôture historique de la campagne ; elle ne préjuge pas d'un envoi ultérieur
-de la branche. Aucun gain supplémentaire ni nouveau benchmark n'est ajouté.
+Les sources de la campagne étaient celles validées au commit `25e1fef` ;
+leurs empreintes et résultats restent conservés tels quels. Les
+[correctifs des validateurs PR27](../pr27-fixes/verification-summary.json)
+vérifient désormais la finitude de chaque étape dépendante et les trois
+compteurs MTP entre variantes. Les nouveaux fingerprints ont sept entrées,
+les quatre premières gardant le format historique. Ces correctifs ne
+constituent pas une nouvelle mesure des performances de la campagne.
+L'absence de push/PR décrite dans les preuves correspond à sa clôture
+historique ; elle ne préjuge pas d'un envoi ultérieur de la branche.

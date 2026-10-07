@@ -69,6 +69,9 @@ def fingerprint(event, text, budget):
         event["cache_context"],
         count,
         hashlib.sha256(text.encode()).hexdigest(),
+        accepted,
+        proposed,
+        blocks,
     )
 
 
@@ -137,7 +140,9 @@ def run(args, report):
             if reference is None:
                 reference = result["fingerprint"]
             if result["fingerprint"] != reference:
-                raise AssertionError("target IDs/text/history/count changed between variants")
+                raise AssertionError(
+                    "target IDs/text/history/count or MTP counters changed between variants"
+                )
             row.update(result, status="complete", parity=True)
             process.send({"type": "shutdown"}, time.monotonic() + 5)
             if process.process.wait(timeout=10) != 0:

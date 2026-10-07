@@ -66,6 +66,7 @@ def run(path, iterations, report):
                 dims=dims,
                 cols=cols,
                 rows=rows,
+                validate=False,
             ):
                 value = x
                 for _ in range(steps):
@@ -76,11 +77,14 @@ def run(path, iterations, report):
                         ).reshape(rows, cols)
                         * svh
                     )
+                    if validate and not np.isfinite(np.asarray(output)).all():
+                        raise AssertionError("non-finite dependent output")
                     value = (
                         mx.tanh(mx.tile(output, (1, (dims + cols - 1) // cols))[:, :dims]) * 0.2
                     ).astype(mx.float16)
                 return value
 
+            chain(8, validate=True)
             isolated_fn = lambda _, kernel=kernel, xhat=xhat, weights=weights, sub=sub: kernel(
                 xhat, weights, sub
             )

@@ -2,9 +2,12 @@
 
 import importlib.util
 import json
+import os
 import struct
 import sys
+import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -249,17 +252,175 @@ def test_cli_rejects_bad_iterations_and_preserves_results(tmp_path):
     assert output.read_text() == "existing evidence"
 
 
-def test_bridge_complete_nonempty_result_is_accepted():
+@pytest.mark.parametrize("accepted,proposed,blocks", [(150, 190, 95), (0, 1, 1), (256, 512, 256)])
+def test_bridge_complete_nonempty_result_is_accepted(accepted, proposed, blocks):
     event = {
         "stats": {
             "generated_tokens": 256,
             "decode_tps": 8.0,
             "decode_seconds": 32.0,
-            "mtp_accepted_tokens": 150,
-            "mtp_proposed_tokens": 190,
-            "mtp_blocks": 95,
+            "mtp_accepted_tokens": accepted,
+            "mtp_proposed_tokens": proposed,
+            "mtp_blocks": blocks,
         },
         "token_hash": "1234",
         "cache_context": "test",
     }
-    assert BRIDGE.fingerprint(event, "target", 256)[:3] == ("1234", "test", 256)
+    signature = BRIDGE.fingerprint(event, "target", 256)
+    assert signature[:3] == ("1234", "test", 256)
+    assert signature[-3:] == (accepted, proposed, blocks)
+
+
+@pytest.mark.parametrize(
+    "behavior",
+    [None, "mtp_accepted_tokens", "mtp_proposed_tokens", "mtp_blocks", "invalid", "eof", "silent"],
+)
+def test_bridge_cli_checks_work_and_reaps_children(tmp_path, monkeypatch, behavior):
+    engine = tmp_path / "engine"
+    pids = tmp_path / "pids"
+    engine.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, sys, time\n"
+        f"with open({str(pids)!r}, 'a') as f: f.write(str(os.getpid()) + '\\n')\n"
+        "print(json.dumps({'type':'ready'}), flush=True)\n"
+        "for line in sys.stdin:\n"
+        " r=json.loads(line)\n"
+        " if r['type']=='shutdown': break\n"
+        " count=r['max_tokens']\n"
+        f" behavior={behavior!r}\n"
+        " if behavior=='invalid': print('invalid JSON', flush=True); continue\n"
+        " if behavior=='eof': sys.exit(0)\n"
+        " if behavior=='silent': time.sleep(60); continue\n"
+        " stats={'generated_tokens':count,'decode_tps':8.0,'decode_seconds':count/8,\n"
+        "        'mtp_accepted_tokens':count//2,'mtp_proposed_tokens':count,'mtp_blocks':count//2}\n"
+        " if behavior in stats and os.environ.get('MLXL3_EXPERIMENTAL_GROUPED_MB3')=='1':\n"
+        "  stats[behavior]+=1\n"
+        " print(json.dumps({'type':'delta','request_id':r['request_id'],'text':'target'}),flush=True)\n"
+        " print(json.dumps({'type':'complete','request_id':r['request_id'],'stats':stats,\n"
+        "                   'token_hash':'stable','cache_context':'stable history'}),flush=True)\n"
+    )
+    engine.chmod(0o700)
+    monkeypatch.setattr(BRIDGE.subprocess, "check_output", lambda *args, **kwargs: "fixture")
+    original_until = BRIDGE.until
+    monkeypatch.setattr(
+        BRIDGE,
+        "until",
+        lambda process, kind, deadline, request=None: original_until(
+            process, kind, min(deadline, time.monotonic() + 3), request
+        ),
+    )
+    output = tmp_path / "result.json"
+    args = [
+        "--engine",
+        str(engine),
+        "--model",
+        str(tmp_path),
+        "--head",
+        str(tmp_path),
+        "--output",
+        str(output),
+    ]
+    try:
+        if behavior is None:
+            BRIDGE.main(args)
+        else:
+            with pytest.raises((AssertionError, RuntimeError, TimeoutError)):
+                BRIDGE.main(args)
+    finally:
+        children = [int(pid) for pid in pids.read_text().splitlines()]
+        assert children
+        for pid in children:
+            with pytest.raises(ProcessLookupError):
+                os.kill(pid, 0)
+    report = json.loads(output.read_text())
+    assert report["status"] == ("complete" if behavior is None else "failed")
+    assert report["parity"] is (behavior is None)
+    if behavior is None:
+        assert len(children) == len(report["runs"]) == 8
+    elif behavior.startswith("mtp_"):
+        assert len(children) == 2 and report["runs"][0]["parity"] is True
+        assert report["runs"][1]["status"] != "complete"
+
+
+@pytest.mark.parametrize("case", ["finite", "nan", "inf", "overflow", "late_overflow", "partial"])
+def test_inventory_cli_validates_each_scaled_step_before_timing(tmp_path, monkeypatch, case):
+    tensors = {}
+    for index, (dims, cols) in enumerate(
+        (d, c) for d in (128, 256, 384, 512) for c in (128, 256, 384, 512)
+    ):
+        prefix = f"model.language_model.layers.{index}.self_attn.q_proj"
+        tensors[prefix + ".trellis"] = np.zeros((dims // 16, cols // 16, 16), np.int16)
+        tensors[prefix + ".suh"] = np.ones(dims, np.float16)
+        scale = (
+            np.nan
+            if case == "nan" or case == "partial" and index == 1
+            else np.inf
+            if case == "inf"
+            else 1
+        )
+        tensors[prefix + ".svh"] = np.full(cols, scale, np.float16)
+    header, chunks, offset = {}, [], 0
+    for name, value in tensors.items():
+        raw = value.tobytes()
+        header[name] = {
+            "dtype": "I16" if value.dtype == np.int16 else "F16",
+            "shape": list(value.shape),
+            "data_offsets": [offset, offset + len(raw)],
+        }
+        chunks.append(raw)
+        offset += len(raw)
+    raw = json.dumps(header).encode()
+    raw += b" " * (-len(raw) % 8)
+    (tmp_path / "model.safetensors").write_bytes(
+        struct.pack("<Q", len(raw)) + raw + b"".join(chunks)
+    )
+    # CPU adapter for the validation boundary; it does not verify Metal arithmetic.
+    mx = SimpleNamespace(
+        array=np.array,
+        float16=np.float16,
+        uint32=np.uint32,
+        concatenate=np.concatenate,
+        hadamard_transform=lambda value, scale: value,
+        eval=lambda *values: None,
+        tile=np.tile,
+        tanh=np.tanh,
+    )
+    monkeypatch.setitem(sys.modules, "mlx", SimpleNamespace(core=mx))
+    monkeypatch.setitem(sys.modules, "mlx.core", mx)
+
+    def qmv(_, shape, rows, *geometry):
+        calls = 0
+
+        def project(*inputs):
+            nonlocal calls
+            calls += 1
+            overflow = case == "overflow" or case == "late_overflow" and calls >= 4
+            return np.full((rows, 1, sum(shape["widths"])), 1e10 if overflow else 1, np.float32)
+
+        return project
+
+    monkeypatch.setattr(INVENTORY, "qmv", qmv)
+    timed = []
+
+    def paired(_, functions, iterations, steps=1):
+        timed.append(steps)
+        if case not in ("finite", "partial"):
+            pytest.fail("invalid scaled outputs reached timing")
+        for function in functions:
+            assert np.isfinite(function(steps)).all()
+        return {"medians_ms": [None, None]}
+
+    monkeypatch.setattr(INVENTORY, "paired", paired)
+    output = tmp_path / "result.json"
+    with np.errstate(over="ignore", invalid="ignore"):
+        if case == "finite":
+            INVENTORY.main(screen_args(tmp_path))
+        else:
+            with pytest.raises(AssertionError, match="non-finite dependent output"):
+                INVENTORY.main(screen_args(tmp_path))
+    report = json.loads(output.read_text())
+    assert report["status"] == ("complete" if case == "finite" else "failed")
+    assert report["parity"] is (case == "finite")
+    rows = 80 if case == "finite" else 5 if case == "partial" else 0
+    assert len(report["rows"]) == rows
+    assert timed == [1, 8] * rows

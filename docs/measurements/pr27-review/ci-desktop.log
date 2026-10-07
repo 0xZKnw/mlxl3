@@ -1,0 +1,550 @@
+desktop-and-protocol	Set up job	﻿2026-10-07T14:36:43.2495890Z Current runner version: '2.337.0'
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2515730Z ##[group]Runner Image Provisioner
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2516920Z Hosted Compute Agent
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2517310Z Version: 20260828.587
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2517750Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2518230Z Build Date: 2026-08-28T16:44:25Z
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2518840Z Worker ID: {26677022-0eab-404a-8b12-848be00b5600}
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2519390Z Azure Region: westus
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2519850Z ##[endgroup]
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2520850Z ##[group]Operating System
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2521330Z macOS
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2521670Z 26.6.2
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2522080Z 25G83
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2522570Z ##[endgroup]
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2523090Z ##[group]Runner Image
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2523560Z Image: macos-26-arm64
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2524020Z Version: 20260907.0351.1
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2524820Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20260907.0351/images/macos/macos-26-arm64-Readme.md
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2526130Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20260907.0351
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2526870Z ##[endgroup]
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2527660Z ##[group]GITHUB_TOKEN Permissions
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2529430Z Contents: read
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2529900Z Metadata: read
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2530270Z ##[endgroup]
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2531870Z Secret source: None
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2532500Z Cache mode: write
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.2533100Z Prepare workflow directory
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.3004950Z Prepare all required actions
+desktop-and-protocol	Set up job	2026-10-07T14:36:43.3086010Z Getting action download info
+desktop-and-protocol	Set up job	2026-10-07T14:36:44.2581520Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+desktop-and-protocol	Set up job	2026-10-07T14:36:44.6350230Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+desktop-and-protocol	Set up job	2026-10-07T14:36:44.8993710Z Complete job name: desktop-and-protocol
+desktop-and-protocol	Run actions/checkout@v4	﻿2026-10-07T14:36:44.9904250Z ##[group]Run actions/checkout@v4
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9905450Z with:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9905900Z   repository: 0xZKnw/mlxl3
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9909310Z   token: ***
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9909660Z   ssh-strict: true
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9910020Z   ssh-user: git
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9910380Z   persist-credentials: true
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9910760Z   clean: true
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9911120Z   sparse-checkout-cone-mode: true
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9911580Z   fetch-depth: 1
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9911990Z   fetch-tags: false
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9912430Z   show-progress: true
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9912910Z   lfs: false
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9913310Z   submodules: false
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9913700Z   set-safe-directory: true
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9914200Z   allow-unsafe-pr-checkout: false
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9915160Z env:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9915550Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:44.9915960Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.5784200Z Syncing repository: 0xZKnw/mlxl3
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.5790020Z ##[group]Getting Git version info
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.5792840Z Working directory is '/Users/runner/work/mlxl3/mlxl3'
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.5799060Z [command]/opt/homebrew/bin/git version
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6468670Z git version 2.55.0
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6500760Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6518290Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/e43703ec-8ac0-4efa-98d8-ce48dde69ff5/.gitconfig'
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6528030Z Temporarily overriding HOME='/Users/runner/work/_temp/e43703ec-8ac0-4efa-98d8-ce48dde69ff5' before making global git config changes
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6533160Z Adding repository directory to the temporary git global config as a safe directory
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6537030Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6683440Z Deleting the contents of '/Users/runner/work/mlxl3/mlxl3'
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6690210Z ##[group]Initializing the repository
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.6694540Z [command]/opt/homebrew/bin/git init /Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7012050Z hint: Using 'master' as the name for the initial branch. This default branch name
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7021370Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7039040Z hint: to use in all of your new repositories, which will suppress this warning,
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7101510Z hint: call:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7102260Z hint:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7102960Z hint: 	git config --global init.defaultBranch <name>
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7103840Z hint:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7104580Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7105900Z hint: 'development'. The just-created branch can be renamed via this command:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7106800Z hint:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7107260Z hint: 	git branch -m <name>
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7107760Z hint:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7108500Z hint: Disable this message with "git config set advice.defaultBranchName false"
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7109820Z Initialized empty Git repository in /Users/runner/work/mlxl3/mlxl3/.git/
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7112490Z [command]/opt/homebrew/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7165360Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7166470Z ##[group]Disabling automatic garbage collection
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7167490Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7251780Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7252670Z ##[group]Setting up auth
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7257660Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.7340110Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.8702560Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.8776230Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.9898640Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:45.9986500Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:46.1739480Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:46.1887690Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:46.1888930Z ##[group]Fetching the repository
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:46.1892430Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +1d6e01d4c2da5118c54bc20d264e76832aa6ce09:refs/remotes/pull/27/merge
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1072870Z From https://github.com/0xZKnw/mlxl3
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1074770Z  * [new ref]         1d6e01d4c2da5118c54bc20d264e76832aa6ce09 -> pull/27/merge
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1076730Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1077160Z ##[group]Determining the checkout info
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1077820Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1083810Z [command]/opt/homebrew/bin/git sparse-checkout disable
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1195860Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1310290Z ##[group]Checking out the ref
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.1314960Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/27/merge
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.5214930Z HEAD is now at 1d6e01d Merge f574bc1d256c2349a4f2edac2ef0e3aa9198137d into fba63b840f9b9997bcb38fb4d5d5c96ef26a35d9
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.5267980Z ##[endgroup]
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.5474710Z [command]/opt/homebrew/bin/git log -1 --format=%H
+desktop-and-protocol	Run actions/checkout@v4	2026-10-07T14:36:48.5622970Z 1d6e01d4c2da5118c54bc20d264e76832aa6ce09
+desktop-and-protocol	Run actions/setup-python@v5	﻿2026-10-07T14:36:48.6147080Z ##[group]Run actions/setup-python@v5
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6147650Z with:
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6148530Z   python-version: 3.12
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6148870Z   cache: pip
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6149150Z   check-latest: false
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6151930Z   token: ***
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6152280Z   update-environment: true
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6152780Z   allow-prereleases: false
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6211700Z   freethreaded: false
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6212180Z env:
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6212440Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.6212720Z ##[endgroup]
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.8199840Z ##[group]Installed versions
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.8323650Z (node:1193) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.8324530Z Successfully set up CPython (3.12.10)
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.8325200Z ##[endgroup]
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:48.8325680Z (Use `node --trace-deprecation ...` to show where the warning was created)
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:49.0410990Z [command]/Users/runner/hostedtoolcache/Python/3.12.10/arm64/bin/pip cache dir
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:49.8862090Z /Users/runner/Library/Caches/pip
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:50.2206520Z Cache hit for: setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:50.2315220Z (node:1193) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:51.5336040Z Received 0 of 113932663 (0.0%), 0.0 MBs/sec
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:52.5424620Z Received 37748736 of 113932663 (33.1%), 17.9 MBs/sec
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:53.4259060Z Received 113932663 of 113932663 (100.0%), 37.5 MBs/sec
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:53.4273940Z Cache Size: ~109 MB (113932663 B)
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:53.4421680Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/a2a6eebd-d8ce-415f-a303-656247926593/cache.tzst -P -C /Users/runner/work/mlxl3/mlxl3 --delay-directory-restore --use-compress-program unzstd
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:54.0242260Z Cache restored successfully
+desktop-and-protocol	Run actions/setup-python@v5	2026-10-07T14:36:54.0320550Z Cache restored from key: setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	﻿2026-10-07T14:36:54.0632820Z ##[group]Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0633750Z ^[[36;1mpython -m pip install -e '.[dev]' -c packaging/constraints-macos.txt^[[0m
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0698880Z shell: /bin/bash -e {0}
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0699170Z env:
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0699390Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0699790Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0700340Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0700830Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0701290Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0701720Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:54.0702200Z ##[endgroup]
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:55.1929010Z Obtaining file:///Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:55.1953580Z   Installing build dependencies: started
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:56.0635180Z   Installing build dependencies: finished with status 'done'
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:56.0655090Z   Checking if build backend supports build_editable: started
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:56.4696520Z   Checking if build backend supports build_editable: finished with status 'done'
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:56.4753080Z   Getting requirements to build editable: started
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.1215950Z   Getting requirements to build editable: finished with status 'done'
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.1231710Z   Preparing editable metadata (pyproject.toml): started
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.4378920Z   Preparing editable metadata (pyproject.toml): finished with status 'done'
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.5439760Z Collecting mlx>=0.32.2 (from mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.5467540Z   Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl.metadata (5.9 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.5512670Z Collecting mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99 (from mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.5519220Z   Using cached mlx_lm-0.32.0-py3-none-any.whl
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.7610170Z Collecting numpy>=2.0 (from mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.7695030Z   Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl.metadata (6.6 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.8709800Z Collecting safetensors>=0.5 (from mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.8723020Z   Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl.metadata (4.2 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.8798710Z Requirement already satisfied: certifi>=2025.1.31 in /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages (from mlxl3==1.0.3) (2026.7.22)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.9034690Z Collecting jsonschema<5,>=4.23 (from mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.9049460Z   Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.9422260Z Collecting transformers>=5.7.0 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:57.9459990Z   Using cached transformers-5.16.1-py3-none-any.whl.metadata (32 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.0323880Z Collecting sentencepiece (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.0345550Z   Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl.metadata (33 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.1441950Z Collecting protobuf (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.1467250Z   Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl.metadata (595 bytes)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.1831170Z Collecting pyyaml (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.1849640Z   Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.4 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.1987400Z Collecting jinja2 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.2014460Z   Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.2272550Z Collecting pytest>=8.3 (from mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.2274180Z   Using cached pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.5677260Z Collecting ruff>=0.12 (from mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.5703240Z   Using cached ruff-0.16.10-py3-none-macosx_11_0_arm64.whl.metadata (20 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.6098770Z Collecting attrs>=22.2.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.6139940Z   Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.6427700Z Collecting jsonschema-specifications>=2023.03.6 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.6455060Z   Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.6695430Z Collecting referencing>=0.28.4 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.6728830Z   Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.9240430Z Collecting rpds-py>=0.25.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.9271600Z   Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (4.1 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.9500990Z Collecting mlx-metal==0.32.2 (from mlx>=0.32.2->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.9527860Z   Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl.metadata (5.1 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:58.9786330Z Collecting iniconfig>=1.0.1 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.0423140Z   Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.0549150Z Collecting packaging>=22 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.0565190Z   Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.0678950Z Collecting pluggy<2,>=1.5 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.0709240Z   Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.0923860Z Collecting pygments>=2.7.2 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.0948040Z   Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.1120300Z Collecting typing-extensions>=4.4.0 (from referencing>=0.28.4->jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.1144540Z   Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.1585370Z Collecting huggingface-hub<2.0,>=1.5.0 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.1605330Z   Using cached huggingface_hub-1.29.0-py3-none-any.whl.metadata (16 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.4865310Z Collecting regex>=2025.10.22 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.4892710Z   Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl.metadata (40 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.5927640Z Collecting tokenizers<0.24.0,>=0.23.1 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.5957940Z   Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl.metadata (9.8 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.6219060Z Collecting typer (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.6321570Z   Downloading typer-0.27.3-py3-none-any.whl.metadata (16 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.7073030Z Collecting tqdm>=4.60 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.7102810Z   Using cached tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.7438850Z Collecting click<9.0.0,>=8.4.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.7473470Z   Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.7834280Z Collecting filelock>=3.10.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.7919620Z   Downloading filelock-4.0.12-py3-none-any.whl.metadata (2.0 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.8226900Z Collecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.8245000Z   Using cached fsspec-2026.9.0-py3-none-any.whl.metadata (10 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.8846070Z Collecting hf-xet<2.0.0,>=1.5.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.8871800Z   Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl.metadata (4.9 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9006530Z Collecting httpx<1,>=0.23.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9027080Z   Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9245230Z Collecting anyio (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9274810Z   Using cached anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9437440Z Collecting httpcore==1.* (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9459650Z   Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9649910Z Collecting idna (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9678030Z   Using cached idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9814320Z Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:36:59.9848780Z   Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1061910Z Collecting MarkupSafe>=2.0 (from jinja2->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1108600Z   Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.7 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1290750Z Collecting shellingham>=1.3.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1318550Z   Using cached shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1565480Z Collecting rich>=13.8.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1593930Z   Using cached rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1747930Z Collecting annotated-doc>=0.0.2 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1765830Z   Using cached annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1934120Z Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.1949660Z   Using cached markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.2159060Z Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.2187410Z   Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.2258960Z Using cached jsonschema-4.26.0-py3-none-any.whl (90 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.2283880Z Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.2301460Z Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.2322220Z Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl (619 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.2355160Z Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl (64.4 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3326330Z Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl (5.4 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3524760Z Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3621390Z Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3687910Z Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3768150Z Using cached packaging-26.3-py3-none-any.whl (129 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3795000Z Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3879430Z Using cached referencing-0.37.0-py3-none-any.whl (26 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3960430Z Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl (338 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.3969230Z Using cached ruff-0.16.10-py3-none-macosx_11_0_arm64.whl (9.8 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4203990Z Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl (484 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4247810Z Using cached transformers-5.16.1-py3-none-any.whl (12.1 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4484630Z Using cached huggingface_hub-1.29.0-py3-none-any.whl (795 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4559890Z Using cached click-8.5.0-py3-none-any.whl (125 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4592850Z Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl (3.9 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4691550Z Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4738180Z Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4788660Z Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl (3.1 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.4947360Z Downloading filelock-4.0.12-py3-none-any.whl (111 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5098080Z Using cached fsspec-2026.9.0-py3-none-any.whl (221 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5133710Z Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5156970Z Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl (173 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5189080Z Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl (293 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5240390Z Using cached tqdm-4.70.1-py3-none-any.whl (80 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5272300Z Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5316240Z Using cached anyio-4.15.1-py3-none-any.whl (132 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5367020Z Using cached idna-3.20-py3-none-any.whl (69 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5392190Z Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5441820Z Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl (12 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5460230Z Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl (456 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5485880Z Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl (1.3 MB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5567430Z Downloading typer-0.27.3-py3-none-any.whl (123 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5659710Z Using cached annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5690960Z Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5742180Z Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5778490Z Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.5801090Z Using cached shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.7878880Z Building wheels for collected packages: mlxl3
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:00.7910580Z   Building editable for mlxl3 (pyproject.toml): started
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:01.0833690Z   Building editable for mlxl3 (pyproject.toml): finished with status 'done'
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:01.0845180Z   Created wheel for mlxl3: filename=mlxl3-1.0.3-0.editable-py3-none-any.whl size=10625 sha256=6a19f3a0c1cf954c7703dead9d2ebc80039abe3304f8395b1c814bf965286307
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:01.0847890Z   Stored in directory: /private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pip-ephem-wheel-cache-4a57hu9j/wheels/ed/b2/9a/5e76ae5229e8552789ab565f0c61e19ae174be3061de6f92d3
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:01.0877090Z Successfully built mlxl3
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:01.1868990Z Installing collected packages: typing-extensions, tqdm, shellingham, sentencepiece, safetensors, ruff, rpds-py, regex, pyyaml, pygments, protobuf, pluggy, packaging, numpy, mlx-metal, mdurl, MarkupSafe, iniconfig, idna, hf-xet, h11, fsspec, filelock, click, attrs, annotated-doc, referencing, pytest, mlx, markdown-it-py, jinja2, httpcore, anyio, rich, jsonschema-specifications, httpx, typer, jsonschema, huggingface-hub, tokenizers, transformers, mlx-lm, mlxl3
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:16.3793930Z 
+desktop-and-protocol	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt	2026-10-07T14:37:16.3830380Z Successfully installed MarkupSafe-3.0.4 annotated-doc-0.0.5 anyio-4.15.1 attrs-26.1.0 click-8.5.0 filelock-4.0.12 fsspec-2026.9.0 h11-0.16.0 hf-xet-1.6.0 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-1.29.0 idna-3.20 iniconfig-2.3.1 jinja2-3.1.6 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 mlx-0.32.2 mlx-lm-0.32.0 mlx-metal-0.32.2 mlxl3-1.0.3 numpy-2.5.2 packaging-26.3 pluggy-1.6.0 protobuf-7.36.2 pygments-2.21.0 pytest-9.1.1 pyyaml-6.0.3 referencing-0.37.0 regex-2026.9.29 rich-15.0.0 rpds-py-2026.6.3 ruff-0.16.10 safetensors-0.8.0 sentencepiece-0.2.2 shellingham-1.5.4 tokenizers-0.23.1 tqdm-4.70.1 transformers-5.16.1 typer-0.27.3 typing-extensions-4.16.0
+desktop-and-protocol	Run scripts/check-e2e.sh	﻿2026-10-07T14:37:16.7315070Z ##[group]Run scripts/check-e2e.sh
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7316150Z ^[[36;1mscripts/check-e2e.sh^[[0m
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7375400Z shell: /bin/bash -e {0}
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7375690Z env:
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7375970Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7376330Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7376880Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7377400Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7377840Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7378300Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:16.7378700Z ##[endgroup]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:48.1690880Z .........................................s.ss........................... [ 27%]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:37:51.0087960Z ........................................................................ [ 54%]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.0831940Z ........................................................................ [ 82%]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.2874200Z ...............................................                          [100%]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.2874820Z =========================== short test summary info ============================
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.2875520Z SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.2876270Z SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.2877070Z SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.2877760Z SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:23.2879670Z 260 passed, 4 skipped in 65.61s (0:01:05)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:37.4589520Z Building for debugging...
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:37.4912240Z [0/7] Write sources
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:37.4980000Z [2/7] Write MLXL3Studio-entitlement.plist
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:37.6724810Z [3/7] Write swift-version-7974D3F7F03D5E95.txt
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.5453110Z [5/23] Emitting module SwiftMath
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.5566370Z [6/23] Compiling SwiftMath MTFontManager.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.5706610Z [7/23] Compiling SwiftMath MTFontMathTable.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.5839450Z [8/23] Compiling SwiftMath MTLabel.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6010160Z [9/23] Compiling SwiftMath MTMathAtomFactory.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6172380Z [10/23] Compiling SwiftMath MTMathImage.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6277020Z [11/23] Compiling SwiftMath MTMathList.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6382250Z [12/23] Compiling SwiftMath MTMathListBuilder.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6382740Z [13/23] Compiling SwiftMath MTFontMathTableV2.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6384550Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6488720Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6596880Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6635240Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6738120Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6795800Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6902230Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6936300Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6964620Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6982920Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.6997490Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7005280Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7011380Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7018550Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7019000Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7019340Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7019920Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7020670Z [14/23] Compiling SwiftMath MTFontV2.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7029290Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7034750Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7035470Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7036120Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7037120Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7038080Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7038570Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7038770Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7039720Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7041150Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7041700Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7042180Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7043080Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7044210Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7044670Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7044990Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7045390Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7046190Z [15/23] Compiling SwiftMath MathFont.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7047650Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7049210Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7049840Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7050430Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7051510Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7053220Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7053950Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7054210Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7055180Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7056440Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7056930Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7057510Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7058490Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7059330Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7059710Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7060050Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7060510Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7061120Z [16/23] Compiling SwiftMath MathImage.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7062340Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7063810Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7064420Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7065070Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7066170Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7067230Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7067720Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7067970Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7068930Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7070280Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7072440Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7072960Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7073770Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7074620Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7075030Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7075340Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7075820Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7076660Z [17/23] Compiling SwiftMath MTBezierPath.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7077950Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7079370Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7080080Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7081160Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7082370Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7099580Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7100040Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7100620Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7106700Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7108090Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7108550Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7109150Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7110270Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7111150Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7111580Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7111910Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7112390Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7369750Z [18/23] Compiling SwiftMath MTColor.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7372460Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7374110Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7374810Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7375420Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7376620Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7377530Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7377950Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7378200Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7379260Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7380480Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7381010Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7381530Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7382490Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7383320Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7383670Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7383950Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7384500Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7709920Z [19/23] Compiling SwiftMath MTConfig.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7711510Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7714860Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7715460Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7716450Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7717650Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7718570Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7719110Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7719360Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7720370Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7721630Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7722250Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7723000Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7724340Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7725350Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7725750Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7726180Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.7726630Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8115350Z [20/23] Compiling SwiftMath MTFont.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8218370Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8309920Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8311680Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8312330Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8314230Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8315610Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8317050Z 116 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8317980Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8319530Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8321390Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8322840Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8323940Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8325530Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8327900Z 197 |         }
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8328390Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8328630Z 
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:54.8329100Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:57.5827730Z [21/30] Compiling SwiftMath MTMathListDisplay.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:57.5828810Z [22/30] Compiling SwiftMath MTMathListIndex.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:57.5830860Z [23/30] Compiling SwiftMath MTMathUILabel.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:57.5832860Z [24/30] Compiling SwiftMath MTTypesetter.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:57.5833930Z [25/30] Compiling SwiftMath MTUnicode.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:57.5834570Z [26/30] Compiling SwiftMath RWLock.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:38:57.5835370Z [27/30] Compiling SwiftMath SwiftMathResources.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.3741780Z [28/51] Compiling MLXL3Studio AppDelegate.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.3754750Z [29/51] Compiling MLXL3Studio AppSettingsView.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.3818630Z [30/51] Compiling MLXL3Studio CLICommand.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.3835780Z [31/51] Compiling MLXL3Studio ChatAttachment.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.3945360Z [32/51] Compiling MLXL3Studio ChatComponents.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.3985820Z [33/51] Compiling MLXL3Studio ChatTimelineCheck.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.3995440Z [34/51] Compiling MLXL3Studio ConversationStore.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4033810Z [35/51] Compiling MLXL3Studio Domain.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4042430Z [36/51] Compiling MLXL3Studio DownloadProgressCard.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4111390Z [37/51] Compiling MLXL3Studio EngineRuntimeStore.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4190470Z [38/51] Emitting module MLXL3Studio
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4209280Z [39/51] Compiling MLXL3Studio GenerationInspector.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4327060Z [40/51] Compiling MLXL3Studio Localization.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4338500Z [41/51] Compiling MLXL3Studio MCPConfiguration.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4347580Z [42/51] Compiling MLXL3Studio MCPPreferenceCheck.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4451710Z [43/51] Compiling MLXL3Studio MLXL3Bridge.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4573800Z [44/51] Compiling MLXL3Studio MLXL3StudioApp.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4575070Z [45/51] Compiling MLXL3Studio MTPTuning.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4590430Z [46/51] Compiling MLXL3Studio MTPTuningControls.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4591720Z [47/51] Compiling MLXL3Studio MarkdownResponseView.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:15.4592340Z [48/51] Compiling MLXL3Studio MenuBarPanel.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9624690Z [49/61] Compiling MLXL3Studio MessageCopyButton.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9626760Z [50/61] Compiling MLXL3Studio ModelDownloadProgress.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9628060Z [51/61] Compiling MLXL3Studio ModelLibrary.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9630730Z [52/61] Compiling MLXL3Studio ModelManager.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9632720Z [53/61] Compiling MLXL3Studio SidebarUpdateBadge.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9633950Z [54/61] Compiling MLXL3Studio StudioModel.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9635200Z [55/61] Compiling MLXL3Studio StudioView.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9636130Z [56/61] Compiling MLXL3Studio Theme.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9637160Z [57/61] Compiling MLXL3Studio UIPreview.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:24.9637710Z [58/61] Compiling MLXL3Studio UpdateManager.swift
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:25.0424160Z [58/61] Write Objects.LinkFileList
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:27.1507940Z [59/61] Linking MLXL3Studio
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:27.2201670Z [60/61] Applying MLXL3Studio
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:39:27.2284610Z Build complete! (49.86s)
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:40:46.5946850Z Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:40:46.5951410Z Markdown checks passed: fences, 300k code, long tables
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:40:46.5962880Z Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:41:23.2288610Z Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:41:58.3424570Z CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:42:00.2244680Z File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:42:00.2855460Z Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:42:00.3255650Z MCP checks passed: default off, persisted on/off, request flag, isolated preview
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:43:14.5156470Z Bridge callback with 50 ms occupied IO: legacy 62.242 ms; independent UUID 0.136 ms
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:43:14.5191800Z Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:45:11.1470100Z Markdown checks passed: fences, 300k code, long tables
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:45:11.1577630Z Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:45:11.1703600Z Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:46:15.4787240Z Response UI checks passed: complete copy, native control/clipboard action, 56 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:46:21.6386390Z CLI transport passed: large output, NDJSON, cancellation, error reporting
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:46:22.4601680Z Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:46:25.5312730Z MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:46:27.6931890Z MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:46:27.6942400Z Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport
+desktop-and-protocol	Run scripts/check-e2e.sh	2026-10-07T14:46:27.7627740Z MLXL3 full E2E suite passed
+desktop-and-protocol	Post Run actions/setup-python@v5	﻿2026-10-07T14:46:27.8030560Z Post job cleanup.
+desktop-and-protocol	Post Run actions/setup-python@v5	2026-10-07T14:46:28.4475720Z (node:16655) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+desktop-and-protocol	Post Run actions/setup-python@v5	2026-10-07T14:46:28.4477030Z Cache hit occurred on the primary key setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b, not saving cache.
+desktop-and-protocol	Post Run actions/setup-python@v5	2026-10-07T14:46:28.4478790Z (Use `node --trace-deprecation ...` to show where the warning was created)
+desktop-and-protocol	Post Run actions/checkout@v4	﻿2026-10-07T14:46:28.4643680Z Post job cleanup.
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:28.8578590Z [command]/opt/homebrew/bin/git version
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:28.8925660Z git version 2.55.0
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:28.9472370Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/628a594f-ba28-4ea3-b5c8-167a250ca7d9/.gitconfig'
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:28.9576630Z Temporarily overriding HOME='/Users/runner/work/_temp/628a594f-ba28-4ea3-b5c8-167a250ca7d9' before making global git config changes
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:28.9785330Z Adding repository directory to the temporary git global config as a safe directory
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:28.9883670Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.0203930Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.0929810Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.2832650Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.2833380Z http.https://github.com/.extraheader
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.3027150Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.3114520Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.4192610Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+desktop-and-protocol	Post Run actions/checkout@v4	2026-10-07T14:46:29.4282140Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+desktop-and-protocol	Complete job	﻿2026-10-07T14:46:29.5976140Z Cleaning up orphan processes
+desktop-and-protocol	Complete job	2026-10-07T14:46:32.5681150Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
