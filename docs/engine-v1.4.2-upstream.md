@@ -86,3 +86,52 @@ Les [preuves locales séparées](measurements/engine-v1.4.2/rapid-review-checks-
 Le job macOS push du commit160a806 ([112893924477](https://github.com/0xZKnw/mlxl3/actions/runs/37650981002/job/112893924477)) échoue avec1testfailed/292passed/1skip : le test attend une erreur EOF mais son délai150ms expire avant l'arrêt de l'enfant. Le job macOS PR du mêmeSHA passe. Un enfant qui attend300ms après réception reproduit ce mauvais diagnostic sur l'ancien test. Les erreurs EOF/JSON/stdin et le startup normal disposent maintenant de3s ; les tests de silence/flux/partial/wrongID gardent leurs délais courts. Messages exacts, rapport failed/parityNone et réaping de l'enfant restent obligatoires.
 
 Les50tests ciblés passent, puis toute la suite Python296/4skips historiques. Une mutation EOFsilencieux est détectée, puis le test restauré repasse. Ruff format/check etpy_compile réussis ; tentativeCrossHair impossible(moduleabsent), aucun résultat formel. Seul le code du test change, aucun calcul moteur, transport ou Desktop. Les [13preuves brutes](measurements/engine-v1.4.2/rapid-ci-checks-raw.tar.gz) et leur [manifeste vérifié](measurements/engine-v1.4.2/rapid-ci-checks-manifest.json) conservent l'échec GitHub et la reproduction avant correction. La CI du commit correctif sera inspectée séparément ; la réussite locale ne signifie pas que les jobs GitHub ont déjà passé.
+
+Révision du 7 octobre après publication : **les huit jobs GitHub du correctif `4a7daa2eb63b5f4e7d8c935d93e61f35d0496e78` réussissent**. L'échec du parent reste conservé. Runs [Native PR](https://github.com/0xZKnw/mlxl3/actions/runs/37652771260), [Native push](https://github.com/0xZKnw/mlxl3/actions/runs/37652763947), [Desktop PR](https://github.com/0xZKnw/mlxl3/actions/runs/37652771137) et [Desktop push](https://github.com/0xZKnw/mlxl3/actions/runs/37652764034), avec inspection des logs :
+
+| Contrôle | Résultat du correctif publié |
+| --- | --- |
+| Natifs Linux et macOS, PR et push | Quatre jobs réussis. Les deux macOS : 56 tests Rust passés/3 ignorés, 293 tests Python passés/1 sauté, format, Clippy strict et release `mlx,chat` avec MLX0.32.2 réussis. |
+| Desktop PR et push | Deux jobs réussis, chacun 296 tests Python passés/4 sautés et E2E complète, dont composer/updater, bridge, annulation, imports et rendu. |
+| Kani PR et push | Deux jobs réussis, chacun 39/39 harnais CPU : 5463 SUCCESS, 98 SATISFIED, 72 UNREACHABLE, zéro FAILURE/UNDETERMINED. Les72 obligations inatteignables sont dans stdlib/modèles Kani, aucune assertion applicative. |
+
+Kani0.68.0 exécute `cargo kani --lib --no-default-features`. Les domaines symboliques, hypothèses et bornes d'unwinding restent ceux des harnais conservés : acceptation MTP≤3 propositions (unwind6), préfixes≤8 (unwind34), historique lookup≤20 avec fenêtre7 (unwind33), ainsi que formes et indices de kernels. Cette vérification bornée CPU ne prouve pas MLX, Metal, la FFI, la concurrence ou la génération. Le checkout synthétique PR `784531e9240f736832a808160e6e25d535a7d067`, parents main8f63e6c et correctif4a7daa2, a un arbre entier identique à4a7daa2 ; il a été inspecté en lecture. La CI d'un prochain commit de notes sera suivie distinctement dans la description de PR.
+
+### Essai RapidMLX : fusion préparation et récurrence GDN
+
+Essai préenregistré `OPT-2026-10-07-RAPID-GDN-PREP-RECURRENCE`, **non concluant, prototype intégralement retiré**. La piste reprend l'idée de la [fusion GDN amont](https://github.com/raullenchai/Rapid-MLX/blob/53d943ff1e506b8574351894ba09936710e99ca6/docs/engineering/performance/2026-09-12-qwen36-35b-fused-gdn-decode.md) avec nos propres kernels. Elle fusionnait conv/SiLU/QK-norm et récurrence pour F16/état F32, T1..4, Hk16/Hv32, dimensions128, convolution4. La normalisation et la porte de sortie MLX restaient inchangées. Les arrondis et réductions canoniques, les clés et tapes de rollback étaient conservés ; option expérimentale `MLXL3_GDN_PREP_RECURRENCE=1`, désactivée par défaut. Il s'agit d'un nouveau périmètre par rapport à la préparation PERF109 et récurrence PERF38/70 séparées, incluant les trois lignes de vérification MTP2.
+
+Contrôles du **prototype**, avant vitesse :
+
+| Contrôle | Domaine, oracle et résultat |
+| --- | --- |
+| Garde Rust réelle | Six scalaires i32 symboliques, aucune hypothèse ni boucle : garde équivalente à la géométrie qualifiée, lancement512threads, scratch8192éléments, clés≤8192 et état524288éléments. Kani85 SUCCESS/4 couvertures SATISFIED (T1/3/4, refusT5), zéro échec. Commande `cargo kani --lib --no-default-features --harness fused_gdn_prepare_recurrence_has_bounded_launch_and_storage`. |
+| FFI/Metal | Kani sur vraie API Array : premier lancement sans feature Metal échoueE0433 ; lancement corrigé avec Metal échoue par ICE `intrinsics.rs:243` avant obligations. CBMC6.11 refuse le vrai fichier `.metal`. FFI et shader **non vérifiés formellement**. |
+| Kernel GPU indépendant | 16 comparaisons avec préparation et récurrence stock séparées, T1..4, état nul/non nul et poids convolutifs réels ; sorties/conv/état/keys/delta/decay non vides, finis et bit à bit égaux. 20 replays de tous les préfixes retenus ; formes, dtypes, T0/5 et scalaires invalides rejetés. Mutation `k_scale→q_scale` détectée, source restaurée puis recompilée. |
+| Modèle réel | Préfills1/23/24/129/256, vérifications et rollback T1..8 ; logits/hidden/80états exacts contre cible mono-token forcée au chemin stock. Récursion compacte D1..3 sur24blocs, caches et tokens exacts. Quatre tests explicitement sélectionnés, chacun exécutant exactement un test, avec override local réversible testé sur nesting/panic. |
+| Bridge de production | 43 terminaux uniques :35 completions,5 annulations,2 erreurs attendues,1 Tune ; D0..3, budgets1/2/3/4/17/64, préfixe≥256, changement de profondeur et récupération après annulation. Quatre assertions finales vraies. |
+| Contrôles généraux | Format/Clippy strict et release `mlx,chat` réussis ; suite CPU sans features52 passés/1 ignoré ; suite lib MLX49 passés/54 ignorés. Les tests physiques concernés ont été exécutés séparément, les autres ignorés restent non exécutés. |
+
+Commandes de vérification : `cargo fmt --all -- --check`, `cargo clippy --locked --all-targets --features mlx,chat -- -D warnings`, `cargo build --locked --release --features mlx,chat`, `cargo test --no-default-features` et `cargo test --lib --features mlx,chat`. Harnais API réel : `cargo kani --lib --features mlx --harness fused_gdn_real_array_api_preserves_output_shapes` ; shader : `cbmc native/shaders/gated_delta_packed.metal`. Les sources expérimentales, logs et commandes des sélections GPU `--exact --test-threads=1 --ignored` quand nécessaire sont archivés. Le bridge utilise `.venv/bin/python scripts/check-mtp-depths.py target/release/mlxl3-rs models/Qwen3.6-35B-A3B-EXL3-2.49bpw build/engine-v1.4.2/frspec-head --tune`. Ces durées de correction ne mesurent aucun gain.
+
+Crible en génération : M5 Air24Gio/macOS27.2, MLX0.32.2/MLX-LM0.32.0, secteur100%, Qwen3.6-35B-A3B EXL3 2,49bpw avec tête compacte MTP2 (79591 IDs/79616 lignes affine4). Même binaire A0/B1, SHA256 `f580e1ed4125cddb6311482439c7e66510a7f4414bc99b9311c8adeb34a8154c`, sources locales modifiées depuis4a7daa2 ; checkpoint et dépendances identifiés dans `rapid-gdn-identity.json`, metadata hashées, grands poids identifiés par tailles/mtimes sans réhachage intégral. Aucun autre modèle, build ou proveur pendant la mesure ; température/fréquences non mesurées.
+
+```sh
+MLXL3_MTP_LOOKUP=0 .venv/bin/python benchmarks/compare_native.py \
+  models/Qwen3.6-35B-A3B-EXL3-2.49bpw \
+  --baseline target/release/mlxl3-rs --candidate target/release/mlxl3-rs \
+  --baseline-env MLXL3_GDN_PREP_RECURRENCE=0 \
+  --candidate-env MLXL3_GDN_PREP_RECURRENCE=1 \
+  --baseline-env MLXL3_MTP_LOOKUP=0 --candidate-env MLXL3_MTP_LOOKUP=0 \
+  --output build/engine-v1.4.2/rapid-gdn-abba \
+  --prompt-file build/engine-v1.4.2/prompts/code.txt \
+  --mtp-depth 2 --mtp-head build/engine-v1.4.2/frspec-head \
+  --warmup-tokens 128 --tokens 128 --repeats 2 --order ABBA \
+  --settle-seconds 2 --load-timeout 90 --request-timeout 30
+```
+
+Contexte4096/cacheOFF/greedy, FR27tokens et code44tokens de prompt. Parité texte/IDs exacte,16générations mesurées de128tokens (127decode). Les contrôles entre passages dérivent : FR A+9,93%/B+11,68% ; code A+7,85%/B+0,16%, seuil3% dépassé. Médianes brutes FR66,20→64,79tok/s et code74,95→72,22tok/s : **aucun gain ni régression causale établi dans ce régime**. ABBA avait déjà terminé quand l'arrêt a été observé ; la tentative d'interruption ne trouvait plus de processus. Aucun BAAB, contrôleD1 ni autre benchmark de ce candidat relancé.
+
+Les quatre fichiers source, nouveaux tests et harnais du prototype sont retirés byte pour byte au SHA4a7daa2. Le moteur restauré est reconstruit, option expérimentale absente, SHA256 `7bb9638316cde70830f6440ec569c4bda5da573db8f1434ba6a2df285391daba`. Format et release `mlx,chat` passent, puis le bridge compact/Tune restauré passe à nouveau les43requêtes et quatre assertions finales (46,472s diagnostiques). Le binaire test expérimental conservé localement ne représente pas le moteur restauré. Aucune app installée, release ou fusion de PR.
+
+Les [preuves de suivi Rapid](measurements/engine-v1.4.2/rapid-followup-raw.tar.gz) et leur [manifeste](measurements/engine-v1.4.2/rapid-followup-manifest.json) conservent sources avant/prototype, patch, mutation, échecs formels, qualité, mesures dérivantes, retrait et logs de CI4a7daa2 ; les archives précédentes restent intactes. **Aucun boost supplémentaire validé ; la référence code compacte MTP2 reste75–77tok/s dans la campagne pipeline antérieure.** Profondeur MTP déterministe et anticipation AR restent non prototypées : calibration EXL3 nécessaire et réparation du cache de tête avant un passage D0→draft. Le fallbackD0 actuel de `Session::advance` est terminal et n'avance pas ce cache, ce qui convient à ses budgets actuels mais ne qualifie pas un contrôleur adaptatif.
