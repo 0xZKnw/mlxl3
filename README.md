@@ -34,6 +34,14 @@ the full Q4 prototype used 272.81 MiB and regressed on code, so it is not a
 general speed recommendation. These measurements use fixed token budgets,
 not complete-task accuracy evaluations, and do not establish gains for other models.
 
+A separate prompt-lookup experiment can draft continuations of repeated code
+with `MLXL3_MTP_LOOKUP=1`. It is **off by default**: the initial copy speed
+signal was not reproduced within the control-drift limits. The full target
+verifies its proposals and the runtime repairs exact caches before continuing.
+It falls back to the neural draft after a full rejection. See the
+[Sushi/TensorFold review](docs/measurements/engine-v1.4.2/sushi-tensorfold-deepening.json)
+for examined mechanisms and numerical compatibility limits.
+
 Desktop sources also fix Send/Tune becoming disabled during background update
 checks or downloads and refresh the composer when update state changes.
 Installation still blocks inference. This UI fix requires a new Desktop build;

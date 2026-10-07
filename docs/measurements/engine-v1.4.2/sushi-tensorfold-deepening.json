@@ -1,0 +1,124 @@
+{
+  "status": "research_completed",
+  "requested": "Sushi and TensorFold deeper investigation, 2026-10-07",
+  "sources": [
+    {
+      "repository": "https://github.com/beamivalice/sushi",
+      "sha": "ae63f880550fa52c0ea4549329ecc7a76e41e10d",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "src/exl3/expert_exl3_kernels.zig",
+          "sha256": "a32352c27779733f6c368ea0e57c6dae5bff8105eea1c13892a2472498992893",
+          "url": "https://github.com/beamivalice/sushi/blob/ae63f880550fa52c0ea4549329ecc7a76e41e10d/src/exl3/expert_exl3_kernels.zig"
+        },
+        {
+          "path": "src/exl3/glm_prefill_grid.zig",
+          "sha256": "a0c0b69fec33e6ac31d9f8ff4289e14c207b57c1e13bfae852571d4a042003bb",
+          "url": "https://github.com/beamivalice/sushi/blob/ae63f880550fa52c0ea4549329ecc7a76e41e10d/src/exl3/glm_prefill_grid.zig"
+        },
+        {
+          "path": "src/glm5_mla_prefill_batch.zig",
+          "sha256": "83003f9dd01ef962bf7e2d14a0ca63a4dac2b572e6fceed0c16d23640e1bd55a",
+          "url": "https://github.com/beamivalice/sushi/blob/ae63f880550fa52c0ea4549329ecc7a76e41e10d/src/glm5_mla_prefill_batch.zig"
+        },
+        {
+          "path": "src/glm5_forward.zig",
+          "sha256": "0655a6c4a49fc0adc2b52d671ff1c82a92a017c0badb997962cca4c9ff77cf98",
+          "url": "https://github.com/beamivalice/sushi/blob/ae63f880550fa52c0ea4549329ecc7a76e41e10d/src/glm5_forward.zig"
+        },
+        {
+          "path": "src/glm5_model.zig",
+          "sha256": "a8d46d5b9620e280f142ed7a8b12fb05a575c660059e67d6e9616163d0a1257c",
+          "url": "https://github.com/beamivalice/sushi/blob/ae63f880550fa52c0ea4549329ecc7a76e41e10d/src/glm5_model.zig"
+        },
+        {
+          "path": "src/mtp_lookup.zig",
+          "sha256": "8b94de68385991c09f99bc376e7bba0b7fa697eb70fa28d2762d82e6a6466b79",
+          "url": "https://github.com/beamivalice/sushi/blob/ae63f880550fa52c0ea4549329ecc7a76e41e10d/src/mtp_lookup.zig"
+        },
+        {
+          "path": "src/mtp_depth_bounds.zig",
+          "sha256": "e5c862133497ed572126d547638a0f1a701179b61e13672b5c360c6fdca309e9",
+          "url": "https://github.com/beamivalice/sushi/blob/ae63f880550fa52c0ea4549329ecc7a76e41e10d/src/mtp_depth_bounds.zig"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/ashhart/TensorFold",
+      "sha": "cb2ebf0540f42604e2759b2ddef497861e928248",
+      "license": "Apache-2.0",
+      "files": [
+        {
+          "path": "src/tensorfold/families/qwen3_5_moe/family.py",
+          "sha256": "0747bd67a35b66cd0903b06b3bad5dd8153550fb263840900170036995b47e0d",
+          "url": "https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/families/qwen3_5_moe/family.py"
+        },
+        {
+          "path": "src/tensorfold/engine/family_depth.py",
+          "sha256": "182dc00758552c8bde98d43e843f0e39766e276782bbc979fb630df861b713d9",
+          "url": "https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/engine/family_depth.py"
+        },
+        {
+          "path": "src/tensorfold/kernels/qwen/dense/v1/row_forward.py",
+          "sha256": "49f4f277dcd6353e9aa3658dbd59e5515330f578ecc763baa0cc1aa8c770f7cf",
+          "url": "https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/kernels/qwen/dense/v1/row_forward.py"
+        },
+        {
+          "path": "src/tensorfold/kernels/qwen/dense/v1/row_matmul.py",
+          "sha256": "281ae53a8dd6b8b3444c438f6c1699a66fbf116cd240ba38ac6a82eb160110f2",
+          "url": "https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/kernels/qwen/dense/v1/row_matmul.py"
+        }
+      ]
+    }
+  ],
+  "no_upstream_code_executed": true,
+  "mechanisms": [
+    {
+      "idea": "Queue each MTP level while the CPU builds the next",
+      "source": "TensorFold qwen3_5_moe/family.py:185-205,214-261",
+      "local": "Head::draft_chain + small Array/CABI async_eval wrapper",
+      "decision": "Rejected and removed: D2 FR +0.258% decode, code -3.945%/+4.314% total in screen; threshold not met. Exact target/cache/bridge tests passed, but async formal checks unsupported. Full raw/prototype retained in phase2 archive.",
+      "history": "MTP07 eliminated the final host transfer before verify and regressed D3 -3.70%; this prototype preserves that transfer and all math."
+    },
+    {
+      "idea": "Queue target work after first layer and every four layers",
+      "source": "TensorFold row_forward.py:287-325",
+      "local": "Qwen forward/verify currently finish graphs at the end",
+      "decision": "Compatible scheduling concept, not prototyped in this campaign; no speed claim. Distinct from BF16/affine row kernel arithmetic."
+    },
+    {
+      "idea": "Online depth D0..3 from per-depth acceptance and cost EMA",
+      "source": "TensorFold family_depth.py:20-143; Sushi mtp_depth_bounds.zig",
+      "local": "Production Tune already benchmarks and persists D0..3 per model/runtime",
+      "decision": "Additional per-round scheduler deferred; needs deterministic transitions, guards, Kani and cache/bridge tests before prototype. No need to copy multi-stream allocation engine for current single-stream bridge."
+    },
+    {
+      "idea": "EXL3 MCG W14 lane decode and transposed prefill grid",
+      "source": "Sushi v1.2.0 expert_exl3_kernels.zig and glm_prefill_grid.zig",
+      "decision": "No direct port for current Qwen FP16/unclamped target. Lane guard BF16/MCG/clamped; grid guards BF16 [1,2048,4096], top8,288experts,intermediate2048,clamp10. Supporting W14 removes one guard but does not remove other numeric/layout preconditions. No local benchmark performed."
+    },
+    {
+      "idea": "GLM MLA/NAX BF16 teacher and absorbed projections",
+      "source": "Sushi glm5_forward.zig/glm5_mla_prefill_batch.zig/glm5_model.zig",
+      "decision": "Architecture-specific MLA paths; current Qwen has GDN/full attention and EXL3 FP16. Not ported, no local speed estimate."
+    },
+    {
+      "idea": "Prompt lookup with target verification for repeated code",
+      "source": "Sushi mtp_lookup.zig, unchanged concept in new release",
+      "local": "Independent bounded matcher, production tokenizer newline gate, exact cache repair and one-strike fallback",
+      "decision": "Local experimental opt-in/defaultOFF. MoE stock andcompact24cacheblocks/37bridgecompletions exact; dense24cacheblocks/128states and37bridgecompletions/6lookupblocks exact after corrected1024 fixture. Speed signal not reproduced within drift limits."
+    },
+    {
+      "idea": "BF16 affine row-exact kernels and grouped projections",
+      "source": "TensorFold row_matmul.py",
+      "decision": "Different target weight representation/numeric order from EXL3 FP16. Existing grouped local EXL3 paths and historical exactness/gain rejections checked; no raw kernel copied."
+    }
+  ],
+  "verification_limits": [
+    "Rust async Kani attempt on real delivered variant hit Kani compiler ICE; not verified",
+    "CBMC on actual bridge preprocessed with clang C++20 rejected SDK libc++ constructs; not verified",
+    "A scalar Kani proof or stock greedy text match does not prove MLX/Metal/concurrency",
+    "Upstream throughput is not transferred to M5/Qwen or added to locally measured compact-projection gains"
+  ]
+}

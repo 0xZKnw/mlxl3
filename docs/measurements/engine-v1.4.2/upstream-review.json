@@ -188,9 +188,14 @@
       "sources": [
         "beamivalice/sushi:src/mtp_lookup.zig"
       ],
-      "status": "candidate, not implemented or measured here",
+      "status": "Filtered prototype implemented; target/cache and production-bridge correctness validated. First stock copy ABBA +6.41% decode / -3.87% total; controls, confirmation, compact and dense checks in progress. Not pushed yet; unfiltered prototype superseded.",
       "priority": 2,
-      "inference": "Avoids a head forward on matching text; needs target-specific exact verification/cache handling and independent repeated/nonmatching prompt tests. No demonstrated general-model speedup in MLXL3."
+      "inference": "Seven committed IDs plus anchor, latest known continuation, bounded1024, newline gate through the production tokenizer, full target verification, exact accepted-history KV repair; no universal gain claim.",
+      "evidence": [
+        "opti.md#opt-2026-10-06-mtp-lookup-lines",
+        "lookup-lines-identity.json",
+        "lookup-lines-stock-copy-abba/results.json"
+      ]
     },
     {
       "mechanism": "Row-exact lane/affine kernels",
@@ -208,7 +213,7 @@
         "beamivalice/PonyExl3:ponyexl3/mlx/exl3_linear.py"
       ],
       "status": "core mechanism already integrated",
-      "inference": "Upstream SHA has not changed since August; MLXL3 already has specialized small-row paths, fused GLU/down preparation and router top8. Further weighted-down reduction fusion remains an unmeasured native follow-up, not an additional published gain."
+      "inference": "Upstream SHA unchanged since August; specialized small-row paths, fused GLU/down preparation and router top8 already integrated. Explicit MLX finish/reduce compile was rejected in PERF09 (-0.65% decode), fused Metal sparse epilogue in PERF68 (-1.7% forward after exact parity). No new port or extra gain in this PR."
     },
     {
       "mechanism": "NT4 for MCG6 MoE vocabulary head",
@@ -230,5 +235,6 @@
     }
   ],
   "measured_upstream_gain_in_mlxl3": true,
-  "note": "Applicability is inferred from pinned primary source and optimization history. Compact draft implementation is independent. Local performance applies to tested M5/Qwen3.6 EXL3 workloads. Additional boosts remain under investigation in this draft PR."
+  "note": "Applicability is inferred from pinned primary source and optimization history. Compact draft implementation is independent. Local performance applies to tested M5/Qwen3.6 EXL3 workloads. Additional boosts remain under investigation in this draft PR.",
+  "deeper_review": "sushi-tensorfold-deepening.json; Sushi new ae63f880/v1.2.0 and TensorFold unchanged cb2ebf054/0.6.6, 2026-10-07. Historical source identities above preserved."
 }

@@ -40,6 +40,15 @@ independent Q4 row selection and native token-ID remapping. The public
 measurements; neither that list nor upstream implementation code is bundled.
 The target retains its full vocabulary and exact verification.
 
+## Sushi
+
+Source: <https://github.com/beamivalice/sushi>, revision
+`cac6a1ed9284bcd13609eaf80ceed74e0db6cea3`, MIT (`LICENSE` at that revision).
+The bounded prompt-lookup and cross-line matching concepts informed an
+independent Rust implementation. Proposals still use MLXL3's exact target
+verification and accepted-history KV repair. No Sushi code or kernel is bundled;
+upstream throughput is not an MLXL3 measurement.
+
 ## IncoAI Splash
 
 Source: <https://github.com/inco-ai/splash>.

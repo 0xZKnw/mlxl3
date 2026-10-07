@@ -1,5 +1,5 @@
 {
-  "status": "first_stage_validated; further_boosts_in_progress",
+  "status": "local_validated_draft_PR; compact_boost_confirmed_lookup_experimental_async_rejected",
   "version": "1.4.2",
   "base": "5de518e0fbe7d3367416b9bc5999c7bd1f92c74d",
   "baseline": {
@@ -11,7 +11,8 @@
     "sha256": "f11cdc13d17598589f5b3934056f381300391b696f3c5b6f2753cd947f491c8e",
     "identity": "frspec-identity.json",
     "final_source": "delivery-source.json",
-    "post_measurement_changes": "qwen35.rs test-only dtype diagnostic correction and Python file publication hardening; Rust production arithmetic unchanged"
+    "post_measurement_changes": "qwen35.rs test-only dtype diagnostic correction and Python file publication hardening; Rust production arithmetic unchanged",
+    "scope": "Historical first-stage compact projection performance candidate; see retained_source for phase2 lookup source. Gains are not added across experiments."
   },
   "platform": {
     "hardware": "Apple M5 / 24 GiB",
@@ -231,15 +232,15 @@
   "checks": {
     "rust_mlx_chat": {
       "command": "MLXL3_MLX_ROOT=<MLX0.32.2 package> cargo test --locked --release --features mlx,chat",
-      "passed": 64,
-      "ignored": 56,
-      "raw": "rust-delivery.log"
+      "passed": 66,
+      "ignored": 58,
+      "raw": "lookup-final-rust-full.log"
     },
     "rust_cpu_chat": {
       "command": "cargo test --locked --no-default-features --features chat",
-      "passed": 53,
+      "passed": 54,
       "ignored": 2,
-      "raw": "frspec-rust-cpu.log"
+      "raw": "lookup-final-rust-cpu.log"
     },
     "python": {
       "command": "python -m pytest -q",
@@ -251,7 +252,7 @@
         "Ling checkpoint absent (one test)"
       ]
     },
-    "format_lint_build": "cargo fmt, strict Clippy for mlx/chat and CPU/chat, release build, Ruff check/format, py_compile and zsh -n passed",
+    "format_lint_build": "Phase2 final cargo fmt, strict Clippy MLX/chat + CPU/chat, release mlx/chat build passed; commands/results in phase-2-checks.json. Firststage Python/Ruff/Swift/E2E unchanged and their historical results retained.",
     "desktop": "scripts/check-e2e.sh with SDK26.5 passed; 49 update-state pairs, publisher refresh, real send/complete through disposable fake engine and existing lifecycle/bridge/update/import/render checks",
     "swift_strict": "All app sources passed Swift6 typecheck with warnings-as-errors. Global package strict build fails on pre-existing vendored SwiftMath CTFontManager deprecations.",
     "physical_numeric": {
@@ -275,16 +276,19 @@
     },
     "physical_bridge": {
       "status": "passed",
-      "requests": 39,
-      "nonempty_completions": 33,
-      "cancelled": 4,
+      "requests": 43,
+      "nonempty_completions": 35,
+      "cancelled": 5,
       "expected_errors": 2,
+      "tune_complete": 1,
       "properties": {
         "all_depths_parity": true,
         "prefix_parity": true,
         "cancel_recovery": true,
-        "tuner_verified": false
-      }
+        "tuner_verified": true
+      },
+      "runtime_key_lookup_1": true,
+      "tuning_key": "f90cb83f932cfa8c:1.4.2:3ed683617e50-dirty:release:0.32.2:Apple M5:4096:lookup=1"
     },
     "model_switch": {
       "status": "passed",
@@ -296,46 +300,55 @@
         "foreign/missing head failures",
         "previous process reaped before next model"
       ],
-      "raw": "model-switch.json"
+      "raw": "lookup-final-model-switch.json",
+      "lookup": "enabled in final check"
     },
     "mutation_oracles": [
       "Original composer disabled Send during checking (expected failing regression)",
       "Hadamard sign mutation detected/restored",
       "Contiguous-row selection mutation detected/restored",
-      "Original full exporter followed dangling symlink (expected failing regression)"
+      "Original full exporter followed dangling symlink (expected failing regression)",
+      "Lookup latest-match mutation detected/restored",
+      "Lookup newline-filter bypass mutation detected/restored",
+      "Withdrawn async CABI NULL-guard mutation detected/restored; actual Array test passed"
     ]
   },
   "verification": {
     "kani": {
       "harnesses": {
-        "total_harnesses": 36,
-        "executed": 36,
+        "total_harnesses": 37,
+        "executed": 37,
         "status": "completed",
-        "successful": 36,
+        "successful": 37,
         "failed": 0,
-        "duration_ms": 227094
+        "duration_ms": 477916
       },
       "properties": {
-        "total_properties": 5234,
-        "passed": 5078,
+        "total_properties": 5611,
+        "passed": 5449,
         "failed": 0,
-        "unreachable": 71,
+        "unreachable": 72,
         "undetermined": 0,
         "solver_error": 0,
-        "satisfied": 85,
+        "satisfied": 90,
         "unsatisfiable": 0,
         "covered": 0,
         "uncovered": 0
-      }
+      },
+      "raw": "kani-phase-2.json",
+      "summary": "kani-phase-2-summary.json"
     },
-    "command": "cargo kani --lib --no-default-features",
+    "command": "cargo kani --lib --no-default-features -Z unstable-options --harness-timeout 600s --export-json kani-phase-2.json",
     "kind": "bounded model checking, not a whole-program proof",
-    "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable.",
+    "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable. Lookup: actual prompt_lookup,20 symbolic u32 IDs/len0..20, full u32 anchor/full usize width, symbolic bool predicate,unwind33,no assume,371passed assertions/1internal unreachable/5satisfied covers.",
     "unverified": [
       "Maps beyond8 entries by Kani (physical79616-row checks only)",
       "Serde/file IO, MLX/Metal, allocation/concurrency, whole generation",
       "Python compact IDs four CrossHair postconditions not confirmed at40s/condition",
-      "Swift Combine/AppKit formal verification unavailable"
+      "Swift Combine/AppKit formal verification unavailable",
+      "Lookup histories beyond20 entries by Kani; deterministic1024/1025 boundary tests only",
+      "Production tokenizer/newline decoding, Session MLX/Metal cache and concurrency not formally verified",
+      "Withdrawn TensorFold async prototype: Kani real MLX library compiler ICE; CBMC real C++20-preprocessed bridge libc++ parse failure"
     ],
     "crosshair": "Three chunk_end postconditions confirmed by symbolic search; no deductive proof"
   },
@@ -343,14 +356,29 @@
     "Full Q4 code -8.26% decode/+9.29% total, rejected as general boost",
     "MCG6 MoE head NT4 micro +0.0263%, rejected, prototype withdrawn",
     "Initial Kani60s timeout and initial lint/test failures preserved",
-    "Initial long ABBA drift retained, confirmation separate"
+    "Initial long ABBA drift retained, confirmation separate",
+    "Unfiltered lookup code +1.66% total cost; replaced by newline-filtered version",
+    "Filtered lookup copy32warm initial +6.41% decode/-3.87% total; BAAB32 and ABBA128warm confirmations nonconclusive from drift, default OFF",
+    "TensorFold per-level async prototype rejected/withdrawn after D2 screen: FR+0.258%, code-3.945%decode/+4.314%total, strong drift; no stable regression claim"
   ],
   "publication": {
-    "pull_request": "draft_pending_creation",
+    "pull_request": "https://github.com/0xZKnw/mlxl3/pull/26 (OPEN/DRAFT)",
     "merge": "not authorized; keep open",
     "release": "not requested",
     "personal_app": "unchanged",
-    "ui_delivery": "Needs a new Desktop build; independent engine update alone cannot deliver the Swift fix"
+    "ui_delivery": "Needs a new Desktop build; independent engine update alone cannot deliver the Swift fix",
+    "first_stage_head": "3ed683617e5090a179fb4888c3db03f8cb79b5fd",
+    "first_stage_ci": "8jobs success on exact3ed6836; Native Ubuntu/macOS/Kani plus Desktop E2E, push andPR",
+    "phase_2_ci": "Inspect PR26 live checks on final head after push; no pre-push success claim. Exact-SHA results will be recorded in PR description."
   },
-  "evidence": "stage-1-raw.tar.gz contains all raw logs/JSON and negative evidence with original relative paths; unpack inside this directory. Model weights/binaries/external token list are not committed."
+  "evidence": "Immutable stage-1-raw.tar.gz and phase-2-raw.tar.gz contain their respective raw experiments, failures, hashes and independently identified prototypes. Unpack inside this directory. Phase2 manifest identifies every file; no weights/binaries/foreign implementation source bundled. Post-push exact-SHA CI is linked from PR description.",
+  "retained_source": "phase-2-source.json",
+  "phase_2": {
+    "research": "sushi-tensorfold-deepening.json",
+    "lookup": "lookup-decision.json",
+    "tensorfold_async": "async-decision.json",
+    "stock_compact_gpu": "Exact cache24blocks +bridge37completions/306copylookup/inline0, each variant",
+    "dense_gpu": "24blocks/128states exact +37productioncompletions/6lookupblocks/inline0, budgets1..1024 and prefix exact; initial256 coverage failure preserved.",
+    "tune_model_switch": "Passed43requests with actual Tune/lookup1 key;36model-switch completions with cleanup and managed head selection"
+  }
 }

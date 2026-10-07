@@ -775,9 +775,11 @@ mod native {
     pub struct Session {
         depth: usize,
         pending: VecDeque<u32>,
+        history: Vec<u32>,
         pub proposed: usize,
         pub accepted: usize,
         pub blocks: usize,
+        pub lookup_blocks: usize,
     }
 
     impl Default for Session {
@@ -785,9 +787,11 @@ mod native {
             Self {
                 depth: 1,
                 pending: VecDeque::new(),
+                history: Vec::new(),
                 proposed: 0,
                 accepted: 0,
                 blocks: 0,
+                lookup_blocks: 0,
             }
         }
     }
@@ -801,6 +805,25 @@ mod native {
             })
         }
 
+        /// Seed once after prefill. Only committed target inputs are remembered.
+        pub fn enable_prompt_lookup(&mut self, prompt: &[u32]) {
+            self.history = prompt[prompt
+                .len()
+                .saturating_sub(crate::speculative::LOOKUP_WINDOW)..]
+                .to_vec();
+        }
+
+        fn remember(&mut self, tokens: &[u32]) {
+            if !self.history.is_empty() {
+                self.history.extend_from_slice(tokens);
+                let excess = self
+                    .history
+                    .len()
+                    .saturating_sub(crate::speculative::LOOKUP_WINDOW);
+                self.history.drain(..excess);
+            }
+        }
+
         /// Every delivered token is selected by the target. Approximate draft
         /// KV is discarded; repair uses only accepted real trunk residuals.
         pub fn advance(
@@ -810,6 +833,7 @@ mod native {
             anchor: u32,
             context_limit: usize,
             output_remaining: usize,
+            allow_lookup: impl Fn(&[u32]) -> bool,
         ) -> Result<u32> {
             ensure!(output_remaining > 0, "MTP output budget exhausted");
             if let Some(next) = self.pending.pop_front() {
@@ -823,14 +847,24 @@ mod native {
             let hidden = target.mtp_hidden()?.try_clone()?;
             if width == 0 {
                 let logits = target.forward(anchor)?;
+                self.remember(&[anchor]);
                 return logits
                     .chat_greedy_ids()?
                     .last()
                     .copied()
                     .context("missing MTP fallback token");
             }
-            let (proposals, exact_first_cache) =
-                head.draft_chain(target, &hidden, anchor, width)?;
+            let lookup =
+                crate::speculative::prompt_lookup(&self.history, anchor, width, allow_lookup);
+            let is_lookup = lookup.is_some();
+            let (proposals, exact_first_cache) = if let Some(proposals) = lookup {
+                let proposals = proposals.to_vec();
+                head.append_cache(target, &hidden, &[anchor])?;
+                (proposals, head.snapshot()?)
+            } else {
+                head.draft_chain(target, &hidden, anchor, width)?
+            };
+            let width = proposals.len();
             let verification = std::iter::once(anchor)
                 .chain(proposals.iter().copied())
                 .collect::<Vec<_>>();
@@ -856,7 +890,14 @@ mod native {
                         &[token],
                     )?;
                 }
+            }
+            if accepted.accepted_draft_tokens > 0 || is_lookup {
                 head.eval_cache()?;
+            }
+            if is_lookup && accepted.accepted_draft_tokens == 0 {
+                self.history.clear();
+            } else {
+                self.remember(&verification[..retained]);
             }
             self.pending
                 .extend(proposals[..accepted.accepted_draft_tokens].iter().copied());
@@ -864,6 +905,7 @@ mod native {
             self.proposed += width;
             self.accepted += accepted.accepted_draft_tokens;
             self.blocks += 1;
+            self.lookup_blocks += usize::from(is_lookup);
             self.pending.pop_front().context("missing MTP target token")
         }
     }
@@ -871,6 +913,24 @@ mod native {
     #[cfg(test)]
     mod cache_tests {
         use super::*;
+
+        #[test]
+        fn lookup_history_is_bounded_and_disabled_until_seeded() -> Result<()> {
+            let mut session = Session::new(3)?;
+            session.remember(&[1, 2, 3]);
+            assert!(session.history.is_empty());
+            let prompt = (0..2048).collect::<Vec<_>>();
+            session.enable_prompt_lookup(&prompt);
+            assert_eq!(session.history, prompt[1024..]);
+            session.remember(&[2048, 2049, 2050]);
+            assert_eq!(session.history.len(), 1024);
+            assert_eq!(session.history[0], 1027);
+            assert_eq!(&session.history[1021..], &[2048, 2049, 2050]);
+            session.history.clear();
+            session.remember(&[77]);
+            assert!(session.history.is_empty());
+            Ok(())
+        }
 
         fn bytes(cache: &Cache) -> Result<(Vec<u8>, Vec<u8>)> {
             Ok((cache.keys.to_bytes()?, cache.values.to_bytes()?))

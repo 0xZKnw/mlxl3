@@ -2278,6 +2278,127 @@ mod tests {
 
     #[test]
     #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
+    fn mtp_lookup_accepts_rejects_and_repairs_exact_caches() -> Result<()> {
+        use crate::mtp::{Head, Session};
+        let mut model = Qwen35Moe::load(Path::new(
+            &std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        ))?;
+        let mut head = Head::load(
+            Path::new(
+                &std::env::var("MLXL3_MTP_TEST_HEAD")
+                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
+            ),
+            &model,
+        )?;
+        for depth in 1..=3 {
+            for accepted_count in (0..=depth).chain(std::iter::once(usize::MAX)) {
+                model.reset();
+                head.reset()?;
+                let prefix = vec![1; 24];
+                let (logits, raw) = model.forward_mtp(&prefix)?;
+                head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
+                let mut anchor = logits.chat_greedy_ids()?[0];
+                let initial = model.snapshot()?;
+                let mut next = anchor;
+                let mut oracle = Vec::new();
+                for _ in 0..depth {
+                    next = model.forward(next)?.chat_greedy_ids()?[0];
+                    oracle.push(next);
+                }
+                model.restore(initial)?;
+                let truncated = accepted_count == usize::MAX;
+                let proposals = if truncated {
+                    vec![anchor]
+                } else {
+                    let mut proposals = oracle.clone();
+                    if accepted_count < depth {
+                        proposals[accepted_count] =
+                            (proposals[accepted_count] + 1) % model.mtp_layout().vocab_size as u32;
+                    }
+                    proposals
+                };
+                // An adversarial proposer fixture, independent of model history:
+                // force each acceptance boundary, including a one-ID overlap.
+                let history = if truncated {
+                    vec![anchor; 9]
+                } else {
+                    let suffix = [101, 102, 103, 104, 105, 106, 107];
+                    let mut history = suffix.to_vec();
+                    history.push(anchor);
+                    history.extend(&proposals);
+                    history.push(123);
+                    history.extend(suffix);
+                    history
+                };
+                assert_eq!(
+                    crate::speculative::prompt_lookup(&history, anchor, depth, |_| true),
+                    Some(proposals.as_slice())
+                );
+                let expected_accepted = if truncated {
+                    usize::from(oracle[0] == anchor)
+                } else {
+                    accepted_count
+                };
+                let mut session = Session::new(depth)?;
+                session.enable_prompt_lookup(&history);
+                for block in 0..2 {
+                    let saved = model.snapshot()?;
+                    let head_saved = head.snapshot()?;
+                    let start = model.offset();
+                    let first =
+                        session.advance(&mut model, &mut head, anchor, 512, 64, |_| true)?;
+                    let retained = (model.offset() - start) as usize;
+                    assert!((1..=depth + 1).contains(&retained));
+                    let mut actual = vec![first];
+                    for _ in 1..retained {
+                        actual.push(session.advance(
+                            &mut model,
+                            &mut head,
+                            *actual.last().unwrap(),
+                            512,
+                            64,
+                            |_| true,
+                        )?);
+                    }
+                    if block == 0 {
+                        assert_eq!(session.lookup_blocks, 1);
+                        assert_eq!(session.proposed, proposals.len());
+                        assert_eq!(session.accepted, expected_accepted);
+                        assert_eq!(retained, 1 + expected_accepted);
+                    } else if expected_accepted == 0 {
+                        assert_eq!(
+                            session.lookup_blocks, 1,
+                            "lookup must stop after full rejection"
+                        );
+                    }
+                    let actual_states = state_bytes(&model)?;
+                    assert_eq!(actual_states.len(), model.layers.len() * 2);
+                    let actual_hidden = model.mtp_hidden()?.to_bytes()?;
+                    let actual_head = head.cache_bytes()?;
+                    model.restore(saved)?;
+                    head.restore(head_saved)?;
+                    let mut expected = Vec::new();
+                    for _ in 0..retained {
+                        head.extend_cache(&model, &model.mtp_hidden()?.try_clone()?, &[anchor])?;
+                        anchor = model.forward(anchor)?.chat_greedy_ids()?[0];
+                        expected.push(anchor);
+                    }
+                    assert_eq!(
+                        actual, expected,
+                        "lookup tokens D{depth}/accept{accepted_count}/block{block}"
+                    );
+                    assert_eq!(actual_states, state_bytes(&model)?);
+                    assert_eq!(actual_hidden, model.mtp_hidden()?.to_bytes()?);
+                    assert_eq!(actual_head, head.cache_bytes()?);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
     fn mtp_recursive_sessions_match_greedy_and_exact_caches() -> Result<()> {
         use crate::mtp::{Head, Session};
         let mut model = Qwen35Moe::load(Path::new(
@@ -2306,18 +2427,24 @@ mod tests {
                 let saved = model.snapshot()?;
                 let head_saved = head.snapshot()?;
                 let start = model.offset();
-                let first = session.advance(&mut model, &mut head, anchor, 512, 64)?;
+                let first = session.advance(&mut model, &mut head, anchor, 512, 64, |_| true)?;
                 let retained = (model.offset() - start) as usize;
                 assert!((1..=depth + 1).contains(&retained));
                 let mut actual = vec![first];
                 assert!(
                     session
-                        .advance(&mut model, &mut head, first, 512, 0)
+                        .advance(&mut model, &mut head, first, 512, 0, |_| true)
                         .is_err()
                 );
                 for _ in 1..retained {
-                    let next =
-                        session.advance(&mut model, &mut head, *actual.last().unwrap(), 512, 64)?;
+                    let next = session.advance(
+                        &mut model,
+                        &mut head,
+                        *actual.last().unwrap(),
+                        512,
+                        64,
+                        |_| true,
+                    )?;
                     actual.push(next);
                 }
                 let actual_state = state_bytes(&model)?;
