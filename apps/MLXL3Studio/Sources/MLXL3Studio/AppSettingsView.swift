@@ -45,6 +45,25 @@ struct AppSettingsView: View {
                     .pickerStyle(.segmented)
                     .accessibilityLabel(L("Langue de l’app", "App language"))
                     Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label(L("Déchargement automatique du modèle", "Automatic model unloading"), systemImage: "moon.zzz")
+                            .font(.system(size: 13, weight: .semibold))
+                        Picker(L("Après une période d’inactivité", "After inactivity"), selection: Binding(
+                            get: { studio.modelIdleUnloadDelay },
+                            set: { studio.setModelIdleUnloadDelay($0) }
+                        )) {
+                            ForEach(ModelIdleUnloadDelay.allCases, id: \.self) { delay in
+                                Text(delay.title).tag(delay)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .accessibilityLabel(L("Délai de déchargement automatique", "Automatic unload delay"))
+                        Text(L("Libère la mémoire du modèle lorsque tu ne l’utilises plus. Le délai commence après le chargement ou la fin de la dernière utilisation. Les générations et le tuning ne sont jamais interrompus. Tes conversations sont conservées ; sélectionne de nouveau le modèle pour le recharger.", "Frees the model’s memory when it is no longer in use. The delay starts after loading or the last use finishes. Generation and tuning are never interrupted. Your conversations are kept; select the model again to reload it."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Divider()
                     HuggingFaceAccountView(library: studio.modelLibrary)
                     HStack {
                         Button(L("Exporter les conversations", "Export conversations"), action: studio.exportConversations)

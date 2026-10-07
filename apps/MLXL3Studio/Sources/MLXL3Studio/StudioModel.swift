@@ -26,7 +26,9 @@ final class StudioModel: ObservableObject {
     private var persistenceRevision = 0
     private var drafts: [UUID: String] = [:]
     private var deletedConversation: Conversation?
-    @Published var engineState: EngineState = .idle
+    @Published var engineState: EngineState = .idle {
+        didSet { updateModelIdleUnload() }
+    }
     @Published var showInspector = false
     @Published var showModelManager = false
     @Published var showAppSettings = false
@@ -36,7 +38,9 @@ final class StudioModel: ObservableObject {
     @Published var repetitionPenalty = 1.05
     @Published private(set) var dflash2Enabled = false
     @Published private(set) var dflashDraftPath = ""
-    @Published private(set) var dflashDownloading = false
+    @Published private(set) var dflashDownloading = false {
+        didSet { updateModelIdleUnload() }
+    }
     @Published private(set) var dflashDownloadCompleted = 0.0
     @Published private(set) var dflashDownloadTotal = 0.0
     @Published private(set) var dflashDownloadError: String?
@@ -44,7 +48,9 @@ final class StudioModel: ObservableObject {
     @Published private(set) var dflashSupported: Bool?
     @Published private(set) var mtpEnabled = false
     @Published private(set) var mtpHeadPath = ""
-    @Published private(set) var mtpDownloading = false
+    @Published private(set) var mtpDownloading = false {
+        didSet { updateModelIdleUnload() }
+    }
     @Published private(set) var mtpDownloadCompleted = 0.0
     @Published private(set) var mtpDownloadTotal = 0.0
     @Published private(set) var mtpError: String?
@@ -54,7 +60,9 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpDepth = 1
     @Published private(set) var mtpMaxDepth = 1
     @Published private(set) var mtpTuneSupported = false
-    @Published private(set) var isTuningMTP = false
+    @Published private(set) var isTuningMTP = false {
+        didSet { updateModelIdleUnload() }
+    }
     @Published private(set) var mtpTuneProgress = 0.0
     @Published private(set) var mtpTuneStatus = ""
     @Published private(set) var mtpTuneRows: [MTPTuningRow] = []
@@ -69,13 +77,16 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mcpToolCount = 0
     @Published private(set) var mcpErrors: [String: String] = [:]
     @Published private(set) var mcpEnabled = false
-    @Published private(set) var mcpUpdating = false
+    @Published private(set) var mcpUpdating = false {
+        didSet { updateModelIdleUnload() }
+    }
     @Published var contextLengthDraft = 0
     @Published private(set) var activeContextLimit: Int?
     @Published private(set) var modelContextLimit: Int?
     @Published private(set) var contextMemory: ContextMemoryProfile?
     @Published private(set) var modelResidentBytes: Double?
     @Published private(set) var language: AppLanguage = .fr
+    @Published private(set) var modelIdleUnloadDelay = ModelIdleUnloadDelay.defaultValue
 
     let updateManager: UpdateManager
     let modelLibrary = ModelLibrary()
@@ -94,17 +105,28 @@ final class StudioModel: ObservableObject {
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
     private let preferences: UserDefaults
+    private let idleUnloadNow: () -> ContinuousClock.Instant
+    private var mtpConfigurationPending = false {
+        didSet { updateModelIdleUnload() }
+    }
+    private lazy var modelIdleUnloader = ModelIdleUnloader(now: idleUnloadNow) { [weak self] in
+        guard let self, self.canAutomaticallyUnloadModel else { return }
+        self.ejectModel()
+    }
 
     init(
         conversationFileURL: URL = ConversationStore.defaultFileURL(),
         updateManager: UpdateManager = UpdateManager(),
         isPreview: Bool = false,
-        preferences: UserDefaults = .standard
+        preferences: UserDefaults = .standard,
+        idleUnloadNow: @escaping () -> ContinuousClock.Instant = { .now }
     ) {
         self.conversationFileURL = conversationFileURL
         self.updateManager = updateManager
         self.isPreview = isPreview
         self.preferences = preferences
+        self.idleUnloadNow = idleUnloadNow
+        self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         // DFlash remains available to the CLI; Desktop v1.2 moves to native MTP.
@@ -202,6 +224,22 @@ final class StudioModel: ObservableObject {
         AppLocalization.set(value)
         language = value
         preferences.set(value.rawValue, forKey: "studio.language")
+    }
+
+    func setModelIdleUnloadDelay(_ delay: ModelIdleUnloadDelay) {
+        modelIdleUnloadDelay = delay
+        preferences.set(delay.rawValue, forKey: ModelIdleUnloadDelay.preferenceKey)
+        updateModelIdleUnload()
+    }
+
+    private var canAutomaticallyUnloadModel: Bool {
+        !isPreview && engineState.isReady && readyInfo != nil && bridge.isRunning
+            && !isGenerating && !mcpUpdating && !mtpDownloading
+            && !dflashDownloading && !mtpConfigurationPending
+    }
+
+    private func updateModelIdleUnload() {
+        modelIdleUnloader.update(isIdle: canAutomaticallyUnloadModel, after: modelIdleUnloadDelay.duration)
     }
 
     var contextLabel: String {
@@ -512,6 +550,7 @@ final class StudioModel: ObservableObject {
 
     func ejectModel() {
         guard canEject else { return }
+        modelIdleUnloader.cancel()
         activeMessage()?.fail(L("Modèle éjecté", "Model unloaded"))
         activeRequestID = nil
         activeResponseID = nil
@@ -737,6 +776,26 @@ final class StudioModel: ObservableObject {
         mtpDownloadTask?.cancel()
         mtpDownloadTask = nil
         mtpDownloading = false
+        mtpConfigurationPending = false
+    }
+
+    private func configureMTP(requestID: String, enabled: Bool, headPath: String) throws {
+        mtpConfigurationPending = true
+        do { try bridge.setMTP(requestID: requestID, enabled: enabled, headPath: headPath) }
+        catch { mtpConfigurationPending = false; throw error }
+        // ON already has the preparation task's timeout; OFF must also recover
+        // if a live engine never acknowledges the request.
+        if !enabled {
+            let operation = mtpOperationID
+            mtpDownloadTask = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(30)) }
+                catch { return }
+                guard let self, operation == self.mtpOperationID, self.mtpConfigurationPending else { return }
+                self.mtpError = L("La configuration MTP ne répond pas.", "MTP configuration did not respond.")
+                self.mtpActive = nil
+                self.cancelMTPPreparation()
+            }
+        }
     }
 
     func setMTPEnabled(_ enabled: Bool) {
@@ -747,7 +806,7 @@ final class StudioModel: ObservableObject {
             preferences.set(false, forKey: "studio.mtpEnabled")
             saveMTPSelection()
             if mtpConfigureSupported && bridge.isRunning {
-                do { try bridge.setMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
+                do { try configureMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
                 catch { mtpError = error.localizedDescription }
             }
             return
@@ -793,7 +852,7 @@ final class StudioModel: ObservableObject {
                 saveMTPSelection()
                 schedulePersistence()
                 if mtpConfigureSupported {
-                    try bridge.setMTP(requestID: operation.uuidString, enabled: true, headPath: path)
+                    try configureMTP(requestID: operation.uuidString, enabled: true, headPath: path)
                     try await Task.sleep(for: .seconds(30))
                     throw MLXL3BridgeError.commandFailed(L("Le chargement MTP ne répond pas.", "MTP loading did not respond."))
                 }
@@ -804,7 +863,7 @@ final class StudioModel: ObservableObject {
                 mtpError = error.localizedDescription
                 cancelMTPPreparation()
                 if mtpConfigureSupported && bridge.isRunning {
-                    try? bridge.setMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "")
+                    try? configureMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "")
                 }
                 return
             }
@@ -1020,6 +1079,7 @@ final class StudioModel: ObservableObject {
 
     private func loadSelectedModel() {
         guard !isGenerating else { return }
+        modelIdleUnloader.cancel()
         dflashActive = nil
         dflashSupported = nil
         mtpActive = nil
@@ -1090,7 +1150,15 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
+        if mtpConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
+            mtpError = event.message ?? L("La configuration MTP a échoué.", "MTP configuration failed.")
+            mtpEnabled = false; mtpActive = nil
+            cancelMTPPreparation()
+            // Keep dispatching: an uncorrelated error may also fail an active
+            // generation or tuning request, whose existing cleanup must run.
+        }
         if event.requestID == mtpOperationID.uuidString && ["mtp_status", "error"].contains(event.type) {
+            mtpConfigurationPending = false
             mtpDownloadTask?.cancel(); mtpDownloadTask = nil; mtpDownloading = false
             if event.type == "mtp_status" { mtpActive = event.mtpActive }
             else { mtpEnabled = false; mtpActive = false; mtpError = event.message }

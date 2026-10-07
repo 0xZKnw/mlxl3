@@ -1,0 +1,551 @@
+﻿2026-10-07T16:38:29.8311100Z Current runner version: '2.337.0'
+2026-10-07T16:38:29.8328590Z ##[group]Runner Image Provisioner
+2026-10-07T16:38:29.8329260Z Hosted Compute Agent
+2026-10-07T16:38:29.8329740Z Version: 20260828.587
+2026-10-07T16:38:29.8330200Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-10-07T16:38:29.8330700Z Build Date: 2026-08-28T16:44:25Z
+2026-10-07T16:38:29.8331330Z Worker ID: {92695f5b-4008-4e12-9925-e8b32e3eb791}
+2026-10-07T16:38:29.8332040Z Azure Region: westus
+2026-10-07T16:38:29.8332900Z ##[endgroup]
+2026-10-07T16:38:29.8334170Z ##[group]Operating System
+2026-10-07T16:38:29.8334580Z macOS
+2026-10-07T16:38:29.8334930Z 26.6.2
+2026-10-07T16:38:29.8335260Z 25G83
+2026-10-07T16:38:29.8335800Z ##[endgroup]
+2026-10-07T16:38:29.8336310Z ##[group]Runner Image
+2026-10-07T16:38:29.8336700Z Image: macos-26-arm64
+2026-10-07T16:38:29.8337080Z Version: 20260907.0351.1
+2026-10-07T16:38:29.8338010Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20260907.0351/images/macos/macos-26-arm64-Readme.md
+2026-10-07T16:38:29.8339130Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20260907.0351
+2026-10-07T16:38:29.8339820Z ##[endgroup]
+2026-10-07T16:38:29.8340690Z ##[group]GITHUB_TOKEN Permissions
+2026-10-07T16:38:29.8342170Z Contents: read
+2026-10-07T16:38:29.8342560Z Metadata: read
+2026-10-07T16:38:29.8342930Z ##[endgroup]
+2026-10-07T16:38:29.8344460Z Secret source: None
+2026-10-07T16:38:29.8345050Z Cache mode: write
+2026-10-07T16:38:29.8346720Z Prepare workflow directory
+2026-10-07T16:38:29.8713800Z Prepare all required actions
+2026-10-07T16:38:29.8763410Z Getting action download info
+2026-10-07T16:38:30.2048050Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-07T16:38:30.4765630Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-07T16:38:30.6824020Z Complete job name: desktop-and-protocol
+2026-10-07T16:38:30.7391120Z ##[group]Run actions/checkout@v4
+2026-10-07T16:38:30.7391910Z with:
+2026-10-07T16:38:30.7392320Z   repository: 0xZKnw/mlxl3
+2026-10-07T16:38:30.7395950Z   token: ***
+2026-10-07T16:38:30.7396330Z   ssh-strict: true
+2026-10-07T16:38:30.7396720Z   ssh-user: git
+2026-10-07T16:38:30.7397120Z   persist-credentials: true
+2026-10-07T16:38:30.7397560Z   clean: true
+2026-10-07T16:38:30.7397940Z   sparse-checkout-cone-mode: true
+2026-10-07T16:38:30.7398360Z   fetch-depth: 1
+2026-10-07T16:38:30.7398760Z   fetch-tags: false
+2026-10-07T16:38:30.7399160Z   show-progress: true
+2026-10-07T16:38:30.7399570Z   lfs: false
+2026-10-07T16:38:30.7400010Z   submodules: false
+2026-10-07T16:38:30.7400470Z   set-safe-directory: true
+2026-10-07T16:38:30.7400900Z   allow-unsafe-pr-checkout: false
+2026-10-07T16:38:30.7402260Z env:
+2026-10-07T16:38:30.7402760Z   MLXL3_SKIP_METAL_CHECK: 1
+2026-10-07T16:38:30.7403260Z ##[endgroup]
+2026-10-07T16:38:31.2290270Z Syncing repository: 0xZKnw/mlxl3
+2026-10-07T16:38:31.2292240Z ##[group]Getting Git version info
+2026-10-07T16:38:31.2292870Z Working directory is '/Users/runner/work/mlxl3/mlxl3'
+2026-10-07T16:38:31.2303320Z [command]/opt/homebrew/bin/git version
+2026-10-07T16:38:31.2949820Z git version 2.55.0
+2026-10-07T16:38:31.2976210Z ##[endgroup]
+2026-10-07T16:38:31.2988840Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/e7a05cb9-5a52-472c-b656-06b12b1b902f/.gitconfig'
+2026-10-07T16:38:31.3058410Z Temporarily overriding HOME='/Users/runner/work/_temp/e7a05cb9-5a52-472c-b656-06b12b1b902f' before making global git config changes
+2026-10-07T16:38:31.3061970Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-07T16:38:31.3068200Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+2026-10-07T16:38:31.3379320Z Deleting the contents of '/Users/runner/work/mlxl3/mlxl3'
+2026-10-07T16:38:31.3387060Z ##[group]Initializing the repository
+2026-10-07T16:38:31.3390370Z [command]/opt/homebrew/bin/git init /Users/runner/work/mlxl3/mlxl3
+2026-10-07T16:38:31.3719170Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-07T16:38:31.3720260Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-07T16:38:31.3721020Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-07T16:38:31.3721680Z hint: call:
+2026-10-07T16:38:31.3722000Z hint:
+2026-10-07T16:38:31.3722410Z hint: 	git config --global init.defaultBranch <name>
+2026-10-07T16:38:31.3723020Z hint:
+2026-10-07T16:38:31.3723480Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-07T16:38:31.3727380Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-07T16:38:31.3728040Z hint:
+2026-10-07T16:38:31.3728440Z hint: 	git branch -m <name>
+2026-10-07T16:38:31.3728810Z hint:
+2026-10-07T16:38:31.3729310Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-07T16:38:31.3730180Z Initialized empty Git repository in /Users/runner/work/mlxl3/mlxl3/.git/
+2026-10-07T16:38:31.3737450Z [command]/opt/homebrew/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+2026-10-07T16:38:31.3844120Z ##[endgroup]
+2026-10-07T16:38:31.3845870Z ##[group]Disabling automatic garbage collection
+2026-10-07T16:38:31.3847390Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-10-07T16:38:31.3931330Z ##[endgroup]
+2026-10-07T16:38:31.3932960Z ##[group]Setting up auth
+2026-10-07T16:38:31.3937240Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-07T16:38:31.4020320Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-07T16:38:31.5358190Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-07T16:38:31.5466090Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-07T16:38:31.6569120Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-07T16:38:31.6642250Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-07T16:38:31.8023220Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-07T16:38:31.8114140Z ##[endgroup]
+2026-10-07T16:38:31.8115230Z ##[group]Fetching the repository
+2026-10-07T16:38:31.8124330Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +4c6c8925f27617102cf626620edb2419d4b01a07:refs/remotes/pull/28/merge
+2026-10-07T16:38:33.6956280Z From https://github.com/0xZKnw/mlxl3
+2026-10-07T16:38:33.6960520Z  * [new ref]         4c6c8925f27617102cf626620edb2419d4b01a07 -> pull/28/merge
+2026-10-07T16:38:33.6965080Z ##[endgroup]
+2026-10-07T16:38:33.6967030Z ##[group]Determining the checkout info
+2026-10-07T16:38:33.6969390Z ##[endgroup]
+2026-10-07T16:38:33.6971300Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-10-07T16:38:33.7065680Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-07T16:38:33.7167320Z ##[group]Checking out the ref
+2026-10-07T16:38:33.7168910Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/28/merge
+2026-10-07T16:38:34.0415260Z HEAD is now at 4c6c892 Merge 3bfe281ced0f144601b1d2bc1a307f12c5bf95ce into 8f63e6c89e656bb1e582d9a3dc92b1135b275de0
+2026-10-07T16:38:34.0582320Z ##[endgroup]
+2026-10-07T16:38:34.0585310Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-10-07T16:38:34.0673630Z 4c6c8925f27617102cf626620edb2419d4b01a07
+2026-10-07T16:38:34.1101780Z ##[group]Run actions/setup-python@v5
+2026-10-07T16:38:34.1102420Z with:
+2026-10-07T16:38:34.1103300Z   python-version: 3.12
+2026-10-07T16:38:34.1104420Z   cache: pip
+2026-10-07T16:38:34.1164020Z   check-latest: false
+2026-10-07T16:38:34.1170610Z   token: ***
+2026-10-07T16:38:34.1171000Z   update-environment: true
+2026-10-07T16:38:34.1171540Z   allow-prereleases: false
+2026-10-07T16:38:34.1171970Z   freethreaded: false
+2026-10-07T16:38:34.1172320Z env:
+2026-10-07T16:38:34.1172650Z   MLXL3_SKIP_METAL_CHECK: 1
+2026-10-07T16:38:34.1173150Z ##[endgroup]
+2026-10-07T16:38:34.2954880Z ##[group]Installed versions
+2026-10-07T16:38:34.3051470Z (node:1179) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-07T16:38:34.3053570Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-07T16:38:34.3055540Z Successfully set up CPython (3.12.10)
+2026-10-07T16:38:34.3056610Z ##[endgroup]
+2026-10-07T16:38:34.5412680Z [command]/Users/runner/hostedtoolcache/Python/3.12.10/arm64/bin/pip cache dir
+2026-10-07T16:38:35.3687450Z /Users/runner/Library/Caches/pip
+2026-10-07T16:38:35.5816360Z Cache hit for: setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b
+2026-10-07T16:38:35.5896830Z (node:1179) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-07T16:38:36.7669550Z Received 37748736 of 113932663 (33.1%), 35.8 MBs/sec
+2026-10-07T16:38:37.5490470Z Received 113932663 of 113932663 (100.0%), 60.7 MBs/sec
+2026-10-07T16:38:37.5597690Z Cache Size: ~109 MB (113932663 B)
+2026-10-07T16:38:37.5709960Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/7a48066a-f800-4826-b001-474480c5a039/cache.tzst -P -C /Users/runner/work/mlxl3/mlxl3 --delay-directory-restore --use-compress-program unzstd
+2026-10-07T16:38:38.2172640Z Cache restored successfully
+2026-10-07T16:38:38.2276590Z Cache restored from key: setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b
+2026-10-07T16:38:38.2649860Z ##[group]Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt
+2026-10-07T16:38:38.2651790Z [36;1mpython -m pip install -e '.[dev]' -c packaging/constraints-macos.txt[0m
+2026-10-07T16:38:38.2777930Z shell: /bin/bash -e {0}
+2026-10-07T16:38:38.2778690Z env:
+2026-10-07T16:38:38.2779520Z   MLXL3_SKIP_METAL_CHECK: 1
+2026-10-07T16:38:38.2780610Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:38:38.2781910Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-10-07T16:38:38.2783230Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:38:38.2784330Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:38:38.2785550Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:38:38.2786740Z ##[endgroup]
+2026-10-07T16:38:39.5850170Z Obtaining file:///Users/runner/work/mlxl3/mlxl3
+2026-10-07T16:38:39.5870830Z   Installing build dependencies: started
+2026-10-07T16:38:40.6307830Z   Installing build dependencies: finished with status 'done'
+2026-10-07T16:38:40.6323910Z   Checking if build backend supports build_editable: started
+2026-10-07T16:38:40.9525990Z   Checking if build backend supports build_editable: finished with status 'done'
+2026-10-07T16:38:40.9559810Z   Getting requirements to build editable: started
+2026-10-07T16:38:41.4140490Z   Getting requirements to build editable: finished with status 'done'
+2026-10-07T16:38:41.4160590Z   Preparing editable metadata (pyproject.toml): started
+2026-10-07T16:38:41.7738830Z   Preparing editable metadata (pyproject.toml): finished with status 'done'
+2026-10-07T16:38:41.9450910Z Collecting mlx>=0.32.2 (from mlxl3==1.0.3)
+2026-10-07T16:38:41.9477680Z   Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl.metadata (5.9 kB)
+2026-10-07T16:38:41.9743440Z Collecting mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99 (from mlxl3==1.0.3)
+2026-10-07T16:38:41.9973570Z   Using cached mlx_lm-0.32.0-py3-none-any.whl
+2026-10-07T16:38:42.1724390Z Collecting numpy>=2.0 (from mlxl3==1.0.3)
+2026-10-07T16:38:42.1827010Z   Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl.metadata (6.6 kB)
+2026-10-07T16:38:42.3088750Z Collecting safetensors>=0.5 (from mlxl3==1.0.3)
+2026-10-07T16:38:42.3134870Z   Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl.metadata (4.2 kB)
+2026-10-07T16:38:42.3392370Z Requirement already satisfied: certifi>=2025.1.31 in /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages (from mlxl3==1.0.3) (2026.7.22)
+2026-10-07T16:38:42.3705480Z Collecting jsonschema<5,>=4.23 (from mlxl3==1.0.3)
+2026-10-07T16:38:42.3725380Z   Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+2026-10-07T16:38:42.4444690Z Collecting transformers>=5.7.0 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:42.4465400Z   Using cached transformers-5.16.1-py3-none-any.whl.metadata (32 kB)
+2026-10-07T16:38:42.5200640Z Collecting sentencepiece (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:42.5215870Z   Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl.metadata (33 kB)
+2026-10-07T16:38:42.6227560Z Collecting protobuf (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:42.6289050Z   Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl.metadata (595 bytes)
+2026-10-07T16:38:42.6653700Z Collecting pyyaml (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:42.6671140Z   Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.4 kB)
+2026-10-07T16:38:42.6964940Z Collecting jinja2 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:42.6993310Z   Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+2026-10-07T16:38:42.7359780Z Collecting pytest>=8.3 (from mlxl3==1.0.3)
+2026-10-07T16:38:42.7385700Z   Using cached pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+2026-10-07T16:38:42.9819200Z Collecting ruff>=0.12 (from mlxl3==1.0.3)
+2026-10-07T16:38:42.9920200Z   Using cached ruff-0.16.10-py3-none-macosx_11_0_arm64.whl.metadata (20 kB)
+2026-10-07T16:38:43.0288930Z Collecting attrs>=22.2.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+2026-10-07T16:38:43.0322970Z   Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+2026-10-07T16:38:43.0629580Z Collecting jsonschema-specifications>=2023.03.6 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+2026-10-07T16:38:43.0672520Z   Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+2026-10-07T16:38:43.1037400Z Collecting referencing>=0.28.4 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+2026-10-07T16:38:43.1078060Z   Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+2026-10-07T16:38:43.3997690Z Collecting rpds-py>=0.25.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+2026-10-07T16:38:43.4032590Z   Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (4.1 kB)
+2026-10-07T16:38:43.4349850Z Collecting mlx-metal==0.32.2 (from mlx>=0.32.2->mlxl3==1.0.3)
+2026-10-07T16:38:43.4364610Z   Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl.metadata (5.1 kB)
+2026-10-07T16:38:43.4811090Z Collecting iniconfig>=1.0.1 (from pytest>=8.3->mlxl3==1.0.3)
+2026-10-07T16:38:43.5912510Z   Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+2026-10-07T16:38:43.6345260Z Collecting packaging>=22 (from pytest>=8.3->mlxl3==1.0.3)
+2026-10-07T16:38:43.6360340Z   Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+2026-10-07T16:38:43.6588030Z Collecting pluggy<2,>=1.5 (from pytest>=8.3->mlxl3==1.0.3)
+2026-10-07T16:38:43.6610520Z   Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+2026-10-07T16:38:43.6863110Z Collecting pygments>=2.7.2 (from pytest>=8.3->mlxl3==1.0.3)
+2026-10-07T16:38:43.6878380Z   Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+2026-10-07T16:38:43.7135910Z Collecting typing-extensions>=4.4.0 (from referencing>=0.28.4->jsonschema<5,>=4.23->mlxl3==1.0.3)
+2026-10-07T16:38:43.7149640Z   Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+2026-10-07T16:38:43.7566520Z Collecting huggingface-hub<2.0,>=1.5.0 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:43.7580280Z   Using cached huggingface_hub-1.29.0-py3-none-any.whl.metadata (16 kB)
+2026-10-07T16:38:44.0645380Z Collecting regex>=2025.10.22 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.0665110Z   Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl.metadata (40 kB)
+2026-10-07T16:38:44.1573270Z Collecting tokenizers<0.24.0,>=0.23.1 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.1587970Z   Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl.metadata (9.8 kB)
+2026-10-07T16:38:44.1891050Z Collecting typer (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.2026190Z   Downloading typer-0.27.3-py3-none-any.whl.metadata (16 kB)
+2026-10-07T16:38:44.2406980Z Collecting tqdm>=4.60 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.2429140Z   Using cached tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+2026-10-07T16:38:44.2776200Z Collecting click<9.0.0,>=8.4.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.2792240Z   Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+2026-10-07T16:38:44.3145360Z Collecting filelock>=3.10.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.3280860Z   Downloading filelock-4.0.12-py3-none-any.whl.metadata (2.0 kB)
+2026-10-07T16:38:44.3590800Z Collecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.3607550Z   Using cached fsspec-2026.9.0-py3-none-any.whl.metadata (10 kB)
+2026-10-07T16:38:44.4160630Z Collecting hf-xet<2.0.0,>=1.5.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.4184460Z   Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl.metadata (4.9 kB)
+2026-10-07T16:38:44.4459600Z Collecting httpx<1,>=0.23.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.4479250Z   Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+2026-10-07T16:38:44.4800740Z Collecting anyio (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.4853600Z   Using cached anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+2026-10-07T16:38:44.5054940Z Collecting httpcore==1.* (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.5069970Z   Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+2026-10-07T16:38:44.5320540Z Collecting idna (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.5351090Z   Using cached idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+2026-10-07T16:38:44.5674060Z Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.5686690Z   Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+2026-10-07T16:38:44.6677540Z Collecting MarkupSafe>=2.0 (from jinja2->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.6702480Z   Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.7 kB)
+2026-10-07T16:38:44.6978510Z Collecting shellingham>=1.3.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.6993700Z   Using cached shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+2026-10-07T16:38:44.7401620Z Collecting rich>=13.8.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.7435980Z   Using cached rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+2026-10-07T16:38:44.7765790Z Collecting annotated-doc>=0.0.2 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.7790130Z   Using cached annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+2026-10-07T16:38:44.8023950Z Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.8036620Z   Using cached markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+2026-10-07T16:38:44.8307650Z Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+2026-10-07T16:38:44.8351780Z   Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+2026-10-07T16:38:44.8445600Z Using cached jsonschema-4.26.0-py3-none-any.whl (90 kB)
+2026-10-07T16:38:44.8480570Z Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
+2026-10-07T16:38:44.8518470Z Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+2026-10-07T16:38:44.8546530Z Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl (619 kB)
+2026-10-07T16:38:44.8571200Z Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl (64.4 MB)
+2026-10-07T16:38:44.9627280Z Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl (5.4 MB)
+2026-10-07T16:38:44.9821830Z Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
+2026-10-07T16:38:44.9839930Z Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+2026-10-07T16:38:44.9984600Z Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+2026-10-07T16:38:45.0069400Z Using cached packaging-26.3-py3-none-any.whl (129 kB)
+2026-10-07T16:38:45.0111400Z Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+2026-10-07T16:38:45.0138620Z Using cached referencing-0.37.0-py3-none-any.whl (26 kB)
+2026-10-07T16:38:45.0164830Z Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl (338 kB)
+2026-10-07T16:38:45.0214860Z Using cached ruff-0.16.10-py3-none-macosx_11_0_arm64.whl (9.8 MB)
+2026-10-07T16:38:45.0409680Z Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl (484 kB)
+2026-10-07T16:38:45.0460480Z Using cached transformers-5.16.1-py3-none-any.whl (12.1 MB)
+2026-10-07T16:38:45.0724840Z Using cached huggingface_hub-1.29.0-py3-none-any.whl (795 kB)
+2026-10-07T16:38:45.0791780Z Using cached click-8.5.0-py3-none-any.whl (125 kB)
+2026-10-07T16:38:45.0835610Z Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl (3.9 MB)
+2026-10-07T16:38:45.0922210Z Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+2026-10-07T16:38:45.0949540Z Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+2026-10-07T16:38:45.0973780Z Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl (3.1 MB)
+2026-10-07T16:38:45.1215560Z Downloading filelock-4.0.12-py3-none-any.whl (111 kB)
+2026-10-07T16:38:45.1474700Z Using cached fsspec-2026.9.0-py3-none-any.whl (221 kB)
+2026-10-07T16:38:45.1499890Z Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+2026-10-07T16:38:45.1519280Z Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl (173 kB)
+2026-10-07T16:38:45.1556740Z Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl (293 kB)
+2026-10-07T16:38:45.1590800Z Using cached tqdm-4.70.1-py3-none-any.whl (80 kB)
+2026-10-07T16:38:45.1617530Z Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+2026-10-07T16:38:45.1641600Z Using cached anyio-4.15.1-py3-none-any.whl (132 kB)
+2026-10-07T16:38:45.1683240Z Using cached idna-3.20-py3-none-any.whl (69 kB)
+2026-10-07T16:38:45.1735730Z Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
+2026-10-07T16:38:45.1776590Z Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl (12 kB)
+2026-10-07T16:38:45.1802340Z Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl (456 kB)
+2026-10-07T16:38:45.1853950Z Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl (1.3 MB)
+2026-10-07T16:38:45.2055670Z Downloading typer-0.27.3-py3-none-any.whl (123 kB)
+2026-10-07T16:38:45.2179910Z Using cached annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+2026-10-07T16:38:45.2219290Z Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+2026-10-07T16:38:45.2258180Z Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+2026-10-07T16:38:45.2290820Z Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+2026-10-07T16:38:45.2313310Z Using cached shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+2026-10-07T16:38:45.4178670Z Building wheels for collected packages: mlxl3
+2026-10-07T16:38:45.4187990Z   Building editable for mlxl3 (pyproject.toml): started
+2026-10-07T16:38:45.7677590Z   Building editable for mlxl3 (pyproject.toml): finished with status 'done'
+2026-10-07T16:38:45.7731950Z   Created wheel for mlxl3: filename=mlxl3-1.0.3-0.editable-py3-none-any.whl size=10625 sha256=55ff70f3e66564ea536b5bec566b70f6b9315872b2e0eee0eeb3a228e6997ab6
+2026-10-07T16:38:45.7740990Z   Stored in directory: /private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pip-ephem-wheel-cache-0cgyqise/wheels/ed/b2/9a/5e76ae5229e8552789ab565f0c61e19ae174be3061de6f92d3
+2026-10-07T16:38:45.7794560Z Successfully built mlxl3
+2026-10-07T16:38:45.8717060Z Installing collected packages: typing-extensions, tqdm, shellingham, sentencepiece, safetensors, ruff, rpds-py, regex, pyyaml, pygments, protobuf, pluggy, packaging, numpy, mlx-metal, mdurl, MarkupSafe, iniconfig, idna, hf-xet, h11, fsspec, filelock, click, attrs, annotated-doc, referencing, pytest, mlx, markdown-it-py, jinja2, httpcore, anyio, rich, jsonschema-specifications, httpx, typer, jsonschema, huggingface-hub, tokenizers, transformers, mlx-lm, mlxl3
+2026-10-07T16:39:00.5406830Z 
+2026-10-07T16:39:00.5439580Z Successfully installed MarkupSafe-3.0.4 annotated-doc-0.0.5 anyio-4.15.1 attrs-26.1.0 click-8.5.0 filelock-4.0.12 fsspec-2026.9.0 h11-0.16.0 hf-xet-1.6.0 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-1.29.0 idna-3.20 iniconfig-2.3.1 jinja2-3.1.6 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 mlx-0.32.2 mlx-lm-0.32.0 mlx-metal-0.32.2 mlxl3-1.0.3 numpy-2.5.2 packaging-26.3 pluggy-1.6.0 protobuf-7.36.2 pygments-2.21.0 pytest-9.1.1 pyyaml-6.0.3 referencing-0.37.0 regex-2026.9.29 rich-15.0.0 rpds-py-2026.6.3 ruff-0.16.10 safetensors-0.8.0 sentencepiece-0.2.2 shellingham-1.5.4 tokenizers-0.23.1 tqdm-4.70.1 transformers-5.16.1 typer-0.27.3 typing-extensions-4.16.0
+2026-10-07T16:39:00.9516730Z ##[group]Run scripts/check-e2e.sh
+2026-10-07T16:39:00.9517360Z [36;1mscripts/check-e2e.sh[0m
+2026-10-07T16:39:00.9632070Z shell: /bin/bash -e {0}
+2026-10-07T16:39:00.9633070Z env:
+2026-10-07T16:39:00.9633340Z   MLXL3_SKIP_METAL_CHECK: 1
+2026-10-07T16:39:00.9633830Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:39:00.9634450Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-10-07T16:39:00.9635020Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:39:00.9635610Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:39:00.9636160Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-07T16:39:00.9636530Z ##[endgroup]
+2026-10-07T16:39:31.3523010Z .........................................s.ss........................... [ 25%]
+2026-10-07T16:39:34.2765240Z ........................................................................ [ 51%]
+2026-10-07T16:40:07.1345030Z ........................................................................ [ 77%]
+2026-10-07T16:40:11.7017400Z ..............................................................           [100%]
+2026-10-07T16:40:11.7018620Z =========================== short test summary info ============================
+2026-10-07T16:40:11.7020330Z SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+2026-10-07T16:40:11.7021250Z SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+2026-10-07T16:40:11.7022160Z SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+2026-10-07T16:40:11.7022910Z SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+2026-10-07T16:40:11.7023440Z 275 passed, 4 skipped in 69.97s (0:01:09)
+2026-10-07T16:40:24.7883440Z Building for debugging...
+2026-10-07T16:40:24.8105640Z [0/7] Write sources
+2026-10-07T16:40:24.8112830Z [2/7] Write MLXL3Studio-entitlement.plist
+2026-10-07T16:40:25.0494200Z [3/7] Write swift-version-7974D3F7F03D5E95.txt
+2026-10-07T16:40:42.2290680Z [5/23] Emitting module SwiftMath
+2026-10-07T16:40:42.2395010Z [6/23] Compiling SwiftMath MTFontManager.swift
+2026-10-07T16:40:42.2496340Z [7/23] Compiling SwiftMath MTFontMathTable.swift
+2026-10-07T16:40:42.2550940Z [8/23] Compiling SwiftMath MTLabel.swift
+2026-10-07T16:40:42.2554480Z [9/23] Compiling SwiftMath MTMathAtomFactory.swift
+2026-10-07T16:40:42.2555050Z [10/23] Compiling SwiftMath MTMathImage.swift
+2026-10-07T16:40:42.2555610Z [11/23] Compiling SwiftMath MTMathList.swift
+2026-10-07T16:40:42.2557320Z [12/23] Compiling SwiftMath MTMathListBuilder.swift
+2026-10-07T16:40:42.2558750Z [13/23] Compiling SwiftMath MTFontMathTableV2.swift
+2026-10-07T16:40:42.2566260Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2605020Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.2605770Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.2606460Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.2609410Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2612130Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.2612630Z 116 |         }
+2026-10-07T16:40:42.2612900Z 
+2026-10-07T16:40:42.2620860Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2633980Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.2634380Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.2634750Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.2635600Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2636220Z 197 |         }
+2026-10-07T16:40:42.2636490Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.2636680Z 
+2026-10-07T16:40:42.2637100Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:42.2637630Z [14/23] Compiling SwiftMath MTFontV2.swift
+2026-10-07T16:40:42.2638820Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2640180Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.2640610Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.2641120Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.2642020Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2642870Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.2643240Z 116 |         }
+2026-10-07T16:40:42.2643400Z 
+2026-10-07T16:40:42.2644210Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2645200Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.2645980Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.2646460Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.2647160Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2647840Z 197 |         }
+2026-10-07T16:40:42.2648090Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.2648780Z 
+2026-10-07T16:40:42.2649190Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:42.2865740Z [15/23] Compiling SwiftMath MathFont.swift
+2026-10-07T16:40:42.2867870Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2869670Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.2870620Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.2871820Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.2873330Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2876150Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.2876850Z 116 |         }
+2026-10-07T16:40:42.2877260Z 
+2026-10-07T16:40:42.2878400Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2879740Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.2880420Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.2881280Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.2882420Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.2886080Z 197 |         }
+2026-10-07T16:40:42.2887810Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.2889030Z 
+2026-10-07T16:40:42.2890390Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:42.3262540Z [16/23] Compiling SwiftMath MathImage.swift
+2026-10-07T16:40:42.3265920Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3269640Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.3271190Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.3272580Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.3274950Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3276040Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.3276440Z 116 |         }
+2026-10-07T16:40:42.3276760Z 
+2026-10-07T16:40:42.3277670Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3278900Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.3279410Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.3280060Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.3280960Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3281750Z 197 |         }
+2026-10-07T16:40:42.3282170Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.3282540Z 
+2026-10-07T16:40:42.3283110Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:42.3636320Z [17/23] Compiling SwiftMath MTBezierPath.swift
+2026-10-07T16:40:42.3637760Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3639180Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.3639840Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.3640500Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.3642480Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3643860Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.3644400Z 116 |         }
+2026-10-07T16:40:42.3644580Z 
+2026-10-07T16:40:42.3645750Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3646980Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.3647590Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.3648470Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.3649320Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3650100Z 197 |         }
+2026-10-07T16:40:42.3650480Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.3650810Z 
+2026-10-07T16:40:42.3651180Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:42.3922510Z [18/23] Compiling SwiftMath MTColor.swift
+2026-10-07T16:40:42.3927080Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3930410Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.3931600Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.3932800Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.3935240Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3937550Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.3938300Z 116 |         }
+2026-10-07T16:40:42.3938680Z 
+2026-10-07T16:40:42.3940930Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3943740Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.3944520Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.3945540Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.3947460Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.3949230Z 197 |         }
+2026-10-07T16:40:42.3950480Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.3951020Z 
+2026-10-07T16:40:42.3951750Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:42.4203220Z [19/23] Compiling SwiftMath MTConfig.swift
+2026-10-07T16:40:42.4204950Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4206330Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.4212090Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.4212930Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.4213940Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4214870Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.4215370Z 116 |         }
+2026-10-07T16:40:42.4215610Z 
+2026-10-07T16:40:42.4216440Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4217650Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.4218140Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.4218580Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.4219480Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4220250Z 197 |         }
+2026-10-07T16:40:42.4220570Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.4220840Z 
+2026-10-07T16:40:42.4221250Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:42.4508390Z [20/23] Compiling SwiftMath MTFont.swift
+2026-10-07T16:40:42.4510040Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4512020Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+2026-10-07T16:40:42.4512620Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.4513230Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+2026-10-07T16:40:42.4514400Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4515340Z 115 |             throw FontError.registerFailed
+2026-10-07T16:40:42.4515850Z 116 |         }
+2026-10-07T16:40:42.4516180Z 
+2026-10-07T16:40:42.4517100Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4518320Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+2026-10-07T16:40:42.4518870Z 195 |         cgFonts.values.forEach { cgFont in
+2026-10-07T16:40:42.4519390Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+2026-10-07T16:40:42.4520210Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+2026-10-07T16:40:42.4521000Z 197 |         }
+2026-10-07T16:40:42.4521380Z 198 |         cgFonts.removeAll()
+2026-10-07T16:40:42.4521760Z 
+2026-10-07T16:40:42.4522210Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+2026-10-07T16:40:45.3884990Z [21/30] Compiling SwiftMath MTMathListDisplay.swift
+2026-10-07T16:40:45.3982570Z [22/30] Compiling SwiftMath MTMathListIndex.swift
+2026-10-07T16:40:45.4056660Z [23/30] Compiling SwiftMath MTMathUILabel.swift
+2026-10-07T16:40:45.4162480Z [24/30] Compiling SwiftMath MTTypesetter.swift
+2026-10-07T16:40:45.4264890Z [25/30] Compiling SwiftMath MTUnicode.swift
+2026-10-07T16:40:45.4367350Z [26/30] Compiling SwiftMath RWLock.swift
+2026-10-07T16:40:45.4469980Z [27/30] Compiling SwiftMath SwiftMathResources.swift
+2026-10-07T16:41:03.6341460Z [28/52] Compiling MLXL3Studio Localization.swift
+2026-10-07T16:41:03.6436060Z [29/52] Compiling MLXL3Studio MCPConfiguration.swift
+2026-10-07T16:41:03.6537840Z [30/52] Compiling MLXL3Studio MCPPreferenceCheck.swift
+2026-10-07T16:41:03.6640600Z [31/52] Compiling MLXL3Studio MLXL3Bridge.swift
+2026-10-07T16:41:03.6701910Z [32/52] Compiling MLXL3Studio MLXL3StudioApp.swift
+2026-10-07T16:41:03.6740920Z [33/52] Compiling MLXL3Studio MTPTuning.swift
+2026-10-07T16:41:03.6746870Z [34/52] Compiling MLXL3Studio MTPTuningControls.swift
+2026-10-07T16:41:03.6778710Z [35/52] Compiling MLXL3Studio MarkdownResponseView.swift
+2026-10-07T16:41:03.6783450Z [36/52] Compiling MLXL3Studio MenuBarPanel.swift
+2026-10-07T16:41:03.6847030Z [37/52] Compiling MLXL3Studio MessageCopyButton.swift
+2026-10-07T16:41:06.1155340Z [38/62] Emitting module MLXL3Studio
+2026-10-07T16:41:06.1156610Z [39/62] Compiling MLXL3Studio AppDelegate.swift
+2026-10-07T16:41:06.1157760Z [40/62] Compiling MLXL3Studio AppSettingsView.swift
+2026-10-07T16:41:06.1158730Z [41/62] Compiling MLXL3Studio CLICommand.swift
+2026-10-07T16:41:06.1159160Z [42/62] Compiling MLXL3Studio ChatAttachment.swift
+2026-10-07T16:41:06.1159990Z [43/62] Compiling MLXL3Studio ChatComponents.swift
+2026-10-07T16:41:06.1160970Z [44/62] Compiling MLXL3Studio ChatTimelineCheck.swift
+2026-10-07T16:41:06.1161780Z [45/62] Compiling MLXL3Studio ConversationStore.swift
+2026-10-07T16:41:06.1162300Z [46/62] Compiling MLXL3Studio Domain.swift
+2026-10-07T16:41:06.1163130Z [47/62] Compiling MLXL3Studio DownloadProgressCard.swift
+2026-10-07T16:41:06.1163580Z [48/62] Compiling MLXL3Studio EngineRuntimeStore.swift
+2026-10-07T16:41:06.1164130Z [49/62] Compiling MLXL3Studio GenerationInspector.swift
+2026-10-07T16:41:12.0992180Z [50/62] Compiling MLXL3Studio ModelDownloadProgress.swift
+2026-10-07T16:41:12.1099430Z [51/62] Compiling MLXL3Studio ModelIdleUnload.swift
+2026-10-07T16:41:12.1205640Z [52/62] Compiling MLXL3Studio ModelLibrary.swift
+2026-10-07T16:41:12.1345760Z [53/62] Compiling MLXL3Studio ModelManager.swift
+2026-10-07T16:41:12.1446790Z [54/62] Compiling MLXL3Studio SidebarUpdateBadge.swift
+2026-10-07T16:41:12.1549610Z [55/62] Compiling MLXL3Studio StudioModel.swift
+2026-10-07T16:41:12.1652790Z [56/62] Compiling MLXL3Studio StudioView.swift
+2026-10-07T16:41:12.1752920Z [57/62] Compiling MLXL3Studio Theme.swift
+2026-10-07T16:41:12.1855260Z [58/62] Compiling MLXL3Studio UIPreview.swift
+2026-10-07T16:41:12.1956740Z [59/62] Compiling MLXL3Studio UpdateManager.swift
+2026-10-07T16:41:12.2258350Z [59/62] Write Objects.LinkFileList
+2026-10-07T16:41:14.2378100Z [60/62] Linking MLXL3Studio
+2026-10-07T16:41:14.3109650Z [61/62] Applying MLXL3Studio
+2026-10-07T16:41:14.3151200Z Build complete! (49.63s)
+2026-10-07T16:42:33.5422370Z Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+2026-10-07T16:42:33.5458880Z Markdown checks passed: fences, 300k code, long tables
+2026-10-07T16:42:33.5515400Z Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+2026-10-07T16:43:12.7919650Z Model idle unload checks passed: 77 assertions, real deadline, preferences and Studio/bridge lifecycle
+2026-10-07T16:43:51.8170460Z Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+2026-10-07T16:44:21.4035750Z CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+2026-10-07T16:44:23.1940740Z File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+2026-10-07T16:44:23.2401950Z Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+2026-10-07T16:44:23.2850880Z MCP checks passed: default off, persisted on/off, request flag, isolated preview
+2026-10-07T16:45:45.3857120Z Bridge callback with 50 ms occupied IO: legacy 54.757 ms; independent UUID 0.176 ms
+2026-10-07T16:45:45.3860050Z Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+2026-10-07T16:47:18.8245380Z Markdown checks passed: fences, 300k code, long tables
+2026-10-07T16:47:18.8282380Z Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+2026-10-07T16:47:18.8283770Z Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+2026-10-07T16:48:20.3731700Z Response UI checks passed: complete copy, native control/clipboard action, 56 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+2026-10-07T16:48:25.7910640Z CLI transport passed: large output, NDJSON, cancellation, error reporting
+2026-10-07T16:48:26.6201980Z Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+2026-10-07T16:48:29.8182710Z MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+2026-10-07T16:48:31.5664980Z MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+2026-10-07T16:48:31.5673130Z Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport
+2026-10-07T16:48:31.6199890Z MLXL3 full E2E suite passed
+2026-10-07T16:48:31.6567570Z Post job cleanup.
+2026-10-07T16:48:32.2101500Z Cache hit occurred on the primary key setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b, not saving cache.
+2026-10-07T16:48:32.2106610Z (node:18079) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-07T16:48:32.2108510Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-07T16:48:32.2321030Z Post job cleanup.
+2026-10-07T16:48:32.5068980Z [command]/opt/homebrew/bin/git version
+2026-10-07T16:48:32.5634420Z git version 2.55.0
+2026-10-07T16:48:32.5657480Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/4123763a-ac2e-4ae4-bccd-389d10a7418d/.gitconfig'
+2026-10-07T16:48:32.5667360Z Temporarily overriding HOME='/Users/runner/work/_temp/4123763a-ac2e-4ae4-bccd-389d10a7418d' before making global git config changes
+2026-10-07T16:48:32.5668860Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-07T16:48:32.5677540Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+2026-10-07T16:48:32.6109330Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-07T16:48:32.6177040Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-07T16:48:32.7925700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-07T16:48:32.8011730Z http.https://github.com/.extraheader
+2026-10-07T16:48:32.8020770Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-07T16:48:32.8240290Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-07T16:48:32.9285810Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-07T16:48:32.9354390Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-07T16:48:33.0827210Z Cleaning up orphan processes
+2026-10-07T16:48:34.9953170Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

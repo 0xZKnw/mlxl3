@@ -1,0 +1,90 @@
+{
+  "status": "validated_locally_before_push",
+  "original_pr_head": "3bfe281ced0f144601b1d2bc1a307f12c5bf95ce",
+  "pr_base": "8f63e6c89e656bb1e582d9a3dc92b1135b275de0",
+  "fix": "Requestless or empty-ID MTP errors cancel the existing pending preparation without swallowing generation/tuning error dispatch. MTP OFF gets a cancellable30s timeout guarded by the current operation ID. No generation is interrupted by that timeout.",
+  "production_diff_lines": 20,
+  "source_sha256": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "13f0ddcb717fab0d2da5abe70bb0eaa7127bf81a3e1a3ad0ee5da16d4d18c5e2",
+    "tests/model-idle-unload-check.swift": "514bdddf45ab030b317c60c1e0edd522baba79aa1ff16adaf7aecaef8e50607d",
+    "tests/fake-desktop-engine.py": "e0600cdff5d50fab7ced5c45df7a0f40e89a01fb4db7da89194265b97a2619d1",
+    ".github/workflows/rust.yml": "f77920531b84a316ee63751a12de630fd35ff5bda531318b04a2b98e91c9b6b3",
+    "scripts/check-desktop.sh": "dd6b9e4380bf9f1bbf88493c1f0417290af5acb245c9eb061c0f2de7e11f6310"
+  },
+  "checks": [
+    {
+      "command": "Swift6 -strict-concurrency=complete -warnings-as-errors -parse-as-library; production StudioModel concatenated with tests/model-idle-unload-check.swift; same app sources and SwiftMath objects as check-desktop.sh",
+      "result": "original production rejected by the new malformed-response regression,exit133 after throwing/cleanup",
+      "log": "regressions-before.log"
+    },
+    {
+      "command": "MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk MLXL3_TEST_PYTHON=/Users/justin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 MLXL3_SKIP_METAL_CHECK=1 scripts/check-desktop.sh",
+      "result": "passed complete Desktop suite on first working implementation,110idle assertions",
+      "log": "desktop-suite.log"
+    },
+    {
+      "command": "Same strict focused Swift source compilation and production idle harness on final sources",
+      "result": "114assertions passed,exit0",
+      "log": "focused-final.log"
+    },
+    {
+      "command": "zsh docs/measurements/pr28-fixes/independent-check.zsh",
+      "result": "3/3review cases passed with generation hello/nonempty and idle unload; historical red evidence unchanged",
+      "log": "independent-after.log"
+    },
+    {
+      "command": "swift build --package-path apps/MLXL3Studio --sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+      "result": "passed on final production source",
+      "log": "build-final.log"
+    },
+    {
+      "command": "python3 -m py_compile tests/fake-desktop-engine.py; zsh -n scripts/check-desktop.sh docs/measurements/pr28-fixes/independent-check.zsh; git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "Proof-env Python -m crosshair check tests/fake-desktop-engine.py --analysis_kind asserts --per_condition_timeout5 --per_path_timeout1 --report_all",
+      "result": "no checkable functions in real I/O script; Python not verified; exit0 is not a proof",
+      "log": "python-verification.json"
+    }
+  ],
+  "coverage": {
+    "idle_assertions": 114,
+    "independent_cases": 3,
+    "expected_original_regression_failure": 1,
+    "cases": [
+      "malformed status decoded by real bridge into anonymous error",
+      "error with empty ID",
+      "error with current operation ID",
+      "stale responses after reload and during new operation",
+      "generic failure during active generation",
+      "generic failure during tuning with missing message",
+      "OFF response absent and real30s timeout",
+      "active generation held by explicit disposable release file until timeout checked",
+      "cancelled timeout across unload/reload",
+      "fresh idle intervals after errors and after generation"
+    ],
+    "bounds": "Idle59/60s injected continuous clock; real OFF30s timeout; parent wait1800x20ms (36s nominal) and fixture release loop2000x20ms (40s nominal). Normal waits250x20ms; clocks,files,preferences and engine children isolated. Scheduling may add wall-clock time; these are dynamic tests, not proofs."
+  },
+  "ci": {
+    "workflow": "Existing PR/push Desktop E2E and Rust/CPU/Kani workflows; added fixture RuffF/E9 and py_compile to native jobs already installing Ruff0.16.5",
+    "status": "new commit not pushed yet; previous PR checks do not validate this fix"
+  },
+  "formal": {
+    "swift": "No supported source verifier in existing toolchain; actual Swift6 strict compilation/dynamic tests only. No proof of SwiftUI/OS/concurrency.",
+    "python": "CrossHair attempt on real I/O fixture found no checkable functions; not verified.",
+    "rust": "No Rust changed; existing bounded CPU Kani harnesses to inspect in CI, do not prove Swift/MLX/Metal."
+  },
+  "limits": [
+    "Real model/GPU load-unload/RAM,physical sleep-wake and settings accessibility not rerun.",
+    "Physical Metal check explicitly skipped.",
+    "Full Desktop run preceded final diagnostic fallback and test-handshake cleanup; affected final harness repeated. New CI will run complete final sources.",
+    "Ruff not installed in local runtimes tried; fixture lint added to existing native CI jobs."
+  ],
+  "diagnostics_preserved": [
+    "Initial focused build used unavailable SwiftMath.build object layout; retry uses repository object selection.",
+    "Original malformed-response regression remains recorded as failed; final oracles unchanged.",
+    "First timeout test used31s generation; final file handshake removes scheduler race."
+  ],
+  "remaining_fixture_processes": [],
+  "publication": "Local only at this summary; maintainer push/CI/merge authorized and pending. No release or installed app update."
+}

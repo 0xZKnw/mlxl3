@@ -1,6 +1,6 @@
 #!/bin/zsh
 set -euo pipefail
-cd "${0:A:h:h}"
+cd "/Users/justin/.codex/worktrees/pr28-review/mix-stq1_0"
 test_python="${MLXL3_TEST_PYTHON:-}"
 if [[ -z "${test_python}" ]]; then
     test_python="$(command -v python3)"
@@ -16,7 +16,6 @@ if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
     swift_args+=(--sdk "${MLXL3_MACOS_SDK}")
     swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
 fi
-swift build "${swift_args[@]}"
 binary_dir="$(swift build "${swift_args[@]}" --show-bin-path)"
 sources=(apps/MLXL3Studio/Sources/MLXL3Studio/*.swift)
 sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
@@ -27,22 +26,6 @@ if [[ -f "${binary_dir}/SwiftMath.o" ]]; then
 else
     math_objects=("${binary_dir}/SwiftMath.build"/*.swift.o)
 fi
-
-swiftc "${swiftc_args[@]}" \
-    "${sources[@]}" "${math_objects[@]}" \
-    tests/studio-hardening-check.swift -o "${test_dir}/check"
-"${test_dir}/check" "$PWD/tests/fake-desktop-engine.py"
-
-# Check the production idle deadline and lifecycle without waiting minutes or
-# loading a model. File concatenation gives the fixture private event access.
-awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
-    tests/model-idle-unload-check.swift > "${test_dir}/ModelIdleUnloadCombined.swift"
-idle_sources=("${sources[@]}")
-idle_sources=("${(@)idle_sources:#*/StudioModel.swift}")
-swiftc "${swiftc_args[@]}" -warnings-as-errors \
-    "${idle_sources[@]}" "${math_objects[@]}" \
-    "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
-"${test_dir}/idle-unload-check" "$PWD/tests/fake-desktop-engine.py"
 
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
