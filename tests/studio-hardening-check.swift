@@ -1,5 +1,14 @@
 import AppKit
+import Combine
 import Foundation
+
+// Combined with the production source by check-desktop.sh; no test setter ships.
+extension UpdateManager {
+    func setStatesForCheck(app: AppUpdateState, engine: AppUpdateState) {
+        state = app
+        engineState = engine
+    }
+}
 
 @main struct HardeningCheck {
     @MainActor static func main() async throws {
@@ -19,10 +28,48 @@ import Foundation
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
         }
+        let updates = try await make("updates")
+        defer { updates.ejectModel() }
+        updates.draft = "send during background update"
+        updates.updateManager.setStatesForCheck(app: .checking, engine: .checking)
+        if !updates.canSend {
+            FileHandle.standardError.write(Data("Composer regression: ready=\(updates.engineState.isReady), updateBusy=\(updates.updateManager.isBusy), canSend=false\n".utf8))
+        }
+        precondition(updates.canSend, "A background update check must not disable Send")
+        let release = AppUpdateRelease(version: "9.0.0", tag: "v9.0.0", title: "fixture", notes: "",
+            pageURL: root, asset: AppUpdateAsset(name: "fixture", downloadURL: root, size: 1, digest: nil))
+        let states: [AppUpdateState] = [.idle, .checking, .upToDate(checkedAt: Date()),
+            .downloading(release), .ready(release: release, diskImage: root), .installing(release), .failed("fixture")]
+        var notifications = 0
+        let observation = updates.objectWillChange.sink { notifications += 1 }
+        for (appIndex, app) in states.enumerated() {
+            for (engineIndex, engine) in states.enumerated() {
+                let before = notifications
+                updates.updateManager.setStatesForCheck(app: app, engine: engine)
+                precondition(updates.canSend == (appIndex != 5 && engineIndex != 5), "Only installation blocks ready inference")
+                precondition(notifications > before, "Update transitions must refresh the composer")
+            }
+        }
+        observation.cancel()
+        updates.updateManager.setStatesForCheck(app: .downloading(release), engine: .downloading(release))
+        updates.draft = " \n "; precondition(!updates.canSend)
+        updates.draft = "send during background update"; updates.send()
+        precondition(updates.isGenerating && !updates.canSend && updates.draft.isEmpty)
+        for _ in 0..<200 where updates.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(updates.engineState.isReady && updates.conversations[0].messages.last?.role == .assistant
+            && updates.conversations[0].messages.last?.content.isEmpty == false, "Send must reach the bridge and complete")
+        updates.draft = "next message"; precondition(updates.canSend)
+        updates.ejectModel(); precondition(!updates.canSend)
+        print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")
         let tuned = try await make("mtp-good")
         tuned.setMTPEnabled(true)
         for _ in 0..<200 where tuned.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.canTuneMTP && tuned.mtpMaxDepth == 3)
+        tuned.updateManager.setStatesForCheck(app: .checking, engine: .downloading(release))
+        precondition(tuned.canTuneMTP, "Background updates must not disable MTP tuning")
+        tuned.updateManager.setStatesForCheck(app: .idle, engine: .installing(release))
+        precondition(!tuned.canTuneMTP)
+        tuned.updateManager.setStatesForCheck(app: .idle, engine: .idle)
         let before = tuned.conversations[0].messages.count
         tuned.tuneMTP()
         precondition(tuned.isTuningMTP && tuned.isGenerating)

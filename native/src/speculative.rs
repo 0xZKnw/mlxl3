@@ -24,6 +24,32 @@ pub fn mtp_width(depth: usize, context: usize, output: usize) -> Option<usize> {
     bounded_proposals(context, output).map(|n| n.min(depth))
 }
 
+pub const LOOKUP_WINDOW: usize = 1024;
+
+/// Continue the latest earlier occurrence of seven committed IDs plus the anchor.
+/// Returned IDs are only proposals; the target must verify their entire prefix.
+pub fn prompt_lookup(
+    history: &[u32],
+    anchor: u32,
+    width: usize,
+    allow_context: impl Fn(&[u32]) -> bool,
+) -> Option<&[u32]> {
+    if history.len() < 9 || !(1..=3).contains(&width) {
+        return None;
+    }
+    let history = &history[history.len().saturating_sub(LOOKUP_WINDOW)..];
+    let tail = &history[history.len() - 7..];
+    if !allow_context(tail) {
+        return None;
+    }
+    // ponytail: scan at most 1024 IDs; index only if this becomes measurable.
+    let start = history[..history.len() - 1]
+        .windows(8)
+        .rposition(|site| site[..7] == *tail && site[7] == anchor)?;
+    let end = start + 8;
+    Some(&history[end..end + width.min(history.len() - end)])
+}
+
 /// Scores are positive milli-tokens/second, after quality/acceptance validation.
 /// Prefer the shallower mode on ties and baseline inside the 3% noise margin.
 pub fn best_mtp_depth(scores: [Option<u64>; 4]) -> Option<usize> {
@@ -101,6 +127,59 @@ pub fn greedy_accept(proposals: &[u32], target_tokens: &[u32]) -> Option<GreedyA
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lookup_uses_latest_known_continuation_and_respects_limits() {
+        let history = [
+            1, 2, 3, 4, 5, 6, 7, 8, 91, 92, 93, 1, 2, 3, 4, 5, 6, 7, 8, 81, 82, 83, 1, 2, 3, 4, 5,
+            6, 7,
+        ];
+        for width in 1..=3 {
+            assert_eq!(
+                prompt_lookup(&history, 8, width, |tail| {
+                    assert_eq!(tail, &[1, 2, 3, 4, 5, 6, 7]);
+                    true
+                }),
+                Some(&[81, 82, 83][..width])
+            );
+        }
+        assert_eq!(prompt_lookup(&history, 8, 3, |_| false), None);
+        assert_eq!(prompt_lookup(&history, 9, 3, |_| true), None);
+        for width in [0, 4, usize::MAX] {
+            assert_eq!(
+                prompt_lookup(&history, 8, width, |_| panic!("invalid width")),
+                None
+            );
+        }
+        for len in 0..=8 {
+            assert_eq!(
+                prompt_lookup(&[8; 8][..len], 8, 3, |_| panic!("short history")),
+                None
+            );
+        }
+        assert_eq!(prompt_lookup(&[8; 9], 8, 3, |_| true), Some(&[8][..]));
+        // A matching anchor at the end has no known continuation.
+        assert_eq!(
+            prompt_lookup(&[1, 2, 3, 4, 5, 6, 7, 8], 8, 1, |_| true),
+            None
+        );
+        let mut border = history[..11].to_vec();
+        border.extend(vec![0; LOOKUP_WINDOW - 18]);
+        border.extend(&history[22..]);
+        assert_eq!(border.len(), LOOKUP_WINDOW);
+        assert_eq!(
+            prompt_lookup(&border, 8, 3, |_| true),
+            Some(&[91, 92, 93][..])
+        );
+        border.insert(11, 0);
+        assert_eq!(prompt_lookup(&border, 8, 3, |_| true), None);
+        let mut far = history[..11].to_vec();
+        far.extend([0; LOOKUP_WINDOW]);
+        far.extend(&history[22..]);
+        assert_eq!(prompt_lookup(&far, 8, 3, |_| true), None);
+        far.splice(11..11 + LOOKUP_WINDOW, []);
+        assert_eq!(prompt_lookup(&far, 8, 3, |_| true), Some(&[91, 92, 93][..]));
+    }
 
     #[test]
     fn mtp_depths_budgets_and_invalid_depths() {
@@ -200,6 +279,45 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn lookup_proposes_only_latest_in_bounds_history() {
+        let data: [u32; 20] = kani::any();
+        let len = kani::any::<usize>() % 21;
+        let width: usize = kani::any();
+        let anchor: u32 = kani::any();
+        let allowed: bool = kani::any();
+        let history = &data[..len];
+        let actual = prompt_lookup(history, anchor, width, |tail| {
+            assert_eq!(tail.len(), 7);
+            assert_eq!(tail, &history[len - 7..]);
+            allowed
+        });
+        let mut expected = None;
+        // Independent forward scan, with explicit scalar comparisons.
+        if allowed && len >= 9 && (1..=3).contains(&width) {
+            for start in 0..len - 8 {
+                let mut matched = history[start + 7] == anchor;
+                for j in 0..7 {
+                    matched &= history[start + j] == history[len - 7 + j];
+                }
+                if matched {
+                    let end = start + 8;
+                    expected = Some(&history[end..end + width.min(len - end)]);
+                }
+            }
+        }
+        assert_eq!(actual, expected);
+        if let Some(proposed) = actual {
+            assert!(!proposed.is_empty() && proposed.len() <= width && proposed.len() <= 3);
+            kani::cover!(proposed.len() == 3);
+            kani::cover!(width == 3 && proposed.len() == 1);
+        }
+        kani::cover!(len >= 9 && width == 3 && actual.is_none());
+        kani::cover!(len < 9 && actual.is_none());
+        kani::cover!(!allowed && len >= 9 && width == 3 && actual.is_none());
+    }
 
     #[kani::proof]
     fn tuning_requires_parity_and_nonzero_acceptance() {

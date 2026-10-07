@@ -1,0 +1,592 @@
+{
+  "status": "local_validated_draft_PR; compact_and_MTP_layer_pipeline_confirmed; lookup_OFF; last_fusion_removed_no_gain",
+  "version": "1.4.2",
+  "base": "5de518e0fbe7d3367416b9bc5999c7bd1f92c74d",
+  "baseline": {
+    "version": "1.4.1",
+    "release_source": "71588ab9c758ad95bb6b0041bed6c061fb7a70c7",
+    "sha256": "79f027af26c18cb4fecead8d55b0dfbf3500671d8a2b42360bc1bc4d7dc28721"
+  },
+  "candidate": {
+    "sha256": "f11cdc13d17598589f5b3934056f381300391b696f3c5b6f2753cd947f491c8e",
+    "identity": "frspec-identity.json",
+    "final_source": "delivery-source.json",
+    "post_measurement_changes": "qwen35.rs test-only dtype diagnostic correction and Python file publication hardening; Rust production arithmetic unchanged",
+    "scope": "Historical first-stage compact projection performance candidate; see retained_source for phase2 lookup source. Gains are not added across experiments."
+  },
+  "platform": {
+    "hardware": "Apple M5 / 24 GiB",
+    "os": "macOS-27.2-arm64-arm-64bit",
+    "mlx": "0.32.2",
+    "power": "Full Q4/NT4 on battery; compact versus baseline on AC charging. Each pass has probes. No energy setting changed.",
+    "thermal": "No warning recorded; temperature and GPU clocks not measured",
+    "model": "Qwen3.6-35B-A3B EXL3 2.49 bpw, H2048/V248320, MCG6 vocabulary head",
+    "checkpoint_identity": "candidate-identity.json"
+  },
+  "compact_draft": {
+    "selected_ids": 79591,
+    "padded_rows": 79616,
+    "target_vocab": 248320,
+    "projection_tensor_bytes": 91717632,
+    "map_gpu_bytes": 318464,
+    "extra_total_mib": 87.7724609375,
+    "full_q4_extra_mib": 272.8125,
+    "default": "stock head; compact projection requires an explicitly prepared folder"
+  },
+  "performance": {
+    "code_abba": {
+      "short": {
+        "decode_tps": {
+          "A": 56.47625493343058,
+          "B": 62.42364315810318,
+          "change_percent": 10.53077657447874
+        },
+        "prefill_tps": {
+          "A": 201.65419505207018,
+          "B": 197.75107032546896,
+          "change_percent": -1.9355534486120485
+        },
+        "ttft_seconds": {
+          "A": 0.13444224,
+          "B": 0.13735962525,
+          "change_percent": 2.169991551762318
+        },
+        "elapsed_seconds": {
+          "A": 2.38335946875,
+          "B": 2.1721823752500002,
+          "change_percent": -8.86048018643012
+        }
+      },
+      "document": {
+        "decode_tps": {
+          "A": 64.09326607902513,
+          "B": 69.34885089151176,
+          "change_percent": 8.199901696391398
+        },
+        "prefill_tps": {
+          "A": 224.56360285318615,
+          "B": 230.50468305496625,
+          "change_percent": 2.6456113663549496
+        },
+        "ttft_seconds": {
+          "A": 0.1966037605,
+          "B": 0.191352646,
+          "change_percent": -2.670912543404791
+        },
+        "elapsed_seconds": {
+          "A": 2.17977328125,
+          "B": 2.02398644775,
+          "change_percent": -7.146928299380906
+        }
+      }
+    },
+    "long_baab": {
+      "short": {
+        "decode_tps": {
+          "A": 57.91318430471007,
+          "B": 62.845037370809976,
+          "change_percent": 8.515941793410931
+        },
+        "prefill_tps": {
+          "A": 203.1683985380611,
+          "B": 200.8255609606527,
+          "change_percent": -1.1531505855569835
+        },
+        "ttft_seconds": {
+          "A": 0.13336770850000002,
+          "B": 0.1351123125,
+          "change_percent": 1.3081157497730977
+        },
+        "elapsed_seconds": {
+          "A": 2.3263365,
+          "B": 2.1561563230000003,
+          "change_percent": -7.315372346176052
+        }
+      },
+      "document": {
+        "decode_tps": {
+          "A": 59.93579614968459,
+          "B": 65.52088582503829,
+          "change_percent": 9.318454136164988
+        },
+        "prefill_tps": {
+          "A": 511.37863648897337,
+          "B": 508.38710958425304,
+          "change_percent": -0.5849925458872418
+        },
+        "ttft_seconds": {
+          "A": 3.8499352812499996,
+          "B": 3.8729354272500003,
+          "change_percent": 0.597416432219422
+        },
+        "elapsed_seconds": {
+          "A": 5.96890405225,
+          "B": 5.811317479,
+          "change_percent": -2.64012575626168
+        }
+      }
+    },
+    "tuner_abba": {
+      "status": "completed",
+      "order": "ABBA",
+      "parity": true,
+      "summary": [
+        {
+          "depth": 0,
+          "A": 48.03283026094677,
+          "B": 49.14430628353642,
+          "change_percent": 2.3139923601240397
+        },
+        {
+          "depth": 1,
+          "A": 64.75279214915557,
+          "B": 70.29938225759025,
+          "change_percent": 8.565792955550599
+        },
+        {
+          "depth": 2,
+          "A": 62.7460015524117,
+          "B": 72.34897633330837,
+          "change_percent": 15.304520675911615
+        },
+        {
+          "depth": 3,
+          "A": 61.63927814739867,
+          "B": 70.69257251937879,
+          "change_percent": 14.687541197888265
+        }
+      ],
+      "ordinary_drift_percent": {
+        "A": 1.5288790102530259,
+        "B": -0.5315679417364327
+      },
+      "best_depths": [
+        1,
+        2,
+        2,
+        1
+      ]
+    },
+    "tuner_baab": {
+      "status": "completed",
+      "order": "BAAB",
+      "parity": true,
+      "summary": [
+        {
+          "depth": 0,
+          "A": 47.55056528098089,
+          "B": 46.32290203879275,
+          "change_percent": -2.5818057786143322
+        },
+        {
+          "depth": 1,
+          "A": 62.148548542326665,
+          "B": 65.08637085903204,
+          "change_percent": 4.727097230122035
+        },
+        {
+          "depth": 2,
+          "A": 61.48540099874599,
+          "B": 68.63298820535942,
+          "change_percent": 11.624852551192145
+        },
+        {
+          "depth": 3,
+          "A": 61.07065534634832,
+          "B": 68.63731956586221,
+          "change_percent": 12.390016410666105
+        }
+      ],
+      "ordinary_drift_percent": {
+        "A": 1.738097084276058,
+        "B": -1.7473474713925352
+      },
+      "best_depths": [
+        2,
+        1,
+        1,
+        3
+      ]
+    },
+    "protocol": {
+      "order": "ABBA",
+      "tokens": 128,
+      "repeats": 2,
+      "warmup_per_prompt": 1,
+      "warmup_tokens": 32,
+      "mtp_depth": 2,
+      "mtp_head": "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/frspec-head",
+      "settle_seconds": 2.0,
+      "load_timeout": 600.0,
+      "request_timeout": 600.0,
+      "context": 4096,
+      "cache": false
+    },
+    "limits": [
+      "Fixed generated-token budgets, not complete-task evaluations",
+      "Same-depth D2 comparisons; no forced Tune depth",
+      "First long ABBA has >5% control drift; BAAB confirmation is retained separately",
+      "No automatic compact-head activation; no speed claim for other models or hardware"
+    ]
+  },
+  "checks": {
+    "rust_mlx_chat": {
+      "command": "MLXL3_MLX_ROOT=<MLX0.32.2 package> cargo test --locked --release --features mlx,chat",
+      "passed": 68,
+      "ignored": 60,
+      "raw": "phase-3-restore-rust-mlx.log"
+    },
+    "rust_cpu_chat": {
+      "command": "cargo test --locked --no-default-features --features chat",
+      "passed": 56,
+      "ignored": 2,
+      "raw": "phase-3-restore-rust-cpu.log"
+    },
+    "python": {
+      "command": "python -m pytest -q",
+      "passed": 229,
+      "skipped": 4,
+      "raw": "python-delivery.log",
+      "skips": [
+        "PonyEXL3 conversion module absent (three tests)",
+        "Ling checkpoint absent (one test)"
+      ]
+    },
+    "format_lint_build": "Phase3 fmt/strict Clippy CPU+mlx,chat/release build and strict C++20 checks passed. Exact measured binary and14 sources matched after prototype removal. Commands/results: phase-3-checks.json and phase-3-restored-checks.json. Python/Ruff/Desktop sources unchanged; historical checks retained.",
+    "desktop": "scripts/check-e2e.sh with SDK26.5 passed; 49 update-state pairs, publisher refresh, real send/complete through disposable fake engine and existing lifecycle/bridge/update/import/render checks",
+    "swift_strict": "All app sources passed Swift6 typecheck with warnings-as-errors. Global package strict build fails on pre-existing vendored SwiftMath CTFontManager deprecations.",
+    "physical_numeric": {
+      "tests_passed": 2,
+      "compact": "3 x 79616 finite FP16 logits bit-exact to CPU-selected full Q4 rows",
+      "reference": "NumPy reconstruction from MTP08, independent of native Metal; separate scalar codec/Hadamard matrix tests",
+      "rmse_scope": "3 x 4096 reference rows, all248320 full logits finite",
+      "exl3_relative_rmse_range": [
+        0.000617502,
+        0.000623774
+      ],
+      "q4_relative_rmse_range": [
+        0.089403976,
+        0.091902656
+      ],
+      "thresholds": [
+        0.01,
+        0.2
+      ],
+      "recursive": "24 blocks D1..3, 80 target states/raw hidden/MTP KV bit-exact; full-vocab standalone; 20 invalid loader cases after dtype-test correction"
+    },
+    "physical_bridge": {
+      "status": "complete",
+      "requests": 43,
+      "events": {
+        "loading": 1,
+        "ready": 1,
+        "generation_mode": 39,
+        "generation_status": 39,
+        "context_usage": 39,
+        "delta": 553,
+        "complete": 35,
+        "error": 2,
+        "cancelled": 5,
+        "mtp_tune_progress": 23,
+        "mtp_tune_complete": 1,
+        "null": 1
+      },
+      "verified": {
+        "all_depths_parity": true,
+        "prefix_parity": true,
+        "cancel_recovery": true,
+        "tuner_verified": true
+      },
+      "log": "pipeline-default-depths-tune.log",
+      "tuning_key": "f90cb83f932cfa8c:1.4.2:79ec53586697-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0",
+      "best_depth": 1,
+      "rows": [
+        {
+          "accepted_tokens": 0,
+          "decode_seconds": 3.737157625,
+          "decode_tokens": 190,
+          "decode_tps": 50.840777688631746,
+          "depth": 0,
+          "eligible": true,
+          "proposed_tokens": 0,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        },
+        {
+          "accepted_tokens": 89,
+          "decode_seconds": 2.601433332,
+          "decode_tokens": 190,
+          "decode_tps": 73.0366593150118,
+          "depth": 1,
+          "eligible": true,
+          "proposed_tokens": 99,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        },
+        {
+          "accepted_tokens": 117,
+          "decode_seconds": 2.7421447929999996,
+          "decode_tokens": 190,
+          "decode_tps": 69.28882839630563,
+          "depth": 2,
+          "eligible": true,
+          "proposed_tokens": 142,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        },
+        {
+          "accepted_tokens": 129,
+          "decode_seconds": 2.818371291,
+          "decode_tokens": 190,
+          "decode_tps": 67.41482238579898,
+          "depth": 3,
+          "eligible": true,
+          "proposed_tokens": 176,
+          "reason": null,
+          "token_hashes": [
+            "74d4ec9fb2b45941",
+            "65357d2675caca88"
+          ]
+        }
+      ]
+    },
+    "model_switch": {
+      "status": "passed",
+      "cases": 36,
+      "path": "dense Qwen3.8-27B -> MoE Qwen3.6-35B -> dense",
+      "checks": [
+        "nonempty greedy parity D0..3/budgets1,3,17",
+        "head reuse/OFF allocation release",
+        "foreign/missing head failures",
+        "previous process reaped before next model"
+      ],
+      "raw": "lookup-final-model-switch.json",
+      "lookup": "enabled in final check"
+    },
+    "mutation_oracles": [
+      "Original composer disabled Send during checking (expected failing regression)",
+      "Hadamard sign mutation detected/restored",
+      "Contiguous-row selection mutation detected/restored",
+      "Original full exporter followed dangling symlink (expected failing regression)",
+      "Lookup latest-match mutation detected/restored",
+      "Lookup newline-filter bypass mutation detected/restored",
+      "Withdrawn async CABI NULL-guard mutation detected/restored; actual Array test passed"
+    ],
+    "pipeline_physical": "13 final explicit GPU executions passed:11 planned plus2 stronger hidden-finitude repeats. Stock/dense numeric and exact states, recursive stock/compact, rollback1..8/all retained prefixes, DFlash capture/verify/selective commit. Runtime APINULL/lifetime mutation detection preserved; not all60 ignored tests executed."
+  },
+  "verification": {
+    "kani": {
+      "harnesses": {
+        "total_harnesses": 39,
+        "executed": 39,
+        "status": "completed",
+        "successful": 39,
+        "failed": 0,
+        "duration_ms": 471921
+      },
+      "properties": {
+        "total_properties": 5633,
+        "passed": 5463,
+        "failed": 0,
+        "unreachable": 72,
+        "undetermined": 0,
+        "solver_error": 0,
+        "satisfied": 98,
+        "unsatisfiable": 0,
+        "covered": 0,
+        "uncovered": 0
+      },
+      "raw": "kani-phase-3.json",
+      "summary": "kani-phase-3-summary.json"
+    },
+    "command": "/Users/justin/.cargo/bin/cargo kani --lib --no-default-features -Z unstable-options --harness-timeout 600s --export-json docs/measurements/engine-v1.4.2/kani-phase-3.json",
+    "kind": "bounded model checking, not a whole-program proof",
+    "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable. Lookup: actual prompt_lookup,20 symbolic u32 IDs/len0..20, full u32 anchor/full usize width, symbolic bool predicate,unwind33,no assume,371passed assertions/1internal unreachable/5satisfied covers. Phase3: actual layer submission/default guards on full usize/i32/bool domains without assume;13+1 passed checks and8satisfied covers. All72 unreachable obligations match inspected phase2 internals by harness/function/description/file; no newly unreachable assertion.",
+    "unverified": [
+      "Maps beyond8 entries by Kani (physical79616-row checks only)",
+      "Serde/file IO, MLX/Metal, allocation/concurrency, whole generation",
+      "Python compact IDs four CrossHair postconditions not confirmed at40s/condition",
+      "Swift Combine/AppKit formal verification unavailable",
+      "Lookup histories beyond20 entries by Kani; deterministic1024/1025 boundary tests only",
+      "Production tokenizer/newline decoding, Session MLX/Metal cache and concurrency not formally verified",
+      "Withdrawn TensorFold async prototype: Kani real MLX library compiler ICE; CBMC real C++20-preprocessed bridge libc++ parse failure",
+      "Retained grouped async API MLX/FFI/Metal/concurrency: actual MLX Kani ICE intrinsics243, real C++20 bridge CBMC rejects libc++/SDK. Physical checks and CPU proofs do not prove this boundary."
+    ],
+    "crosshair": "Three chunk_end postconditions confirmed by symbolic search; no deductive proof"
+  },
+  "negative_results": [
+    "Full Q4 code -8.26% decode/+9.29% total, rejected as general boost",
+    "MCG6 MoE head NT4 micro +0.0263%, rejected, prototype withdrawn",
+    "Initial Kani60s timeout and initial lint/test failures preserved",
+    "Initial long ABBA drift retained, confirmation separate",
+    "Unfiltered lookup code +1.66% total cost; replaced by newline-filtered version",
+    "Filtered lookup copy32warm initial +6.41% decode/-3.87% total; BAAB32 and ABBA128warm confirmations nonconclusive from drift, default OFF",
+    "TensorFold per-level async prototype rejected/withdrawn after D2 screen: FR+0.258%, code-3.945%decode/+4.314%total, strong drift; no stable regression claim"
+  ],
+  "publication": {
+    "pull_request": "https://github.com/0xZKnw/mlxl3/pull/26 (OPEN/DRAFT)",
+    "merge": "not authorized; keep open",
+    "release": "not requested",
+    "personal_app": "unchanged",
+    "ui_delivery": "Needs a new Desktop build; independent engine update alone cannot deliver the Swift fix",
+    "first_stage_head": "3ed683617e5090a179fb4888c3db03f8cb79b5fd",
+    "first_stage_ci": "8jobs success on exact3ed6836; Native Ubuntu/macOS/Kani plus Desktop E2E, push andPR",
+    "phase_2_ci": "Exact79ec535: four runs/eight jobs success, phase-2-ci-summary.json",
+    "phase_3_ci": "Pending new final commit push. Exact-SHA run/job results will be recorded in PR description; no success inferred from workflow files."
+  },
+  "evidence": "Immutable stage-1-raw.tar.gz, phase-2-raw.tar.gz and phase-3-raw.tar.gz retain respective raw experiments, failures, source/model/binary hashes and independent prototype snapshots. Extract inside this directory; each manifest verifies every member. No weights/binaries/foreign implementation or vocab lists bundled. Exact post-push CI linked from PR description.",
+  "retained_source": "phase-3-source.json",
+  "phase_2": {
+    "research": "sushi-tensorfold-deepening.json",
+    "lookup": "lookup-decision.json",
+    "tensorfold_async": "async-decision.json",
+    "stock_compact_gpu": "Exact cache24blocks +bridge37completions/306copylookup/inline0, each variant",
+    "dense_gpu": "24blocks/128states exact +37productioncompletions/6lookupblocks/inline0, budgets1..1024 and prefix exact; initial256 coverage failure preserved.",
+    "tune_model_switch": "Passed43requests with actual Tune/lookup1 key;36model-switch completions with cleanup and managed head selection",
+    "historical_checks": {
+      "rust_mlx_chat": {
+        "command": "MLXL3_MLX_ROOT=<MLX0.32.2 package> cargo test --locked --release --features mlx,chat",
+        "passed": 66,
+        "ignored": 58,
+        "raw": "lookup-final-rust-full.log"
+      },
+      "rust_cpu_chat": {
+        "command": "cargo test --locked --no-default-features --features chat",
+        "passed": 54,
+        "ignored": 2,
+        "raw": "lookup-final-rust-cpu.log"
+      },
+      "python": {
+        "command": "python -m pytest -q",
+        "passed": 229,
+        "skipped": 4,
+        "raw": "python-delivery.log",
+        "skips": [
+          "PonyEXL3 conversion module absent (three tests)",
+          "Ling checkpoint absent (one test)"
+        ]
+      },
+      "format_lint_build": "Phase2 final cargo fmt, strict Clippy MLX/chat + CPU/chat, release mlx/chat build passed; commands/results in phase-2-checks.json. Firststage Python/Ruff/Swift/E2E unchanged and their historical results retained.",
+      "desktop": "scripts/check-e2e.sh with SDK26.5 passed; 49 update-state pairs, publisher refresh, real send/complete through disposable fake engine and existing lifecycle/bridge/update/import/render checks",
+      "swift_strict": "All app sources passed Swift6 typecheck with warnings-as-errors. Global package strict build fails on pre-existing vendored SwiftMath CTFontManager deprecations.",
+      "physical_numeric": {
+        "tests_passed": 2,
+        "compact": "3 x 79616 finite FP16 logits bit-exact to CPU-selected full Q4 rows",
+        "reference": "NumPy reconstruction from MTP08, independent of native Metal; separate scalar codec/Hadamard matrix tests",
+        "rmse_scope": "3 x 4096 reference rows, all248320 full logits finite",
+        "exl3_relative_rmse_range": [
+          0.000617502,
+          0.000623774
+        ],
+        "q4_relative_rmse_range": [
+          0.089403976,
+          0.091902656
+        ],
+        "thresholds": [
+          0.01,
+          0.2
+        ],
+        "recursive": "24 blocks D1..3, 80 target states/raw hidden/MTP KV bit-exact; full-vocab standalone; 20 invalid loader cases after dtype-test correction"
+      },
+      "physical_bridge": {
+        "status": "passed",
+        "requests": 43,
+        "nonempty_completions": 35,
+        "cancelled": 5,
+        "expected_errors": 2,
+        "tune_complete": 1,
+        "properties": {
+          "all_depths_parity": true,
+          "prefix_parity": true,
+          "cancel_recovery": true,
+          "tuner_verified": true
+        },
+        "runtime_key_lookup_1": true,
+        "tuning_key": "f90cb83f932cfa8c:1.4.2:3ed683617e50-dirty:release:0.32.2:Apple M5:4096:lookup=1"
+      },
+      "model_switch": {
+        "status": "passed",
+        "cases": 36,
+        "path": "dense Qwen3.8-27B -> MoE Qwen3.6-35B -> dense",
+        "checks": [
+          "nonempty greedy parity D0..3/budgets1,3,17",
+          "head reuse/OFF allocation release",
+          "foreign/missing head failures",
+          "previous process reaped before next model"
+        ],
+        "raw": "lookup-final-model-switch.json",
+        "lookup": "enabled in final check"
+      },
+      "mutation_oracles": [
+        "Original composer disabled Send during checking (expected failing regression)",
+        "Hadamard sign mutation detected/restored",
+        "Contiguous-row selection mutation detected/restored",
+        "Original full exporter followed dangling symlink (expected failing regression)",
+        "Lookup latest-match mutation detected/restored",
+        "Lookup newline-filter bypass mutation detected/restored",
+        "Withdrawn async CABI NULL-guard mutation detected/restored; actual Array test passed"
+      ]
+    },
+    "historical_verification": {
+      "kani": {
+        "harnesses": {
+          "total_harnesses": 37,
+          "executed": 37,
+          "status": "completed",
+          "successful": 37,
+          "failed": 0,
+          "duration_ms": 477916
+        },
+        "properties": {
+          "total_properties": 5611,
+          "passed": 5449,
+          "failed": 0,
+          "unreachable": 72,
+          "undetermined": 0,
+          "solver_error": 0,
+          "satisfied": 90,
+          "unsatisfiable": 0,
+          "covered": 0,
+          "uncovered": 0
+        },
+        "raw": "kani-phase-2.json",
+        "summary": "kani-phase-2-summary.json"
+      },
+      "command": "cargo kani --lib --no-default-features -Z unstable-options --harness-timeout 600s --export-json kani-phase-2.json",
+      "kind": "bounded model checking, not a whole-program proof",
+      "new_properties": "Actual optional projection guard: six full i32 domains, affine/symmetric mode representatives, unwind10 on library comparisons. Actual map validator: length0..8, full scalar/u32 domains, unwind10, no assume. 315 assertions/5 covers, one internal fmt obligation unreachable. Lookup: actual prompt_lookup,20 symbolic u32 IDs/len0..20, full u32 anchor/full usize width, symbolic bool predicate,unwind33,no assume,371passed assertions/1internal unreachable/5satisfied covers.",
+      "unverified": [
+        "Maps beyond8 entries by Kani (physical79616-row checks only)",
+        "Serde/file IO, MLX/Metal, allocation/concurrency, whole generation",
+        "Python compact IDs four CrossHair postconditions not confirmed at40s/condition",
+        "Swift Combine/AppKit formal verification unavailable",
+        "Lookup histories beyond20 entries by Kani; deterministic1024/1025 boundary tests only",
+        "Production tokenizer/newline decoding, Session MLX/Metal cache and concurrency not formally verified",
+        "Withdrawn TensorFold async prototype: Kani real MLX library compiler ICE; CBMC real C++20-preprocessed bridge libc++ parse failure"
+      ],
+      "crosshair": "Three chunk_end postconditions confirmed by symbolic search; no deductive proof"
+    }
+  },
+  "phase_3": {
+    "report": "../../engine-v1.4.2-pipeline.md",
+    "source": "phase-3-source.json",
+    "performance": "phase-3-performance.json",
+    "pipeline": "Default MTP only on measured M5/H2048/40layers/256experts/top8; stockcode+7.16..7.80%, compactcode+7.53..9.80%; no gains added",
+    "absolute_code_tps": "69\u201370 stock MTP2,75\u201377 compact MTP2 on fixed prompts/128warmup+128measured/2repeats",
+    "long": "Nonconclusive, confirmation control drift9.23%, apparent+16.24% discarded. No more long timing.",
+    "mtplx_64k": "Quality valid, local optional72.25MiB projection/map; D2+0.78% below threshold. mtplx-64k-decision.json",
+    "last_fusion": "Removed bit-for-bit after micro\u22120.27..+0.19%; no ~10% gain established. last-reduce-decision.json",
+    "formal": "CPU39harnesses/5463checks/98covers, zero failures/timeouts;72matched preexisting unreachable. Does not proveGPU.",
+    "raw": "phase-3-raw.tar.gz",
+    "manifest": "phase-3-manifest.json"
+  }
+}

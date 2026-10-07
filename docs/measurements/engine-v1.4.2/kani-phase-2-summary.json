@@ -1,0 +1,747 @@
+{
+  "harnesses": {
+    "total_harnesses": 37,
+    "executed": 37,
+    "status": "completed",
+    "successful": 37,
+    "failed": 0,
+    "duration_ms": 477916
+  },
+  "properties": {
+    "total_properties": 5611,
+    "passed": 5449,
+    "failed": 0,
+    "unreachable": 72,
+    "undetermined": 0,
+    "solver_error": 0,
+    "satisfied": 90,
+    "unsatisfiable": 0,
+    "covered": 0,
+    "uncovered": 0
+  },
+  "command": "cargo kani --lib --no-default-features -Z unstable-options --harness-timeout 600s --export-json kani-phase-2.json",
+  "kind": "bounded model checking, not whole-program proof",
+  "lookup_bounds": "20 symbolic u32 IDs, len0..20, full usize width and u32 anchor, symbolic bool filter; unwind33/no assume/5covers; larger histories tested deterministically at1024/1025, not Kani-proved",
+  "unreachable_details": [
+    {
+      "harness": "codec::verification::exl3_permutation_and_inverse_are_bijections",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "description": "attempt to calculate the remainder with a divisor of zero",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "93",
+        "column": "25"
+      }
+    },
+    {
+      "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "description": "attempt to calculate the remainder with overflow",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "93",
+        "column": "25"
+      }
+    },
+    {
+      "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "description": "attempt to divide by zero",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "97",
+        "column": "21"
+      }
+    },
+    {
+      "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "description": "attempt to divide with overflow",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "97",
+        "column": "21"
+      }
+    },
+    {
+      "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs",
+        "line": "1360",
+        "column": "23"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "49"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to shift right with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "44"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "index out of bounds: the length is less than or equal to the given index",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::ub_checks::is_valid_allocation_size",
+      "description": "attempt to divide by zero",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs",
+        "line": "148",
+        "column": "54"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "35"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "29"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "88",
+        "column": "39"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "17"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "105",
+        "column": "75"
+      }
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "106",
+        "column": "60"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "35"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "29"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "88",
+        "column": "39"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "17"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "105",
+        "column": "75"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "106",
+        "column": "60"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "49"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to shift right with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "44"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "index out of bounds: the length is less than or equal to the given index",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "core::ub_checks::is_valid_allocation_size",
+      "description": "attempt to divide by zero",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs",
+        "line": "148",
+        "column": "54"
+      }
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "function": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs",
+        "line": "1360",
+        "column": "23"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "35"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "29"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "88",
+        "column": "39"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "17"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "105",
+        "column": "75"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "106",
+        "column": "60"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "core::ub_checks::is_valid_allocation_size",
+      "description": "attempt to divide by zero",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs",
+        "line": "148",
+        "column": "54"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "49"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to shift right with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "44"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "index out of bounds: the length is less than or equal to the given index",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "function": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs",
+        "line": "1360",
+        "column": "23"
+      }
+    },
+    {
+      "harness": "mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs",
+        "line": "1360",
+        "column": "23"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "35"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "83",
+        "column": "29"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "88",
+        "column": "39"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to multiply with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "97",
+        "column": "17"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "105",
+        "column": "75"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::slice::memchr::memchr_aligned::runtime",
+      "description": "attempt to add with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs",
+        "line": "106",
+        "column": "60"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "core::ub_checks::is_valid_allocation_size",
+      "description": "attempt to divide by zero",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs",
+        "line": "148",
+        "column": "54"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to subtract with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "49"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "attempt to shift right with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "44"
+      }
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "function": "std::ptr::align_offset::mod_inv",
+      "description": "index out of bounds: the length is less than or equal to the given index",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+        "line": "2317",
+        "column": "27"
+      }
+    },
+    {
+      "harness": "speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "description": "Cannot compute offset of a ZST",
+      "location": {
+        "file": "library/kani/src/lib.rs",
+        "line": "57",
+        "column": "1"
+      }
+    },
+    {
+      "harness": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "description": "attempt to calculate the remainder with a divisor of zero",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "93",
+        "column": "25"
+      }
+    },
+    {
+      "harness": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "description": "attempt to calculate the remainder with overflow",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "93",
+        "column": "25"
+      }
+    },
+    {
+      "harness": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "description": "attempt to divide by zero",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "97",
+        "column": "21"
+      }
+    },
+    {
+      "harness": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "description": "attempt to divide with overflow",
+      "location": {
+        "file": "library/kani_core/src/models.rs",
+        "line": "97",
+        "column": "21"
+      }
+    },
+    {
+      "harness": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "speculative::verification::mtp_all_depths_commit_target_prefix_within_budgets",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    },
+    {
+      "harness": "tool_call::verification::marker_suffix_is_the_longest_possible_prefix",
+      "function": "std::fmt::Arguments::<'_>::from_str",
+      "description": "attempt to shift left with overflow",
+      "location": {
+        "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+        "line": "820",
+        "column": "38"
+      }
+    }
+  ]
+}

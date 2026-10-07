@@ -1,0 +1,99 @@
+{
+  "archive": "rapid-ci-checks-raw.tar.gz",
+  "sha256": "06835ba3ad6e0ca4f22c85ded38c8ca759bdf3bf81902207d0088174450cde3e",
+  "bytes": 16349,
+  "members": [
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-crosshair.log",
+      "size": 79,
+      "sha256": "4504e874d79740678bb61f191ea37c1b546edbf8cf527af89b11ff60a58856e7"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-eof-reproduced.log",
+      "size": 1711,
+      "sha256": "09a1a210c61ef35cf44e72e32acad1733cf4583b22236d2545d96c394564c57d"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-eof-restored.log",
+      "size": 98,
+      "sha256": "3dd8a455f93386b2d78b9d5605f1c2f52fd55f0962f89b0bd7d602cae0ead952"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-eof-silent-mutant.log",
+      "size": 1971,
+      "sha256": "f8a38874b847deba5a92837060bb6e59d8806e89301acf9dfdc909aeba7bde89"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-focused.log",
+      "size": 100,
+      "sha256": "122a6f4ef2dc06871ee6b500e04f56751d2b8e8c3849420782b9dfa62a545fbd"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-local-results.json",
+      "size": 654,
+      "sha256": "ade0a7978a8be92b2d43f1d1bc4e79cd700716a74d8e4c64f9c353f919f3cb04"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-mutation.json",
+      "size": 81,
+      "sha256": "f9a7d045a433b8c2512cbc8b336ace00086e3c848879f7a66092c3c0eeaa76a2"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-original-macos-push.log",
+      "size": 62321,
+      "sha256": "ac54ded7af5a0ec2af2547c614232c3bcb90d6b5b1a9c6a8f159bd8c825f23be"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-pycompile.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-python-full.log",
+      "size": 953,
+      "sha256": "4169359ba0e2ae7100c2a5b6872c5bc88b7020abaf666ff6d0b0936c5aa248fd"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-ruff-check.log",
+      "size": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-ruff-format.log",
+      "size": 25,
+      "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50"
+    },
+    {
+      "name": "build/engine-v1.4.2/rapid-ci-source-identity.json",
+      "size": 557,
+      "sha256": "1add089d327715b6d8522c73b09da47842a7706ac81591f96276fa9e3cd48991"
+    }
+  ],
+  "summary": {
+    "status": "passed_locally",
+    "base": "160a806a9d2030a94e6340bfd8c651d55147e504",
+    "changed_executable": [
+      "tests/test_compare_native.py"
+    ],
+    "focused": {
+      "passed": 50,
+      "skipped": 0,
+      "seconds": 19.48
+    },
+    "full_python": {
+      "passed": 296,
+      "skipped": 4,
+      "seconds": 47.76
+    },
+    "original_eof_timeout_reproduced": true,
+    "silent_eof_mutation_detected": true,
+    "restored_test_passed": true,
+    "ruff_format_exit": 0,
+    "ruff_check_exit": 0,
+    "pycompile_exit": 0,
+    "crosshair": "attempted; module absent; formally unverified",
+    "old_ci_failure_kept": true,
+    "new_ci": "not yet published/validated",
+    "gpu_runs": 0
+  }
+}

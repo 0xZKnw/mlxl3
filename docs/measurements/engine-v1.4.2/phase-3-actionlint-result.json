@@ -1,0 +1,11 @@
+{
+  "first_attempt": {
+    "exit_code": 3,
+    "reason": "Mistyped absent workflow filename regression-tests.yml; diagnostic retained in phase-3-actionlint.log"
+  },
+  "command": "build/engine-v1.4.2/actionlint/actionlint .github/workflows/rust.yml .github/workflows/check.yml",
+  "exit_code": 0,
+  "version": "1.7.12",
+  "log": "phase-3-actionlint-retry.log",
+  "scope": "Exact two workflow files; no assertion about hosted execution until new-SHA runs complete."
+}

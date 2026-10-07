@@ -1929,6 +1929,7 @@ struct NativeStats {
     mtp_proposed_tokens: Option<usize>,
     mtp_accepted_tokens: Option<usize>,
     mtp_blocks: Option<usize>,
+    mtp_lookup_blocks: Option<usize>,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1962,6 +1963,7 @@ impl NativeStats {
             (&mut self.mtp_proposed_tokens, round.mtp_proposed_tokens),
             (&mut self.mtp_accepted_tokens, round.mtp_accepted_tokens),
             (&mut self.mtp_blocks, round.mtp_blocks),
+            (&mut self.mtp_lookup_blocks, round.mtp_lookup_blocks),
         ] {
             if let Some(value) = value {
                 *sum = Some(sum.unwrap_or(0) + value);
@@ -2137,6 +2139,11 @@ fn bridge_generate_round(
         .as_ref()
         .map(|_| mlxl3_native::mtp::Session::new(mtp_depth))
         .transpose()?;
+    if std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")
+        && let Some(session) = &mut mtp_session
+    {
+        session.enable_prompt_lookup(&tokens);
+    }
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     let available = context_limit - tokens.len();
     let budget = if max_tokens == -1 {
@@ -2210,6 +2217,12 @@ fn bridge_generate_round(
                     next,
                     context_limit,
                     budget - generated.len(),
+                    |ids| {
+                        tokenizer
+                            .tokenizer()
+                            .decode(ids, false)
+                            .is_ok_and(|s| s.contains('\n'))
+                    },
                 )?);
             } else if let Some((session, weights)) = dflash.as_mut().zip(draft) {
                 let NativeChatModel::Qwen(target) = &mut *model else {
@@ -2288,6 +2301,7 @@ fn bridge_generate_round(
         mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.proposed),
         mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
         mtp_blocks: mtp_session.as_ref().map(|s| s.blocks),
+        mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.lookup_blocks),
         ..Default::default()
     };
     Ok(RoundOutput {
@@ -3038,6 +3052,7 @@ mod tests {
             dflash_proposed_tokens: Some(10),
             dflash_accepted_tokens: Some(6),
             dflash_blocks: Some(2),
+            mtp_lookup_blocks: Some(3),
             ..Default::default()
         };
         first.accumulate(&NativeStats {
@@ -3054,6 +3069,7 @@ mod tests {
             dflash_proposed_tokens: Some(40),
             dflash_accepted_tokens: Some(22),
             dflash_blocks: Some(8),
+            mtp_lookup_blocks: Some(4),
             ..Default::default()
         });
         assert_eq!(
@@ -3069,6 +3085,7 @@ mod tests {
             (300., 16., 0.5)
         );
         assert_eq!((first.context_used, first.context_limit), (231, 4096));
+        assert_eq!(first.mtp_lookup_blocks, Some(7));
         assert_eq!(
             (
                 first.dflash_proposed_tokens,
@@ -3077,6 +3094,156 @@ mod tests {
             ),
             (Some(50), Some(28), Some(10))
         );
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/MTP checkpoints, MLXL3_MTP_LOOKUP=1 and Apple GPU"]
+    fn bridge_lookup_seeds_prompt_and_preserves_budget_and_prefix() -> Result<()> {
+        use mlxl3_native::{mtp::Head, tokenizer::ChatTokenizer};
+        anyhow::ensure!(
+            std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1"),
+            "run this test with MLXL3_MTP_LOOKUP=1"
+        );
+        let path = std::path::PathBuf::from(
+            std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        );
+        let mut model = NativeChatModel::load(&path)?;
+        let tokenizer = ChatTokenizer::load(&path)?;
+        let NativeChatModel::Qwen(target) = &model else {
+            bail!("requires Qwen target")
+        };
+        let mut head = Head::load(
+            std::path::Path::new(
+                &std::env::var("MLXL3_MTP_TEST_HEAD")
+                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
+            ),
+            target,
+        )?;
+        let code = "def normalize_name(value):\n    return value.strip().casefold()\n\ndef average(values):\n    return sum(values) / len(values) if values else 0\n\n";
+        let messages = vec![json!({"role":"user", "content":format!(
+            "Recopie exactement le code suivant, sans commentaire ni changement :\n```python\n{}```", code.repeat(8))})];
+        let cancelled = AtomicBool::new(false);
+        let mut cache = None;
+        let mut random = 7;
+        let mut lookup_blocks = 0;
+        let copy_budget = std::env::var("MLXL3_MTP_TEST_COPY_BUDGET")
+            .ok()
+            .map(|value| value.parse::<i64>())
+            .transpose()?
+            .unwrap_or(256);
+        anyhow::ensure!(
+            (256..=1024).contains(&copy_budget),
+            "copy test budget must be 256..1024"
+        );
+        for budget in [1, 2, 3, 17, copy_budget] {
+            let baseline = bridge_generate_round(
+                &mut model,
+                &tokenizer,
+                "lookup-reference",
+                &messages,
+                &[],
+                budget,
+                0.,
+                1,
+                1.,
+                4096,
+                0.,
+                &cancelled,
+                &mut random,
+                None,
+                None,
+                1,
+                &mut cache,
+                "lookup",
+                false,
+            )?;
+            assert!(!baseline.raw.is_empty());
+            assert!(
+                baseline.stats.generated_tokens > 0
+                    && baseline.stats.generated_tokens <= budget as usize
+            );
+            for depth in 1..=3 {
+                for pass in 0..2 {
+                    let actual = bridge_generate_round(
+                        &mut model,
+                        &tokenizer,
+                        "lookup-candidate",
+                        &messages,
+                        &[],
+                        budget,
+                        0.,
+                        1,
+                        1.,
+                        4096,
+                        0.,
+                        &cancelled,
+                        &mut random,
+                        None,
+                        Some(&mut head),
+                        depth,
+                        &mut cache,
+                        "lookup",
+                        true,
+                    )?;
+                    assert_eq!(actual.raw, baseline.raw);
+                    assert_eq!(actual.token_hash, baseline.token_hash);
+                    assert_eq!(
+                        actual.stats.generated_tokens,
+                        baseline.stats.generated_tokens
+                    );
+                    lookup_blocks += actual.stats.mtp_lookup_blocks.unwrap();
+                    // The second request at each depth can reuse the exact prefix.
+                    if pass == 1 {
+                        assert!(actual.stats.cached_prompt_tokens >= 256);
+                    }
+                }
+            }
+        }
+        assert!(
+            lookup_blocks > 0,
+            "the production prompt must exercise lookup drafting"
+        );
+        let messages = vec![json!({"role":"user", "content":
+            "Write complete Python code for a strict JSON Lines reader. Reject malformed records with the line number, bound record sizes, and include a small example. Explain the failure cases."})];
+        let mut run = |mtp| {
+            bridge_generate_round(
+                &mut model,
+                &tokenizer,
+                "lookup-no-break",
+                &messages,
+                &[],
+                128,
+                0.,
+                1,
+                1.,
+                4096,
+                0.,
+                &cancelled,
+                &mut random,
+                None,
+                mtp,
+                2,
+                &mut cache,
+                "lookup",
+                false,
+            )
+        };
+        let baseline = run(None)?;
+        let actual = run(Some(&mut head))?;
+        assert!(!actual.raw.is_empty());
+        assert_eq!(actual.raw, baseline.raw);
+        assert_eq!(actual.token_hash, baseline.token_hash);
+        assert_eq!(actual.stats.generated_tokens, 128);
+        assert_eq!(
+            actual.stats.mtp_lookup_blocks,
+            Some(0),
+            "do not draft an in-line reformulation"
+        );
+        eprintln!(
+            "production lookup: 37 nonempty completions, {lookup_blocks} copy lookup blocks; in-line echo skipped"
+        );
+        Ok(())
     }
 
     #[test]

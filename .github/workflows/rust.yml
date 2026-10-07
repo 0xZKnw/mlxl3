@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install pytest==8.4.2 numpy==2.5.2 ruff==0.16.5
+      - run: python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
       - name: Lint native verification scripts and regressions
         run: |
           ruff check --select F,E9 tests/fake-desktop-engine.py
@@ -51,7 +51,18 @@ jobs:
           ruff format --check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
           ruff check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
           python -m py_compile scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py
+          ruff format --check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
+          ruff check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
+          python -m py_compile scripts/experimental-draft-head.py
       - name: Check bridge and QMM validation tools
-        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py
+      - name: Compile and lint the shipped MLX bridge
+        if: matrix.os == 'macos-26'
+        run: |
+          python -m pip install mlx==0.32.2
+          mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
+          cargo build --locked --release --features mlx,chat
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
-      # not enable the optional mlx feature, which needs a supplied libmlx.
+      # not run inference or numeric GPU checks; the macOS build uses pinned libmlx.

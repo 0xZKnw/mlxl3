@@ -28,9 +28,12 @@ else
     math_objects=("${binary_dir}/SwiftMath.build"/*.swift.o)
 fi
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/studio-hardening-check.swift > "${test_dir}/StudioHardeningCombined.swift"
+hardening_sources=("${(@)sources:#*/UpdateManager.swift}")
 swiftc "${swiftc_args[@]}" \
-    "${sources[@]}" "${math_objects[@]}" \
-    tests/studio-hardening-check.swift -o "${test_dir}/check"
+    "${hardening_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/StudioHardeningCombined.swift" -o "${test_dir}/check"
 "${test_dir}/check" "$PWD/tests/fake-desktop-engine.py"
 
 # Check the production idle deadline and lifecycle without waiting minutes or

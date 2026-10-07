@@ -23,6 +23,7 @@
 #include "mlx/device.h"
 #include "mlx/fast.h"
 #include "mlx/ops.h"
+#include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
 
@@ -220,6 +221,13 @@ int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) no
     *out = new mx::array(mx::zeros(s, dtype(type))); });
 }
 int mlxl3_array_eval(void* p) noexcept { return protect([&] { arr(p).eval(); }); }
+int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
+  return protect([&] {
+    if (!count) return;
+    if (!inputs) throw std::invalid_argument("null async array list");
+    mx::async_eval(arrays(inputs, count));
+  });
+}
 int mlxl3_array_copy_bytes(void* p, uint8_t* out, size_t count) noexcept {
   return protect([&] {
     auto a = mx::contiguous(arr(p));

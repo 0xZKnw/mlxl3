@@ -933,6 +933,8 @@ pub struct Qwen35Moe {
     offset: i32,
     last_hidden: Option<Array>,
     mtp_layout: crate::mtp::Layout,
+    pipeline: bool,
+    mtp_pipeline: bool,
 }
 
 impl Qwen35Moe {
@@ -1026,6 +1028,19 @@ impl Qwen35Moe {
                 other => anyhow::bail!("unsupported Qwen layer type {other}"),
             });
         }
+        let pipeline_override = std::env::var("MLXL3_QWEN_PIPELINE").ok();
+        let pipeline = pipeline_override.as_deref() == Some("1");
+        let mtp_pipeline = match pipeline_override.as_deref() {
+            Some("0") => false,
+            Some("1") => true,
+            _ => crate::contracts::mtp_pipeline_default(
+                hidden,
+                layers.len(),
+                config.num_experts,
+                config.num_experts_per_tok,
+                crate::array::is_m5_gpu()?,
+            ),
+        };
         Ok(Self {
             embeddings,
             norm,
@@ -1037,6 +1052,8 @@ impl Qwen35Moe {
             offset: 0,
             last_hidden: None,
             mtp_layout,
+            pipeline,
+            mtp_pipeline,
         })
     }
 
@@ -1218,8 +1235,12 @@ impl Qwen35Moe {
         if trace {
             layers.push(hidden.to_f16_bits()?);
         }
-        for layer in &mut self.layers {
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&[&hidden])?;
+            }
             if trace {
                 layers.push(hidden.to_f16_bits()?);
             }
@@ -1248,8 +1269,12 @@ impl Qwen35Moe {
         let id = Array::from_i32(&ids, &[1, time])?;
         let mut hidden = self.embeddings.take(&id, 0)?;
         let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&[&hidden])?;
+            }
             if DFLASH_CAPTURE_LAYERS.contains(&index) {
                 captured.push(hidden.try_clone()?);
             }
@@ -1284,8 +1309,12 @@ impl Qwen35Moe {
                 self.embeddings.take(&id, 0)
             })
             .collect::<Result<Vec<_>>>()?;
-        for layer in &mut self.layers {
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification(&mut hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
+            }
         }
         let normalized = hidden
             .into_iter()
@@ -1312,8 +1341,12 @@ impl Qwen35Moe {
             })
             .collect::<Result<Vec<_>>>()?;
         let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification_dflash(&mut hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
+            }
             if DFLASH_CAPTURE_LAYERS.contains(&index) {
                 captured.push(Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?);
             }
@@ -1404,8 +1437,12 @@ impl Qwen35Moe {
                 return Ok((output, raw));
             }
             let mut raw = self.mtp_embeddings(tokens)?;
-            for layer in &mut self.layers {
+            let layer_count = self.layers.len();
+            for (index, layer) in self.layers.iter_mut().enumerate() {
                 raw = layer.forward(&raw)?;
+                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                    Array::async_eval_all(&[&raw])?;
+                }
             }
             let last = raw.slice(1, time - 1, time)?;
             let logits = self.head.forward(&last.rms_norm(&self.norm, self.eps)?)?;
@@ -1435,8 +1472,12 @@ impl Qwen35Moe {
                 .iter()
                 .map(|&t| self.mtp_embeddings(&[t]))
                 .collect::<Result<Vec<_>>>()?;
-            for layer in &mut self.layers {
+            let layer_count = self.layers.len();
+            for (index, layer) in self.layers.iter_mut().enumerate() {
                 layer.forward_verification_dflash(&mut values)?;
+                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                    Array::async_eval_all(&values.iter().collect::<Vec<_>>())?;
+                }
             }
             let raw = Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?;
             let normalized = values
@@ -2231,7 +2272,7 @@ mod tests {
             assert_eq!(state_bytes(&model)?, state, "MTP prefill states {time}");
             assert_eq!(raw.shape(), [1, time as i32, model.mtp_layout.hidden_size]);
             let saved = model.snapshot()?;
-            for total in 2..=4 {
+            for total in 1..=8 {
                 let verification = (1..=total as u32).collect::<Vec<_>>();
                 for retained in 1..=total {
                     model.restore(saved.clone())?;
@@ -2277,8 +2318,76 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn layer_pipeline_matches_unscheduled_logits_and_states() -> Result<()> {
+        let path = std::env::var("MLXL3_MTP_TEST_MODEL")
+            .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into());
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        match std::env::var("MLXL3_QWEN_PIPELINE").as_deref() {
+            Ok("0") => assert!(!model.pipeline && !model.mtp_pipeline),
+            Ok("1") => assert!(model.pipeline && model.mtp_pipeline),
+            _ => {
+                assert!(!model.pipeline);
+                assert_eq!(
+                    model.mtp_pipeline,
+                    crate::array::is_m5_gpu()?
+                        && model.mtp_layout.hidden_size == 2048
+                        && model.layers.len() == 40
+                );
+            }
+        }
+        for length in [23, 24, 257] {
+            let tokens = (0..length)
+                .map(|index| (index * 37 + 1) as u32)
+                .collect::<Vec<_>>();
+            let mut expected = Vec::new();
+            for enabled in [false, true] {
+                model.pipeline = enabled;
+                model.mtp_pipeline = enabled;
+                model.reset();
+                let mut logits = model.forward_mtp(&tokens)?.0;
+                for step in 0..=16 {
+                    if step > 0 {
+                        logits = model.forward((step * 53) as u32)?;
+                    }
+                    let bits = logits.to_f16_bits()?;
+                    assert_eq!(bits.len(), model.vocab as usize);
+                    assert!(bits.iter().all(|&value| f16::from_bits(value).is_finite()));
+                    let state = state_bytes(&model)?;
+                    assert_eq!(state.len(), model.layers.len() * 2);
+                    assert_eq!(
+                        model.mtp_hidden()?.shape(),
+                        [1, 1, model.mtp_layout.hidden_size]
+                    );
+                    let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                    assert_eq!(hidden.len(), model.mtp_layout.hidden_size as usize);
+                    assert!(
+                        hidden
+                            .iter()
+                            .all(|&value| f16::from_bits(value).is_finite())
+                    );
+                    let row = (bits, state, hidden);
+                    if enabled {
+                        assert!(
+                            row == expected[step],
+                            "pipeline parity length={length} step={step}"
+                        );
+                    } else {
+                        expected.push(row);
+                    }
+                }
+            }
+            println!(
+                "pipeline exact: prefill={length}, 17 finite logits/hidden/states, {} state arrays",
+                model.layers.len() * 2
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
-    fn mtp_recursive_sessions_match_greedy_and_exact_caches() -> Result<()> {
+    fn mtp_lookup_accepts_rejects_and_repairs_exact_caches() -> Result<()> {
         use crate::mtp::{Head, Session};
         let mut model = Qwen35Moe::load(Path::new(
             &std::env::var("MLXL3_MTP_TEST_MODEL")
@@ -2292,29 +2401,159 @@ mod tests {
             &model,
         )?;
         for depth in 1..=3 {
+            for accepted_count in (0..=depth).chain(std::iter::once(usize::MAX)) {
+                model.reset();
+                head.reset()?;
+                let prefix = vec![1; 24];
+                let (logits, raw) = model.forward_mtp(&prefix)?;
+                head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
+                let mut anchor = logits.chat_greedy_ids()?[0];
+                let initial = model.snapshot()?;
+                let mut next = anchor;
+                let mut oracle = Vec::new();
+                for _ in 0..depth {
+                    next = model.forward(next)?.chat_greedy_ids()?[0];
+                    oracle.push(next);
+                }
+                model.restore(initial)?;
+                let truncated = accepted_count == usize::MAX;
+                let proposals = if truncated {
+                    vec![anchor]
+                } else {
+                    let mut proposals = oracle.clone();
+                    if accepted_count < depth {
+                        proposals[accepted_count] =
+                            (proposals[accepted_count] + 1) % model.mtp_layout().vocab_size as u32;
+                    }
+                    proposals
+                };
+                // An adversarial proposer fixture, independent of model history:
+                // force each acceptance boundary, including a one-ID overlap.
+                let history = if truncated {
+                    vec![anchor; 9]
+                } else {
+                    let suffix = [101, 102, 103, 104, 105, 106, 107];
+                    let mut history = suffix.to_vec();
+                    history.push(anchor);
+                    history.extend(&proposals);
+                    history.push(123);
+                    history.extend(suffix);
+                    history
+                };
+                assert_eq!(
+                    crate::speculative::prompt_lookup(&history, anchor, depth, |_| true),
+                    Some(proposals.as_slice())
+                );
+                let expected_accepted = if truncated {
+                    usize::from(oracle[0] == anchor)
+                } else {
+                    accepted_count
+                };
+                let mut session = Session::new(depth)?;
+                session.enable_prompt_lookup(&history);
+                for block in 0..2 {
+                    let saved = model.snapshot()?;
+                    let head_saved = head.snapshot()?;
+                    let start = model.offset();
+                    let first =
+                        session.advance(&mut model, &mut head, anchor, 512, 64, |_| true)?;
+                    let retained = (model.offset() - start) as usize;
+                    assert!((1..=depth + 1).contains(&retained));
+                    let mut actual = vec![first];
+                    for _ in 1..retained {
+                        actual.push(session.advance(
+                            &mut model,
+                            &mut head,
+                            *actual.last().unwrap(),
+                            512,
+                            64,
+                            |_| true,
+                        )?);
+                    }
+                    if block == 0 {
+                        assert_eq!(session.lookup_blocks, 1);
+                        assert_eq!(session.proposed, proposals.len());
+                        assert_eq!(session.accepted, expected_accepted);
+                        assert_eq!(retained, 1 + expected_accepted);
+                    } else if expected_accepted == 0 {
+                        assert_eq!(
+                            session.lookup_blocks, 1,
+                            "lookup must stop after full rejection"
+                        );
+                    }
+                    let actual_states = state_bytes(&model)?;
+                    assert_eq!(actual_states.len(), model.layers.len() * 2);
+                    let actual_hidden = model.mtp_hidden()?.to_bytes()?;
+                    let actual_head = head.cache_bytes()?;
+                    model.restore(saved)?;
+                    head.restore(head_saved)?;
+                    let mut expected = Vec::new();
+                    for _ in 0..retained {
+                        head.extend_cache(&model, &model.mtp_hidden()?.try_clone()?, &[anchor])?;
+                        anchor = model.forward(anchor)?.chat_greedy_ids()?[0];
+                        expected.push(anchor);
+                    }
+                    assert_eq!(
+                        actual, expected,
+                        "lookup tokens D{depth}/accept{accepted_count}/block{block}"
+                    );
+                    assert_eq!(actual_states, state_bytes(&model)?);
+                    assert_eq!(actual_hidden, model.mtp_hidden()?.to_bytes()?);
+                    assert_eq!(actual_head, head.cache_bytes()?);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
+    fn mtp_recursive_sessions_match_greedy_and_exact_caches() -> Result<()> {
+        use crate::mtp::{Head, Session};
+        let mut model = Qwen35Moe::load(Path::new(
+            &std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        ))?;
+        let head_path = std::env::var("MLXL3_MTP_TEST_HEAD")
+            .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into());
+        let mut head = Head::load(Path::new(&head_path), &model)?;
+        for depth in 1..=3 {
             model.reset();
             head.reset()?;
             let prefix = vec![1; 24];
             let (logits, raw) = model.forward_mtp(&prefix)?;
             head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
             let mut anchor = logits.chat_greedy_ids()?[0];
+            let saved_head = head.snapshot()?;
+            let standalone = head.forward(&model, &raw.slice(1, 23, 24)?, &[anchor])?;
+            assert_eq!(standalone.shape(), &[1, 1, model.mtp_layout().vocab_size]);
+            let values = standalone.to_f32()?;
+            assert_eq!(values.len(), model.mtp_layout().vocab_size as usize);
+            assert!(values.iter().all(|v| v.is_finite()) && values.iter().any(|&v| v != 0.));
+            head.restore(saved_head)?;
             let mut session = Session::new(depth)?;
             for block in 0..8 {
                 let saved = model.snapshot()?;
                 let head_saved = head.snapshot()?;
                 let start = model.offset();
-                let first = session.advance(&mut model, &mut head, anchor, 512, 64)?;
+                let first = session.advance(&mut model, &mut head, anchor, 512, 64, |_| true)?;
                 let retained = (model.offset() - start) as usize;
                 assert!((1..=depth + 1).contains(&retained));
                 let mut actual = vec![first];
                 assert!(
                     session
-                        .advance(&mut model, &mut head, first, 512, 0)
+                        .advance(&mut model, &mut head, first, 512, 0, |_| true)
                         .is_err()
                 );
                 for _ in 1..retained {
-                    let next =
-                        session.advance(&mut model, &mut head, *actual.last().unwrap(), 512, 64)?;
+                    let next = session.advance(
+                        &mut model,
+                        &mut head,
+                        *actual.last().unwrap(),
+                        512,
+                        64,
+                        |_| true,
+                    )?;
                     actual.push(next);
                 }
                 let actual_state = state_bytes(&model)?;
@@ -2362,6 +2601,101 @@ mod tests {
         }
         assert!(Session::new(0).is_err());
         assert!(Session::new(4).is_err());
+        // Exercise the actual optional artifact loader, including incomplete
+        // conversions, without rewriting either original checkpoint.
+        let temporary = tempfile::tempdir()?;
+        for file in ["config.json", "model.safetensors"] {
+            std::os::unix::fs::symlink(
+                Path::new(&head_path).join(file).canonicalize()?,
+                temporary.path().join(file),
+            )?;
+        }
+        let h = model.mtp_layout();
+        let metadata = serde_json::json!({"input":h.hidden_size,"output":h.vocab_size,
+                                         "bits":4,"group_size":64,"mode":"affine"});
+        let mut invalid = vec![serde_json::Value::Null, serde_json::json!({})];
+        for (key, value) in [
+            ("input", serde_json::json!(h.hidden_size + 64)),
+            ("output", serde_json::json!(h.vocab_size + 1)),
+            ("bits", serde_json::json!(8)),
+            ("group_size", serde_json::json!(32)),
+            ("mode", serde_json::json!("symmetric")),
+            ("unknown", serde_json::json!(true)),
+        ] {
+            let mut altered = metadata.clone();
+            altered[key] = value;
+            invalid.push(altered);
+        }
+        invalid.push(metadata.clone()); // valid metadata, missing weight payload
+        for ids in [
+            serde_json::json!([]),
+            serde_json::json!([0]),
+            serde_json::json!([1, 1]),
+            serde_json::json!([2, 1]),
+            serde_json::json!([0, h.vocab_size]),
+            serde_json::json!([-1, 0]),
+            serde_json::json!([0, 4294967296u64]),
+            serde_json::Value::Null,
+        ] {
+            let mut altered = metadata.clone();
+            altered["output"] = serde_json::json!(2);
+            altered["token_ids"] = ids;
+            invalid.push(altered);
+        }
+        let offset = model.offset();
+        for metadata in invalid {
+            std::fs::write(
+                temporary.path().join("draft_head_q4.json"),
+                serde_json::to_vec(&metadata)?,
+            )?;
+            assert!(Head::load(temporary.path(), &model).is_err());
+            assert_eq!(model.offset(), offset);
+        }
+        // Sparse disposable payloads exercise real header validation without
+        // reading or allocating an incompatible projection on the GPU.
+        std::fs::write(
+            temporary.path().join("draft_head_q4.json"),
+            serde_json::to_vec(&metadata)?,
+        )?;
+        for (weight_dtype, scales_dtype, biases_dtype) in [
+            ("F32", "F16", "F16"),
+            ("U32", "U16", "F16"),
+            ("U32", "F16", "U16"),
+        ] {
+            use std::io::Write;
+            let mut header = serde_json::Map::new();
+            let mut end = 0u64;
+            for (name, dtype, width, bytes) in [
+                ("weight", weight_dtype, h.hidden_size / 8, 4),
+                ("scales", scales_dtype, h.hidden_size / 64, 2),
+                ("biases", biases_dtype, h.hidden_size / 64, 2),
+            ] {
+                let start = end;
+                end += h.vocab_size as u64 * width as u64 * bytes;
+                header.insert(
+                    format!("lm_head.{name}"),
+                    serde_json::json!({
+                        "dtype":dtype, "shape":[h.vocab_size,width], "data_offsets":[start,end]
+                    }),
+                );
+            }
+            let encoded = serde_json::to_vec(&header)?;
+            let mut file =
+                std::fs::File::create(temporary.path().join("draft_head_q4.safetensors"))?;
+            file.write_all(&(encoded.len() as u64).to_le_bytes())?;
+            file.write_all(&encoded)?;
+            file.set_len(8 + encoded.len() as u64 + end)?;
+            let error = Head::load(temporary.path(), &model)
+                .err()
+                .expect("incompatible dtype must fail before GPU allocation");
+            assert!(
+                error
+                    .to_string()
+                    .contains("invalid draft Q4 tensor coverage, shapes or dtypes"),
+                "dtype fixture failed before the tensor validator: {error}"
+            );
+            assert_eq!(model.offset(), offset);
+        }
         Ok(())
     }
 

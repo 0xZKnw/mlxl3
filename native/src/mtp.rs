@@ -166,6 +166,42 @@ struct Quantization {
     mode: String,
 }
 
+#[cfg(any(feature = "mlx", test, kani))]
+fn valid_draft_projection(
+    input: i32,
+    output: i32,
+    hidden: i32,
+    vocab: i32,
+    bits: i32,
+    group: i32,
+    mode: &str,
+) -> bool {
+    input > 0
+        && input % 64 == 0
+        && output > 0
+        && input == hidden
+        && output <= vocab
+        && bits == 4
+        && group == 64
+        && mode == "affine"
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+fn valid_draft_rows(rows: i32, vocab: i32, ids: Option<&[u32]>) -> bool {
+    if rows <= 0 || vocab <= 0 {
+        return false;
+    }
+    match ids {
+        None => rows == vocab,
+        Some(ids) => {
+            rows < vocab
+                && ids.len() == rows as usize
+                && ids.iter().all(|&id| id < vocab as u32)
+                && ids.windows(2).all(|pair| pair[0] < pair[1])
+        }
+    }
+}
+
 pub fn inspect(path: &Path) -> Result<(Checkpoint, Layout)> {
     let path = path.canonicalize().context("opening MTP head folder")?;
     let config: Config = serde_json::from_reader(File::open(path.join("config.json"))?)?;
@@ -345,6 +381,8 @@ mod native {
         post_norm: Array,
         attention: Attention,
         mlp: Mlp,
+        draft_head: Option<AffineLinear>,
+        draft_ids: Option<Array>,
     }
 
     pub struct Cache {
@@ -380,6 +418,73 @@ mod native {
                 "MTP head does not match the target model dimensions"
             );
             let h = layout.hidden_size;
+            // Optional, explicitly generated experiment. The target projection
+            // remains untouched and validates every proposed token.
+            let draft_metadata = path.join("draft_head_q4.json");
+            let mut draft_ids = None;
+            let draft_head = if draft_metadata.exists() {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct DraftMetadata {
+                    input: i32,
+                    output: i32,
+                    bits: i32,
+                    group_size: i32,
+                    mode: String,
+                    token_ids: Option<Vec<u32>>,
+                }
+                let metadata: DraftMetadata = serde_json::from_reader(File::open(draft_metadata)?)?;
+                ensure!(
+                    valid_draft_projection(
+                        metadata.input,
+                        metadata.output,
+                        h,
+                        layout.vocab_size,
+                        metadata.bits,
+                        metadata.group_size,
+                        &metadata.mode
+                    ) && valid_draft_rows(
+                        metadata.output,
+                        layout.vocab_size,
+                        metadata.token_ids.as_deref()
+                    ),
+                    "draft Q4 projection does not match MTP target"
+                );
+                let file = path.join("draft_head_q4.safetensors");
+                let tensors = read_header(&file)?;
+                ensure!(
+                    tensors.len() == 3
+                        && [
+                            ("lm_head.weight", "U32", vec![metadata.output as usize, h as usize / 8]),
+                            ("lm_head.scales", "F16", vec![metadata.output as usize, h as usize / 64]),
+                            ("lm_head.biases", "F16", vec![metadata.output as usize, h as usize / 64]),
+                        ]
+                            .iter()
+                            .all(|(name, dtype, shape)| tensors.get(*name)
+                                .is_some_and(|tensor| tensor.dtype == *dtype && tensor.shape == *shape)),
+                    "invalid draft Q4 tensor coverage, shapes or dtypes"
+                );
+                if let Some(ids) = &metadata.token_ids {
+                    draft_ids = Some(Array::from_u32(ids, &[metadata.output])?);
+                }
+                let checkpoint = Checkpoint {
+                    path: path.to_owned(),
+                    model_type: "draft_head_q4".into(),
+                    bits: Some(4.),
+                    size_bytes: file.metadata()?.len(),
+                    modules: Vec::new(),
+                    tensors,
+                };
+                Some(AffineLinear::load(
+                    &checkpoint,
+                    "lm_head",
+                    h,
+                    metadata.output,
+                    None,
+                )?)
+            } else {
+                None
+            };
             let norm = |name: &str, n| half_weight(&checkpoint, name, Some(&[n]));
             let linear = |name: &str, input: i32, output: i32, experts: Option<i32>| {
                 AffineLinear::load(&checkpoint, name, input, output, experts)
@@ -458,6 +563,8 @@ mod native {
                 )?,
                 layout,
                 mlp,
+                draft_head,
+                draft_ids,
             })
         }
 
@@ -623,11 +730,17 @@ mod native {
                 if index == 0 {
                     exact = Some(self.snapshot()?);
                 }
-                token = target
-                    .mtp_logits(&hidden.rms_norm(&self.norm, self.layout.rms_norm_eps)?)?
+                token = self
+                    .draft_logits(
+                        target,
+                        &hidden.rms_norm(&self.norm, self.layout.rms_norm_eps)?,
+                    )?
                     .log_probs()?
                     .argmax()?
                     .reshape(&[1, 1])?;
+                if let Some(ids) = &self.draft_ids {
+                    token = ids.take(&token, 0)?;
+                }
                 proposed.push(token.try_clone()?);
             }
             // One lazy device chain / one transfer, rather than D host argmaxes.
@@ -642,16 +755,31 @@ mod native {
             next: &[u32],
         ) -> Result<Array> {
             let hidden = self.hidden(target, hidden, next)?;
-            target.mtp_logits(&hidden)
+            // This standalone API retains full-vocabulary logits. Production
+            // recursive drafts use compact scores and map their selected IDs.
+            if self.draft_ids.is_some() {
+                return target.mtp_logits(&hidden);
+            }
+            self.draft_logits(target, &hidden)
+        }
+
+        fn draft_logits(&self, target: &Qwen35Moe, hidden: &Array) -> Result<Array> {
+            if let Some(head) = &self.draft_head {
+                head.forward(hidden)
+            } else {
+                target.mtp_logits(hidden)
+            }
         }
     }
 
     pub struct Session {
         depth: usize,
         pending: VecDeque<u32>,
+        history: Vec<u32>,
         pub proposed: usize,
         pub accepted: usize,
         pub blocks: usize,
+        pub lookup_blocks: usize,
     }
 
     impl Default for Session {
@@ -659,9 +787,11 @@ mod native {
             Self {
                 depth: 1,
                 pending: VecDeque::new(),
+                history: Vec::new(),
                 proposed: 0,
                 accepted: 0,
                 blocks: 0,
+                lookup_blocks: 0,
             }
         }
     }
@@ -675,6 +805,25 @@ mod native {
             })
         }
 
+        /// Seed once after prefill. Only committed target inputs are remembered.
+        pub fn enable_prompt_lookup(&mut self, prompt: &[u32]) {
+            self.history = prompt[prompt
+                .len()
+                .saturating_sub(crate::speculative::LOOKUP_WINDOW)..]
+                .to_vec();
+        }
+
+        fn remember(&mut self, tokens: &[u32]) {
+            if !self.history.is_empty() {
+                self.history.extend_from_slice(tokens);
+                let excess = self
+                    .history
+                    .len()
+                    .saturating_sub(crate::speculative::LOOKUP_WINDOW);
+                self.history.drain(..excess);
+            }
+        }
+
         /// Every delivered token is selected by the target. Approximate draft
         /// KV is discarded; repair uses only accepted real trunk residuals.
         pub fn advance(
@@ -684,6 +833,7 @@ mod native {
             anchor: u32,
             context_limit: usize,
             output_remaining: usize,
+            allow_lookup: impl Fn(&[u32]) -> bool,
         ) -> Result<u32> {
             ensure!(output_remaining > 0, "MTP output budget exhausted");
             if let Some(next) = self.pending.pop_front() {
@@ -697,14 +847,24 @@ mod native {
             let hidden = target.mtp_hidden()?.try_clone()?;
             if width == 0 {
                 let logits = target.forward(anchor)?;
+                self.remember(&[anchor]);
                 return logits
                     .chat_greedy_ids()?
                     .last()
                     .copied()
                     .context("missing MTP fallback token");
             }
-            let (proposals, exact_first_cache) =
-                head.draft_chain(target, &hidden, anchor, width)?;
+            let lookup =
+                crate::speculative::prompt_lookup(&self.history, anchor, width, allow_lookup);
+            let is_lookup = lookup.is_some();
+            let (proposals, exact_first_cache) = if let Some(proposals) = lookup {
+                let proposals = proposals.to_vec();
+                head.append_cache(target, &hidden, &[anchor])?;
+                (proposals, head.snapshot()?)
+            } else {
+                head.draft_chain(target, &hidden, anchor, width)?
+            };
+            let width = proposals.len();
             let verification = std::iter::once(anchor)
                 .chain(proposals.iter().copied())
                 .collect::<Vec<_>>();
@@ -730,7 +890,14 @@ mod native {
                         &[token],
                     )?;
                 }
+            }
+            if accepted.accepted_draft_tokens > 0 || is_lookup {
                 head.eval_cache()?;
+            }
+            if is_lookup && accepted.accepted_draft_tokens == 0 {
+                self.history.clear();
+            } else {
+                self.remember(&verification[..retained]);
             }
             self.pending
                 .extend(proposals[..accepted.accepted_draft_tokens].iter().copied());
@@ -738,6 +905,7 @@ mod native {
             self.proposed += width;
             self.accepted += accepted.accepted_draft_tokens;
             self.blocks += 1;
+            self.lookup_blocks += usize::from(is_lookup);
             self.pending.pop_front().context("missing MTP target token")
         }
     }
@@ -745,6 +913,24 @@ mod native {
     #[cfg(test)]
     mod cache_tests {
         use super::*;
+
+        #[test]
+        fn lookup_history_is_bounded_and_disabled_until_seeded() -> Result<()> {
+            let mut session = Session::new(3)?;
+            session.remember(&[1, 2, 3]);
+            assert!(session.history.is_empty());
+            let prompt = (0..2048).collect::<Vec<_>>();
+            session.enable_prompt_lookup(&prompt);
+            assert_eq!(session.history, prompt[1024..]);
+            session.remember(&[2048, 2049, 2050]);
+            assert_eq!(session.history.len(), 1024);
+            assert_eq!(session.history[0], 1027);
+            assert_eq!(&session.history[1021..], &[2048, 2049, 2050]);
+            session.history.clear();
+            session.remember(&[77]);
+            assert!(session.history.is_empty());
+            Ok(())
+        }
 
         fn bytes(cache: &Cache) -> Result<(Vec<u8>, Vec<u8>)> {
             Ok((cache.keys.to_bytes()?, cache.values.to_bytes()?))
@@ -822,6 +1008,117 @@ mod native {
 
 #[cfg(feature = "mlx")]
 pub use native::{Cache, Head, Session};
+
+#[cfg(test)]
+mod draft_projection_tests {
+    use super::*;
+
+    #[test]
+    fn optional_projection_must_match_target_and_affine_contract() {
+        assert!(valid_draft_projection(
+            2048, 248320, 2048, 248320, 4, 64, "affine"
+        ));
+        for (input, output, hidden, vocab, bits, group, mode) in [
+            (0, 1, 0, 1, 4, 64, "affine"),
+            (63, 1, 63, 1, 4, 64, "affine"),
+            (64, 0, 64, 0, 4, 64, "affine"),
+            (64, 1, 128, 1, 4, 64, "affine"),
+            (64, 1, 64, 2, 4, 64, "affine"),
+            (64, 1, 64, 1, 8, 64, "affine"),
+            (64, 1, 64, 1, 4, 32, "affine"),
+            (64, 1, 64, 1, 4, 64, "symmetric"),
+        ] {
+            assert!(
+                !(valid_draft_projection(input, output, hidden, vocab, bits, group, mode)
+                    && valid_draft_rows(output, vocab, None))
+            );
+        }
+    }
+
+    #[test]
+    fn compact_rows_are_nonempty_ordered_unique_and_in_target_vocab() {
+        assert!(valid_draft_rows(128, 128, None));
+        assert!(valid_draft_rows(3, 128, Some(&[0, 63, 127])));
+        for (rows, vocab, ids) in [
+            (0, 128, Some(&[][..])),
+            (1, 128, None),
+            (2, 128, Some(&[0][..])),
+            (2, 128, Some(&[1, 1][..])),
+            (2, 128, Some(&[2, 1][..])),
+            (2, 128, Some(&[0, 128][..])),
+            (1, 1, Some(&[0][..])),
+            (1, -1, Some(&[0][..])),
+        ] {
+            assert!(!valid_draft_rows(rows, vocab, ids));
+        }
+    }
+}
+
+#[cfg(kani)]
+mod draft_projection_verification {
+    use super::*;
+
+    #[kani::proof]
+    // The two mode representatives contain at most nine bytes. Keep the
+    // library string-comparison unwinding assertion enabled at that bound.
+    #[kani::unwind(10)]
+    fn optional_projection_guards_dimensions_and_quantization() {
+        let (input, output, hidden, vocab, bits, group): (i32, i32, i32, i32, i32, i32) =
+            kani::any();
+        let mode = if kani::any() { "affine" } else { "symmetric" };
+        let valid = valid_draft_projection(input, output, hidden, vocab, bits, group, mode);
+        assert!(
+            valid
+                == (input > 0
+                    && input % 64 == 0
+                    && output > 0
+                    && input == hidden
+                    && output <= vocab
+                    && bits == 4
+                    && group == 64
+                    && mode == "affine")
+        );
+        if valid {
+            assert!(input / 64 > 0 && input / 8 > 0);
+            assert!(input / 8 == (input / 64) * 8);
+            assert!(output <= vocab);
+        }
+        kani::cover!(valid);
+        kani::cover!(!valid && input > 0 && hidden == input && vocab != output);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(10)]
+    fn compact_draft_ids_stay_sorted_and_inside_target_vocabulary() {
+        let ids: [u32; 8] = kani::any();
+        let len: usize = kani::any();
+        // Bounded map-check domain: 0..8 entries, full scalar/ID domains.
+        if len > ids.len() {
+            return;
+        }
+        let rows: i32 = kani::any();
+        let vocab: i32 = kani::any();
+        let map = if kani::any() { Some(&ids[..len]) } else { None };
+        let valid = valid_draft_rows(rows, vocab, map);
+        if valid {
+            assert!(rows > 0 && rows <= vocab);
+            if map.is_some() {
+                assert!(rows < vocab && rows as usize == len);
+                for index in 0..len {
+                    assert!(ids[index] < vocab as u32);
+                    if index > 0 {
+                        assert!(ids[index - 1] < ids[index]);
+                    }
+                }
+            } else {
+                assert_eq!(rows, vocab);
+            }
+        }
+        kani::cover!(valid && map.is_some() && len == 8);
+        kani::cover!(valid && map.is_none());
+        kani::cover!(!valid && map.is_some() && len == 2 && ids[0] == ids[1]);
+    }
+}
 
 #[cfg(test)]
 mod tests {

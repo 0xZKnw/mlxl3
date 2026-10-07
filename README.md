@@ -30,6 +30,41 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
+## Engine v1.4.2 candidate
+
+An explicitly prepared **compact Q4 MTP draft projection** can accelerate
+Qwen3.6-35B-A3B EXL3 without changing its target vocabulary or greedy results.
+On M5, MTP2 decode improved **8.2% on the code prompt** and **11.6–15.3% in
+the tuner** against engine1.4.1. The extra projection and ID map use **87.77 MiB**;
+the full Q4 prototype used 272.81 MiB and regressed on code, so it is not a
+general speed recommendation. These measurements use fixed token budgets,
+not complete-task accuracy evaluations, and do not establish gains for other models.
+
+MTP target-layer graphs are also submitted progressively on the measured
+Qwen3.6-35B-A3B geometry on **Apple M5**. With the stock head, MTP2 code
+decode improved **7.16–7.80%** versus the same 1.4.2 binary with submission
+disabled; complete time fell **6.27–6.80%**, confirmed in opposite pass orders.
+This result is separate from the compact-head gain above. The default applies
+to MTP only; `MLXL3_QWEN_PIPELINE=0` disables it. Value `1` experimentally
+extends submission to all Qwen trunk paths. Other geometries and devices keep
+the previous default. See [protocols and limits](docs/engine-v1.4.2-pipeline.md).
+
+A separate prompt-lookup experiment can draft continuations of repeated code
+with `MLXL3_MTP_LOOKUP=1`. It is **off by default**: the initial copy speed
+signal was not reproduced within the control-drift limits. The full target
+verifies its proposals and the runtime repairs exact caches before continuing.
+It falls back to the neural draft after a full rejection. See the
+[Sushi/TensorFold review](docs/measurements/engine-v1.4.2/sushi-tensorfold-deepening.json)
+for examined mechanisms and numerical compatibility limits.
+
+Desktop sources also fix Send/Tune becoming disabled during background update
+checks or downloads and refresh the composer when update state changes.
+Installation still blocks inference. This UI fix requires a new Desktop build;
+an independent engine update alone does not deliver it.
+
+Protocols, rejected experiments, tests and limits are in the
+[optimization journal](opti.md) and [validation evidence](docs/measurements/engine-v1.4.2/validation.json).
+
 ## v1.4.0
 
 MTP automatically selects and downloads the pinned head for **Qwen3.8-27B**
@@ -139,6 +174,28 @@ The first request can take longer while Metal compiles kernels. A prefix
 checkpoint retains both target state and MTP KV when the conversation's
 encoded prefix and chunk boundary match. DFlash remains available to CLI
 experiments; its former Desktop toggle has been replaced.
+
+#### Experimental compact draft preparation
+
+Preparation uses the development Python/MLX environment and supports unbiased
+Default/MCG EXL3 heads. The native runtime reads the resulting files directly.
+Automatic head downloads keep the stock projection. For the tested Qwen3.6
+tokenizer, save the pinned [TensorFold draft ID list](https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt)
+as `draft-vocab.txt`, then use new disposable output folders:
+
+```sh
+python scripts/experimental-draft-head.py /path/to/EXL3-target /tmp/mtp-full
+ln -s /absolute/path/to/MTP-head/config.json /tmp/mtp-full/config.json
+ln -s /absolute/path/to/MTP-head/model.safetensors /tmp/mtp-full/model.safetensors
+python scripts/experimental-draft-head.py /tmp/mtp-full /tmp/mtp-compact --draft-vocab /path/to/draft-vocab.txt
+```
+
+Select `/tmp/mtp-compact` with the MTP folder button and run **Tune MTP**.
+The ID map is sorted, validated and padded to whole 64-row tiles; only draft
+scores are pruned. Every proposed token is still verified by the full target.
+`conversion.json` reports conversion, not validated parity or speed. The full
+Q4 projection is an intermediate; original checkpoints are read only, and
+existing output files or symlinks are refused.
 
 No Python, Homebrew, Hugging Face CLI or separate MLX installation is required
 for the DMG. Managed weights are stored under:

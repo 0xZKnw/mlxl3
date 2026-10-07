@@ -34,14 +34,20 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
         .unwrap_or_else(|| std::env::consts::ARCH.to_owned());
+    let pipeline = match std::env::var("MLXL3_QWEN_PIPELINE").as_deref() {
+        Ok("0") => "off",
+        Ok("1") => "all",
+        _ => "mtp-m5-v1",
+    };
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
         env!("MLXL3_BUILD_PROFILE"),
         env!("MLXL3_MLX_VERSION"),
-        hardware
+        hardware,
+        u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1"))
     ))
 }
 
@@ -83,6 +89,11 @@ fn sample(
     };
     let mut next = logits.chat_greedy_ids()?[0];
     let mut session = (depth > 0).then(|| Session::new(depth)).transpose()?;
+    if std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")
+        && let Some(session) = &mut session
+    {
+        session.enable_prompt_lookup(&input);
+    }
     let mut tokens = Vec::with_capacity(budget);
     // Same denominator as chat: the first token was computed by prefill.
     let started = Instant::now();
@@ -99,7 +110,12 @@ fn sample(
             let NativeChatModel::Qwen(target) = model else {
                 bail!("MTP requires Qwen3.5/3.6");
             };
-            session.advance(target, head, next, context, budget - tokens.len())?
+            session.advance(target, head, next, context, budget - tokens.len(), |ids| {
+                tokenizer
+                    .tokenizer()
+                    .decode(ids, false)
+                    .is_ok_and(|s| s.contains('\n'))
+            })?
         } else {
             model.forward(next)?.chat_greedy_ids()?[0]
         };
