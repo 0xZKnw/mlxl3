@@ -1,0 +1,138 @@
+{
+  "status": "validated_locally",
+  "base": "8f63e6c89e656bb1e582d9a3dc92b1135b275de0",
+  "branch": "feat/model-idle-unload",
+  "default_minutes": 15,
+  "options_minutes": [
+    null,
+    1,
+    5,
+    10,
+    15,
+    30,
+    60,
+    120
+  ],
+  "preference": "studio.modelIdleUnloadDelay",
+  "clock": "ContinuousClock; one cancellable Task, actor isolation, fresh interval after busy state",
+  "correctness": {
+    "final_swift_assertions": 77,
+    "python_tests_passed": 273,
+    "python_tools_skipped": 0,
+    "desktop_suite": "passed",
+    "physical_metal_footprint_check": "explicitly disabled with MLXL3_SKIP_METAL_CHECK=1",
+    "physical_model_tests": "not run; subprocess fixtures only",
+    "mutant": "guard !isGenerating removed only in temporary source copy; detected during tuning",
+    "formal_swift_proof": false
+  },
+  "limits": [
+    "No usable Swift source verifier in existing project toolchain; compilation and runtime assertions are not a formal proof",
+    "Full Python suite collection unavailable: sandbox Metal, missing mlx_lm, one ponyexl3 module skipped",
+    "Final test weak probe portability cleanup applied after full Desktop run; affected strict compilation and all77 assertions repeated successfully",
+    "No physical model RAM release or speed measured; engine unload uses existing ejectModel path",
+    "No GitHub CI run for local feature branch"
+  ],
+  "commands": [
+    "swift build --package-path apps/MLXL3Studio --sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+    "MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk MLXL3_TEST_PYTHON=../work/venv/bin/python MLXL3_SKIP_METAL_CHECK=1 scripts/check-desktop.sh",
+    "Focused source compilation: concatenate StudioModel.swift with tests/model-idle-unload-check.swift, compile all other app sources except MLXL3StudioApp.swift with SwiftMath objects; swiftc -swift-version 6 -strict-concurrency=complete -warnings-as-errors -parse-as-library -sdk SDK26.5",
+    "PYTHONPATH=src ../work/venv/bin/python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py",
+    "zsh -n scripts/check-desktop.sh; git diff --check"
+  ],
+  "source_sha256": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelIdleUnload.swift": "0e140a4c12c74c47ef8142fe618dd4e1b134584723f7c312fa8469af80698856",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "fef38a86a5f3c9e79c0d1fe81dcc5621e22f1cbaee8ac897dad2aee56a8259f9",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "952023854d256bfe81ce76a51473feac02dae2a5eb43128e732ca70b493ff39e",
+    "tests/model-idle-unload-check.swift": "955b310095afb98151b07a5024a5d0786df91ae01aedd6a4ad914856c7d8fcd9",
+    "scripts/check-desktop.sh": "dd6b9e4380bf9f1bbf88493c1f0417290af5acb245c9eb061c0f2de7e11f6310"
+  },
+  "artifacts": [
+    {
+      "file": "build-initial-strict-vendor.log",
+      "bytes": 11108,
+      "sha256": "806ba57a584c307043e6283353fcc84ea2efd75e41bb22295b9a4d8f28fdeccc"
+    },
+    {
+      "file": "build.log",
+      "bytes": 3404,
+      "sha256": "9ee1e5728009c611c0df0f9806c4ea7720d928a05f58dcafc34e8c11f670d022"
+    },
+    {
+      "file": "desktop-suite.log",
+      "bytes": 2217,
+      "sha256": "93f96d15be9a974e086af0b4686eb568cf765d0c6bafb1b08b1cf077515da553"
+    },
+    {
+      "file": "final-focused-checks.log",
+      "bytes": 103,
+      "sha256": "92df15830cb5f13800f348e75dcc7de4b1c5fc072e08f973ac11083f023d13a4"
+    },
+    {
+      "file": "final-focused-compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "focused-checks-initial.log",
+      "bytes": 103,
+      "sha256": "0ea8f6a75dd9c47ebb9238ad2543b077e328d6c4d537f76b6d5dad6884a70c4d"
+    },
+    {
+      "file": "focused-compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "focused-initial-lint.log",
+      "bytes": 910,
+      "sha256": "325fb812e58bc9d0261fabd584cc08bbed2c333a35c40ef0d733048e43d0f4cd"
+    },
+    {
+      "file": "focused-path-diagnostics.log",
+      "bytes": 673,
+      "sha256": "b1b8a42924a4148bd38fdec8c68e7e0551d6b801254d39dddc69c4d3fc9b9a55"
+    },
+    {
+      "file": "mutant-checks.log",
+      "bytes": 87,
+      "sha256": "18fab52107a5c0904f39fceaa0e7a68cb865ea9268fc40563bb9b70a843f543c"
+    },
+    {
+      "file": "mutant-compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "preview-signing.log",
+      "bytes": 119,
+      "sha256": "62bb3014011d73d1fef5859dfa21f4384c3734743c57765d9a909c3ee5652cd3"
+    },
+    {
+      "file": "python-fullsuite-unavailable.log",
+      "bytes": 2004,
+      "sha256": "4f3939cba12815f7a6d2d048b379d3379dac02f92b8350526c9de768c8a7b931"
+    },
+    {
+      "file": "python-native-tools.log",
+      "bytes": 341,
+      "sha256": "04d624465a2b45ea231236deb581a19d01cf459fe551020e22d3e9111c74f2a3"
+    },
+    {
+      "file": "tooling-and-cleanup.json",
+      "bytes": 522,
+      "sha256": "13e2aa257e6459fc2b0676f94658ed0dfdd8a49dcfb5d190ffca903170b7b022"
+    }
+  ],
+  "ui_check": {
+    "surface": "isolated preview bundle io.mlxl3.designreview",
+    "settings_visible": true,
+    "default_15_minutes_observed": true,
+    "all_8_options_observed": true,
+    "never_selection_observed": true
+  },
+  "publication": {
+    "pushed": false,
+    "pull_request_created": false,
+    "installed_app_replaced": false
+  }
+}
