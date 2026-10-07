@@ -1,3 +1,13 @@
 # Keep vendored SwiftMath sources byte-for-byte close to their upstream MIT
 # release; its historical style intentionally contains trailing whitespace.
 apps/MLXL3Studio/Vendor/SwiftMath/** -whitespace
+
+# Preserve raw benchmark evidence byte-for-byte and collapse machine output
+# in GitHub reviews. Reports, protocol, source snapshots and prototype patches
+# remain visible; expanding a generated result still shows all its contents.
+docs/measurements/qwen27-smallm/*.json linguist-generated=true
+docs/measurements/qwen27-smallm/*.log linguist-generated=true -whitespace
+docs/measurements/qwen27-smallm/*.stderr linguist-generated=true
+docs/measurements/qwen27-smallm/mb3-prototype.patch -whitespace
+docs/measurements/pr27-*/*.json linguist-generated=true
+docs/measurements/pr27-*/*.log linguist-generated=true -whitespace

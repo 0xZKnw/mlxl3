@@ -1,0 +1,219 @@
+"""Sequential ABBA/BAAB bridge comparison with bounded child lifetime.
+
+Uses one binary with an experimental flag toggled between child processes.
+The installed application, registry, weights and generation settings stay intact.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from native_json_process import JsonProcess
+
+
+def until(process, kind, deadline, request=None):
+    text = ""
+    while True:
+        event = process.receive(deadline)
+        if event.get("type") == "error":
+            raise RuntimeError(event)
+        if request is not None and event.get("request_id") != request:
+            continue
+        if event.get("type") == "delta":
+            text += event.get("text", "")
+            if len(text) > 4 * 1024 * 1024:
+                raise RuntimeError("unbounded response")
+        if event.get("type") == kind:
+            return event, text
+
+
+def fingerprint(event, text, budget):
+    stats = event["stats"]
+    count = stats["generated_tokens"]
+    if (
+        type(count) is not int
+        or count != budget
+        or not isinstance(text, str)
+        or not text
+        or not isinstance(event.get("token_hash"), str)
+        or not event["token_hash"]
+        or not isinstance(event.get("cache_context"), str)
+        or not event["cache_context"]
+    ):
+        raise AssertionError("incomplete sustained output")
+    for key in ("decode_tps", "decode_seconds"):
+        value = stats[key]
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            raise AssertionError("invalid timing")
+    accepted, proposed, blocks = (
+        stats.get(key) for key in ("mtp_accepted_tokens", "mtp_proposed_tokens", "mtp_blocks")
+    )
+    if (
+        any(type(value) is not int for value in (accepted, proposed, blocks))
+        or not 0 <= accepted <= proposed
+        or blocks <= 0
+    ):
+        raise AssertionError("MTP was not active or its counters are invalid")
+    return (
+        event["token_hash"],
+        event["cache_context"],
+        count,
+        hashlib.sha256(text.encode()).hexdigest(),
+        accepted,
+        proposed,
+        blocks,
+    )
+
+
+def generate(process, request, tokens, head, prompt):
+    deadline = time.monotonic() + 180
+    process.send(
+        {
+            "type": "generate",
+            "request_id": request,
+            "conversation_id": "smallm-isolated",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": tokens,
+            "temperature": 0,
+            "top_k": 1,
+            "repetition_penalty": 1,
+            "mtp": True,
+            "mtp_depth": 2,
+            "mtp_head_path": str(head),
+            "reuse_prompt_cache": False,
+        },
+        deadline,
+    )
+    start = time.perf_counter()
+    event, text = until(process, "complete", deadline, request)
+    elapsed = time.perf_counter() - start
+    signature = fingerprint(event, text, tokens)
+    return {"stats": event["stats"], "fingerprint": signature, "client_total_seconds": elapsed}
+
+
+def run(args, report):
+    reference = None
+    for index, enabled in enumerate([False, True, True, False, True, False, False, True]):
+        environment = dict(os.environ)
+        environment[args.flag] = "1" if enabled else "0"
+        conditions = {
+            key: subprocess.check_output(command, text=True, timeout=10).strip()
+            for key, command in {
+                "battery": ["pmset", "-g", "batt"],
+                "thermal": ["pmset", "-g", "therm"],
+                "swap": ["sysctl", "vm.swapusage"],
+            }.items()
+        }
+        row = {"index": index, "enabled": enabled, "conditions": conditions, "status": "running"}
+        report["runs"].append(row)
+        save(args.output, report)
+        with (
+            tempfile.TemporaryDirectory(prefix="smallm-bridge-") as directory,
+            (args.output.parent / f"{args.output.stem}-{index}.stderr").open("wb") as stderr,
+            JsonProcess(
+                [
+                    str(args.engine),
+                    "--registry",
+                    str(Path(directory) / "models.json"),
+                    "bridge",
+                    str(args.model),
+                    "--context-length",
+                    "4096",
+                ],
+                env=environment,
+                stderr=stderr,
+            ) as process,
+        ):
+            row["ready"], _ = until(process, "ready", time.monotonic() + 120)
+            row["warmup"] = generate(process, "warmup", 64, args.head, args.prompt)
+            result = generate(process, "measure", args.tokens, args.head, args.prompt)
+            if reference is None:
+                reference = result["fingerprint"]
+            if result["fingerprint"] != reference:
+                raise AssertionError(
+                    "target IDs/text/history/count or MTP counters changed between variants"
+                )
+            row.update(result, status="complete", parity=True)
+            process.send({"type": "shutdown"}, time.monotonic() + 5)
+            if process.process.wait(timeout=10) != 0:
+                raise RuntimeError("bridge shutdown failed")
+        save(args.output, report)
+        print(
+            json.dumps({"index": index, "enabled": enabled, "stats": result["stats"]}), flush=True
+        )
+
+
+def save(path, report):
+    path.write_text(json.dumps(report, indent=2) + "\n")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--engine", type=Path, required=True)
+    parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--head", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--flag",
+        choices=["MLXL3_EXPERIMENTAL_GROUPED_MB3"],
+        default="MLXL3_EXPERIMENTAL_GROUPED_MB3",
+    )
+    parser.add_argument("--tokens", type=int, default=256)
+    parser.add_argument(
+        "--prompt",
+        default="Write complete Python code to multiply two matrices with detailed comments, examples, tests, and a full explanation of every step.",
+    )
+    args = parser.parse_args(argv)
+    if (
+        args.output.exists()
+        or not 256 <= args.tokens <= 512
+        or not args.engine.is_file()
+        or not args.model.is_dir()
+        or not args.head.is_dir()
+    ):
+        parser.error("new output, engine/checkpoints and 256..512 tokens are required")
+    args.engine, args.model, args.head = (
+        args.engine.resolve(),
+        args.model.resolve(),
+        args.head.resolve(),
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    report = {
+        "status": "running",
+        "parity": None,
+        "flag": args.flag,
+        "engine_sha256": hashlib.sha256(args.engine.read_bytes()).hexdigest(),
+        "tokens": args.tokens,
+        "prompt": args.prompt,
+        "depth": 2,
+        "runs": [],
+    }
+    save(args.output, report)
+    try:
+        run(args, report)
+        if len(report["runs"]) != 8 or any(row["status"] != "complete" for row in report["runs"]):
+            raise AssertionError("incomplete comparison")
+        report.update(status="complete", parity=True)
+    except BaseException as error:
+        report.update(
+            status="failed",
+            parity=False,
+            error={"type": type(error).__name__, "message": str(error)},
+        )
+        raise
+    finally:
+        save(args.output, report)
+
+
+if __name__ == "__main__":
+    main()

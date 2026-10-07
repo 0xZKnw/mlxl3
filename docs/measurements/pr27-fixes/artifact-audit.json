@@ -1,0 +1,55 @@
+{
+  "artifacts_checked": 78,
+  "artifact_errors": [],
+  "sources_changed_by_fix": [
+    "benchmarks/benchmark_smallm_bridge.py",
+    "benchmarks/benchmark_smallm_inventory.py",
+    "tests/test_smallm_benchmark.py"
+  ],
+  "historical_sources_unchanged": [
+    "benchmarks/benchmark_smallm.py",
+    "benchmarks/benchmark_smallm_gdn.py",
+    "benchmarks/benchmark_smallm_tensor.py",
+    ".github/workflows/rust.yml",
+    "native/src/contracts.rs",
+    "native/src/linear.rs",
+    "native/src/qwen35.rs",
+    "native/shaders/_qmv_mapped_tile_kernel.metal",
+    "native/shaders/_qmv_tile_kernel.metal",
+    "native/shaders/_qmm_tensor_kernel.metal",
+    "tests/test_qmm_tiles.py"
+  ],
+  "current_source_sha256": {
+    "benchmarks/benchmark_smallm.py": "f556d52ed5bb515eddb45b55a13d09fd66d77533a1116e175a45313428c52122",
+    "benchmarks/benchmark_smallm_bridge.py": "d1d003f4aad367d17d25f8463a2e6b53698008e1f5db784ec088529a7a77da3e",
+    "benchmarks/benchmark_smallm_gdn.py": "9bc4ec5f4f9ea2fb24fa93d7083c41257f1ea1bcf7a884d5982258132784eec3",
+    "benchmarks/benchmark_smallm_inventory.py": "75db4c4d1926dc643099d55aad83779fb615710d6e84f67870b1f89996b342d8",
+    "benchmarks/benchmark_smallm_tensor.py": "e402f994b52c83a86585135a6e7185c0a660e90403d9f07dcb2258b30f348d4f",
+    "tests/test_smallm_benchmark.py": "b723e47b0a69a244b2456c3c52d9cc122e972f8b9264fb244b7c9cfd68e999b4",
+    ".github/workflows/rust.yml": "dbf3eb4305abddc320fbbb8a07a079c9b63e8ac2d0057be5bbd560be540355d4",
+    "native/src/contracts.rs": "cf393ffbc77df40b922f1991fa1fef0fa10fae690a62fefa3e3a9b4012ac99f9",
+    "native/src/linear.rs": "9341d7972567d8dddca1823b8aefd9dcd831dcf066352e336cf5ffb8a7cdb894",
+    "native/src/qwen35.rs": "6e3be2619e19f680ecc2551d53cb5c02af9d852ff47aad5782cd3f21d0e1904f",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "5a4e911376902e4e3e6f8209fce62f393a18f3a22f86afc203689b3ae69041a6",
+    "native/shaders/_qmv_tile_kernel.metal": "594c573571ef6be4e8276299f05c7ebc264eb39f95a6edb9a3fe30c0b998d2cd",
+    "native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+    "tests/test_qmm_tiles.py": "45b06dc45a4a140dcb61d3e5035aa08637af635dd11fbbb8004ee0c12df4d140"
+  },
+  "bridge": {
+    "mb3-bridge-256.json": {
+      "historical_status_preserved": "failed",
+      "completed_runs": 4,
+      "legacy_fields_match": true,
+      "extended_work_identities_equal": true
+    },
+    "mb3-bridge-ac-256.json": {
+      "historical_status_preserved": "complete",
+      "completed_runs": 8,
+      "legacy_fields_match": true,
+      "extended_work_identities_equal": true
+    }
+  },
+  "historical_inventory_rows": 80,
+  "historical_inventory_not_rerun": true,
+  "no_performance_measurement": true
+}

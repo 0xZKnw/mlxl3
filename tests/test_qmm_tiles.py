@@ -189,6 +189,7 @@ def test_all_fp16_bit_patterns_match_an_independent_decoder():
         ("closed_stdin", "closed stdin"),
         ("eof", "complete JSON"),
         ("invalid", "invalid JSON"),
+        ("slow_invalid", "invalid JSON"),
         ("error", "fixture codec failed"),
         ("missing", "no data"),
     ],
@@ -200,12 +201,13 @@ def test_cli_codec_protocol_failure_is_recorded_and_reaped(tmp_path, behavior, m
         "import json, os, sys, time\nfrom pathlib import Path\n"
         "with Path(__file__).with_suffix('.pids').open('a') as f: f.write(str(os.getpid()) + '\\n')\n"
         f"behavior = {behavior!r}\n"
+        "if behavior == 'slow_invalid': time.sleep(0.4)\n"
         "if behavior == 'closed_stdin': os.close(0); time.sleep(60)\n"
         "for line in sys.stdin:\n"
         "    if behavior == 'silent': time.sleep(60)\n"
         "    if behavior == 'partial': os.write(1, b'{\"data\":'); time.sleep(60)\n"
         "    if behavior == 'eof': sys.exit(0)\n"
-        "    if behavior == 'invalid': print('invalid JSON', flush=True)\n"
+        "    if behavior in ('invalid', 'slow_invalid'): print('invalid JSON', flush=True)\n"
         "    if behavior == 'error': print(json.dumps({'error': 'fixture codec failed'}), flush=True)\n"
         "    if behavior == 'missing': print('{}', flush=True)\n"
     )
@@ -220,7 +222,7 @@ def test_cli_codec_protocol_failure_is_recorded_and_reaped(tmp_path, behavior, m
             "--output",
             str(output),
             "--request-timeout",
-            "0.3",
+            "1.0",
         ],
         cwd=tmp_path,
         capture_output=True,

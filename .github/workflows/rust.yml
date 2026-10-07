@@ -43,9 +43,9 @@ jobs:
       - run: python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
       - name: Lint native verification scripts and regressions
         run: |
-          ruff format --check benchmarks/compare_native.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_decode_microbenchmarks.py
-          ruff check benchmarks/compare_native.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_decode_microbenchmarks.py
-          python -m py_compile benchmarks/compare_native.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py
+          ruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+          ruff check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+          python -m py_compile benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py
           ruff format --check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
           ruff check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
           python -m py_compile scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py
@@ -53,7 +53,7 @@ jobs:
           ruff check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
           python -m py_compile scripts/experimental-draft-head.py
       - name: Check bridge and QMM validation tools
-        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py
       - name: Compile and lint the shipped MLX bridge
         if: matrix.os == 'macos-26'
         run: |

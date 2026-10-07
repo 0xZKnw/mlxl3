@@ -1,14 +1,20 @@
-# MLXL3
+# MLXL3 — EXL3 inference on macOS
 
-**Native EXL3 inference for Apple Silicon, built with Rust, MLX and custom Metal kernels.**
+**An open-source EXL3 inference engine for macOS and Apple Silicon, built with Rust, MLX and custom Metal kernels.**
 
-[Download MLXL3 Desktop](https://github.com/0xZKnw/mlxl3/releases/latest)
+[MLXL3 website](https://mlxl3.0xzknw.tech/)
+· [Download MLXL3 Desktop](https://github.com/0xZKnw/mlxl3/releases/latest)
 · [Validation scope](docs/v1-validation.md)
 · [Optimization journal](opti.md)
 · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-MLXL3 runs supported EXL3 language models locally on Apple Silicon. The project
-ships three pieces that share the same native engine:
+MLXL3 runs supported EXL3 language models locally on an Apple Silicon Mac.
+To run an EXL3 model on macOS, install MLXL3 Desktop, download or import a
+compatible checkpoint, then load it and start a conversation. The desktop
+distribution includes its native runtime; no Python or Homebrew installation
+is required. Model weights are downloaded separately.
+
+The project ships three pieces that share the same native engine:
 
 - **MLXL3 Desktop**, a SwiftUI chat application with model management, Markdown,
   saved conversations, MCP tools and live performance metrics;
