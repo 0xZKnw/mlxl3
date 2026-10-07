@@ -30,7 +30,18 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
-## Engine v1.4.2 candidate
+## Desktop and engine v1.4.2
+
+Desktop **1.4.2, build 24** includes engine **1.4.2**, fixes Send/Tune becoming
+disabled during background update checks/downloads, and adds automatic model
+unloading after inactivity. The default is 15 minutes; choose **Never** or a
+different delay in Settings. Generation, tools and MTP preparation/tuning suspend
+the deadline. MTP preparation also recovers from malformed replies and an
+unacknowledged OFF request instead of leaving the composer blocked. Installing
+an update still blocks inference; these UI changes require the Desktop update.
+
+[Desktop changelog](docs/release-v1.4.2.md) ·
+[Engine changelog](docs/release-engine-v1.4.2.md).
 
 An explicitly prepared **compact Q4 MTP draft projection** can accelerate
 Qwen3.6-35B-A3B EXL3 without changing its target vocabulary or greedy results.
@@ -56,11 +67,6 @@ verifies its proposals and the runtime repairs exact caches before continuing.
 It falls back to the neural draft after a full rejection. See the
 [Sushi/TensorFold review](docs/measurements/engine-v1.4.2/sushi-tensorfold-deepening.json)
 for examined mechanisms and numerical compatibility limits.
-
-Desktop sources also fix Send/Tune becoming disabled during background update
-checks or downloads and refresh the composer when update state changes.
-Installation still blocks inference. This UI fix requires a new Desktop build;
-an independent engine update alone does not deliver it.
 
 Protocols, rejected experiments, tests and limits are in the
 [optimization journal](opti.md) and [validation evidence](docs/measurements/engine-v1.4.2/validation.json).

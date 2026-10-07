@@ -157,3 +157,18 @@ uniquement pour remplir le journal, ni publier sans demande de l'utilisateur.
   peut pas être transformée en statut « validé ».
 - Aucun push, merge, publication, release ou remplacement de l'app installée
   sans demande ou autorisation correspondante de l'utilisateur.
+
+## Changelogs et releases
+
+- Pour chaque release demandée, rédiger un changelog clair et structuré dans
+  `docs/release-*.md`, puis reprendre ce contenu dans la release GitHub.
+  Présenter les nouveautés, performances, correctifs, installation/compatibilité
+  et vérification/limites dans des sections distinctes, selon leur pertinence.
+- Expliquer les changements visibles pour l'utilisateur, les réglages par
+  défaut et les options expérimentales. Pour les performances, préciser modèle,
+  matériel, protocole et comparaison ; ne pas additionner des gains incompatibles
+  ni annoncer un prototype retiré ou une mesure dérivante comme un boost livré.
+- Distinguer les versions et artefacts Desktop/moteur. Publier le SHA source,
+  les noms, tailles et SHA-256 des fichiers, ainsi que les résultats réellement
+  inspectés. Garder le canal moteur avec `--latest=false` pour que le dernier
+  DMG Desktop reste proposé par l'updater.
