@@ -59,6 +59,9 @@ from [PR #26](https://github.com/0xZKnw/mlxl3/pull/26) and
   explicitly excluded from hosted Desktop CI. See the
   [source validation and limits](engine-v1.4.2-upstream.md) and
   [numerical/performance protocols](engine-v1.4.2-pipeline.md).
+- [Release packaging checks](release-v1.4.2-validation.md) also cover the signed
+  updater, archive hashes, the mounted DMG, the release app's built-in checks
+  and 43 production bridge requests with exact MTP parity and recovery.
 
 ## Install and compatibility
 

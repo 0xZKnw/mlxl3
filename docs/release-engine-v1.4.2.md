@@ -68,6 +68,9 @@ universal-model gain or confirmed long-context gain is claimed.
   control drift exceeded the allowed limit. Other rejected prototypes remain
   documented and are not delivered or advertised as additional boosts.
   [Research and CI repair](engine-v1.4.2-upstream.md).
+- [Signed-package validation](release-v1.4.2-validation.md): archive hashes,
+  arm64/signatures, independent updater installation/relocation/fallback, and
+  43 production bridge requests covering parity, cancellation and Tune.
 
 ## Install and compatibility
 
