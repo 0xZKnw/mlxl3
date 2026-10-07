@@ -1,5 +1,11 @@
 # MLXL3 — journal des optimisations
 
+### SYNC-2026-10-07-PR26-MAIN — en cours, résolution des conflits CI et journal
+
+- Après publication des seules notes RapidMLX `f711133ff4f6235aff37986672ccd96919fc6318`, GitHub indique CONFLICTING et aucun nouveau run pull_request ; les deux runs push ont démarré. Main a reçu indépendamment la PR27 : `8f63e6c` (HEAD distant fixé par fetch), qui ajoute des benchmarks/tests/preuves small-M et leur CI, sans changer `native/`, `src/`, Cargo.toml ou Cargo.lock par rapport à fba63b8. Les prototypes PR27 restent retirés selon son rapport ; aucun nouveau gain modèle à importer.
+- Contrôle préenregistré avant intégration : merge-tree en lecture identifie exactement deux conflits, `opti.md` et `.github/workflows/rust.yml`. Intégrer le main existant dans la branche PR26, préserver tous les ajouts des deux journaux et tous les contrôles CI (small-M du main et tête compacte/bridge MLX de PR26). Aucun merge de PR26 vers main, aucun rebase/force-push, installation ou benchmark. Checkout personnel préservé.
+- Vérifier après résolution les blobs exacts des sources moteur contre f711133 et des nouveaux benchmarks/tests contre main, absence de marqueurs de conflit, union des commandes CI et format/lint/types Python, suite Python native complète fusionnée et E2E pertinent. Relire les preuves CrossHair/Kani historiques comme preuves historiques ; aucun calcul Rust/Python de production changé par la résolution. Tenter actionlint si disponible, parser le workflow réel et vérifier ses chemins/appels ; la CI du futur SHA exact doit distinguer succès, en cours et contrôles absents. Ne pas relancer GPU/prototypes dérivants. Résultats sous `build/engine-v1.4.2/rapid-sync-*` avant commit/push de la branche PR seulement.
+
 ### RESEARCH-2026-10-07-RAPIDMLX — revue statique terminée, aucune nouvelle vitesse validée
 
 - Demande utilisateur : examiner RapidMLX et ses dernières mises à jour pour trouver un boost supplémentaire du moteur v1.4.2, surtout Qwen3.6-35B-A3B et son MTP. Avant recherche, journal relu et références locales recherchées : aucune référence à RapidMLX trouvée. Historique pertinent : rapports pipeline, upstream et 80tps ; quatre prototypes de phase 5 retirés après signal insuffisant, contrôle MTP1 dérivé arrêté. Ne pas répéter ces essais sans nouvelle raison explicite.
