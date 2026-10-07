@@ -84,3 +84,14 @@ and MTP-preparation recovery require the
 [Desktop update](release-v1.4.2.md), rather than an engine-only installation.
 Source commit, artifact size, SHA-256 and final release checks accompany the
 [GitHub release](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.2).
+
+## Thanks
+
+- [@HENK0O](https://github.com/HENK0O) for Qwen performance investigation in
+  [PR #27](https://github.com/0xZKnw/mlxl3/pull/27) and the companion Desktop's
+  model lifecycle/MTP recovery in [PR #28](https://github.com/0xZKnw/mlxl3/pull/28).
+- [@0xZKnw](https://github.com/0xZKnw) for the MTP pipeline, compact draft
+  support and validation in [PR #26](https://github.com/0xZKnw/mlxl3/pull/26).
+- The [MTPLX](https://github.com/youssofal/MTPLX) and
+  [TensorFold](https://github.com/ashhart/TensorFold) maintainers for their
+  documented MTP and scheduling mechanisms used during this investigation.

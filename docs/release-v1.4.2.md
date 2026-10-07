@@ -83,3 +83,14 @@ default because its gain was not reproduced. RapidMLX-inspired GDN fusion and
 other unsuccessful prototypes were withdrawn; they are not included as boosts.
 No universal speedup or long-context gain is claimed. Original negative results
 are retained in the [optimization journal](../opti.md).
+
+## Thanks
+
+- [@HENK0O](https://github.com/HENK0O) for automatic model unloading and MTP
+  recovery in [PR #28](https://github.com/0xZKnw/mlxl3/pull/28), and the Qwen
+  performance investigation in [PR #27](https://github.com/0xZKnw/mlxl3/pull/27).
+- [@0xZKnw](https://github.com/0xZKnw) for the engine optimizations, composer
+  fix and validation in [PR #26](https://github.com/0xZKnw/mlxl3/pull/26).
+- The [MTPLX](https://github.com/youssofal/MTPLX) and
+  [TensorFold](https://github.com/ashhart/TensorFold) maintainers for their
+  public MTP and scheduling work that informed this release's investigation.

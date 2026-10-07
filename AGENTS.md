@@ -172,3 +172,6 @@ uniquement pour remplir le journal, ni publier sans demande de l'utilisateur.
   les noms, tailles et SHA-256 des fichiers, ainsi que les résultats réellement
   inspectés. Garder le canal moteur avec `--latest=false` pour que le dernier
   DMG Desktop reste proposé par l'updater.
+- Ajouter une section de remerciements aux changelogs et releases : citer les
+  contributeurs réels avec un lien vers leur profil ou leur PR, ainsi que les
+  projets amont pertinents, en précisant leurs contributions.
