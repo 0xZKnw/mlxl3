@@ -1,0 +1,47 @@
+F....                                                                    [100%]
+=================================== FAILURES ===================================
+_____________________ test_bridge_rejects_changed_mtp_work _____________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-58/test_bridge_rejects_changed_mt0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107726ea0>
+
+    def test_bridge_rejects_changed_mtp_work(tmp_path, monkeypatch):
+        args, pids = bridge_args(tmp_path, "counter_change", monkeypatch)
+        try:
+            BRIDGE.main(args)
+        except AssertionError:
+            pass
+        finally:
+            assert_reaped(pids)
+        report = json.loads((tmp_path / "result.json").read_text())
+        counts = {
+            tuple(
+                row["stats"][key]
+                for key in ("mtp_accepted_tokens", "mtp_proposed_tokens", "mtp_blocks")
+            )
+            for row in report["runs"]
+            if "stats" in row
+        }
+        Path(__file__).with_name("counter-change-result.json").write_text(json.dumps(report, indent=2))
+>       assert report["status"] == "failed", (
+            f"different MTP work {counts} accepted: parity={report['parity']}"
+        )
+E       AssertionError: different MTP work {(128, 256, 128), (127, 258, 129)} accepted: parity=True
+E       assert 'complete' == 'failed'
+E         
+E         - failed
+E         + complete
+
+docs/measurements/pr27-review/test_review.py:108: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"index": 0, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 1, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 127, "mtp_proposed_tokens": 258, "mtp_blocks": 129}}
+{"index": 2, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 127, "mtp_proposed_tokens": 258, "mtp_blocks": 129}}
+{"index": 3, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 4, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 127, "mtp_proposed_tokens": 258, "mtp_blocks": 129}}
+{"index": 5, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 6, "enabled": false, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 128, "mtp_proposed_tokens": 256, "mtp_blocks": 128}}
+{"index": 7, "enabled": true, "stats": {"generated_tokens": 256, "decode_tps": 8.0, "decode_seconds": 32.0, "mtp_accepted_tokens": 127, "mtp_proposed_tokens": 258, "mtp_blocks": 129}}
+=========================== short test summary info ============================
+FAILED docs/measurements/pr27-review/test_review.py::test_bridge_rejects_changed_mtp_work
+1 failed, 4 passed, 1 deselected in 3.51s

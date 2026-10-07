@@ -1,0 +1,133 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+______ test_bridge_rejects_incomplete_output_and_bad_metrics[bool_timing] ______
+
+mutation = 'bool_timing'
+
+    @pytest.mark.parametrize(
+        "mutation", ["empty", "count", "nan", "negative", "hash", "bool_timing", "hash_type", "empty_context"]
+    )
+    def test_bridge_rejects_incomplete_output_and_bad_metrics(mutation):
+        event = {
+            "stats": {
+                "generated_tokens": 256,
+                "decode_tps": 8.0,
+                "decode_seconds": 32.0,
+                "mtp_accepted_tokens": 150,
+                "mtp_proposed_tokens": 190,
+                "mtp_blocks": 95,
+            },
+            "token_hash": "1234",
+            "cache_context": "test",
+        }
+        text = "nonempty target output"
+        if mutation == "empty":
+            text = ""
+        if mutation == "count":
+            event["stats"]["generated_tokens"] = 255
+        if mutation == "nan":
+            event["stats"]["decode_tps"] = float("nan")
+        if mutation == "negative":
+            event["stats"]["decode_seconds"] = -1
+        if mutation == "hash":
+            event["token_hash"] = None
+        if mutation == "bool_timing":
+            event["stats"]["decode_tps"] = True
+        if mutation == "hash_type":
+            event["token_hash"] = True
+        if mutation == "empty_context":
+            event["cache_context"] = ""
+>       with pytest.raises(AssertionError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+tests/test_smallm_benchmark.py:129: Failed
+_______ test_bridge_rejects_incomplete_output_and_bad_metrics[hash_type] _______
+
+mutation = 'hash_type'
+
+    @pytest.mark.parametrize(
+        "mutation", ["empty", "count", "nan", "negative", "hash", "bool_timing", "hash_type", "empty_context"]
+    )
+    def test_bridge_rejects_incomplete_output_and_bad_metrics(mutation):
+        event = {
+            "stats": {
+                "generated_tokens": 256,
+                "decode_tps": 8.0,
+                "decode_seconds": 32.0,
+                "mtp_accepted_tokens": 150,
+                "mtp_proposed_tokens": 190,
+                "mtp_blocks": 95,
+            },
+            "token_hash": "1234",
+            "cache_context": "test",
+        }
+        text = "nonempty target output"
+        if mutation == "empty":
+            text = ""
+        if mutation == "count":
+            event["stats"]["generated_tokens"] = 255
+        if mutation == "nan":
+            event["stats"]["decode_tps"] = float("nan")
+        if mutation == "negative":
+            event["stats"]["decode_seconds"] = -1
+        if mutation == "hash":
+            event["token_hash"] = None
+        if mutation == "bool_timing":
+            event["stats"]["decode_tps"] = True
+        if mutation == "hash_type":
+            event["token_hash"] = True
+        if mutation == "empty_context":
+            event["cache_context"] = ""
+>       with pytest.raises(AssertionError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+tests/test_smallm_benchmark.py:129: Failed
+_____ test_bridge_rejects_incomplete_output_and_bad_metrics[empty_context] _____
+
+mutation = 'empty_context'
+
+    @pytest.mark.parametrize(
+        "mutation", ["empty", "count", "nan", "negative", "hash", "bool_timing", "hash_type", "empty_context"]
+    )
+    def test_bridge_rejects_incomplete_output_and_bad_metrics(mutation):
+        event = {
+            "stats": {
+                "generated_tokens": 256,
+                "decode_tps": 8.0,
+                "decode_seconds": 32.0,
+                "mtp_accepted_tokens": 150,
+                "mtp_proposed_tokens": 190,
+                "mtp_blocks": 95,
+            },
+            "token_hash": "1234",
+            "cache_context": "test",
+        }
+        text = "nonempty target output"
+        if mutation == "empty":
+            text = ""
+        if mutation == "count":
+            event["stats"]["generated_tokens"] = 255
+        if mutation == "nan":
+            event["stats"]["decode_tps"] = float("nan")
+        if mutation == "negative":
+            event["stats"]["decode_seconds"] = -1
+        if mutation == "hash":
+            event["token_hash"] = None
+        if mutation == "bool_timing":
+            event["stats"]["decode_tps"] = True
+        if mutation == "hash_type":
+            event["token_hash"] = True
+        if mutation == "empty_context":
+            event["cache_context"] = ""
+>       with pytest.raises(AssertionError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+tests/test_smallm_benchmark.py:129: Failed
+=========================== short test summary info ============================
+FAILED tests/test_smallm_benchmark.py::test_bridge_rejects_incomplete_output_and_bad_metrics[bool_timing]
+FAILED tests/test_smallm_benchmark.py::test_bridge_rejects_incomplete_output_and_bad_metrics[hash_type]
+FAILED tests/test_smallm_benchmark.py::test_bridge_rejects_incomplete_output_and_bad_metrics[empty_context]
+3 failed, 48 deselected in 0.08s
