@@ -41,7 +41,7 @@ def write_bridge(path, behavior="valid", speed=2, expected_mtp=None):
         "    count += 1\n"
         "    rid = request['request_id']\n"
         "    if behavior == 'silent_request': time.sleep(60)\n"
-        "    if behavior == 'eof': sys.exit(0)\n"
+        "    if behavior == 'eof': time.sleep(0.3); sys.exit(0)\n"
         "    if behavior == 'invalid': print('invalid JSON', flush=True); continue\n"
         "    if behavior == 'partial_complete':\n"
         '        os.write(1, b\'{"type":"complete"\'); time.sleep(60)\n'
@@ -210,12 +210,15 @@ def test_cancelled_generation_terminates_and_records_failure(tmp_path):
     ],
 )
 def test_cli_protocol_failures_are_bounded_and_reaped(tmp_path, behavior, message):
+    # Error diagnosis must allow child scheduling/teardown beyond the silence budget.
+    load_timeout = "0.5" if behavior in ("silent_load", "partial_ready") else "3"
+    request_timeout = "0.15" if message == "timed out" else "3"
     run, _, report = run_campaign(
         tmp_path,
         behavior,
         order="BAAB",
         timeout=10,
-        extra_args=["--load-timeout", "0.5", "--request-timeout", "0.15"],
+        extra_args=["--load-timeout", load_timeout, "--request-timeout", request_timeout],
     )
     assert run.returncode != 0
     assert report["status"] == "failed" and report["parity"] is None
