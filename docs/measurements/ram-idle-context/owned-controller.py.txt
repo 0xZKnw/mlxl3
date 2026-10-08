@@ -1,0 +1,35 @@
+import hashlib,json,os,signal,subprocess,sys,time
+from pathlib import Path
+root=Path.cwd(); out=root/'docs/measurements/ram-idle-context'
+config=json.loads(Path(sys.argv[1]).read_text()); name=config['name']; command=config['command']; env=config.get('env',{}); limit=config.get('timeout',900)
+def conditions():
+    result={}
+    for key,cmd in {'power':['pmset','-g','batt'],'swap':['sysctl','vm.swapusage'],'therm':['pmset','-g','therm']}.items():
+        try: result[key]=subprocess.run(cmd,capture_output=True,text=True,timeout=10).stdout
+        except (OSError,subprocess.TimeoutExpired) as error: result[key]=repr(error)
+    return result
+def save(record): (out/(name+'-command.json')).write_text(json.dumps(record,indent=2)+'\n')
+def interrupt(*args): raise KeyboardInterrupt('controller signal')
+signal.signal(signal.SIGTERM,interrupt); signal.signal(signal.SIGHUP,interrupt)
+record={'command':command,'env':env,'timeout_seconds':limit,'binary_sha256':hashlib.sha256(Path(command[0]).read_bytes()).hexdigest(),'status':'running','before':conditions()}; save(record)
+start=time.monotonic(); child=None
+with (out/(name+'.log')).open('x') as stream:
+    try:
+        child=subprocess.Popen(command,env=os.environ|env,stdout=stream,stderr=subprocess.STDOUT,start_new_session=True)
+        record['pid']=child.pid; save(record)
+        code=child.wait(timeout=limit)
+    except BaseException as error:
+        record['error']=repr(error)
+        if child is not None and child.poll() is None:
+            try: os.killpg(child.pid,signal.SIGTERM)
+            except ProcessLookupError: pass
+            try: child.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                try: os.killpg(child.pid,signal.SIGKILL)
+                except ProcessLookupError: pass
+                child.wait()
+        code=child.returncode if child is not None else 1
+    finally:
+        record.update(exit_code=code,status='complete' if code==0 else 'failed',seconds=time.monotonic()-start,after=conditions()); save(record)
+print(name,record['status'],record['seconds'],flush=True)
+raise SystemExit(0 if code==0 else 1)

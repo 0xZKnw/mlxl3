@@ -2944,6 +2944,10 @@ mod tests {
             .collect::<Result<Vec<_>>>()?;
         let expected_state = state_bytes(&model)?;
 
+        // The resident bridge releases final decode state at idle; the separate
+        // prefill snapshot must still restore exact logits and all layer state.
+        model.reset();
+        crate::array::release_idle_cache()?;
         model.restore(snapshot)?;
         for (token, expected) in [4, 5].into_iter().zip(expected_logits) {
             assert_eq!(model.forward(token)?.to_f16_bits()?, expected);
