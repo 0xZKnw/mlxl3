@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import SwiftUI
 
 // Combined with the production source by check-desktop.sh; no test setter ships.
 extension UpdateManager {
@@ -27,6 +28,36 @@ extension UpdateManager {
             for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
+        }
+        // shortcut: the fixture error is the only red content; use accessibility text if another red control is added.
+        func tuningErrorIsVisible(_ model: StudioModel) async throws -> Bool {
+            _ = NSApplication.shared
+            let host = NSHostingView(rootView: GenerationInspector().environmentObject(model).preferredColorScheme(.dark))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 286, height: 600),
+                styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            host.frame = NSRect(x: 0, y: 0, width: 286, height: 600)
+            defer { window.close() }
+            for _ in 0..<100 {
+                try await Task.sleep(for: .milliseconds(20))
+                host.layoutSubtreeIfNeeded()
+                guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                    preconditionFailure("Inspector bitmap unavailable")
+                }
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                var redPixels = 0
+                for y in stride(from: 0, to: bitmap.pixelsHigh, by: 4) {
+                    for x in stride(from: 0, to: bitmap.pixelsWide, by: 4) {
+                        if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                           color.redComponent > 0.6 && color.greenComponent < 0.45 && color.blueComponent < 0.45 {
+                            redPixels += 1
+                            if redPixels >= 5 { return true }
+                        }
+                    }
+                }
+            }
+            return false
         }
         let updates = try await make("updates")
         defer { updates.ejectModel() }
@@ -110,14 +141,19 @@ extension UpdateManager {
         precondition(tuned.canTuneMTP, "Background updates must not disable MTP tuning")
         tuned.updateManager.setStatesForCheck(app: .idle, engine: .installing(release))
         precondition(!tuned.canTuneMTP)
+        tuned.tuneMTP()
+        precondition(!tuned.showInspector && !tuned.isTuningMTP, "An ineligible tune must leave the inspector closed")
         tuned.updateManager.setStatesForCheck(app: .idle, engine: .idle)
         let before = tuned.conversations[0].messages.count
+        precondition(!tuned.showInspector)
         tuned.tuneMTP()
+        precondition(tuned.showInspector, "Header tuning must reveal progress, results and errors")
         precondition(tuned.isTuningMTP && tuned.isGenerating)
         tuned.draft = "should wait"; tuned.send()
         precondition(tuned.conversations[0].messages.count == before && !tuned.canSend)
         for _ in 0..<200 where tuned.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.mtpEnabled && tuned.mtpDepth == 2 && tuned.mtpTuneRows.count == 4 && tuned.mtpTuneProgress == 1)
+        precondition(tuned.showInspector, "Completed tuning results must stay visible")
         precondition(tuned.conversations[0].messages.count == before, "Tuning must not enter chat history")
         tuned.send()
         for _ in 0..<200 where tuned.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
@@ -130,6 +166,7 @@ extension UpdateManager {
         restoredTune.cancelMTPTuning()
         for _ in 0..<200 where restoredTune.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4 && restoredTune.mtpError != nil)
+        precondition(restoredTune.showInspector, "Tuning cancellation must stay visible")
         restoredTune.setMTPDepth(3); restoredTune.ejectModel()
         let manual = try await make("mtp-good")
         precondition(manual.mtpDepth == 3, "Manual depth selection must persist")
@@ -138,6 +175,7 @@ extension UpdateManager {
             let candidate = try await make(name)
             candidate.setMTPEnabled(true)
             for _ in 0..<200 where candidate.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!candidate.showInspector)
             candidate.tuneMTP()
             for _ in 0..<200 where candidate.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
             if name == "mtp-baseline" {
@@ -147,10 +185,18 @@ extension UpdateManager {
             } else {
                 precondition(candidate.mtpDepth == 1 && candidate.mtpEnabled && candidate.mtpError != nil)
             }
+            precondition(candidate.showInspector, "Tuning feedback must stay visible, including malformed replies and errors")
+            if name == "mtp-error" || name == "mtp-malformed" {
+                let visible = try await tuningErrorIsVisible(candidate)
+                precondition(visible, "Tuning error must be rendered inside the 600-point inspector viewport")
+            }
             candidate.ejectModel()
         }
+        print("MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start")
         let old = try await make("mtp-old")
         precondition(old.mtpAvailable && old.mtpMaxDepth == 1 && !old.canTuneMTP)
+        old.tuneMTP()
+        precondition(!old.showInspector && !old.isTuningMTP, "An unsupported engine must leave the inspector closed")
         old.setMTPDepth(3); precondition(old.mtpDepth == 1)
         old.ejectModel()
         prefs.set(true, forKey: "studio.mtpEnabled")

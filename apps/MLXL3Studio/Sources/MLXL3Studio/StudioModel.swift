@@ -935,6 +935,7 @@ final class StudioModel: ObservableObject {
 
     func tuneMTP() {
         guard canTuneMTP, let key = currentMTPConfiguration else { return }
+        showInspector = true
         let request = UUID().uuidString
         tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
         isTuningMTP = true; mtpTuneProgress = 0; mtpError = nil
