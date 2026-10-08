@@ -149,9 +149,11 @@ struct BridgeEvent: Decodable {
     var tuningKey: String? = nil
     var rows: [MTPTuningRow]? = nil
     var bridgeProtocol: Int? = nil
+    var memorySaverSupported: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, model, modules, phase, text, stats, message
+        case memorySaverSupported = "memory_saver_supported"
         case loadSeconds = "load_seconds"
         case residentGB = "resident_gb"
         case requestID = "request_id"
@@ -277,6 +279,7 @@ struct GenerationRequest: Encodable {
     var mtp: Bool = false
     var mtpHeadPath: String = ""
     var mtpDepth: Int = 1
+    var memorySaver: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -291,6 +294,7 @@ struct GenerationRequest: Encodable {
         case mtp
         case mtpHeadPath = "mtp_head_path"
         case mtpDepth = "mtp_depth"
+        case memorySaver = "memory_saver"
     }
 }
 

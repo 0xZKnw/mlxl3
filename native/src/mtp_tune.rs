@@ -27,6 +27,20 @@ pub(super) fn artifact_key(path: &std::path::Path) -> Result<String> {
 }
 
 pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<String> {
+    runtime_key_with_options(
+        path,
+        context,
+        std::env::var("MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH").as_deref() == Ok("1"),
+        std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"),
+    )
+}
+
+fn runtime_key_with_options(
+    path: &std::path::Path,
+    context: usize,
+    dense_batch: bool,
+    grouped_mb3: bool,
+) -> Result<String> {
     let hardware = std::process::Command::new("/usr/sbin/sysctl")
         .args(["-n", "machdep.cpu.brand_string"])
         .output()
@@ -40,15 +54,36 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
         _ => "mtp-m5-v1",
     };
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}:smallm-v1={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
         env!("MLXL3_BUILD_PROFILE"),
         env!("MLXL3_MLX_VERSION"),
         hardware,
-        u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1"))
+        u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
+        mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
     ))
+}
+
+#[test]
+fn runtime_key_distinguishes_smallm_options() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    std::fs::write(directory.path().join("config.json"), "{}")?;
+    let mut keys = std::collections::HashSet::new();
+    for (dense, mb3, suffix) in [
+        (false, false, "0"),
+        (true, false, "1"),
+        (false, true, "2"),
+        (true, true, "3"),
+    ] {
+        let key = runtime_key_with_options(directory.path(), 4096, dense, mb3)?;
+        anyhow::ensure!(key.ends_with(&format!(":smallm-v1={suffix}")));
+        anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+    }
+    let production = runtime_key(directory.path(), 4096)?;
+    anyhow::ensure!(keys.contains(&production), "production key not recognized");
+    Ok(())
 }
 
 struct Sample {

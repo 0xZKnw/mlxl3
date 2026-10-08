@@ -1,0 +1,26 @@
+{
+  "status": "complete",
+  "baseline": "HEAD88c2abd + original tracked local RAM04 patch start-local.patch",
+  "unchanged_original_local_files": {
+    ".github/workflows/rust.yml": true,
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": true,
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift": true,
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": true,
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": true,
+    "native/src/array.rs": true,
+    "native/src/main.rs": true,
+    "tests/fake-desktop-engine.py": true,
+    "tests/studio-hardening-check.swift": true
+  },
+  "speed_files": [
+    "native/src/contracts.rs",
+    "native/src/qwen35.rs",
+    "native/src/lfm2.rs",
+    "native/src/linear.rs",
+    "native/src/lib.rs",
+    "native/src/mtp_tune.rs"
+  ],
+  "RAM04_contract_body_present": true,
+  "speed_diff": "final-speed-only.patch",
+  "untracked_original_docs_and_tests": "not part of git diff baseline; retained in workspace"
+}

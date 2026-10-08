@@ -1500,6 +1500,8 @@ struct BridgeRequest {
     #[serde(default = "reuse_cache_by_default")]
     reuse_prompt_cache: bool,
     #[serde(default)]
+    memory_saver: bool,
+    #[serde(default)]
     messages: Vec<Value>,
     #[serde(default = "unlimited_tokens")]
     max_tokens: i64,
@@ -1544,6 +1546,29 @@ struct DFlashChat {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn reuse_cache_by_default() -> bool {
     true
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_memory_saver_is_opt_in_and_requires_boolean() -> Result<()> {
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert!(!legacy.memory_saver && legacy.reuse_prompt_cache);
+    for saver in [false, true] {
+        let request: BridgeRequest = serde_json::from_value(json!({
+            "type":"generate", "memory_saver":saver, "reuse_prompt_cache":true
+        }))?;
+        assert_eq!(request.memory_saver, saver);
+        assert!(request.reuse_prompt_cache);
+    }
+    for invalid in [json!(null), json!(1), json!("true"), json!([])] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(json!({
+                "type":"generate", "memory_saver":invalid
+            }))
+            .is_err()
+        );
+    }
+    Ok(())
 }
 
 /// One prefill checkpoint, never speculative/pending decode state. The resident
@@ -2536,6 +2561,21 @@ fn load_mtp_head(
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn release_bridge_idle_state(
+    model: &mut NativeChatModel,
+    head: Option<&mut mlxl3_native::mtp::Head>,
+    memory_saver: bool,
+) -> Result<()> {
+    // Both prefill paths reset or restore their separate PromptCache on the next
+    // request. The final decode state is not a continuation checkpoint.
+    model.reset();
+    let reset = head.map_or(Ok(()), mlxl3_native::mtp::Head::reset);
+    let released = mlxl3_native::array::release_idle_cache_with_policy(memory_saver);
+    reset?;
+    released
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn native_bridge(
     registry_path: Option<&std::path::Path>,
     name: &str,
@@ -2590,6 +2630,7 @@ fn native_bridge(
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
         "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "memory_saver_supported":true,
         "mtp_tuning_key":tuning_key,
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},
@@ -2623,7 +2664,8 @@ fn native_bridge(
         };
         match request.kind.as_str() {
             "shutdown" => break,
-            "ping" => emit_event(json!({"type":"pong", "request_id":request.request_id}))?,
+            "ping" => emit_event(json!({"type":"pong", "request_id":request.request_id,
+                "memory":mlxl3_native::array::memory_stats(false)?}))?,
             "set_mcp" => {
                 mcp.set_enabled(&registry_path, request.enabled, true);
                 emit_event(json!({
@@ -2697,9 +2739,12 @@ fn native_bridge(
                         &cancelled,
                     )
                 })();
-                model.reset();
-                if let Some((_, head)) = &mut mtp_head {
-                    head.reset()?;
+                if let Err(error) = release_bridge_idle_state(
+                    &mut model,
+                    mtp_head.as_mut().map(|(_, head)| head),
+                    request.memory_saver,
+                ) {
+                    eprintln!("Idle memory cleanup failed: {error:#}");
                 }
                 if let Err(error) = result {
                     if cancelled.swap(false, Ordering::Relaxed) {
@@ -2712,6 +2757,9 @@ fn native_bridge(
                 }
             }
             "generate" => {
+                if request.memory_saver {
+                    prompt_cache = None;
+                }
                 let started = Instant::now();
                 let _ = mlxl3_native::array::memory_stats(true);
                 cancelled.store(false, Ordering::Relaxed);
@@ -2820,9 +2868,18 @@ fn native_bridge(
                         } else {
                             &request.conversation_id
                         },
-                        request.reuse_prompt_cache,
+                        request.reuse_prompt_cache && !request.memory_saver,
                     )
                 })();
+                // Runs after the whole turn (including tools), not between decode
+                // tokens. Also release temporary state after cancellation/error.
+                if let Err(error) = release_bridge_idle_state(
+                    &mut model,
+                    mtp_head.as_mut().map(|(_, head)| head),
+                    request.memory_saver,
+                ) {
+                    eprintln!("Idle memory cleanup failed: {error:#}");
+                }
                 if let Err(error) = result {
                     if cancelled.swap(false, Ordering::Relaxed) {
                         emit_event(json!({"type":"cancelled", "request_id":request_id}))?;

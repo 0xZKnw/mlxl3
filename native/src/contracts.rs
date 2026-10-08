@@ -1,5 +1,109 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
+/// Distinguishes every opt-in kernel combination in persisted MTP calibrations.
+pub fn smallm_kernel_key(dense_batch: bool, grouped_mb3: bool) -> u8 {
+    u8::from(dense_batch) | (u8::from(grouped_mb3) << 1)
+}
+
+#[test]
+fn smallm_kernel_key_distinguishes_all_options() {
+    for (dense, mb3, expected) in [
+        (false, false, 0),
+        (true, false, 1),
+        (false, true, 2),
+        (true, true, 3),
+    ] {
+        assert_eq!(smallm_kernel_key(dense, mb3), expected);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn smallm_kernel_key_is_injective() {
+    let dense: bool = kani::any();
+    let mb3: bool = kani::any();
+    let other_dense: bool = kani::any();
+    let other_mb3: bool = kani::any();
+    let key = smallm_kernel_key(dense, mb3);
+    assert!(key <= 3);
+    assert_eq!(
+        key == smallm_kernel_key(other_dense, other_mb3),
+        dense == other_dense && mb3 == other_mb3
+    );
+    kani::cover!(key == 0);
+    kani::cover!(key == 1);
+    kani::cover!(key == 2);
+    kani::cover!(key == 3);
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn dense_mlp_batch(
+    rows: usize,
+    hidden: i32,
+    grouped_exl3: bool,
+    down_exl3: bool,
+    m5: bool,
+    enabled: bool,
+) -> bool {
+    enabled && m5 && hidden == 5120 && (2..=4).contains(&rows) && grouped_exl3 && down_exl3
+}
+
+#[test]
+fn dense_mlp_batch_requires_supported_weights_and_rows() {
+    for rows in 0..=9 {
+        assert_eq!(
+            dense_mlp_batch(rows, 5120, true, true, true, true),
+            (2..=4).contains(&rows)
+        );
+    }
+    for (hidden, grouped, down, m5, enabled) in [
+        (2048, true, true, true, true),
+        (5120, false, true, true, true),
+        (5120, true, false, true, true),
+        (5120, true, true, false, true),
+        (5120, true, true, true, false),
+    ] {
+        assert!(!dense_mlp_batch(3, hidden, grouped, down, m5, enabled));
+    }
+    assert!(!dense_mlp_batch(
+        usize::MAX,
+        i32::MAX,
+        true,
+        true,
+        true,
+        true
+    ));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn dense_mlp_batch_stays_within_supported_domain() {
+    let rows: usize = kani::any();
+    let hidden: i32 = kani::any();
+    let grouped: bool = kani::any();
+    let down: bool = kani::any();
+    let m5: bool = kani::any();
+    let enabled: bool = kani::any();
+    let selected = dense_mlp_batch(rows, hidden, grouped, down, m5, enabled);
+    assert_eq!(
+        selected,
+        enabled && m5 && hidden == 5120 && rows >= 2 && rows <= 4 && grouped && down
+    );
+    if selected {
+        assert!(rows <= i32::MAX as usize);
+        assert!(rows * hidden as usize <= i32::MAX as usize);
+        let row: usize = kani::any();
+        if row < rows {
+            assert!((row as i32) + 1 <= rows as i32);
+        }
+    }
+    kani::cover!(selected && rows == 2);
+    kani::cover!(selected && rows == 3);
+    kani::cover!(selected && rows == 4);
+    kani::cover!(!selected && !grouped);
+    kani::cover!(!selected && rows == 8);
+}
+
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn mtp_pipeline_default(
     hidden: i32,
@@ -238,6 +342,101 @@ pub(crate) fn qmv_batch_layout(rows: i32, grouped: bool, wide: bool) -> Option<(
         1
     };
     Some((mb, (rows + mb - 1) / mb))
+}
+
+/// Experimental M3 geometry, restricted to the checkpoint shapes measured on M5.
+#[cfg(any(feature = "mlx", test, kani))]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn qmv_grouped_batch_layout(
+    rows: i32,
+    input: i32,
+    output: i32,
+    k: usize,
+    mul1: bool,
+    m5: bool,
+    enabled: bool,
+) -> Option<(i32, i32)> {
+    if enabled
+        && m5
+        && mul1
+        && rows == 3
+        && input == 5120
+        && ((output == 16384 && k == 2) || (output == 34816 && (1..=3).contains(&k)))
+    {
+        Some((3, 1))
+    } else {
+        qmv_batch_layout(rows, true, output / 16 >= 1024)
+    }
+}
+
+#[test]
+fn grouped_mb3_requires_opt_in_and_measured_shape() {
+    for (output, k) in [(16384, 2), (34816, 1), (34816, 2), (34816, 3)] {
+        assert_eq!(
+            qmv_grouped_batch_layout(3, 5120, output, k, true, true, true),
+            Some((3, 1))
+        );
+        for (input, mul1, m5, enabled) in [
+            (5120, true, true, false),
+            (5120, true, false, true),
+            (5120, false, true, true),
+            (4096, true, true, true),
+        ] {
+            assert_eq!(
+                qmv_grouped_batch_layout(3, input, output, k, mul1, m5, enabled),
+                Some((1, 3))
+            );
+        }
+    }
+    for rows in [i32::MIN, 1, 2, 4, 8, 23, 24, i32::MAX] {
+        assert_eq!(
+            qmv_grouped_batch_layout(rows, 5120, 34816, 2, true, true, true),
+            qmv_batch_layout(rows, true, true)
+        );
+    }
+    assert_eq!(
+        qmv_grouped_batch_layout(3, 5120, 34816, 4, true, true, true),
+        Some((1, 3))
+    );
+    assert_eq!(
+        qmv_grouped_batch_layout(3, 5120, 10240, 2, true, true, true),
+        Some((1, 3))
+    );
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn grouped_mb3_preserves_rows_and_all_fallbacks() {
+    let rows: i32 = kani::any();
+    let input: i32 = kani::any();
+    let output: i32 = kani::any();
+    let k: usize = kani::any();
+    let mul1: bool = kani::any();
+    let m5: bool = kani::any();
+    let enabled: bool = kani::any();
+    let actual = qmv_grouped_batch_layout(rows, input, output, k, mul1, m5, enabled);
+    let selected = actual == Some((3, 1));
+    assert_eq!(
+        selected,
+        enabled
+            && m5
+            && mul1
+            && rows == 3
+            && input == 5120
+            && ((output == 16384 && k == 2) || (output == 34816 && (1..=3).contains(&k)))
+    );
+    if selected {
+        assert_eq!(rows, 3);
+        assert_eq!(actual.unwrap().0 * actual.unwrap().1, rows);
+    } else {
+        assert_eq!(actual, qmv_batch_layout(rows, true, output / 16 >= 1024));
+    }
+    kani::cover!(selected && output == 16384);
+    kani::cover!(selected && output == 34816 && k == 1);
+    kani::cover!(selected && output == 34816 && k == 2);
+    kani::cover!(selected && output == 34816 && k == 3);
+    kani::cover!(!enabled && rows == 3 && actual == Some((1, 3)));
+    kani::cover!(enabled && rows == 4 && actual == Some((2, 2)));
 }
 
 #[test]
@@ -618,4 +817,60 @@ fn mtp_cache_append_checks_empty_negative_and_overflowing_positions() {
     ] {
         assert_eq!(mtp_cache_end(offset, rows), expected);
     }
+}
+/// Keep small allocator working sets warm; reclaim large unused buffers at idle.
+#[cfg(any(feature = "mlx", kani, test))]
+pub(crate) fn release_idle_cache(cache_bytes: u64, memory_saver: bool) -> bool {
+    cache_bytes > if memory_saver { 0 } else { 512 * 1024 * 1024 }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn idle_cache_release_preserves_small_working_sets() {
+    let bytes: u64 = kani::any();
+    let release = release_idle_cache(bytes, false);
+    if release {
+        assert!(bytes > 536_870_912);
+    } else {
+        assert!(bytes <= 536_870_912);
+    }
+    kani::cover!(release && bytes == u64::MAX);
+    kani::cover!(!release && bytes == 536_870_912);
+    kani::cover!(release && bytes == 536_870_913);
+    kani::cover!(!release && bytes == 0);
+}
+
+#[cfg(test)]
+#[test]
+fn idle_cache_policy_boundaries() {
+    for (bytes, normal, saver) in [
+        (0, false, false),
+        (1, false, true),
+        (536_870_912, false, true),
+        (536_870_913, true, true),
+        (u64::MAX, true, true),
+    ] {
+        assert_eq!(release_idle_cache(bytes, false), normal);
+        assert_eq!(release_idle_cache(bytes, true), saver);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn memory_saver_releases_every_unused_buffer() {
+    let bytes: u64 = kani::any();
+    let saver: bool = kani::any();
+    let release = release_idle_cache(bytes, saver);
+    assert_eq!(
+        release,
+        if saver {
+            bytes != 0
+        } else {
+            bytes > 536_870_912
+        }
+    );
+    kani::cover!(saver && bytes == 0 && !release);
+    kani::cover!(saver && bytes == 1 && release);
+    kani::cover!(!saver && bytes == 536_870_912 && !release);
+    kani::cover!(saver && bytes == u64::MAX && release);
 }

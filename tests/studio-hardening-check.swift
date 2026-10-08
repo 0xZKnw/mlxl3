@@ -60,6 +60,47 @@ extension UpdateManager {
             && updates.conversations[0].messages.last?.content.isEmpty == false, "Send must reach the bridge and complete")
         updates.draft = "next message"; precondition(updates.canSend)
         updates.ejectModel(); precondition(!updates.canSend)
+        precondition(!updates.memorySaverEnabled, "Memory saving must be opt-in")
+        updates.setMemorySaverEnabled(true)
+        precondition(prefs.bool(forKey: "studio.memorySaverEnabled"), "Memory preference not persisted")
+        let saver = try await make("mtp-memory-saver")
+        defer { saver.ejectModel() }
+        precondition(saver.memorySaverEnabled && saver.memorySaverSupported, "Memory preference/capability not restored")
+        saver.setMTPEnabled(true)
+        for _ in 0..<200 where saver.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(saver.canTuneMTP)
+        saver.draft = "memory fixture"; saver.send()
+        saver.setMemorySaverEnabled(false)
+        precondition(saver.memorySaverEnabled, "Memory policy changed during generation")
+        for _ in 0..<200 where saver.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isGenerating && saver.conversations[0].messages.count == 2)
+        saver.tuneMTP()
+        saver.setMemorySaverEnabled(false)
+        precondition(saver.memorySaverEnabled, "Memory policy changed during tuning")
+        for _ in 0..<200 where saver.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isTuningMTP && saver.mtpTuneRows.count == 4)
+        saver.setMemorySaverEnabled(false)
+        saver.draft = "normal fixture"; saver.send()
+        for _ in 0..<200 where saver.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isGenerating)
+        let wire = try String(contentsOf: root.appendingPathComponent("memory-saver-requests.jsonl"), encoding: .utf8)
+        let requests = try wire.split(separator: "\n").map {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }
+        let generations = requests.filter { $0["type"] as? String == "generate" }
+        let tunes = requests.filter { $0["type"] as? String == "tune_mtp" }
+        precondition(generations.count == 2 && tunes.count == 1, "Missing production requests")
+        precondition(generations[0]["memory_saver"] as? Bool == true && generations[1]["memory_saver"] as? Bool == false)
+        precondition(tunes[0]["memory_saver"] as? Bool == true, "Tune did not receive memory policy")
+        precondition(generations[0]["mtp"] as? Bool == true && saver.mtpEnabled, "Memory saving disabled MTP")
+        precondition(saver.conversations[0].messages.count == 4, "Memory saving lost history")
+        saver.ejectModel()
+        precondition(!saver.memorySaverSupported, "Old engine capability survived unload")
+        saver.setMemorySaverEnabled(true)
+        let legacySaver = try await make("mtp-old")
+        precondition(legacySaver.memorySaverEnabled && !legacySaver.memorySaverSupported, "Legacy capability assumed")
+        legacySaver.ejectModel(); legacySaver.setMemorySaverEnabled(false)
+        print("Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability")
         print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")
         let tuned = try await make("mtp-good")
         tuned.setMTPEnabled(true)

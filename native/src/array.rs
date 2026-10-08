@@ -248,6 +248,21 @@ pub fn synchronize() -> Result<()> {
     checked(unsafe { mlxl3_synchronize() })
 }
 
+/// Call only at a request boundary, after dropping unused model/session state.
+/// Live weights and saved prompt snapshots retain their buffers.
+pub fn release_idle_cache() -> Result<()> {
+    release_idle_cache_with_policy(false)
+}
+
+/// Memory saving releases even small unused buffers, at the cost of reuse.
+pub fn release_idle_cache_with_policy(memory_saver: bool) -> Result<()> {
+    synchronize()?;
+    if contracts::release_idle_cache(memory_stats(false)?.mlx_cache_bytes, memory_saver) {
+        clear_cache()?;
+    }
+    Ok(())
+}
+
 pub fn is_m5_gpu() -> Result<bool> {
     initialize()?;
     // Allow testing the portable path, never force TensorOps on an older GPU.
@@ -1004,7 +1019,7 @@ mod tests {
         }
         let before = memory_stats(false)?;
         assert!(before.mlx_cache_bytes >= 32 * 1024 * 1024);
-        clear_cache()?;
+        release_idle_cache_with_policy(true)?;
         let after = memory_stats(false)?;
         assert_eq!(after.mlx_active_bytes, before.mlx_active_bytes);
         assert_eq!(after.mlx_cache_bytes, 0);

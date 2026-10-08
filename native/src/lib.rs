@@ -6,7 +6,7 @@ pub mod array;
 pub mod checkpoint;
 pub mod codec;
 mod contracts;
-pub use contracts::reusable_prefix_len;
+pub use contracts::{reusable_prefix_len, smallm_kernel_key};
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;

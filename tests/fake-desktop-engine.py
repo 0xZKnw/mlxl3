@@ -112,10 +112,13 @@ if model.startswith('auto-'):
     capabilities['mtp_configure_supported'] = True
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
-     **capabilities,
+     **capabilities, memory_saver_supported=model == 'mtp-memory-saver',
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
     request = json.loads(line)
+    if model == 'mtp-memory-saver':
+        with open(os.path.join(os.environ['MLXL3_HOME'], 'memory-saver-requests.jsonl'), 'a') as log:
+            log.write(json.dumps(request) + '\n')
     if request['type'] == 'set_mtp':
         with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
             log.write(json.dumps({'model': model, 'request': request, 'pid': os.getpid()}) + '\n')
