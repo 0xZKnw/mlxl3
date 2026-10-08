@@ -248,6 +248,16 @@ pub fn synchronize() -> Result<()> {
     checked(unsafe { mlxl3_synchronize() })
 }
 
+/// Call only at a request boundary, after dropping unused model/session state.
+/// Live weights and saved prompt snapshots retain their buffers.
+pub fn release_idle_cache() -> Result<()> {
+    synchronize()?;
+    if contracts::release_large_idle_cache(memory_stats(false)?.mlx_cache_bytes) {
+        clear_cache()?;
+    }
+    Ok(())
+}
+
 pub fn is_m5_gpu() -> Result<bool> {
     initialize()?;
     // Allow testing the portable path, never force TensorOps on an older GPU.

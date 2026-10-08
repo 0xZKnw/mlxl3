@@ -2536,6 +2536,20 @@ fn load_mtp_head(
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn release_bridge_idle_state(
+    model: &mut NativeChatModel,
+    head: Option<&mut mlxl3_native::mtp::Head>,
+) -> Result<()> {
+    // Both prefill paths reset or restore their separate PromptCache on the next
+    // request. The final decode state is not a continuation checkpoint.
+    model.reset();
+    let reset = head.map_or(Ok(()), mlxl3_native::mtp::Head::reset);
+    let released = mlxl3_native::array::release_idle_cache();
+    reset?;
+    released
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn native_bridge(
     registry_path: Option<&std::path::Path>,
     name: &str,
@@ -2623,7 +2637,8 @@ fn native_bridge(
         };
         match request.kind.as_str() {
             "shutdown" => break,
-            "ping" => emit_event(json!({"type":"pong", "request_id":request.request_id}))?,
+            "ping" => emit_event(json!({"type":"pong", "request_id":request.request_id,
+                "memory":mlxl3_native::array::memory_stats(false)?}))?,
             "set_mcp" => {
                 mcp.set_enabled(&registry_path, request.enabled, true);
                 emit_event(json!({
@@ -2697,9 +2712,10 @@ fn native_bridge(
                         &cancelled,
                     )
                 })();
-                model.reset();
-                if let Some((_, head)) = &mut mtp_head {
-                    head.reset()?;
+                if let Err(error) =
+                    release_bridge_idle_state(&mut model, mtp_head.as_mut().map(|(_, head)| head))
+                {
+                    eprintln!("Idle memory cleanup failed: {error:#}");
                 }
                 if let Err(error) = result {
                     if cancelled.swap(false, Ordering::Relaxed) {
@@ -2823,6 +2839,13 @@ fn native_bridge(
                         request.reuse_prompt_cache,
                     )
                 })();
+                // Runs after the whole turn (including tools), not between decode
+                // tokens. Also release temporary state after cancellation/error.
+                if let Err(error) =
+                    release_bridge_idle_state(&mut model, mtp_head.as_mut().map(|(_, head)| head))
+                {
+                    eprintln!("Idle memory cleanup failed: {error:#}");
+                }
                 if let Err(error) = result {
                     if cancelled.swap(false, Ordering::Relaxed) {
                         emit_event(json!({"type":"cancelled", "request_id":request_id}))?;
