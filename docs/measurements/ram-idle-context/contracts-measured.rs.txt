@@ -620,7 +620,7 @@ fn mtp_cache_append_checks_empty_negative_and_overflowing_positions() {
     }
 }
 /// Keep small allocator working sets warm; reclaim large unused buffers at idle.
-#[cfg(any(feature = "mlx", kani))]
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn release_large_idle_cache(cache_bytes: u64) -> bool {
     cache_bytes > 512 * 1024 * 1024
 }
