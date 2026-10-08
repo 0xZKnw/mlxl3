@@ -25,16 +25,6 @@ struct MTPTuningControls: View {
                 ProgressView(value: studio.mtpTuneProgress).tint(StudioTheme.accent)
                 Text(L("Baseline → MTP1 → MTP2 → MTP3 · puis ordre inversé", "Baseline → MTP1 → MTP2 → MTP3 · then reverse order"))
                     .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-            } else {
-                Button(action: studio.tuneMTP) {
-                    HStack {
-                        Image(systemName: "slider.horizontal.3")
-                        Text("Tune MTP")
-                        Spacer()
-                        Image(systemName: "sparkles").foregroundStyle(StudioTheme.accent)
-                    }.frame(height: 29)
-                }
-                .buttonStyle(GlassPillButtonStyle()).disabled(!studio.canTuneMTP)
             }
             if !studio.mtpTuneRows.isEmpty && !studio.isTuningMTP {
                 let winner = MTPTuning.winner(studio.mtpTuneRows)

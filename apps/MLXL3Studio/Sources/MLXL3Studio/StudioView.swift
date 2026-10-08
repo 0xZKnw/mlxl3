@@ -307,6 +307,24 @@ private struct WorkspaceHeader: View {
             .help(L("Éjecter le modèle et libérer la mémoire Metal", "Eject the model and free Metal memory"))
             .accessibilityLabel(L("Éjecter le modèle", "Eject model"))
 
+            Button {
+                if studio.isTuningMTP { studio.cancelMTPTuning() }
+                else { studio.tuneMTP() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: studio.isTuningMTP ? "stop.fill" : "sparkles")
+                    Text(studio.isTuningMTP ? L("Arrêter MTP", "Stop MTP") : "Tune MTP")
+                }
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+            }
+            .buttonStyle(StudioControlStyle(emphasized: true))
+            .fixedSize()
+            .disabled(!studio.isTuningMTP && !studio.canTuneMTP)
+            .help(studio.isTuningMTP ? studio.mtpTuneStatus
+                  : L("Comparer les modes MTP et enregistrer le meilleur réglage", "Compare MTP modes and save the best setting"))
+
             Button { studio.showInspector.toggle() } label: {
                 Image(systemName: "slider.horizontal.3").frame(width: 30, height: 30)
             }
