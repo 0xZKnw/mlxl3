@@ -1,5 +1,12 @@
 # MLXL3 — journal des optimisations
 
+### UX-2026-10-08-MTP-TOOLBAR — bouton Tune MTP visible — terminé / validé localement
+
+- Demande : déplacer le bouton existant dans le coin supérieur droit de la conversation. Branche dédiée `feat/mtp-toolbar` depuis main `d20ca721`, indépendante du correctif RAM ; app installée préservée.
+- Avant changement : lancement uniquement dans `MTPTuningControls`, dans l’inspecteur fermé par défaut. Réutiliser `StudioModel.tuneMTP`, `canTuneMTP` et `cancelMTPTuning` sans toucher au moteur, aux paramètres ou à la sélection. Garder progression/résultats dans l’inspecteur et rendre l’arrêt accessible depuis le même bouton principal.
+- Vérification prévue : compilation SwiftUI avec SDK macOS compatible, contrôle existant des grilles Tune et diff limité à la présentation. Aucun benchmark GPU nécessaire. Le skill de preuve ne fournit pas de vérificateur formel SwiftUI utilisable ; compilation et contrôles ne seront pas présentés comme une preuve formelle.
+- Résultat : bouton explicite « Tune MTP » dans le header de conversation à droite, remplacé par « Arrêter MTP » pendant le test, désactivé selon le garde existant hors test ; ancien lancement retiré de l’inspecteur, progression/résultats conservés. Build SwiftUI SDK26.5 réussi, contrôle Tune existant réussi (64 grilles/ordre/égalité et frontières). Premier build bloqué par le cache sandbox/SDK par défaut, diagnostic conservé ; relance avec SDKROOT explicite et accès au cache réussie, warnings historiques SwiftMath/paths du linker. Diffcheck réussi. Preuves et commandes sous `docs/measurements/mtp-toolbar/`. Pas de preuve formelle SwiftUI ni contrôle visuel interactif ; aucun code moteur modifié, app installée préservée. Branche destinée à la PR, CI distante suivie séparément.
+
 ### DELIVERY-2026-10-07-V1.4.2 — releases publiées, CI de release encore en cours à la publication
 
 - Révision datée des états historiques ci-dessous : la nouvelle demande utilisateur autorise désormais le merge de PR26 et la publication de nouvelles versions Desktop/moteur, avec des changelogs structurés et une règle permanente dans `AGENTS.md`. Les anciennes interdictions et conclusions restent conservées avec leur contexte ; aucun prototype rejeté n'est réintroduit.

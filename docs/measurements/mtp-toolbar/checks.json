@@ -1,0 +1,30 @@
+{
+  "base": "d20ca721d808759f07ecf8976274d878e64a1ed3",
+  "build": "SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk swift build --package-path apps/MLXL3Studio --sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+  "build_exit": 0,
+  "tuning_check": "swiftc -swift-version 6 -parse-as-library -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk -module-cache-path ../work/mtp-toolbar-modules -O apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuning.swift tests/mtp-tuning-check.swift -o ../work/mtp-toolbar-tuning-check && ../work/mtp-toolbar-tuning-check",
+  "tuning_exit": 0,
+  "formal_swift_verifier": "not available in project/skill",
+  "interactive_UI_checked": false,
+  "app_replaced": false,
+  "evidence": [
+    {
+      "file": "mtp-toolbar-build.log.gz",
+      "sha256": "d9013a23e7b2c5ef4ad30e3e039cb1ba01c39202e1a8ff4b241c30016d96b67e",
+      "original_sha256": "bbcec865dd695ddf209433b6b394f5a03c74ab72ad8111c45508a8db9316b6bd",
+      "original_bytes": 5903
+    },
+    {
+      "file": "mtp-toolbar-build-sdk265.log.gz",
+      "sha256": "9d3597f9034aa2c96107cd70ec1365ea2ad7bf5bcab4f06bcce083205b9b1bb5",
+      "original_sha256": "c0a8e55bba894e9cc9f5a1ede6d11fe12e9b3a0f65ea9c47d2936c95de338099",
+      "original_bytes": 3354
+    },
+    {
+      "file": "mtp-toolbar-tuning-check.log.gz",
+      "sha256": "ac2a9f1ee2d4e5833949222682e78cea51d1dabb4ca86982e16157d5d0e9ceb3",
+      "original_sha256": "81ceeb1c4a4ebb4b6fda019ecf11dac7ffdb3b04acec634db14c3d587400f378",
+      "original_bytes": 123
+    }
+  ]
+}
