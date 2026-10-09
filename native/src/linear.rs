@@ -6,6 +6,32 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 
+fn grouped_mb3_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static GROUPED_MB3_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_grouped_mb3_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            GROUPED_MB3_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(GROUPED_MB3_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
 fn dense_decode_nt4_enabled() -> bool {
     #[cfg(test)]
     if let Some(enabled) = DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get) {
@@ -871,11 +897,21 @@ impl Exl3Group {
         } else {
             1
         };
-        let (mb, batch_groups) =
-            crate::contracts::qmv_batch_layout(matrix_rows, true, tiles >= 1024)
-                .context("invalid grouped batch QMV rows")?;
+        let (mb, batch_groups) = crate::contracts::qmv_grouped_batch_layout(
+            matrix_rows,
+            self.rows,
+            self.cols,
+            self.k,
+            self.cb == Codebook::Mul1,
+            array::is_m5_gpu()?,
+            grouped_mb3_enabled(),
+        )
+        .context("invalid grouped batch QMV rows")?;
         if mb == 2 {
             nt = nt.min(2);
+        }
+        if mb == 3 {
+            nt = 1;
         }
         let header = codebook_header(self.cb)
             + &format!(
@@ -1228,6 +1264,29 @@ mod tests {
         Ok(())
     }
     use super::*;
+
+    #[test]
+    fn grouped_mb3_override_restores_and_stays_thread_local() {
+        assert_eq!(GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+        with_grouped_mb3_test(false, || {
+            assert!(!grouped_mb3_enabled());
+            with_grouped_mb3_test(true, || assert!(grouped_mb3_enabled()));
+            assert!(!grouped_mb3_enabled());
+            std::thread::spawn(|| {
+                assert_eq!(GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+            })
+            .join()
+            .unwrap();
+            assert!(
+                std::panic::catch_unwind(|| {
+                    with_grouped_mb3_test(true, || panic!("temporary test failure"));
+                })
+                .is_err()
+            );
+            assert!(!grouped_mb3_enabled());
+        });
+        assert_eq!(GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+    }
 
     #[test]
     fn dense_decode_test_override_restores_and_stays_thread_local() {

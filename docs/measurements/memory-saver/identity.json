@@ -1,0 +1,411 @@
+{
+  "head": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+  "imported_ram_commit": "8f59264d1c950b377e166104b57102db5e1fecb2",
+  "baseline_binary_sha256": "e2c0adfd794d18cfa70908c154f80fa343f03a057c8b845d5e7444660292dd03",
+  "baseline_sources": {
+    "native/src/array.rs": "8111689b6a7ff0f0f2cf03519df4ab80beca9e529229ce439a6cd607b2690f9d",
+    "native/src/contracts.rs": "af33de54a840465d63ce7485c4b23c8f8d74b05dedfa2db74862916c586e277e",
+    "native/src/main.rs": "f9b0173879af2aa46e5512c8939cc2fd5e3cdddd8f2b3ec5f7bf3f5de8b166b3",
+    "native/src/qwen35.rs": "1e24d106a8b9388f47ff71ccbf451d74a6ea7a9f0d180178917a68b716e864f3",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift": "d81ad4e900309929157c3f7f6787c9fe86fb72d5f2bbdfb33c259c05f73644a4"
+  },
+  "conditions": {
+    "macos": "27.2 26B5101f",
+    "memory_bytes": 25769803776,
+    "model": "Mac17,3",
+    "battery_percent": 78,
+    "power": "battery",
+    "engine_processes": 0,
+    "temperature": "non mesur\u00e9"
+  },
+  "candidate_binary_sha256": "20098de6683b91f1d2d7d5e85739bef70833c43de7c49f626e085f784b53cda1",
+  "candidate_sources": {
+    "native/src/array.rs": "61ba5170db07991a47e22728a7c5b8271f530914a0a7a7293e909a53f9f4b714",
+    "native/src/contracts.rs": "6a7098b683a83489f571132d37f48f83ea52126567eca15f29d3fd78f4573b69",
+    "native/src/main.rs": "df09acc15028cb9d5f558e5c6fa36f30a5bb1919f0e4ff01f00985edc982debd",
+    "native/src/qwen35.rs": "ed00cc9a9ba4fe18ff277a8e3d973d3e544c9cc2f5457cbe23ac96f0b19e952c",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "4158fb13c9647cd25cd361a2791991f927abba3fdf13a24633872a4ec37b43c4",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift": "b6a71f6ec6b9a868ca13a159936e5bd877122ea576657bcc6d6a9b4e842a6f9b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "495f0f7350b3fea7f16ea6a28bc018c86e561232b8f1e42e890f68c65a93c61b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": "ddab97b9a26d0fc50b86953969bb5d32bb007883bd8bafd6fae5ee9e9f0134e6",
+    "benchmarks/benchmark_idle_memory.py": "46250f3c74709d3de48a5c3b1c414917204f2475e77b436a5e42ce24b8014141",
+    "tests/test_idle_memory_benchmark.py": "bb6ad7f789bdc3f1db353444c6661a58d8ad681478b9ffd28d914ca947d469ed",
+    "tests/studio-hardening-check.swift": "105c3faed65c1850fb27f64e67e4e288f8851e8185b93f0522d401f50126b4a6",
+    "tests/fake-desktop-engine.py": "71861a604cade8297b66cad289e2a4008396e084adbbfc123cfcfab432b9002a"
+  },
+  "baseline_mode": "RAM-02 integrated, memory_saver absent",
+  "candidate_mode": "memory_saver=true; same weights/MTP/context",
+  "models": [
+    {
+      "path": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+      "config_sha256": "dd800226988cd64f99025617a04ea130562976886c89a23299ee264f0543fef4",
+      "checkpoint": "EXL3; existing local files",
+      "safetensors_bytes": 9672786556,
+      "quantization_config": {
+        "quant_method": "exl3",
+        "version": "1.4.2",
+        "bits": 2.0,
+        "head_bits": 3,
+        "calibration": {
+          "rows": 250,
+          "cols": 2048
+        },
+        "out_scales": "always",
+        "codebook": "mul1",
+        "mtp_bits": 2,
+        "vision_bits": 3
+      },
+      "checkpoint_files": {
+        "model-00001-of-00002.safetensors": {
+          "size": 8574469488,
+          "mtime_ns": 1791215488037610153
+        },
+        "model-00002-of-00002.safetensors": {
+          "size": 1098317068,
+          "mtime_ns": 1791215583735560460
+        }
+      }
+    },
+    {
+      "path": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.6-35B-A3B-exl3-2.49bpw-1bde3c20",
+      "config_sha256": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51",
+      "checkpoint": "EXL3; existing local files",
+      "safetensors_bytes": 12987650219,
+      "quantization_config": {
+        "quant_method": "exl3",
+        "version": "0.0.34",
+        "bits": 2.49,
+        "head_bits": 6,
+        "calibration": {
+          "rows": 250,
+          "cols": 2048
+        },
+        "out_scales": "always",
+        "codebook": "mcg"
+      },
+      "checkpoint_files": {
+        "model-00001-of-00002.safetensors": {
+          "size": 8569839471,
+          "mtime_ns": 1791185406133400197
+        },
+        "model-00002-of-00002.safetensors": {
+          "size": 4417810748,
+          "mtime_ns": 1791186707415319003
+        }
+      }
+    }
+  ],
+  "candidate_sources_before_parser_regression": {
+    "native/src/array.rs": "61ba5170db07991a47e22728a7c5b8271f530914a0a7a7293e909a53f9f4b714",
+    "native/src/contracts.rs": "6a7098b683a83489f571132d37f48f83ea52126567eca15f29d3fd78f4573b69",
+    "native/src/main.rs": "88990d3f6839ef5d8c28574e0ba27ae12955b5828fd15048fdfb7d2309ecdf78",
+    "native/src/qwen35.rs": "ed00cc9a9ba4fe18ff277a8e3d973d3e544c9cc2f5457cbe23ac96f0b19e952c",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "4158fb13c9647cd25cd361a2791991f927abba3fdf13a24633872a4ec37b43c4",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift": "b6a71f6ec6b9a868ca13a159936e5bd877122ea576657bcc6d6a9b4e842a6f9b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "495f0f7350b3fea7f16ea6a28bc018c86e561232b8f1e42e890f68c65a93c61b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": "ddab97b9a26d0fc50b86953969bb5d32bb007883bd8bafd6fae5ee9e9f0134e6",
+    "benchmarks/benchmark_idle_memory.py": "46250f3c74709d3de48a5c3b1c414917204f2475e77b436a5e42ce24b8014141",
+    "tests/test_idle_memory_benchmark.py": "bb6ad7f789bdc3f1db353444c6661a58d8ad681478b9ffd28d914ca947d469ed",
+    "tests/studio-hardening-check.swift": "105c3faed65c1850fb27f64e67e4e288f8851e8185b93f0522d401f50126b4a6",
+    "tests/fake-desktop-engine.py": "71861a604cade8297b66cad289e2a4008396e084adbbfc123cfcfab432b9002a"
+  },
+  "candidate_binary_sha256_final": "72569440864affcf637e85a961ca6fda970d061d0c3e7bb3cfbfaafeaefc097b",
+  "candidate_rebuild_byte_exact": false,
+  "final_source_hashes": {
+    "native/src/array.rs": "61ba5170db07991a47e22728a7c5b8271f530914a0a7a7293e909a53f9f4b714",
+    "native/src/contracts.rs": "6a7098b683a83489f571132d37f48f83ea52126567eca15f29d3fd78f4573b69",
+    "native/src/main.rs": "df09acc15028cb9d5f558e5c6fa36f30a5bb1919f0e4ff01f00985edc982debd",
+    "native/src/qwen35.rs": "ed00cc9a9ba4fe18ff277a8e3d973d3e544c9cc2f5457cbe23ac96f0b19e952c",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "4158fb13c9647cd25cd361a2791991f927abba3fdf13a24633872a4ec37b43c4",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift": "b6a71f6ec6b9a868ca13a159936e5bd877122ea576657bcc6d6a9b4e842a6f9b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "495f0f7350b3fea7f16ea6a28bc018c86e561232b8f1e42e890f68c65a93c61b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": "ddab97b9a26d0fc50b86953969bb5d32bb007883bd8bafd6fae5ee9e9f0134e6",
+    "benchmarks/benchmark_idle_memory.py": "46250f3c74709d3de48a5c3b1c414917204f2475e77b436a5e42ce24b8014141",
+    "tests/test_idle_memory_benchmark.py": "205f109356b2122a00366511496926f23362f64b9f389b75096dad99722f9ce8",
+    "tests/studio-hardening-check.swift": "105c3faed65c1850fb27f64e67e4e288f8851e8185b93f0522d401f50126b4a6",
+    "tests/fake-desktop-engine.py": "71861a604cade8297b66cad289e2a4008396e084adbbfc123cfcfab432b9002a",
+    "docs/measurements/memory-saver/check-transitions.py": "b5f6e55772af42124681b92df008685c680b7b1345ce9fa3a7590c3fa155b6c8",
+    ".github/workflows/rust.yml": "8b8c78d7a35e216e0461f160d2277e685433999d0029072d94e48b2d117abe9b"
+  },
+  "relevant_environment": {
+    "MLXL3_QWEN_PIPELINE": null,
+    "MLXL3_MTP_LOOKUP": null,
+    "MLXL3_RETAIN_LOAD_CACHE": null
+  },
+  "toolchain": {
+    "rustc": "1.99.0 b940084d7",
+    "cargo": "1.99.0 5f94df478",
+    "swift": "6.4 swiftlang-6.4.0.34.1",
+    "sdk": "26.5",
+    "mlx": "0.32.2",
+    "kani": "0.68.0",
+    "cbmc": "6.11.0"
+  },
+  "mlx_dependencies": {
+    "/Users/henko/.cache/uv/archive-v0/oJmJtSVZn8RVlMAW/mlx/lib/libmlx.dylib": {
+      "size": 21942544,
+      "sha256": "d24c7a9b9d55a76bfd3bbcd1d042251a185cbadcb6340c3244a6ffa3dcb7c7e8"
+    },
+    "/Users/henko/.cache/uv/archive-v0/oJmJtSVZn8RVlMAW/mlx/lib/libjaccl.dylib": {
+      "size": 1555552,
+      "sha256": "9cfd72679ff35c593a1d46fd30d995cc4a131eed15733617efb1118001e74084"
+    },
+    "/Users/henko/.cache/uv/archive-v0/oJmJtSVZn8RVlMAW/mlx/lib/mlx.metallib": {
+      "size": 182351120,
+      "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed"
+    }
+  },
+  "mtp_heads": {
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit": {
+      "config": {
+        "block_size": 3,
+        "model_type": "qwen3_5_mtp",
+        "quantization": {
+          "group_size": 64,
+          "bits": 4,
+          "mode": "affine"
+        },
+        "quantization_config": {
+          "group_size": 64,
+          "bits": 4,
+          "mode": "affine"
+        },
+        "text_config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "attn_output_gate": true,
+          "bos_token_id": 248044,
+          "dtype": "bfloat16",
+          "eos_token_id": 248044,
+          "full_attention_interval": 4,
+          "head_dim": 256,
+          "hidden_act": "silu",
+          "hidden_size": 5120,
+          "initializer_range": 0.02,
+          "intermediate_size": 17408,
+          "layer_types": [
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention"
+          ],
+          "linear_conv_kernel_dim": 4,
+          "linear_key_head_dim": 128,
+          "linear_num_key_heads": 16,
+          "linear_num_value_heads": 48,
+          "linear_value_head_dim": 128,
+          "mamba_ssm_dtype": "float32",
+          "max_position_embeddings": 262144,
+          "model_type": "qwen3_5_text",
+          "mtp_num_hidden_layers": 1,
+          "mtp_use_dedicated_embeddings": false,
+          "num_attention_heads": 24,
+          "num_hidden_layers": 64,
+          "num_key_value_heads": 4,
+          "output_gate_type": "swish",
+          "pad_token_id": null,
+          "partial_rotary_factor": 0.25,
+          "rms_norm_eps": 1e-06,
+          "rope_parameters": {
+            "mrope_interleaved": true,
+            "mrope_section": [
+              11,
+              11,
+              10
+            ],
+            "partial_rotary_factor": 0.25,
+            "rope_theta": 10000000,
+            "rope_type": "default"
+          },
+          "tie_word_embeddings": false,
+          "use_cache": true,
+          "vocab_size": 248320
+        },
+        "tie_word_embeddings": false,
+        "vision_config": {}
+      },
+      "config_sha256": "16094efa6177985ab3725a9d6d61d6ab248b71e4b42a114efddcdb2aaddc0a55",
+      "files": {
+        "model.safetensors": {
+          "size": 238934137,
+          "mtime_ns": 1791313377387598416
+        }
+      }
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.6-35B-A3B-MTP-4bit": {
+      "config": {
+        "block_size": 3,
+        "model_type": "qwen3_5_mtp",
+        "quantization": {
+          "group_size": 64,
+          "bits": 4,
+          "mode": "affine"
+        },
+        "quantization_config": {
+          "group_size": 64,
+          "bits": 4,
+          "mode": "affine"
+        },
+        "text_config": {
+          "attention_bias": false,
+          "attention_dropout": 0.0,
+          "attn_output_gate": true,
+          "bos_token_id": 248044,
+          "dtype": "bfloat16",
+          "eos_token_id": 248044,
+          "full_attention_interval": 4,
+          "head_dim": 256,
+          "hidden_act": "silu",
+          "hidden_size": 2048,
+          "initializer_range": 0.02,
+          "layer_types": [
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention",
+            "linear_attention",
+            "linear_attention",
+            "linear_attention",
+            "full_attention"
+          ],
+          "linear_conv_kernel_dim": 4,
+          "linear_key_head_dim": 128,
+          "linear_num_key_heads": 16,
+          "linear_num_value_heads": 32,
+          "linear_value_head_dim": 128,
+          "mamba_ssm_dtype": "float32",
+          "max_position_embeddings": 262144,
+          "model_type": "qwen3_5_moe_text",
+          "moe_intermediate_size": 512,
+          "mtp_num_hidden_layers": 1,
+          "mtp_use_dedicated_embeddings": false,
+          "num_attention_heads": 16,
+          "num_experts": 256,
+          "num_experts_per_tok": 8,
+          "num_hidden_layers": 40,
+          "num_key_value_heads": 2,
+          "output_router_logits": false,
+          "pad_token_id": null,
+          "partial_rotary_factor": 0.25,
+          "rms_norm_eps": 1e-06,
+          "rope_parameters": {
+            "mrope_interleaved": true,
+            "mrope_section": [
+              11,
+              11,
+              10
+            ],
+            "partial_rotary_factor": 0.25,
+            "rope_theta": 10000000,
+            "rope_type": "default"
+          },
+          "router_aux_loss_coef": 0.001,
+          "shared_expert_intermediate_size": 512,
+          "tie_word_embeddings": false,
+          "use_cache": true,
+          "vocab_size": 248320
+        },
+        "tie_word_embeddings": false
+      },
+      "config_sha256": "7b38a336fa246a285ee23cc990351989bf2ee6c040506a2b793ee24e463f35a7",
+      "files": {
+        "model.safetensors": {
+          "size": 475130833,
+          "mtime_ns": 1791187283997405324
+        }
+      }
+    }
+  }
+}

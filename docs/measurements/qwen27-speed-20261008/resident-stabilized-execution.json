@@ -1,0 +1,33 @@
+{
+  "status": "complete",
+  "command": [
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+    "qwen35::tests::dense_resident_sessions_paired",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "options": {
+    "MLXL3_MTP_TEST_MODEL": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_MTP_TEST_HEAD": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "MLXL3_DENSE_RESIDENT_PROMPT": "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/qwen27-speed-20261008/code-prompt.txt",
+    "MLXL3_DENSE_RESIDENT_REPORT": "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/qwen27-speed-20261008/resident-stabilized.json",
+    "MLXL3_DENSE_RESIDENT_STABILIZE": "1",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "timeout_seconds": 600,
+  "started_unix": 1791494629.879882,
+  "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t47%; discharging; 3:12 remaining present: true\n",
+  "sha256": {
+    "target/release/deps/mlxl3_native-005a77db66dfe685": "7a268cd7b5f331d677b4efe4a06727cb415bed2c1299cca87a06eb80c7c6058b",
+    "native/src/qwen35.rs": "db0325d0ad504398ffd43edbb4213ac622eb4da4f1fe0209279b4f914013f882",
+    "native/src/contracts.rs": "e6954fc50b1bb55a06c7ffdfec9d7ef2fed57d4f4a097fa1760dc3f320f72869",
+    "native/src/linear.rs": "48cffac804ccaa9a8e0a66616b85c0c8afbeecead2665e168b2c4f11cf478748",
+    "native/src/lfm2.rs": "9a500aa4d6a4197e063c8f7917f41843bf4347469ca8d6d3db43ad2e57ed58c8"
+  },
+  "returncode": 0,
+  "finished_unix": 1791494788.2096288,
+  "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t45%; discharging; 2:51 remaining present: true\n"
+}
