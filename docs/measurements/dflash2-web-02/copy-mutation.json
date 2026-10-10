@@ -1,0 +1,24 @@
+{
+  "status": "complete",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--no-default-features",
+    "--lib",
+    "speculative::tests::dflash_copy_remembers_only_commits_and_stops_after_total_refusal",
+    "--",
+    "--exact"
+  ],
+  "source_sha256": "a5135244bbb55eb7d358890b9370e659139d8a8ebd804f421d111936c8f438d9",
+  "checks": [
+    {
+      "phase": "disable_one_strike",
+      "exit": 101
+    },
+    {
+      "phase": "restored",
+      "exit": 0
+    }
+  ]
+}

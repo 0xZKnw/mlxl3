@@ -1,0 +1,140 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "cpp-build",
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-I",
+        "native/ffi",
+        "native/tests/kernel_cache_key.cpp",
+        "-o",
+        "build/dflash2-web-03/key-view/kernel-cache-key"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.511952375,
+      "log": "docs/measurements/dflash2-web-03/key-view-cpp-build.log"
+    },
+    {
+      "name": "cpp",
+      "command": [
+        "./build/dflash2-web-03/key-view/kernel-cache-key"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.515789292,
+      "log": "docs/measurements/dflash2-web-03/key-view-cpp.log"
+    },
+    {
+      "name": "sanitizer-build",
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "native/ffi",
+        "native/tests/kernel_cache_key.cpp",
+        "-o",
+        "build/dflash2-web-03/key-view/kernel-cache-key-sanitized"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.9015906250000001,
+      "log": "docs/measurements/dflash2-web-03/key-view-sanitizer-build.log"
+    },
+    {
+      "name": "sanitizer",
+      "command": [
+        "./build/dflash2-web-03/key-view/kernel-cache-key-sanitized"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.6783737910000001,
+      "log": "docs/measurements/dflash2-web-03/key-view-sanitizer.log"
+    },
+    {
+      "name": "format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.1875664170000002,
+      "log": "docs/measurements/dflash2-web-03/key-view-format.log"
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.1781470409999999,
+      "log": "docs/measurements/dflash2-web-03/key-view-fmt.log"
+    },
+    {
+      "name": "cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 2.4649389580000003,
+      "log": "docs/measurements/dflash2-web-03/key-view-cpu.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.9362526659999997,
+      "log": "docs/measurements/dflash2-web-03/key-view-clippy.log"
+    },
+    {
+      "name": "release",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 34.278898583,
+      "log": "docs/measurements/dflash2-web-03/key-view-release.log"
+    }
+  ]
+}

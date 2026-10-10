@@ -1,0 +1,62 @@
+{
+  "status": "compiled_before_final_quality",
+  "base_commit": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "state": "uncommitted local context-copy with reserved request history",
+  "files": {
+    "native/src/main.rs": "4fc6689e13611bea73799f0e855232ed568ac933665e0cbeb713baf25a1048ee",
+    "native/src/mtp_tune.rs": "d49124a57c9d2225109558346a26b223b0647d7f232aad413a1e2202c5953d30",
+    "native/src/speculative.rs": "6e5f74eea4088aebeef67b444a91f4bfafddfe9d80015edac9e0fd44d0fce6b8",
+    "native/src/dflash.rs": "6efc6688bb64e44a29cd0a0ae2742d63b54cef81a2f969444e25ba825af1dec8",
+    "native/src/qwen35.rs": "b2df6d002b84ec3dcb18dd6cbcf38ff1bb22203112078064c1709960e1d8faf0",
+    "native/shaders/dflash_select.metal": "6cf00d4210878dd641d8668c57be4a3a8e889377f775fc879ead7cb3b3057c00",
+    "benchmarks/compare_native.py": "4e0f2dd03edea7cecd8b30b555a75bddd89fb011f9bc083b2e205fc93715f1eb",
+    "binary": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+      "bytes": 9766288,
+      "sha256": "45e16fb28b864eb94abe3c7e1dd0b81a4e98ce84ce5f5ba2a25a35867ad2efa4"
+    }
+  },
+  "family": "qwen36_moe",
+  "precision": "EXL3 2.49bpw target / packed Q4 DFlash2",
+  "mlx": "0.32.2",
+  "build_environment": {
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "SDK": "26.5"
+  },
+  "flags": {
+    "MLXL3_DFLASH_CONTEXT_COPY": "1",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "app_install_changed": false,
+  "old_local_app_engine_archive": "build/dflash2-web-02/baseline/signed-mlxl3",
+  "test_binaries": [
+    {
+      "name": "mlxl3_native",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "sha256": "0e76593c48f91a847c3a0a1a51f835a82d95f6babc35d6e17688b039c9354615"
+    },
+    {
+      "name": "contracts",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/contracts-9f7ebcdf882c4d55",
+      "sha256": "27d7e248f33669370b90e4376e88209a969bf85a4a84b7e0dbe430ab5784f658"
+    },
+    {
+      "name": "mlxl3-rs",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+      "sha256": "323e5d0000ecedc909c140489c20476d3d1e76d31d08381ee56430560533b17c"
+    },
+    {
+      "name": "runtime_gpu",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/runtime_gpu-cf506846e033fe44",
+      "sha256": "5ef884be090fd66540d9ab5c06b269829c5aa81801104426137f2c09ac7006ab"
+    }
+  ],
+  "archive": "build/dflash2-web-02/copy-final",
+  "proof_only_revision": {
+    "previous_sha256": "e9626b0434beef2c47f3a9ffb151c66f7df936e2c3369ffbf73f9b2abd0c534f",
+    "current_sha256": "6e5f74eea4088aebeef67b444a91f4bfafddfe9d80015edac9e0fd44d0fce6b8",
+    "production_prefix_sha256": "2962436773de92e5808695611524795d1ef7d3d379514059bdb2c628b577ca0c",
+    "change": "Equivalent universal valid-element oracle0..31, symbolic prior enabled state, split disabled contract and fixed KiSSAT solver; production prefix byte exact"
+  }
+}

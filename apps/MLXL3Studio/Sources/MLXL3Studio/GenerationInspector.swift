@@ -118,13 +118,13 @@ struct GenerationInspector: View {
                             range: 1...1.3,
                             format: "%.2f"
                         )
-                        if studio.mtpEnabled {
-                            Label(L("MTP est activé : ces paramètres sont verrouillés. Désactive MTP pour les modifier.",
-                                    "MTP is enabled: these settings are locked. Disable MTP to change them."), systemImage: "lock")
+                        if studio.mtpEnabled || studio.dflash2Enabled {
+                            Label(L("Le décodage spéculatif utilise le mode greedy. Désactive-le pour modifier ces paramètres.",
+                                    "Speculative decoding uses greedy sampling. Disable it to change these settings."), systemImage: "lock")
                                 .font(.caption).foregroundStyle(StudioTheme.quiet)
                         }
                     }
-                    .disabled(studio.mtpEnabled)
+                    .disabled(studio.mtpEnabled || studio.dflash2Enabled)
 
                     if studio.mtpAvailable {
                         SettingCard(title: "MTP · Qwen3.5 / Qwen3.6", icon: "bolt") {
@@ -158,9 +158,30 @@ struct GenerationInspector: View {
                                  ? L("Qwen3.6-35B-A3B : tête 4 bits (~453 MiB) téléchargée à l’activation.", "Qwen3.6-35B-A3B: 4-bit head (~453 MiB) downloads when enabled.")
                                  : studio.mtpHeadPath)
                                 .font(.caption).foregroundStyle(StudioTheme.quiet).lineLimit(2).textSelection(.enabled)
-                            Text(L("Cette version utilise le mode greedy. Chaque proposition est vérifiée par le modèle cible. Pour les autres Qwen3.5/3.6, choisis une tête MTP MLX 4 bits adaptée. DFlash reste réservé à la CLI.",
-                                   "This version uses greedy sampling. The target model verifies every proposal. For other Qwen3.5/3.6 models, choose a matching MLX 4-bit MTP head. DFlash remains available in the CLI."))
+                            Text(L("Cette version utilise le mode greedy. Chaque proposition est vérifiée par le modèle cible. Pour les autres Qwen3.5/3.6, choisis une tête MTP MLX 4 bits adaptée. ",
+                                   "This version uses greedy sampling. The target model verifies every proposal. For other Qwen3.5/3.6 models, choose a matching MLX 4-bit MTP head. "))
                                 .font(.caption).foregroundStyle(StudioTheme.quiet)
+                        }
+                    }
+
+                    if studio.dflash2Available {
+                        SettingCard(title: "DFlash2 · Qwen3.6 / Qwen3.8", icon: "bolt.fill") {
+                            Toggle(L("Accélérer avec DFlash2", "Accelerate with DFlash2"), isOn: Binding(
+                                get: { studio.dflash2Enabled || studio.dflashDownloading },
+                                set: { studio.setDFlash2Enabled($0) }
+                            )).font(.system(size: 11)).disabled(studio.isGenerating || !studio.engineState.isReady)
+                            MTPTuningControls(dflash: true)
+                            if studio.dflashDownloading {
+                                ProgressView(value: studio.dflashDownloadTotal > 0 ? studio.dflashDownloadCompleted / studio.dflashDownloadTotal : 0)
+                                Text(L("Téléchargement et préparation du draft…", "Downloading and preparing the draft…"))
+                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                            }
+                            if let error = studio.dflashDownloadError { Text(error).font(.caption).foregroundStyle(.red) }
+                            Text(L("Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
+                                   "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."))
+                                .font(.caption).foregroundStyle(StudioTheme.quiet)
+                            Button(L("Choisir un draft local…", "Choose a local draft…"), action: studio.chooseDFlashDraft)
+                                .buttonStyle(GlassPillButtonStyle()).disabled(studio.isGenerating || studio.dflashDownloading)
                         }
                     }
 

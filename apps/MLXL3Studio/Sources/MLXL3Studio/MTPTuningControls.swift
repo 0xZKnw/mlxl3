@@ -2,48 +2,62 @@ import SwiftUI
 
 struct MTPTuningControls: View {
     @EnvironmentObject private var studio: StudioModel
+    var dflash = false
+    private var enabled: Bool { dflash ? studio.dflash2Enabled : studio.mtpEnabled }
+    private var tuning: Bool { dflash ? studio.isTuningDFlash : (studio.isTuningMTP && !studio.isTuningDFlash) }
+    private var rows: [MTPTuningRow] { dflash ? studio.dflashTuneRows : studio.mtpTuneRows }
+    private var progress: Double { dflash ? studio.dflashTuneProgress : studio.mtpTuneProgress }
+    private var status: String { dflash ? studio.dflashTuneStatus : studio.mtpTuneStatus }
+    private var depth: Int { dflash ? studio.dflashMode : studio.mtpDepth }
+    private var canTune: Bool { dflash ? studio.canTuneDFlash : studio.canTuneMTP }
+    private var supported: Bool { dflash ? studio.dflashTuneSupported : studio.mtpTuneSupported }
+    private var artifact: String { dflash ? studio.dflashDraftPath : studio.mtpHeadPath }
+    private func label(_ mode: Int) -> String { dflash ? ["Baseline", "Auto", "2 tokens", "7 tokens"][min(3, max(0, mode))] : "MTP\(mode)" }
+    private func setMode(_ mode: Int) { if dflash { studio.setDFlashMode(mode) } else { studio.setMTPDepth(mode) } }
+    private func tune() { if dflash { studio.tuneDFlash() } else { studio.tuneMTP() } }
+    private func cancel() { if dflash { studio.cancelDFlashTuning() } else { studio.cancelMTPTuning() } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if studio.mtpEnabled {
+            if enabled {
                 Picker(L("Profondeur", "Depth"), selection: Binding(
-                    get: { studio.mtpDepth }, set: { studio.setMTPDepth($0) }
+                    get: { depth }, set: { setMode($0) }
                 )) {
-                    ForEach(1...studio.mtpMaxDepth, id: \.self) { depth in
-                        Text("MTP\(depth)").tag(depth)
+                    ForEach(1...(dflash ? 3 : studio.mtpMaxDepth), id: \.self) { depth in
+                        Text(label(depth)).tag(depth)
                     }
                 }
                 .pickerStyle(.segmented).disabled(studio.isGenerating)
             }
-            if studio.isTuningMTP {
+            if tuning {
                 HStack {
-                    Text(studio.mtpTuneStatus).font(.system(size: 11, weight: .medium))
+                    Text(status).font(.system(size: 11, weight: .medium))
                     Spacer()
-                    Button(L("Arrêter", "Stop"), action: studio.cancelMTPTuning)
+                    Button(L("Arrêter", "Stop"), action: cancel)
                         .buttonStyle(GlassPillButtonStyle())
                 }
-                ProgressView(value: studio.mtpTuneProgress).tint(StudioTheme.accent)
-                Text(L("Baseline → MTP1 → MTP2 → MTP3 · puis ordre inversé", "Baseline → MTP1 → MTP2 → MTP3 · then reverse order"))
+                ProgressView(value: progress).tint(StudioTheme.accent)
+                Text(dflash ? "Baseline → Auto → 2 → 7 · ↔" : L("Baseline → MTP1 → MTP2 → MTP3 · puis ordre inversé", "Baseline → MTP1 → MTP2 → MTP3 · then reverse order"))
                     .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
             } else {
-                Button(action: studio.tuneMTP) {
+                Button(action: tune) {
                     HStack {
                         Image(systemName: "slider.horizontal.3")
-                        Text("Tune MTP")
+                        Text(dflash ? "Tune DFlash2" : "Tune MTP")
                         Spacer()
                         Image(systemName: "sparkles").foregroundStyle(StudioTheme.accent)
                     }.frame(height: 29)
                 }
-                .buttonStyle(GlassPillButtonStyle()).disabled(!studio.canTuneMTP)
+                .buttonStyle(GlassPillButtonStyle()).disabled(!canTune)
             }
-            if !studio.mtpTuneRows.isEmpty && !studio.isTuningMTP {
-                let winner = MTPTuning.winner(studio.mtpTuneRows)
-                let maxTPS = studio.mtpTuneRows.map(\.decodeTPS).filter(\.isFinite).max() ?? 1
+            if !rows.isEmpty && !tuning {
+                let winner = MTPTuning.winner(rows)
+                let maxTPS = rows.map(\.decodeTPS).filter(\.isFinite).max() ?? 1
                 VStack(spacing: 9) {
-                    ForEach(studio.mtpTuneRows) { row in
+                    ForEach(rows) { row in
                         VStack(spacing: 4) {
                             HStack {
-                                Text(row.label).font(.system(size: 10, weight: .semibold))
+                                Text(dflash ? row.dflashLabel : row.label).font(.system(size: 10, weight: .semibold))
                                 if row.depth == winner {
                                     Text(L("MEILLEUR", "BEST")).font(.system(size: 8, weight: .bold))
                                         .foregroundStyle(StudioTheme.accent)
@@ -70,14 +84,14 @@ struct MTPTuningControls: View {
                     }
                 }
                 .padding(12).background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
-                Text(L("Réglage enregistré : ", "Saved setting: ") + (studio.mtpEnabled ? "MTP\(studio.mtpDepth)" : "Baseline"))
+                Text(L("Réglage enregistré : ", "Saved setting: ") + (enabled ? label(depth) : "Baseline"))
                     .font(.system(size: 10, weight: .medium)).foregroundStyle(StudioTheme.accent)
             }
-            Text(studio.mtpTuneSupported
-                 ? studio.mtpHeadPath.isEmpty
-                    ? L("Active MTP une fois pour préparer la tête, puis lance le test.", "Enable MTP once to prepare the head, then run the test.")
+            Text(supported
+                 ? artifact.isEmpty
+                    ? L("Active le mode une fois pour préparer le draft, puis lance Tune.", "Enable the mode once to prepare the draft, then run Tune.")
                     : L("Deux prompts locaux, sans outils. Le meilleur mode est enregistré pour ce modèle et ce Mac. Baseline si le gain ne dépasse pas 3 %.", "Two local prompts, without tools. The best mode is saved for this model and Mac. Baseline if the gain is within 3%.")
-                 : L("MTP2/MTP3 et Tune MTP nécessitent le moteur 1.3.0. Mets-le à jour puis recharge le modèle.", "MTP2/MTP3 and Tune MTP require engine 1.3.0. Update it, then reload the model."))
+                 : L("Mets le moteur à jour puis recharge le modèle pour utiliser Tune.", "Update the engine and reload the model to use Tune."))
                 .font(.system(size: 9.5)).foregroundStyle(StudioTheme.quiet)
         }
     }

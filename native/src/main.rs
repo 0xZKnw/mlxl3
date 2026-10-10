@@ -116,6 +116,9 @@ enum Command {
     DflashDraft {
         #[arg(long)]
         inspect: Option<PathBuf>,
+        /// Download/validate the draft matching this target's configuration.
+        #[arg(long)]
+        target: Option<PathBuf>,
     },
     /// Install or inspect a native Qwen MTP head without downloading the target.
     MtpHead {
@@ -1211,17 +1214,31 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Command::DflashDraft { inspect } => {
+        Command::DflashDraft { inspect, target } => {
+            let expected = target
+                .as_deref()
+                .map(mlxl3_native::dflash::target_family)
+                .transpose()?;
             let path = if let Some(path) = inspect {
-                mlxl3_native::dflash::inspect(path)?.directory
-            } else {
-                mlxl3_native::hub::download_dflash(|completed, total| {
-                    println!(
-                        "{}",
-                        json!({"type":"progress", "completed":completed, "total":total})
+                {
+                    let package = mlxl3_native::dflash::inspect(path)?;
+                    anyhow::ensure!(
+                        expected.is_none_or(|family| family == package.family),
+                        "DFlash draft does not match this target"
                     );
-                    let _ = io::stdout().flush();
-                })?
+                    package.directory
+                }
+            } else {
+                mlxl3_native::hub::download_dflash(
+                    expected.unwrap_or(mlxl3_native::dflash::Family::Qwen36Moe),
+                    |completed, total| {
+                        println!(
+                            "{}",
+                            json!({"type":"progress", "completed":completed, "total":total})
+                        );
+                        let _ = io::stdout().flush();
+                    },
+                )?
             };
             println!("{}", json!({"type":"installed", "path":path}));
         }
@@ -1517,6 +1534,8 @@ struct BridgeRequest {
     dflash2: bool,
     #[serde(default)]
     dflash_draft_path: String,
+    #[serde(default = "default_mtp_depth")]
+    dflash_mode: usize,
     #[serde(default)]
     mtp: bool,
     #[serde(default)]
@@ -1539,6 +1558,9 @@ struct DFlashChat {
     accepted: usize,
     blocks: usize,
     block_seconds: f64,
+    mode: usize,
+    copy: Option<mlxl3_native::speculative::DFlashCopy>,
+    lookup_blocks: usize,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1655,7 +1677,7 @@ fn prefill_round(
         logits = Some(
             if let Some((session, weights)) = dflash.as_mut().zip(draft) {
                 let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
+                    bail!("DFlash2 requires a supported Qwen target")
                 };
                 if usize::try_from(target.offset())?
                     < mlxl3_native::dflash::prefill_capture_start(tokens.len())
@@ -1788,7 +1810,16 @@ impl DFlashChat {
             accepted: 0,
             blocks: 0,
             block_seconds: 0.,
+            mode: 1,
+            copy: None,
+            lookup_blocks: 0,
         }
+    }
+
+    fn configure(&mut self, mode: usize, family: mlxl3_native::dflash::Family, prompt: &[u32]) {
+        self.mode = mode;
+        self.copy = (mode == 1 && dflash_context_copy_enabled(Some(family)))
+            .then(|| mlxl3_native::speculative::DFlashCopy::new(prompt));
     }
 
     fn proposals_count(&self, context_remaining: usize, output_remaining: usize) -> Option<usize> {
@@ -1798,7 +1829,8 @@ impl DFlashChat {
             .fold((0, 0), |(accepted, proposed), &(a, p)| {
                 (accepted + a, proposed + p)
             });
-        mlxl3_native::speculative::adaptive_proposals(
+        mlxl3_native::speculative::dflash_proposals(
+            self.mode,
             context_remaining,
             output_remaining,
             self.recent.len(),
@@ -1850,10 +1882,19 @@ impl DFlashChat {
                 .context("model returned no logits");
         }
         let block_started = Instant::now();
-        let input = target.dflash_input(anchor, 248_077)?;
-        let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
-        let draft_logits = target.dflash_logits(&output.hidden, proposals_count)?;
-        let proposals = draft.select_greedy(&draft_logits, &output.selector, anchor)?;
+        let copied = self
+            .copy
+            .as_ref()
+            .and_then(|copy| copy.propose(anchor, proposals_count));
+        let is_copy = copied.is_some();
+        let proposals = if let Some(tokens) = copied {
+            tokens.to_vec()
+        } else {
+            let input = target.dflash_input(anchor, draft.family.mask())?;
+            let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
+            let draft_logits = target.dflash_logits(&output.hidden, proposals_count)?;
+            draft.select_greedy(&draft_logits, &output.selector, anchor)?
+        };
         let verify = std::iter::once(anchor)
             .chain(proposals.iter().copied())
             .collect::<Vec<_>>();
@@ -1877,6 +1918,10 @@ impl DFlashChat {
             &captured.slice(0, 0, i32::try_from(retained)?)?,
             position,
         )?;
+        if let Some(copy) = &mut self.copy {
+            copy.record(anchor, &proposals[..accepted], is_copy);
+        }
+        self.lookup_blocks += usize::from(is_copy);
         self.pending.extend(proposals[..accepted].iter().copied());
         self.pending.push_back(acceptance.target_token);
         // Wall time through materialized token selection, without extra GPU
@@ -1886,6 +1931,17 @@ impl DFlashChat {
             .pop_front()
             .context("DFlash produced no target token")
     }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_context_copy_enabled(family: Option<mlxl3_native::dflash::Family>) -> bool {
+    family == Some(mlxl3_native::dflash::Family::Qwen36Moe)
+        && std::env::var("MLXL3_DFLASH_CONTEXT_COPY").as_deref() == Ok("1")
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_runtime_key(base: &str, copy: bool) -> String {
+    format!("{base}:dflash-v4:copy={}", u8::from(copy))
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1925,6 +1981,7 @@ struct NativeStats {
     dflash_proposed_tokens: Option<usize>,
     dflash_accepted_tokens: Option<usize>,
     dflash_blocks: Option<usize>,
+    dflash_lookup_blocks: Option<usize>,
     dflash_block_seconds: f64,
     mtp_proposed_tokens: Option<usize>,
     mtp_accepted_tokens: Option<usize>,
@@ -1960,6 +2017,7 @@ impl NativeStats {
                 round.dflash_accepted_tokens,
             ),
             (&mut self.dflash_blocks, round.dflash_blocks),
+            (&mut self.dflash_lookup_blocks, round.dflash_lookup_blocks),
             (&mut self.mtp_proposed_tokens, round.mtp_proposed_tokens),
             (&mut self.mtp_accepted_tokens, round.mtp_accepted_tokens),
             (&mut self.mtp_blocks, round.mtp_blocks),
@@ -2106,6 +2164,7 @@ fn bridge_generate_round(
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
     mut mtp: Option<&mut mlxl3_native::mtp::Head>,
     mtp_depth: usize,
+    dflash_mode: usize,
     cache: &mut Option<PromptCache>,
     conversation: &str,
     reuse: bool,
@@ -2135,6 +2194,9 @@ fn bridge_generate_round(
     } else {
         prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
     };
+    if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+        session.configure(dflash_mode, weights.family, &tokens);
+    }
     let mut mtp_session = mtp
         .as_ref()
         .map(|_| mlxl3_native::mtp::Session::new(mtp_depth))
@@ -2226,7 +2288,7 @@ fn bridge_generate_round(
                 )?);
             } else if let Some((session, weights)) = dflash.as_mut().zip(draft) {
                 let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
+                    bail!("DFlash2 requires a supported Qwen target")
                 };
                 dflash_next = Some(session.advance(
                     target,
@@ -2297,6 +2359,7 @@ fn bridge_generate_round(
         dflash_proposed_tokens: dflash.as_ref().map(|session| session.proposed),
         dflash_accepted_tokens: dflash.as_ref().map(|session| session.accepted),
         dflash_blocks: dflash.as_ref().map(|session| session.blocks),
+        dflash_lookup_blocks: dflash.as_ref().map(|session| session.lookup_blocks),
         dflash_block_seconds: dflash.as_ref().map_or(0., |session| session.block_seconds),
         mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.proposed),
         mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
@@ -2375,6 +2438,7 @@ fn bridge_generate(
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
     mut mtp: Option<&mut mlxl3_native::mtp::Head>,
     mtp_depth: usize,
+    dflash_mode: usize,
     started: Instant,
     draft_load_seconds: f64,
     cache: &mut Option<PromptCache>,
@@ -2411,6 +2475,7 @@ fn bridge_generate(
             draft,
             mtp.as_deref_mut(),
             mtp_depth,
+            dflash_mode,
             cache,
             conversation,
             reuse,
@@ -2508,6 +2573,42 @@ fn bridge_generate(
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn load_dflash_weights(
+    slot: &mut Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)>,
+    cache: &mut Option<PromptCache>,
+    path: &str,
+    family: mlxl3_native::dflash::Family,
+) -> Result<bool> {
+    anyhow::ensure!(
+        !path.trim().is_empty(),
+        "DFlash2 draft folder is not configured"
+    );
+    let path = registry::expand_home(&PathBuf::from(path))?.canonicalize()?;
+    let revision = mtp_tune::artifact_key(&path.join("draft"))?;
+    if slot
+        .as_ref()
+        .is_some_and(|(previous, fingerprint, _)| previous == &path && fingerprint == &revision)
+    {
+        return Ok(false);
+    }
+    *slot = None;
+    *cache = None;
+    mlxl3_native::array::synchronize()?;
+    mlxl3_native::array::clear_cache()?;
+    let package = mlxl3_native::dflash::inspect(&path)?;
+    anyhow::ensure!(
+        package.family == family,
+        "DFlash draft does not match this target"
+    );
+    *slot = Some((
+        path,
+        revision,
+        mlxl3_native::dflash::DFlashWeights::load(&package)?,
+    ));
+    Ok(true)
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn load_mtp_head(
     head: &mut Option<(PathBuf, mlxl3_native::mtp::Head)>,
     revision: &mut Option<String>,
@@ -2585,13 +2686,18 @@ fn native_bridge(
         requested
     } as usize;
     let resident_gb = checkpoint.size_bytes as f64 / 1e9;
-    let dflash_supported =
-        matches!(&model, NativeChatModel::Qwen(target) if target.supports_dflash());
+    let dflash_family = match &model {
+        NativeChatModel::Qwen(target) => target.dflash_family(),
+        _ => None,
+    };
+    let dflash_supported = dflash_family.is_some();
     let mtp_auto_download_supported = matches!(&model, NativeChatModel::Qwen(_))
         && mlxl3_native::mtp::target_layout(&path)
             .is_ok_and(|(layout, layers)| layout.managed_head(layers).is_some());
     let executable = std::env::current_exe()?.display().to_string();
     let tuning_key = mtp_tune::runtime_key(&path, context_limit)?;
+    let dflash_tuning_key =
+        dflash_runtime_key(&tuning_key, dflash_context_copy_enabled(dflash_family));
     emit_event(json!({
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
@@ -2599,7 +2705,9 @@ fn native_bridge(
         "runtime_profile":env!("MLXL3_BUILD_PROFILE"),
         "mlx_version":env!("MLXL3_MLX_VERSION"),
         "runtime_executable":executable,
-        "dflash_supported":dflash_supported,
+        "dflash_supported":dflash_supported, "dflash_family":dflash_family,
+        "dflash_tune_supported":dflash_supported, "dflash_configure_supported":true,
+        "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)),
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
@@ -2617,7 +2725,7 @@ fn native_bridge(
         .as_nanos() as u64
         | 1;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
-    let mut dflash_weights: Option<(PathBuf, mlxl3_native::dflash::DFlashWeights)> = None;
+    let mut dflash_weights: Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)> = None;
     let mut mtp_head: Option<(PathBuf, mlxl3_native::mtp::Head)> = None;
     let mut mtp_head_revision = None;
     let mut prompt_cache: Option<PromptCache> = None;
@@ -2681,6 +2789,63 @@ fn native_bridge(
                     emit_event(json!({"type":"error", "request_id":request.request_id,
                         "message":error.to_string(), "mtp_active":false,
                         "memory":mlxl3_native::array::memory_stats(false)?}))?;
+                }
+            }
+            "set_dflash" | "tune_dflash" => {
+                cancelled.store(false, Ordering::Relaxed);
+                prompt_cache = None;
+                model.reset();
+                let result = (|| -> Result<()> {
+                    if request.enabled || request.kind == "tune_dflash" {
+                        let family = dflash_family.context("Unsupported DFlash target")?;
+                        mtp_head = None;
+                        mtp_head_revision = None;
+                        mlxl3_native::array::synchronize()?;
+                        mlxl3_native::array::clear_cache()?;
+                        load_dflash_weights(
+                            &mut dflash_weights,
+                            &mut prompt_cache,
+                            &request.dflash_draft_path,
+                            family,
+                        )?;
+                    } else {
+                        dflash_weights = None;
+                    }
+                    if request.kind == "tune_dflash" {
+                        mtp_tune::run_dflash(
+                            &mut model,
+                            &dflash_weights.as_ref().context("missing DFlash draft")?.2,
+                            &tokenizer,
+                            &request.request_id,
+                            &dflash_tuning_key,
+                            context_limit,
+                            &cancelled,
+                        )
+                    } else {
+                        mlxl3_native::array::synchronize()?;
+                        mlxl3_native::array::clear_cache()?;
+                        emit_event(
+                            json!({"type":"dflash_status", "request_id":request.request_id,
+                            "dflash_active":dflash_weights.is_some(), "memory":mlxl3_native::array::memory_stats(false)?}),
+                        )
+                    }
+                })();
+                if let Err(error) =
+                    release_bridge_idle_state(&mut model, mtp_head.as_mut().map(|(_, head)| head))
+                {
+                    eprintln!("Idle memory cleanup failed: {error:#}");
+                }
+                if let Err(error) = result {
+                    dflash_weights = None;
+                    mlxl3_native::array::synchronize()?;
+                    mlxl3_native::array::clear_cache()?;
+                    if cancelled.swap(false, Ordering::Relaxed) {
+                        emit_event(json!({"type":"cancelled","request_id":request.request_id}))?;
+                    } else {
+                        emit_event(
+                            json!({"type":"error","request_id":request.request_id,"message":error.to_string(),"dflash_active":false}),
+                        )?;
+                    }
                 }
             }
             "tune_mtp" => {
@@ -2766,34 +2931,25 @@ fn native_bridge(
                         mtp_head_revision = None;
                     }
                     if request.dflash2 {
+                        let family = dflash_family
+                            .context("DFlash2 supports Qwen3.6-35B-A3B and Qwen3.8-27B")?;
                         anyhow::ensure!(
-                            dflash_supported,
-                            "DFlash2 currently supports Qwen3.6-35B-A3B only"
+                            (1..=3).contains(&request.dflash_mode),
+                            "DFlash mode must be 1, 2 or 3"
                         );
                         anyhow::ensure!(
                             (request.temperature == 0. || request.top_k == 1)
                                 && request.repetition_penalty == 1.,
                             "DFlash2 requires greedy sampling and repetition penalty 1.0"
                         );
-                        anyhow::ensure!(
-                            !request.dflash_draft_path.trim().is_empty(),
-                            "DFlash2 draft folder is not configured"
-                        );
-                        let draft_path =
-                            registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
-                        if dflash_weights.as_ref().map(|(path, _)| path) != Some(&draft_path) {
-                            prompt_cache = None;
-                            emit_event(json!({
-                                "type":"generation_status", "request_id":request.request_id,
-                                "phase":"loading_draft", "text":"Preparing DFlash2"
-                            }))?;
-                            let draft_started = Instant::now();
-                            let package = mlxl3_native::dflash::inspect(&draft_path)?;
-                            dflash_weights = Some((
-                                draft_path,
-                                mlxl3_native::dflash::DFlashWeights::load(&package)?,
-                            ));
-                            draft_load_seconds = draft_started.elapsed().as_secs_f64();
+                        let draft_started = Instant::now();
+                        if load_dflash_weights(
+                            &mut dflash_weights,
+                            &mut prompt_cache,
+                            &request.dflash_draft_path,
+                            family,
+                        )? {
+                            draft_load_seconds += draft_started.elapsed().as_secs_f64();
                         }
                     } else {
                         if dflash_weights.is_some() {
@@ -2808,8 +2964,9 @@ fn native_bridge(
                         "mtp_requested":request.mtp, "mtp_active":mtp_active,
                         "mtp_depth":if mtp_active { request.mtp_depth } else { 0 },
                         "mtp_reason":if request.mtp && !mtp_active { Some("MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
-                        "dflash_proposals":if dflash_weights.is_some() { 5 } else { 0 },
-                        "dflash_draft_path":dflash_weights.as_ref().map(|(path, _)| path.display().to_string())
+                        "dflash_proposals":if dflash_weights.is_some() { if request.dflash_mode == 3 { 7 } else if request.dflash_mode == 2 { 2 } else { 5 } } else { 0 },
+                        "dflash_mode":if dflash_weights.is_some() { request.dflash_mode } else { 0 },
+                        "dflash_draft_path":dflash_weights.as_ref().map(|(path, _, _)| path.display().to_string())
                     }))?;
                     bridge_generate(
                         &mut model,
@@ -2825,9 +2982,10 @@ fn native_bridge(
                         &cancelled,
                         &mut random,
                         &mut mcp,
-                        dflash_weights.as_ref().map(|(_, weights)| weights),
+                        dflash_weights.as_ref().map(|(_, _, weights)| weights),
                         mtp_head.as_mut().map(|(_, head)| head),
                         request.mtp_depth,
+                        request.dflash_mode,
                         started,
                         draft_load_seconds,
                         &mut prompt_cache,
@@ -3043,6 +3201,13 @@ mod tests {
         session.proposed = 80;
         session.recent = std::iter::repeat_n((1, 5), 8).collect();
         assert_eq!(session.proposals_count(128, 128), Some(2));
+        session.recent = std::iter::repeat_n((4, 5), 7).collect();
+        assert_eq!(session.proposals_count(128, 128), Some(5));
+        session.recent.push_back((4, 5));
+        assert_eq!(session.proposals_count(128, 128), Some(5));
+        assert_eq!(session.proposals_count(2, 128), Some(1));
+        session.mode = 2;
+        assert_eq!(session.proposals_count(128, 128), Some(2));
     }
 
     #[test]
@@ -3062,6 +3227,22 @@ mod tests {
     }
 
     #[test]
+    fn dflash_runtime_key_distinguishes_copy_policy() {
+        assert_eq!(
+            dflash_runtime_key("model:runtime", false),
+            "model:runtime:dflash-v4:copy=0"
+        );
+        assert_eq!(
+            dflash_runtime_key("model:runtime", true),
+            "model:runtime:dflash-v4:copy=1"
+        );
+        assert!(!dflash_context_copy_enabled(None));
+        assert!(!dflash_context_copy_enabled(Some(
+            mlxl3_native::dflash::Family::Qwen38Dense
+        )));
+    }
+
+    #[test]
     fn bridge_stats_aggregate_work_not_rates_and_keep_latest_context() {
         let mut first = NativeStats {
             ttft_seconds: 0.5,
@@ -3075,6 +3256,7 @@ mod tests {
             dflash_proposed_tokens: Some(10),
             dflash_accepted_tokens: Some(6),
             dflash_blocks: Some(2),
+            dflash_lookup_blocks: Some(1),
             mtp_lookup_blocks: Some(3),
             ..Default::default()
         };
@@ -3092,6 +3274,7 @@ mod tests {
             dflash_proposed_tokens: Some(40),
             dflash_accepted_tokens: Some(22),
             dflash_blocks: Some(8),
+            dflash_lookup_blocks: Some(3),
             mtp_lookup_blocks: Some(4),
             ..Default::default()
         });
@@ -3109,6 +3292,7 @@ mod tests {
         );
         assert_eq!((first.context_used, first.context_limit), (231, 4096));
         assert_eq!(first.mtp_lookup_blocks, Some(7));
+        assert_eq!(first.dflash_lookup_blocks, Some(4));
         assert_eq!(
             (
                 first.dflash_proposed_tokens,
@@ -3177,6 +3361,7 @@ mod tests {
                 None,
                 None,
                 1,
+                1,
                 &mut cache,
                 "lookup",
                 false,
@@ -3205,6 +3390,7 @@ mod tests {
                         None,
                         Some(&mut head),
                         depth,
+                        1,
                         &mut cache,
                         "lookup",
                         true,
@@ -3247,6 +3433,7 @@ mod tests {
                 None,
                 mtp,
                 2,
+                1,
                 &mut cache,
                 "lookup",
                 false,
@@ -3265,6 +3452,207 @@ mod tests {
         );
         eprintln!(
             "production lookup: 37 nonempty completions, {lookup_blocks} copy lookup blocks; in-line echo skipped"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/DFlash checkpoints and Apple GPU"]
+    fn dflash_copy_accepts_rejects_and_preserves_draft_cache() -> Result<()> {
+        use mlxl3_native::{dflash::DFlashWeights, speculative::DFlashCopy};
+        let path = std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let mut target = mlxl3_native::qwen35::Qwen35Moe::load(path)?;
+        let weights = DFlashWeights::load(&mlxl3_native::dflash::inspect(
+            "models/Qwen3.6-35B-A3B-DFlash2",
+        )?)?;
+        let prompt = (1..=24).collect::<Vec<u32>>();
+        let finite_bytes = |array: &mlxl3_native::array::Array| -> Result<Vec<u8>> {
+            let values = array.to_f32()?;
+            let count = array.shape().iter().try_fold(1usize, |count, &dim| {
+                count.checked_mul(usize::try_from(dim).ok()?)
+            });
+            anyhow::ensure!(
+                count == Some(values.len())
+                    && !values.is_empty()
+                    && values.iter().all(|v| v.is_finite()),
+                "invalid copy oracle array"
+            );
+            array.to_bytes()
+        };
+        let mut cases = 0;
+        for width in 1..=3 {
+            for accepted in 0..=width {
+                target.reset();
+                let mut session = DFlashChat::new();
+                let anchor = session
+                    .prefill(&mut target, &weights, &prompt)?
+                    .chat_greedy_ids()?[0];
+                let before = target.snapshot()?;
+                let mut reference_cache = session.cache.try_clone()?;
+                let mut caches = Vec::new();
+                let mut expected = Vec::new();
+                let mut token = anchor;
+                for _ in 0..width + 2 {
+                    let position = target.offset();
+                    let (logits, captures) = target.prefill_serial_with_dflash_capture(&[token])?;
+                    reference_cache.append_captured(&weights, &captures, position)?;
+                    reference_cache.eval()?;
+                    token = logits.chat_greedy_ids()?[0];
+                    expected.push(token);
+                    caches.push(reference_cache.try_clone()?);
+                }
+                target.restore(before)?;
+                let mut proposals = expected[..width].to_vec();
+                if accepted < width {
+                    proposals[accepted] = (proposals[accepted] + 1) % 248_320;
+                }
+                let history = (1..=7)
+                    .chain([anchor])
+                    .chain(proposals.iter().copied())
+                    .chain(1..=7)
+                    .collect::<Vec<_>>();
+                session.copy = Some(DFlashCopy::new(&history));
+                assert_eq!(
+                    session.copy.as_ref().unwrap().propose(anchor, width),
+                    Some(proposals.as_slice())
+                );
+                let mut delivered = Vec::new();
+                for i in 0..=accepted {
+                    delivered.push(session.advance(
+                        &mut target,
+                        &weights,
+                        if i == 0 { anchor } else { delivered[i - 1] },
+                        4096,
+                        width + 1 - i,
+                    )?);
+                }
+                assert_eq!(delivered, expected[..=accepted]);
+                assert_eq!(session.lookup_blocks, 1);
+                assert!(session.pending.is_empty());
+                assert_eq!(target.offset(), 24 + accepted as i32 + 1);
+                let input =
+                    target.dflash_input(*delivered.last().unwrap(), weights.family.mask())?;
+                let actual = weights.forward_hidden(&input, &session.cache, target.offset())?;
+                let oracle = weights.forward_hidden(&input, &caches[accepted], target.offset())?;
+                assert_eq!(finite_bytes(&actual.hidden)?, finite_bytes(&oracle.hidden)?);
+                assert_eq!(
+                    finite_bytes(&actual.selector)?,
+                    finite_bytes(&oracle.selector)?
+                );
+                let next =
+                    session.advance(&mut target, &weights, *delivered.last().unwrap(), 4096, 4)?;
+                assert_eq!(
+                    next,
+                    expected[accepted + 1],
+                    "neural continuation after copy"
+                );
+                cases += 1;
+            }
+        }
+        assert_eq!(cases, 9);
+        eprintln!(
+            "9 production copy blocks, all accept0..N/N1..3, finite hidden/selector and draft cache bit exact; neural continuation exact"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Qwen/DFlash checkpoints, MLXL3_DFLASH_CONTEXT_COPY=1 and Apple GPU"]
+    fn bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix() -> Result<()> {
+        anyhow::ensure!(
+            dflash_context_copy_enabled(Some(mlxl3_native::dflash::Family::Qwen36Moe)),
+            "run with MLXL3_DFLASH_CONTEXT_COPY=1"
+        );
+        let path = std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let mut model = NativeChatModel::load(path)?;
+        let tokenizer = mlxl3_native::tokenizer::ChatTokenizer::load(path)?;
+        let weights = mlxl3_native::dflash::DFlashWeights::load(&mlxl3_native::dflash::inspect(
+            "models/Qwen3.6-35B-A3B-DFlash2",
+        )?)?;
+        let code = "def normalize_name(value):\n    return value.strip().casefold()\n\ndef average(values):\n    return sum(values) / len(values) if values else 0\n\n";
+        let messages = vec![
+            json!({"role":"user", "content":format!("Recopie exactement le code suivant, sans commentaire ni changement :\n```python\n{}```", code.repeat(8))}),
+        ];
+        let cancelled = AtomicBool::new(false);
+        let mut cache = None;
+        let mut random = 7;
+        let mut copies = 0;
+        let mut completions = 0;
+        for budget in [1, 2, 3, 17, 256] {
+            let reference = bridge_generate_round(
+                &mut model,
+                &tokenizer,
+                "copy-reference",
+                &messages,
+                &[],
+                budget,
+                0.,
+                1,
+                1.,
+                4096,
+                0.,
+                &cancelled,
+                &mut random,
+                None,
+                None,
+                1,
+                1,
+                &mut cache,
+                "dflash-copy",
+                false,
+            )?;
+            assert!(
+                !reference.raw.is_empty()
+                    && reference.stats.generated_tokens > 0
+                    && reference.stats.generated_tokens <= budget as usize
+            );
+            for mode in 1..=3 {
+                for pass in 0..2 {
+                    let actual = bridge_generate_round(
+                        &mut model,
+                        &tokenizer,
+                        "copy-candidate",
+                        &messages,
+                        &[],
+                        budget,
+                        0.,
+                        1,
+                        1.,
+                        4096,
+                        0.,
+                        &cancelled,
+                        &mut random,
+                        Some(&weights),
+                        None,
+                        1,
+                        mode,
+                        &mut cache,
+                        "dflash-copy",
+                        true,
+                    )?;
+                    assert_eq!(actual.raw, reference.raw);
+                    assert_eq!(actual.token_hash, reference.token_hash);
+                    assert_eq!(
+                        actual.stats.generated_tokens,
+                        reference.stats.generated_tokens
+                    );
+                    if pass == 1 {
+                        assert!(actual.stats.cached_prompt_tokens >= 256);
+                    }
+                    let count = actual.stats.dflash_lookup_blocks.unwrap();
+                    if mode != 1 {
+                        assert_eq!(count, 0, "fixed modes keep their neural proposals");
+                    }
+                    copies += count;
+                    completions += 1;
+                }
+            }
+            completions += 1;
+        }
+        assert_eq!(completions, 35);
+        assert!(copies > 0, "the production bridge must actually copy");
+        eprintln!(
+            "35 nonempty completions with budgets/cache/Auto/fixed modes exact; {copies} verified copy blocks"
         );
         Ok(())
     }

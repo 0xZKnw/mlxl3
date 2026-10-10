@@ -1,0 +1,74 @@
+{
+  "head": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "local_modified": true,
+  "sources": {
+    "native/ffi/kernel_cache_key.h": "05f1deaea931c29b9340a72a747f966fe732c999bb64a9fb4ee8e9fb5d27965f",
+    "native/ffi/mlx_bridge.cpp": "ee65389e2797aeba04cc5c7272bbe7a6632d330236d47451625e0c8707c367e6",
+    "native/tests/kernel_cache_key.cpp": "42c670afc77434674a3740b5b34318076e44b9f08ec76f474fdff0ffd844bf18",
+    "native/tests/kernel_cache_key_proof.cpp": "5bf44541b29a6ba600e77d043dfc7cf8efbc5f8aab3164021270cc693376a80c",
+    "native/src/array.rs": "25b0aa50bad824f5405ba69cbe22f4e23a6eb970ec6a1809631309ed1f1aeb58",
+    "native/src/dflash.rs": "6efc6688bb64e44a29cd0a0ae2742d63b54cef81a2f969444e25ba825af1dec8",
+    "native/src/qwen35.rs": "b2df6d002b84ec3dcb18dd6cbcf38ff1bb22203112078064c1709960e1d8faf0",
+    "native/src/main.rs": "d92ede7f989069b61edc531935260293d516e7ef0d6cf094b8c4783ba4112c7d",
+    "native/src/speculative.rs": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc",
+    ".github/workflows/rust.yml": "c071c4d215c47261e6ae1283844414ec43cd4da2589788db7efb1425b99598e7",
+    "Cargo.toml": "8be1962d98cf99417a930f294de09c631bd960ddb5341aff814076444e01e486",
+    "Cargo.lock": "d6152886353571b01a83c86863dce1a53631f4c5a329fc55343b0ee9b37f128b"
+  },
+  "binaries": {
+    "test-lib": {
+      "path": "target/release/deps/mlxl3_native-28585053ede733ec",
+      "sha256": "1ce9dda723fa3c0ecb713176bcfb29bc29d9ce97d3021a6bc2ba8ae6848bcd53",
+      "bytes": 7769248
+    },
+    "test-main": {
+      "path": "target/release/deps/mlxl3_rs-e0604e16381edbe0",
+      "sha256": "c511942374e2f6eb68731536a08f940addaf29f9a190841b6ef2ff085323811a",
+      "bytes": 7906512
+    },
+    "engine": {
+      "path": "target/release/mlxl3-rs",
+      "sha256": "90b9121aa6fc75efff10f36ab837772c5bbe42a898be28917d6ab4ff537295e1",
+      "bytes": 9821744
+    },
+    "cpu-micro": {
+      "path": "build/dflash2-web-03/key-view/kernel-cache-key",
+      "sha256": "c6a1ef26d4254537cdd4ed35e91931afa19d73f33c6d86fac40ea1d017cb95ee",
+      "bytes": 65936
+    }
+  },
+  "versions": {
+    "rust": "1.98.1",
+    "mlx": "0.32.2",
+    "kani": "0.68.0",
+    "macos_sdk": "26.5"
+  },
+  "integration": "local generated bundle1.4.3/build25; personal installed application unchanged; no push or release",
+  "fixture_correction": "Trailing newline after Metal test preprocessor define; production comparator/bridge unchanged",
+  "status": "retained_local_code_and_signed_bundle",
+  "bundle": {
+    "engine": {
+      "path": "dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+      "bytes": 9764752,
+      "sha256": "23e0f3c16ec08a54be6b54ee83009f16e4a1e3be43253a609088181661c55e69"
+    },
+    "desktop": {
+      "path": "dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+      "bytes": 6626592,
+      "sha256": "b7a04c15db9a46dae812f25cc36a39ceb5145d45a20cc0fc6b41873859b777c2"
+    },
+    "build_info": {
+      "path": "dist/MLXL3 Desktop.app/Contents/Resources/build-info.json",
+      "sha256": "fac1cf1b721ce0b7103be3ae57d832baab04c844ac970880497e54ea5477ef0a"
+    }
+  },
+  "model_identity": "gate-up-identity.json",
+  "target_model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+  "draft_model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+  "precision": "EXL3 2.49bpw target / packedQ4 draft",
+  "default_context_copy": false,
+  "gpu_27b_loaded": false,
+  "formal": "unverified, see key-view-formal-summary.json",
+  "archive": "build/dflash2-web-03/key-view/candidate",
+  "recorded_unix": 1791496608.463706
+}

@@ -47,6 +47,21 @@ final class StudioModel: ObservableObject {
     @Published private(set) var dflashDownloadError: String?
     @Published private(set) var dflashActive: Bool?
     @Published private(set) var dflashSupported: Bool?
+    @Published private(set) var dflashMode = 1
+    @Published private(set) var dflashTuneRows: [MTPTuningRow] = []
+    @Published private(set) var dflashTuneSupported = false
+    private var dflashTunedAt: Date?
+    private var dflashTuningKey: String?
+    private var dflashConfigureSupported = false
+    private var dflashOperationID = UUID()
+    private var dflashConfigurationPending = false {
+        didSet { updateModelIdleUnload() }
+    }
+    private var dflashLegacyModelName: String?
+    private var tuneIsDFlash = false
+    var isTuningDFlash: Bool { isTuningMTP && tuneIsDFlash }
+    var dflashTuneProgress: Double { mtpTuneProgress }
+    var dflashTuneStatus: String { mtpTuneStatus }
     @Published private(set) var mtpEnabled = false
     @Published private(set) var mtpHeadPath = ""
     @Published private(set) var mtpDownloading = false {
@@ -131,9 +146,7 @@ final class StudioModel: ObservableObject {
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
-        // DFlash remains available to the CLI; Desktop v1.2 moves to native MTP.
-        self.dflash2Enabled = false
-        preferences.set(false, forKey: "studio.dflash2Enabled")
+        self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
         self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
@@ -159,6 +172,9 @@ final class StudioModel: ObservableObject {
             storageError = L("Historique illisible : aucune donnée ne sera écrasée. ", "History could not be read: no data will be overwritten. ") + error.localizedDescription
             selectedConversationID = conversations.first?.id
         }
+        if dflash2Enabled && mtpEnabled {
+            mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+        }
         if mtpEnabled {
             temperature = 0; topK = 1; repetitionPenalty = 1
         }
@@ -173,11 +189,13 @@ final class StudioModel: ObservableObject {
             }
         }
         mtpLegacyModelName = selectedModelName
+        dflashLegacyModelName = selectedModelName
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         bridge.onRuntimeFallback = { [weak self] in
             guard let self else { return }
             self.readyInfo = nil
             self.cancelMTPPreparation()
+            self.cancelDFlashPreparation()
             self.finishMTPTuning(error: nil)
             self.loadSelectedModel()
         }
@@ -185,6 +203,7 @@ final class StudioModel: ObservableObject {
             guard let self, let message, !message.isEmpty else { return }
             self.readyInfo = nil
             self.cancelMTPPreparation()
+            self.cancelDFlashPreparation()
             self.finishMTPTuning(error: message)
             self.mtpTuneSupported = false; self.mtpTuningKey = nil
             self.dflashActive = nil
@@ -240,7 +259,7 @@ final class StudioModel: ObservableObject {
     private var canAutomaticallyUnloadModel: Bool {
         !isPreview && engineState.isReady && readyInfo != nil && bridge.isRunning
             && !isGenerating && !mcpUpdating && !mtpDownloading
-            && !dflashDownloading && !mtpConfigurationPending
+            && !dflashDownloading && !dflashConfigurationPending && !mtpConfigurationPending
     }
 
     private func updateModelIdleUnload() {
@@ -289,7 +308,7 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
+        engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
     }
 
@@ -555,6 +574,7 @@ final class StudioModel: ObservableObject {
     func ejectModel() {
         guard canEject else { return }
         modelIdleUnloader.cancel()
+        cancelDFlashPreparation()
         activeMessage()?.fail(L("Modèle éjecté", "Model unloaded"))
         activeRequestID = nil
         activeResponseID = nil
@@ -667,6 +687,7 @@ final class StudioModel: ObservableObject {
                     mcpEnabled: mcpEnabled,
                     dflash2: dflash2Enabled && dflash2Available,
                     dflashDraftPath: dflashDraftPath,
+                    dflashMode: dflashMode,
                     mtp: mtpEnabled && mtpAvailable,
                     mtpHeadPath: mtpHeadPath,
                     mtpDepth: mtpDepth
@@ -731,49 +752,122 @@ final class StudioModel: ObservableObject {
         schedulePersistence()
     }
 
+    private func cancelDFlashPreparation() {
+        dflashOperationID = UUID()
+        dflashDownloadTask?.cancel(); dflashDownloadTask = nil
+        dflashDownloading = false; dflashConfigurationPending = false
+    }
+
     func setDFlash2Enabled(_ enabled: Bool) {
+        guard !isGenerating else { return }
         if !enabled {
-            dflashDownloadTask?.cancel()
+            cancelDFlashPreparation()
             dflash2Enabled = false
             preferences.set(false, forKey: "studio.dflash2Enabled")
+            saveDFlashSelection()
+            if dflashConfigureSupported && bridge.isRunning {
+                do {
+                    dflashConfigurationPending = true
+                    try bridge.setDFlash(requestID: dflashOperationID.uuidString, enabled: false, draftPath: "")
+                    let operation = dflashOperationID
+                    dflashDownloadTask = Task { [weak self] in
+                        do { try await Task.sleep(for: .seconds(30)) }
+                        catch { return }
+                        guard let self, operation == self.dflashOperationID, self.dflashConfigurationPending else { return }
+                        self.dflashDownloadError = L("La configuration DFlash ne répond pas.", "DFlash configuration did not respond.")
+                        self.dflashActive = nil
+                        self.cancelDFlashPreparation()
+                    }
+                }
+                catch { dflashDownloadError = error.localizedDescription; dflashActive = nil; cancelDFlashPreparation() }
+            }
             return
         }
-        guard dflash2Available, !isGenerating, !dflashDownloading else { return }
-        dflashDownloadError = nil
-        dflashDownloadCompleted = 0
-        dflashDownloadTotal = 0
+        guard dflash2Available, engineState.isReady, !dflashDownloading, let model = selectedModel else { return }
+        cancelDFlashPreparation()
+        let operation = dflashOperationID
+        dflashDownloadError = nil; dflashDownloadCompleted = 0; dflashDownloadTotal = 0
         dflashDownloading = true
         dflashDownloadTask = Task { [self] in
             do {
                 var data: Data?
                 if !dflashDraftPath.isEmpty {
-                    data = try? await CLICommand().output(["dflash-draft", "--inspect", dflashDraftPath])
+                    data = try? await CLICommand().output(["dflash-draft", "--target", model.path, "--inspect", dflashDraftPath])
                 }
                 try Task.checkCancellation()
                 if data == nil {
-                    data = try await CLICommand().output(["dflash-draft"]) { [weak self] line in
-                        guard let self,
-                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line),
-                              event.type == "progress" else { return }
+                    data = try await CLICommand().output(["dflash-draft", "--target", model.path]) { [weak self] line in
+                        guard let self, operation == self.dflashOperationID,
+                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
                         self.dflashDownloadCompleted = event.completed ?? self.dflashDownloadCompleted
                         self.dflashDownloadTotal = event.total ?? self.dflashDownloadTotal
                     }
                 }
                 try Task.checkCancellation()
-                guard let data,
-                      let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
-                      event.type == "installed", let path = event.path else {
-                    throw MLXL3BridgeError.invalidResponse
-                }
+                guard operation == dflashOperationID, selectedModel?.path == model.path else { return }
+                guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                      event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
                 dflashDraftPath = path
                 preferences.set(path, forKey: "studio.dflashDraftPath")
+                preferences.set(path, forKey: "studio.dflashDraft.\(model.path)")
+                restoreDFlashSelection()
+                cancelMTPPreparation(); mtpEnabled = false
+                preferences.set(false, forKey: "studio.mtpEnabled")
+                if dflashConfigureSupported {
+                    dflashConfigurationPending = true
+                    try bridge.setDFlash(requestID: operation.uuidString, enabled: true, draftPath: path)
+                    // Bound an unresponsive resident engine; stale tasks never enable a new model.
+                    for _ in 0..<300 where dflashConfigurationPending {
+                        try await Task.sleep(for: .milliseconds(100))
+                        try Task.checkCancellation()
+                    }
+                    guard !dflashConfigurationPending else { throw MLXL3BridgeError.commandFailed(L("Le draft ne répond pas.", "Draft loading did not respond.")) }
+                    guard dflashActive == true else { throw MLXL3BridgeError.commandFailed(dflashDownloadError ?? "DFlash loading failed") }
+                }
                 enableDFlashGreedy()
+                saveDFlashSelection()
             } catch is CancellationError { }
-            catch { dflashDownloadError = error.localizedDescription }
-            dflashDownloading = false
-            dflashDownloadTask = nil
+            catch { if operation == dflashOperationID { dflashDownloadError = error.localizedDescription; dflash2Enabled = false } }
+            if operation == dflashOperationID {
+                dflashDownloading = false; dflashConfigurationPending = false; dflashDownloadTask = nil
+            }
         }
     }
+
+    private var currentDFlashConfiguration: MTPConfigurationKey? {
+        guard let model = selectedModel, let runtime = dflashTuningKey, !dflashDraftPath.isEmpty else { return nil }
+        return MTPConfigurationKey(modelPath: model.path, headPath: dflashDraftPath, runtime: runtime, packedDraft: true)
+    }
+    var canTuneDFlash: Bool {
+        dflash2Available && dflashTuneSupported && engineState.isReady && !isGenerating
+            && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending
+            && !mcpUpdating && !updateManager.isInstalling && !modelInstallState.isWorking && currentDFlashConfiguration != nil
+    }
+    func setDFlashMode(_ mode: Int) {
+        guard !isGenerating, (1...3).contains(mode) else { return }
+        dflashMode = mode; saveDFlashSelection()
+    }
+    private func saveDFlashSelection() {
+        guard let key = currentDFlashConfiguration else { return }
+        MTPTuning.save(MTPSelection(key: key, depth: dflashMode,
+            rows: dflashTuneRows, tunedAt: dflashTunedAt), preferences: preferences, storageKey: "studio.dflashSelections")
+    }
+    private func restoreDFlashSelection() {
+        dflashMode = 1; dflashTuneRows = []; dflashTunedAt = nil
+        guard let key = currentDFlashConfiguration,
+              let saved = MTPTuning.load(key: key, preferences: preferences, storageKey: "studio.dflashSelections") else { return }
+        dflashMode = max(1, saved.depth); dflashTuneRows = saved.rows; dflashTunedAt = saved.tunedAt
+    }
+    func tuneDFlash() {
+        guard canTuneDFlash, let key = currentDFlashConfiguration else { return }
+        let request = UUID().uuidString
+        tuneIsDFlash = true; tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
+        isTuningMTP = true; mtpTuneProgress = 0; dflashDownloadError = nil
+        mtpTuneStatus = L("Préparation du test…", "Preparing test…")
+        do { try bridge.tuneDFlash(requestID: request, draftPath: dflashDraftPath) }
+        catch { finishMTPTuning(error: error.localizedDescription) }
+    }
+    func cancelDFlashTuning() { cancelMTPTuning() }
 
     private func cancelMTPPreparation() {
         mtpOperationID = UUID()
@@ -816,6 +910,8 @@ final class StudioModel: ObservableObject {
             return
         }
         guard mtpAvailable, engineState.isReady, !mtpDownloading, let model = selectedModel else { return }
+        cancelDFlashPreparation()
+        dflash2Enabled = false; preferences.set(false, forKey: "studio.dflash2Enabled")
         cancelMTPPreparation()
         let operation = mtpOperationID
         preferences.set(true, forKey: "studio.mtpEnabled")
@@ -896,7 +992,7 @@ final class StudioModel: ObservableObject {
 
     var canTuneMTP: Bool {
         mtpAvailable && mtpTuneSupported && engineState.isReady && !isGenerating
-            && !mtpDownloading && !mcpUpdating && !updateManager.isInstalling && !modelInstallState.isWorking
+            && !mtpDownloading && !dflashDownloading && !dflashConfigurationPending && !mcpUpdating && !updateManager.isInstalling && !modelInstallState.isWorking
             && currentMTPConfiguration != nil
     }
 
@@ -925,7 +1021,7 @@ final class StudioModel: ObservableObject {
     func tuneMTP() {
         guard canTuneMTP, let key = currentMTPConfiguration else { return }
         let request = UUID().uuidString
-        tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
+        tuneIsDFlash = false; tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
         isTuningMTP = true; mtpTuneProgress = 0; mtpError = nil
         mtpTuneStatus = L("Préparation du test…", "Preparing test…")
         do { try bridge.tuneMTP(requestID: request, headPath: mtpHeadPath) }
@@ -943,33 +1039,45 @@ final class StudioModel: ObservableObject {
 
     private func finishMTPTuning(error: String?) {
         isTuningMTP = false; tuneRequestID = nil; tuneConfiguration = nil
-        if let error { mtpError = error }
+        if let error { if tuneIsDFlash { dflashDownloadError = error } else { mtpError = error } }
+        tuneIsDFlash = false
     }
 
     private func handleMTPTuning(_ event: BridgeEvent) {
         switch event.type {
-        case "mtp_tune_progress":
+        case "mtp_tune_progress", "dflash_tune_progress":
             guard !tuneCancellationRequested else { return }
             if let completed = event.completed, let total = event.total, total > 0 {
                 mtpTuneProgress = min(1, max(0, Double(completed) / Double(total)))
             }
-            let mode = event.depth.map { $0 == 0 ? "Baseline" : "MTP\($0)" } ?? "MTP"
+            let mode = event.depth.map { tuneIsDFlash ? ["Baseline", "Auto", "2 tokens", "7 tokens"][min(3, max(0, $0))] : $0 == 0 ? "Baseline" : "MTP\($0)" } ?? "Tune"
             mtpTuneStatus = event.phase == "warmup"
                 ? L("Échauffement · ", "Warmup · ") + mode
                 : event.phase == "loading_head" ? L("Chargement de la tête MTP…", "Loading MTP head…")
                 : L("Mesure · ", "Measuring · ") + mode
-        case "mtp_tune_complete":
+        case "mtp_tune_complete", "dflash_tune_complete":
             guard !tuneCancellationRequested, let key = tuneConfiguration,
-                  key == currentMTPConfiguration, event.tuningKey == key.runtime,
+                  key == (tuneIsDFlash ? currentDFlashConfiguration : currentMTPConfiguration), event.tuningKey == key.runtime,
                   let rows = event.rows, let best = MTPTuning.winner(rows), best == event.bestDepth else {
                 finishMTPTuning(error: L("Test incomplet ou annulé. Réglage conservé.", "Incomplete or cancelled test. Setting preserved.")); return
             }
-            mtpDepth = max(1, best); mtpEnabled = best > 0; mtpTuneRows = rows.sorted { $0.depth < $1.depth }
-            mtpTunedAt = Date(); mtpTuneProgress = 1
+            if tuneIsDFlash {
+                dflashMode = max(1, best); dflash2Enabled = best > 0
+                dflashTuneRows = rows.sorted { $0.depth < $1.depth }; dflashTunedAt = Date()
+                mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+                preferences.set(dflash2Enabled, forKey: "studio.dflash2Enabled")
+                saveDFlashSelection()
+                if best == 0 { try? bridge.setDFlash(requestID: UUID().uuidString, enabled: false, draftPath: "") }
+            } else {
+                mtpDepth = max(1, best); mtpEnabled = best > 0; mtpTuneRows = rows.sorted { $0.depth < $1.depth }
+                mtpTunedAt = Date()
+                dflash2Enabled = false; preferences.set(false, forKey: "studio.dflash2Enabled")
+                preferences.set(mtpEnabled, forKey: "studio.mtpEnabled"); saveMTPSelection()
+            }
+            mtpTuneProgress = 1
             // Baseline is also measured in greedy mode, keeping the comparison valid.
             temperature = 0; topK = 1; repetitionPenalty = 1
-            preferences.set(mtpEnabled, forKey: "studio.mtpEnabled")
-            saveMTPSelection(); schedulePersistence(); finishMTPTuning(error: nil)
+            schedulePersistence(); finishMTPTuning(error: nil)
         case "cancelled":
             finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
         case "error":
@@ -986,10 +1094,13 @@ final class StudioModel: ObservableObject {
         picker.prompt = L("Utiliser ce draft", "Use this draft")
         guard picker.runModal() == .OK, let path = picker.url?.path else { return }
         dflashDraftPath = path
+        if let model = selectedModel { preferences.set(path, forKey: "studio.dflashDraft.\(model.path)") }
         preferences.set(path, forKey: "studio.dflashDraftPath")
+        setDFlash2Enabled(true)
     }
 
     func enableDFlashGreedy() {
+        mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
         temperature = 0
         topK = 1
         repetitionPenalty = 1
@@ -1084,6 +1195,12 @@ final class StudioModel: ObservableObject {
     private func loadSelectedModel() {
         guard !isGenerating else { return }
         modelIdleUnloader.cancel()
+        cancelDFlashPreparation()
+        dflashTuneSupported = false; dflashTuningKey = nil; dflashConfigureSupported = false
+        dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
+        dflashDraftPath = selectedModel.flatMap { preferences.string(forKey: "studio.dflashDraft.\($0.path)") }
+            ?? (selectedModelName == dflashLegacyModelName ? preferences.string(forKey: "studio.dflashDraftPath") ?? "" : "")
+        dflashTuneRows = []; dflashMode = 1
         dflashActive = nil
         dflashSupported = nil
         mtpActive = nil
@@ -1154,6 +1271,21 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
+        if dflashConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
+            dflashDownloadError = event.message ?? L("La configuration DFlash a échoué.", "DFlash configuration failed.")
+            dflash2Enabled = false; dflashActive = nil
+            cancelDFlashPreparation()
+        }
+        if event.requestID == dflashOperationID.uuidString && ["dflash_status", "error"].contains(event.type) {
+            dflashConfigurationPending = false
+            dflashActive = event.type == "dflash_status" ? event.dflashActive : false
+            if event.type == "error" { dflashDownloadError = event.message }
+            else if event.dflashActive != dflashDownloading {
+                dflashDownloadError = L("Réponse de configuration DFlash invalide.", "Invalid DFlash configuration response.")
+            }
+            if !dflashDownloading { dflashDownloadTask?.cancel(); dflashDownloadTask = nil }
+            return
+        }
         if mtpConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
             mtpError = event.message ?? L("La configuration MTP a échoué.", "MTP configuration failed.")
             mtpEnabled = false; mtpActive = nil
@@ -1182,6 +1314,9 @@ final class StudioModel: ObservableObject {
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
             dflashSupported = event.dflashSupported
+            dflashTuneSupported = event.dflashTuneSupported == true
+            dflashConfigureSupported = event.dflashConfigureSupported == true
+            dflashTuningKey = event.dflashTuningKey
             mtpSupported = event.mtpSupported
             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
             mtpConfigureSupported = event.mtpConfigureSupported == true
@@ -1201,6 +1336,7 @@ final class StudioModel: ObservableObject {
             )
             readyInfo = info
             restoreMTPSelection()
+            restoreDFlashSelection()
             mcpServerCount = event.mcpServers ?? 0
             mcpToolCount = event.mcpTools ?? 0
             mcpErrors = event.mcpErrors ?? [:]
@@ -1210,7 +1346,8 @@ final class StudioModel: ObservableObject {
                 residentGB: info.residentGB
             )
             if mcpEnabled { updateMCPConnection() }
-            if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
+            if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
+            else if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
         case "mcp_status":
             mcpUpdating = false
             mcpServerCount = event.mcpServers ?? 0

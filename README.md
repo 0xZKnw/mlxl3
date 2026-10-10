@@ -30,6 +30,43 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
+## DFlash2 (local 1.4.3 build)
+
+In **Generation → DFlash2**, one switch downloads, verifies and loads the
+matching Q4 draft for **Qwen3.6-35B-A3B** (~457 MiB) or **Qwen3.8-27B**
+(~1.18 GiB). Greedy settings apply automatically. The selection persists across
+relaunches; model changes select the matching draft, and OFF releases it.
+These changes are local and are not included in the published v1.4.2 DMG yet.
+
+**Tune DFlash2** compares ordinary decoding, Auto (2/5 proposals), fixed 2 and
+fixed 7. It checks target-token parity, uses local code and French prompts in reversed
+measurement order, and saves the result per target, draft, runtime, context
+and Mac. Ordinary decoding wins when no eligible mode exceeds it by 3%.
+An interrupted or invalid test preserves the previous setting. MTP and DFlash2
+use the same tuning controls and cannot be enabled together.
+
+The native downloader pins each draft revision and verifies every file's size
+and SHA-256. It excludes Splash's target weights. To prepare the matching draft
+from the CLI:
+
+```sh
+target/release/mlxl3-rs dflash-draft --target /path/to/EXL3-target
+```
+
+[Validation, measurements and checkpoint research](docs/dflash2-stable-validation.md).
+
+The local engine also provides an optional context-copy path for **35B Auto**:
+set `MLXL3_DFLASH_CONTEXT_COPY=1` in the engine's environment. It proposes
+matching text from the recent context and still verifies every token with the
+target. Chat and Tune share this policy, with separate tuning profiles for ON
+and OFF. It remains **OFF by default**: the copy-code benchmark showed a positive
+signal, but its confirmation failed the control-drift limit. Fixed modes and
+27B keep their existing path. [Upstream research, tests and measurement limits](docs/dflash2-web-optimisations-2026-10-08.md).
+
+The local build also avoids key copies on Metal kernel-cache hits. See the
+[exact 35B optimization results and verification limits](docs/dflash2-exact-optimisations-2026-10-08.md)
+for the CPU microtest, unchanged output checks and rejected GPU prototypes.
+
 ## Desktop and engine v1.4.2
 
 Desktop **1.4.2, build 24** includes engine **1.4.2**, fixes Send/Tune becoming
@@ -87,8 +124,8 @@ MLX affine 4-bit/group64 head. The Qwen3.6-35B-A3B head downloads on demand,
 from a pinned revision with full SHA-256 verification. Version 1 uses one
 proposal per verification block in greedy mode (temperature 0 / top-k 1,
 repetition penalty 1); other settings use ordinary decoding. Proposed tokens
-are delivered only after target verification. DFlash is retained as a CLI
-experiment and is disabled in Desktop on relaunch.
+are delivered only after target verification. This describes v1.2.0; the next
+build also offers the DFlash2 path described above.
 
 The app and engine have independent GitHub release channels: `vX.Y.Z` for
 DMGs and `engine-vX.Y.Z` for `MLXL3-Engine-vX.Y.Z-arm64.tar.gz`. Engine updates
@@ -143,7 +180,7 @@ costs about **1 ms**, down from 127–132 ms for restore-and-recompute. The targ
 sequence and all **80 recurrent/KV state arrays** were compared with ordinary
 greedy execution for retained widths 1 through 8. Desktop v1.1.0–v1.1.3 exposed
 this path for Qwen3.6-35B-A3B; v1.2.0 replaces it with MTP. The historical
-DFlash CLI experiment requires separate draft weights; the benchmark rate is not a guarantee
+DFlash campaign required separate draft weights; the benchmark rate is not a guarantee
 of in-app speed or of performance on another Mac.
 
 Peak MLX allocation is not the model file size, process RSS or total macOS
@@ -178,8 +215,8 @@ are rejected. The DMG contains neither target nor MTP weights.
 MTP applies greedy settings and checks every proposal against the target.
 The first request can take longer while Metal compiles kernels. A prefix
 checkpoint retains both target state and MTP KV when the conversation's
-encoded prefix and chunk boundary match. DFlash remains available to CLI
-experiments; its former Desktop toggle has been replaced.
+encoded prefix and chunk boundary match. DFlash2 has its own switch and
+matching draft in the next build.
 
 #### Experimental compact draft preparation
 
@@ -456,7 +493,19 @@ differential tests against reference operations and imposed-token model runs.
 Passing either class of check is not a proof that the entire application has no
 bugs.
 
-To reproduce the current Qwen DFlash2 end-to-end campaign, place the target and
+To check the production DFlash2 bridge on either supported target, run:
+
+```sh
+python scripts/check_dflash2.py target/release/mlxl3-rs /path/to/EXL3-target \
+  /path/to/DFlash2-draft --output /tmp/dflash2-check.json
+```
+
+It checks all policies, budgets, cancellation/recovery, prompt reuse, ON/OFF
+and Tune with a bounded wait and an isolated registry. The report certifies
+parity only after every check completes. GPU speed comparisons run separately
+through `benchmarks/compare_native.py --dflash-mode 1 --dflash-draft ...`.
+
+To reproduce the historical Qwen3.6 DFlash2 campaign, place the target and
 draft package at the paths named by the ignored test, then run:
 
 ```bash
@@ -501,8 +550,11 @@ Local model weights, build products and benchmark artifacts are not committed.
 
 - Apple Silicon/macOS only for native inference and Desktop.
 - No multimodal Gemma input.
-- DFlash2 is opt-in, greedy-only and validated for Qwen3.6-35B-A3B on M5;
+- DFlash2 is opt-in and greedy-only for Qwen3.6-35B-A3B and Qwen3.8-27B;
   the separate draft weights are not bundled.
+- Apple GPU validation reports an inherited alignment violation in the 35B
+  DFlash2 Q4/MPP path; it remains open despite passing normal numerical checks.
+  [Reproducer and scope](docs/dflash2-exact-optimisations-2026-10-08.md).
 - Performance on M1–M4 is not inferred from M5 measurements.
 - The release is not notarized.
 - MCP processes are trusted external tools, not a sandbox.

@@ -1,0 +1,30 @@
+{
+  "status": "indeterminate_cbmc_harness_timeout",
+  "checks": [
+    {
+      "name": "copy-field-focused",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--exact",
+        "--harness",
+        "speculative::verification::dflash_copy_len_4",
+        "--solver",
+        "cadical",
+        "-Z",
+        "unstable-options",
+        "--harness-timeout",
+        "180s",
+        "--cbmc-args",
+        "--max-field-sensitivity-array-size",
+        "1024"
+      ],
+      "exit": 1,
+      "timeout": false,
+      "seconds": 183.10563162498875,
+      "cbmc_timeout": true
+    }
+  ]
+}

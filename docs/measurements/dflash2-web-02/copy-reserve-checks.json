@@ -1,0 +1,77 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "copy-reserve-format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 0.2488105830270797
+    },
+    {
+      "name": "copy-reserve-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.2327813750016503
+    },
+    {
+      "name": "copy-reserve-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "seconds": 4.962489957979415
+    },
+    {
+      "name": "copy-reserve-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2.3998902079765685
+    },
+    {
+      "name": "copy-reserve-full",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 40.082517999981064
+    },
+    {
+      "name": "copy-reserve-package",
+      "command": [
+        "/bin/zsh",
+        "scripts/build-macos-app.sh"
+      ],
+      "exit": 0,
+      "seconds": 13.816194957995322
+    }
+  ]
+}

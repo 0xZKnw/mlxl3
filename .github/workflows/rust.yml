@@ -37,6 +37,12 @@ jobs:
       - run: cargo clippy --locked --all-targets --features chat -- -D warnings
       - run: cargo test --locked --features chat
       - run: cargo build --locked --features chat
+      - name: Check Metal cache key ordering and allocation regressions
+        run: |
+          mkdir -p build/ci
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
+          build/ci/kernel-cache-key
+          c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -54,8 +60,11 @@ jobs:
           ruff format --check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
           ruff check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
           python -m py_compile scripts/experimental-draft-head.py
+          ruff format --check scripts/check_dflash2.py tests/test_dflash2_check.py
+          ruff check scripts/check_dflash2.py tests/test_dflash2_check.py
+          python -m py_compile scripts/check_dflash2.py
       - name: Check bridge and QMM validation tools
-        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py
       - name: Check idle-memory benchmark failure and parity gates
         run: |
           ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py

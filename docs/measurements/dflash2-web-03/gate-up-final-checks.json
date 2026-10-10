@@ -1,0 +1,84 @@
+{
+  "status": "complete",
+  "source_sha256": "26ee5ee14d72810f23a9527b75cb5852887b5a1f581e0b8f8a93535e911946ec",
+  "checks": [
+    {
+      "name": "final-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.186631541,
+      "log": "docs/measurements/dflash2-web-03/gate-up-final-fmt.log"
+    },
+    {
+      "name": "final-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.8897605000000002,
+      "log": "docs/measurements/dflash2-web-03/gate-up-final-clippy.log"
+    },
+    {
+      "name": "final-lib",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--lib"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 23.345701040999998,
+      "log": "docs/measurements/dflash2-web-03/gate-up-final-lib.log"
+    },
+    {
+      "name": "kani-target",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--exact",
+        "--harness",
+        "dflash::verification::q4_row_merge_has_aligned_bounded_storage"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 2.534629125000002,
+      "log": "docs/measurements/dflash2-web-03/gate-up-kani-target.log"
+    },
+    {
+      "name": "kani-module",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "dflash::"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 3.352451791,
+      "log": "docs/measurements/dflash2-web-03/gate-up-kani-module.log"
+    }
+  ]
+}

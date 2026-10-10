@@ -855,6 +855,127 @@ mod tests {
     use super::*;
 
     #[test]
+    fn metal_cache_rejects_null_key_metadata_before_gpu_dispatch() {
+        let valid = c"valid".as_ptr();
+        let names = [valid];
+        let null_names = [std::ptr::null()];
+        for (name, inputs, outputs, header, source, ni, no) in [
+            (
+                std::ptr::null(),
+                names.as_ptr(),
+                names.as_ptr(),
+                valid,
+                valid,
+                1,
+                1,
+            ),
+            (
+                valid,
+                names.as_ptr(),
+                names.as_ptr(),
+                std::ptr::null(),
+                valid,
+                1,
+                1,
+            ),
+            (
+                valid,
+                names.as_ptr(),
+                names.as_ptr(),
+                valid,
+                std::ptr::null(),
+                1,
+                1,
+            ),
+            (valid, std::ptr::null(), names.as_ptr(), valid, valid, 1, 1),
+            (valid, names.as_ptr(), std::ptr::null(), valid, valid, 1, 1),
+            (
+                valid,
+                null_names.as_ptr(),
+                names.as_ptr(),
+                valid,
+                valid,
+                1,
+                1,
+            ),
+            (
+                valid,
+                names.as_ptr(),
+                null_names.as_ptr(),
+                valid,
+                valid,
+                1,
+                1,
+            ),
+        ] {
+            let status = unsafe {
+                mlxl3_metal_kernel(
+                    name,
+                    inputs,
+                    outputs,
+                    header,
+                    source,
+                    std::ptr::null(),
+                    ni,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    no,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                )
+            };
+            assert!(checked(status).is_err());
+        }
+    }
+
+    #[test]
+    #[ignore = "requires physical Apple GPU; cache collision and eviction regression, run alone"]
+    fn metal_cache_full_key_and_eviction_preserve_outputs() -> Result<()> {
+        let input = Array::from_f32(&[0., 1.25, -2., 8.], &[4])?;
+        let run = |index, multiply| -> Result<()> {
+            let header = format!("#define CACHE_SHIFT {index}.0f\n");
+            let source = if multiply {
+                "output[thread_position_in_grid.x] = input[thread_position_in_grid.x] * 2.0f + CACHE_SHIFT;"
+            } else {
+                "output[thread_position_in_grid.x] = input[thread_position_in_grid.x] + CACHE_SHIFT;"
+            };
+            let outputs = metal_kernel(
+                "mlxl3_cache_collision_regression",
+                &["input"],
+                &["output"],
+                &header,
+                source,
+                &[&input],
+                &[vec![4]],
+                &[Dtype::Float32],
+                [4, 1, 1],
+                [4, 1, 1],
+            )?;
+            assert_eq!(outputs.len(), 1);
+            assert_eq!(outputs[0].shape(), [4]);
+            let actual = outputs[0].to_f32()?;
+            assert_eq!(actual.len(), 4);
+            assert!(actual.iter().all(|v| v.is_finite()));
+            let expected = [0., 1.25, -2., 8.]
+                .map(|value| value * if multiply { 2. } else { 1. } + index as f32);
+            assert_eq!(actual, expected);
+            Ok(())
+        };
+        for index in 0..160 {
+            run(index, false)?;
+            run(index, true)?;
+        }
+        for index in [159, 0, 79, 1, 159] {
+            run(index, true)?;
+            run(index, false)?;
+        }
+        eprintln!("METAL_CACHE_QUALITY keys=320 requests=330 finite_values=1320 exact=true");
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "requires physical Apple GPU; run alone"]
     fn async_group_retains_parents_and_rejects_null() -> Result<()> {
         let (first, second) = {

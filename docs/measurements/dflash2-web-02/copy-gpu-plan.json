@@ -1,0 +1,103 @@
+{
+  "status": "completed_physical_quality_validated",
+  "identity": "copy-identity.json",
+  "binary_sha256": "ad0bef499cd1850795d5ad9c8a54055d91299e9564fa55ebeb898e7ffde03c64",
+  "environment": {
+    "MLXL3_DFLASH_CONTEXT_COPY": "1",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0",
+    "MLXL3_QWEN_TEST_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw"
+  },
+  "checks": [
+    {
+      "name": "copy-adversarial",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+        "--exact",
+        "tests::dflash_copy_accepts_rejects_and_preserves_draft_cache",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "listed": "tests::dflash_copy_accepts_rejects_and_preserves_draft_cache: test\n\n1 test, 0 benchmarks\n",
+      "list_verified_after_final_build": true
+    },
+    {
+      "name": "copy-target",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--exact",
+        "qwen35::tests::dflash_capture_verification_and_commits_match_serial_states",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "listed": "qwen35::tests::dflash_capture_verification_and_commits_match_serial_states: test\n\n1 test, 0 benchmarks\n",
+      "list_verified_after_final_build": true
+    },
+    {
+      "name": "copy-bridge-copies",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+        "--exact",
+        "tests::bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "listed": "tests::bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix: test\n\n1 test, 0 benchmarks\n",
+      "list_verified_after_final_build": true
+    },
+    {
+      "name": "copy-tune-copies",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+        "--exact",
+        "mtp_tune::tests::dflash_copy_tune_uses_the_chat_policy",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "listed": "mtp_tune::tests::dflash_copy_tune_uses_the_chat_policy: test\n\n1 test, 0 benchmarks\n",
+      "list_verified_after_final_build": true
+    },
+    {
+      "name": "copy-bridge-checker",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/.venv/bin/python",
+        "scripts/check_dflash2.py",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+        "--output",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-web-02/copy-bridge.json",
+        "--timeout",
+        "300",
+        "--foreign-draft",
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-DFlash2"
+      ]
+    }
+  ],
+  "updated_source_identity": "copy-identity.json",
+  "selection_checked_unix": 1791490890.520189,
+  "started_unix": 1791491383.397981,
+  "conditions": {
+    "power": {
+      "exit": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t78%; discharging; 6:31 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit": 0,
+      "stdout": "vm.swapusage: total = 6144.00M  used = 4824.94M  free = 1319.06M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "previous_failure": "copy-gpu-quality-fixture-failure.json",
+  "result": "copy-gpu-quality.json"
+}

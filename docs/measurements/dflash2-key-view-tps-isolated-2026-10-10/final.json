@@ -1,0 +1,146 @@
+{
+  "id": "DFLASH2-2026-10-10-KEY-VIEW-TPS-ISOLATED",
+  "status": "closed_nonconclusive_speed_drift",
+  "campaigns": [
+    {
+      "order": "ABBA",
+      "status": "complete",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/.venv/bin/python",
+        "benchmarks/compare_native.py",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "--baseline",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-key-view-tps-2026-10-09/baseline/mlxl3",
+        "--candidate",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "--output",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-key-view-tps-isolated-2026-10-10/abba",
+        "--prompt-file",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-key-view-tps-isolated-2026-10-10/code-prompt.txt",
+        "--tokens",
+        "128",
+        "--warmup-tokens",
+        "256",
+        "--repeats",
+        "3",
+        "--order",
+        "ABBA",
+        "--settle-seconds",
+        "30",
+        "--dflash-mode",
+        "1",
+        "--dflash-draft",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+        "--load-timeout",
+        "120",
+        "--request-timeout",
+        "90",
+        "--baseline-env",
+        "MLXL3_DFLASH_CONTEXT_COPY=0",
+        "--baseline-env",
+        "MLXL3_QWEN_PIPELINE=0",
+        "--baseline-env",
+        "MLXL3_MTP_LOOKUP=0",
+        "--baseline-env",
+        "MLXL3_APP_HOME=/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-key-view-tps-isolated-2026-10-10/baseline-app-home",
+        "--candidate-env",
+        "MLXL3_DFLASH_CONTEXT_COPY=0",
+        "--candidate-env",
+        "MLXL3_QWEN_PIPELINE=0",
+        "--candidate-env",
+        "MLXL3_MTP_LOOKUP=0",
+        "--candidate-env",
+        "MLXL3_APP_HOME=/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-key-view-tps-isolated-2026-10-10/candidate-app-home"
+      ],
+      "started_unix": 1791645534.529836,
+      "conflicts_before": [],
+      "parity": true,
+      "timeout": false,
+      "interference": [],
+      "pid": 11357,
+      "pgid": 11357,
+      "exit": 0,
+      "reason": null,
+      "finished_unix": 1791645777.9046452,
+      "seconds": 243.37543741601985,
+      "decision": {
+        "status": "inspected",
+        "validation_errors": [],
+        "measured_runs": 24,
+        "completed_warmups": 8,
+        "completed_parity": true,
+        "observed": {
+          "document": {
+            "A_tps": 65.20956655417854,
+            "B_tps": 67.17914592731587,
+            "absolute_delta_tps": 1.9695793731373357,
+            "change_percent": 3.020384089657968,
+            "pass_medians": {
+              "A": [
+                66.6103611207247,
+                63.80877198763236
+              ],
+              "B": [
+                68.39907672254907,
+                65.95921513208268
+              ]
+            },
+            "drift_percent": {
+              "A": -4.205935962446949,
+              "B": -3.5670972582909855
+            },
+            "within_drift": false,
+            "threshold_pass": true
+          },
+          "short": {
+            "A_tps": 55.36001740680774,
+            "B_tps": 58.74134825942637,
+            "absolute_delta_tps": 3.3813308526186248,
+            "change_percent": 6.107893405761122,
+            "pass_medians": {
+              "A": [
+                56.243385788902756,
+                54.47664902471273
+              ],
+              "B": [
+                58.49492893297938,
+                58.98776758587336
+              ]
+            },
+            "drift_percent": {
+              "A": -3.141234723707942,
+              "B": 0.8425322705471583
+            },
+            "within_drift": false,
+            "threshold_pass": true
+          }
+        },
+        "qualifies_for_BAAB": false,
+        "qualified_order": false
+      }
+    }
+  ],
+  "established_generation_gain": false,
+  "no_further_noise_retry": true,
+  "source_changed": false,
+  "27b_gpu": false,
+  "installed_app_changed": false,
+  "closed_unix": 1791645777.9100428,
+  "open_limits": [
+    "Inherited stock Q4 MPP alignment issue",
+    "Final C++ source proof unverified"
+  ],
+  "inspection_pending": false,
+  "post_inspection": "post-inspection.json",
+  "report": "../../dflash2-key-view-tps-isolated-2026-10-10.md",
+  "completed_measured_runs": 24,
+  "completed_warmups": 8,
+  "campaign_parity": true,
+  "maximum_speed_drift_percent": 4.205935962446949,
+  "no_BAAB_reason": "Complete ABBA numerical/token parity but same-variant speed drift exceeds preregistered 1 percent",
+  "cpu_latency_claim": "24.9 percent key lookup only; no conversion to total decode throughput",
+  "source_verification": "No new executable source changes; previous WEB03 verification scope and omissions retained",
+  "interference_detected": false,
+  "model_gpu_processes_active_after": [],
+  "inspection_date": "2026-10-10"
+}

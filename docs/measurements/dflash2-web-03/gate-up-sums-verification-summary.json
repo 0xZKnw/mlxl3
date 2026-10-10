@@ -1,0 +1,57 @@
+{
+  "proofs": [
+    {
+      "name": "kani-target",
+      "success_obligations": 38,
+      "unreachable_obligations": 0,
+      "failed_obligations": 0,
+      "covers": [
+        [
+          "2",
+          "2"
+        ]
+      ],
+      "summary": "Manual Harness Summary:\nComplete - 1 successfully verified harnesses, 0 failures, 1 total."
+    },
+    {
+      "name": "kani-module",
+      "success_obligations": 253,
+      "unreachable_obligations": 0,
+      "failed_obligations": 0,
+      "covers": [
+        [
+          "2",
+          "2"
+        ],
+        [
+          "3",
+          "3"
+        ],
+        [
+          "3",
+          "3"
+        ],
+        [
+          "2",
+          "2"
+        ],
+        [
+          "2",
+          "2"
+        ]
+      ],
+      "summary": "Manual Harness Summary:\nComplete - 6 successfully verified harnesses, 0 failures, 6 total."
+    }
+  ],
+  "test_counts": {
+    "cpu": {
+      "passed": 64,
+      "ignored": 2
+    },
+    "release": {
+      "passed": 78,
+      "ignored": 67
+    }
+  },
+  "scope": "CPU merge and shape/launch guards, all signed i32 dimensions; shader not source-proved, CBMC lacks metal_stdlib, ESBMC unavailable."
+}

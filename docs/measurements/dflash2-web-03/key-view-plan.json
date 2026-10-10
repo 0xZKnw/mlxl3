@@ -1,0 +1,47 @@
+{
+  "id": "DFLASH2-2026-10-08-KEY-VIEW",
+  "status": "completed_retained_local",
+  "hypothesis": "Every cached Metal dispatch eagerly copies name/input names/output names/header/source into a five-field std::tuple before map::find. Heterogeneous lookup using borrowed string views can eliminate those key allocations on hits, preserving full-key ordering and128-entry eviction, with no GPU math changes.",
+  "scope": [
+    "native/ffi/mlx_bridge.cpp",
+    "native/ffi/kernel_cache_key.h",
+    "native/tests/kernel_cache_key.cpp",
+    "native/src/array.rs test-only GPU cache collision/eviction regression",
+    ".github/workflows/rust.yml portable C++ tests"
+  ],
+  "baseline": {
+    "head": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+    "local_bundle": "ad0bef499cd1850795d5ad9c8a54055d91299e9564fa55ebeb898e7ffde03c64",
+    "sources": {
+      "native/ffi/mlx_bridge.cpp": "71d91278f629421dd47fc3a5c2bd3dca71d718d8f4a953ab8fadd25e2f53197f",
+      "native/src/array.rs": "8111689b6a7ff0f0f2cf03519df4ab80beca9e529229ce439a6cd607b2690f9d",
+      ".github/workflows/rust.yml": "4553379bc9655b396b94200d925640882b0c4ed19afd6649f486825fcc33f335"
+    }
+  },
+  "quality": [
+    "Independent original std::tuple ordering oracle against owned/view combinations, all fields/prefixes/empty names/high bytes, deterministic randomized keys, ephemeral caller lifetime and exact eviction order.",
+    "Assert no key lookup allocations on warmed candidate hits; original tuple must allocate. Source-level CBMC attempt on real comparator/header and original oracle, bounded strings/names; preserve unsupported/timeout diagnoses. ASan/UBSan C++ tests.",
+    "Production Array::metal_kernel same-name header/source changes and >128 entries/eviction; finite nonempty CPU float oracle. Then35B target exact cache/hidden/logits plus actual bridge checker and Tune; no27B inference."
+  ],
+  "micro_after_quality": {
+    "kind": "CPU cache lookup only, no GPU throughput claim",
+    "warmup_per_variant": 100000,
+    "samples": 7,
+    "iterations_per_sample": 200000,
+    "orders": [
+      "ABBA",
+      "BAAB"
+    ],
+    "minimum_latency_gain_percent": 5,
+    "maximum_same_variant_drift_percent": 1,
+    "single_campaign_no_noise_retries": true,
+    "latency_gain_formula": "100 * (1 - B_seconds / A_seconds), A/B are averages of the two pass medians in each order",
+    "drift_formula": "100 * (second_pass_median / first_pass_median - 1), absolute <=1% separately for A and B",
+    "requires": "five physical tests plus final signed bundle production bridge check before launch"
+  },
+  "retention": "Only if lookup allocation elimination is deterministic, ordering/eviction/source checks and real numeric/bridge quality pass. CPU latency is independently qualified; no general tok/s or MTP superiority claimed without a separate generation protocol.",
+  "production_changed": true,
+  "preregistered_or_initial_status": "preregistered",
+  "final_result": "key-view-decision.json",
+  "original_production_changed_at_preregistration": false
+}

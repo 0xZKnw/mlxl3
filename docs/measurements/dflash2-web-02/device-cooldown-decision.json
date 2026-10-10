@@ -1,0 +1,76 @@
+{
+  "status": "nonconclusive_drift",
+  "parity": true,
+  "drifts": {
+    "short": {
+      "A": {
+        "tps": [
+          57.506056681813575,
+          52.11386820267877
+        ],
+        "percent": -9.376731409302309
+      },
+      "B": {
+        "tps": [
+          65.59443552646349,
+          64.4481727837125
+        ],
+        "percent": -1.7474999724458984
+      }
+    },
+    "document": {
+      "A": {
+        "tps": [
+          65.9700349366785,
+          65.89435461716033
+        ],
+        "percent": -0.11471923516610527
+      },
+      "B": {
+        "tps": [
+          75.30798466433501,
+          73.5609930679664
+        ],
+        "percent": -2.3197959740329788
+      }
+    }
+  },
+  "continue_baab": false,
+  "binary_sha256": "ed5cf0c868e7a636ffbdf5c94880484f13163ed1074956c855bba9220e3a4561",
+  "source": "device-cooldown-abba/results.json",
+  "settle_seconds": 60,
+  "limits": "Physical cause of drift not measured. No further cooldown variation or retry until green.",
+  "diagnostic_pooled_median_gains": {
+    "short": {
+      "medians_tps": {
+        "A": 55.581836360107985,
+        "B": 64.73282513824441
+      },
+      "percent": 16.463991435706227
+    },
+    "document": {
+      "medians_tps": {
+        "A": 65.89435461716033,
+        "B": 74.49706146312533
+      },
+      "percent": 13.055301771974047
+    }
+  },
+  "gains": {
+    "short": {
+      "medians_tps": {
+        "A": 54.809962442246174,
+        "B": 65.02130415508799
+      },
+      "percent": 18.630448294142887
+    },
+    "document": {
+      "medians_tps": {
+        "A": 65.93219477691942,
+        "B": 74.4344888661507
+      },
+      "percent": 12.895511999863896
+    }
+  },
+  "aggregation": "Mean of the two per-pass medians, as in compare_native.py and initial trial; pooled medians are diagnostic only."
+}

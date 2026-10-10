@@ -22,6 +22,88 @@ pub const VOCABULARY: u64 = 248_320;
 pub const CONTEXT_WINDOW: usize = 2048;
 pub const PREFILL_CHUNK: usize = 256;
 
+/// The two published packed drafts share the ABI and attention geometry.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Family {
+    Qwen36Moe,
+    Qwen38Dense,
+}
+
+impl Family {
+    pub fn from_target(layout: &crate::mtp::Layout, layers: usize) -> Option<Self> {
+        layout.managed_head(layers).map(|head| match head {
+            crate::mtp::ManagedHead::Qwen36Moe => Self::Qwen36Moe,
+            crate::mtp::ManagedHead::Qwen38Dense => Self::Qwen38Dense,
+        })
+    }
+    pub fn hidden(self) -> u64 {
+        match self {
+            Self::Qwen36Moe => 2048,
+            Self::Qwen38Dense => 5120,
+        }
+    }
+    pub fn layers(self) -> usize {
+        match self {
+            Self::Qwen36Moe => 6,
+            Self::Qwen38Dense => 5,
+        }
+    }
+    pub fn intermediate(self) -> u64 {
+        match self {
+            Self::Qwen36Moe => 6144,
+            Self::Qwen38Dense => 17408,
+        }
+    }
+    pub fn captures(self) -> &'static [usize] {
+        match self {
+            Self::Qwen36Moe => &[1, 6, 11, 16, 22, 27, 32, 37],
+            Self::Qwen38Dense => &[5, 19, 33, 47, 61],
+        }
+    }
+    pub fn target_hidden(self) -> u64 {
+        self.hidden() * self.captures().len() as u64
+    }
+    pub fn dynamic(self) -> u64 {
+        4 * self.hidden() / 16
+    }
+    pub fn mask(self) -> u32 {
+        match self {
+            Self::Qwen36Moe => 248077,
+            Self::Qwen38Dense => 248070,
+        }
+    }
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Qwen36Moe => "Qwen3.6-35B-A3B-DFlash2",
+            Self::Qwen38Dense => "Qwen3.8-27B-DFlash2",
+        }
+    }
+    pub fn repository(self) -> &'static str {
+        match self {
+            Self::Qwen36Moe => "incoai/Qwen3.6-35B-A3B-Splash",
+            Self::Qwen38Dense => "incoai/Qwen3.8-27B-Splash",
+        }
+    }
+    pub fn revision(self) -> &'static str {
+        match self {
+            Self::Qwen36Moe => "0f4714b2db37b5f3c42a10de07281e74f88e4adc",
+            Self::Qwen38Dense => "9d27070b71f7142c6b6025f03ac011d70a73cb48",
+        }
+    }
+}
+
+pub fn target_family(path: &Path) -> Result<Family> {
+    let (layout, layers) = crate::mtp::target_layout(path)?;
+    Family::from_target(&layout, layers)
+        .context("DFlash2 supports Qwen3.6-35B-A3B and Qwen3.8-27B targets")
+}
+
+/// The shipped convolution uses two taps both before and after projection.
+pub fn valid_convolution_hidden(hidden: i32) -> bool {
+    matches!(hidden, 2048 | 5120)
+}
+
 /// Begin at the whole target chunk preceding the last useful draft window.
 /// WINDOW is a multiple of CHUNK, so the final whole-chunk prompt checkpoint
 /// also has a complete window even when the prompt ends with a partial chunk.
@@ -57,6 +139,7 @@ impl PackedFile {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DFlashPackage {
+    pub family: Family,
     pub directory: PathBuf,
     pub layers: Vec<PackedFile>,
     pub model: PackedFile,
@@ -131,30 +214,34 @@ fn q4_packed_bytes_checked(output: u64, input: u64) -> Option<u64> {
         .map(|bytes| bytes / 16)
 }
 
-fn layer_plan() -> Result<Plan> {
+fn layer_plan(family: Family) -> Result<Plan> {
+    let hidden = family.hidden();
+    let dynamic = family.dynamic();
+    let intermediate = family.intermediate();
     let mut plan = Plan::new();
-    plan.bf16("input_norm", HIDDEN)?;
-    plan.bf16("attention_convolution", 4 * HIDDEN)?;
-    plan.q4("attention_dynamic", DYNAMIC, HIDDEN)?;
-    plan.q4("qkv", QKV, HIDDEN)?;
+    plan.bf16("input_norm", hidden)?;
+    plan.bf16("attention_convolution", 4 * hidden)?;
+    plan.q4("attention_dynamic", dynamic, hidden)?;
+    plan.q4("qkv", QKV, hidden)?;
     plan.bf16("query_norm", 128)?;
     plan.bf16("key_norm", 128)?;
-    plan.q4("attention_output", HIDDEN, ATTENTION)?;
-    plan.bf16("post_attention_norm", HIDDEN)?;
-    plan.bf16("mlp_convolution", 4 * HIDDEN)?;
-    plan.q4("mlp_dynamic", DYNAMIC, HIDDEN)?;
-    plan.q4("gate", INTERMEDIATE, HIDDEN)?;
-    plan.q4("up", INTERMEDIATE, HIDDEN)?;
-    plan.q4("down", HIDDEN, INTERMEDIATE)?;
+    plan.q4("attention_output", hidden, ATTENTION)?;
+    plan.bf16("post_attention_norm", hidden)?;
+    plan.bf16("mlp_convolution", 4 * hidden)?;
+    plan.q4("mlp_dynamic", dynamic, hidden)?;
+    plan.q4("gate", intermediate, hidden)?;
+    plan.q4("up", intermediate, hidden)?;
+    plan.q4("down", hidden, intermediate)?;
     Ok(plan)
 }
 
-fn model_plan() -> Result<Plan> {
+fn model_plan(family: Family) -> Result<Plan> {
+    let hidden = family.hidden();
     let mut plan = Plan::new();
-    plan.q4("context_projection", HIDDEN, TARGET_HIDDEN)?;
-    plan.bf16("hidden_norm", HIDDEN)?;
-    plan.bf16("final_norm", HIDDEN)?;
-    plan.q4("selector_projection", SELECTOR, HIDDEN)?;
+    plan.q4("context_projection", hidden, family.target_hidden())?;
+    plan.bf16("hidden_norm", hidden)?;
+    plan.bf16("final_norm", hidden)?;
+    plan.q4("selector_projection", SELECTOR, hidden)?;
     plan.bf16("predecessor_codebook", VOCABULARY * SELECTOR)?;
     plan.bf16("successor_codebook", VOCABULARY * SELECTOR)?;
     Ok(plan)
@@ -222,18 +309,32 @@ pub fn inspect(directory: impl AsRef<Path>) -> Result<DFlashPackage> {
         .canonicalize()
         .with_context(|| format!("opening DFlash package {}", directory.as_ref().display()))?;
     let draft = directory.join("draft");
-    let layers = (0..LAYERS)
+    let mut header = [0u8; 16];
+    File::open(draft.join("model.bin"))?.read_exact(&mut header)?;
+    ensure!(&header[..8] == MAGIC, "invalid DFlash model magic");
+    let family = match u32::from_le_bytes(header[8..12].try_into().unwrap()) {
+        6 => Family::Qwen36Moe,
+        5 => Family::Qwen38Dense,
+        _ => anyhow::bail!("unsupported DFlash model layer count"),
+    };
+    let layers = (0..family.layers())
         .map(|layer| {
             inspect_file(
                 draft.join(format!("layer-{layer}.bin")),
                 layer as u32,
                 0,
-                layer_plan()?,
+                layer_plan(family)?,
             )
         })
         .collect::<Result<Vec<_>>>()?;
-    let model = inspect_file(draft.join("model.bin"), LAYERS as u32, 1, model_plan()?)?;
+    let model = inspect_file(
+        draft.join("model.bin"),
+        family.layers() as u32,
+        1,
+        model_plan(family)?,
+    )?;
     Ok(DFlashPackage {
+        family,
         directory,
         layers,
         model,
@@ -276,6 +377,7 @@ pub struct DFlashLayerWeights {
 
 #[cfg(feature = "mlx")]
 pub struct DFlashWeights {
+    pub family: Family,
     pub layers: Vec<DFlashLayerWeights>,
     pub context_projection: Q4Projection,
     pub hidden_norm: crate::array::Array,
@@ -292,17 +394,9 @@ pub struct DFlashCacheLayer {
 }
 
 #[cfg(feature = "mlx")]
+#[derive(Default)]
 pub struct DFlashCache {
     layers: Vec<Option<DFlashCacheLayer>>,
-}
-
-#[cfg(feature = "mlx")]
-impl Default for DFlashCache {
-    fn default() -> Self {
-        Self {
-            layers: std::iter::repeat_with(|| None).take(LAYERS).collect(),
-        }
-    }
 }
 
 #[cfg(feature = "mlx")]
@@ -338,10 +432,23 @@ impl DFlashCache {
         ensure!(
             captured.shape().len() == 2
                 && captured.shape()[0] > 0
-                && captured.shape()[1] == TARGET_HIDDEN as i32
+                && captured.shape()[1] == weights.family.target_hidden() as i32
                 && captured.dtype() == Dtype::BFloat16
                 && start_position >= 0,
             "invalid DFlash captured context"
+        );
+        if self.layers.is_empty() {
+            self.layers = std::iter::repeat_with(|| None)
+                .take(weights.layers.len())
+                .collect();
+        }
+        ensure!(
+            self.layers.len() == weights.layers.len(),
+            "DFlash cache belongs to another draft"
+        );
+        ensure!(
+            start_position.checked_add(captured.shape()[0]).is_some(),
+            "DFlash capture position overflow"
         );
         let rows = captured.shape()[0];
         for begin in (0..rows).step_by(8) {
@@ -353,7 +460,10 @@ impl DFlashCache {
                 Array::concatenate(
                     &[
                         &block,
-                        &Array::zeros_dtype(&[8 - count, TARGET_HIDDEN as i32], Dtype::BFloat16)?,
+                        &Array::zeros_dtype(
+                            &[8 - count, weights.family.target_hidden() as i32],
+                            Dtype::BFloat16,
+                        )?,
                     ],
                     0,
                 )?
@@ -432,26 +542,31 @@ fn load_bf16(file: &File, section: &PackedSection, shape: &[i32]) -> Result<crat
 #[cfg(feature = "mlx")]
 impl DFlashWeights {
     pub fn load(package: &DFlashPackage) -> Result<Self> {
-        let mut layers = Vec::with_capacity(LAYERS);
+        let family = package.family;
+        let mut layers = Vec::with_capacity(family.layers());
         for packed in &package.layers {
             let file = File::open(&packed.path)?;
             layers.push(DFlashLayerWeights {
-                input_norm: load_bf16(&file, packed.section("input_norm")?, &[HIDDEN as i32])?,
+                input_norm: load_bf16(
+                    &file,
+                    packed.section("input_norm")?,
+                    &[family.hidden() as i32],
+                )?,
                 attention_convolution: load_bf16(
                     &file,
                     packed.section("attention_convolution")?,
-                    &[4, HIDDEN as i32],
+                    &[4, family.hidden() as i32],
                 )?,
                 attention_dynamic: Q4Projection::from_section(
                     &file,
                     packed.section("attention_dynamic")?,
-                    HIDDEN as i32,
-                    DYNAMIC as i32,
+                    family.hidden() as i32,
+                    family.dynamic() as i32,
                 )?,
                 qkv: Q4Projection::from_section(
                     &file,
                     packed.section("qkv")?,
-                    HIDDEN as i32,
+                    family.hidden() as i32,
                     QKV as i32,
                 )?,
                 query_norm: load_bf16(&file, packed.section("query_norm")?, &[128])?,
@@ -460,64 +575,73 @@ impl DFlashWeights {
                     &file,
                     packed.section("attention_output")?,
                     ATTENTION as i32,
-                    HIDDEN as i32,
+                    family.hidden() as i32,
                 )?,
                 post_attention_norm: load_bf16(
                     &file,
                     packed.section("post_attention_norm")?,
-                    &[HIDDEN as i32],
+                    &[family.hidden() as i32],
                 )?,
                 mlp_convolution: load_bf16(
                     &file,
                     packed.section("mlp_convolution")?,
-                    &[4, HIDDEN as i32],
+                    &[4, family.hidden() as i32],
                 )?,
                 mlp_dynamic: Q4Projection::from_section(
                     &file,
                     packed.section("mlp_dynamic")?,
-                    HIDDEN as i32,
-                    DYNAMIC as i32,
+                    family.hidden() as i32,
+                    family.dynamic() as i32,
                 )?,
                 gate: Q4Projection::from_section(
                     &file,
                     packed.section("gate")?,
-                    HIDDEN as i32,
-                    INTERMEDIATE as i32,
+                    family.hidden() as i32,
+                    family.intermediate() as i32,
                 )?,
                 up: Q4Projection::from_section(
                     &file,
                     packed.section("up")?,
-                    HIDDEN as i32,
-                    INTERMEDIATE as i32,
+                    family.hidden() as i32,
+                    family.intermediate() as i32,
                 )?,
                 down: Q4Projection::from_section(
                     &file,
                     packed.section("down")?,
-                    INTERMEDIATE as i32,
-                    HIDDEN as i32,
+                    family.intermediate() as i32,
+                    family.hidden() as i32,
                 )?,
             });
         }
         ensure!(
-            layers.len() == LAYERS,
+            layers.len() == family.layers(),
             "DFlash package has wrong layer count"
         );
         let file = File::open(&package.model.path)?;
         let model = &package.model;
         let weights = Self {
+            family,
             layers,
             context_projection: Q4Projection::from_section(
                 &file,
                 model.section("context_projection")?,
-                TARGET_HIDDEN as i32,
-                HIDDEN as i32,
+                family.target_hidden() as i32,
+                family.hidden() as i32,
             )?,
-            hidden_norm: load_bf16(&file, model.section("hidden_norm")?, &[HIDDEN as i32])?,
-            final_norm: load_bf16(&file, model.section("final_norm")?, &[HIDDEN as i32])?,
+            hidden_norm: load_bf16(
+                &file,
+                model.section("hidden_norm")?,
+                &[family.hidden() as i32],
+            )?,
+            final_norm: load_bf16(
+                &file,
+                model.section("final_norm")?,
+                &[family.hidden() as i32],
+            )?,
             selector_projection: Q4Projection::from_section(
                 &file,
                 model.section("selector_projection")?,
-                HIDDEN as i32,
+                family.hidden() as i32,
                 SELECTOR as i32,
             )?,
             predecessor_codebook: load_bf16(
@@ -543,9 +667,9 @@ impl DFlashWeights {
         use crate::array::Dtype;
 
         ensure!(
-            input.shape() == [8, HIDDEN as i32]
+            input.shape() == [8, self.family.hidden() as i32]
                 && input.dtype() == Dtype::BFloat16
-                && cache.layers.len() == self.layers.len()
+                && (cache.layers.is_empty() || cache.layers.len() == self.layers.len())
                 && position >= 0,
             "invalid DFlash decode input"
         );
@@ -571,7 +695,7 @@ impl DFlashWeights {
                 &qkv,
                 &weights.query_norm,
                 &weights.key_norm,
-                cache.layers[index].as_ref(),
+                cache.layers.get(index).and_then(Option::as_ref),
                 position,
             )?;
             let projected =
@@ -850,9 +974,11 @@ pub fn convolution(
     use crate::array::{self, Dtype};
 
     ensure!(
-        input.shape() == [8, HIDDEN as i32]
-            && dynamic.shape() == [8, (4 * HIDDEN / 16) as i32]
-            && base.shape() == [4, HIDDEN as i32]
+        input.shape().len() == 2
+            && input.shape()[0] == 8
+            && valid_convolution_hidden(input.shape()[1])
+            && dynamic.shape() == [8, 4 * input.shape()[1] / 16]
+            && base.shape() == [4, input.shape()[1]]
             && residual.shape() == input.shape()
             && [input, dynamic, base, residual]
                 .iter()
@@ -864,17 +990,22 @@ pub fn convolution(
         "invalid DFlash convolution grid"
     );
     let header = format!(
-        "#define DFLASH_GROUPS {groups}\n#define DFLASH_FINISH {}\n",
+        "#define DFLASH_HIDDEN {}\n#define DFLASH_GROUPS {groups}\n#define DFLASH_FINISH {}\n",
+        input.shape()[1],
         if finish { "true" } else { "false" }
     );
     Ok(array::metal_kernel(
-        &format!("mlxl3_dflash_conv_{}_g{groups}", u8::from(finish)),
+        &format!(
+            "mlxl3_dflash_conv_h{}_{}_g{groups}",
+            input.shape()[1],
+            u8::from(finish)
+        ),
         &["input", "dynamic", "base", "residual"],
         &["output"],
         &header,
         include_str!("../shaders/dflash_conv.metal"),
         &[input, dynamic, base, residual],
-        &[vec![8, HIDDEN as i32]],
+        &[vec![8, input.shape()[1]]],
         &[Dtype::BFloat16],
         [
             groups
@@ -1015,6 +1146,24 @@ impl Q4Projection {
     }
 }
 
+#[cfg(kani)]
+#[kani::proof]
+fn dflash_layouts_have_bounded_published_geometry() {
+    let family: Family = if kani::any() {
+        Family::Qwen36Moe
+    } else {
+        Family::Qwen38Dense
+    };
+    assert!(family.target_hidden() == 16384 || family.target_hidden() == 25600);
+    assert!(valid_convolution_hidden(family.hidden() as i32));
+    assert!(valid_q4_geometry(family.hidden(), family.target_hidden()));
+    assert!(valid_q4_geometry(family.dynamic(), family.hidden()));
+    assert!(valid_q4_geometry(family.intermediate(), family.hidden()));
+    assert!(family.mask() < VOCABULARY as u32);
+    kani::cover!(family == Family::Qwen36Moe);
+    kani::cover!(family == Family::Qwen38Dense);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1153,14 +1302,169 @@ mod tests {
     use std::io::{Seek, SeekFrom, Write};
 
     #[test]
+    fn inspects_published_dense_geometry_without_target_weights() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let draft = temporary.path().join("draft");
+        std::fs::create_dir(&draft)?;
+        // Independent sizes/header from the pinned official dense manifest.
+        for index in 0..=5_u32 {
+            let path = if index == 5 {
+                draft.join("model.bin")
+            } else {
+                draft.join(format!("layer-{index}.bin"))
+            };
+            let mut file = File::create(path)?;
+            file.set_len(if index == 5 { 328_794_112 } else { 187_449_344 })?;
+            file.write_all(b"MDFD0004")?;
+            file.write_all(&index.to_le_bytes())?;
+            file.write_all(&u32::from(index == 5).to_le_bytes())?;
+        }
+        let package = inspect(temporary.path())?;
+        assert_eq!(package.layers.len(), 5);
+        assert_eq!(package.model.bytes, 328_794_112);
+        Ok(())
+    }
+
+    #[cfg(feature = "mlx")]
+    #[test]
+    #[ignore = "physical GPU and MLXL3_DFLASH_TEST_DRAFT; run alone"]
+    fn draft_cache_preserves_window_across_append_partitions() -> Result<()> {
+        use crate::array::{Array, Dtype};
+        let package = inspect(std::env::var("MLXL3_DFLASH_TEST_DRAFT")?)?;
+        let weights = DFlashWeights::load(&package)?;
+        let width = weights.family.target_hidden() as i32;
+        let data = (0..257 * width)
+            .map(|i| (i % 131) as f32 / 67. - 1.)
+            .collect::<Vec<_>>();
+        let captured = Array::from_f32(&data, &[257, width])?.astype(Dtype::BFloat16)?;
+        captured.eval()?;
+        for old in [0, 2047, 2048] {
+            let mut initial = DFlashCache::default();
+            if old > 0 {
+                initial.layers = (0..weights.layers.len())
+                    .map(|_| {
+                        Ok(Some(DFlashCacheLayer {
+                            keys: Array::from_f32(
+                                &vec![0.25; 8 * old as usize * 128],
+                                &[1, 8, old, 128],
+                            )?
+                            .astype(Dtype::BFloat16)?,
+                            values: Array::from_f32(
+                                &vec![-0.5; 8 * old as usize * 128],
+                                &[1, 8, old, 128],
+                            )?
+                            .astype(Dtype::BFloat16)?,
+                        }))
+                    })
+                    .collect::<Result<_>>()?;
+            }
+            for count in [1, 7, 8, 9, 255, 256, 257] {
+                let input = captured.slice(0, 0, count)?;
+                let mut expected = initial.try_clone()?;
+                let mut actual = initial.try_clone()?;
+                for begin in (0..count).step_by(8) {
+                    expected.append_captured(
+                        &weights,
+                        &input.slice(0, begin, (begin + 8).min(count))?,
+                        old + begin,
+                    )?;
+                }
+                actual.append_captured(&weights, &input, old)?;
+                let golden = cache_bytes(&expected)?;
+                let result = cache_bytes(&actual)?;
+                ensure!(
+                    golden.len() == 2 * weights.layers.len()
+                        && golden.iter().all(|b| !b.is_empty()),
+                    "empty cache partition reference"
+                );
+                for (index, (a, b)) in golden.iter().zip(&result).enumerate() {
+                    ensure!(
+                        a == b,
+                        "KV differs: old={old}, count={count}, array={index}"
+                    );
+                }
+                for layer in actual.layers.iter().flatten() {
+                    ensure!(
+                        layer.keys.shape() == [1, 8, (old + count).min(2048), 128],
+                        "bad cache shape"
+                    );
+                    for array in [&layer.keys, &layer.values] {
+                        ensure!(
+                            array.to_f32()?.iter().all(|x| x.is_finite()),
+                            "nonfinite cache"
+                        );
+                    }
+                }
+                let saved = actual.try_clone()?;
+                actual.append_captured(&weights, &input, old + count)?;
+                for begin in (0..count).step_by(8) {
+                    expected.append_captured(
+                        &weights,
+                        &input.slice(0, begin, (begin + 8).min(count))?,
+                        old + count + begin,
+                    )?;
+                }
+                ensure!(
+                    cache_bytes(&actual)? == cache_bytes(&expected)?,
+                    "second append differs"
+                );
+                ensure!(cache_bytes(&saved)? == result, "clone changed after append");
+            }
+        }
+        let mut cache = DFlashCache::default();
+        ensure!(
+            cache
+                .append_captured(&weights, &captured.slice(0, 0, 1)?, i32::MAX)
+                .is_err(),
+            "position overflow accepted"
+        );
+        ensure!(
+            cache
+                .append_captured(&weights, &captured.slice(0, 0, 1)?, -1)
+                .is_err(),
+            "negative position accepted"
+        );
+        ensure!(
+            cache
+                .append_captured(&weights, &captured.astype(Dtype::Float16)?, 0)
+                .is_err(),
+            "wrong dtype accepted"
+        );
+        eprintln!(
+            "{}: 21 cache cases, 42 appends, partition KV finite/bit exact, clone and errors",
+            weights.family.name()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn dense_layout_and_convolution_boundaries() -> Result<()> {
+        assert_eq!(layer_plan(Family::Qwen38Dense)?.cursor, 187_449_344);
+        assert_eq!(model_plan(Family::Qwen38Dense)?.cursor, 328_794_112);
+        assert_eq!(Family::Qwen38Dense.captures(), &[5, 19, 33, 47, 61]);
+        assert_eq!(Family::Qwen38Dense.mask(), 248_070);
+        assert_eq!(
+            Family::Qwen36Moe.captures(),
+            &[1, 6, 11, 16, 22, 27, 32, 37]
+        );
+        for hidden in [-1, 0, 1, 2047, 2048, 2049, 5119, 5120, 5121, i32::MAX] {
+            assert_eq!(
+                valid_convolution_hidden(hidden),
+                hidden == 2048 || hidden == 5120
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn plans_match_the_published_splash_layout() -> Result<()> {
-        let layer = layer_plan()?;
+        let layer = layer_plan(Family::Qwen36Moe)?;
         assert_eq!(layer.cursor, 34_324_480);
         assert_eq!(layer.sections[0].offset, 16_384);
         assert_eq!(layer.sections[3].offset, 638_976);
         assert_eq!(layer.sections[12].offset, 27_246_592);
 
-        let model = model_plan()?;
+        let model = model_plan(Family::Qwen36Moe)?;
         assert_eq!(model.cursor, 273_498_112);
         assert_eq!(model.sections[0].offset, 16_384);
         assert_eq!(model.sections[4].offset, 19_218_432);
@@ -1172,7 +1476,7 @@ mod tests {
     fn rejects_a_bad_header_before_exposing_offsets() -> Result<()> {
         let temporary = tempfile::tempdir()?;
         let path = temporary.path().join("layer-0.bin");
-        let plan = layer_plan()?;
+        let plan = layer_plan(Family::Qwen36Moe)?;
         let mut file = File::create(&path)?;
         file.set_len(plan.cursor)?;
         file.seek(SeekFrom::Start(0))?;
@@ -1567,6 +1871,17 @@ mod tests {
         use std::time::Instant;
 
         ensure!(crate::array::is_m5_gpu()?, "benchmark requires Apple M5");
+        let hidden = std::env::var("MLXL3_DFLASH_CONV_HIDDEN")
+            .ok()
+            .map(|s| s.parse::<usize>())
+            .transpose()?
+            .unwrap_or(2048);
+        ensure!(
+            hidden == 2048 || hidden == 5120,
+            "unsupported convolution test width"
+        );
+        let dynamic_width = 4 * hidden / 16;
+        let conv_groups = hidden / 16;
         let make = |count: usize, multiplier: usize, modulus: usize, scale: f32| {
             (0..count)
                 .map(|index| {
@@ -1576,37 +1891,41 @@ mod tests {
                 })
                 .collect::<Vec<_>>()
         };
-        let input = make(8 * 2048, 37, 257, 128.0);
-        let dynamic = make(8 * 512, 17, 127, 256.0);
-        let base = make(4 * 2048, 29, 193, 192.0);
-        let residual = make(8 * 2048, 43, 251, 160.0);
+        let input = make(8 * hidden, 37, 257, 128.0);
+        let dynamic = make(8 * dynamic_width, 17, 127, 256.0);
+        let base = make(4 * hidden, 29, 193, 192.0);
+        let residual = make(8 * hidden, 43, 251, 160.0);
         let array = |values: &[bf16], shape: &[i32]| {
             let bytes = unsafe {
                 std::slice::from_raw_parts(values.as_ptr().cast(), std::mem::size_of_val(values))
             };
             Array::from_bytes(bytes, shape, Dtype::BFloat16)
         };
-        let input_array = array(&input, &[8, 2048])?;
-        let dynamic_array = array(&dynamic, &[8, 512])?;
-        let base_array = array(&base, &[4, 2048])?;
-        let residual_array = array(&residual, &[8, 2048])?;
+        let input_array = array(&input, &[8, hidden as i32])?;
+        let dynamic_array = array(&dynamic, &[8, dynamic_width as i32])?;
+        let base_array = array(&base, &[4, hidden as i32])?;
+        let residual_array = array(&residual, &[8, hidden as i32])?;
         let reference = |finish: bool| {
-            let mut output = Vec::with_capacity(8 * 2048);
+            let mut output = Vec::with_capacity(8 * hidden);
             let kind = usize::from(finish);
             for row in 0..8 {
-                for channel in 0..2048 {
+                for channel in 0..hidden {
                     let group = channel / 16;
                     let coefficient = kind * 2;
-                    let mut value = input[row * 2048 + channel].to_f32()
-                        * (base[coefficient * 2048 + channel].to_f32()
-                            + dynamic[row * 512 + coefficient * 128 + group].to_f32());
+                    let mut value = input[row * hidden + channel].to_f32()
+                        * (base[coefficient * hidden + channel].to_f32()
+                            + dynamic[row * dynamic_width + coefficient * conv_groups + group]
+                                .to_f32());
                     if row > 0 {
-                        value += input[(row - 1) * 2048 + channel].to_f32()
-                            * (base[(coefficient + 1) * 2048 + channel].to_f32()
-                                + dynamic[row * 512 + (coefficient + 1) * 128 + group].to_f32());
+                        value += input[(row - 1) * hidden + channel].to_f32()
+                            * (base[(coefficient + 1) * hidden + channel].to_f32()
+                                + dynamic[row * dynamic_width
+                                    + (coefficient + 1) * conv_groups
+                                    + group]
+                                    .to_f32());
                     }
                     if finish {
-                        value += residual[row * 2048 + channel].to_f32();
+                        value += residual[row * hidden + channel].to_f32();
                     }
                     output.push(bf16::from_f32(value));
                 }
@@ -1638,6 +1957,36 @@ mod tests {
                     "convolution g{group_count} finish={finish}"
                 );
             }
+        }
+        for invalid in [0, 65] {
+            assert!(
+                convolution(
+                    &input_array,
+                    &dynamic_array,
+                    &base_array,
+                    &residual_array,
+                    true,
+                    invalid
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            convolution(
+                &input_array.astype(Dtype::Float32)?,
+                &dynamic_array,
+                &base_array,
+                &residual_array,
+                true,
+                64
+            )
+            .is_err()
+        );
+        if std::env::var("MLXL3_DFLASH_CONV_QUALITY_ONLY").as_deref() == Ok("1") {
+            eprintln!(
+                "Convolution hidden={hidden}: 14 BF16 outputs bit exact to scalar oracle; invalid grid/dtype rejected; timings disabled"
+            );
+            return Ok(());
         }
         for _ in 0..100 {
             convolution(

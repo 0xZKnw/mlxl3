@@ -1,0 +1,45 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "copy-final-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.5546836249995977
+    },
+    {
+      "name": "copy-final-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 4.499795834010001
+    },
+    {
+      "name": "copy-final-full",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 33.011069042026065
+    }
+  ]
+}
