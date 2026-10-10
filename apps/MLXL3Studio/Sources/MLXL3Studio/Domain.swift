@@ -193,32 +193,6 @@ struct BridgeEvent: Decodable {
     }
 }
 
-struct ContextMemoryProfile: Decodable {
-    struct Layer: Decodable {
-        let bytesPerToken: Int
-        let maxTokens: Int?
-        let step: Int
-        enum CodingKeys: String, CodingKey {
-            case bytesPerToken = "bytes_per_token"
-            case maxTokens = "max_tokens"
-            case step
-        }
-    }
-    let layers: [Layer]
-    let fixedBytes: Int
-    enum CodingKeys: String, CodingKey {
-        case layers
-        case fixedBytes = "fixed_bytes"
-    }
-    func bytes(tokens: Int) -> Double {
-        guard tokens > 0 else { return 0 }
-        return layers.reduce(Double(fixedBytes)) { total, layer in
-            let step = max(layer.step, 1)
-            let allocated = ((tokens + step - 1) / step) * step
-            return total + Double(min(allocated, layer.maxTokens ?? allocated)) * Double(layer.bytesPerToken)
-        }
-    }
-}
 
 struct ToolActivity: Codable, Hashable, Identifiable, Sendable {
     enum State: String, Codable, Sendable {

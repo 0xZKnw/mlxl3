@@ -863,6 +863,37 @@ pub struct QwenSnapshot {
 impl QwenSnapshot {
     /// Logical payload, excluding shared weights and MLX allocator capacity.
     pub fn byte_len(&self) -> Result<usize> {
+        self.payload_bytes(false)
+    }
+    /// Conservative sum of full backing allocations; aliases can count twice.
+    pub fn retained_bytes(&self) -> Result<usize> {
+        self.payload_bytes(true)
+    }
+    pub fn compact_for_cache(mut self) -> Result<Self> {
+        for layer in &mut self.layers {
+            let arrays = match layer {
+                LayerSnapshot::Linear { conv, recurrent } => [conv, recurrent],
+                LayerSnapshot::Attention { keys, values } => [keys, values],
+            };
+            for a in arrays {
+                *a = a.as_ref().map(Array::compact_for_cache).transpose()?;
+            }
+        }
+        self.last_hidden = self
+            .last_hidden
+            .as_ref()
+            .map(Array::compact_for_cache)
+            .transpose()?;
+        Ok(self)
+    }
+    fn payload_bytes(&self, retained: bool) -> Result<usize> {
+        let bytes = |a: &Array| {
+            if retained {
+                a.retained_bytes()
+            } else {
+                a.byte_len()
+            }
+        };
         self.layers
             .iter()
             .flat_map(|layer| match layer {
@@ -873,12 +904,12 @@ impl QwenSnapshot {
             .try_fold(
                 self.last_hidden
                     .as_ref()
-                    .map(Array::byte_len)
+                    .map(bytes)
                     .transpose()?
                     .unwrap_or(0),
-                |bytes, array| {
-                    bytes
-                        .checked_add(array.byte_len()?)
+                |total, a| {
+                    total
+                        .checked_add(bytes(a)?)
                         .context("snapshot size overflow")
                 },
             )
@@ -968,7 +999,7 @@ impl Layer {
 }
 
 pub struct Qwen35Moe {
-    embeddings: Array,
+    embeddings: crate::embedding::Embedding,
     norm: Array,
     head: Projection,
     layers: Vec<Layer>,
@@ -1035,6 +1066,10 @@ impl Qwen35Moe {
             checkpoint,
             "model.language_model.embed_tokens.weight",
             Some(&[config.vocab_size, hidden]),
+        )?;
+        let embeddings = crate::embedding::Embedding::new(
+            embeddings,
+            std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1"),
         )?;
         let norm = sanitized_norm(checkpoint, "model.language_model.norm.weight", &[hidden])?;
         let head = Projection::load(checkpoint, "lm_head", hidden, config.vocab_size, false)?;
@@ -1415,6 +1450,56 @@ impl Qwen35Moe {
 
     pub fn context_limit(&self) -> i32 {
         self.context_limit
+    }
+
+    /// F16 upper bound: GDN is fixed, full-attention KV grows with tokens.
+    pub fn context_memory_profile(&self) -> Result<serde_json::Value> {
+        let tensor = |shape: &[i32], item| {
+            crate::contracts::array_bytes(shape, item).context("context profile size overflow")
+        };
+        let mut fixed = tensor(&[self.mtp_layout.hidden_size], 2)?;
+        let mut per_token = 0usize;
+        for layer in &self.layers {
+            match layer {
+                Layer::Linear(layer) => {
+                    let a = &layer.attention;
+                    let conv_dims = i32::try_from(
+                        tensor(&[a.key_heads, a.key_dim], 2)?
+                            .checked_add(tensor(&[a.value_heads, a.value_dim], 1)?)
+                            .context("conv dimensions overflow")?,
+                    )?;
+                    let recurrent = tensor(&[a.value_heads, a.value_dim, a.key_dim], 4)?;
+                    let conv = tensor(&[a.conv_length - 1, conv_dims], 2)?;
+                    fixed = fixed
+                        .checked_add(recurrent)
+                        .and_then(|n| n.checked_add(conv))
+                        .context("fixed cache size overflow")?;
+                }
+                Layer::Attention(layer) => {
+                    let a = &layer.attention;
+                    per_token = per_token
+                        .checked_add(tensor(&[a.kv_heads, a.head_dim], 4)?)
+                        .context("KV context size overflow")?;
+                }
+            }
+        }
+        let draft_per_token = self
+            .mtp_layout
+            .managed_head(self.layers.len())
+            .map(|_| {
+                tensor(
+                    &[
+                        self.mtp_layout.num_key_value_heads,
+                        self.mtp_layout.head_dim,
+                    ],
+                    4,
+                )
+            })
+            .transpose()?;
+        Ok(
+            serde_json::json!({"fixed_bytes":fixed,"draft_bytes_per_token":draft_per_token,
+                "layers":[{"bytes_per_token":per_token,"step":1,"max_tokens":null}]}),
+        )
     }
 
     pub fn mtp_layout(&self) -> &crate::mtp::Layout {
@@ -2155,7 +2240,7 @@ mod tests {
     use super::*;
     use std::time::Instant;
 
-    fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
+    pub(super) fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
         model
             .layers
             .iter()
@@ -3104,28 +3189,61 @@ mod tests {
         let head_path = std::env::var("MLXL3_MTP_TEST_HEAD")
             .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into());
         let mut head = Head::load(Path::new(&head_path), &model)?;
-        for depth in 1..=3 {
+        for depth in 1..=4 {
             model.reset();
             head.reset()?;
-            let prefix = vec![1; 24];
+            let prefix_len = 24;
+            let prefix = vec![1; prefix_len as usize];
             let (logits, raw) = model.forward_mtp(&prefix)?;
-            head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
+            head.extend_cache(&model, &raw.slice(1, 0, prefix_len - 1)?, &prefix[1..])?;
             let mut anchor = logits.chat_greedy_ids()?[0];
             let saved_head = head.snapshot()?;
-            let standalone = head.forward(&model, &raw.slice(1, 23, 24)?, &[anchor])?;
+            let standalone = head.forward(
+                &model,
+                &raw.slice(1, prefix_len - 1, prefix_len)?,
+                &[anchor],
+            )?;
             assert_eq!(standalone.shape(), &[1, 1, model.mtp_layout().vocab_size]);
             let values = standalone.to_f32()?;
             assert_eq!(values.len(), model.mtp_layout().vocab_size as usize);
             assert!(values.iter().all(|v| v.is_finite()) && values.iter().any(|&v| v != 0.));
             head.restore(saved_head)?;
-            let mut session = Session::new(depth)?;
+            let mut session = Session::new(depth.min(3))?;
+            type StoredKv = Vec<(Vec<i32>, Dtype, Vec<u8>)>;
+            let stored_kv = |model: &Qwen35Moe| -> Result<StoredKv> {
+                let mut buffers = Vec::new();
+                for layer in &model.layers {
+                    if let Layer::Attention(layer) = layer {
+                        for cache in [&layer.attention.keys, &layer.attention.values]
+                            .into_iter()
+                            .flatten()
+                        {
+                            buffers.push((
+                                cache.shape().to_vec(),
+                                cache.dtype(),
+                                cache.to_bytes()?,
+                            ));
+                        }
+                    }
+                }
+                ensure!(!buffers.is_empty(), "missing raw KV storage");
+                Ok(buffers)
+            };
             for block in 0..8 {
+                let effective_depth = if depth == 4 {
+                    [0, 3, 0, 1, 2, 0, 3, 1][block]
+                } else {
+                    depth
+                };
+                if depth == 4 {
+                    session.force_depth_for_check(effective_depth);
+                }
                 let saved = model.snapshot()?;
                 let head_saved = head.snapshot()?;
                 let start = model.offset();
                 let first = session.advance(&mut model, &mut head, anchor, 512, 64, |_| true)?;
                 let retained = (model.offset() - start) as usize;
-                assert!((1..=depth + 1).contains(&retained));
+                assert!((1..=effective_depth + 1).contains(&retained));
                 let mut actual = vec![first];
                 assert!(
                     session
@@ -3144,6 +3262,7 @@ mod tests {
                     actual.push(next);
                 }
                 let actual_state = state_bytes(&model)?;
+                let actual_storage = stored_kv(&model)?;
                 let actual_hidden = model.mtp_hidden()?.to_bytes()?;
                 let actual_head = head.cache_bytes()?;
                 model.restore(saved)?;
@@ -3165,6 +3284,11 @@ mod tests {
                     "target states depth={depth} block={block}"
                 );
                 assert_eq!(actual_hidden, model.mtp_hidden()?.to_bytes()?);
+                assert_eq!(
+                    actual_storage,
+                    stored_kv(&model)?,
+                    "raw KV depth={depth} block={block}"
+                );
                 let expected_head = head.cache_bytes()?;
                 assert!(
                     actual_head == expected_head,
@@ -3867,6 +3991,146 @@ mod tests {
             "Qwen target M=8: token_major={token_major_ms:.3}ms layer_major={layer_major_ms:.3}ms speedup={:.2}x samples={token_major_samples:?}/{layer_major_samples:?}",
             token_major_ms / layer_major_ms
         );
+        Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "chat"))]
+mod memory_feature_tests {
+    use super::*;
+    use crate::{array, embedding::Embedding};
+
+    #[test]
+    #[ignore = "local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn compact_prefill_snapshot_preserves_logits_states_and_budget() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_MTP_TEST_MODEL")?))?;
+        let prefix = (0..256).map(|i| (i % 127 + 1) as u32).collect::<Vec<_>>();
+        let anchor = model.forward_tokens(&prefix)?.chat_greedy_ids()?[0];
+        let original = model.snapshot()?;
+        let before = original.retained_bytes()?;
+        let logical = original.byte_len()?;
+        let states = tests::state_bytes(&model)?;
+        let hidden = model.mtp_hidden()?.to_bytes()?;
+        let compact = original.clone().compact_for_cache()?;
+        let after = compact.retained_bytes()?;
+        assert_eq!(compact.byte_len()?, logical);
+        assert!(after < before && after <= crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES);
+        model.restore(compact)?;
+        assert_eq!(tests::state_bytes(&model)?, states);
+        assert_eq!(model.mtp_hidden()?.to_bytes()?, hidden);
+        let candidate = model.forward(anchor)?;
+        let bits = candidate.to_f16_bits()?;
+        let following_states = tests::state_bytes(&model)?;
+        let following_hidden = model.mtp_hidden()?.to_bytes()?;
+        model.restore(original)?;
+        let expected = model.forward(anchor)?;
+        assert_eq!(expected.to_f16_bits()?, bits);
+        assert_eq!(tests::state_bytes(&model)?, following_states);
+        assert_eq!(model.mtp_hidden()?.to_bytes()?, following_hidden);
+        assert_eq!(bits.len(), model.vocab as usize);
+        assert!(expected.to_f32()?.iter().all(|v| v.is_finite()));
+        let report = serde_json::json!({"status":"complete","prefix_tokens":256,"logits":bits.len(),"state_arrays":states.len(),"logical_bytes":logical,"retained_before":before,"retained_after":after,"budget_bytes":crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES,"speed":"not_measured"});
+        println!("{report}");
+        if let Ok(path) = std::env::var("MLXL3_COMPACT_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn packed_embedding_model_logits_states_and_memory_are_qualified() -> Result<()> {
+        let path = std::env::var("MLXL3_MTP_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let Embedding::Dense(weight) = &model.embeddings else {
+            anyhow::bail!("run baseline without packed env")
+        };
+        let mut alternative = Embedding::new(weight.try_clone()?, true)?;
+        ensure!(
+            matches!(alternative, Embedding::Packed { .. }),
+            "real table did not compress"
+        );
+        let dense_bytes = model.embeddings.retained_bytes()?;
+        let packed_bytes = alternative.retained_bytes()?;
+        let mut positions = 0;
+        for length in [24usize, 257] {
+            let prefix = (0..length)
+                .map(|i| (i % 127 + 1) as u32)
+                .collect::<Vec<_>>();
+            model.reset();
+            let baseline = model.forward_tokens(&prefix)?;
+            let baseline_logits = baseline.to_f16_bits()?;
+            ensure!(
+                baseline_logits.len() == model.vocab as usize
+                    && baseline.to_f32()?.iter().all(|x| x.is_finite()),
+                "invalid baseline logits"
+            );
+            let expected_states = tests::state_bytes(&model)?;
+            let expected_hidden = model.mtp_hidden()?.to_bytes()?;
+            let profile = model.context_memory_profile()?;
+            let expected_bytes =
+                expected_states.iter().map(Vec::len).sum::<usize>() + expected_hidden.len();
+            assert_eq!(
+                profile["fixed_bytes"].as_u64().unwrap()
+                    + profile["layers"][0]["bytes_per_token"].as_u64().unwrap() * length as u64,
+                expected_bytes as u64
+            );
+            std::mem::swap(&mut model.embeddings, &mut alternative);
+            model.reset();
+            let actual = model.forward_tokens(&prefix)?;
+            assert_eq!(actual.to_f16_bits()?, baseline_logits);
+            assert_eq!(tests::state_bytes(&model)?, expected_states);
+            assert_eq!(model.mtp_hidden()?.to_bytes()?, expected_hidden);
+            let mut anchor = actual.chat_greedy_ids()?[0];
+            positions += 1;
+            for _ in 0..3 {
+                let saved = model.snapshot()?;
+                std::mem::swap(&mut model.embeddings, &mut alternative);
+                let expected = model.forward(anchor)?;
+                let logits = expected.to_f16_bits()?;
+                let states = tests::state_bytes(&model)?;
+                let hidden = model.mtp_hidden()?.to_bytes()?;
+                model.restore(saved)?;
+                std::mem::swap(&mut model.embeddings, &mut alternative);
+                let actual = model.forward(anchor)?;
+                assert_eq!(actual.to_f16_bits()?, logits);
+                assert_eq!(tests::state_bytes(&model)?, states);
+                assert_eq!(model.mtp_hidden()?.to_bytes()?, hidden);
+                anchor = actual.chat_greedy_ids()?[0];
+                positions += 1;
+            }
+            std::mem::swap(&mut model.embeddings, &mut alternative);
+        }
+        model.reset();
+        // Drop before clearing: freed candidate must not inflate the baseline.
+        drop(alternative);
+        array::synchronize()?;
+        array::clear_cache()?;
+        let before = array::memory_stats(false)?;
+        let Embedding::Dense(weight) = &model.embeddings else {
+            unreachable!()
+        };
+        let packed = Embedding::new(weight.try_clone()?, true)?;
+        drop(std::mem::replace(&mut model.embeddings, packed));
+        array::synchronize()?;
+        array::clear_cache()?;
+        let after = array::memory_stats(false)?;
+        assert_eq!(
+            before.mlx_cache_bytes, 0,
+            "baseline contains free allocator cache"
+        );
+        assert_eq!(
+            after.mlx_cache_bytes, 0,
+            "candidate contains free allocator cache"
+        );
+        let report = serde_json::json!({"status":"complete", "bitexact_positions":positions,
+            "logits_per_position":model.vocab,"state_arrays":model.layers.len()*2,
+            "dense_embedding_bytes":dense_bytes,"packed_embedding_bytes":packed_bytes,
+            "before":before,"after":after,"speed":"not_measured"});
+        if let Ok(path) = std::env::var("MLXL3_EMBEDDINGS_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+        }
+        println!("{report}");
         Ok(())
     }
 }

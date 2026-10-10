@@ -1,0 +1,21 @@
+[
+  {
+    "label": "kv8-long-quality-repair",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "qwen35::memory_feature_tests::kv8_model_quality_against_f16_teacher_forcing",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_KV8_QUALITY_LONG": "1",
+      "MLXL3_KV8_REPORT": "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/adaptive-memory-20261009/kv8-long-model-repair.json"
+    },
+    "status": "failed",
+    "exit_code": 101,
+    "one_nonempty_test": false,
+    "elapsed": 163.36880016326904
+  }
+]

@@ -54,13 +54,15 @@ fn runtime_key_with_options(
         _ => "mtp-m5-v1",
     };
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}:smallm-v1={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:lookup={}:smallm-v1={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
         env!("MLXL3_BUILD_PROFILE"),
         env!("MLXL3_MLX_VERSION"),
         hardware,
+        u8::from(std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")),
+        u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
         mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
     ))

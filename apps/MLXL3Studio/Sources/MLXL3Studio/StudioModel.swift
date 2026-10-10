@@ -284,6 +284,15 @@ final class StudioModel: ObservableObject {
         return contextMemory?.bytes(tokens: contextLengthDraft == 0 ? maximum : contextLengthDraft)
     }
 
+    var recommendedContextLength: Int? {
+        guard let profile = contextMemory, let maximum = modelContextLimit,
+              let resident = modelResidentBytes else { return nil }
+        let observed = bridge.engineMemoryFootprintBytes().map(Double.init) ?? 0
+        return profile.recommendedTokens(maximum: maximum,
+            physicalBytes: Double(ProcessInfo.processInfo.physicalMemory),
+            residentBytes: max(resident, observed))
+    }
+
     func saveContextAndReload() {
         guard canSaveContext, let name = selectedModelName else { return }
         var lengths = preferences.dictionary(forKey: "studio.contextLengths") ?? [:]

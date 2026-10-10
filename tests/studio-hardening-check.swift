@@ -97,6 +97,15 @@ extension UpdateManager {
         let saver = try await make("mtp-memory-saver")
         defer { saver.ejectModel() }
         precondition(saver.memorySaverEnabled && saver.memorySaverSupported, "Memory preference/capability not restored")
+        let advised = saver.recommendedContextLength
+        precondition(advised == 2048, "Ready profile must reach the production context adviser")
+        precondition(saver.contextLengthDraft == 0, "Recommendation must preserve the user's setting")
+        saver.contextLengthDraft = advised!
+        precondition(saver.canSaveContext)
+        saver.saveContextAndReload()
+        for _ in 0..<200 where !saver.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(saver.engineState.isReady && !saver.canSaveContext)
+        precondition((prefs.dictionary(forKey: "studio.contextLengths")?["mtp-memory-saver"] as? Int) == advised)
         saver.setMTPEnabled(true)
         for _ in 0..<200 where saver.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(saver.canTuneMTP)
@@ -130,6 +139,7 @@ extension UpdateManager {
         saver.setMemorySaverEnabled(true)
         let legacySaver = try await make("mtp-old")
         precondition(legacySaver.memorySaverEnabled && !legacySaver.memorySaverSupported, "Legacy capability assumed")
+        precondition(legacySaver.recommendedContextLength == nil, "Legacy engine must not fabricate a recommendation")
         legacySaver.ejectModel(); legacySaver.setMemorySaverEnabled(false)
         print("Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability")
         print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")

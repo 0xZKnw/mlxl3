@@ -1,0 +1,38 @@
+[
+  {
+    "label": "embedding-model-conserved",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "qwen35::memory_feature_tests::packed_embedding_model_logits_states_and_memory_are_qualified",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_EMBEDDINGS_REPORT": "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/adaptive-memory-20261009/embedding-model-conserved.json"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "one_nonempty_test": true,
+    "elapsed": 17.57523202896118
+  },
+  {
+    "label": "mtp-transitions-conserved",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "qwen35::tests::mtp_recursive_sessions_match_greedy_and_exact_caches",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_EMBEDDINGS_PACKED": "1"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "one_nonempty_test": true,
+    "elapsed": 26.563956022262573
+  }
+]
