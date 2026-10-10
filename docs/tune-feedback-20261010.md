@@ -1,6 +1,6 @@
 # Tune MTP : retour utilisateur du 10 octobre 2026
 
-État : campagne GPU terminée, correctifs locaux vérifiés ; packaging et test du moteur embarqué en préparation. Base b0c62850b59a26df408731ac069cf85118c5fb24 ; binaire diagnostique embarqué source63bf989/SHA366cccff760e1c8ee3656c9750d7e38199d39adb0a6b0e22a1b2671fcb2c64ea. App installée inchangée.
+État : **validé fonctionnellement / vitesse non concluante / app locale reconstruite et vérifiée**. Tous les essais sont clos. Base b0c62850b59a26df408731ac069cf85118c5fb24 ; binaire diagnostique embarqué source63bf989/SHA366cccff760e1c8ee3656c9750d7e38199d39adb0a6b0e22a1b2671fcb2c64ea. App installée inchangée.
 
 ## Interface et calibration
 
@@ -41,3 +41,22 @@ CPU67passés/3ignorés ; livrémlx/chat84passés/71ignorés, format/Clippystrict
 Kani0.68 : **1/1harnais réel,68obligations/4coversSATISFIED,0échec/inatteignable**, domaineOption/usize64bit symbolique complet, sansassume ni stub/boucle. Collisiondefault/zero détectée par mutant isolé ; original passé. La suite entière n’est pas rejouée localement : contrats anciens inchangés, CIcomplète raccordée. PreuveCPU ne prouve pas MLX/Metal/FS/env/concurrence/génération. CrossHair tenté absent, pas de preuve sourceSwift disponible. [Synthèse](measurements/tune-feedback-20261010/checks-summary.json), [sources vérifiées](measurements/tune-feedback-20261010/checked-source-identity.json), [logs compressés sans perte](measurements/tune-feedback-20261010/log-archives.json), snapshotsPNG fixtures dans le même dossier.
 
 Échecs conservés : avantfix navigation forcée, gardeAC avant créationchild ; harnaisRust édition2015 au lieu2024 (diagnostic outildisponible, fichierbrutinitial absent), globSwiftMath.build évalué avant présenceSwiftMath.o (diagnostic outildisponible, fichierbrutinitial absent). Réparations concernent uniquement les harnais, puis contrôles affectés réussis. Le libellé final dit MessageMTP afin de couvrir aussi une erreur de tête horsTune.
+
+## Copie locale prête et clôture
+
+Commit source empaqueté propre : `9e5e14a981788833c069b37efc9cd01a820d735d`. `dist/MLXL3 Desktop.app` reconstruite via script existant avec SDK26.5/MLX0.32.2 ; [identité et empreintes](measurements/tune-feedback-20261010/package-identity.json), [signature/plist/runtime-info/tests embarqués isolés](measurements/tune-feedback-20261010/package-checks.json). Métadonnées clean/tracked_changes=false. Moteur signéSHAfcd35b4eac89fe5458256eb97cea0d9c5248eb486c8dfda5e0ad448f61a328b7. App installée /Applications et données utilisateur non modifiées.
+
+Vrai bridge final : **39requêtes /33completions /4annulations+récupération /2erreursattendues**, moteur seul après fin compilation/proofs, budgets1/2/3/4/17/64 et prefixhit/miss/parités vérifiés. Nouvelle readykey `allocator-cache-v1=0`, defaultMLX/packed1/adaptive1 ; délai global300s, cleanup/processgroupkill/reap prévu, exit0/reapedtrue, durée187,683s diagnostique non débit. [Statut/options/commandes](measurements/tune-feedback-20261010/final-bridge-status.json), [brut compressé](measurements/tune-feedback-20261010/final-bridge.jsonl.gz). Le Tunecomplet du binaire final n’est pas répété car seuls identité/store/UI ont changé ; cinqTunes sur le binaire précédent restent des preuves distinctes, aucun gain numérique/vitesse extrapolé.
+
+Fermer l’ancienne app puis, depuis le dépôt :
+
+```bash
+MLXL3_EXECUTABLE="$PWD/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3" \
+MLXL3_MTP_ADAPTIVE=1 \
+MLXL3_EMBEDDINGS_PACKED=1 \
+"$PWD/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio"
+```
+
+Cette commande préserve le défaut de réutilisation MLX. Le conseil de contexte et les optimisations mémoire restent disponibles. Cliquer Tune laisse la conversation visible ; attendre le pourcentage/phase, cliquer le même bouton pour arrêter, Détails pour comparer les résultats. Un résultat Baseline est attendu sur les prompts et conditions testés ; ne pas forcer une profondeur plus lente pour embellir le résultat.
+
+[PR #32](https://github.com/0xZKnw/mlxl3/pull/32) mise à jour via la branche existante. La CIancienne tête b0c6285 a4/4jobsSUCCESS ; l’état du nouveauSHA doit être inspecté aprèspush, sans confondre ces preuves. Le commit documentaire de clôture ne change aucune source exécutable par rapport au bundle. Aucun essai/proveur/GPU de cette campagne encore actif.

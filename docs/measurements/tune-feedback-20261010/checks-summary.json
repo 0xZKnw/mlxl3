@@ -40,5 +40,17 @@
     "isolated rustc used edition2015 vs Cargo2024: E0631, corrected without source mutation",
     "ad hoc SwiftMath object glob before checking .o layout, corrected before compile"
   ],
-  "all_trials_running": "packaging and final actual bundled bridge verification only"
+  "all_trials_running": false,
+  "final_bundle_checks": "passed: codesign/plist/runtime-info/isolated timeline+MCP (Metal check explicitly skipped)",
+  "final_bundled_bridge": {
+    "status": "passed",
+    "completions": 33,
+    "cancel_recovery": 4,
+    "expected_errors": 2,
+    "parity": true,
+    "source_commit": "9e5e14a981788833c069b37efc9cd01a820d735d",
+    "whole_tuner_on_final_binary": false,
+    "scope": "real bundled production generations with new calibration key; no numerical/kernel change; earlier5fullTunes on prior identity kept separate"
+  },
+  "publication": "update existing PR32 authorized; exact new CI head will be inspected after push, previous b0c6285 CI4/4green is not new-head validation"
 }
