@@ -1,0 +1,14 @@
+{
+  "status": "expected_failure_on_previous_implementation",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--no-default-features",
+    "--lib",
+    "speculative::tests::dflash_copy_bounds_prompt_and_committed_history",
+    "--",
+    "--exact"
+  ],
+  "exit": 101
+}

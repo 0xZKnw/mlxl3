@@ -1,0 +1,67 @@
+{
+  "fmt": {
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.2371682079974562,
+    "log": "docs/measurements/dflash2-web-02/single-fmt.log"
+  },
+  "clippy": {
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 3.0923490410204977,
+    "log": "docs/measurements/dflash2-web-02/single-clippy.log"
+  },
+  "cpu-tests": {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--lib"
+    ],
+    "exit": 0,
+    "seconds": 1.1530661249998957,
+    "log": "docs/measurements/dflash2-web-02/single-cpu-tests.log"
+  },
+  "build": {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 28.486644499993417,
+    "log": "docs/measurements/dflash2-web-02/single-build.log"
+  },
+  "tests": {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 29.633489083033055,
+    "log": "docs/measurements/dflash2-web-02/single-tests.log"
+  }
+}

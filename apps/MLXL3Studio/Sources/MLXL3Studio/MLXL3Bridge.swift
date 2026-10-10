@@ -250,6 +250,22 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
+    func setDFlash(requestID: String, enabled: Bool, draftPath: String) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "set_dflash", "request_id": requestID,
+            "enabled": enabled, "dflash_draft_path": draftPath])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
+    func tuneDFlash(requestID: String, draftPath: String, memorySaver: Bool = false) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_dflash", "request_id": requestID,
+            "dflash_draft_path": draftPath, "memory_saver": memorySaver])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
     func cancelGeneration() -> Bool {
         guard let process, process.isRunning else { return false }
         return Darwin.kill(process.processIdentifier, SIGUSR1) == 0

@@ -13,7 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def write_bridge(path, behavior="valid", speed=2, expected_mtp=None):
+def write_bridge(path, behavior="valid", speed=2, expected_mtp=None, expected_dflash=None):
     path.write_text(
         f"#!{sys.executable}\n"
         "import json, os, sys, time\n"
@@ -21,6 +21,7 @@ def write_bridge(path, behavior="valid", speed=2, expected_mtp=None):
         "Path(__file__).with_suffix('.pid').write_text(str(os.getpid()))\n"
         f"behavior, speed = {behavior!r}, {speed!r}\n"
         f"expected_mtp = {expected_mtp!r}\n"
+        f"expected_dflash = {expected_dflash!r}\n"
         "if behavior == 'load_error':\n"
         "    print(json.dumps({'type': 'error', 'message': 'fixture loading failed'}), flush=True)\n"
         "    sys.exit(1)\n"
@@ -39,6 +40,11 @@ def write_bridge(path, behavior="valid", speed=2, expected_mtp=None):
         "        assert request['mtp_depth'] == max(1, expected_mtp)\n"
         "        assert request['mtp_head_path'] == (str(Path(__file__).parent / 'head') if expected_mtp else '')\n"
         "    count += 1\n"
+        "    if expected_dflash is not None:\n"
+        "        assert request['dflash2'] == (expected_dflash > 0)\n"
+        "        assert request['dflash_mode'] == max(1, expected_dflash)\n"
+        "        assert request['dflash_draft_path'] == (str(Path(__file__).parent / 'draft') if expected_dflash else '')\n"
+        "        assert not (request['mtp'] and request['dflash2'])\n"
         "    rid = request['request_id']\n"
         "    if behavior == 'silent_request': time.sleep(60)\n"
         "    if behavior == 'eof': time.sleep(0.3); sys.exit(0)\n"
@@ -63,20 +69,42 @@ def write_bridge(path, behavior="valid", speed=2, expected_mtp=None):
         "    if behavior == 'empty_tokens': stats['generated_tokens'] = 0\n"
         "    if behavior == 'oversize_tokens': stats['generated_tokens'] += 1\n"
         "    if behavior == 'bool_tokens': stats['generated_tokens'] = True\n"
+        "    if behavior == 'nonfinite_rate': stats['decode_tps'] = float('nan')\n"
+        "    if behavior == 'negative_time': stats['ttft_seconds'] = -1\n"
+        "    if behavior == 'zero_time': stats['elapsed_seconds'] = 0\n"
         "    if behavior == 'wrong_id': rid = 'unrelated-request'\n"
-        "    print(json.dumps({'type': 'delta', 'request_id': rid, 'text': 'same text'}), flush=True)\n"
+        "    text = '' if behavior == 'empty_text' else 'same text'\n"
+        "    history = 'different history' if behavior == 'different_history' else 'same text'\n"
+        "    if behavior == 'empty_history': history = ''\n"
+        "    if behavior == 'missing_history': history = None\n"
+        "    if behavior == 'invalid_history': history = True\n"
+        "    print(json.dumps({'type': 'delta', 'request_id': rid, 'text': text}), flush=True)\n"
         "    print(json.dumps({'type': 'complete', 'request_id': rid,\n"
-        "                      'token_hash': token_hash, 'stats': stats}), flush=True)\n"
+        "                      'token_hash': token_hash, 'stats': stats, 'cache_context': history}), flush=True)\n"
     )
     path.chmod(0o755)
 
 
 def run_campaign(
-    tmp_path, behavior="valid", order="ABBA", timeout=30, extra_args=(), expected_mtp=None
+    tmp_path,
+    behavior="valid",
+    order="ABBA",
+    timeout=30,
+    extra_args=(),
+    expected_mtp=None,
+    expected_dflash=None,
+    candidate_mtp=None,
+    candidate_dflash=None,
 ):
     baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
-    write_bridge(baseline, expected_mtp=expected_mtp)
-    write_bridge(candidate, behavior, speed=4, expected_mtp=expected_mtp)
+    write_bridge(baseline, expected_mtp=expected_mtp, expected_dflash=expected_dflash)
+    write_bridge(
+        candidate,
+        behavior,
+        speed=4,
+        expected_mtp=expected_mtp if candidate_mtp is None else candidate_mtp,
+        expected_dflash=expected_dflash if candidate_dflash is None else candidate_dflash,
+    )
     # Disposable condition probes keep this process integration portable.
     for name in ["pmset", "sysctl"]:
         probe = tmp_path / name
@@ -128,8 +156,92 @@ def test_explicit_mtp_modes_and_short_warmup_reach_both_engines(tmp_path, depth)
         assert [r["stats"]["generated_tokens"] for r in prompt["runs"]] == [4, 4]
 
 
+@pytest.mark.parametrize("mode", range(4))
+def test_dflash_policy_reaches_every_warmup_and_sample(tmp_path, mode):
+    arguments = ["--dflash-mode", str(mode)]
+    if mode:
+        arguments += ["--dflash-draft", str(tmp_path / "draft")]
+    run, _, report = run_campaign(tmp_path, extra_args=arguments, expected_dflash=mode)
+    assert run.returncode == 0, run.stderr
+    assert report["status"] == "complete" and report["parity"] is True
+    assert report["protocol"]["dflash_mode"] == mode
+    assert len(report["passes"]) == 4
+
+
+@pytest.mark.parametrize("depth,mode", [(1, 1), (2, 3), (3, 2), (0, 2), (1, 0), (0, 0)])
+def test_direct_comparison_sends_only_the_selected_algorithm(tmp_path, depth, mode):
+    run, _, report = run_campaign(
+        tmp_path,
+        extra_args=[
+            "--compare-mtp-dflash",
+            "--mtp-depth",
+            str(depth),
+            "--mtp-head",
+            str(tmp_path / "head"),
+            "--dflash-mode",
+            str(mode),
+            "--dflash-draft",
+            str(tmp_path / "draft"),
+        ],
+        expected_mtp=depth,
+        expected_dflash=0,
+        candidate_mtp=0,
+        candidate_dflash=mode,
+    )
+    assert run.returncode == 0, run.stderr
+    assert report["status"] == "complete" and report["parity"] is True
+    assert report["protocol"]["compare_mtp_dflash"] is True
+    for current in report["passes"]:
+        assert current["mtp_depth"] == (depth if current["label"] == "A" else 0)
+        assert current["dflash_mode"] == (mode if current["label"] == "B" else 0)
+
+
 @pytest.mark.parametrize(
-    "behavior", ["empty_hash", "empty_tokens", "oversize_tokens", "bool_tokens"]
+    "arguments",
+    [
+        ["--dflash-mode", "1"],
+        ["--dflash-mode", "4"],
+        ["--dflash-mode", "1", "--dflash-draft", "draft", "--mtp-depth", "1", "--mtp-head", "head"],
+    ],
+)
+def test_invalid_dflash_options_never_start_inference(tmp_path, arguments):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "benchmarks/compare_native.py"),
+            "model",
+            "--baseline",
+            "absent",
+            "--candidate",
+            "absent",
+            "--output",
+            str(tmp_path),
+            *arguments,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize(
+    "behavior",
+    [
+        "empty_hash",
+        "empty_tokens",
+        "oversize_tokens",
+        "bool_tokens",
+        "nonfinite_rate",
+        "negative_time",
+        "zero_time",
+        "empty_text",
+        "empty_history",
+        "missing_history",
+        "invalid_history",
+    ],
 )
 def test_empty_or_invalid_outputs_never_certify_a_campaign(tmp_path, behavior):
     run, _, report = run_campaign(tmp_path, behavior, order="BAAB")
@@ -150,6 +262,21 @@ def test_divergent_candidate_is_saved_as_a_failed_pass(tmp_path):
     assert "divergence" in failed["error"]["message"]
     assert json.loads((output / "1-B.json").read_text()) == failed
     assert "summary" not in report
+
+
+def test_history_divergence_cannot_certify_identical_text_and_tokens(tmp_path):
+    run, output, report = run_campaign(tmp_path, "different_history")
+    assert run.returncode != 0
+    assert report["status"] == "failed" and report["parity"] is False
+    failed = report["passes"][1]
+    assert failed["label"] == "B" and failed["status"] == "failed"
+    reference = report["passes"][0]["prompts"]["short"]["warmup"]
+    candidate = failed["prompts"]["short"]["warmup"]
+    assert reference["token_hash"] == candidate["token_hash"]
+    assert reference["text_sha256"] == candidate["text_sha256"]
+    assert reference["history_sha256"] != candidate["history_sha256"]
+    assert "summary" not in report
+    assert json.loads((output / "1-B.json").read_text()) == failed
 
 
 @pytest.mark.parametrize("order", ["ABBA", "BAAB"])

@@ -19,9 +19,10 @@ use std::{
 };
 
 const API: &str = "https://huggingface.co/api";
+#[cfg(test)]
 const DFLASH_REPO: &str = "incoai/Qwen3.6-35B-A3B-Splash";
+#[cfg(test)]
 const DFLASH_COMMIT: &str = "0f4714b2db37b5f3c42a10de07281e74f88e4adc";
-const DFLASH_NAME: &str = "Qwen3.6-35B-A3B-DFlash2";
 const DFLASH_FILES: [&str; 7] = [
     "draft/layer-0.bin",
     "draft/layer-1.bin",
@@ -31,6 +32,86 @@ const DFLASH_FILES: [&str; 7] = [
     "draft/layer-5.bin",
     "draft/model.bin",
 ];
+
+const DFLASH_MOE_PINNED: [(&str, u64, &str); 7] = [
+    (
+        "draft/layer-0.bin",
+        34324480,
+        "6e49b64d9448bf9965826d6c92badcd40c3321a7b86066c25b7c30852cc4c5b9",
+    ),
+    (
+        "draft/layer-1.bin",
+        34324480,
+        "755ef7fcf8107c3a2cd5bd24e96ad726aa06174f72d628413e32fa7b7d8ffdda",
+    ),
+    (
+        "draft/layer-2.bin",
+        34324480,
+        "126cedd11a4b13febc299df0101a096dd6f6761e86bc0ac5db1dc6f2f78c31c1",
+    ),
+    (
+        "draft/layer-3.bin",
+        34324480,
+        "d96490a76307408fc2d2e42d86481f3061b04a2289193d2e8face84531b68f9e",
+    ),
+    (
+        "draft/layer-4.bin",
+        34324480,
+        "92103acb13eb656fc46220f07bdc4f1da0233fed8b27ab5f2877544f1147bd93",
+    ),
+    (
+        "draft/layer-5.bin",
+        34324480,
+        "2de274812de6d8cdf8bdfb2b6edd43da1b7b4b82e5ffe7316e36d6d50404600d",
+    ),
+    (
+        "draft/model.bin",
+        273498112,
+        "532f9ca34fd57b0d042f79232bea70770c28e23d69eeb2293a46e9640959926f",
+    ),
+];
+
+const DFLASH_DENSE_PINNED: [(&str, u64, &str); 6] = [
+    (
+        "draft/layer-0.bin",
+        187449344,
+        "48250072cd0c121ec449b67a53bb98c73d16135d5d9a7d0366b49b7e4573a29b",
+    ),
+    (
+        "draft/layer-1.bin",
+        187449344,
+        "b8f1b37e71e25f4cb3ac32d34d4e81be2e0634210cdb64bbee945413e511a664",
+    ),
+    (
+        "draft/layer-2.bin",
+        187449344,
+        "f232403c4ef212c6e53abe03f0e48aaac355d3612384dd103e29274b5bbe25db",
+    ),
+    (
+        "draft/layer-3.bin",
+        187449344,
+        "12acda893bc646c02b162ddf09a3af45babc73cf45975974ecc007cf14b05127",
+    ),
+    (
+        "draft/layer-4.bin",
+        187449344,
+        "db6683f4f30da4639163428fc39e87440e96dc9a3e4dcc617a8ed44ed3701e1f",
+    ),
+    (
+        "draft/model.bin",
+        328794112,
+        "5cb77c477c32faab66918fe505c96ba5b9d311e91eb519281f54cb9c5bb3a4f2",
+    ),
+];
+
+fn pinned_dflash_files(
+    family: crate::dflash::Family,
+) -> &'static [(&'static str, u64, &'static str)] {
+    match family {
+        crate::dflash::Family::Qwen36Moe => &DFLASH_MOE_PINNED,
+        crate::dflash::Family::Qwen38Dense => &DFLASH_DENSE_PINNED,
+    }
+}
 
 const MTP_MOE_FILES: [(&str, u64, &str); 2] = [
     (
@@ -322,10 +403,16 @@ fn managed_drafts_path() -> Result<PathBuf> {
         .join("Drafts"))
 }
 
-fn dflash_files(info: &RepoInfo) -> Result<Vec<(&str, u64, &str)>> {
-    ensure!(info.sha == DFLASH_COMMIT, "DFlash draft revision changed");
+fn dflash_files(info: &RepoInfo, family: crate::dflash::Family) -> Result<Vec<(&str, u64, &str)>> {
+    ensure!(
+        info.sha == family.revision(),
+        "DFlash draft revision changed"
+    );
     let mut result = Vec::with_capacity(7);
-    for name in DFLASH_FILES {
+    for name in DFLASH_FILES
+        .into_iter()
+        .filter(|name| family.layers() == 6 || *name != "draft/layer-5.bin")
+    {
         let file = info
             .siblings
             .iter()
@@ -359,24 +446,41 @@ fn sha256_matches(path: &Path, expected: &str) -> Result<bool> {
         .is_some_and(|hash| hash.eq_ignore_ascii_case(expected.as_bytes())))
 }
 
-/// Download only the seven pinned DFlash2 files, never Splash's target weights.
+/// Download only the six or seven pinned draft files, excluding Splash's target.
 /// Partial files stay in a managed staging directory for a later retry.
-pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+pub fn download_dflash(
+    family: crate::dflash::Family,
+    mut progress: impl FnMut(u64, u64),
+) -> Result<PathBuf> {
     let root = managed_drafts_path()?;
     fs::create_dir_all(&root)?;
     let root = root.canonicalize()?;
-    let destination = root.join(DFLASH_NAME);
+    let destination = root.join(family.name());
     ensure!(
         !destination
             .symlink_metadata()
             .is_ok_and(|meta| meta.file_type().is_symlink()),
         "invalid DFlash destination"
     );
+    let files = pinned_dflash_files(family);
     if destination.exists() {
-        crate::dflash::inspect(&destination)?;
+        for (name, size, hash) in files {
+            let file = destination.join(name);
+            ensure!(
+                !file.symlink_metadata()?.file_type().is_symlink()
+                    && file.metadata()?.is_file()
+                    && file.metadata()?.len() == *size
+                    && sha256_matches(&file, hash)?,
+                "DFlash installed draft checksum or size mismatch for {name}"
+            );
+        }
+        ensure!(
+            crate::dflash::inspect(&destination)?.family == family,
+            "DFlash destination belongs to another target"
+        );
         return Ok(destination);
     }
-    let stage = root.join(".downloads").join(DFLASH_COMMIT);
+    let stage = root.join(".downloads").join(family.revision());
     ensure!(
         !stage
             .symlink_metadata()
@@ -397,8 +501,9 @@ pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
         .open(root.join(".downloads").join("dflash.lock"))?;
     lock.try_lock_exclusive()
         .context("DFlash draft is already downloading")?;
-    let metadata = info(DFLASH_REPO, DFLASH_COMMIT)?;
-    let files = dflash_files(&metadata)?;
+    let metadata = info(family.repository(), family.revision())?;
+    let published = dflash_files(&metadata, family)?;
+    ensure!(published == files, "DFlash pinned checksums changed");
     let total: u64 = files.iter().map(|(_, size, _)| size).sum();
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
@@ -413,7 +518,7 @@ pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
         );
         if target
             .metadata()
-            .is_ok_and(|meta| meta.len() == expected_size)
+            .is_ok_and(|meta| meta.len() == *expected_size)
             && sha256_matches(&target, expected_hash)?
         {
             continue;
@@ -421,15 +526,15 @@ pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
         // A complete but corrupt file cannot be resumed safely.
         if target
             .metadata()
-            .is_ok_and(|meta| meta.len() >= expected_size)
+            .is_ok_and(|meta| meta.len() >= *expected_size)
         {
             fs::remove_file(&target)?;
         }
         download_file(
             &format!(
                 "https://huggingface.co/{}/resolve/{}/{}?download=true",
-                encode(DFLASH_REPO),
-                DFLASH_COMMIT,
+                encode(family.repository()),
+                family.revision(),
                 name
             ),
             &target,
@@ -437,11 +542,14 @@ pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
             || progress(directory_bytes(&stage).min(total), total),
         )?;
         ensure!(
-            target.metadata()?.len() == expected_size && sha256_matches(&target, expected_hash)?,
+            target.metadata()?.len() == *expected_size && sha256_matches(&target, expected_hash)?,
             "DFlash draft checksum or size mismatch for {name}"
         );
     }
-    crate::dflash::inspect(&stage)?;
+    ensure!(
+        crate::dflash::inspect(&stage)?.family == family,
+        "DFlash staged package belongs to another target"
+    );
     fs::rename(&stage, &destination)?;
     progress(total, total);
     Ok(destination)
@@ -1141,7 +1249,7 @@ mod tests {
             likes: 0,
             siblings,
         };
-        let selected = dflash_files(&info).unwrap();
+        let selected = dflash_files(&info, crate::dflash::Family::Qwen36Moe).unwrap();
         assert_eq!(selected.len(), 7);
         assert_eq!(selected.iter().map(|(_, size, _)| size).sum::<u64>(), 84);
         assert!(
@@ -1151,9 +1259,49 @@ mod tests {
         );
         info.siblings.pop();
         info.siblings.pop();
-        assert!(dflash_files(&info).is_err());
+        assert!(dflash_files(&info, crate::dflash::Family::Qwen36Moe).is_err());
         info.sha = "wrong-revision".into();
-        assert!(dflash_files(&info).is_err());
+        assert!(dflash_files(&info, crate::dflash::Family::Qwen36Moe).is_err());
+    }
+
+    #[test]
+    fn both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata() {
+        for (family, bytes) in [
+            (crate::dflash::Family::Qwen36Moe, 479_444_992),
+            (crate::dflash::Family::Qwen38Dense, 1_266_040_832),
+        ] {
+            let mut info = RepoInfo {
+                id: family.repository().into(),
+                sha: family.revision().into(),
+                gated: Value::Null,
+                downloads: 0,
+                likes: 0,
+                siblings: pinned_dflash_files(family)
+                    .iter()
+                    .map(|(name, size, hash)| RepoFile {
+                        rfilename: (*name).into(),
+                        size: *size,
+                        lfs: Some(LfsFile {
+                            sha256: (*hash).into(),
+                        }),
+                    })
+                    .collect(),
+            };
+            assert_eq!(
+                dflash_files(&info, family).unwrap(),
+                pinned_dflash_files(family)
+            );
+            assert_eq!(info.siblings.len(), family.layers() + 1);
+            assert_eq!(info.siblings.iter().map(|f| f.size).sum::<u64>(), bytes);
+            info.siblings[0].lfs = None;
+            assert!(dflash_files(&info, family).is_err());
+            info.siblings[0].lfs = Some(LfsFile {
+                sha256: "g".repeat(64),
+            });
+            assert!(dflash_files(&info, family).is_err());
+            info.siblings.pop();
+            assert!(dflash_files(&info, family).is_err());
+        }
     }
 
     #[test]

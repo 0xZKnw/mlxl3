@@ -1,0 +1,109 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.21010816699999998,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-format.log"
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.20191212500000003,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-fmt.log"
+    },
+    {
+      "name": "cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 2.582928,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-cpu.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.9757441670000002,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-clippy.log"
+    },
+    {
+      "name": "release",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 34.803906458,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-release.log"
+    },
+    {
+      "name": "kani-target",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--exact",
+        "--harness",
+        "dflash::verification::q4_shared_sums_launch_is_limited_to_paired_35b_projections"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.088336083999998,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-kani-target.log"
+    },
+    {
+      "name": "kani-module",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "dflash::"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 3.533762375000002,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-kani-module.log"
+    }
+  ]
+}

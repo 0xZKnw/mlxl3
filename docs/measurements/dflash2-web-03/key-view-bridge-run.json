@@ -1,0 +1,41 @@
+{
+  "status": "validated_signed_bridge",
+  "command": [
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/.venv/bin/python",
+    "scripts/check_dflash2.py",
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+    "--output",
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-web-03/key-view-bridge.json",
+    "--timeout",
+    "300",
+    "--foreign-draft",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-DFlash2"
+  ],
+  "engine_sha256": "23e0f3c16ec08a54be6b54ee83009f16e4a1e3be43253a609088181661c55e69",
+  "parity": true,
+  "signature": {
+    "command": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app"
+    ],
+    "exit": 0
+  },
+  "gpu_timing": false,
+  "log": "docs/measurements/dflash2-web-03/key-view-bridge.log",
+  "exit": 0,
+  "timeout": false,
+  "seconds": 43.16105708404211,
+  "checks": 45,
+  "cross_version_exact_completions": 33,
+  "reference": {
+    "report": "docs/measurements/dflash2-web-02/copy-bridge.json",
+    "report_sha256": "7b118386e3a6831df9ab500a90802b2ad08049224700b13332070f6100ac07f5",
+    "engine_sha256": "ad0bef499cd1850795d5ad9c8a54055d91299e9564fa55ebeb898e7ffde03c64",
+    "complete_count": 33
+  }
+}

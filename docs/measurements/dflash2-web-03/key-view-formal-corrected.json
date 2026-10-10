@@ -1,0 +1,42 @@
+{
+  "status": "unverified",
+  "checks": [
+    {
+      "name": "goto-cc",
+      "command": [
+        "/Users/justin/.kani/kani-0.68.0/bin/goto-cc",
+        "-std=c++17",
+        "-I",
+        "native/ffi",
+        "native/tests/kernel_cache_key_proof.cpp",
+        "-c",
+        "-o",
+        "build/dflash2-web-03/key-view/kernel_cache_key_proof.gb"
+      ],
+      "exit": 1,
+      "timeout": false,
+      "seconds": 0.14827016599999998,
+      "log": "docs/measurements/dflash2-web-03/key-view-goto-cc.log"
+    },
+    {
+      "name": "kani-ffi-corrected",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--tests",
+        "--exact",
+        "--harness",
+        "array::tests::metal_cache_rejects_null_key_metadata_before_gpu_dispatch"
+      ],
+      "exit": 1,
+      "timeout": false,
+      "seconds": 4.379437084,
+      "log": "docs/measurements/dflash2-web-03/key-view-kani-ffi-corrected.log"
+    }
+  ],
+  "preregistered_or_initial_status": "inspection_required",
+  "final_result": "key-view-formal-summary.json"
+}

@@ -132,8 +132,13 @@ struct BridgeEvent: Decodable {
     var dflashRequested: Bool? = nil
     var dflashActive: Bool? = nil
     var dflashProposals: Int? = nil
+    var dflashMode: Int? = nil
     var dflashDraftPath: String? = nil
     var dflashSupported: Bool? = nil
+    var dflashTuneSupported: Bool? = nil
+    var dflashConfigureSupported: Bool? = nil
+    var dflashTuningKey: String? = nil
+    var dflashFamily: String? = nil
     var mtpSupported: Bool? = nil
     var mtpAutoDownloadSupported: Bool? = nil
     var mtpConfigureSupported: Bool? = nil
@@ -180,7 +185,10 @@ struct BridgeEvent: Decodable {
         case dflashActive = "dflash_active"
         case dflashProposals = "dflash_proposals"
         case dflashDraftPath = "dflash_draft_path"
+        case dflashMode = "dflash_mode"
         case dflashSupported = "dflash_supported"
+        case dflashTuneSupported = "dflash_tune_supported", dflashConfigureSupported = "dflash_configure_supported"
+        case dflashTuningKey = "dflash_tuning_key", dflashFamily = "dflash_family"
         case mtpSupported = "mtp_supported"
         case mtpAutoDownloadSupported = "mtp_auto_download_supported"
         case mtpConfigureSupported = "mtp_configure_supported"
@@ -250,6 +258,7 @@ struct GenerationRequest: Encodable {
     var mcpEnabled: Bool = false
     var dflash2: Bool = false
     var dflashDraftPath: String = ""
+    var dflashMode: Int = 1
     var mtp: Bool = false
     var mtpHeadPath: String = ""
     var mtpDepth: Int = 1
@@ -265,6 +274,7 @@ struct GenerationRequest: Encodable {
         case mcpEnabled = "mcp_enabled"
         case dflash2
         case dflashDraftPath = "dflash_draft_path"
+        case dflashMode = "dflash_mode"
         case mtp
         case mtpHeadPath = "mtp_head_path"
         case mtpDepth = "mtp_depth"

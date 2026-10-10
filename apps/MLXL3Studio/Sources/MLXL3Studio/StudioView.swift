@@ -308,6 +308,9 @@ private struct WorkspaceHeader: View {
             .accessibilityLabel(L("Éjecter le modèle", "Eject model"))
 
             MTPTuningToolbarControl()
+            if studio.dflash2Available {
+                MTPTuningToolbarControl(dflash: true)
+            }
 
             Button { studio.showInspector.toggle() } label: {
                 Image(systemName: "slider.horizontal.3").frame(width: 30, height: 30)

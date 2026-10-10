@@ -1,0 +1,34 @@
+{
+  "status": "interrupted_resource_cost",
+  "checks": [
+    {
+      "name": "copy-partition-format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 0.4003361670183949
+    },
+    {
+      "name": "copy-partition-zero",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--exact",
+        "--harness",
+        "speculative::verification::dflash_copy_len_0"
+      ],
+      "exit": 0,
+      "seconds": 126.96399483399
+    }
+  ],
+  "interruption": {
+    "target_completed": false,
+    "reason": "KiSSAT fixed-array len4 memory cost; TERM delivered to child group, child defunct awaiting parent; no functional counterexample",
+    "zero_verified": true
+  }
+}

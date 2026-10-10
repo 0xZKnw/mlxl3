@@ -1,6 +1,6 @@
 """Alternate two native binaries, warm each prompt and check token/text parity.
 
-No cache reuse or external tools; optional explicit MTP depth. Run one campaign at a
+No cache reuse or external tools; optional MTP or DFlash policy. Run one campaign at a
 time on the physical GPU, with no concurrent builds or other inference.
 """
 
@@ -59,7 +59,17 @@ def event(process, deadline):
     return value
 
 
-def generate(process, prompt, tokens, request_id, timeout, mtp_depth=0, mtp_head=None):
+def generate(
+    process,
+    prompt,
+    tokens,
+    request_id,
+    timeout,
+    mtp_depth=0,
+    mtp_head=None,
+    dflash_mode=0,
+    dflash_draft=None,
+):
     deadline = time.monotonic() + timeout
     process.send(
         {
@@ -75,7 +85,9 @@ def generate(process, prompt, tokens, request_id, timeout, mtp_depth=0, mtp_head
             "mtp": mtp_depth > 0,
             "mtp_depth": max(1, mtp_depth),
             "mtp_head_path": str(mtp_head.resolve()) if mtp_head else "",
-            "dflash2": False,
+            "dflash2": dflash_mode > 0,
+            "dflash_mode": max(1, dflash_mode),
+            "dflash_draft_path": str(dflash_draft.resolve()) if dflash_draft else "",
         },
         deadline,
     )
@@ -90,6 +102,10 @@ def generate(process, prompt, tokens, request_id, timeout, mtp_depth=0, mtp_head
             raise RuntimeError(f"native generation cancelled ({request_id})")
         if value["type"] == "complete":
             stats = value["stats"]
+            rendered = "".join(text)
+            history = value.get("cache_context")
+            if not rendered or not isinstance(history, str) or not history:
+                raise RuntimeError("native bridge returned empty text or invalid chat history")
             if not isinstance(value.get("token_hash"), str) or not value["token_hash"]:
                 raise RuntimeError("native bridge did not provide a nonempty token hash")
             count = stats.get("generated_tokens")
@@ -97,10 +113,26 @@ def generate(process, prompt, tokens, request_id, timeout, mtp_depth=0, mtp_head
                 raise RuntimeError("native bridge returned an invalid generated token count")
             if stats["cached_prompt_tokens"] != 0:
                 raise RuntimeError("benchmark unexpectedly reused a prompt cache")
+            for metric in (
+                "decode_tps",
+                "decode_seconds",
+                "prefill_tps",
+                "prefill_seconds",
+                "ttft_seconds",
+                "elapsed_seconds",
+            ):
+                measurement = stats[metric]
+                if (
+                    type(measurement) not in (int, float)
+                    or not math.isfinite(measurement)
+                    or measurement <= 0
+                ):
+                    raise RuntimeError(f"native bridge returned an invalid {metric}")
             return {
                 "stats": stats,
                 "token_hash": value.get("token_hash"),
-                "text_sha256": hashlib.sha256("".join(text).encode()).hexdigest(),
+                "text_sha256": hashlib.sha256(rendered.encode()).hexdigest(),
+                "history_sha256": hashlib.sha256(history.encode()).hexdigest(),
             }
 
 
@@ -115,6 +147,11 @@ def main():
     parser.add_argument("--warmup-tokens", type=int)
     parser.add_argument("--mtp-depth", type=int, choices=range(4), default=0)
     parser.add_argument("--mtp-head", type=Path)
+    parser.add_argument("--dflash-mode", type=int, choices=range(4), default=0)
+    parser.add_argument("--dflash-draft", type=Path)
+    parser.add_argument(
+        "--compare-mtp-dflash", action="store_true", help="A uses MTP; B uses DFlash"
+    )
     parser.add_argument("--repeats", type=int, default=2)
     parser.add_argument("--order", choices=["ABBA", "BAAB"], default="ABBA")
     parser.add_argument("--settle-seconds", type=float, default=0.0)
@@ -136,6 +173,10 @@ def main():
         )
     if args.mtp_depth > 0 and args.mtp_head is None:
         parser.error("--mtp-head is required when --mtp-depth > 0")
+    if args.dflash_mode > 0 and args.dflash_draft is None:
+        parser.error("--dflash-draft is required when --dflash-mode > 0")
+    if args.mtp_depth > 0 and args.dflash_mode > 0 and not args.compare_mtp_dflash:
+        parser.error("MTP and DFlash cannot be enabled together")
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("output directory must be empty; preserve previous campaigns")
     environments = {}
@@ -156,6 +197,13 @@ def main():
             "warmup_tokens": warmup_tokens,
             "mtp_depth": args.mtp_depth,
             "mtp_head": str(args.mtp_head.resolve()) if args.mtp_head else None,
+            "dflash_mode": args.dflash_mode,
+            "dflash_draft": str(args.dflash_draft.resolve()) if args.dflash_draft else None,
+            "compare_mtp_dflash": args.compare_mtp_dflash,
+            "prompt_file": str(args.prompt_file.resolve()) if args.prompt_file else None,
+            "prompt_sha256": hashlib.sha256(args.prompt_file.read_bytes()).hexdigest()
+            if args.prompt_file
+            else None,
             "settle_seconds": args.settle_seconds,
             "load_timeout": args.load_timeout,
             "request_timeout": args.request_timeout,
@@ -179,9 +227,13 @@ def main():
     current = {}
     try:
         for pass_index, label in enumerate(args.order):
+            mtp_depth = args.mtp_depth if not args.compare_mtp_dflash or label == "A" else 0
+            dflash_mode = args.dflash_mode if not args.compare_mtp_dflash or label == "B" else 0
             current = {
                 "label": label,
                 "index": pass_index,
+                "mtp_depth": mtp_depth,
+                "dflash_mode": dflash_mode,
                 "status": "running",
                 "conditions": {"recorded_at_unix": time.time()},
                 "prompts": {},
@@ -243,8 +295,10 @@ def main():
                                 args.tokens if index else warmup_tokens,
                                 request_id,
                                 args.request_timeout,
-                                args.mtp_depth,
-                                args.mtp_head,
+                                mtp_depth,
+                                args.mtp_head if mtp_depth else None,
+                                dflash_mode,
+                                args.dflash_draft if dflash_mode else None,
                             )
                             if index:
                                 measured["runs"].append(run)
@@ -254,6 +308,7 @@ def main():
                             actual = (
                                 run["token_hash"],
                                 run["text_sha256"],
+                                run["history_sha256"],
                                 run["stats"]["generated_tokens"],
                             )
                             key = (name, index == 0)

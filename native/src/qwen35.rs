@@ -13,8 +13,6 @@ use half::f16;
 use serde::Deserialize;
 use std::{fs::File, path::Path};
 
-const DFLASH_CAPTURE_LAYERS: [usize; 8] = [1, 6, 11, 16, 22, 27, 32, 37];
-
 fn dense_mlp_batch_enabled() -> bool {
     #[cfg(test)]
     if let Some(enabled) = DENSE_MLP_BATCH_OVERRIDE.with(std::cell::Cell::get) {
@@ -1265,13 +1263,13 @@ impl Qwen35Moe {
         tokens[0] = anchor as i32;
         self.embeddings
             .take(&Array::from_i32(&tokens, &[1, 8])?, 0)?
-            .reshape(&[8, 2048])?
+            .reshape(&[8, self.embeddings.shape()[1]])?
             .astype(Dtype::BFloat16)
     }
 
     pub fn dflash_logits(&self, hidden: &Array, positions: usize) -> Result<Array> {
         ensure!(
-            hidden.shape() == [8, 2048] && (1..=7).contains(&positions),
+            hidden.shape() == [8, self.embeddings.shape()[1]] && (1..=7).contains(&positions),
             "DFlash head expects eight hidden rows"
         );
         let end = i32::try_from(positions)? + 1;
@@ -1348,23 +1346,25 @@ impl Qwen35Moe {
         let ids = tokens.iter().map(|&token| token as i32).collect::<Vec<_>>();
         let id = Array::from_i32(&ids, &[1, time])?;
         let mut hidden = self.embeddings.take(&id, 0)?;
-        let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let family = self.dflash_family().context("unsupported DFlash target")?;
+        let capture_layers = family.captures();
+        let mut captured = Vec::with_capacity(capture_layers.len());
         let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
             if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
                 Array::async_eval_all(&[&hidden])?;
             }
-            if DFLASH_CAPTURE_LAYERS.contains(&index) {
+            if capture_layers.contains(&index) {
                 captured.push(hidden.try_clone()?);
             }
         }
         ensure!(
-            captured.len() == DFLASH_CAPTURE_LAYERS.len(),
+            captured.len() == capture_layers.len(),
             "Qwen model is missing DFlash capture layers"
         );
         let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
-            .reshape(&[time, 8 * 2048])?
+            .reshape(&[time, family.target_hidden() as i32])?
             .astype(Dtype::BFloat16)?;
         let normalized = hidden
             .slice(1, time - 1, time)?
@@ -1420,23 +1420,25 @@ impl Qwen35Moe {
                 self.embeddings.take(&id, 0)
             })
             .collect::<Result<Vec<_>>>()?;
-        let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let family = self.dflash_family().context("unsupported DFlash target")?;
+        let capture_layers = family.captures();
+        let mut captured = Vec::with_capacity(capture_layers.len());
         let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification_dflash(&mut hidden)?;
             if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
                 Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
             }
-            if DFLASH_CAPTURE_LAYERS.contains(&index) {
+            if capture_layers.contains(&index) {
                 captured.push(Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?);
             }
         }
         ensure!(
-            captured.len() == DFLASH_CAPTURE_LAYERS.len(),
+            captured.len() == capture_layers.len(),
             "Qwen model is missing DFlash capture layers"
         );
         let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
-            .reshape(&[time, 8 * 2048])?
+            .reshape(&[time, family.target_hidden() as i32])?
             .astype(Dtype::BFloat16)?;
         let normalized = hidden
             .into_iter()
@@ -1632,16 +1634,19 @@ impl Qwen35Moe {
         self.offset
     }
 
-    /// The shipped DFlash2 draft expects this hidden/capture layout, not a
-    /// particular directory name. Target verification still decides every token.
-    pub fn supports_dflash(&self) -> bool {
-        self.embeddings.shape() == [248_320, 2048]
-            && self.layers.len() == 40
+    pub fn dflash_family(&self) -> Option<crate::dflash::Family> {
+        let family = crate::dflash::Family::from_target(&self.mtp_layout, self.layers.len())?;
+        (self.embeddings.shape() == [248_320, family.hidden() as i32]
             && self
                 .layers
                 .iter()
                 .enumerate()
-                .all(|(index, layer)| matches!(layer, Layer::Attention(_)) == (index % 4 == 3))
+                .all(|(index, layer)| matches!(layer, Layer::Attention(_)) == (index % 4 == 3)))
+        .then_some(family)
+    }
+
+    pub fn supports_dflash(&self) -> bool {
+        self.dflash_family().is_some()
     }
 
     pub fn commit_dflash_verification(&mut self, retained: usize, total: usize) -> Result<()> {
@@ -3868,6 +3873,96 @@ mod tests {
             );
             assert_eq!(captured.shape(), [length, 8 * 2048]);
         }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical GPU and MLXL3_QWEN_TEST_MODEL; run alone"]
+    fn dflash_capture_verification_and_commits_match_serial_states() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let family = model
+            .dflash_family()
+            .context("unsupported DFlash test target")?;
+        let pipeline = model.pipeline;
+        for prefill in [23, 24, 256] {
+            let prefix = (1..=prefill).collect::<Vec<u32>>();
+            model.pipeline = false;
+            model.reset();
+            let expected_logits = model.forward_tokens(&prefix)?.to_f16_bits()?;
+            ensure!(
+                expected_logits.len() == model.vocab as usize
+                    && expected_logits
+                        .iter()
+                        .all(|&v| f16::from_bits(v).is_finite()),
+                "invalid prefill oracle logits"
+            );
+            let expected_state = state_bytes(&model)?;
+            model.pipeline = pipeline;
+            model.reset();
+            let (actual, captured) = model.forward_tokens_with_dflash_capture(&prefix)?;
+            ensure!(
+                actual.to_f16_bits()? == expected_logits && state_bytes(&model)? == expected_state,
+                "capture altered prefill"
+            );
+            let values = captured.to_f32()?;
+            ensure!(
+                captured.shape() == [prefill as i32, family.target_hidden() as i32]
+                    && captured.dtype() == Dtype::BFloat16
+                    && values.len() == prefill as usize * family.target_hidden() as usize
+                    && values.iter().all(|v| v.is_finite()),
+                "invalid capture"
+            );
+            let before = model.snapshot()?;
+            for width in 1..=8 {
+                let forced = (100..100 + width).collect::<Vec<u32>>();
+                model.pipeline = false;
+                model.restore(before.clone())?;
+                let expected = batched_head_token_major(&mut model, &forced)?.to_f16_bits()?;
+                ensure!(
+                    expected.len() == width as usize * model.vocab as usize
+                        && expected.iter().all(|&v| f16::from_bits(v).is_finite()),
+                    "invalid verification oracle logits"
+                );
+                let expected_states = state_bytes(&model)?;
+                model.pipeline = pipeline;
+                model.restore(before.clone())?;
+                let (actual, captured) = model.verify_tokens_exact_with_dflash_capture(&forced)?;
+                ensure!(
+                    actual.to_f16_bits()? == expected && state_bytes(&model)? == expected_states,
+                    "verify differs: prefill={prefill}, width={width}"
+                );
+                let values = captured.to_f32()?;
+                ensure!(
+                    captured.shape() == [width as i32, family.target_hidden() as i32]
+                        && captured.dtype() == Dtype::BFloat16
+                        && values.len() == width as usize * family.target_hidden() as usize
+                        && values.iter().all(|v| v.is_finite()),
+                    "invalid verify captures"
+                );
+                for retained in 1..=width {
+                    model.pipeline = false;
+                    model.restore(before.clone())?;
+                    for &token in &forced[..retained as usize] {
+                        model.forward(token)?;
+                    }
+                    let expected = state_bytes(&model)?;
+                    model.pipeline = pipeline;
+                    model.restore(before.clone())?;
+                    model.verify_tokens_exact_with_dflash_capture(&forced)?;
+                    model.commit_dflash_verification(retained as usize, width as usize)?;
+                    ensure!(
+                        state_bytes(&model)? == expected,
+                        "commit differs: width={width}, retained={retained}"
+                    );
+                }
+            }
+        }
+        eprintln!(
+            "{}: 24 captured verifies / 108 commits / {} finite state arrays bit exact",
+            family.name(),
+            model.layers.len() * 2
+        );
         Ok(())
     }
 

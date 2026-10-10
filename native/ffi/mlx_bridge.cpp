@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <libproc.h>
 #include <sys/resource.h>
+#include "kernel_cache_key.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -437,15 +438,24 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
                       const size_t* output_ranks, const int32_t* output_types, size_t noutputs,
                       const int32_t* grid, const int32_t* threadgroup, void** outputs) noexcept {
   return protect([&] {
-    using Key = std::tuple<std::string, std::vector<std::string>, std::vector<std::string>, std::string, std::string>;
-    thread_local std::map<Key, mx::fast::CustomKernelFunction> cache;
-    Key key{name, strings(input_names, ninputs), strings(output_names, noutputs), header, source};
+    if (!name || !header || !source || (ninputs && !input_names) || (noutputs && !output_names))
+      throw std::invalid_argument("null Metal kernel metadata");
+    for (size_t i = 0; i < ninputs; ++i)
+      if (!input_names[i]) throw std::invalid_argument("null Metal input name");
+    for (size_t i = 0; i < noutputs; ++i)
+      if (!output_names[i]) throw std::invalid_argument("null Metal output name");
+    thread_local std::map<mlxl3::OwnedKernelKey, mx::fast::CustomKernelFunction,
+                          mlxl3::KernelKeyOrder> cache;
+    mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
     auto found = cache.find(key);
     if (found == cache.end()) {
       // ponytail: bounded key-ordered eviction; use LRU only if dynamic factories churn.
       if (cache.size() >= 128) cache.erase(cache.begin());
-      found = cache.emplace(key, mx::fast::metal_kernel(name, std::get<1>(key), std::get<2>(key),
-        source, header, true, false, mx::CompileOptions{})).first;
+      mlxl3::OwnedKernelKey owned{name, strings(input_names, ninputs),
+                                  strings(output_names, noutputs), header, source};
+      auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
+                                             source, header, true, false, mx::CompileOptions{});
+      found = cache.emplace(std::move(owned), std::move(function)).first;
     }
     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
     for (size_t i = 0; i < noutputs; ++i) {
