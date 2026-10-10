@@ -1,0 +1,44 @@
+{
+  "rust_cpu": {
+    "passed": 67,
+    "ignored": 3
+  },
+  "rust_mlx_chat": {
+    "passed": 84,
+    "ignored": 71
+  },
+  "format_strict_clippy": "passed CPU and shipped MLX/chat",
+  "desktop": "full suite passed; final caption hardening rerun with warnings-as-errors passed",
+  "context_oracles": 240,
+  "desktop_tune_grids": 64,
+  "desktop_idle_assertions": 114,
+  "toolbar_rendered_states": 9,
+  "python_transport": {
+    "passed": 69,
+    "seconds": 5.99
+  },
+  "driver_self_test": {
+    "passed": 1,
+    "corruptions_rejected": 9
+  },
+  "kani": {
+    "harnesses_passed": 1,
+    "obligations_success": 68,
+    "covers_satisfied": 4,
+    "unreachable": 0,
+    "domain": "64-bit usize and Option<usize> symbolic without assumptions; no loops",
+    "scope": "CPU cache identity helper and real mib_budget callee, no Metal/FS/env/concurrency proof",
+    "full_suite_rerun": false
+  },
+  "crosshair": "attempted, module absent; not formally verified",
+  "swift_formal": "no applicable source verifier available; not formally verified",
+  "mutation": "default/zero tag collision detected; intact original1testpass",
+  "gpu_diagnostic": "5 processes /20 modes /3800decode tokens exact hash comparisons; battery drift prevents speed gain claims",
+  "initial_failures": [
+    "beforefix StudioModel navigation precondition exit133",
+    "AC precondition before child started",
+    "isolated rustc used edition2015 vs Cargo2024: E0631, corrected without source mutation",
+    "ad hoc SwiftMath object glob before checking .o layout, corrected before compile"
+  ],
+  "all_trials_running": "packaging and final actual bundled bridge verification only"
+}

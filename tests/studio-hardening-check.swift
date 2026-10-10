@@ -59,6 +59,26 @@ extension UpdateManager {
             }
             return false
         }
+        func renderTuneToolbar(_ model: StudioModel, _ state: String) async throws {
+            _ = NSApplication.shared
+            let host = NSHostingView(rootView: MTPTuningToolbarControl().environmentObject(model)
+                .padding(12).background(StudioTheme.sidebar).preferredColorScheme(.dark))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 95),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            defer { window.orderOut(nil) }
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(20))
+            precondition(host.fittingSize.height > 0, "Tune toolbar must render in state \(state)")
+            guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                preconditionFailure("Tune toolbar failed native rendering")
+            }
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            if let output = ProcessInfo.processInfo.environment["MLXL3_TUNE_CHECK_IMAGE_DIR"],
+               let data = bitmap.representation(using: .png, properties: [:]) {
+                try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("toolbar-\(state).png"))
+            }
+        }
         let updates = try await make("updates")
         defer { updates.ejectModel() }
         updates.draft = "send during background update"
@@ -147,6 +167,7 @@ extension UpdateManager {
         tuned.setMTPEnabled(true)
         for _ in 0..<200 where tuned.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.canTuneMTP && tuned.mtpMaxDepth == 3)
+        try await renderTuneToolbar(tuned, "idle")
         tuned.updateManager.setStatesForCheck(app: .checking, engine: .downloading(release))
         precondition(tuned.canTuneMTP, "Background updates must not disable MTP tuning")
         tuned.updateManager.setStatesForCheck(app: .idle, engine: .installing(release))
@@ -157,13 +178,15 @@ extension UpdateManager {
         let before = tuned.conversations[0].messages.count
         precondition(!tuned.showInspector)
         tuned.tuneMTP()
-        precondition(tuned.showInspector, "Header tuning must reveal progress, results and errors")
+        precondition(!tuned.showInspector, "Header tuning must keep the conversation visible")
         precondition(tuned.isTuningMTP && tuned.isGenerating)
+        try await renderTuneToolbar(tuned, "running")
         tuned.draft = "should wait"; tuned.send()
         precondition(tuned.conversations[0].messages.count == before && !tuned.canSend)
         for _ in 0..<200 where tuned.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.mtpEnabled && tuned.mtpDepth == 2 && tuned.mtpTuneRows.count == 4 && tuned.mtpTuneProgress == 1)
-        precondition(tuned.showInspector, "Completed tuning results must stay visible")
+        precondition(!tuned.showInspector, "Finishing Tune must preserve the user's navigation")
+        try await renderTuneToolbar(tuned, "complete")
         precondition(tuned.conversations[0].messages.count == before, "Tuning must not enter chat history")
         tuned.send()
         for _ in 0..<200 where tuned.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
@@ -171,9 +194,12 @@ extension UpdateManager {
         tuned.ejectModel()
         let restoredTune = try await make("mtp-good")
         precondition(restoredTune.mtpEnabled && restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4)
+        restoredTune.showInspector = true
         restoredTune.tuneMTP()
+        precondition(restoredTune.showInspector, "Tune must preserve an already open inspector")
         for _ in 0..<200 where restoredTune.mtpTuneProgress == 0 { try await Task.sleep(for: .milliseconds(10)) }
         restoredTune.cancelMTPTuning()
+        try await renderTuneToolbar(restoredTune, "cancelled")
         for _ in 0..<200 where restoredTune.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4 && restoredTune.mtpError != nil)
         precondition(restoredTune.showInspector, "Tuning cancellation must stay visible")
@@ -195,7 +221,8 @@ extension UpdateManager {
             } else {
                 precondition(candidate.mtpDepth == 1 && candidate.mtpEnabled && candidate.mtpError != nil)
             }
-            precondition(candidate.showInspector, "Tuning feedback must stay visible, including malformed replies and errors")
+            precondition(!candidate.showInspector, "Baseline, invalid replies and errors must preserve the conversation")
+            try await renderTuneToolbar(candidate, name)
             if name == "mtp-error" || name == "mtp-malformed" {
                 let visible = try await tuningErrorIsVisible(candidate)
                 precondition(visible, "Tuning error must be rendered inside the 600-point inspector viewport")

@@ -16,6 +16,14 @@ pub fn mib_budget(mib: usize) -> Option<usize> {
     (mib <= 4096).then(|| mib.checked_mul(1024)?.checked_mul(1024))?
 }
 
+/// Canonical tuning tag: default is distinct from every explicit cache limit.
+pub fn allocator_cache_key(limit_mib: Option<usize>) -> Option<usize> {
+    match limit_mib {
+        None => Some(0),
+        Some(mib) => mib_budget(mib).map(|_| mib + 1),
+    }
+}
+
 /// Count every retained component conservatively, including duplicate aliases.
 pub fn cache_fits(components: [usize; 6], budget: usize) -> bool {
     components
@@ -92,6 +100,18 @@ impl AdaptiveMtp {
 mod tests {
     use super::*;
     #[test]
+    fn allocator_tuning_keys_distinguish_default_and_all_valid_limits() {
+        let mut keys = std::collections::HashSet::new();
+        assert!(keys.insert(allocator_cache_key(None).unwrap()));
+        for mib in 0..=4096 {
+            assert!(keys.insert(allocator_cache_key(Some(mib)).unwrap()));
+        }
+        assert_eq!(keys.len(), 4098);
+        for mib in [4097, usize::MAX] {
+            assert_eq!(allocator_cache_key(Some(mib)), None);
+        }
+    }
+    #[test]
     fn compact_view_requires_material_waste_without_overflow() {
         assert!(compact_wasteful_view(2, 65_538));
         assert!(!compact_wasteful_view(2, 65_537));
@@ -165,6 +185,26 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    fn allocator_tuning_key_is_bounded_and_injective() {
+        let a: Option<usize> = kani::any();
+        let b: Option<usize> = kani::any();
+        let ka = allocator_cache_key(a);
+        let kb = allocator_cache_key(b);
+        if let Some(key) = ka {
+            assert!(key <= 4097);
+            assert_eq!(key == 0, a.is_none());
+            if ka == kb {
+                assert_eq!(a, b);
+            }
+        } else {
+            assert!(a.is_some_and(|mib| mib > 4096));
+        }
+        kani::cover!(a.is_none() && ka == Some(0));
+        kani::cover!(a == Some(0) && ka == Some(1));
+        kani::cover!(a == Some(4096) && ka == Some(4097));
+        kani::cover!(ka.is_none());
+    }
     #[kani::proof]
     fn compaction_requires_large_real_waste_without_overflow() {
         let logical: usize = kani::any();

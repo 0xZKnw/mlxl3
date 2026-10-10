@@ -87,13 +87,12 @@ Depuis le dépôt, lancer le nouvel exécutable et forcer son moteur embarqué :
 MLXL3_EXECUTABLE="$PWD/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3" \
 MLXL3_MTP_ADAPTIVE=1 \
 MLXL3_EMBEDDINGS_PACKED=1 \
-MLXL3_ALLOCATOR_CACHE_MIB=0 \
 "$PWD/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio"
 ```
 
 Charger Qwen3.8-27B, activer MTP dans l’app pour exercer l’adaptation et ouvrir l’inspecteur pour le conseil de contexte. Enregistrer le contexte seulement pour appliquer ce conseil. Envoyer un prompt, puis le réutiliser ; surveiller la mémoire après la réponse, modèle chargé. Brancher le Mac pour comparer la vitesse. La capture GPU ne s’active pas avec cette commande.
 
-Pour tester les nouveaux comportements par défaut, lancer la même commande avec seulement `MLXL3_EXECUTABLE`, sans les trois autres variables. Les options expérimentales sont héritées au lancement du processus ; un double-clic ordinaire ne les active pas. La procédure de compilation reproductible reste `scripts/build-macos-app.sh` avec MLX0.32.2, Cargo/Swift et SDK compatible configurés.
+Pour tester les nouveaux comportements par défaut, lancer la même commande avec seulement `MLXL3_EXECUTABLE`, sans les deux autres variables. Les options expérimentales sont héritées au lancement du processus ; un double-clic ordinaire ne les active pas. La procédure de compilation reproductible reste `scripts/build-macos-app.sh` avec MLX0.32.2, Cargo/Swift et SDK compatible configurés.
 
 Logs volumineux et manifeste de capture compressés sans perte pour la PR : [index et empreintes](measurements/adaptive-memory-20261009/log-archives.json). Les originaux restent locaux ; chaque décompression a été comparée octet pour octet.
 
@@ -102,3 +101,5 @@ Logs volumineux et manifeste de capture compressés sans perte pour la PR : [ind
 La [PR #32](https://github.com/0xZKnw/mlxl3/pull/32) est ouverte depuis `codex/adaptive-memory-qwen`, base main `8c08c4c`, commit source `63bf98973e024fd258a08a98ae9bb3fd3c4b37bb`. La copie locale `dist/MLXL3 Desktop.app` est prête, construite depuis ce commit propre : signature, architectures arm64, plist, runtime-info et tests embarqués timeline/MCP isolés passent. Le contrôle Metal du mode MCP est explicitement sauté pendant cette livraison ; les vérifications numériques physiques restent celles de la campagne précédente. App installée et release inchangées.
 
 [Identité du bundle](measurements/adaptive-memory-20261009/publication-package-identity.json), [commandes/résultats des contrôles](measurements/adaptive-memory-20261009/publication-app-checks.json), [audit de publication](measurements/adaptive-memory-20261009/publication-summary.json). Le commit documentaire de clôture ne modifie aucune source exécutable par rapport au bundle. Les jobs GitHub du source sont inspectés et encore en cours au snapshot : [détail](measurements/adaptive-memory-20261009/publication-ci-jobs.json) ; ce n’est pas une CI verte. L’état de la tête finale sera contrôlé après son push.
+
+Révision du 10 octobre après retour utilisateur : ne pas désactiver par défaut le cache de réutilisation MLX dans la commande de test. La valeur 0 servait aux mesures RAM isolées ; son effet sur la vitesse n’était pas établi. Voir [diagnostic du Tune](tune-feedback-20261010.md).

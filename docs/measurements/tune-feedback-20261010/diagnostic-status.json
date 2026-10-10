@@ -1,0 +1,470 @@
+{
+  "status": "passed",
+  "parity": true,
+  "cases": [
+    {
+      "label": "C-zero",
+      "packed": "1",
+      "allocator_cache_mib": "0",
+      "status": "passed",
+      "child_reaped": true,
+      "conditions": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t71%; discharging; 13:12 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap": "vm.swapusage: total = 2048.00M  used = 1242.25M  free = 805.75M  (encrypted)"
+      },
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "--registry",
+        "/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-tune-diagnostic-i4v9cry0/models.json",
+        "bridge",
+        "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "--context-length",
+        "4096"
+      ],
+      "ready_seconds": 3.652737375,
+      "result": {
+        "best_depth": 0,
+        "noise_margin_percent": 3,
+        "request_id": "C-zero",
+        "rows": [
+          {
+            "accepted_tokens": 0,
+            "decode_seconds": 25.253950791,
+            "decode_tokens": 190,
+            "decode_tps": 7.523575284217001,
+            "depth": 0,
+            "eligible": true,
+            "proposed_tokens": 0,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 81,
+            "decode_seconds": 26.591232667,
+            "decode_tokens": 190,
+            "decode_tps": 7.145212197544795,
+            "depth": 1,
+            "eligible": true,
+            "proposed_tokens": 108,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 105,
+            "decode_seconds": 33.282631125,
+            "decode_tokens": 190,
+            "decode_tps": 5.708683285477479,
+            "depth": 2,
+            "eligible": true,
+            "proposed_tokens": 169,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 114,
+            "decode_seconds": 35.900745042,
+            "decode_tokens": 190,
+            "decode_tps": 5.292369274724535,
+            "depth": 3,
+            "eligible": true,
+            "proposed_tokens": 224,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          }
+        ],
+        "sample_tokens": 96,
+        "samples": 2,
+        "tuning_key": "82434097046fd932:1.4.2:63bf98973e02:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=1:embedding-pack=1:lookup=0:smallm-v1=0",
+        "type": "mtp_tune_complete"
+      },
+      "total_seconds": 153.6153415,
+      "exit_code": 0,
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t69%; discharging; 12:42 remaining present: true"
+    },
+    {
+      "label": "B-default",
+      "packed": "1",
+      "allocator_cache_mib": null,
+      "status": "passed",
+      "child_reaped": true,
+      "conditions": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t69%; discharging; 12:42 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap": "vm.swapusage: total = 2048.00M  used = 1242.25M  free = 805.75M  (encrypted)"
+      },
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "--registry",
+        "/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-tune-diagnostic-3kst90f4/models.json",
+        "bridge",
+        "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "--context-length",
+        "4096"
+      ],
+      "ready_seconds": 4.258489458000014,
+      "result": {
+        "best_depth": 0,
+        "noise_margin_percent": 3,
+        "request_id": "B-default",
+        "rows": [
+          {
+            "accepted_tokens": 0,
+            "decode_seconds": 28.464370541,
+            "decode_tokens": 190,
+            "decode_tps": 6.675011475357396,
+            "depth": 0,
+            "eligible": true,
+            "proposed_tokens": 0,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 81,
+            "decode_seconds": 29.710033375000002,
+            "decode_tokens": 190,
+            "decode_tps": 6.3951459630428635,
+            "depth": 1,
+            "eligible": true,
+            "proposed_tokens": 108,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 105,
+            "decode_seconds": 37.193331625,
+            "decode_tokens": 190,
+            "decode_tps": 5.108442607821907,
+            "depth": 2,
+            "eligible": true,
+            "proposed_tokens": 169,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 114,
+            "decode_seconds": 41.334130625,
+            "decode_tokens": 190,
+            "decode_tps": 4.596685526635532,
+            "depth": 3,
+            "eligible": true,
+            "proposed_tokens": 224,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          }
+        ],
+        "sample_tokens": 96,
+        "samples": 2,
+        "tuning_key": "82434097046fd932:1.4.2:63bf98973e02:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=1:embedding-pack=1:lookup=0:smallm-v1=0",
+        "type": "mtp_tune_complete"
+      },
+      "total_seconds": 172.860712292,
+      "exit_code": 0,
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t67%; discharging; 11:52 remaining present: true"
+    },
+    {
+      "label": "D-256",
+      "packed": "1",
+      "allocator_cache_mib": "256",
+      "status": "passed",
+      "child_reaped": true,
+      "conditions": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t67%; discharging; 11:52 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap": "vm.swapusage: total = 2048.00M  used = 1242.25M  free = 805.75M  (encrypted)"
+      },
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "--registry",
+        "/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-tune-diagnostic-aene06c5/models.json",
+        "bridge",
+        "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "--context-length",
+        "4096"
+      ],
+      "ready_seconds": 3.578477375000034,
+      "result": {
+        "best_depth": 0,
+        "noise_margin_percent": 3,
+        "request_id": "D-256",
+        "rows": [
+          {
+            "accepted_tokens": 0,
+            "decode_seconds": 31.509452042,
+            "decode_tokens": 190,
+            "decode_tps": 6.029936659855038,
+            "depth": 0,
+            "eligible": true,
+            "proposed_tokens": 0,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 81,
+            "decode_seconds": 33.293060625,
+            "decode_tokens": 190,
+            "decode_tps": 5.706894963490608,
+            "depth": 1,
+            "eligible": true,
+            "proposed_tokens": 108,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 105,
+            "decode_seconds": 40.844596959,
+            "decode_tokens": 190,
+            "decode_tps": 4.651778059916294,
+            "depth": 2,
+            "eligible": true,
+            "proposed_tokens": 169,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 114,
+            "decode_seconds": 44.486014916,
+            "decode_tokens": 190,
+            "decode_tps": 4.271005176767675,
+            "depth": 3,
+            "eligible": true,
+            "proposed_tokens": 224,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          }
+        ],
+        "sample_tokens": 96,
+        "samples": 2,
+        "tuning_key": "82434097046fd932:1.4.2:63bf98973e02:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=1:embedding-pack=1:lookup=0:smallm-v1=0",
+        "type": "mtp_tune_complete"
+      },
+      "total_seconds": 189.510522542,
+      "exit_code": 0,
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t65%; discharging; 11:22 remaining present: true"
+    },
+    {
+      "label": "A-dense",
+      "packed": "0",
+      "allocator_cache_mib": null,
+      "status": "passed",
+      "child_reaped": true,
+      "conditions": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t65%; discharging; 11:22 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap": "vm.swapusage: total = 2048.00M  used = 1242.25M  free = 805.75M  (encrypted)"
+      },
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "--registry",
+        "/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-tune-diagnostic-i16r583b/models.json",
+        "bridge",
+        "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "--context-length",
+        "4096"
+      ],
+      "ready_seconds": 2.338768707999975,
+      "result": {
+        "best_depth": 0,
+        "noise_margin_percent": 3,
+        "request_id": "A-dense",
+        "rows": [
+          {
+            "accepted_tokens": 0,
+            "decode_seconds": 32.265950126,
+            "decode_tokens": 190,
+            "decode_tps": 5.888560518380564,
+            "depth": 0,
+            "eligible": true,
+            "proposed_tokens": 0,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 81,
+            "decode_seconds": 34.181003125000004,
+            "decode_tokens": 190,
+            "decode_tps": 5.55864318274012,
+            "depth": 1,
+            "eligible": true,
+            "proposed_tokens": 108,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 105,
+            "decode_seconds": 42.0318005,
+            "decode_tokens": 190,
+            "decode_tps": 4.520386891349086,
+            "depth": 2,
+            "eligible": true,
+            "proposed_tokens": 169,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 114,
+            "decode_seconds": 46.113591583,
+            "decode_tokens": 190,
+            "decode_tps": 4.120260285040223,
+            "depth": 3,
+            "eligible": true,
+            "proposed_tokens": 224,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          }
+        ],
+        "sample_tokens": 96,
+        "samples": 2,
+        "tuning_key": "82434097046fd932:1.4.2:63bf98973e02:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=1:embedding-pack=0:lookup=0:smallm-v1=0",
+        "type": "mtp_tune_complete"
+      },
+      "total_seconds": 195.54836408300002,
+      "exit_code": 0,
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t63%; discharging; 10:42 remaining present: true"
+    },
+    {
+      "label": "B-default-repeat",
+      "packed": "1",
+      "allocator_cache_mib": null,
+      "status": "passed",
+      "child_reaped": true,
+      "conditions": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t63%; discharging; 10:42 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap": "vm.swapusage: total = 2048.00M  used = 1234.25M  free = 813.75M  (encrypted)"
+      },
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "--registry",
+        "/var/folders/th/l53_fdt54kg2j41fy__253180000gn/T/mlxl3-tune-diagnostic-3tenc72e/models.json",
+        "bridge",
+        "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "--context-length",
+        "4096"
+      ],
+      "ready_seconds": 4.126459958000055,
+      "result": {
+        "best_depth": 0,
+        "noise_margin_percent": 3,
+        "request_id": "B-default-repeat",
+        "rows": [
+          {
+            "accepted_tokens": 0,
+            "decode_seconds": 33.541398375,
+            "decode_tokens": 190,
+            "decode_tps": 5.664641583387771,
+            "depth": 0,
+            "eligible": true,
+            "proposed_tokens": 0,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 81,
+            "decode_seconds": 34.063356958,
+            "decode_tokens": 190,
+            "decode_tps": 5.577841321813036,
+            "depth": 1,
+            "eligible": true,
+            "proposed_tokens": 108,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 105,
+            "decode_seconds": 42.578262584,
+            "decode_tokens": 190,
+            "decode_tps": 4.462370901705086,
+            "depth": 2,
+            "eligible": true,
+            "proposed_tokens": 169,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          },
+          {
+            "accepted_tokens": 114,
+            "decode_seconds": 46.409769417,
+            "decode_tokens": 190,
+            "decode_tps": 4.093965610835433,
+            "depth": 3,
+            "eligible": true,
+            "proposed_tokens": 224,
+            "reason": null,
+            "token_hashes": [
+              "dfe39515ddae5901",
+              "7641f57bf401306b"
+            ]
+          }
+        ],
+        "sample_tokens": 96,
+        "samples": 2,
+        "tuning_key": "82434097046fd932:1.4.2:63bf98973e02:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=1:embedding-pack=1:lookup=0:smallm-v1=0",
+        "type": "mtp_tune_complete"
+      },
+      "total_seconds": 199.60903329100006,
+      "exit_code": 0,
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t62%; discharging; 10:02 remaining present: true"
+    }
+  ],
+  "engine_sha256": "366cccff760e1c8ee3656c9750d7e38199d39adb0a6b0e22a1b2671fcb2c64ea",
+  "model": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+  "head": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+  "context": 4096
+}
