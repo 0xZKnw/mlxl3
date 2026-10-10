@@ -56,10 +56,24 @@ def write_bridge(path, behavior):
         f"#!{sys.executable}\n"
         + f"behavior = {behavior!r}\n"
         + """
-import json, os, signal, sys, time
+import io, json, os, signal, sys, time
 from pathlib import Path
 Path(__file__).with_suffix('.pid').write_text(str(os.getpid()))
+inject_signal = False
+if behavior == 'cancel_during_write':
+    original_raw = sys.stdout.buffer.raw
+    class SignalRaw(io.RawIOBase):
+        def writable(self): return True
+        def write(self, value):
+            global inject_signal
+            if inject_signal:
+                inject_signal = False
+                os.kill(os.getpid(), signal.SIGUSR1)
+            return original_raw.write(value)
+    sys.stdout = io.TextIOWrapper(io.BufferedWriter(SignalRaw()))
 def emit(kind, **fields):
+    global inject_signal
+    inject_signal = behavior == 'cancel_during_write' and kind == 'context_usage'
     print(json.dumps(dict(type=kind, **fields)), flush=True)
 if behavior == 'silent': time.sleep(60)
 if behavior == 'invalid': print('not JSON', flush=True); time.sleep(60)
@@ -70,7 +84,6 @@ rid = None
 def cancel(*_):
     global cancelled
     cancelled = True
-    emit('cancelled', request_id=rid)
 signal.signal(signal.SIGUSR1, cancel)
 for line in sys.stdin:
     request = json.loads(line)
@@ -90,7 +103,9 @@ for line in sys.stdin:
         time.sleep(.05)
         if not cancelled: emit('delta', request_id=rid, text='token')
         time.sleep(.1)
-        if cancelled: continue
+        if cancelled:
+            emit('cancelled', request_id=rid)
+            continue
     if behavior == 'request_silent': time.sleep(60)
     stats = dict(generated_tokens=request['max_tokens'], decode_seconds=.1,
                  ttft_seconds=.1, elapsed_seconds=.2,
@@ -111,6 +126,7 @@ for line in sys.stdin:
     "behavior",
     [
         "valid",
+        "cancel_during_write",
         "divergent",
         "empty",
         "nonfinite",
@@ -124,7 +140,7 @@ for line in sys.stdin:
 def test_checker_bounds_failures_preserves_report_and_reaps_child(tmp_path, behavior):
     engine, output = tmp_path / "engine", tmp_path / "report.json"
     write_bridge(engine, behavior)
-    if behavior == "valid":
+    if behavior in ("valid", "cancel_during_write"):
         result = run(
             str(engine),
             "model",

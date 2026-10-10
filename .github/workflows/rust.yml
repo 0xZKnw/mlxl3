@@ -22,7 +22,7 @@ jobs:
         with:
           kani-version: '0.68.0'
           command: cargo kani
-          args: --lib --no-default-features --jobs 2
+          args: --lib --no-default-features --jobs 2 --output-format terse
 
   native:
     strategy:
