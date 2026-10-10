@@ -110,6 +110,8 @@ tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 3, 'mtp_tune_supported': mtp_capable, 'mtp_tuning_key': tuning_key}
 if model.startswith('auto-'):
     capabilities['mtp_configure_supported'] = True
+if model == 'mtp-memory-saver':
+    capabilities['context_memory'] = {'layers': [{'bytes_per_token': 32768, 'step': 1}], 'fixed_bytes': 4096}
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
      **capabilities, memory_saver_supported=model == 'mtp-memory-saver',

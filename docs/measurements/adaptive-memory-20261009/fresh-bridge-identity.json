@@ -1,0 +1,24 @@
+{
+  "actual_binary": "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/mlxl3-rs",
+  "actual_binary_sha256": "44b47f87593d934d2ff9feb0dc051acd5af5e4cc2bca5bedcce7b68de940290f",
+  "candidate_wrapper": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/adaptive-memory/packed-bridge",
+  "wrapper_source": "#!/bin/sh\nexport MLXL3_EMBEDDINGS_PACKED=1\nexec /Users/henko/Documents/Code/mlxl3-post-smallm/target/release/mlxl3-rs \"$@\"\n",
+  "wrapper_sha256": "3256aba861bad04390988297875a984148ff8e18854c39286e91d6c980b72184",
+  "common_environment": {
+    "MLXL3_ALLOCATOR_CACHE_MIB": "0"
+  },
+  "baseline_environment": {
+    "MLXL3_EMBEDDINGS_PACKED": null,
+    "MLXL3_MTP_ADAPTIVE": null,
+    "MLXL3_KV_CACHE_8BIT_FROM": null
+  },
+  "candidate_environment": {
+    "MLXL3_EMBEDDINGS_PACKED": "1"
+  },
+  "syntax_check": [
+    "/bin/sh",
+    "-n",
+    "build/adaptive-memory/packed-bridge"
+  ],
+  "status": "prepared_not_measured"
+}

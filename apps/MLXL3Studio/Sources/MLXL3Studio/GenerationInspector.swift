@@ -72,6 +72,17 @@ struct GenerationInspector: View {
                                 }
                             }
                             .disabled(studio.isGenerating || studio.modelContextLimit == nil)
+                            if let advised = studio.recommendedContextLength {
+                                Button(L("Utiliser le contexte conseillé : \(advised.formatted()) tokens",
+                                         "Use recommended context: \(advised.formatted()) tokens")) {
+                                    studio.contextLengthDraft = advised
+                                }
+                                .font(.caption)
+                                .disabled(studio.isGenerating || studio.isTuningMTP)
+                                Text(L("Estimation prudente avec la mémoire du moteur observée, le cache MTP si compatible, 512 Mio pour les caches et au moins 25 % / 4 Gio pour macOS et le calcul. Les autres apps peuvent réduire la marge. Enregistrer pour appliquer.",
+                                       "Conservative estimate using observed engine memory, compatible MTP cache, 512 MiB for caches and at least 25% / 4 GiB for macOS and compute. Other apps may reduce headroom. Save to apply."))
+                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                            }
                             if let maximum = studio.modelContextLimit {
                                 Text(L("Maximum du modèle : \(maximum.formatted()) tokens", "Model maximum: \(maximum.formatted()) tokens"))
                                     .font(.caption).foregroundStyle(StudioTheme.quiet)

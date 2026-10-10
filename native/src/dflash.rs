@@ -307,6 +307,26 @@ impl Default for DFlashCache {
 
 #[cfg(feature = "mlx")]
 impl DFlashCache {
+    pub fn compact_for_cache(mut self) -> Result<Self> {
+        for layer in self.layers.iter_mut().flatten() {
+            layer.keys = layer.keys.compact_for_cache()?;
+            layer.values = layer.values.compact_for_cache()?;
+        }
+        Ok(self)
+    }
+    pub fn retained_bytes(&self) -> Result<usize> {
+        self.layers
+            .iter()
+            .flatten()
+            .try_fold(0usize, |total, layer| {
+                let values = layer.values.retained_bytes()?;
+                total
+                    .checked_add(layer.keys.retained_bytes()?)
+                    .and_then(|n| n.checked_add(values))
+                    .context("draft cache size overflow")
+            })
+    }
+
     pub fn try_clone(&self) -> Result<Self> {
         Ok(Self {
             layers: self

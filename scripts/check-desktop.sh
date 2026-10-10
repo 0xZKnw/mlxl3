@@ -21,6 +21,10 @@ binary_dir="$(swift build "${swift_args[@]}" --show-bin-path)"
 sources=(apps/MLXL3Studio/Sources/MLXL3Studio/*.swift)
 sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
 swiftc_args+=(-I "${binary_dir}")
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    apps/MLXL3Studio/Sources/MLXL3Studio/ContextMemoryProfile.swift \
+    tests/context-memory-check.swift -o "${test_dir}/context-memory-check"
+"${test_dir}/context-memory-check"
 [[ -d "${binary_dir}/Modules" ]] && swiftc_args+=(-I "${binary_dir}/Modules")
 if [[ -f "${binary_dir}/SwiftMath.o" ]]; then
     math_objects=("${binary_dir}/SwiftMath.o")

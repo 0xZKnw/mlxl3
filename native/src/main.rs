@@ -1585,6 +1585,21 @@ struct PromptCache {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn prompt_cache_budget() -> Result<usize> {
+    Ok(match std::env::var("MLXL3_PROMPT_CACHE_MIB") {
+        Ok(value) => value
+            .parse::<usize>()
+            .ok()
+            .and_then(mlxl3_native::memory_policy::mib_budget)
+            .context("MLXL3_PROMPT_CACHE_MIB must be an integer in 0..4096")?,
+        Err(std::env::VarError::NotPresent) => {
+            mlxl3_native::memory_policy::DEFAULT_PROMPT_CACHE_BYTES
+        }
+        Err(error) => return Err(error.into()),
+    })
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 impl PromptCache {
     fn capture(
         conversation: &str,
@@ -1600,22 +1615,48 @@ impl PromptCache {
             usize::try_from(target.offset()).ok() == Some(tokens.len()),
             "prefix cache position differs from its token history"
         );
-        let state = target.snapshot()?;
-        // ponytail: one checkpoint, capped at 256 MiB logical target state;
-        // add a multi-session budget only after its extra retained RAM is measured.
-        if state.byte_len()? > 256 * 1024 * 1024 {
+        if prompt_cache_budget()? == 0 {
             return Ok(None);
         }
-        Ok(Some(Self {
+        let state = target.snapshot()?.compact_for_cache()?;
+        let saved = Self {
             conversation: conversation.to_owned(),
             tokens: tokens.to_vec(),
             state,
-            logits: logits.try_clone()?,
+            logits: logits.compact_for_cache()?,
             draft: dflash
-                .map(|session| session.cache.try_clone())
+                .map(|session| session.cache.try_clone()?.compact_for_cache())
                 .transpose()?,
             mtp: None,
-        }))
+        };
+        saved.within_budget()
+    }
+
+    fn within_budget(self) -> Result<Option<Self>> {
+        let budget = prompt_cache_budget()?;
+        let fits = mlxl3_native::memory_policy::cache_fits(
+            [
+                self.state.retained_bytes()?,
+                self.logits.retained_bytes()?,
+                self.draft
+                    .as_ref()
+                    .map(|cache| cache.retained_bytes())
+                    .transpose()?
+                    .unwrap_or(0),
+                self.mtp
+                    .as_ref()
+                    .map(|cache| cache.retained_bytes())
+                    .transpose()?
+                    .unwrap_or(0),
+                self.tokens
+                    .len()
+                    .checked_mul(4)
+                    .context("token cache size overflow")?,
+                self.conversation.len(),
+            ],
+            budget,
+        );
+        Ok(fits.then_some(self))
     }
 }
 
@@ -1752,9 +1793,9 @@ fn prefill_mtp(
             None,
         )?;
         if let Some(saved) = &mut saved {
-            saved.mtp = Some(head.snapshot()?);
+            saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
         }
-        *cache = saved;
+        *cache = saved.map(PromptCache::within_budget).transpose()?.flatten();
     }
     // At every checkpoint the last trunk hidden is deliberately unpaired.
     // The next prompt token is supplied only after prefix eligibility is known.
@@ -1792,9 +1833,9 @@ fn prefill_mtp(
                 None,
             )?;
             if let Some(saved) = &mut saved {
-                saved.mtp = Some(head.snapshot()?);
+                saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
             }
-            *cache = saved;
+            *cache = saved.map(PromptCache::within_budget).transpose()?.flatten();
         }
     }
     let logits = logits.context("empty MTP prefill")?;
@@ -1955,6 +1996,7 @@ struct NativeStats {
     mtp_accepted_tokens: Option<usize>,
     mtp_blocks: Option<usize>,
     mtp_lookup_blocks: Option<usize>,
+    mtp_depth_blocks: Option<[usize; 4]>,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1975,6 +2017,12 @@ impl NativeStats {
         self.round_count += round.round_count;
         self.dflash_block_seconds += round.dflash_block_seconds;
         self.memory = round.memory;
+        if let Some(counts) = round.mtp_depth_blocks {
+            let sum = self.mtp_depth_blocks.get_or_insert([0; 4]);
+            for (total, count) in sum.iter_mut().zip(counts) {
+                *total += count;
+            }
+        }
         for (sum, value) in [
             (
                 &mut self.dflash_proposed_tokens,
@@ -2164,12 +2212,18 @@ fn bridge_generate_round(
         .as_ref()
         .map(|_| mlxl3_native::mtp::Session::new(mtp_depth))
         .transpose()?;
+    if std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")
+        && let Some(session) = &mut mtp_session
+    {
+        session.enable_adaptive();
+    }
     if std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")
         && let Some(session) = &mut mtp_session
     {
         session.enable_prompt_lookup(&tokens);
     }
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
+    let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
     let available = context_limit - tokens.len();
     let budget = if max_tokens == -1 {
         available
@@ -2299,6 +2353,9 @@ fn bridge_generate_round(
             }))?;
         }
     }
+    if let Some(capture) = gpu_capture {
+        capture.finish()?;
+    }
     let elapsed = started.elapsed().as_secs_f64();
     let ttft = first_token.unwrap_or(elapsed);
     let stats = NativeStats {
@@ -2327,6 +2384,7 @@ fn bridge_generate_round(
         mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
         mtp_blocks: mtp_session.as_ref().map(|s| s.blocks),
         mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.lookup_blocks),
+        mtp_depth_blocks: mtp_session.as_ref().map(|s| s.depth_blocks),
         ..Default::default()
     };
     Ok(RoundOutput {
@@ -2631,6 +2689,7 @@ fn native_bridge(
         "mtp_configure_supported":true,
         "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
         "memory_saver_supported":true,
+        "context_memory":match &model { NativeChatModel::Qwen(target) => Some(target.context_memory_profile()?), _ => None },
         "mtp_tuning_key":tuning_key,
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},

@@ -60,6 +60,12 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    fn mlxl3_start_capture(path: *const c_char) -> i32;
+    fn mlxl3_stop_capture() -> i32;
+    fn mlxl3_set_cache_limit(bytes: u64) -> i32;
+    fn mlxl3_pack_embedding(p: *mut c_void, out: *mut *mut c_void) -> i32;
+    fn mlxl3_array_retained_bytes(p: *mut c_void, out: *mut u64) -> i32;
+    fn mlxl3_array_compact_copy(p: *mut c_void, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_affine4(
         x: *mut c_void,
         w: *mut c_void,
@@ -205,7 +211,21 @@ fn initialize() -> Result<()> {
         library.display()
     );
     let path = CString::new(library.to_str().context("MLX path must be UTF-8")?)?;
+    let cache_limit = match std::env::var("MLXL3_ALLOCATOR_CACHE_MIB") {
+        Ok(value) => Some(
+            value
+                .parse::<usize>()
+                .ok()
+                .and_then(crate::memory_policy::mib_budget)
+                .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?,
+        ),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(error) => return Err(error.into()),
+    };
     checked(unsafe { mlxl3_mlx_init(path.as_ptr()) })?;
+    if let Some(bytes) = cache_limit {
+        checked(unsafe { mlxl3_set_cache_limit(bytes as u64) })?;
+    }
     INITIALIZED.set(true);
     Ok(())
 }
@@ -246,6 +266,84 @@ pub fn clear_cache() -> Result<()> {
 pub fn synchronize() -> Result<()> {
     initialize()?;
     checked(unsafe { mlxl3_synchronize() })
+}
+
+pub struct MetalCapture {
+    active: bool,
+}
+impl MetalCapture {
+    pub fn start(path: &std::path::Path) -> Result<Self> {
+        ensure!(!path.exists(), "refusing to overwrite Metal capture");
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(std::path::Path::new("."));
+        ensure!(
+            parent.is_dir() && path.extension().is_some_and(|e| e == "gputrace"),
+            "capture requires an existing parent and .gputrace path"
+        );
+        let path = CString::new(path.to_str().context("capture path must be UTF-8")?)?;
+        initialize()?;
+        checked(unsafe { mlxl3_start_capture(path.as_ptr()) })?;
+        Ok(Self { active: true })
+    }
+    pub fn finish(mut self) -> Result<()> {
+        let synced = synchronize();
+        let stopped = checked(unsafe { mlxl3_stop_capture() });
+        if stopped.is_ok() {
+            self.active = false;
+        }
+        synced?;
+        stopped
+    }
+}
+impl Drop for MetalCapture {
+    fn drop(&mut self) {
+        if !self.active {
+            return;
+        }
+        if let Err(error) = synchronize() {
+            eprintln!("Metal capture synchronization failed: {error}");
+        }
+        if let Err(error) = checked(unsafe { mlxl3_stop_capture() }) {
+            eprintln!("Metal capture cleanup failed: {error}");
+        }
+    }
+}
+
+/// One explicitly selected decode request per process, after user warmup.
+pub fn capture_for_request(request: &str) -> Result<Option<MetalCapture>> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static CAPTURED: AtomicBool = AtomicBool::new(false);
+    let path = std::env::var_os("MLXL3_METAL_CAPTURE_PATH");
+    let target = std::env::var("MLXL3_METAL_CAPTURE_REQUEST").ok();
+    if path.is_none() && target.is_none() {
+        return Ok(None);
+    }
+    let path = path.context("MLXL3_METAL_CAPTURE_PATH is required")?;
+    let target = target
+        .filter(|s| !s.is_empty())
+        .context("MLXL3_METAL_CAPTURE_REQUEST must name a request")?;
+    if !crate::memory_policy::capture_matches(
+        target.as_bytes(),
+        request.as_bytes(),
+        CAPTURED.load(Ordering::Relaxed),
+    ) {
+        return Ok(None);
+    }
+    if CAPTURED
+        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+        .is_err()
+    {
+        return Ok(None);
+    }
+    match MetalCapture::start(std::path::Path::new(&path)) {
+        Ok(capture) => Ok(Some(capture)),
+        Err(error) => {
+            CAPTURED.store(false, Ordering::Relaxed);
+            Err(error)
+        }
+    }
 }
 
 /// Call only at a request boundary, after dropping unused model/session state.
@@ -473,6 +571,31 @@ impl Array {
     }
     pub fn byte_len(&self) -> Result<usize> {
         bytes_for(&self.shape, self.dtype)
+    }
+    /// Full backing allocation, including storage outside a sliced view.
+    /// Evaluates this array; only use at cache/request boundaries.
+    pub fn retained_bytes(&self) -> Result<usize> {
+        let mut bytes = 0;
+        checked(unsafe { mlxl3_array_retained_bytes(self.handle.as_ptr(), &mut bytes) })?;
+        usize::try_from(bytes).context("retained array size overflow")
+    }
+    /// Detach wasteful views only at a saved prefill checkpoint, never per token.
+    pub fn compact_for_cache(&self) -> Result<Self> {
+        if std::env::var("MLXL3_CACHE_COMPACTION").as_deref() == Ok("0")
+            || !crate::memory_policy::compact_wasteful_view(
+                self.byte_len()?,
+                self.retained_bytes()?,
+            )
+        {
+            return self.try_clone();
+        }
+        Self::output(|out| unsafe { mlxl3_array_compact_copy(self.handle.as_ptr(), out) })
+    }
+    pub(crate) fn pack_embedding(&self) -> Result<Vec<Self>> {
+        let mut pointers = [std::ptr::null_mut(); 3];
+        checked(unsafe { mlxl3_pack_embedding(self.handle.as_ptr(), pointers.as_mut_ptr()) })?;
+        let converted: Vec<_> = pointers.into_iter().map(Self::owned).collect();
+        converted.into_iter().collect()
     }
     pub fn eval(&self) -> Result<()> {
         checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
@@ -858,6 +981,122 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "physical Apple GPU; run alone, compaction enabled"]
+    fn compact_cache_views_preserve_all_bits_and_release_parent_storage() -> Result<()> {
+        for dtype in [
+            Dtype::Float16,
+            Dtype::BFloat16,
+            Dtype::Float32,
+            Dtype::UInt32,
+        ] {
+            let pattern = (0..65_536u32)
+                .flat_map(|v| {
+                    if dtype.item_size() == 2 {
+                        (v as u16).to_ne_bytes().to_vec()
+                    } else {
+                        (v.rotate_left(13) ^ 0xdead_beef).to_ne_bytes().to_vec()
+                    }
+                })
+                .collect::<Vec<_>>();
+            for strided in [false, true] {
+                let view = if strided {
+                    let mut bytes = Vec::with_capacity(pattern.len() * 32);
+                    for element in pattern.chunks_exact(dtype.item_size()) {
+                        for _ in 0..32 {
+                            bytes.extend_from_slice(element);
+                        }
+                    }
+                    Array::from_bytes(&bytes, &[65_536, 32], dtype)?.slice(1, 31, 32)?
+                } else {
+                    Array::from_bytes(&pattern.repeat(32), &[32, 65_536], dtype)?
+                        .slice(0, 19, 20)?
+                };
+                let before = view.retained_bytes()?;
+                let compact = view.compact_for_cache()?;
+                assert_eq!(compact.dtype(), dtype);
+                assert_eq!(compact.shape(), view.shape());
+                assert_eq!(
+                    compact.to_bytes()?,
+                    pattern,
+                    "dtype={dtype:?}, strided={strided}"
+                );
+                assert!(compact.retained_bytes()? <= view.byte_len()? * 2);
+                assert!(compact.retained_bytes()? < before);
+                drop(view);
+                assert_eq!(compact.to_bytes()?, pattern);
+            }
+        }
+        let dense = Array::from_f32(&[0., -0., 1., -1.], &[4])?;
+        let duplicate = dense.compact_for_cache()?;
+        assert_eq!(dense.to_bytes()?, duplicate.to_bytes()?);
+        assert_eq!(dense.retained_bytes()?, duplicate.retained_bytes()?);
+        let mut out = std::ptr::null_mut();
+        assert!(
+            checked(unsafe { mlxl3_array_compact_copy(std::ptr::null_mut(), &mut out) }).is_err()
+        );
+        assert!(
+            checked(unsafe {
+                mlxl3_array_compact_copy(dense.handle.as_ptr(), std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; run alone with MTL_CAPTURE_ENABLED=1"]
+    fn capture_guard_closes_success_and_drop_without_overwriting() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let input = Array::from_f32(&[1., 7., -3., 2.], &[4])?;
+        input.add(&input)?.eval()?;
+        input.mul(&input)?.eval()?;
+        for index in 0..3 {
+            let path = directory.path().join(format!("capture-{index}.gputrace"));
+            let capture = MetalCapture::start(&path)?;
+            assert_eq!(input.add(&input)?.to_f32()?, [2., 14., -6., 4.]);
+            if index == 1 {
+                drop(capture);
+            } else {
+                capture.finish()?;
+            }
+            assert!(
+                path.is_dir() && std::fs::read_dir(&path)?.next().is_some(),
+                "empty capture artifact"
+            );
+            assert!(MetalCapture::start(&path).is_err());
+        }
+        assert!(MetalCapture::start(&directory.path().join("wrong.txt")).is_err());
+        assert!(MetalCapture::start(&directory.path().join("missing/trace.gputrace")).is_err());
+        assert!(checked(unsafe { mlxl3_start_capture(std::ptr::null()) }).is_err());
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; run alone with MLXL3_ALLOCATOR_CACHE_MIB=0 or 1"]
+    fn allocator_cache_limit_preserves_live_arrays() -> Result<()> {
+        let limit = std::env::var("MLXL3_ALLOCATOR_CACHE_MIB")?.parse::<usize>()?;
+        ensure!(limit <= 1, "run this check with cache limit0 or1");
+        let input = Array::from_f16_bits(&vec![0x3c00; 512 * 512], &[512, 512])?;
+        let live = input.try_clone()?;
+        for _ in 0..3 {
+            input.add(&input)?.eval()?;
+        }
+        synchronize()?;
+        assert!(memory_stats(false)?.mlx_cache_bytes <= (limit * 1_048_576) as u64);
+        assert!(live.to_f16_bits()?.iter().all(|&word| word == 0x3c00));
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; run alone"]
+    fn retained_bytes_include_storage_outside_view() -> Result<()> {
+        let view = {
+            let parent = Array::from_f16_bits(&vec![0x3c00; 512 * 512], &[512, 512])?;
+            parent.slice(0, 511, 512)?.slice(1, 0, 1)?
+        };
+        assert_eq!(view.byte_len()?, 2);
+        assert!(view.retained_bytes()? >= 512 * 512 * 2);
+        assert_eq!(view.to_f16_bits()?, [0x3c00]);
+        Ok(())
+    }
 
     #[test]
     #[ignore = "requires physical Apple GPU; run alone"]
