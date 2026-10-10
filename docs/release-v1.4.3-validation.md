@@ -32,7 +32,7 @@ The archived source/runtime identity for the eight physical tests is `3ba367d3db
 - DFlash Tune lost the optional Memory saving flag at the Desktop/NDJSON boundary. A real StudioModel fixture failed before repair (exit133). The unchanged ON/OFF test passed after the shared bridge and native caller were connected. Draft state and conversation preservation were also checked.
 - A signal-handler write could reenter the fixture's buffered stdout. A deterministic signal inside `raw.write` reproduced `RuntimeError` before repair; the handler now sets a flag and the request loop emits the acknowledgement. All **21 checker tests** passed, including silent/invalid/incomplete/nonfinite/divergent events and child cleanup.
 - GCC rejected inlined replacement allocation operators in the C++ counter fixture. Preventing their inlining preserved the allocation boundary without suppressing strict diagnostics; Linux CI subsequently passed.
-- The first parallel Kani invocation lacked its required `--output-format terse` and failed before verification. This setup failure remains archived. The corrected two-job run stopped on a hosted-runner shutdown signal; the log identifies no failed obligation or counterexample. A sequential rerun is pending at this documentation checkpoint; it keeps every input domain, assertion and unwind bound.
+- The first parallel Kani invocation lacked its required `--output-format terse` and failed before verification. This setup failure remains archived. The corrected two-job run stopped on a hosted-runner shutdown signal; the log identifies no failed obligation or counterexample. A sequential rerun keeps every input domain, assertion and unwind bound. It remained in progress at publication; the user explicitly requested publication without waiting for CI.
 
 ## Physical Apple GPU checks
 
@@ -55,14 +55,31 @@ One checkpoint retained196509696→69799936 bytes for69636096 logical bytes. One
 
 Kani0.68.0 checks real Rust CPU implementations. COPY transition harnesses cover initial lengths0..20, arbitrary u32 tokens, accepted prefixes0..7, arbitrary anchor/copied/enabled states and every committed cell, with unwind33 and preserved reachability checks. Disabled-copy width covers all usize values; the active lookup uses a bounded20-token independent forward oracle. No production stub or new input assumption was introduced.
 
-The local LEN7 attempt exceeded its180-second limit and was terminated/reaped: **unverified**, not a counterexample. Final source-CI status must be inspected before publication. Other package harnesses cover budgets, acceptance, shapes, indices, calibration and memory-policy arithmetic. Bounded CPU checks do not prove MLX, Metal, FFI, allocation, concurrency or universal generation behavior.
+The local LEN7 attempt exceeded its180-second limit and was terminated/reaped: **unverified**, not a counterexample. At publication, exact-source Linux/macOS jobs had passed; Desktop and Kani were still in progress. Publication proceeded on the user’s explicit instruction to skip waiting for CI; no fully green CI or completed COPY proof is claimed. Other package harnesses cover budgets, acceptance, shapes, indices, calibration and memory-policy arithmetic. Bounded CPU checks do not prove MLX, Metal, FFI, allocation, concurrency or universal generation behavior.
 
 The real C++ source was attempted with `goto-cc`/CBMC; its installed frontend cannot parse the platform libc++ context. CrossHair is unavailable locally; no compatible Swift source verifier is installed. These remain **unverified**, with tests and diagnostics preserved. The inherited direct-API Q4 row-alignment fixture failure is recorded in [the DFlash report](dflash2-exact-optimisations-2026-10-08.md); normal production paths passing does not close it.
 
-## Packaged-artifact gate
+## Packaged-artifact validation and publication
 
-At this source-documentation checkpoint packaging has not yet run. Before publishing, use the official app/DMG builders, verify arm64/deep-strict signatures/version manifests, exercise the updater with the actual engine archive, run the signed 35B DFlash bridge with full Tune/memory/cancellation/cache/failure boundaries and foreign-draft rejection, verify MTP and two conversational turns, and inspect DMG contents. Publish the exact source/asset identities and actual outcomes alongside the release assets. Do not replace the installed app. Engine latest=false must preserve the Desktop DMG as latest.
+The official `scripts/build-macos-dmg.sh` completed. The signed app and engine were built from clean tracked source **`ef8cc2b92e9be12dd41f97bf8cc250d0ec43f3f7`**. PR33 merged as **`657a337c363cbcdd97385285d3a4d963b3dd4d60`**; release tags identify the actual build source, an ancestor of that merge, rather than relabeling the binary as another commit.
+
+Deep-strict signatures, arm64-only executables/libraries, plist1.4.3/build25, source manifests, math fonts, every runtime SHA/size, exact archive members and app/archive runtime identity passed. `hdiutil verify` and read-only mounting passed; **14 app files** matched the build bit for bit, the relocated runtime executed, and detach returned0. The full `scripts/check-desktop.sh` suite also passed with `MLXL3_TEST_ENGINE_ARCHIVE` pointing at the real1.4.3 archive: installation, relocation, execution, rejection/fallback and hostile-archive cases used disposable directories.
+
+The signed35B bridge ran **47 DFlash default checks**, **43 optional context-copy checks**, **MTP with full Tune**, and **two conversational turns**, all successfully. Commands are retained in signed-bridge-suite.json. DFlash exercised budgets1/2/3/8/17/64, all policies, full Tune, cancellation, cache hits/misses, memory_saver, invalid requests and foreign27B draft-header rejection. The target remained35B throughout; no27B inference was launched. Each child was bounded and reaped, with no local compiler/prover or other inference concurrent. Default Qwen pipeline was ON; experimental options remained OFF except COPY in its explicit second pass.
+
+All **33 complete responses** from the archived independent engine reference matched token hashes, committed history and nonzero token counts. The mapping shifts request IDs by2 after40 to account for new memory-policy cases. An initial incorrect cardinality guard failed before comparing outputs; that failed report is retained. SystemPython3.9 similarly failed the first metadata helper because file_digest was unavailable; rerunning it with configuredPython3.12 passed. Neither initial failure was mislabeled as a completed validation. Durations from these checks are not throughput claims.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| MLXL3-Desktop-v1.4.3-b25-Apple-Silicon.dmg | 73356632 | `85e5b067c3640a4fe8fb4660e09577181a9f21dcc38d6ada49096b8a669549bb` |
+| MLXL3-Engine-v1.4.3-arm64.tar.gz | 66910324 | `22e6728247a212dadb1ed3d5a9f335ee2bf858455271d08b72e92db9738f2d91` |
+| MLXL3-Engine-v1.4.3-arm64.json | 13587 | `6f0ee44c82bd925f69603d3ef9a453126210dd962fedead0865d2773d0f73593` |
+| MLXL3-Release-v1.4.3-validation.json | 16537 | `45ce4db05089216d0fb0e995511cd55d6d4e7af5f3a1752e2fa3442f9c296273` |
+
+The machine-readable validation record is attached to both releases. [Engine1.4.3](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.3) uses latest=false; [Desktop1.4.3/build25](https://github.com/0xZKnw/mlxl3/releases/tag/v1.4.3) is the latest Desktop update. Installed copies and user histories were not replaced. Both releases explicitly disclose CI pending at publication, verifier limits, unavailable tests and the inherited Q4 fixture.
 
 ## Performance interpretation
 
 No new speed campaign was run. The retained key-view microbenchmark's approximately25% CPU lookup reduction is not a tokens/s claim. The [isolated 35B campaign](dflash2-key-view-tps-isolated-2026-10-10.md) failed its drift criterion despite exact outputs. It establishes neither a new global gain nor DFlash2 superiority over MTP. Rejected GPU/Q4/KV8 prototypes remain rejected.
+
+Final evidence: [lossless publication archive](measurements/release-1.4.3/publication-evidence.tar.gz), [SHA/size index](measurements/release-1.4.3/publication-evidence-index.json). Unchanged entries remain in the earlier integration archive. Remote API asset sizes/digests and both tag targets were checked, and `/releases/latest` selected Desktop1.4.3. CI snapshots record status at publication/closure; no wait for later jobs.
