@@ -30,13 +30,13 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
-## DFlash2 (local 1.4.3 build)
+## DFlash2 in v1.4.3
 
 In **Generation → DFlash2**, one switch downloads, verifies and loads the
 matching Q4 draft for **Qwen3.6-35B-A3B** (~457 MiB) or **Qwen3.8-27B**
 (~1.18 GiB). Greedy settings apply automatically. The selection persists across
 relaunches; model changes select the matching draft, and OFF releases it.
-These changes are local and are not included in the published v1.4.2 DMG yet.
+Desktop 1.4.3 provides this setup and tuning flow.
 
 **Tune DFlash2** compares ordinary decoding, Auto (2/5 proposals), fixed 2 and
 fixed 7. It checks target-token parity, uses local code and French prompts in reversed
@@ -55,7 +55,7 @@ target/release/mlxl3-rs dflash-draft --target /path/to/EXL3-target
 
 [Validation, measurements and checkpoint research](docs/dflash2-stable-validation.md).
 
-The local engine also provides an optional context-copy path for **35B Auto**:
+The engine also provides an optional context-copy path for **35B Auto**:
 set `MLXL3_DFLASH_CONTEXT_COPY=1` in the engine's environment. It proposes
 matching text from the recent context and still verifies every token with the
 target. Chat and Tune share this policy, with separate tuning profiles for ON
@@ -63,9 +63,21 @@ and OFF. It remains **OFF by default**: the copy-code benchmark showed a positiv
 signal, but its confirmation failed the control-drift limit. Fixed modes and
 27B keep their existing path. [Upstream research, tests and measurement limits](docs/dflash2-web-optimisations-2026-10-08.md).
 
-The local build also avoids key copies on Metal kernel-cache hits. See the
+The engine also avoids key copies on Metal kernel-cache hits. See the
 [exact 35B optimization results and verification limits](docs/dflash2-exact-optimisations-2026-10-08.md)
 for the CPU microtest, unchanged output checks and rejected GPU prototypes.
+
+## Desktop and engine v1.4.3
+
+Desktop **1.4.3, build 25** bundles engine **1.4.3**. It includes the DFlash2
+setup and Tune above, optional memory saving, a context recommendation to apply
+manually, bounded prefill checkpoints and conditional lossless cache compaction.
+Tune keeps the conversation visible and shows progress, cancellation and results
+in the toolbar. Adaptive MTP, packed embeddings and additional dense execution
+paths remain optional and off by default. No new global speedup is claimed.
+
+[Desktop changelog](docs/release-v1.4.3.md) ·
+[Engine changelog](docs/release-engine-v1.4.3.md).
 
 ## Desktop and engine v1.4.2
 
