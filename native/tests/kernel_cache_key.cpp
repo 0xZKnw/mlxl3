@@ -17,17 +17,17 @@ bool track_allocations = false;
 std::size_t allocation_count = 0;
 }
 
-void* operator new(std::size_t size) {
+__attribute__((noinline)) void* operator new(std::size_t size) {
   if (track_allocations) ++allocation_count;
   if (void* value = std::malloc(size ? size : 1)) return value;
   throw std::bad_alloc();
 }
-void* operator new[](std::size_t size) { return ::operator new(size); }
-void operator delete(void* value) noexcept { std::free(value); }
-void operator delete[](void* value) noexcept { std::free(value); }
+__attribute__((noinline)) void* operator new[](std::size_t size) { return ::operator new(size); }
+__attribute__((noinline)) void operator delete(void* value) noexcept { std::free(value); }
+__attribute__((noinline)) void operator delete[](void* value) noexcept { std::free(value); }
 #if defined(__cpp_sized_deallocation)
-void operator delete(void* value, std::size_t) noexcept { std::free(value); }
-void operator delete[](void* value, std::size_t) noexcept { std::free(value); }
+__attribute__((noinline)) void operator delete(void* value, std::size_t) noexcept { std::free(value); }
+__attribute__((noinline)) void operator delete[](void* value, std::size_t) noexcept { std::free(value); }
 #endif
 
 namespace {
