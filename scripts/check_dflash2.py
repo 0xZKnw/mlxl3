@@ -151,11 +151,17 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
             )
             equal(cold, miss)
             assert miss["stats"]["cached_prompt_tokens"] == 0
+            for mode in (0, 2):
+                saved = request(
+                    mode=mode, messages=messages, reuse_prompt_cache=True, memory_saver=True
+                )
+                equal(cold, saved)
+                assert saved["stats"]["cached_prompt_tokens"] == 0
             assert request("set_dflash", enabled=False)["dflash_active"] is False
             if tune:
                 request("tune_dflash", cancel_at="dflash_tune_progress")
                 equal(golden, request(mode=3))
-                result = request("tune_dflash")
+                result = request("tune_dflash", memory_saver=True)
                 assert result["tuning_key"] == ready["dflash_tuning_key"]
                 rows = result["rows"]
                 assert [r["depth"] for r in rows] == [0, 1, 2, 3]

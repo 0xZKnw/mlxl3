@@ -884,7 +884,8 @@ final class StudioModel: ObservableObject {
         tuneIsDFlash = true; tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
         isTuningMTP = true; mtpTuneProgress = 0; dflashDownloadError = nil
         mtpTuneStatus = L("Préparation du test…", "Preparing test…")
-        do { try bridge.tuneDFlash(requestID: request, draftPath: dflashDraftPath) }
+        do { try bridge.tuneDFlash(requestID: request, draftPath: dflashDraftPath,
+                                  memorySaver: memorySaverEnabled && memorySaverSupported) }
         catch { finishMTPTuning(error: error.localizedDescription) }
     }
     func cancelDFlashTuning() { cancelMTPTuning() }

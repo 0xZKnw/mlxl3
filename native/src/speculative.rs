@@ -503,12 +503,14 @@ mod verification {
         copy.enabled = enabled;
         copy.record(anchor, &prefix[..accepted], copied);
         assert_eq!(copy.len, len + 1 + accepted);
-        if index < len {
-            assert_eq!(copy.history[index], prompt[index]);
-        } else if index == len {
-            assert_eq!(copy.history[index], anchor);
-        } else if index < copy.len {
-            assert_eq!(copy.history[index], prefix[index - len - 1]);
+        for i in 0..LEN {
+            assert_eq!(copy.history[i], prompt[i]);
+        }
+        assert_eq!(copy.history[LEN], anchor);
+        for i in 0..7 {
+            if i < accepted {
+                assert_eq!(copy.history[LEN + 1 + i], prefix[i]);
+            }
         }
         assert_eq!(copy.enabled, enabled && (!copied || accepted > 0));
         kani::cover!(enabled && copied && accepted == 0 && !copy.enabled);

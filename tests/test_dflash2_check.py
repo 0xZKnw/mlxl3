@@ -95,6 +95,7 @@ for line in sys.stdin:
     stats = dict(generated_tokens=request['max_tokens'], decode_seconds=.1,
                  ttft_seconds=.1, elapsed_seconds=.2,
                  cached_prompt_tokens=256 if request.get('reuse_prompt_cache')
+                     and not request.get('memory_saver')
                      and request['conversation_id'] == 'dflash2-check' else 0)
     if behavior == 'empty': stats['generated_tokens'] = 0
     if behavior == 'nonfinite': stats['elapsed_seconds'] = float('nan')
@@ -134,7 +135,7 @@ def test_checker_bounds_failures_preserves_report_and_reaps_child(tmp_path, beha
             foreign_draft="foreign",
         )
         assert result["status"] == "complete" and result["parity"] is True
-        assert result["checks"] == 41
+        assert result["checks"] == 43
     else:
         with pytest.raises((AssertionError, RuntimeError, TimeoutError)):
             run(str(engine), "model", "draft", timeout=0.5, tune=False, output=output)

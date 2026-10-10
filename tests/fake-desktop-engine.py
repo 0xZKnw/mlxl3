@@ -119,15 +119,15 @@ if model.startswith('auto-'):
 if dflash_capable:
     capabilities.update(dflash_configure_supported=True, dflash_tune_supported=True,
                         dflash_tuning_key=tuning_key+':dflash-v2', dflash_family='qwen38_dense' if model == 'dflash-dense' else 'qwen36_moe')
-if model == 'mtp-memory-saver':
+if model in ('mtp-memory-saver', 'dflash-memory-saver'):
     capabilities['context_memory'] = {'layers': [{'bytes_per_token': 32768, 'step': 1}], 'fixed_bytes': 4096}
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=dflash_capable, mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
-     **capabilities, memory_saver_supported=model == 'mtp-memory-saver',
+     **capabilities, memory_saver_supported=model in ('mtp-memory-saver', 'dflash-memory-saver'),
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
     request = json.loads(line)
-    if model == 'mtp-memory-saver':
+    if model in ('mtp-memory-saver', 'dflash-memory-saver'):
         with open(os.path.join(os.environ['MLXL3_HOME'], 'memory-saver-requests.jsonl'), 'a') as log:
             log.write(json.dumps(request) + '\n')
     if request['type'] == 'set_dflash':

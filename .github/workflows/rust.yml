@@ -4,13 +4,17 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   kani:
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Verify Rust safety contracts with Kani
@@ -18,7 +22,7 @@ jobs:
         with:
           kani-version: '0.68.0'
           command: cargo kani
-          args: --lib --no-default-features
+          args: --lib --no-default-features --jobs 2
 
   native:
     strategy:

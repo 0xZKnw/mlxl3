@@ -162,6 +162,26 @@ extension UpdateManager {
         precondition(legacySaver.memorySaverEnabled && !legacySaver.memorySaverSupported, "Legacy capability assumed")
         precondition(legacySaver.recommendedContextLength == nil, "Legacy engine must not fabricate a recommendation")
         legacySaver.ejectModel(); legacySaver.setMemorySaverEnabled(false)
+        let flashSaver = try await make("dflash-memory-saver")
+        defer { flashSaver.ejectModel() }
+        flashSaver.setMemorySaverEnabled(true)
+        flashSaver.setDFlash2Enabled(true)
+        for _ in 0..<200 where flashSaver.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flashSaver.canTuneDFlash && flashSaver.memorySaverSupported)
+        for saverEnabled in [true, false] {
+            flashSaver.setMemorySaverEnabled(saverEnabled)
+            flashSaver.tuneDFlash()
+            for _ in 0..<200 where flashSaver.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(flashSaver.dflash2Enabled && flashSaver.dflashTuneRows.count == 4)
+        }
+        let flashWire = try String(contentsOf: root.appendingPathComponent("memory-saver-requests.jsonl"), encoding: .utf8)
+        let flashTunes = try flashWire.split(separator: "\n").map {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }.filter { $0["type"] as? String == "tune_dflash" }
+        precondition(flashTunes.count == 2 && flashTunes[0]["memory_saver"] as? Bool == true
+                     && flashTunes[1]["memory_saver"] as? Bool == false, "DFlash Tune did not receive the memory policy")
+        precondition(flashSaver.conversations[0].messages.isEmpty, "DFlash Tune changed history")
+        flashSaver.ejectModel()
         print("Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability")
         print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")
         let flash = try await make("dflash-good")

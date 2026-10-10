@@ -2916,9 +2916,11 @@ fn native_bridge(
                         )
                     }
                 })();
-                if let Err(error) =
-                    release_bridge_idle_state(&mut model, mtp_head.as_mut().map(|(_, head)| head))
-                {
+                if let Err(error) = release_bridge_idle_state(
+                    &mut model,
+                    mtp_head.as_mut().map(|(_, head)| head),
+                    request.memory_saver,
+                ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
                 if let Err(error) = result {
