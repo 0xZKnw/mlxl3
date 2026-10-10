@@ -1517,6 +1517,8 @@ struct BridgeRequest {
     #[serde(default = "reuse_cache_by_default")]
     reuse_prompt_cache: bool,
     #[serde(default)]
+    memory_saver: bool,
+    #[serde(default)]
     messages: Vec<Value>,
     #[serde(default = "unlimited_tokens")]
     max_tokens: i64,
@@ -1568,6 +1570,29 @@ fn reuse_cache_by_default() -> bool {
     true
 }
 
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_memory_saver_is_opt_in_and_requires_boolean() -> Result<()> {
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert!(!legacy.memory_saver && legacy.reuse_prompt_cache);
+    for saver in [false, true] {
+        let request: BridgeRequest = serde_json::from_value(json!({
+            "type":"generate", "memory_saver":saver, "reuse_prompt_cache":true
+        }))?;
+        assert_eq!(request.memory_saver, saver);
+        assert!(request.reuse_prompt_cache);
+    }
+    for invalid in [json!(null), json!(1), json!("true"), json!([])] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(json!({
+                "type":"generate", "memory_saver":invalid
+            }))
+            .is_err()
+        );
+    }
+    Ok(())
+}
+
 /// One prefill checkpoint, never speculative/pending decode state. The resident
 /// bridge owns one immutable model/tokenizer/context configuration. Draft reload
 /// clears this cache; exact rendered IDs cover changes to system/tools/templates.
@@ -1579,6 +1604,21 @@ struct PromptCache {
     logits: mlxl3_native::array::Array,
     draft: Option<mlxl3_native::dflash::DFlashCache>,
     mtp: Option<mlxl3_native::mtp::Cache>,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn prompt_cache_budget() -> Result<usize> {
+    Ok(match std::env::var("MLXL3_PROMPT_CACHE_MIB") {
+        Ok(value) => value
+            .parse::<usize>()
+            .ok()
+            .and_then(mlxl3_native::memory_policy::mib_budget)
+            .context("MLXL3_PROMPT_CACHE_MIB must be an integer in 0..4096")?,
+        Err(std::env::VarError::NotPresent) => {
+            mlxl3_native::memory_policy::DEFAULT_PROMPT_CACHE_BYTES
+        }
+        Err(error) => return Err(error.into()),
+    })
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1597,22 +1637,48 @@ impl PromptCache {
             usize::try_from(target.offset()).ok() == Some(tokens.len()),
             "prefix cache position differs from its token history"
         );
-        let state = target.snapshot()?;
-        // ponytail: one checkpoint, capped at 256 MiB logical target state;
-        // add a multi-session budget only after its extra retained RAM is measured.
-        if state.byte_len()? > 256 * 1024 * 1024 {
+        if prompt_cache_budget()? == 0 {
             return Ok(None);
         }
-        Ok(Some(Self {
+        let state = target.snapshot()?.compact_for_cache()?;
+        let saved = Self {
             conversation: conversation.to_owned(),
             tokens: tokens.to_vec(),
             state,
-            logits: logits.try_clone()?,
+            logits: logits.compact_for_cache()?,
             draft: dflash
-                .map(|session| session.cache.try_clone())
+                .map(|session| session.cache.try_clone()?.compact_for_cache())
                 .transpose()?,
             mtp: None,
-        }))
+        };
+        saved.within_budget()
+    }
+
+    fn within_budget(self) -> Result<Option<Self>> {
+        let budget = prompt_cache_budget()?;
+        let fits = mlxl3_native::memory_policy::cache_fits(
+            [
+                self.state.retained_bytes()?,
+                self.logits.retained_bytes()?,
+                self.draft
+                    .as_ref()
+                    .map(|cache| cache.retained_bytes())
+                    .transpose()?
+                    .unwrap_or(0),
+                self.mtp
+                    .as_ref()
+                    .map(|cache| cache.retained_bytes())
+                    .transpose()?
+                    .unwrap_or(0),
+                self.tokens
+                    .len()
+                    .checked_mul(4)
+                    .context("token cache size overflow")?,
+                self.conversation.len(),
+            ],
+            budget,
+        );
+        Ok(fits.then_some(self))
     }
 }
 
@@ -1749,9 +1815,9 @@ fn prefill_mtp(
             None,
         )?;
         if let Some(saved) = &mut saved {
-            saved.mtp = Some(head.snapshot()?);
+            saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
         }
-        *cache = saved;
+        *cache = saved.map(PromptCache::within_budget).transpose()?.flatten();
     }
     // At every checkpoint the last trunk hidden is deliberately unpaired.
     // The next prompt token is supplied only after prefix eligibility is known.
@@ -1789,9 +1855,9 @@ fn prefill_mtp(
                 None,
             )?;
             if let Some(saved) = &mut saved {
-                saved.mtp = Some(head.snapshot()?);
+                saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
             }
-            *cache = saved;
+            *cache = saved.map(PromptCache::within_budget).transpose()?.flatten();
         }
     }
     let logits = logits.context("empty MTP prefill")?;
@@ -1987,6 +2053,7 @@ struct NativeStats {
     mtp_accepted_tokens: Option<usize>,
     mtp_blocks: Option<usize>,
     mtp_lookup_blocks: Option<usize>,
+    mtp_depth_blocks: Option<[usize; 4]>,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -2007,6 +2074,12 @@ impl NativeStats {
         self.round_count += round.round_count;
         self.dflash_block_seconds += round.dflash_block_seconds;
         self.memory = round.memory;
+        if let Some(counts) = round.mtp_depth_blocks {
+            let sum = self.mtp_depth_blocks.get_or_insert([0; 4]);
+            for (total, count) in sum.iter_mut().zip(counts) {
+                *total += count;
+            }
+        }
         for (sum, value) in [
             (
                 &mut self.dflash_proposed_tokens,
@@ -2201,12 +2274,18 @@ fn bridge_generate_round(
         .as_ref()
         .map(|_| mlxl3_native::mtp::Session::new(mtp_depth))
         .transpose()?;
+    if std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")
+        && let Some(session) = &mut mtp_session
+    {
+        session.enable_adaptive();
+    }
     if std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")
         && let Some(session) = &mut mtp_session
     {
         session.enable_prompt_lookup(&tokens);
     }
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
+    let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
     let available = context_limit - tokens.len();
     let budget = if max_tokens == -1 {
         available
@@ -2336,6 +2415,9 @@ fn bridge_generate_round(
             }))?;
         }
     }
+    if let Some(capture) = gpu_capture {
+        capture.finish()?;
+    }
     let elapsed = started.elapsed().as_secs_f64();
     let ttft = first_token.unwrap_or(elapsed);
     let stats = NativeStats {
@@ -2365,6 +2447,7 @@ fn bridge_generate_round(
         mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
         mtp_blocks: mtp_session.as_ref().map(|s| s.blocks),
         mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.lookup_blocks),
+        mtp_depth_blocks: mtp_session.as_ref().map(|s| s.depth_blocks),
         ..Default::default()
     };
     Ok(RoundOutput {
@@ -2640,12 +2723,13 @@ fn load_mtp_head(
 fn release_bridge_idle_state(
     model: &mut NativeChatModel,
     head: Option<&mut mlxl3_native::mtp::Head>,
+    memory_saver: bool,
 ) -> Result<()> {
     // Both prefill paths reset or restore their separate PromptCache on the next
     // request. The final decode state is not a continuation checkpoint.
     model.reset();
     let reset = head.map_or(Ok(()), mlxl3_native::mtp::Head::reset);
-    let released = mlxl3_native::array::release_idle_cache();
+    let released = mlxl3_native::array::release_idle_cache_with_policy(memory_saver);
     reset?;
     released
 }
@@ -2712,6 +2796,8 @@ fn native_bridge(
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
         "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "memory_saver_supported":true,
+        "context_memory":match &model { NativeChatModel::Qwen(target) => Some(target.context_memory_profile()?), _ => None },
         "mtp_tuning_key":tuning_key,
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},
@@ -2877,9 +2963,11 @@ fn native_bridge(
                         &cancelled,
                     )
                 })();
-                if let Err(error) =
-                    release_bridge_idle_state(&mut model, mtp_head.as_mut().map(|(_, head)| head))
-                {
+                if let Err(error) = release_bridge_idle_state(
+                    &mut model,
+                    mtp_head.as_mut().map(|(_, head)| head),
+                    request.memory_saver,
+                ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
                 if let Err(error) = result {
@@ -2893,6 +2981,9 @@ fn native_bridge(
                 }
             }
             "generate" => {
+                if request.memory_saver {
+                    prompt_cache = None;
+                }
                 let started = Instant::now();
                 let _ = mlxl3_native::array::memory_stats(true);
                 cancelled.store(false, Ordering::Relaxed);
@@ -2994,14 +3085,16 @@ fn native_bridge(
                         } else {
                             &request.conversation_id
                         },
-                        request.reuse_prompt_cache,
+                        request.reuse_prompt_cache && !request.memory_saver,
                     )
                 })();
                 // Runs after the whole turn (including tools), not between decode
                 // tokens. Also release temporary state after cancellation/error.
-                if let Err(error) =
-                    release_bridge_idle_state(&mut model, mtp_head.as_mut().map(|(_, head)| head))
-                {
+                if let Err(error) = release_bridge_idle_state(
+                    &mut model,
+                    mtp_head.as_mut().map(|(_, head)| head),
+                    request.memory_saver,
+                ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
                 if let Err(error) = result {

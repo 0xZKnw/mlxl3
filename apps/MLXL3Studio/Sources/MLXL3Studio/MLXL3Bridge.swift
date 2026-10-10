@@ -243,9 +243,9 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
-    func tuneMTP(requestID: String, headPath: String) throws {
+    func tuneMTP(requestID: String, headPath: String, memorySaver: Bool = false) throws {
         guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
-        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath])
+        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath, "memory_saver": memorySaver])
         data.append(0x0A)
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }

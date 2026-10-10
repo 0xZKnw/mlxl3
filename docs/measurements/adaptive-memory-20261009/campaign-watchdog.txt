@@ -1,0 +1,21 @@
+import os,subprocess,signal,json,time,hashlib,sys
+from pathlib import Path
+root=Path.cwd();d=root/'docs/measurements/adaptive-memory-20261009';python='/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python'
+label=sys.argv[1]
+if label=='boundaries':
+ cmd=[python,'docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py'];limit=900
+else:
+ assert label in ('ab','ba')
+ cmd=[python,'benchmarks/benchmark_idle_memory.py','--baseline',str(root/'build/adaptive-memory/control-bridge'),'--candidate',str(root/'build/adaptive-memory/compact-packed-bridge'),'--model','/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0','--head','/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit','--output',str(d/f'compact-packed-{label}.json'),'--order',label.upper(),'--short-only'];limit=930
+prefix='bridge-boundaries-capture' if label=='boundaries' else f'compact-packed-{label}'
+identity={'command':cmd,'time_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'binary_sha256':hashlib.sha256((root/'target/release/mlxl3-rs').read_bytes()).hexdigest(),'driver_sha256':hashlib.sha256((root/cmd[1]).read_bytes()).hexdigest(),'power':subprocess.run(['/usr/bin/pmset','-g','batt'],capture_output=True,text=True).stdout,'environment':{k:v for k,v in os.environ.items() if k.startswith('MLXL3') or k.startswith('MTL_')},'watchdog_seconds':limit}
+(d/f'{prefix}-command.json').write_text(json.dumps(identity,indent=2));start=time.monotonic();status={'status':'running','parity':False}
+with (d/f'{prefix}.log').open('w') as out:
+ p=subprocess.Popen(cmd,stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
+ try:
+  code=p.wait(timeout=limit);status.update(status='complete' if code==0 else 'failed',exit_code=code,parity=code==0)
+ except subprocess.TimeoutExpired:
+  os.killpg(p.pid,signal.SIGKILL);p.wait();status.update(status='interrupted',reason='timeout',parity=False)
+ finally:
+  status.update(reaped=p.poll() is not None,elapsed_seconds=time.monotonic()-start);(d/f'{prefix}-status.json').write_text(json.dumps(status,indent=2))
+print(json.dumps(status));sys.exit(0 if status['status']=='complete' else 1)

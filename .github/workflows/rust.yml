@@ -67,9 +67,15 @@ jobs:
         run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py
       - name: Check idle-memory benchmark failure and parity gates
         run: |
-          ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py
-          ruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py
+          ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
+          ruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
           python -m pytest -q tests/test_idle_memory_benchmark.py
+          ruff format --check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          ruff check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          python -m py_compile docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          ruff format --check docs/measurements/tune-feedback-20261010/diagnose-tune.py
+          ruff check docs/measurements/tune-feedback-20261010/diagnose-tune.py
+          python docs/measurements/tune-feedback-20261010/diagnose-tune.py --self-test
       - name: Compile and lint the shipped MLX bridge
         if: matrix.os == 'macos-26'
         run: |

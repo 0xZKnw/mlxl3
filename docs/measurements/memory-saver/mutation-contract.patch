@@ -1,0 +1,11 @@
+--- native/src/contracts.rs
++++ native/src/contracts.rs (temporary mutant)
+@@ -622,7 +622,7 @@
+ /// Keep small allocator working sets warm; reclaim large unused buffers at idle.
+ #[cfg(any(feature = "mlx", kani, test))]
+ pub(crate) fn release_idle_cache(cache_bytes: u64, memory_saver: bool) -> bool {
+-    cache_bytes > if memory_saver { 0 } else { 512 * 1024 * 1024 }
++    cache_bytes > if memory_saver { 536_870_912 } else { 512 * 1024 * 1024 }
+ }
+ 
+ #[cfg(kani)]

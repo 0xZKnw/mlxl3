@@ -1,5 +1,69 @@
 import SwiftUI
 
+/// Keep the transcript visible; opening detailed results is an explicit action.
+struct MTPTuningToolbarControl: View {
+    @EnvironmentObject private var studio: StudioModel
+    var dflash = false
+    private var tuning: Bool { dflash ? studio.isTuningDFlash : (studio.isTuningMTP && !studio.isTuningDFlash) }
+    private var progress: Double { dflash ? studio.dflashTuneProgress : studio.mtpTuneProgress }
+    private var status: String { dflash ? studio.dflashTuneStatus : studio.mtpTuneStatus }
+    private var error: String? { dflash ? studio.dflashDownloadError : studio.mtpError }
+    private var rows: [MTPTuningRow] { dflash ? studio.dflashTuneRows : studio.mtpTuneRows }
+    private var canTune: Bool { dflash ? studio.canTuneDFlash : studio.canTuneMTP }
+    private var title: String { dflash ? "Tune DFlash2" : "Tune MTP" }
+    private func tune() { if dflash { studio.tuneDFlash() } else { studio.tuneMTP() } }
+    private func cancel() { if dflash { studio.cancelDFlashTuning() } else { studio.cancelMTPTuning() } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Button {
+                if tuning { cancel() }
+                else { tune() }
+            } label: {
+                HStack(spacing: 6) {
+                    if tuning {
+                        ProgressView().progressViewStyle(.circular).controlSize(.mini)
+                            .tint(StudioTheme.accent).frame(width: 12, height: 12)
+                            .accessibilityHidden(true)
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
+                    Text(title)
+                    if tuning {
+                        Text("\(Int(progress * 100)) %").monospacedDigit()
+                        Image(systemName: "stop.fill").font(.system(size: 9))
+                    }
+                }
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 10).frame(height: 30)
+            }
+            .buttonStyle(StudioControlStyle(emphasized: true))
+            .disabled(!tuning && !canTune)
+            .help(tuning
+                  ? status + L(" · Cliquer pour arrêter", " · Click to stop")
+                  : L("Comparer les modes et enregistrer le meilleur réglage", "Compare modes and save the best setting"))
+            .accessibilityLabel(tuning ? L("Arrêter : ", "Stop: ") + title : title)
+            .accessibilityValue(tuning ? status + " · \(Int(progress * 100)) %" : "")
+
+            if tuning {
+                Text(status)
+                    .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
+                    .frame(maxWidth: 180, alignment: .leading).lineLimit(1)
+            } else if let message = error {
+                Button((dflash ? "DFlash2" : "MTP") + L(" · Détails", " · Details")) { studio.showInspector = true }
+                    .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
+                    .help(message)
+            } else if let winner = MTPTuning.winner(rows) {
+                Button(L("Résultat : ", "Result: ") + (winner == 0 ? "Baseline" : dflash ? ["", "Auto", "2 tokens", "7 tokens"][winner] : "MTP\(winner)") + L(" · Détails", " · Details")) {
+                    studio.showInspector = true
+                }
+                .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.accent)
+            }
+        }
+        .fixedSize()
+    }
+}
+
 struct MTPTuningControls: View {
     @EnvironmentObject private var studio: StudioModel
     var dflash = false
@@ -86,6 +150,10 @@ struct MTPTuningControls: View {
                 .padding(12).background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
                 Text(L("Réglage enregistré : ", "Saved setting: ") + (enabled ? label(depth) : "Baseline"))
                     .font(.system(size: 10, weight: .medium)).foregroundStyle(StudioTheme.accent)
+                if winner == 0 {
+                    Text(L("Baseline retenue : aucun gain \(dflash ? "DFlash2" : "MTP") supérieur à 3 % mesuré sur ce test. Le résultat peut varier selon le prompt et les conditions du Mac.", "Baseline retained: no \(dflash ? "DFlash2" : "MTP") gain above 3% measured in this test. Results can vary with the prompt and Mac conditions."))
+                        .font(.system(size: 9.5)).foregroundStyle(StudioTheme.quiet)
+                }
             }
             Text(supported
                  ? artifact.isEmpty

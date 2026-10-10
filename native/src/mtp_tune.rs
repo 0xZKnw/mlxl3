@@ -27,6 +27,34 @@ pub(super) fn artifact_key(path: &std::path::Path) -> Result<String> {
 }
 
 pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<String> {
+    runtime_key_with_options(
+        path,
+        context,
+        std::env::var("MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH").as_deref() == Ok("1"),
+        std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"),
+        allocator_cache_mib()?,
+    )
+}
+
+fn allocator_cache_mib() -> Result<Option<usize>> {
+    match std::env::var("MLXL3_ALLOCATOR_CACHE_MIB") {
+        Ok(value) => Ok(Some(
+            value.parse().context("invalid allocator cache limit")?,
+        )),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn runtime_key_with_options(
+    path: &std::path::Path,
+    context: usize,
+    dense_batch: bool,
+    grouped_mb3: bool,
+    allocator_mib: Option<usize>,
+) -> Result<String> {
+    let allocator_key = mlxl3_native::memory_policy::allocator_cache_key(allocator_mib)
+        .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?;
     let hardware = std::process::Command::new("/usr/sbin/sysctl")
         .args(["-n", "machdep.cpu.brand_string"])
         .output()
@@ -40,14 +68,17 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
         _ => "mtp-m5-v1",
     };
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:smallm-v1={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
         env!("MLXL3_BUILD_PROFILE"),
         env!("MLXL3_MLX_VERSION"),
         hardware,
-        u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1"))
+        u8::from(std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")),
+        u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
+        u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
+        mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
     ))
 }
 
@@ -73,6 +104,44 @@ fn tuning_prompts(dflash: bool) -> [&'static str; 2] {
             "Explain how to implement a least recently used cache. Give complete Python code with detailed comments and examples, then discuss its complexity."
         },
     ]
+}
+
+#[test]
+fn runtime_key_distinguishes_smallm_options() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    std::fs::write(directory.path().join("config.json"), "{}")?;
+    let mut keys = std::collections::HashSet::new();
+    for (dense, mb3, suffix) in [
+        (false, false, "0"),
+        (true, false, "1"),
+        (false, true, "2"),
+        (true, true, "3"),
+    ] {
+        let key =
+            runtime_key_with_options(directory.path(), 4096, dense, mb3, allocator_cache_mib()?)?;
+        anyhow::ensure!(key.ends_with(&format!(":smallm-v1={suffix}")));
+        anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+    }
+    let production = runtime_key(directory.path(), 4096)?;
+    anyhow::ensure!(keys.contains(&production), "production key not recognized");
+    Ok(())
+}
+
+#[test]
+fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    std::fs::write(directory.path().join("config.json"), "{}")?;
+    let mut keys = std::collections::HashSet::new();
+    for limit in [None, Some(0), Some(256), Some(4096)] {
+        let key = runtime_key_with_options(directory.path(), 4096, false, false, limit)?;
+        anyhow::ensure!(keys.insert(key), "allocator calibration key collision");
+    }
+    for invalid in [4097, usize::MAX] {
+        anyhow::ensure!(
+            runtime_key_with_options(directory.path(), 4096, false, false, Some(invalid)).is_err()
+        );
+    }
+    Ok(())
 }
 
 struct Sample {

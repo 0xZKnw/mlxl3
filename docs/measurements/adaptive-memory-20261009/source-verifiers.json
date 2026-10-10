@@ -1,0 +1,40 @@
+[
+  {
+    "command": [
+      "cbmc",
+      "native/ffi/mlx_bridge.cpp",
+      "-I",
+      "/Users/henko/.cache/uv/archive-v0/oJmJtSVZn8RVlMAW/mlx/include",
+      "--cpp11",
+      "--bounds-check",
+      "--pointer-check"
+    ],
+    "error": "FileNotFoundError(2, 'No such file or directory')",
+    "verified": false
+  },
+  {
+    "command": [
+      "esbmc",
+      "native/ffi/mlx_bridge.cpp",
+      "-I",
+      "/Users/henko/.cache/uv/archive-v0/oJmJtSVZn8RVlMAW/mlx/include",
+      "--memory-leak-check"
+    ],
+    "error": "FileNotFoundError(2, 'No such file or directory')",
+    "verified": false
+  },
+  {
+    "command": [
+      "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "tests/fake-desktop-engine.py",
+      "--per_condition_timeout",
+      "10"
+    ],
+    "exit_code": 1,
+    "output": "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python: No module named crosshair\n",
+    "verified": false
+  }
+]

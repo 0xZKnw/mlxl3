@@ -154,9 +154,11 @@ struct BridgeEvent: Decodable {
     var tuningKey: String? = nil
     var rows: [MTPTuningRow]? = nil
     var bridgeProtocol: Int? = nil
+    var memorySaverSupported: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, model, modules, phase, text, stats, message
+        case memorySaverSupported = "memory_saver_supported"
         case loadSeconds = "load_seconds"
         case residentGB = "resident_gb"
         case requestID = "request_id"
@@ -199,32 +201,6 @@ struct BridgeEvent: Decodable {
     }
 }
 
-struct ContextMemoryProfile: Decodable {
-    struct Layer: Decodable {
-        let bytesPerToken: Int
-        let maxTokens: Int?
-        let step: Int
-        enum CodingKeys: String, CodingKey {
-            case bytesPerToken = "bytes_per_token"
-            case maxTokens = "max_tokens"
-            case step
-        }
-    }
-    let layers: [Layer]
-    let fixedBytes: Int
-    enum CodingKeys: String, CodingKey {
-        case layers
-        case fixedBytes = "fixed_bytes"
-    }
-    func bytes(tokens: Int) -> Double {
-        guard tokens > 0 else { return 0 }
-        return layers.reduce(Double(fixedBytes)) { total, layer in
-            let step = max(layer.step, 1)
-            let allocated = ((tokens + step - 1) / step) * step
-            return total + Double(min(allocated, layer.maxTokens ?? allocated)) * Double(layer.bytesPerToken)
-        }
-    }
-}
 
 struct ToolActivity: Codable, Hashable, Identifiable, Sendable {
     enum State: String, Codable, Sendable {
@@ -286,6 +262,7 @@ struct GenerationRequest: Encodable {
     var mtp: Bool = false
     var mtpHeadPath: String = ""
     var mtpDepth: Int = 1
+    var memorySaver: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -301,6 +278,7 @@ struct GenerationRequest: Encodable {
         case mtp
         case mtpHeadPath = "mtp_head_path"
         case mtpDepth = "mtp_depth"
+        case memorySaver = "memory_saver"
     }
 }
 

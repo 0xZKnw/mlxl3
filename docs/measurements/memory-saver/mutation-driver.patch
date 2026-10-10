@@ -1,0 +1,11 @@
+--- benchmarks/benchmark_idle_memory.py
++++ benchmarks/benchmark_idle_memory.py (temporary mutant)
+@@ -260,7 +260,7 @@
+                         quality_value["stats"].pop("evaluated_prompt_tokens")
+             if actual["case"] != expected["case"] or actual_quality != expected_quality:
+                 raise ValueError("output, state reuse or MTP counters changed")
+-            if run.get("memory_saver"):
++            if False:
+                 memory = actual.get("idle_memory", {})
+                 if type(memory.get("mlx_cache_bytes")) is not int or memory["mlx_cache_bytes"] != 0:
+                     raise ValueError("unused allocator buffers retained")

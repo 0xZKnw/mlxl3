@@ -307,6 +307,11 @@ private struct WorkspaceHeader: View {
             .help(L("Éjecter le modèle et libérer la mémoire Metal", "Eject the model and free Metal memory"))
             .accessibilityLabel(L("Éjecter le modèle", "Eject model"))
 
+            MTPTuningToolbarControl()
+            if studio.dflash2Available {
+                MTPTuningToolbarControl(dflash: true)
+            }
+
             Button { studio.showInspector.toggle() } label: {
                 Image(systemName: "slider.horizontal.3").frame(width: 30, height: 30)
             }

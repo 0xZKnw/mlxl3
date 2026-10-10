@@ -1,0 +1,197 @@
+{
+  "source_head": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+  "branch": "feat/mtp-toolbar",
+  "integration": "local uncommitted; app not installed; no PR/push/release",
+  "candidate_binary_sha256": "72569440864affcf637e85a961ca6fda970d061d0c3e7bb3cfbfaafeaefc097b",
+  "rust_shipped": {
+    "passed": 70,
+    "ignored": 60,
+    "gpu_separately_selected_and_passed": 2
+  },
+  "rust_cpu_chat": {
+    "passed": 57,
+    "ignored": 2
+  },
+  "python_full": {
+    "passed": 338,
+    "skipped": 4
+  },
+  "driver_transport_subset": {
+    "passed": 69,
+    "skipped": 0
+  },
+  "desktop": "full E2E passed; memory preference/wire/Tune plus 114 idle assertions; focused strict Swift recheck passed",
+  "kani": {
+    "harnesses": 41,
+    "statuses": {
+      "SUCCESS": 5470,
+      "UNREACHABLE": 72,
+      "SATISFIED": 106
+    },
+    "unreachable_locations": [
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u8>",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str",
+      "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    ],
+    "unclassified_unreachable": [],
+    "new_harness_symbolic_domain": "u64 bytes and bool memory_saver, no assume/loop/stub",
+    "new_harness_result": "3 obligations pass, 4 cover properties satisfied",
+    "scope": "CPU bounded model checking; not MLX/Metal/allocator/Swift/concurrency",
+    "inspection": "All 72 unreachable obligations are stdlib or Kani models; no application assertion unreachable. Initial classifier omitted kani_core; locations inspected and classification corrected without rerunning proof."
+  },
+  "physical_bridge": {
+    "runs": 8,
+    "cases": 64,
+    "completions": 48,
+    "cancellations": 8,
+    "expected_errors": 8,
+    "parity": true
+  },
+  "physical_transitions": {
+    "completions": 6,
+    "tune_grids": 1,
+    "depths": 4,
+    "parity": true,
+    "reaped": true
+  },
+  "mutations_detected": [
+    "Rust threshold",
+    "Swift wire key",
+    "Python missing cache validation"
+  ],
+  "external_limitations": [
+    "CrossHair absent",
+    "Swift source verifier unavailable",
+    "MLX/Metal/allocator/concurrency unproved",
+    "new local changes have no remote CI SHA",
+    "other model architectures / real-model MCP / DFlash not physically qualified"
+  ],
+  "remote_ci_old_head": {
+    "sha": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+    "jobs": [
+      {
+        "name": "kani",
+        "conclusion": "success",
+        "head_sha": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+        "html_url": "https://github.com/HENK0O/mlxl3/actions/runs/37829790794/job/113491850065"
+      },
+      {
+        "name": "native (macos-26)",
+        "conclusion": "success",
+        "head_sha": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+        "html_url": "https://github.com/HENK0O/mlxl3/actions/runs/37829790794/job/113491850427"
+      },
+      {
+        "name": "native (ubuntu-latest)",
+        "conclusion": "success",
+        "head_sha": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+        "html_url": "https://github.com/HENK0O/mlxl3/actions/runs/37829790794/job/113491850444"
+      },
+      {
+        "name": "desktop-and-protocol",
+        "conclusion": "success",
+        "head_sha": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+        "html_url": "https://github.com/HENK0O/mlxl3/actions/runs/37829790944/job/113491850807"
+      }
+    ],
+    "applies_to_new_changes": false
+  },
+  "memory_decision": {
+    "dense": "validated on two short cached workloads, 474.677-778.650 MB physical footprint saved",
+    "moe": "process footprint non-conclusive; active MLX reduction exactly 203309056 bytes on both orders"
+  },
+  "numerical_contract": "greedy IDs/text/context/MTP counters exact; snapshot logits and 80 layer states finite/nonempty with checked shape counts and state bytes exact; targeted GPU tests, not universal proof",
+  "evidence": {
+    "ci-head-exact.json": "2d691bd6c90d6855c0461c62755bbe1b1efd8e078eeaf2c8f9cb89d838828b59",
+    "ci-head.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "ci-old-head-desktop-jobs.json": "2cc7ad6880d1da93a541ddbec847424836744c96abc75a78620f4b26f1888eea",
+    "ci-old-head-native-jobs.json": "4cea6f1c45063aed5d55e47f3039e75e07759d8276a73cb689beece6ab78753e",
+    "dense-ab-command.json": "a438654d6a886d48e660a3738df0783da4a8ae127e608c3014252ca6b389b97f",
+    "dense-ab.json": "65ce360ba6d7a6d64bf71da1f5c1ea47ed286f0cfc35fe643014b8cb509f84b2",
+    "dense-ba-command.json": "15c0ec46325a1042fa71d7a2e0f20267b92cf675cc8ed9cd2e7f7388cb2e7506",
+    "dense-ba.json": "b295c6fd29f6c4bce5e42ccf270bc1bd51e199a57241577e66b003a21624157a",
+    "identity.json": "50601c2b04fa0d2ec49901e554e0b78172c595d5582f7e09aaac8790f3efd8aa",
+    "integration-audit.json": "ef3d0ad45c742aa0a64ade819d6cb9bfed54d2e2cbbb6dc9f308379c9ebd793e",
+    "kani-summary-initial-classification.json": "f7c83e40a36778f581ca01f7b5e7d30c19a5d973a4ad5007840d7f519f1078d7",
+    "kani-summary.json": "f62334703625c01ef991d195e469d5f7721c81a56cd52cee3d55394b5b0afd57",
+    "log-archives.json": "de656057d12e719e873d6fb0a1d586c686556758f88017059e19ae3e8511d102",
+    "memory-summary.json": "939e63dcef61530f6ab78c5350192996168772057cdfe9455c9a11d8a323862d",
+    "moe-ab-command.json": "9ed549cc10bee66d89a771fe0323d98237093c2f981460683e49ac303e1aa0b2",
+    "moe-ab.json": "72ddcc444162f023d9a40d6500455e4f9f88e1666fd6ba1182dccdcf65954199",
+    "moe-ba-command.json": "ac84fcbbd866ab035fe5c22f7a8d310070062431edfdcd534453d327a8fb40ed",
+    "moe-ba.json": "17a4c65ac407d74cafd94c09a7340fa16eed801938bc985f6f195da87a6fc650",
+    "mutation-cleanup.json": "4ab78a243f24ab88e54b902175eb0b936e845443f3734551145e23f51e45d2f5",
+    "transitions-command.json": "f6ba3b75d85d039a8bfc394143bc74d5278a0e1a38c2645581cd6300d7683c83",
+    "transitions-physical.json": "5fdb8bca8ed38e8dbb512221371fb489b05972e8f4fcfa6efb7ad4f1b129a8f5"
+  },
+  "log_storage": "Lossless .log.gz archives verified byte-for-byte; original logs retained outside Git in build/memory-saver/raw-logs"
+}

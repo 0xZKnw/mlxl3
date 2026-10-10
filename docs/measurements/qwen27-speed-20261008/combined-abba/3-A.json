@@ -1,0 +1,100 @@
+{
+  "label": "A",
+  "index": 3,
+  "status": "failed",
+  "conditions": {
+    "recorded_at_unix": 1791493440.742748,
+    "power": {
+      "returncode": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t51%; discharging; 1:47 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "returncode": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "returncode": 0,
+      "stdout": "vm.swapusage: total = 3072.00M  used = 1888.69M  free = 1183.31M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "prompts": {
+    "short": {
+      "runs": [],
+      "warmup": {
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 133,
+          "decode_seconds": 13.71641275,
+          "decode_tokens": 63,
+          "decode_tps": 4.5930376366080115,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.053508667,
+          "elapsed_seconds": 15.050900916,
+          "end_to_end_ttft_seconds": 1.334501582,
+          "evaluated_prompt_tokens": 69,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 9576185724,
+            "mlx_cache_bytes": 606610945,
+            "mlx_peak_bytes": 9895367319,
+            "process_footprint_bytes": 10316354984,
+            "process_lifetime_peak_bytes": 11984902864
+          },
+          "model_size_gb": 9.696705133,
+          "mtp_accepted_tokens": 36,
+          "mtp_blocks": 27,
+          "mtp_lookup_blocks": 0,
+          "mtp_proposed_tokens": 53,
+          "prefill_seconds": 1.279900792,
+          "prefill_tps": 53.9104283951408,
+          "prepare_seconds": 0.000372208,
+          "prompt_tokens": 69,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 1.3344768740000001
+        },
+        "token_hash": "588cc684ce4a8d19",
+        "text_sha256": "9df5701c5c5951989abd75fe607e629bf7a79696d849c57d6ef41394834e5c27"
+      }
+    }
+  },
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "dflash_supported": false,
+    "load_seconds": 2.321423375,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "model_context_limit": 262144,
+    "modules": 401,
+    "mtp_auto_download_supported": true,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": true,
+    "mtp_tune_supported": true,
+    "mtp_tuning_key": "82434097046fd932:1.4.2:88c2abd258bc-dirty:release:0.32.2:Apple M5:4096:pipeline=off:lookup=0",
+    "resident_gb": 9.696705133,
+    "runtime_commit": "88c2abd258bc-dirty",
+    "runtime_executable": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-speed-20261008/k2-prototype-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.2",
+    "type": "ready"
+  },
+  "ready_seconds": 2.3426375419994656,
+  "error": {
+    "type": "KeyboardInterrupt",
+    "message": ""
+  }
+}

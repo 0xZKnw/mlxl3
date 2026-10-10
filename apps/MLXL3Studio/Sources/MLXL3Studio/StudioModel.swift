@@ -103,6 +103,8 @@ final class StudioModel: ObservableObject {
     @Published private(set) var modelResidentBytes: Double?
     @Published private(set) var language: AppLanguage = .fr
     @Published private(set) var modelIdleUnloadDelay = ModelIdleUnloadDelay.defaultValue
+    @Published private(set) var memorySaverEnabled = false
+    @Published private(set) var memorySaverSupported = false
 
     let updateManager: UpdateManager
     let modelLibrary = ModelLibrary()
@@ -144,6 +146,7 @@ final class StudioModel: ObservableObject {
         self.preferences = preferences
         self.idleUnloadNow = idleUnloadNow
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
+        self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
@@ -256,6 +259,12 @@ final class StudioModel: ObservableObject {
         updateModelIdleUnload()
     }
 
+    func setMemorySaverEnabled(_ enabled: Bool) {
+        guard !isGenerating && !isTuningMTP else { return }
+        memorySaverEnabled = enabled
+        preferences.set(enabled, forKey: "studio.memorySaverEnabled")
+    }
+
     private var canAutomaticallyUnloadModel: Bool {
         !isPreview && engineState.isReady && readyInfo != nil && bridge.isRunning
             && !isGenerating && !mcpUpdating && !mtpDownloading
@@ -292,6 +301,15 @@ final class StudioModel: ObservableObject {
         guard contextLengthDraft >= 0, let maximum = modelContextLimit,
               contextLengthDraft <= maximum else { return nil }
         return contextMemory?.bytes(tokens: contextLengthDraft == 0 ? maximum : contextLengthDraft)
+    }
+
+    var recommendedContextLength: Int? {
+        guard let profile = contextMemory, let maximum = modelContextLimit,
+              let resident = modelResidentBytes else { return nil }
+        let observed = bridge.engineMemoryFootprintBytes().map(Double.init) ?? 0
+        return profile.recommendedTokens(maximum: maximum,
+            physicalBytes: Double(ProcessInfo.processInfo.physicalMemory),
+            residentBytes: max(resident, observed))
     }
 
     func saveContextAndReload() {
@@ -586,6 +604,7 @@ final class StudioModel: ObservableObject {
         mtpSupported = nil
         mtpAutoDownloadSupported = nil
         mtpConfigureSupported = false
+        memorySaverSupported = false
         finishMTPTuning(error: nil)
         mtpMaxDepth = 1; mtpTuneSupported = false; mtpTuningKey = nil
         mtpTuneRows = []; mtpTunedAt = nil; mtpDepth = 1
@@ -690,7 +709,8 @@ final class StudioModel: ObservableObject {
                     dflashMode: dflashMode,
                     mtp: mtpEnabled && mtpAvailable,
                     mtpHeadPath: mtpHeadPath,
-                    mtpDepth: mtpDepth
+                    mtpDepth: mtpDepth,
+                    memorySaver: memorySaverEnabled && memorySaverSupported
                 )
             )
         } catch {
@@ -1024,7 +1044,7 @@ final class StudioModel: ObservableObject {
         tuneIsDFlash = false; tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
         isTuningMTP = true; mtpTuneProgress = 0; mtpError = nil
         mtpTuneStatus = L("Préparation du test…", "Preparing test…")
-        do { try bridge.tuneMTP(requestID: request, headPath: mtpHeadPath) }
+        do { try bridge.tuneMTP(requestID: request, headPath: mtpHeadPath, memorySaver: memorySaverEnabled && memorySaverSupported) }
         catch { finishMTPTuning(error: error.localizedDescription) }
     }
 
@@ -1313,6 +1333,7 @@ final class StudioModel: ObservableObject {
         case "loading":
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
+            memorySaverSupported = event.memorySaverSupported == true
             dflashSupported = event.dflashSupported
             dflashTuneSupported = event.dflashTuneSupported == true
             dflashConfigureSupported = event.dflashConfigureSupported == true

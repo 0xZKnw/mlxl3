@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import SwiftUI
 
 // Combined with the production source by check-desktop.sh; no test setter ships.
 extension UpdateManager {
@@ -28,6 +29,56 @@ extension UpdateManager {
             for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading || model.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
+        }
+        // shortcut: the fixture error is the only red content; use accessibility text if another red control is added.
+        func tuningErrorIsVisible(_ model: StudioModel) async throws -> Bool {
+            _ = NSApplication.shared
+            let host = NSHostingView(rootView: GenerationInspector().environmentObject(model).preferredColorScheme(.dark))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 286, height: 600),
+                styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            host.frame = NSRect(x: 0, y: 0, width: 286, height: 600)
+            defer { window.close() }
+            for _ in 0..<100 {
+                try await Task.sleep(for: .milliseconds(20))
+                host.layoutSubtreeIfNeeded()
+                guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                    preconditionFailure("Inspector bitmap unavailable")
+                }
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                var redPixels = 0
+                for y in stride(from: 0, to: bitmap.pixelsHigh, by: 4) {
+                    for x in stride(from: 0, to: bitmap.pixelsWide, by: 4) {
+                        if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                           color.redComponent > 0.6 && color.greenComponent < 0.45 && color.blueComponent < 0.45 {
+                            redPixels += 1
+                            if redPixels >= 5 { return true }
+                        }
+                    }
+                }
+            }
+            return false
+        }
+        func renderTuneToolbar(_ model: StudioModel, _ state: String, dflash: Bool = false) async throws {
+            _ = NSApplication.shared
+            let host = NSHostingView(rootView: MTPTuningToolbarControl(dflash: dflash).environmentObject(model)
+                .padding(12).background(StudioTheme.sidebar).preferredColorScheme(.dark))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 95),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            defer { window.orderOut(nil) }
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(20))
+            precondition(host.fittingSize.height > 0, "Tune toolbar must render in state \(state)")
+            guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                preconditionFailure("Tune toolbar failed native rendering")
+            }
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            if let output = ProcessInfo.processInfo.environment["MLXL3_TUNE_CHECK_IMAGE_DIR"],
+               let data = bitmap.representation(using: .png, properties: [:]) {
+                try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("toolbar-\(state).png"))
+            }
         }
         let updates = try await make("updates")
         defer { updates.ejectModel() }
@@ -61,6 +112,57 @@ extension UpdateManager {
             && updates.conversations[0].messages.last?.content.isEmpty == false, "Send must reach the bridge and complete")
         updates.draft = "next message"; precondition(updates.canSend)
         updates.ejectModel(); precondition(!updates.canSend)
+        precondition(!updates.memorySaverEnabled, "Memory saving must be opt-in")
+        updates.setMemorySaverEnabled(true)
+        precondition(prefs.bool(forKey: "studio.memorySaverEnabled"), "Memory preference not persisted")
+        let saver = try await make("mtp-memory-saver")
+        defer { saver.ejectModel() }
+        precondition(saver.memorySaverEnabled && saver.memorySaverSupported, "Memory preference/capability not restored")
+        let advised = saver.recommendedContextLength
+        precondition(advised == 2048, "Ready profile must reach the production context adviser")
+        precondition(saver.contextLengthDraft == 0, "Recommendation must preserve the user's setting")
+        saver.contextLengthDraft = advised!
+        precondition(saver.canSaveContext)
+        saver.saveContextAndReload()
+        for _ in 0..<200 where !saver.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(saver.engineState.isReady && !saver.canSaveContext)
+        precondition((prefs.dictionary(forKey: "studio.contextLengths")?["mtp-memory-saver"] as? Int) == advised)
+        saver.setMTPEnabled(true)
+        for _ in 0..<200 where saver.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(saver.canTuneMTP)
+        saver.draft = "memory fixture"; saver.send()
+        saver.setMemorySaverEnabled(false)
+        precondition(saver.memorySaverEnabled, "Memory policy changed during generation")
+        for _ in 0..<200 where saver.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isGenerating && saver.conversations[0].messages.count == 2)
+        saver.tuneMTP()
+        saver.setMemorySaverEnabled(false)
+        precondition(saver.memorySaverEnabled, "Memory policy changed during tuning")
+        for _ in 0..<200 where saver.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isTuningMTP && saver.mtpTuneRows.count == 4)
+        saver.setMemorySaverEnabled(false)
+        saver.draft = "normal fixture"; saver.send()
+        for _ in 0..<200 where saver.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isGenerating)
+        let wire = try String(contentsOf: root.appendingPathComponent("memory-saver-requests.jsonl"), encoding: .utf8)
+        let requests = try wire.split(separator: "\n").map {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }
+        let generations = requests.filter { $0["type"] as? String == "generate" }
+        let tunes = requests.filter { $0["type"] as? String == "tune_mtp" }
+        precondition(generations.count == 2 && tunes.count == 1, "Missing production requests")
+        precondition(generations[0]["memory_saver"] as? Bool == true && generations[1]["memory_saver"] as? Bool == false)
+        precondition(tunes[0]["memory_saver"] as? Bool == true, "Tune did not receive memory policy")
+        precondition(generations[0]["mtp"] as? Bool == true && saver.mtpEnabled, "Memory saving disabled MTP")
+        precondition(saver.conversations[0].messages.count == 4, "Memory saving lost history")
+        saver.ejectModel()
+        precondition(!saver.memorySaverSupported, "Old engine capability survived unload")
+        saver.setMemorySaverEnabled(true)
+        let legacySaver = try await make("mtp-old")
+        precondition(legacySaver.memorySaverEnabled && !legacySaver.memorySaverSupported, "Legacy capability assumed")
+        precondition(legacySaver.recommendedContextLength == nil, "Legacy engine must not fabricate a recommendation")
+        legacySaver.ejectModel(); legacySaver.setMemorySaverEnabled(false)
+        print("Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability")
         print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")
         let flash = try await make("dflash-good")
         flash.setDFlash2Enabled(true)
@@ -68,17 +170,23 @@ extension UpdateManager {
         precondition(flash.dflash2Enabled && flash.dflashActive == true && flash.canTuneDFlash, "One click must install and activate the matching draft")
         precondition(flash.temperature == 0 && flash.topK == 1 && flash.repetitionPenalty == 1)
         let history = flash.conversations[0].messages.count
+        try await renderTuneToolbar(flash, "dflash-idle", dflash: true)
+        precondition(!flash.showInspector)
         flash.tuneDFlash()
         precondition(flash.isTuningDFlash && !flash.canSend)
+        precondition(!flash.showInspector, "DFlash Tune must preserve the conversation")
+        try await renderTuneToolbar(flash, "dflash-running", dflash: true)
         for _ in 0..<200 where flash.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
         precondition(flash.dflash2Enabled && flash.dflashMode == 2 && flash.dflashTuneRows.count == 4)
         precondition(flash.conversations[0].messages.count == history, "Tune DFlash entered chat history")
+        try await renderTuneToolbar(flash, "dflash-complete", dflash: true)
         flash.draft = "use selected mode"; flash.send()
         for _ in 0..<200 where flash.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
         precondition(flash.conversations[0].messages.last!.content.contains("\"dflash_mode\": 2"), "Selected DFlash policy must reach production request")
         flash.tuneDFlash(); flash.cancelDFlashTuning()
         for _ in 0..<200 where flash.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
         precondition(flash.dflashMode == 2 && flash.dflashDownloadError != nil, "Cancelled tuning changed setting")
+        try await renderTuneToolbar(flash, "dflash-cancelled", dflash: true)
         flash.setDFlash2Enabled(false)
         for _ in 0..<200 where flash.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
         precondition(flash.dflashActive == false, "OFF did not release the resident draft")
@@ -96,11 +204,14 @@ extension UpdateManager {
                 precondition(!candidate.dflash2Enabled && candidate.dflashDownloadError != nil)
             } else {
                 precondition(candidate.dflash2Enabled && candidate.dflashActive == true, "DFlash activation failed for \(name): \(candidate.dflashDownloadError ?? "no error")")
+                candidate.showInspector = name == "dflash-dense"
                 candidate.tuneDFlash()
                 for _ in 0..<200 where candidate.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
                 if name == "dflash-baseline" { precondition(!candidate.dflash2Enabled && candidate.dflashTuneRows.count == 4) }
                 else if name == "dflash-dense" { precondition(candidate.dflashMode == 2 && candidate.dflashDraftPath.hasSuffix("dense")) }
                 else { precondition(candidate.dflashMode == 1 && candidate.dflashTuneRows.isEmpty && candidate.dflashDownloadError != nil) }
+                precondition(candidate.showInspector == (name == "dflash-dense"), "DFlash Tune changed inspector navigation")
+                try await renderTuneToolbar(candidate, name, dflash: true)
             }
             candidate.ejectModel()
         }
@@ -121,18 +232,26 @@ extension UpdateManager {
         tuned.setMTPEnabled(true)
         for _ in 0..<200 where tuned.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.canTuneMTP && tuned.mtpMaxDepth == 3)
+        try await renderTuneToolbar(tuned, "idle")
         tuned.updateManager.setStatesForCheck(app: .checking, engine: .downloading(release))
         precondition(tuned.canTuneMTP, "Background updates must not disable MTP tuning")
         tuned.updateManager.setStatesForCheck(app: .idle, engine: .installing(release))
         precondition(!tuned.canTuneMTP)
+        tuned.tuneMTP()
+        precondition(!tuned.showInspector && !tuned.isTuningMTP, "An ineligible tune must leave the inspector closed")
         tuned.updateManager.setStatesForCheck(app: .idle, engine: .idle)
         let before = tuned.conversations[0].messages.count
+        precondition(!tuned.showInspector)
         tuned.tuneMTP()
+        precondition(!tuned.showInspector, "Header tuning must keep the conversation visible")
         precondition(tuned.isTuningMTP && tuned.isGenerating)
+        try await renderTuneToolbar(tuned, "running")
         tuned.draft = "should wait"; tuned.send()
         precondition(tuned.conversations[0].messages.count == before && !tuned.canSend)
         for _ in 0..<200 where tuned.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.mtpEnabled && tuned.mtpDepth == 2 && tuned.mtpTuneRows.count == 4 && tuned.mtpTuneProgress == 1)
+        precondition(!tuned.showInspector, "Finishing Tune must preserve the user's navigation")
+        try await renderTuneToolbar(tuned, "complete")
         precondition(tuned.conversations[0].messages.count == before, "Tuning must not enter chat history")
         tuned.send()
         for _ in 0..<200 where tuned.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
@@ -140,11 +259,15 @@ extension UpdateManager {
         tuned.ejectModel()
         let restoredTune = try await make("mtp-good")
         precondition(restoredTune.mtpEnabled && restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4)
+        restoredTune.showInspector = true
         restoredTune.tuneMTP()
+        precondition(restoredTune.showInspector, "Tune must preserve an already open inspector")
         for _ in 0..<200 where restoredTune.mtpTuneProgress == 0 { try await Task.sleep(for: .milliseconds(10)) }
         restoredTune.cancelMTPTuning()
+        try await renderTuneToolbar(restoredTune, "cancelled")
         for _ in 0..<200 where restoredTune.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4 && restoredTune.mtpError != nil)
+        precondition(restoredTune.showInspector, "Tuning cancellation must stay visible")
         restoredTune.setMTPDepth(3); restoredTune.ejectModel()
         let manual = try await make("mtp-good")
         precondition(manual.mtpDepth == 3, "Manual depth selection must persist")
@@ -153,6 +276,7 @@ extension UpdateManager {
             let candidate = try await make(name)
             candidate.setMTPEnabled(true)
             for _ in 0..<200 where candidate.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!candidate.showInspector)
             candidate.tuneMTP()
             for _ in 0..<200 where candidate.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
             if name == "mtp-baseline" {
@@ -162,10 +286,19 @@ extension UpdateManager {
             } else {
                 precondition(candidate.mtpDepth == 1 && candidate.mtpEnabled && candidate.mtpError != nil)
             }
+            precondition(!candidate.showInspector, "Baseline, invalid replies and errors must preserve the conversation")
+            try await renderTuneToolbar(candidate, name)
+            if name == "mtp-error" || name == "mtp-malformed" {
+                let visible = try await tuningErrorIsVisible(candidate)
+                precondition(visible, "Tuning error must be rendered inside the 600-point inspector viewport")
+            }
             candidate.ejectModel()
         }
+        print("MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start")
         let old = try await make("mtp-old")
         precondition(old.mtpAvailable && old.mtpMaxDepth == 1 && !old.canTuneMTP)
+        old.tuneMTP()
+        precondition(!old.showInspector && !old.isTuningMTP, "An unsupported engine must leave the inspector closed")
         old.setMTPDepth(3); precondition(old.mtpDepth == 1)
         old.ejectModel()
         prefs.set(true, forKey: "studio.mtpEnabled")

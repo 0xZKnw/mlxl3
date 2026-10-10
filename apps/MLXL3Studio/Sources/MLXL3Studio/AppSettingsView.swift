@@ -64,6 +64,23 @@ struct AppSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(L("Économie de mémoire", "Memory saving"), isOn: Binding(
+                            get: { studio.memorySaverEnabled },
+                            set: { studio.setMemorySaverEnabled($0) }
+                        ))
+                        .disabled(studio.isGenerating || studio.isTuningMTP || (studio.engineState.isReady && !studio.memorySaverSupported))
+                        if studio.engineState.isReady && !studio.memorySaverSupported {
+                            Text(L("Mets à jour le moteur pour utiliser cette option.", "Update the engine to use this option."))
+                                .font(.system(size: 11))
+                                .foregroundStyle(StudioTheme.secondary)
+                        }
+                        Text(L("Après les prochaines réponses, libère aussi le cache de contexte et les petits buffers inutilisés. Le modèle et tes conversations restent chargés. Le prochain message recalculera son contexte et peut démarrer plus lentement.", "After future responses, also frees the context cache and small unused buffers. The model and your conversations stay loaded. The next message recomputes its context and may start more slowly."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Divider()
                     HuggingFaceAccountView(library: studio.modelLibrary)
                     HStack {
                         Button(L("Exporter les conversations", "Export conversations"), action: studio.exportConversations)

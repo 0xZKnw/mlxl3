@@ -6,8 +6,10 @@ pub mod array;
 pub mod checkpoint;
 pub mod codec;
 mod contracts;
-pub use contracts::reusable_prefix_len;
+pub use contracts::{reusable_prefix_len, smallm_kernel_key};
 pub mod dflash;
+#[cfg(feature = "mlx")]
+pub(crate) mod embedding;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(feature = "mlx")]
@@ -22,6 +24,7 @@ pub mod linear;
 #[cfg(feature = "mlx")]
 pub mod ling;
 pub mod mcp;
+pub mod memory_policy;
 #[cfg(feature = "mlx")]
 pub mod moe;
 pub mod mtp;

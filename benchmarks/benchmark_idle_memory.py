@@ -92,12 +92,24 @@ def quality(event):
     }
 
 
-def run(engine, model, head, *, measure=footprint, result=None, progress=None, timeout=180):
+def run(
+    engine,
+    model,
+    head,
+    *,
+    measure=footprint,
+    result=None,
+    progress=None,
+    timeout=180,
+    memory_saver=False,
+    short_only=False,
+):
     result = {} if result is None else result
     records = result.setdefault("records", [])
     result.update(
         status="running",
         reaped=False,
+        memory_saver=memory_saver,
         engine_sha256=hashlib.sha256(Path(engine).read_bytes()).hexdigest(),
     )
     with tempfile.TemporaryDirectory(prefix="idle-memory-") as directory:
@@ -110,7 +122,7 @@ def run(engine, model, head, *, measure=footprint, result=None, progress=None, t
                 "bridge",
                 str(model),
                 "--context-length",
-                "32768",
+                "4096" if short_only else "32768",
             ]
             try:
                 with JsonProcess(command, stderr=log) as child:
@@ -120,6 +132,8 @@ def run(engine, model, head, *, measure=footprint, result=None, progress=None, t
                         if event["type"] == "error":
                             raise ValueError(event)
                         if event["type"] == "ready":
+                            if memory_saver and event.get("memory_saver_supported") is not True:
+                                raise ValueError("engine does not support memory saving")
                             break
                     ready_bytes = measure(child.process.pid)
                     result["ready_bytes"] = ready_bytes
@@ -136,6 +150,8 @@ def run(engine, model, head, *, measure=footprint, result=None, progress=None, t
                         ("cancel", short, 2, False, True),
                         ("recovery", short, 2, False, False),
                     ]
+                    if short_only:
+                        cases = [case for case in cases if case[0] != "long-mtp"]
                     for index, (label, text, depth, reuse, cancel) in enumerate(cases):
                         request = {
                             "type": "generate",
@@ -150,6 +166,7 @@ def run(engine, model, head, *, measure=footprint, result=None, progress=None, t
                             "mtp_depth": depth,
                             "mtp_head_path": str(head),
                             "reuse_prompt_cache": reuse,
+                            "memory_saver": memory_saver,
                         }
                         output = exchange(child, request, cancel=cancel, timeout=timeout)
                         expected = "cancelled" if cancel else "error" if depth == 4 else "complete"
@@ -159,9 +176,19 @@ def run(engine, model, head, *, measure=footprint, result=None, progress=None, t
                         pong = exchange(child, {"type": "ping", "request_id": f"ping-{index}"})
                         if pong["type"] != "pong":
                             raise ValueError("missing idle acknowledgement")
+                        if memory_saver:
+                            memory = pong.get("memory", {})
+                            if (
+                                type(memory.get("mlx_cache_bytes")) is not int
+                                or memory["mlx_cache_bytes"] != 0
+                            ):
+                                raise ValueError("unused allocator buffers retained")
+                            if oracle is not None and oracle["stats"]["cached_prompt_tokens"] != 0:
+                                raise ValueError("prompt cache retained in memory saving mode")
                         idle_bytes = measure(child.process.pid)
                         if (
                             label.startswith("cache-")
+                            and not memory_saver
                             and label != "cache-cold"
                             and oracle["stats"]["cached_prompt_tokens"] < 256
                         ):
@@ -195,11 +222,26 @@ def run(engine, model, head, *, measure=footprint, result=None, progress=None, t
             return result
 
 
-def validate_runs(runs):
+def validate_runs(runs, *, short_only=False):
     if not runs or len(runs) < 2:
         raise ValueError("need both comparison arms")
     reference = runs[0]["records"]
-    if len(reference) != 9 or sum(row["quality"] is not None for row in reference) != 7:
+    names = [
+        "short-normal",
+        "short-mtp",
+        "cache-cold",
+        "cache-warm",
+        "invalid-depth",
+        "cache-after-error",
+        "long-mtp",
+        "cancel",
+        "recovery",
+    ]
+    if short_only:
+        names.remove("long-mtp")
+    if [row["case"] for row in reference] != names or sum(
+        row["quality"] is not None for row in reference
+    ) != len(names) - 2:
         raise ValueError("incomplete workload")
     for run in runs:
         if run.get("status") != "complete" or run.get("reaped") is not True:
@@ -207,8 +249,26 @@ def validate_runs(runs):
         if len(run["records"]) != len(reference):
             raise ValueError("incomplete workload")
         for expected, actual in zip(reference, run["records"], strict=True):
-            if actual["case"] != expected["case"] or actual["quality"] != expected["quality"]:
+            expected_quality, actual_quality = (
+                deepcopy_quality(expected["quality"]),
+                deepcopy_quality(actual["quality"]),
+            )
+            if run.get("memory_saver") or runs[0].get("memory_saver"):
+                for quality_value in (expected_quality, actual_quality):
+                    if quality_value is not None:
+                        quality_value["stats"].pop("cached_prompt_tokens")
+                        quality_value["stats"].pop("evaluated_prompt_tokens")
+            if actual["case"] != expected["case"] or actual_quality != expected_quality:
                 raise ValueError("output, state reuse or MTP counters changed")
+            if run.get("memory_saver"):
+                memory = actual.get("idle_memory", {})
+                if type(memory.get("mlx_cache_bytes")) is not int or memory["mlx_cache_bytes"] != 0:
+                    raise ValueError("unused allocator buffers retained")
+                if (
+                    actual["quality"] is not None
+                    and actual["quality"]["stats"]["cached_prompt_tokens"] != 0
+                ):
+                    raise ValueError("prompt cache retained in memory saving mode")
             if type(actual["idle_bytes"]) is not int or actual["idle_bytes"] <= 0:
                 raise ValueError("invalid footprint")
         short = run["records"][0]["quality"]
@@ -224,11 +284,17 @@ def validate_runs(runs):
                 raise ValueError("MTP or recovery differs from ordinary generation")
 
 
+def deepcopy_quality(value):
+    return None if value is None else {**value, "stats": dict(value["stats"])}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for key in ("baseline", "candidate", "model", "head", "output"):
         parser.add_argument(f"--{key}", type=Path, required=True)
     parser.add_argument("--order", choices=("AB", "BA"), default="AB")
+    parser.add_argument("--candidate-memory-saver", action="store_true")
+    parser.add_argument("--short-only", action="store_true")
     parser.add_argument("--exchange-timeout", type=int, choices=(180, 300), default=180)
     parser.add_argument("--campaign-timeout", type=int, choices=(900, 1200), default=900)
     args = parser.parse_args()
@@ -241,6 +307,8 @@ def main():
         "model": str(args.model),
         "head": str(args.head),
         "order": args.order,
+        "candidate_memory_saver": args.candidate_memory_saver,
+        "short_only": args.short_only,
         "exchange_timeout": args.exchange_timeout,
         "campaign_timeout": args.campaign_timeout,
     }
@@ -269,12 +337,14 @@ def main():
                     result=current,
                     progress=save,
                     timeout=args.exchange_timeout,
+                    memory_saver=args.candidate_memory_saver and arm == "B",
+                    short_only=args.short_only,
                 )
             finally:
                 # JsonProcess's context has completed its terminate/kill/wait cleanup.
                 current["reaped"] = True
             save()
-        validate_runs(report["runs"])
+        validate_runs(report["runs"], short_only=args.short_only)
         report.update(status="complete", parity=True)
     except BaseException as error:
         report.update(status="failed", parity=False, error=repr(error))
