@@ -96,3 +96,9 @@ Charger Qwen3.8-27B, activer MTP dans l’app pour exercer l’adaptation et ouv
 Pour tester les nouveaux comportements par défaut, lancer la même commande avec seulement `MLXL3_EXECUTABLE`, sans les trois autres variables. Les options expérimentales sont héritées au lancement du processus ; un double-clic ordinaire ne les active pas. La procédure de compilation reproductible reste `scripts/build-macos-app.sh` avec MLX0.32.2, Cargo/Swift et SDK compatible configurés.
 
 Logs volumineux et manifeste de capture compressés sans perte pour la PR : [index et empreintes](measurements/adaptive-memory-20261009/log-archives.json). Les originaux restent locaux ; chaque décompression a été comparée octet pour octet.
+
+## Livraison du 10 octobre 2026
+
+La [PR #32](https://github.com/0xZKnw/mlxl3/pull/32) est ouverte depuis `codex/adaptive-memory-qwen`, base main `8c08c4c`, commit source `63bf98973e024fd258a08a98ae9bb3fd3c4b37bb`. La copie locale `dist/MLXL3 Desktop.app` est prête, construite depuis ce commit propre : signature, architectures arm64, plist, runtime-info et tests embarqués timeline/MCP isolés passent. Le contrôle Metal du mode MCP est explicitement sauté pendant cette livraison ; les vérifications numériques physiques restent celles de la campagne précédente. App installée et release inchangées.
+
+[Identité du bundle](measurements/adaptive-memory-20261009/publication-package-identity.json), [commandes/résultats des contrôles](measurements/adaptive-memory-20261009/publication-app-checks.json), [audit de publication](measurements/adaptive-memory-20261009/publication-summary.json). Le commit documentaire de clôture ne modifie aucune source exécutable par rapport au bundle. Les jobs GitHub du source sont inspectés et encore en cours au snapshot : [détail](measurements/adaptive-memory-20261009/publication-ci-jobs.json) ; ce n’est pas une CI verte. L’état de la tête finale sera contrôlé après son push.
