@@ -6,8 +6,8 @@
 released Flash Next configuration and the MIT-licensed MLX-VLM 0.7.3 text
 architecture, including HyperConnections, sparse attention and PLE:
 <https://github.com/Blaizzy/mlx-vlm/tree/main/mlx_vlm/models/qwen4_exp>.
-Copyright (c) MLX-VLM contributors. The MIT license text reproduced below also
-applies to this architecture port. Existing EXL3 kernels retain their PonyExl3
+Copyright © 2025 Prince Canuma. The MIT license is provided in
+`LICENSES/MLX-VLM-MIT.txt`. Existing EXL3 kernels retain their PonyExl3
 attribution and Apache-2.0 license.
 
 The SSD design was compared with the user's `localqwen3.8flash` project and

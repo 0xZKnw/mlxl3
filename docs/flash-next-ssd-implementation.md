@@ -2,6 +2,17 @@
 
 État : parcours texte sans MTP implémenté et contrôlé localement sur M5 ; MTP et campagne comparative de débit encore en cours. Aucun remplacement de l'app installée.
 
+## Première mesure sans MTP, avant correction de la divergence
+
+Binaire baseline `011dc68`, SHA256 `986a6a307a914e0be2cb8e429149a2b7c3a9f8f5d58771653a6315b7f0f175bc`, M5/24Gio, MLX0.32.2, contexte4096, cache8Gio et overlap1. Deux prompts fixes,64tokens chacun, warmup puis3répétitions alternées, greedy/MTPoff/MCPoff/préfixeoff. [Rapport complet](measurements/flash-next-ssd-impl/baseline-speed/report.json).
+
+| Prompt | Decode médian | Étendue | TTFT médian | Prefill médian |
+| --- | ---: | ---: | ---: | ---: |
+| MAIN, cache LFU | 7,08tok/s | 6,77–7,59tok/s | 12,78s | 6,81tok/s |
+| HOLD, merge_intervals | 7,03tok/s | 6,61–7,51tok/s | 12,50s | 6,56tok/s |
+
+Six générations de64tokens,63decode chacune ; mêmes hashes et textes dans chaque prompt, y compris warmup. RAM processus11,70Gio ; actif MLX11,15Gio ; picMLX11,21Gio. Batterie45→40% en décharge, swap utilisé5736,94Mio en fin de mesure, aucune alerte pmset. Ce sont les performances du premier binaire sans MTP, pas un gain établi. La divergence numérique ci-dessous doit être corrigée avant de poursuivre MTP, selon la dernière demande de l'utilisateur.
+
 ## Modèle et architecture
 
 Checkpoint `turboderp/Qwen3.8-Flash-Next-exl3`, branche `2.05bpw_h4_ng4`, révision immuable `65c895314393431c09050b2e04e250836b3a6eb4`. Les sept fichiers LFS ont leurs tailles et SHA-256 vérifiés : [empreintes](measurements/flash-next-ssd-impl/checkpoint-hashes.json). Payload poids 58,3587 Gio, dont 24,4380 Gio de n-grammes. Le modèle reste sur le disque.
