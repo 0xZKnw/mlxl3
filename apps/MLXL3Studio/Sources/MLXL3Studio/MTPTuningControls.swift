@@ -73,7 +73,9 @@ struct MTPTuningControls: View {
                 Text(L("Réglage enregistré : ", "Saved setting: ") + (studio.mtpEnabled ? "MTP\(studio.mtpDepth)" : "Baseline"))
                     .font(.system(size: 10, weight: .medium)).foregroundStyle(StudioTheme.accent)
             }
-            Text(studio.mtpTuneSupported
+            Text(studio.mtpBuiltIn
+                 ? L("Flash Next utilise MTP1. Chaque proposition est vérifiée par le modèle cible.", "Flash Next uses MTP1. The target verifies every proposal.")
+                 : studio.mtpTuneSupported
                  ? studio.mtpHeadPath.isEmpty
                     ? L("Active MTP une fois pour préparer la tête, puis lance le test.", "Enable MTP once to prepare the head, then run the test.")
                     : L("Deux prompts locaux, sans outils. Le meilleur mode est enregistré pour ce modèle et ce Mac. Baseline si le gain ne dépasse pas 3 %.", "Two local prompts, without tools. The best mode is saved for this model and Mac. Baseline if the gain is within 3%.")

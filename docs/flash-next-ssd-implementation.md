@@ -1,6 +1,6 @@
 # Flash Next EXL3 2,05 bpw avec streaming SSD
 
-État : parcours texte sans MTP implémenté et contrôlé localement sur M5 ; MTP et campagne comparative de débit encore en cours. Aucun remplacement de l'app installée.
+État : parcours texte et MTP1 implémentés et validés localement sur M5 ; campagne comparative de débit à exécuter sur le binaire corrigé. Aucun remplacement de l'app installée.
 
 ## Première mesure sans MTP, avant correction de la divergence
 
@@ -33,6 +33,16 @@ Référence indépendante : MLX-VLM0.7.3, PonyExl3 `8e7fa6b1556f59fc669e25087903
 
 La première qualification historique [baseline](measurements/flash-next-ssd-impl/baseline-quality.json) avait échoué à1%, jusqu’à2,6487%RMSE, puis employé une borne5%. Elle est **remplacée par la qualification d’inférence corrigée**, sans effacer les chiffres ni leur protocole initial. Les premières mesures de débit précèdent cette correction et ne mesurent pas le code corrigé.
 
+## MTP natif intégré
+
+La tête `mtp.*` et son patch HyperConnections proviennent du même checkpoint. Elle utilise une pré-norme cachée globale, une projection distincte de chacun des quatre flux et une seule couche QSA sans PLE. Les512experts de cette couche restent résidents (0,595Gio de payload d'experts). La vérification cible calcule deux lignes dans une cohorte SSD protégée, conserve le premier état après rejet et les deux après acceptation. Le cache historique de la tête est prolongé par les seuls calculs K/V/index nécessaires.
+
+Profondeur1, mode greedy et pénalité1 ; les autres réglages passent en décodage ordinaire. Le Desktop utilise le dossier du modèle comme tête intégrée, garde MTP OFF pour un nouveau modèle et sauvegarde le choix ON/OFF par modèle et moteur. Aucun téléchargement de tête supplémentaire ni tuner de profondeur n'est nécessaire pour Flash Next.
+
+Dix positions tenues à part concordent en octets avec la vraie classe MTP de MLX-VLM : fusion, six composants, couche, mixer,248320logits par position, argmax, K/V et tail. Le cache-only est identique au cache du passage complet natif. Les blocs cible T2/commit1/2 reproduisent les logits, tous les états GDN/QSA/PLE/HC et le token suivant du T1. Les sessions budgets1/2/3/17 couvrent acceptation et rejet avec mêmes tokens et états cible/tête. Trente paires SSD contre l'oracle indépendant couvrent caches10/20/143, froid/chaud, overlap ON/OFF, doublons, lecture corrompue et reprise. Les16positions du tronc corrigé restent exactes après intégration. [Preuves numériques et échecs conservés](measurements/flash-next-ssd-impl/mtp-impl/).
+
+Le bridge release passe16générations A/B/B/A aux budgets1/2/3/17, mêmes hashes/texte/historique/counts. Il refuse les cinq requêtes invalides, reprend exactement après annulation au début du prefill et au premier delta, et conserve le fallback avec pénalité1,1. Le bridge Qwen3.6 existant passe aussi12générations, les erreurs et annulations. [Flash](measurements/flash-next-ssd-impl/mtp-impl/bridge-flash-01.jsonl), [Qwen3.6](measurements/flash-next-ssd-impl/mtp-impl/bridge-qwen-legacy-01.jsonl). Ces temps courts sont fonctionnels, pas une comparaison de débit.
+
 ## Vérification source et limites
 
 Kani 0.68 : contrat d'offsets u64, 12 obligations et deux couvertures satisfaites ; hash n-grammes u64, boucle au plus trois éléments, 87 obligations (une inatteignable) et deux couvertures satisfaites. Le harnais de réservation sur deux routes symboliques et dix slots a été tenté sur la fonction réelle ; après correction d'une ICE liée aux erreurs anyhow, l'exploration a été interrompue après environ cinq minutes. **Cache non prouvé** ; 2 000 cohortes déterministes couvrent vieillissement, évictions, doublons, erreurs et invalidation après lecture échouée.
@@ -40,6 +50,8 @@ Kani 0.68 : contrat d'offsets u64, 12 obligations et deux couvertures satisfaite
 Kani du calcul de partitions réel : domaines u32 complets, unwind26,37obligations réussies et3couvertures satisfaites ; vérification bornée CPU, sans preuve des réductions flottantes Metal. [Preuve](measurements/flash-next-ssd-impl/divergence/kani-partition.log).
 
 CBMC a été tenté sur la FFI C++ réelle préprocessée : parsing libc++/MLX incompatible. CrossHair a exploré le parseur de tokens pendant huit secondes : deux propriétés non confirmées. Aucun de ces résultats ne prouve la concurrence GPU, MLX, Metal ou l'inférence complète. Le contexte QSA au-delà de 2 048 tokens n'est pas encore contrôlé physiquement ; le parcours multimodal n'est pas implémenté dans ce port texte.
+
+Pour MTP : six harnais Kani réussis,837obligations/21couvertures,3obligations inatteignables dans les contrats d'acceptation existants. Intervalle tensoriel u64 complet et commit i32 complet sans hypothèses ; partition u32 complète/unwind26 ; préfixe greedy au plus7propositions/unwind9 ; profondeur1/unwind4 et profondeurs0..3/unwind6 avec budgets symboliques. Ce sont des vérifications bornées de helpers CPU de production. La suite `mlx,chat` passe43tests bibliothèque+7main+16contrats,65ignorés ; les14contrôles physiques ciblés de cette étape sont sélectionnés séparément. Python68pass/4skips ; Desktop E2E et sources app complètes Swift6/warnings-as-errors réussis. Le build strict du package entier échoue sur les dépréciations CoreText préexistantes de SwiftMath ; le vendor n'est pas modifié. CBMC/Swift/Metal/concurrence et cache symbolique restent non prouvés. [Commandes, bornes, sources et limites](measurements/flash-next-ssd-impl/mtp-impl/quality.json).
 
 Pour la correction :11contrôles GPU ciblés,39tests CPU+15contrats et39tests Python réussis,3tests CPU ignorés ; fmt/Ruff et Clippy strict avec/sans MLX, build release `mlx,chat` réussis. Le bridge release vérifie16tokens par prompt MAIN/HOLD avec warmup+1répétition et hash/texte stables ; la CLI génère4tokens. Le rebuild final conserve exactement l’empreinte du binaire testé. Ces timings courts sont des contrôles fonctionnels, sans gain revendiqué. CBMC reste incompatible avec libc++ et CrossHair ne confirme pas les deux contrats du parseur en8s. CI précédente894c796 : Desktop/Rust Linux/macOS réussis, Kani annulé ; statut du nouveau SHA à inspecter après push.
 
@@ -59,4 +71,13 @@ hf download turboderp/Qwen3.8-Flash-Next-exl3 --revision 65c895314393431c09050b2
 target/release/mlxl3-rs run models/flash-next-205 --prompt "Bonjour" --max-tokens 64
 ```
 
-La fixture indépendante peut être recréée avec `scripts/check-flash-reference.py` dans un environnement contenant MLX-VLM 0.7.3 et le checkout PonyExl3 épinglé. Les fichiers binaires des oracles restent locaux ; le script, les mesures et les logs sont fournis dans la PR. MTP sera ajouté après sa vérification contre le chemin natif ordinaire.
+Pour MTP, activer **Génération → MTP** dans le Desktop construit avec ce moteur, ou utiliser le bridge JSON-lines :
+
+```sh
+cat <<'JSON' | target/release/mlxl3-rs bridge models/flash-next-205 --context-length 4096
+{"type":"generate","request_id":"demo","messages":[{"role":"user","content":"Bonjour"}],"max_tokens":64,"temperature":0,"top_k":1,"repetition_penalty":1,"mtp":true,"mtp_depth":1,"mtp_head_path":"models/flash-next-205","reuse_prompt_cache":false}
+{"type":"shutdown"}
+JSON
+```
+
+La fixture indépendante peut être recréée avec `scripts/check-flash-reference.py` dans un environnement contenant MLX-VLM 0.7.3 et le checkout PonyExl3 épinglé ; `--mtp-only` prend une fixture du tronc et exporte la tête seule. Les fichiers binaires des oracles restent locaux ; le script, leurs empreintes, les mesures et les logs sont fournis dans la PR. La commande `run` garde le décodage ordinaire ; MTP utilise le bridge/Desktop.

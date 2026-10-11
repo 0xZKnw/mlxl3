@@ -94,6 +94,7 @@ pub struct Exl3Linear {
     cols: i32,
     simdgroups: i32,
     reference_accumulation: bool,
+    mtp_hidden_batch: bool,
 }
 
 impl Exl3Linear {
@@ -139,6 +140,14 @@ impl Exl3Linear {
         if checkpoint.model_type == "qwen4_exp" {
             linear.simdgroups = 4;
             linear.reference_accumulation = true;
+            linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
+            if linear.mtp_hidden_batch {
+                ensure!(
+                    linear.rows == 2560 && linear.cols == 2560,
+                    "unsupported MTP hidden projection"
+                );
+                linear.simdgroups = 2;
+            }
         }
         Ok(linear)
     }
@@ -196,6 +205,7 @@ impl Exl3Linear {
             cols,
             simdgroups,
             reference_accumulation: false,
+            mtp_hidden_batch: false,
         })
     }
 
@@ -229,7 +239,11 @@ impl Exl3Linear {
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "EXL3 linear input cannot be empty");
-        if self.reference_accumulation && matrix_rows > 1 {
+        ensure!(
+            !self.mtp_hidden_batch || matrix_rows == 4,
+            "MTP hidden projection requires four streams"
+        );
+        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 1 {
             let matrix = x.reshape(&[matrix_rows, self.rows])?;
             let rows = (0..matrix_rows)
                 .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
@@ -387,7 +401,12 @@ impl Exl3Linear {
             .reshape(&[matrix_rows, self.rows])?;
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
-        let splits = split_count(input_tiles, output_tiles);
+        // The released MTP FC uses Pony's four-row GEMM: two groups and two splits.
+        let splits = if self.mtp_hidden_batch {
+            2
+        } else {
+            split_count(input_tiles, output_tiles)
+        };
         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
         let mut nt = if use_nt4 {
             4
@@ -400,9 +419,17 @@ impl Exl3Linear {
         } else {
             1
         };
-        let (mb, batch_groups) =
+        let (mb, batch_groups) = if self.mtp_hidden_batch {
+            ensure!(
+                matrix_rows == 4,
+                "MTP hidden projection requires four streams"
+            );
+            nt = 1;
+            (4, 1)
+        } else {
             crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
-                .context("invalid batch QMV rows")?;
+                .context("invalid batch QMV rows")?
+        };
         if mb == 2 {
             nt = nt.min(2);
         }
@@ -410,6 +437,11 @@ impl Exl3Linear {
             nt = 1;
         }
         let header = codebook_header(self.cb)
+            + &reference_reduction_header(self.mtp_hidden_batch)
+            + &format!(
+                "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
+                u8::from(self.mtp_hidden_batch)
+            )
             + &format!(
                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_MATRIX_ROWS {matrix_rows}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {output}\n",
                 self.simdgroups,

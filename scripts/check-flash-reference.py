@@ -9,6 +9,7 @@ import json
 import os
 import struct
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -224,8 +225,19 @@ def main():
     parser.add_argument("--norm-only", action="store_true")
     parser.add_argument("--projections-only", action="store_true")
     parser.add_argument("--attention-only", type=Path)
+    parser.add_argument("--mtp-only", type=Path)
     args = parser.parse_args()
-    if sum((args.norm_only, args.projections_only, args.attention_only is not None)) > 1:
+    if (
+        sum(
+            (
+                args.norm_only,
+                args.projections_only,
+                args.attention_only is not None,
+                args.mtp_only is not None,
+            )
+        )
+        > 1
+    ):
         parser.error("choose a single probe mode")
     if args.norm_only:
         norm_reference(args.model, args.output)
@@ -434,6 +446,80 @@ def main():
         config = TextConfig.from_dict(
             json.loads((args.model / "config.json").read_text())["text_config"]
         )
+        if args.mtp_only is not None:
+            from mlx_vlm.speculative.drafters.qwen4_exp_mtp.config import Qwen4ExpMTPConfig
+            from mlx_vlm.speculative.drafters.qwen4_exp_mtp.qwen4_exp_mtp import (
+                Qwen4ExpMTPDraftModel,
+            )
+
+            original = json.loads((args.mtp_only / "reference.json").read_text())
+            steps = original.get("steps", [])
+            if (
+                original.get("status") != "complete"
+                or original.get("mode") != "eval"
+                or not 5 <= len(steps) <= 32
+            ):
+                raise ValueError("invalid MTP input fixture")
+            head = Qwen4ExpMTPDraftModel(Qwen4ExpMTPConfig(text_config=config))
+            load(head, "mtp")
+            load(head.layers[0], "mtp.layers.0")
+            head.eval()
+            if head.training:
+                raise ValueError("MTP oracle is not in inference mode")
+            for name in ("attn_hyper_connection", "self_attn", "mlp_hyper_connection", "mlp"):
+                head.layers[0][name] = Observe(head.layers[0][name])
+            lm_head = Packed("lm_head", 248320)
+
+            def embed(ids):
+                row = store.read("model.language_model.embed_tokens.weight", int(ids.item()))
+                return mx.array(row).astype(mx.float16).reshape(1, 1, 2560)
+
+            head._input_embed = embed
+            head._cache = head.make_cache()
+            report["embedding_dtype"] = "float16, same target embedding boundary"
+            report["mtp_steps"] = []
+            for index, (previous, current) in enumerate(pairwise(steps)):
+                token = current["token"]
+                if not isinstance(token, int) or not 0 <= token < 248320:
+                    raise ValueError("invalid MTP token")
+                hidden = mx.array(probe_input(args.mtp_only, previous["layers"][-1], 10240))
+                ids = mx.array([[token]], dtype=mx.int32)
+                mixed = head.fuse_inputs(embed(ids), hidden)
+                output, raw = head._forward_tokens(ids, hidden, mx.int32)
+                logits = lm_head(output)
+                cache = head._cache[0]
+                keys, values = cache.state[:2]
+                tail = cache.index_keys[:, -(cache.offset % 4) :] if cache.offset % 4 else None
+                entry = {"token": token, "position": index}
+                for name, value in (
+                    ("input", hidden),
+                    ("mixed", mixed),
+                    ("layer", raw),
+                    ("output", output),
+                    ("logits", logits),
+                    ("keys", keys),
+                    ("values", values),
+                    ("index_tail", tail),
+                ):
+                    entry[name] = save(f"mtp-{index}-{name}", value) if value is not None else None
+                entry["argmax"] = int(mx.argmax(logits).item())
+                for name, component, field in (
+                    ("attn_mixed", "attn_hyper_connection", 0),
+                    ("attn_gate", "attn_hyper_connection", 2),
+                    ("attention", "self_attn", None),
+                    ("mlp_mixed", "mlp_hyper_connection", 0),
+                    ("mlp_gate", "mlp_hyper_connection", 2),
+                    ("moe", "mlp", None),
+                ):
+                    value = head.layers[0][component]._output
+                    entry[name] = save(
+                        f"mtp-{index}-{name}", value if field is None else value[field]
+                    )
+                report["mtp_steps"].append(entry)
+                save_report()
+                print(f"MTP step {index + 1}/{len(steps) - 1}", flush=True)
+            report["status"] = "complete"
+            return
         if args.attention_only is not None:
             original = json.loads((args.attention_only / "reference.json").read_text())
             steps = original.get("steps", [])

@@ -90,11 +90,11 @@ def cancel(*_):
 signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
-mtp_capable = model == 'renamed' or model.startswith('mtp-')
+mtp_capable = model in ('renamed', 'flash') or model.startswith('mtp-')
 tuning_key = 'fixture-runtime:' + model
-capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 3, 'mtp_tune_supported': mtp_capable, 'mtp_tuning_key': tuning_key}
+capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model == 'flash' else 3, 'mtp_tune_supported': mtp_capable and model != 'flash', 'mtp_tuning_key': tuning_key}
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
-     dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
+     dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable and model != 'flash',
      **capabilities,
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
@@ -145,7 +145,7 @@ for line in sys.stdin:
         emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
     else:
         answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else (
-            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth')}) if model.startswith('mtp-') else 'hello')
+            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path')}) if model.startswith('mtp-') or model == 'flash' else 'hello')
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)

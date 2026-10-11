@@ -314,7 +314,7 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         }
         case 24: {
           thread_local auto gate = mx::compile([](const std::vector<mx::array>& x) {
-            return std::vector<mx::array>{mx::multiply(mx::array(2.0f), mx::sigmoid(mx::divide(x[0], mx::array(4.0f))))};
+            return std::vector<mx::array>{mx::multiply(mx::array(2.0f, x[0].dtype()), mx::sigmoid(mx::divide(x[0], mx::array(4.0f, x[0].dtype()))))};
           }, false);
           return gate({a})[0];
         }

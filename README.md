@@ -443,5 +443,7 @@ GPU/I/O overlap. The default expert budget is 8 GiB on the 24 GiB M5.
 See [setup, verification and numerical limits](docs/flash-next-ssd-implementation.md).
 The corrected path matches the independent inference reference bit for bit on
 16 checked positions, including full logits and recurrent states. The first
-M5 baseline measured about 7 tokens/s before this correction. MTP and its
-throughput comparison are still being implemented.
+M5 baseline measured about 7 tokens/s before this correction. The built-in
+MTP head now supports depth-one greedy decoding through Desktop and the bridge,
+with exact target verification and rollback. Numerical and bridge checks pass;
+the throughput comparison on the corrected binary follows separately.

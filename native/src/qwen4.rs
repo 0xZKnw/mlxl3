@@ -16,6 +16,7 @@ use std::{
     collections::{BTreeMap, VecDeque},
     fs::File,
     os::unix::fs::FileExt,
+    path::PathBuf,
 };
 
 const H: i32 = 2560;
@@ -266,7 +267,36 @@ struct Qsa {
     offset: i32,
     frequencies: [Array; 2],
 }
+
+struct QsaState {
+    keys: Option<Array>,
+    values: Option<Array>,
+    index_tail: Option<Array>,
+    blocks: Option<Array>,
+    offset: i32,
+}
+
+fn clone_array(value: &Option<Array>) -> Result<Option<Array>> {
+    value.as_ref().map(Array::try_clone).transpose()
+}
+
 impl Qsa {
+    fn snapshot(&self) -> Result<QsaState> {
+        Ok(QsaState {
+            keys: clone_array(&self.keys)?,
+            values: clone_array(&self.values)?,
+            index_tail: clone_array(&self.index_tail)?,
+            blocks: clone_array(&self.blocks)?,
+            offset: self.offset,
+        })
+    }
+    fn restore(&mut self, state: QsaState) {
+        self.keys = state.keys;
+        self.values = state.values;
+        self.index_tail = state.index_tail;
+        self.blocks = state.blocks;
+        self.offset = state.offset;
+    }
     fn load(c: &Checkpoint, p: &str, eps: f32, rope: f32) -> Result<Self> {
         let proj =
             |name: &str, output| Projection::load(c, &format!("{p}.{name}"), H, output, false);
@@ -373,6 +403,71 @@ impl Qsa {
                 self.stages.push(($name.into(), $value.try_clone()?));
             };
         }
+        let offset = self.offset;
+        let qk = self.append_cache(x)?;
+        let qg = self
+            .q
+            .forward(x)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, 1, 24, 512])?;
+        let gate = qg.slice(3, 256, 512)?.reshape(&[1, 6144])?;
+        stage!("q_proj", qg);
+        let query_norm = self.q_norm.forward(&qg.slice(3, 0, 256)?)?;
+        stage!("q_norm", query_norm);
+        let query = self.rope(&query_norm.transpose(&[0, 2, 1, 3])?, 64, offset)?;
+        stage!("q_rope", query);
+        let keys = self.keys.as_ref().context("missing QSA keys")?;
+        let values = self.values.as_ref().context("missing QSA values")?;
+        let count = (offset + 1) / 4;
+        let (attn_keys, attn_values) = if count > 512 {
+            let iq = self.rope(
+                &self
+                    .iq_norm
+                    .forward(&qk.slice(2, 0, 4)?)?
+                    .transpose(&[0, 2, 1, 3])?,
+                32,
+                offset,
+            )?;
+            let scores = iq.astype(Dtype::Float32)?.matmul(
+                &self
+                    .blocks
+                    .as_ref()
+                    .context("missing QSA index blocks")?
+                    .astype(Dtype::Float32)?
+                    .transpose(&[0, 1, 3, 2])?,
+            )?;
+            let reduced=array::metal_kernel(&format!("mlxl3_flash_qsa_scores_{count}"),&["scores"],&["out"],&format!("#define BLOCKS {count}\n"),
+                "uint i=thread_position_in_grid.x;if(i<BLOCKS){float value=0;for(uint h=0;h<4;h++)value+=max(scores[h*BLOCKS+i],0.0f);out[i]=value*0.08838834764831844f;}",
+                &[&scores],&[vec![count]],&[Dtype::Float32],[count,1,1],[32,1,1])?.remove(0);
+            let mut blocks = reduced.argsort()?.slice(0, count - 512, count)?.to_u32()?;
+            blocks.sort_unstable();
+            let mut tokens = Vec::with_capacity(2051);
+            for block in blocks {
+                for step in 0..4 {
+                    tokens.push(block * 4 + step);
+                }
+            }
+            tokens.extend((count * 4..offset + 1).map(|i| i as u32));
+            let selected = Array::from_u32(&tokens, &[tokens.len() as i32])?;
+            (keys.take(&selected, 2)?, values.take(&selected, 2)?)
+        } else {
+            (keys.try_clone()?, values.try_clone()?)
+        };
+        let attention = Array::sdpa(&query, &attn_keys, &attn_values, 1. / 16., false)?
+            .transpose(&[0, 2, 1, 3])?
+            .reshape(&[1, 6144])?;
+        let gated = attention.mul(&gate.sigmoid()?)?;
+        stage!("gated", gated);
+        self.out.forward(&gated)?.astype(x.dtype())
+    }
+
+    fn append_cache(&mut self, x: &Array) -> Result<Array> {
+        macro_rules! stage {
+            ($name:expr, $value:expr) => {
+                #[cfg(test)]
+                self.stages.push(($name.into(), $value.try_clone()?));
+            };
+        }
         let qk = self
             .index
             .forward(x)?
@@ -396,17 +491,6 @@ impl Qsa {
         } else {
             self.index_tail = Some(tail);
         }
-        let qg = self
-            .q
-            .forward(x)?
-            .astype(Dtype::Float16)?
-            .reshape(&[1, 1, 24, 512])?;
-        let gate = qg.slice(3, 256, 512)?.reshape(&[1, 6144])?;
-        stage!("q_proj", qg);
-        let query_norm = self.q_norm.forward(&qg.slice(3, 0, 256)?)?;
-        stage!("q_norm", query_norm);
-        let query = self.rope(&query_norm.transpose(&[0, 2, 1, 3])?, 64, self.offset)?;
-        stage!("q_rope", query);
         let raw_key = self
             .k
             .forward(x)?
@@ -426,50 +510,8 @@ impl Qsa {
         let value = value.transpose(&[0, 2, 1, 3])?;
         self.keys = Some(Self::append(&self.keys, &key, 2)?);
         self.values = Some(Self::append(&self.values, &value, 2)?);
-        let keys = self.keys.as_ref().context("missing QSA keys")?;
-        let values = self.values.as_ref().context("missing QSA values")?;
-        let count = (self.offset + 1) / 4;
-        let (attn_keys, attn_values) = if count > 512 {
-            let iq = self.rope(
-                &self
-                    .iq_norm
-                    .forward(&qk.slice(2, 0, 4)?)?
-                    .transpose(&[0, 2, 1, 3])?,
-                32,
-                self.offset,
-            )?;
-            let scores = iq.astype(Dtype::Float32)?.matmul(
-                &self
-                    .blocks
-                    .as_ref()
-                    .context("missing QSA index blocks")?
-                    .astype(Dtype::Float32)?
-                    .transpose(&[0, 1, 3, 2])?,
-            )?;
-            let reduced=array::metal_kernel(&format!("mlxl3_flash_qsa_scores_{count}"),&["scores"],&["out"],&format!("#define BLOCKS {count}\n"),
-                "uint i=thread_position_in_grid.x;if(i<BLOCKS){float value=0;for(uint h=0;h<4;h++)value+=max(scores[h*BLOCKS+i],0.0f);out[i]=value*0.08838834764831844f;}",
-                &[&scores],&[vec![count]],&[Dtype::Float32],[count,1,1],[32,1,1])?.remove(0);
-            let mut blocks = reduced.argsort()?.slice(0, count - 512, count)?.to_u32()?;
-            blocks.sort_unstable();
-            let mut tokens = Vec::with_capacity(2051);
-            for block in blocks {
-                for step in 0..4 {
-                    tokens.push(block * 4 + step);
-                }
-            }
-            tokens.extend((count * 4..self.offset + 1).map(|i| i as u32));
-            let selected = Array::from_u32(&tokens, &[tokens.len() as i32])?;
-            (keys.take(&selected, 2)?, values.take(&selected, 2)?)
-        } else {
-            (keys.try_clone()?, values.try_clone()?)
-        };
-        let attention = Array::sdpa(&query, &attn_keys, &attn_values, 1. / 16., false)?
-            .transpose(&[0, 2, 1, 3])?
-            .reshape(&[1, 6144])?;
         self.offset = self.offset.checked_add(1).context("QSA offset exhausted")?;
-        let gated = attention.mul(&gate.sigmoid()?)?;
-        stage!("gated", gated);
-        self.out.forward(&gated)?.astype(Dtype::Float32)
+        Ok(qk)
     }
     fn reset(&mut self) {
         self.keys = None;
@@ -712,7 +754,21 @@ enum Attention {
     Gdn(Box<Gdn>),
     Qsa(Box<Qsa>),
 }
+
+enum AttentionState {
+    Gdn {
+        history: Option<Array>,
+        state: Option<Array>,
+    },
+    Qsa(QsaState),
+}
+struct LayerState {
+    attention: AttentionState,
+    ple: Option<(Option<Array>, [u32; 2])>,
+}
 pub(crate) struct Layer {
+    #[cfg(test)]
+    stages: Vec<(String, Array)>,
     attn_hc: Hc,
     mlp_hc: Hc,
     attention: Attention,
@@ -732,6 +788,8 @@ impl Layer {
         overlap: bool,
     ) -> Result<Self> {
         Ok(Self {
+            #[cfg(test)]
+            stages: Vec::new(),
             attn_hc: Hc::load(c, &format!("{p}.attn_hyper_connection"), eps, true)?,
             mlp_hc: Hc::load(c, &format!("{p}.mlp_hyper_connection"), eps, true)?,
             attention: if linear {
@@ -751,11 +809,28 @@ impl Layer {
         })
     }
     fn forward(&mut self, streams: &Array, token: u32) -> Result<Array> {
+        let (streams, mixed, gate) = self.prepare(streams, token)?;
+        let output = self.moe.forward(&mixed)?;
+        #[cfg(test)]
+        self.stages.push(("moe".into(), output.try_clone()?));
+        Hc::write(&streams, &output, &gate)
+    }
+    fn prepare(&mut self, streams: &Array, token: u32) -> Result<(Array, Array, Array)> {
+        #[cfg(test)]
+        self.stages.clear();
         let streams = match &mut self.ple {
             Some(ple) => ple.forward(streams, token)?,
             None => streams.try_clone()?,
         };
         let (mixed, gate) = self.attn_hc.read(&streams)?;
+        #[cfg(test)]
+        {
+            self.stages.push(("attn_mixed".into(), mixed.try_clone()?));
+            self.stages.push((
+                "attn_gate".into(),
+                gate.as_ref().context("missing gate")?.try_clone()?,
+            ));
+        }
         let branch = match &mut self.attention {
             Attention::Gdn(gdn) => gdn.forward(&mixed)?,
             Attention::Qsa(qsa) => qsa.forward(&mixed)?,
@@ -765,12 +840,69 @@ impl Layer {
             &branch,
             &gate.context("missing attention injection")?,
         )?;
+        #[cfg(test)]
+        self.stages.push(("attention".into(), branch.try_clone()?));
         let (mixed, gate) = self.mlp_hc.read(&streams)?;
-        Hc::write(
-            &streams,
-            &self.moe.forward(&mixed)?,
-            &gate.context("missing MoE injection")?,
-        )
+        #[cfg(test)]
+        {
+            self.stages.push(("mlp_mixed".into(), mixed.try_clone()?));
+            self.stages.push((
+                "mlp_gate".into(),
+                gate.as_ref().context("missing gate")?.try_clone()?,
+            ));
+        }
+        Ok((streams, mixed, gate.context("missing MoE injection")?))
+    }
+    fn snapshot(&self) -> Result<LayerState> {
+        Ok(LayerState {
+            attention: match &self.attention {
+                Attention::Gdn(g) => AttentionState::Gdn {
+                    history: clone_array(&g.history)?,
+                    state: clone_array(&g.state)?,
+                },
+                Attention::Qsa(q) => AttentionState::Qsa(q.snapshot()?),
+            },
+            ple: self
+                .ple
+                .as_ref()
+                .map(|p| -> Result<_> { Ok((clone_array(&p.history)?, p.rows.previous)) })
+                .transpose()?,
+        })
+    }
+    fn restore(&mut self, state: LayerState) -> Result<()> {
+        match (&mut self.attention, state.attention) {
+            (Attention::Gdn(g), AttentionState::Gdn { history, state }) => {
+                g.history = history;
+                g.state = state;
+            }
+            (Attention::Qsa(q), AttentionState::Qsa(state)) => q.restore(state),
+            _ => anyhow::bail!("invalid Flash attention snapshot"),
+        }
+        if let Some((history, previous)) = state.ple {
+            let ple = self.ple.as_mut().context("invalid Flash PLE snapshot")?;
+            ple.history = history;
+            ple.rows.previous = previous;
+        }
+        Ok(())
+    }
+    fn forward_pair(
+        &mut self,
+        streams: &[Array; 2],
+        tokens: [u32; 2],
+    ) -> Result<([Array; 2], LayerState)> {
+        let a = self.prepare(&streams[0], tokens[0])?;
+        let first = self.snapshot()?;
+        let b = self.prepare(&streams[1], tokens[1])?;
+        let output = self
+            .moe
+            .forward_many(&Array::concatenate(&[&a.1, &b.1], 0)?)?;
+        Ok((
+            [
+                Hc::write(&a.0, &output.slice(0, 0, 1)?, &a.2)?,
+                Hc::write(&b.0, &output.slice(0, 1, 2)?, &b.2)?,
+            ],
+            first,
+        ))
     }
     fn reset(&mut self) {
         match &mut self.attention {
@@ -784,6 +916,7 @@ impl Layer {
 }
 
 pub struct FlashNext {
+    path: PathBuf,
     embed: TensorInfo,
     layers: Vec<Layer>,
     mixer: Hc,
@@ -791,6 +924,12 @@ pub struct FlashNext {
     offset: i32,
     context: i32,
     pub last_hidden: Option<Array>,
+    verification: Option<PairState>,
+}
+struct PairState {
+    base: i32,
+    layers: Vec<LayerState>,
+    hidden: Array,
 }
 impl FlashNext {
     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
@@ -919,6 +1058,7 @@ impl FlashNext {
         let mixer = Hc::load(c, "model.language_model.hyper_connection_mixer", eps, false)?;
         let head = Projection::load(c, "lm_head", H, 248320, false)?;
         Ok(Self {
+            path: c.path.clone(),
             embed,
             layers,
             mixer,
@@ -926,6 +1066,7 @@ impl FlashNext {
             offset: 0,
             context,
             last_hidden: None,
+            verification: None,
         })
     }
     pub fn embedding(&self, token: u32) -> Result<Array> {
@@ -946,14 +1087,13 @@ impl FlashNext {
         token: u32,
         capture: bool,
     ) -> Result<(Array, Vec<(String, Array)>)> {
+        ensure!(
+            self.verification.is_none(),
+            "uncommitted Flash verification"
+        );
         ensure!(self.offset < self.context, "Flash context exhausted");
         let mut trace = Vec::new();
-        let mut streams = self
-            .embedding(token)?
-            .astype(Dtype::Float32)?
-            .reshape(&[1, 1, H])?
-            .broadcast_to(&[1, HC, H])?
-            .reshape(&[1, WIDTH])?;
+        let mut streams = self.streams(token)?;
         for (i, layer) in self.layers.iter_mut().enumerate() {
             streams = layer.forward(&streams, token)?;
             if capture {
@@ -965,9 +1105,26 @@ impl FlashNext {
                 }
             }
         }
-        let (mixed, _) = self.mixer.read(&streams)?;
+        let logits = self.logits(&streams)?;
+        self.drain()?;
+        self.last_hidden = Some(streams);
+        self.offset += 1;
+        Ok((logits, trace))
+    }
+    fn streams(&self, token: u32) -> Result<Array> {
+        self.embedding(token)?
+            .astype(Dtype::Float32)?
+            .reshape(&[1, 1, H])?
+            .broadcast_to(&[1, HC, H])?
+            .reshape(&[1, WIDTH])
+    }
+    fn logits(&self, streams: &Array) -> Result<Array> {
+        let (mixed, _) = self.mixer.read(streams)?;
         let logits = self.head.forward(&mixed.astype(Dtype::Float16)?)?;
         logits.eval()?;
+        Ok(logits)
+    }
+    fn drain(&mut self) -> Result<()> {
         for layer in &mut self.layers {
             layer.moe.drain()?;
             match &layer.attention {
@@ -983,9 +1140,62 @@ impl FlashNext {
                 }
             }
         }
-        self.last_hidden = Some(streams);
-        self.offset += 1;
-        Ok((logits, trace))
+        Ok(())
+    }
+    pub fn verify_pair(&mut self, tokens: [u32; 2]) -> Result<(Array, Array)> {
+        ensure!(
+            self.verification.is_none(),
+            "uncommitted Flash verification"
+        );
+        ensure!(
+            self.context - self.offset >= 2 && tokens.iter().all(|&t| t < 248320),
+            "invalid Flash verification tokens or context"
+        );
+        let base = self.offset;
+        let mut streams = [self.streams(tokens[0])?, self.streams(tokens[1])?];
+        let mut states = Vec::with_capacity(self.layers.len());
+        for layer in &mut self.layers {
+            let (output, first) = layer.forward_pair(&streams, tokens)?;
+            streams = output;
+            states.push(first);
+        }
+        let logits =
+            Array::concatenate(&[&self.logits(&streams[0])?, &self.logits(&streams[1])?], 0)?;
+        let hidden = Array::concatenate(&[&streams[0], &streams[1]], 0)?;
+        self.drain()?;
+        self.verification = Some(PairState {
+            base,
+            layers: states,
+            hidden: streams[0].try_clone()?,
+        });
+        self.last_hidden = Some(streams[1].try_clone()?);
+        self.offset += 2;
+        Ok((logits, hidden))
+    }
+    pub fn commit_pair(&mut self, retained: i32) -> Result<()> {
+        ensure!(
+            crate::contracts::gdn_tape_prefix(2, retained).is_some(),
+            "invalid Flash verification commit"
+        );
+        let state = self
+            .verification
+            .as_ref()
+            .context("no Flash verification to commit")?;
+        let committed = flash_support::pair_commit_offset(state.base, self.offset, retained)
+            .context("stale Flash verification")?;
+        ensure!(
+            state.layers.len() == self.layers.len(),
+            "invalid Flash layer snapshot"
+        );
+        let state = self.verification.take().expect("validated verification");
+        if retained == 1 {
+            for (layer, saved) in self.layers.iter_mut().zip(state.layers) {
+                layer.restore(saved)?;
+            }
+            self.last_hidden = Some(state.hidden);
+        }
+        self.offset = committed;
+        Ok(())
     }
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(
@@ -1006,6 +1216,7 @@ impl FlashNext {
         }
         self.offset = 0;
         self.last_hidden = None;
+        self.verification = None;
     }
     pub fn context_limit(&self) -> i32 {
         self.context
@@ -1020,10 +1231,597 @@ impl FlashNext {
     }
 }
 
+pub struct FlashMtpHead {
+    #[cfg(test)]
+    stages: Vec<(String, Array)>,
+    embedding_norm: Norm,
+    hidden_norm: Norm,
+    embedding_fc: Projection,
+    hidden_fc: Projection,
+    layer: Layer,
+    mixer: Hc,
+}
+impl FlashMtpHead {
+    pub fn load(c: &Checkpoint, target: &FlashNext) -> Result<Self> {
+        ensure!(
+            c.path == target.path && c.model_type == "qwen4_exp",
+            "Flash MTP requires the target checkpoint"
+        );
+        let config: Value = serde_json::from_reader(File::open(c.path.join("config.json"))?)?;
+        ensure!(
+            config["text_config"]["mtp_num_hidden_layers"] == 1,
+            "Flash MTP requires one native draft layer"
+        );
+        let eps = target.mixer.norm.eps;
+        let rope = config["text_config"]["rope_parameters"]["rope_theta"]
+            .as_f64()
+            .context("missing MTP RoPE")? as f32;
+        let mut layer = Layer::load(c, "mtp.layers.0", false, false, eps, rope, 512, true)?;
+        layer.moe.warm_all()?;
+        Ok(Self {
+            #[cfg(test)]
+            stages: Vec::new(),
+            embedding_norm: Norm::load(c, "mtp.pre_fc_norm_embedding.weight", H, 1, eps, true)?,
+            hidden_norm: Norm::load(c, "mtp.pre_fc_norm_hidden.weight", WIDTH, 1, eps, true)?,
+            embedding_fc: Projection::load(c, "mtp.fc_embedding", H, H, false)?,
+            hidden_fc: Projection::load(c, "mtp.fc_hidden", H, H, false)?,
+            layer,
+            mixer: Hc::load(c, "mtp.hyper_connection_mixer", eps, false)?,
+        })
+    }
+    fn mixed(&self, target: &FlashNext, hidden: &Array, token: u32) -> Result<Array> {
+        ensure!(
+            hidden.shape() == [1, WIDTH],
+            "invalid Flash MTP hidden shape"
+        );
+        let embedding = target.embedding(token)?.reshape(&[1, 1, H])?;
+        let embedding = self
+            .embedding_fc
+            .forward(&self.embedding_norm.forward(&embedding)?)?;
+        let streams = self
+            .hidden_norm
+            .forward(&hidden.reshape(&[1, 1, WIDTH])?)?
+            .reshape(&[1, 1, HC, H])?;
+        let projected = self.hidden_fc.forward(&streams)?.astype(Dtype::Float16)?;
+        embedding
+            .reshape(&[1, 1, 1, H])?
+            .add(&projected)?
+            .reshape(&[1, WIDTH])
+    }
+    pub fn forward(&mut self, target: &FlashNext, hidden: &Array, token: u32) -> Result<Array> {
+        let streams = self.mixed(target, hidden, token)?;
+        let output = self.layer.forward(&streams, token)?;
+        let (mixed, _) = self.mixer.read(&output)?;
+        #[cfg(test)]
+        {
+            self.stages = vec![("mixed".into(), streams.try_clone()?)];
+            self.stages.extend(
+                self.layer
+                    .stages
+                    .iter()
+                    .map(|(name, value)| Ok((name.clone(), value.try_clone()?)))
+                    .collect::<Result<Vec<_>>>()?,
+            );
+            self.stages.push(("layer".into(), output.try_clone()?));
+            self.stages.push(("output".into(), mixed.try_clone()?));
+        }
+        let logits = target.head.forward(&mixed.astype(Dtype::Float16)?)?;
+        logits.eval()?;
+        self.layer.moe.drain()?;
+        self.eval_cache()?;
+        Ok(logits)
+    }
+    pub fn extend_cache(&mut self, target: &FlashNext, hidden: &Array, token: u32) -> Result<()> {
+        let streams = self.mixed(target, hidden, token)?;
+        let (input, _) = self.layer.attn_hc.read(&streams)?;
+        let Attention::Qsa(qsa) = &mut self.layer.attention else {
+            anyhow::bail!("invalid MTP attention");
+        };
+        qsa.append_cache(&input)?;
+        self.eval_cache()
+    }
+    fn eval_cache(&self) -> Result<()> {
+        let Attention::Qsa(qsa) = &self.layer.attention else {
+            anyhow::bail!("invalid MTP attention");
+        };
+        for array in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks]
+            .into_iter()
+            .flatten()
+        {
+            array.eval()?;
+        }
+        Ok(())
+    }
+    pub fn reset(&mut self) {
+        self.layer.reset();
+    }
+    pub fn offset(&self) -> i32 {
+        match &self.layer.attention {
+            Attention::Qsa(q) => q.offset,
+            Attention::Gdn(_) => 0,
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct FlashMtpSession {
+    pending: VecDeque<u32>,
+    pub proposed: usize,
+    pub accepted: usize,
+    pub blocks: usize,
+}
+impl FlashMtpSession {
+    pub fn advance(
+        &mut self,
+        target: &mut FlashNext,
+        head: &mut FlashMtpHead,
+        anchor: u32,
+        context_limit: usize,
+        output_remaining: usize,
+    ) -> Result<u32> {
+        ensure!(
+            output_remaining > 0 && anchor < 248320,
+            "invalid Flash MTP budget or token"
+        );
+        if let Some(token) = self.pending.pop_front() {
+            return Ok(token);
+        }
+        let remaining = context_limit
+            .checked_sub(usize::try_from(target.offset())?)
+            .context("Flash MTP context exhausted")?;
+        let width = crate::speculative::mtp_width(1, remaining, output_remaining)
+            .context("Flash MTP context or output exhausted")?;
+        let result = self.step(target, head, anchor, width);
+        if result.is_err() {
+            self.pending.clear();
+            target.reset();
+            head.reset();
+        }
+        result
+    }
+    fn step(
+        &mut self,
+        target: &mut FlashNext,
+        head: &mut FlashMtpHead,
+        anchor: u32,
+        width: usize,
+    ) -> Result<u32> {
+        ensure!(
+            target.offset() > 0 && head.offset() == target.offset() - 1,
+            "Flash MTP cache is not aligned with target"
+        );
+        let hidden = target
+            .last_hidden
+            .as_ref()
+            .context("Flash MTP needs a prefilled target")?
+            .try_clone()?;
+        if width == 0 {
+            head.extend_cache(target, &hidden, anchor)?;
+            return target
+                .forward(anchor)?
+                .chat_greedy_ids()?
+                .first()
+                .copied()
+                .context("missing Flash fallback token");
+        }
+        let proposal = head
+            .forward(target, &hidden, anchor)?
+            .chat_greedy_ids()?
+            .first()
+            .copied()
+            .context("missing Flash MTP proposal")?;
+        let (logits, hidden) = target.verify_pair([anchor, proposal])?;
+        let tokens = logits.chat_greedy_ids()?;
+        let acceptance = crate::speculative::greedy_accept(&[proposal], &tokens)
+            .context("invalid Flash MTP verification")?;
+        let accepted = acceptance.accepted_draft_tokens;
+        target.commit_pair(1 + accepted as i32)?;
+        if accepted > 0 {
+            head.extend_cache(target, &hidden.slice(0, 0, 1)?, proposal)?;
+        }
+        if accepted > 0 {
+            self.pending.push_back(proposal);
+        }
+        self.pending.push_back(acceptance.target_token);
+        self.proposed += 1;
+        self.accepted += accepted;
+        self.blocks += 1;
+        self.pending
+            .pop_front()
+            .context("missing Flash MTP target token")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::Path;
+    fn state_bytes(model: &FlashNext) -> Result<Vec<Vec<u8>>> {
+        fn tensor(value: &Option<Array>) -> Result<Vec<u8>> {
+            let Some(value) = value else {
+                return Ok(vec![0]);
+            };
+            let data = value.to_bytes()?;
+            ensure!(!data.is_empty(), "empty semantic state");
+            ensure!(
+                value
+                    .astype(Dtype::Float32)?
+                    .to_f32()?
+                    .iter()
+                    .all(|v| v.is_finite()),
+                "nonfinite semantic state"
+            );
+            let mut bytes = vec![1];
+            for dim in value.shape() {
+                bytes.extend(dim.to_le_bytes());
+            }
+            bytes.extend(data);
+            Ok(bytes)
+        }
+        let mut result = vec![
+            model.offset.to_le_bytes().to_vec(),
+            tensor(&model.last_hidden)?,
+        ];
+        for layer in &model.layers {
+            match &layer.attention {
+                Attention::Gdn(g) => {
+                    result.push(tensor(&g.history)?);
+                    result.push(tensor(&g.state)?);
+                }
+                Attention::Qsa(q) => result.extend(qsa_bytes(q)?),
+            }
+            if let Some(p) = &layer.ple {
+                result.push(tensor(&p.history)?);
+                result.push(
+                    p.rows
+                        .previous
+                        .into_iter()
+                        .flat_map(u32::to_le_bytes)
+                        .collect(),
+                );
+            }
+        }
+        Ok(result)
+    }
+    fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
+        let mut bytes = vec![qsa.offset.to_le_bytes().to_vec()];
+        for value in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks] {
+            let mut item = vec![u8::from(value.is_some())];
+            if let Some(value) = value {
+                ensure!(
+                    value
+                        .astype(Dtype::Float32)?
+                        .to_f32()?
+                        .iter()
+                        .all(|v| v.is_finite()),
+                    "nonfinite QSA state"
+                );
+                for dim in value.shape() {
+                    item.extend(dim.to_le_bytes());
+                }
+                item.extend(value.to_bytes()?);
+            }
+            bytes.push(item);
+        }
+        Ok(bytes)
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and full Flash checkpoint; greedy session and cache boundaries"]
+    fn flash_mtp_session_preserves_greedy_sequence_target_and_head_states() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut target = FlashNext::from_checkpoint(&c)?;
+        let mut head = FlashMtpHead::load(&c, &target)?;
+        fn prefill(target: &mut FlashNext, head: &mut FlashMtpHead) -> Result<u32> {
+            target.reset();
+            head.reset();
+            let mut logits = None;
+            for token in [EOS, 78768, 11] {
+                if let Some(hidden) = &target.last_hidden {
+                    head.extend_cache(target, hidden, token)?;
+                }
+                logits = Some(target.forward(token)?);
+            }
+            Ok(logits.context("empty fixture")?.chat_greedy_ids()?[0])
+        }
+        fn head_bytes(head: &FlashMtpHead) -> Result<Vec<Vec<u8>>> {
+            let Attention::Qsa(q) = &head.layer.attention else {
+                anyhow::bail!("invalid head")
+            };
+            qsa_bytes(q)
+        }
+        let (mut proposed, mut accepted) = (0, 0);
+        for budget in [1, 2, 3, 17] {
+            let mut anchor = prefill(&mut target, &mut head)?;
+            let mut golden = Vec::new();
+            for _ in 0..budget {
+                head.extend_cache(
+                    &target,
+                    target.last_hidden.as_ref().context("missing hidden")?,
+                    anchor,
+                )?;
+                anchor = target.forward(anchor)?.chat_greedy_ids()?[0];
+                golden.push(anchor);
+            }
+            let target_expected = state_bytes(&target)?;
+            let head_expected = head_bytes(&head)?;
+            let mut anchor = prefill(&mut target, &mut head)?;
+            let mut session = FlashMtpSession::default();
+            let before = (state_bytes(&target)?, head_bytes(&head)?);
+            ensure!(
+                session
+                    .advance(&mut target, &mut head, anchor, 3 + budget, 0)
+                    .is_err(),
+                "empty output budget accepted"
+            );
+            ensure!(
+                session
+                    .advance(&mut target, &mut head, 248320, 3 + budget, budget)
+                    .is_err(),
+                "invalid anchor accepted"
+            );
+            ensure!(
+                before == (state_bytes(&target)?, head_bytes(&head)?),
+                "invalid request changed state"
+            );
+            for (index, &expected) in golden.iter().enumerate() {
+                anchor =
+                    session.advance(&mut target, &mut head, anchor, 3 + budget, budget - index)?;
+                ensure!(
+                    anchor == expected,
+                    "MTP token differs at budget={budget}, step={index}"
+                );
+                ensure!(
+                    head.offset() == target.offset() - 1,
+                    "cache alignment differs"
+                );
+                ensure!(target.offset() <= (3 + budget) as i32, "context exceeded");
+            }
+            ensure!(
+                session.pending.is_empty(),
+                "finished budget left output pending"
+            );
+            ensure!(
+                target_expected == state_bytes(&target)?,
+                "session target state differs, budget={budget}"
+            );
+            ensure!(
+                head_expected == head_bytes(&head)?,
+                "session head state differs, budget={budget}"
+            );
+            println!(
+                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}",
+                session.proposed, session.accepted, session.blocks
+            );
+            proposed += session.proposed;
+            accepted += session.accepted;
+        }
+        ensure!(
+            accepted > 0 && proposed > accepted,
+            "fixture did not cover acceptance and rejection"
+        );
+        let anchor = prefill(&mut target, &mut head)?;
+        head.reset();
+        ensure!(
+            FlashMtpSession::default()
+                .advance(&mut target, &mut head, anchor, 64, 4)
+                .is_err(),
+            "misaligned cache accepted"
+        );
+        ensure!(
+            target.offset() == 0 && head.offset() == 0 && target.last_hidden.is_none(),
+            "failed session did not reset target/head"
+        );
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and full Flash checkpoint; exact two-token transactions"]
+    fn flash_pair_verification_preserves_serial_logits_and_all_states() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut model = FlashNext::from_checkpoint(&c)?;
+        let tokens = [EOS, 1, 42, EOS, 7, 248319, 11];
+        for prefix in 0..=4 {
+            model.reset();
+            for &token in &tokens[..prefix] {
+                model.forward(token)?;
+            }
+            let first = model.forward(tokens[prefix])?.to_bytes()?;
+            let first_state = state_bytes(&model)?;
+            let second = model.forward(tokens[prefix + 1])?.to_bytes()?;
+            let second_state = state_bytes(&model)?;
+            let next = model.forward(tokens[prefix + 2])?.to_bytes()?;
+            let next_state = state_bytes(&model)?;
+            for retained in [1, 2] {
+                model.reset();
+                for &token in &tokens[..prefix] {
+                    model.forward(token)?;
+                }
+                let before = state_bytes(&model)?;
+                ensure!(
+                    model.verify_pair([248320, 7]).is_err(),
+                    "invalid verify token accepted"
+                );
+                ensure!(
+                    before == state_bytes(&model)?,
+                    "invalid verification changed state"
+                );
+                let (logits, hidden) = model.verify_pair([tokens[prefix], tokens[prefix + 1]])?;
+                ensure!(
+                    logits.shape() == [2, 248320] && hidden.shape() == [2, WIDTH],
+                    "invalid verification shapes"
+                );
+                ensure!(
+                    logits.slice(0, 0, 1)?.to_bytes()? == first
+                        && logits.slice(0, 1, 2)?.to_bytes()? == second,
+                    "paired logits differ at prefix {prefix}"
+                );
+                ensure!(
+                    model.commit_pair(0).is_err() && model.commit_pair(3).is_err(),
+                    "invalid commit accepted"
+                );
+                ensure!(
+                    model.forward(7).is_err() && model.verify_pair([1, 2]).is_err(),
+                    "pending transaction bypassed"
+                );
+                model.commit_pair(retained)?;
+                ensure!(
+                    state_bytes(&model)?
+                        == if retained == 1 {
+                            &first_state
+                        } else {
+                            &second_state
+                        }
+                        .clone(),
+                    "retained states differ, prefix={prefix}, retained={retained}"
+                );
+                ensure!(
+                    model.commit_pair(retained).is_err(),
+                    "duplicate commit accepted"
+                );
+                let token = tokens[prefix + retained as usize];
+                let output = model.forward(token)?.to_bytes()?;
+                ensure!(
+                    output == if retained == 1 { &second } else { &next }.clone(),
+                    "next token differs after commit"
+                );
+                ensure!(
+                    state_bytes(&model)?
+                        == if retained == 1 {
+                            &second_state
+                        } else {
+                            &next_state
+                        }
+                        .clone(),
+                    "next states differ after commit"
+                );
+                let context = model.context;
+                model.context = model.offset + 1;
+                let before = state_bytes(&model)?;
+                ensure!(
+                    model.verify_pair([1, 2]).is_err(),
+                    "context overflow accepted"
+                );
+                ensure!(
+                    before == state_bytes(&model)?,
+                    "context rejection changed state"
+                );
+                model.context = context;
+            }
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and independent Flash MTP fixture"]
+    fn flash_mtp_head_matches_reference_and_cache_only() -> Result<()> {
+        let path = std::env::var("MLXL3_FLASH_MTP_REFERENCE")?;
+        let root = Path::new(&path);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(
+            data["status"] == "complete" && data["mode"] == "eval",
+            "invalid MTP oracle"
+        );
+        let steps = data["mtp_steps"].as_array().context("missing MTP steps")?;
+        ensure!(
+            (4..=31).contains(&steps.len()),
+            "insufficient MTP oracle coverage"
+        );
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let target = FlashNext::from_checkpoint(&c)?;
+        let mut head = FlashMtpHead::load(&c, &target)?;
+        for rows in [1, 2, 5] {
+            ensure!(
+                head.hidden_fc.forward(&Array::zeros(&[rows, H])?).is_err(),
+                "invalid MTP FC stream count accepted"
+            );
+        }
+        for (index, case) in steps.iter().enumerate() {
+            let hidden = input(root, &case["input"], WIDTH)?;
+            let token = u32::try_from(case["token"].as_u64().context("missing MTP token")?)?;
+            let Attention::Qsa(q) = &head.layer.attention else {
+                unreachable!()
+            };
+            let before = q.snapshot()?;
+            let logits = head.forward(&target, &hidden, token)?;
+            for (name, array) in head
+                .stages
+                .iter()
+                .chain(std::iter::once(&("logits".into(), logits.try_clone()?)))
+            {
+                check(
+                    root,
+                    &case[name],
+                    array,
+                    &format!("MTP/{index}/{name}"),
+                    0.01,
+                )?;
+                ensure!(
+                    array.astype(Dtype::Float32)?.to_bytes()?
+                        == input(root, &case[name], array.shape().iter().product())?.to_bytes()?,
+                    "MTP {name} differs at step {index}"
+                );
+            }
+            ensure!(
+                logits.chat_greedy_ids()?
+                    == [case["argmax"].as_u64().context("missing MTP argmax")? as u32],
+                "MTP argmax differs"
+            );
+            let Attention::Qsa(q) = &head.layer.attention else {
+                unreachable!()
+            };
+            for (name, array) in [
+                ("keys", &q.keys),
+                ("values", &q.values),
+                ("index_tail", &q.index_tail),
+            ] {
+                if let Some(array) = array {
+                    check(
+                        root,
+                        &case[name],
+                        array,
+                        &format!("MTP/{index}/{name}"),
+                        0.003,
+                    )?;
+                    ensure!(
+                        array.astype(Dtype::Float32)?.to_bytes()?
+                            == input(root, &case[name], array.shape().iter().product())?
+                                .to_bytes()?,
+                        "MTP cache {name} differs"
+                    );
+                } else {
+                    ensure!(case[name].is_null(), "MTP cache missing");
+                }
+            }
+            let expected = qsa_bytes(q)?;
+            let Attention::Qsa(q) = &mut head.layer.attention else {
+                unreachable!()
+            };
+            q.restore(before);
+            head.extend_cache(&target, &hidden, token)?;
+            let Attention::Qsa(q) = &head.layer.attention else {
+                unreachable!()
+            };
+            ensure!(
+                expected == qsa_bytes(q)?,
+                "cache-only differs from full head at {index}"
+            );
+            let before = qsa_bytes(q)?;
+            ensure!(
+                head.extend_cache(&target, &hidden, 248320).is_err(),
+                "invalid MTP token accepted"
+            );
+            ensure!(
+                head.extend_cache(&target, &Array::zeros(&[1, H])?, token)
+                    .is_err(),
+                "invalid MTP hidden accepted"
+            );
+            let Attention::Qsa(q) = &head.layer.attention else {
+                unreachable!()
+            };
+            ensure!(before == qsa_bytes(q)?, "rejected MTP input changed cache");
+        }
+        head.reset();
+        ensure!(head.offset() == 0, "MTP reset offset wrong");
+        Ok(())
+    }
     fn input(root: &Path, entry: &Value, width: i32) -> Result<Array> {
         let bytes =
             std::fs::read(root.join(entry["file"].as_str().context("missing reference input")?))?;

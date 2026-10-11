@@ -2,15 +2,36 @@
 
 import argparse
 import json
+import math
 import queue
 import signal
 import subprocess
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 
-def run(engine, model, head, budgets, prompt, context=4096, check_cancel=True, check_prefix=False):
+def run(
+    engine,
+    model,
+    head,
+    budgets,
+    prompt,
+    context=4096,
+    check_cancel=True,
+    check_prefix=False,
+    timeout=300.0,
+):
+    if (
+        not budgets
+        or any(type(b) is not int or b <= 0 for b in budgets)
+        or not prompt
+        or context <= 0
+        or not math.isfinite(timeout)
+        or timeout <= 0
+    ):
+        raise ValueError("positive budgets/context/deadline and nonempty prompt required")
     with tempfile.TemporaryDirectory(prefix="mlxl3-mtp-check-") as directory:
         registry = str(Path(directory) / "models.json")
         process = subprocess.Popen(
@@ -25,17 +46,29 @@ def run(engine, model, head, budgets, prompt, context=4096, check_cancel=True, c
             try:
                 for line in process.stdout:
                     events.put(json.loads(line))
+            except (ValueError, OSError) as error:
+                events.put({"type": "error", "message": str(error)})
             finally:
                 events.put({"type": "error", "message": "bridge exited"})
 
-        threading.Thread(target=read, daemon=True).start()
+        reader = threading.Thread(target=read, daemon=True)
+        reader.start()
 
         def until(kind, request_id=None, cancel_at=None, expect_error=False):
             mode = None
             sent = False
             text = ""
+            deadline = time.monotonic() + timeout
             while True:
-                event = events.get(timeout=60)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(f"bridge deadline: {kind}")
+                try:
+                    event = events.get(timeout=remaining)
+                except queue.Empty as error:
+                    raise TimeoutError(f"bridge deadline: {kind}") from error
+                if not isinstance(event, dict) or "type" not in event:
+                    raise ValueError("invalid bridge event")
                 if event["type"] == "error":
                     if request_id and event.get("request_id") not in (None, request_id):
                         continue
@@ -88,9 +121,22 @@ def run(engine, model, head, budgets, prompt, context=4096, check_cancel=True, c
             )
             if mode is None or mode.get("mtp_active") is not expected:
                 raise RuntimeError(f"engine mode mismatch: {mode}")
+            if not cancel_at:
+                stats = result.get("stats", {})
+                generated = stats.get("generated_tokens")
+                if type(generated) is not int or not 1 <= generated <= budget:
+                    raise ValueError("invalid generation count")
+                if (
+                    not isinstance(result.get("token_hash"), str)
+                    or not result["token_hash"]
+                    or not text
+                    or not result.get("cache_context")
+                ):
+                    raise ValueError("missing tokens, text or context")
             return result, text
 
         try:
+            print(json.dumps({"status": "in_progress"}), flush=True)
             ready, _, _ = until("ready")
             print(
                 json.dumps({"runtime": ready, "head": head, "prompt": prompt, "context": context}),
@@ -170,11 +216,15 @@ def run(engine, model, head, budgets, prompt, context=4096, check_cancel=True, c
                         flush=True,
                     )
             if check_cancel:
-                for invalid in (
+                invalid_requests = [
                     {"mtp_head_path": ""},
                     {"mtp_head_path": "/missing-head"},
                     {"dflash2": True},
-                ):
+                    {"mtp_depth": 0},
+                ]
+                if ready.get("mtp_max_depth") == 1:
+                    invalid_requests.append({"mtp_depth": 2})
+                for invalid in invalid_requests:
                     result, _ = generate(True, 8, expect_error=True, **invalid)
                     if result["type"] != "error":
                         raise RuntimeError("invalid MTP request was accepted")
@@ -198,6 +248,18 @@ def run(engine, model, head, budgets, prompt, context=4096, check_cancel=True, c
             process.stdin.flush()
             if process.wait(timeout=10) != 0:
                 raise RuntimeError("bridge shutdown failed")
+            print(
+                json.dumps(
+                    {"status": "validated", "budgets": budgets, "cancel_checked": check_cancel}
+                ),
+                flush=True,
+            )
+        except BaseException as error:
+            print(
+                json.dumps({"status": "failed", "error": f"{type(error).__name__}: {error}"}),
+                flush=True,
+            )
+            raise
         finally:
             if process.poll() is None:
                 process.terminate()
@@ -206,6 +268,9 @@ def run(engine, model, head, budgets, prompt, context=4096, check_cancel=True, c
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+            reader.join(timeout=5)
+            process.stdin.close()
+            process.stdout.close()
 
 
 if __name__ == "__main__":

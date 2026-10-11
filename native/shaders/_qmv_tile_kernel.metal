@@ -4,6 +4,9 @@
 #ifndef MLXL3_REFERENCE_ACCUMULATION
 #define MLXL3_REFERENCE_ACCUMULATION 0
 #endif
+#ifndef MLXL3_REFERENCE_MTP_BATCH
+#define MLXL3_REFERENCE_MTP_BATCH 0
+#endif
 
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
@@ -156,9 +159,14 @@
 #if MLXL3_REFERENCE_ACCUMULATION
                 // Row-then-group order preserves Flash's expert decisions.
                 for (uint r = 0u; r < 16u; ++r) {
+#if MLXL3_REFERENCE_MTP_BATCH
+                    sum += reference_partials[batch_row][output_tile][0][r * 16u + column]
+                         + reference_partials[batch_row][output_tile][1][r * 16u + column];
+#else
                     for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                         sum += reference_partials[batch_row][output_tile][group][r * 16u + column];
                     }
+#endif
                 }
 #else
                 for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {

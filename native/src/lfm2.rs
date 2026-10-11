@@ -118,7 +118,9 @@ impl Projection {
         output: i32,
         bias: bool,
     ) -> Result<Self> {
-        let is_exl3 = checkpoint.modules.iter().any(|name| name == prefix);
+        let is_exl3 = checkpoint
+            .tensors
+            .contains_key(&format!("{prefix}.trellis"));
         if bias {
             ensure!(
                 checkpoint.tensors.contains_key(&format!("{prefix}.bias")),

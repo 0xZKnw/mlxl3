@@ -40,15 +40,33 @@ def validate(event: dict, mode: dict | None, mtp: bool, budget: int) -> None:
             raise ValueError(f"invalid timing {key}: {value}")
     if not math.isclose(stats["decode_tps"], (budget - 1) / stats["decode_seconds"], rel_tol=1e-5):
         raise ValueError("inconsistent decode timing")
+    if mtp:
+        counters = [
+            stats.get(key) for key in ("mtp_proposed_tokens", "mtp_accepted_tokens", "mtp_blocks")
+        ]
+        if any(type(value) is not int or value < 0 for value in counters):
+            raise ValueError("invalid MTP counters")
+        proposed, accepted, blocks = counters
+        if accepted > proposed or proposed != blocks or proposed + accepted > budget - 1:
+            raise ValueError("inconsistent depth-one MTP counters")
 
 
-def run(engine: Path, model: Path, output: Path, mtp=False, tokens=64, repeats=3, timeout=300.0):
+def run(
+    engine: Path,
+    model: Path,
+    output: Path,
+    mtp=False,
+    tokens=64,
+    repeats=3,
+    timeout=300.0,
+    compare=False,
+):
     if tokens < 2 or repeats < 1 or not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("tokens >= 2, repeats >= 1 and finite timeout > 0 required")
     output.mkdir(parents=True, exist_ok=True)
     report = {
         "status": "incomplete",
-        "mode": "mtp" if mtp else "baseline",
+        "mode": "comparison" if compare else "mtp" if mtp else "baseline",
         "engine": str(engine.resolve()),
         "binary_sha256": hashlib.sha256(engine.read_bytes()).hexdigest(),
         "model": str(model.resolve()),
@@ -122,8 +140,16 @@ def run(engine: Path, model: Path, output: Path, mtp=False, tokens=64, repeats=3
         try:
             report["runtime"], _ = until("ready")
             for repeat in range(repeats + 1):
-                for label, prompt in PROMPTS.items():
-                    request_id = f"{repeat}-{label}"
+                modes = (False, True) if compare else (mtp,)
+                if compare and repeat % 2:
+                    modes = tuple(reversed(modes))
+                schedule = [
+                    (label, prompt, enabled)
+                    for label, prompt in PROMPTS.items()
+                    for enabled in modes
+                ]
+                for label, prompt, enabled in schedule:
+                    request_id = f"{repeat}-{label}-{enabled}"
                     request = {
                         "type": "generate",
                         "request_id": request_id,
@@ -132,7 +158,7 @@ def run(engine: Path, model: Path, output: Path, mtp=False, tokens=64, repeats=3
                         "temperature": 0,
                         "top_k": 1,
                         "repetition_penalty": 1,
-                        "mtp": mtp,
+                        "mtp": enabled,
                         "mtp_depth": 1,
                         "mtp_head_path": str(model.resolve()),
                         "dflash2": False,
@@ -142,8 +168,9 @@ def run(engine: Path, model: Path, output: Path, mtp=False, tokens=64, repeats=3
                     process.stdin.write(json.dumps(request) + "\n")
                     process.stdin.flush()
                     event, mode = until("complete", request_id)
-                    validate(event, mode, mtp, tokens)
+                    validate(event, mode, enabled, tokens)
                     entry = {
+                        "mode": "mtp" if enabled else "baseline",
                         "prompt": label,
                         "repeat": repeat,
                         "token_hash": event["token_hash"],
@@ -164,6 +191,7 @@ def run(engine: Path, model: Path, output: Path, mtp=False, tokens=64, repeats=3
                         json.dumps(
                             {
                                 "prompt": label,
+                                "mode": entry["mode"],
                                 "repeat": repeat,
                                 "decode_tps": event["stats"]["decode_tps"],
                                 "ttft_seconds": event["stats"]["ttft_seconds"],
@@ -176,12 +204,20 @@ def run(engine: Path, model: Path, output: Path, mtp=False, tokens=64, repeats=3
             process.stdin.flush()
             if process.wait(timeout=10) != 0:
                 raise RuntimeError("bridge shutdown failed")
-            report["median_decode_tps"] = {
-                label: statistics.median(
-                    r["stats"]["decode_tps"] for r in report["runs"] if r["prompt"] == label
-                )
-                for label in PROMPTS
+            medians = {
+                mode: {
+                    label: statistics.median(
+                        r["stats"]["decode_tps"]
+                        for r in report["runs"]
+                        if r["prompt"] == label and r["mode"] == mode
+                    )
+                    for label in PROMPTS
+                }
+                for mode in ({r["mode"] for r in report["runs"]})
             }
+            report["median_decode_tps"] = (
+                medians if compare else medians["mtp" if mtp else "baseline"]
+            )
             report["status"] = "validated"
         except BaseException as error:
             report.update(status="failed", error=f"{type(error).__name__}: {error}")
@@ -206,6 +242,10 @@ if __name__ == "__main__":
     parser.add_argument("engine", type=Path)
     parser.add_argument("model", type=Path)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--mtp", action="store_true")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--mtp", action="store_true")
+    modes.add_argument(
+        "--compare", action="store_true", help="alternate baseline/MTP on the same binary"
+    )
     args = parser.parse_args()
-    run(args.engine, args.model, args.output, args.mtp)
+    run(args.engine, args.model, args.output, args.mtp, compare=args.compare)

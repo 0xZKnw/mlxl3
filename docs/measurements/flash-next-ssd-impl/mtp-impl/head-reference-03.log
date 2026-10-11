@@ -1,0 +1,67 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.55s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 1 test
+test qwen4::tests::flash_mtp_head_matches_reference_and_cache_only ... Flash Next: loading layer 1/48, 143 exact expert slots
+Flash Next: loading layer 2/48, 143 exact expert slots
+Flash Next: loading layer 3/48, 143 exact expert slots
+Flash Next: loading layer 4/48, 143 exact expert slots
+Flash Next: loading layer 5/48, 143 exact expert slots
+Flash Next: loading layer 6/48, 143 exact expert slots
+Flash Next: loading layer 7/48, 143 exact expert slots
+Flash Next: loading layer 8/48, 143 exact expert slots
+Flash Next: loading layer 9/48, 143 exact expert slots
+Flash Next: loading layer 10/48, 143 exact expert slots
+Flash Next: loading layer 11/48, 143 exact expert slots
+Flash Next: loading layer 12/48, 143 exact expert slots
+Flash Next: loading layer 13/48, 143 exact expert slots
+Flash Next: loading layer 14/48, 143 exact expert slots
+Flash Next: loading layer 15/48, 143 exact expert slots
+Flash Next: loading layer 16/48, 143 exact expert slots
+Flash Next: loading layer 17/48, 143 exact expert slots
+Flash Next: loading layer 18/48, 143 exact expert slots
+Flash Next: loading layer 19/48, 143 exact expert slots
+Flash Next: loading layer 20/48, 143 exact expert slots
+Flash Next: loading layer 21/48, 143 exact expert slots
+Flash Next: loading layer 22/48, 143 exact expert slots
+Flash Next: loading layer 23/48, 143 exact expert slots
+Flash Next: loading layer 24/48, 143 exact expert slots
+Flash Next: loading layer 25/48, 143 exact expert slots
+Flash Next: loading layer 26/48, 143 exact expert slots
+Flash Next: loading layer 27/48, 143 exact expert slots
+Flash Next: loading layer 28/48, 143 exact expert slots
+Flash Next: loading layer 29/48, 143 exact expert slots
+Flash Next: loading layer 30/48, 143 exact expert slots
+Flash Next: loading layer 31/48, 143 exact expert slots
+Flash Next: loading layer 32/48, 143 exact expert slots
+Flash Next: loading layer 33/48, 143 exact expert slots
+Flash Next: loading layer 34/48, 143 exact expert slots
+Flash Next: loading layer 35/48, 143 exact expert slots
+Flash Next: loading layer 36/48, 143 exact expert slots
+Flash Next: loading layer 37/48, 143 exact expert slots
+Flash Next: loading layer 38/48, 143 exact expert slots
+Flash Next: loading layer 39/48, 143 exact expert slots
+Flash Next: loading layer 40/48, 143 exact expert slots
+Flash Next: loading layer 41/48, 143 exact expert slots
+Flash Next: loading layer 42/48, 143 exact expert slots
+Flash Next: loading layer 43/48, 143 exact expert slots
+Flash Next: loading layer 44/48, 143 exact expert slots
+Flash Next: loading layer 45/48, 143 exact expert slots
+Flash Next: loading layer 46/48, 143 exact expert slots
+Flash Next: loading layer 47/48, 143 exact expert slots
+Flash Next: loading layer 48/48, 143 exact expert slots
+MTP/0/mixed: count=10240, relative_rmse=0.000223, max_abs=0.001282
+Error: MTP mixed differs at step 0
+FAILED
+
+failures:
+
+failures:
+    qwen4::tests::flash_mtp_head_matches_reference_and_cache_only
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 100 filtered out; finished in 10.28s
+
+error: test failed, to rerun pass `--lib`

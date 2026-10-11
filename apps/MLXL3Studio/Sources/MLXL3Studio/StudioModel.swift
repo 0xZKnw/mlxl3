@@ -182,8 +182,10 @@ final class StudioModel: ObservableObject {
     }
 
     var mtpAvailable: Bool {
-        mtpSupported ?? ["qwen3_5", "qwen3_5_moe"].contains(selectedModel?.modelType ?? "")
+        mtpSupported ?? ["qwen3_5", "qwen3_5_moe", "qwen4_exp"].contains(selectedModel?.modelType ?? "")
     }
+    var mtpBuiltIn: Bool { selectedModel?.modelType == "qwen4_exp" }
+    var mtpEffectiveHeadPath: String { mtpBuiltIn ? selectedModel?.path ?? "" : mtpHeadPath }
     var mtpAutomaticDownloadAvailable: Bool {
         mtpAutoDownloadSupported ?? (mtpAvailable && (selectedModel?.name ?? "").lowercased().contains("qwen3.6-35b-a3b"))
     }
@@ -619,7 +621,7 @@ final class StudioModel: ObservableObject {
                     dflash2: dflash2Enabled && dflash2Available,
                     dflashDraftPath: dflashDraftPath,
                     mtp: mtpEnabled && mtpAvailable,
-                    mtpHeadPath: mtpHeadPath,
+                    mtpHeadPath: mtpEffectiveHeadPath,
                     mtpDepth: mtpDepth
                 )
             )
@@ -736,6 +738,13 @@ final class StudioModel: ObservableObject {
             return
         }
         guard mtpAvailable, !isGenerating, !mtpDownloading else { return }
+        if mtpBuiltIn {
+            guard engineState.isReady else { return }
+            mtpError = nil
+            mtpDepth = 1
+            activateMTP()
+            return
+        }
         let model = selectedModelName
         mtpError = nil; mtpDownloadCompleted = 0; mtpDownloadTotal = 0
         mtpDownloading = true
@@ -761,12 +770,7 @@ final class StudioModel: ObservableObject {
                       event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
                 mtpHeadPath = path
                 preferences.set(path, forKey: "studio.mtpHeadPath")
-                dflash2Enabled = false
-                mtpEnabled = true
-                temperature = 0; topK = 1; repetitionPenalty = 1
-                preferences.set(true, forKey: "studio.mtpEnabled")
-                saveMTPSelection()
-                schedulePersistence()
+                activateMTP()
             } catch is CancellationError { }
             catch { mtpError = error.localizedDescription }
             mtpDownloading = false
@@ -774,8 +778,17 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    private func activateMTP() {
+        dflash2Enabled = false
+        mtpEnabled = true
+        temperature = 0; topK = 1; repetitionPenalty = 1
+        preferences.set(true, forKey: "studio.mtpEnabled")
+        saveMTPSelection()
+        schedulePersistence()
+    }
+
     func chooseMTPHead() {
-        guard !isGenerating, !mtpDownloading else { return }
+        guard !isGenerating, !mtpDownloading, !mtpBuiltIn else { return }
         let picker = NSOpenPanel()
         picker.canChooseDirectories = true; picker.canChooseFiles = false; picker.allowsMultipleSelection = false
         picker.prompt = L("Utiliser cette tête MTP", "Use this MTP head")
@@ -787,8 +800,8 @@ final class StudioModel: ObservableObject {
     }
 
     private var currentMTPConfiguration: MTPConfigurationKey? {
-        guard let model = selectedModel, let runtime = mtpTuningKey, !mtpHeadPath.isEmpty else { return nil }
-        return MTPConfigurationKey(modelPath: model.path, headPath: mtpHeadPath, runtime: runtime)
+        guard let model = selectedModel, let runtime = mtpTuningKey, !mtpEffectiveHeadPath.isEmpty else { return nil }
+        return MTPConfigurationKey(modelPath: model.path, headPath: mtpEffectiveHeadPath, runtime: runtime)
     }
 
     var canTuneMTP: Bool {
@@ -1076,6 +1089,7 @@ final class StudioModel: ObservableObject {
                 residentGB: event.residentGB ?? 0
             )
             readyInfo = info
+            if mtpBuiltIn { mtpEnabled = false }
             restoreMTPSelection()
             mcpServerCount = event.mcpServers ?? 0
             mcpToolCount = event.mcpTools ?? 0

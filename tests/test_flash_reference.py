@@ -128,6 +128,9 @@ def test_probe_input_checks_shapes_counts_bytes_and_finiteness(tmp_path, width):
         ["--norm-only", "--projections-only"],
         ["--norm-only", "--attention-only", "fixture"],
         ["--projections-only", "--attention-only", "fixture"],
+        ["--norm-only", "--mtp-only", "fixture"],
+        ["--projections-only", "--mtp-only", "fixture"],
+        ["--attention-only", "fixture", "--mtp-only", "fixture"],
     ],
 )
 def test_probe_modes_reject_conflicts_before_gpu_import(monkeypatch, flags):

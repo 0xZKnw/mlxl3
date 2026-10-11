@@ -169,6 +169,50 @@ fn safetensors_accepts_scalars_and_zero_sized_tensors() {
 }
 
 #[test]
+fn inspected_tensor_source_rejects_hostile_offsets_and_truncation() {
+    let root = tempfile::tempdir().unwrap();
+    let file = root.path().join("source.safetensors");
+    write_safetensors(
+        &file,
+        &json!({"t": {"dtype": "U8", "shape": [2], "data_offsets": [0, 2]}}),
+        &[7, 9],
+    );
+    let tensor = checkpoint::read_header(&file).unwrap().remove("t").unwrap();
+    assert_eq!(tensor.read_bytes().unwrap(), [7, 9]);
+    for payload in [0, tensor.payload_offset, u64::MAX] {
+        for offsets in [
+            [0, 2],
+            [2, 0],
+            [u64::MAX, 2],
+            [0, u64::MAX],
+            [u64::MAX, u64::MAX],
+        ] {
+            let mut invalid = tensor.clone();
+            invalid.payload_offset = payload;
+            invalid.data_offsets = offsets;
+            if payload == tensor.payload_offset && offsets == [0, 2] {
+                continue;
+            }
+            if offsets == [0, 2] && payload == 0 {
+                continue;
+            }
+            assert!(
+                invalid.source().is_err(),
+                "accepted payload={payload}, offsets={offsets:?}"
+            );
+            assert!(invalid.read_bytes().is_err());
+        }
+    }
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&file)
+        .unwrap()
+        .set_len(tensor.payload_offset + 1)
+        .unwrap();
+    assert!(tensor.source().is_err() && tensor.read_bytes().is_err());
+}
+
+#[test]
 fn safetensors_rejects_invalid_headers_and_ranges() {
     let root = tempfile::tempdir().unwrap();
     let file = root.path().join("invalid.safetensors");

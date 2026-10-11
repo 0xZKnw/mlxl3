@@ -15,7 +15,23 @@ spec.loader.exec_module(bench)
 
 @pytest.mark.parametrize(
     "fault",
-    ["ok", "mode", "hash", "empty", "timing", "short", "drift", "invalid", "silent", "crash"],
+    [
+        "ok",
+        "mode",
+        "hash",
+        "empty",
+        "timing",
+        "short",
+        "drift",
+        "invalid",
+        "silent",
+        "crash",
+        "compare_drift",
+        "counter_type",
+        "counter_range",
+        "negative_counter",
+        "missing_counter",
+    ],
 )
 def test_campaign(tmp_path, fault):
     engine = tmp_path / "bridge"
@@ -33,7 +49,7 @@ for line in sys.stdin:
     if fault == 'silent': time.sleep(30)
     if fault == 'crash': sys.exit(3)
     if fault == 'invalid': print('null', flush=True); continue
-    if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': False, 'dflash_active': False}), flush=True)
+    if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': False}), flush=True)
     e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
          'stats': {'generated_tokens': 2, 'decode_tokens': 1, 'decode_seconds': .1, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
     if fault == 'hash': del e['token_hash']
@@ -41,6 +57,13 @@ for line in sys.stdin:
     if fault == 'timing': e['stats']['decode_tps'] = float('nan')
     if fault == 'short': e['stats']['generated_tokens'] = 1
     if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+    if r['mtp']:
+        e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+        if fault == 'compare_drift': e['token_hash'] = 'different'
+        if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+        if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+        if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+        if fault == 'missing_counter': del e['stats']['mtp_blocks']
     print(json.dumps(e), flush=True)
 """
     )
@@ -51,9 +74,35 @@ for line in sys.stdin:
         assert result["status"] == "validated"
         assert len(result["runs"]) == len(result["warmup"]) == 2
         assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+        comparison = bench.run(
+            engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
+        )
+        assert len(comparison["runs"]) == 8 and len(comparison["warmup"]) == 4
+        assert comparison["median_decode_tps"] == {
+            "baseline": {"MAIN": 10, "HOLD": 10},
+            "mtp": {"MAIN": 10, "HOLD": 10},
+        }
+        assert [r["mode"] for r in comparison["runs"]] == [
+            "mtp",
+            "baseline",
+            "mtp",
+            "baseline",
+            "baseline",
+            "mtp",
+            "baseline",
+            "mtp",
+        ]
     else:
         with pytest.raises((ValueError, RuntimeError, TimeoutError)):
-            bench.run(engine, tmp_path, output, tokens=2, repeats=1, timeout=0.5)
+            bench.run(
+                engine,
+                tmp_path,
+                output,
+                tokens=2,
+                repeats=1,
+                timeout=0.5,
+                compare=fault.startswith(("compare", "counter", "negative", "missing")),
+            )
         result = json.loads((output / "report.json").read_text())
         assert result["status"] == "failed" and result["error"]
         assert "median_decode_tps" not in result

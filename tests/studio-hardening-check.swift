@@ -11,9 +11,12 @@ import Foundation
         let suite = "io.mlxl3.check." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
-        func make(_ name: String) async throws -> StudioModel {
+        let flashModel = root.appendingPathComponent("flash-model")
+        try FileManager.default.createDirectory(at: flashModel, withIntermediateDirectories: true)
+        try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: flashModel.appendingPathComponent("config.json"))
+        func make(_ name: String, type: String = "audit") async throws -> StudioModel {
             let model = StudioModel(conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
-            model.models = [LocalModel(name: name, path: root.path, modelType: "audit", format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+            model.models = [LocalModel(name: name, path: type == "qwen4_exp" ? flashModel.path : root.path, modelType: type, format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
             model.selectModel(name)
             for _ in 0..<200 where !model.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
             precondition(model.engineState.isReady, "Fixture not ready")
@@ -263,6 +266,34 @@ import Foundation
         renamed.ejectModel()
         precondition(!renamed.mtpAvailable, "Ejection must discard the MTP capability")
         precondition(!renamed.dflash2Available && renamed.runtimeIdentity == nil)
+        prefs.set(true, forKey: "studio.mtpEnabled")
+        let legacyHead = prefs.string(forKey: "studio.mtpHeadPath")!
+        let flash = try await make("flash", type: "qwen4_exp")
+        precondition(flash.mtpBuiltIn && flash.mtpAvailable && flash.mtpMaxDepth == 1 && !flash.canTuneMTP)
+        precondition(!flash.mtpEnabled && flash.mtpEffectiveHeadPath == flashModel.path, "Another model's MTP setting leaked to a new Flash model")
+        let flashReady = flash.engineState
+        flash.engineState = .loading("flash")
+        flash.setMTPEnabled(true)
+        precondition(!flash.mtpEnabled && !flash.mtpDownloading, "Built-in MTP activated before the runtime was ready")
+        flash.engineState = flashReady
+        flash.setMTPEnabled(true)
+        precondition(flash.mtpEnabled && !flash.mtpDownloading && flash.mtpHeadPath == legacyHead)
+        precondition(prefs.string(forKey: "studio.mtpHeadPath") == legacyHead, "Built-in MTP replaced the other model's head")
+        precondition(flash.temperature == 0 && flash.topK == 1 && flash.repetitionPenalty == 1)
+        flash.setMTPDepth(3); precondition(flash.mtpDepth == 1)
+        flash.draft = "salut"; flash.send()
+        for _ in 0..<200 where flash.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        let request = try JSONSerialization.jsonObject(with: Data(flash.conversations[0].messages.last!.content.utf8)) as! [String: Any]
+        precondition(request["mtp"] as? Bool == true && request["mtp_depth"] as? Int == 1)
+        precondition(request["mtp_head_path"] as? String == flashModel.path, "Built-in head path did not reach the bridge")
+        flash.ejectModel()
+        prefs.removeObject(forKey: "studio.mtpHeadPath")
+        let flashRestored = try await make("flash", type: "qwen4_exp")
+        precondition(flashRestored.mtpEnabled && flashRestored.mtpDepth == 1 && flashRestored.mtpHeadPath.isEmpty, "Built-in MTP required an external head after restart")
+        flashRestored.setMTPEnabled(false); flashRestored.ejectModel()
+        let flashOff = try await make("flash", type: "qwen4_exp")
+        precondition(!flashOff.mtpEnabled && flashOff.mtpDepth == 1, "Built-in MTP OFF selection did not persist")
+        flashOff.ejectModel()
         let complete = try JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"complete","stats":{"ttft_seconds":0.4,"prefill_tps":300,"decode_tps":16,"prompt_tokens":300,"generated_tokens":42,"model_size_gb":12.5,"elapsed_seconds":8,"end_to_end_ttft_seconds":0.5,"tool_rounds":1,"dflash_proposed_tokens":50,"dflash_accepted_tokens":28,"memory":{"mlx_active_bytes":12000000000,"mlx_cache_bytes":500000000,"mlx_peak_bytes":13000000000,"process_footprint_bytes":14000000000,"process_lifetime_peak_bytes":15000000000}}}"#.utf8))
         precondition(complete.stats?.peakMemoryGB == nil && complete.stats?.modelSizeGB == 12.5)
         precondition(complete.stats?.memory?.processFootprintBytes == 14_000_000_000)

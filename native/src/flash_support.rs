@@ -35,6 +35,14 @@ pub fn reference_splits(input_tiles: u32, output_tiles: u32) -> u32 {
     splits
 }
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn pair_commit_offset(base: i32, current: i32, retained: i32) -> Option<i32> {
+    if base < 0 || !(1..=2).contains(&retained) || base.checked_add(2)? != current {
+        return None;
+    }
+    base.checked_add(retained)
+}
+
 pub fn row_offset(base: u64, row: u64, rows: u64, bytes: u64) -> Option<u64> {
     if row >= rows || bytes == 0 {
         return None;
@@ -161,6 +169,29 @@ impl ExpertCache {
 mod tests {
     use super::*;
     #[test]
+    fn pair_commits_reject_stale_invalid_and_overflowing_positions() {
+        for base in [
+            i32::MIN,
+            -1,
+            0,
+            1,
+            2047,
+            i32::MAX - 2,
+            i32::MAX - 1,
+            i32::MAX,
+        ] {
+            for current in [i32::MIN, 0, 2, 3, 2049, i32::MAX] {
+                for retained in [-1, 0, 1, 2, 3, i32::MAX] {
+                    let valid = base >= 0
+                        && (1..=2).contains(&retained)
+                        && i64::from(base) + 2 == i64::from(current);
+                    let expected = valid.then(|| (i64::from(base) + i64::from(retained)) as i32);
+                    assert_eq!(pair_commit_offset(base, current, retained), expected);
+                }
+            }
+        }
+    }
+    #[test]
     fn reference_partition_covers_real_shapes_and_extremes() {
         for (input, output, expected) in [
             (160, 40, 1),
@@ -273,6 +304,24 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    fn pair_commit_preserves_exact_valid_prefix_without_overflow() {
+        let base: i32 = kani::any();
+        let current: i32 = kani::any();
+        let retained: i32 = kani::any();
+        let result = pair_commit_offset(base, current, retained);
+        let valid =
+            base >= 0 && (1..=2).contains(&retained) && i64::from(base) + 2 == i64::from(current);
+        assert_eq!(result.is_some(), valid);
+        if let Some(end) = result {
+            assert!(end > base && end <= current);
+            assert_eq!(i64::from(end), i64::from(base) + i64::from(retained));
+            kani::cover!(retained == 1);
+            kani::cover!(retained == 2);
+        }
+        kani::cover!(base == i32::MAX && result.is_none());
+        kani::cover!(base == 0 && current == 3 && result.is_none());
+    }
     #[kani::proof]
     #[kani::unwind(26)]
     fn reference_partition_is_bounded_and_matches_stopping_rule() {
