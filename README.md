@@ -441,6 +441,7 @@ The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
 `2.05bpw_h4_ng4` checkpoint with a bounded expert cache, direct SSD reads and
 GPU/I/O overlap. The default expert budget is 8 GiB on the 24 GiB M5.
 See [setup, verification and numerical limits](docs/flash-next-ssd-implementation.md).
-The independent engines differ by up to 2.65% relative logit RMSE in the
-five-token fixture; their argmax matches. MTP and its throughput comparison are
-still being implemented.
+The corrected path matches the independent inference reference bit for bit on
+16 checked positions, including full logits and recurrent states. The first
+M5 baseline measured about 7 tokens/s before this correction. MTP and its
+throughput comparison are still being implemented.

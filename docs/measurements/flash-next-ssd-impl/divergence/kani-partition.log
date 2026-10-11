@@ -1,0 +1,310 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+  --> native/src/contracts.rs:86:17
+   |
+86 |         None => assert!(!(2..24).contains(&rows)),
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+   = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+   = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.80s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 3`
+Checking harness flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/ec080612757ab2c7/out/mlxl3_native-ec080612757ab2c7__RNvNtNtCsarcUACBPeAt_12mlxl3_native13flash_support12verification56reference_partition_is_bounded_and_matches_stopping_rule.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 1 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 2 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 3 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 4 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 5 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 6 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 7 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 8 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 9 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 10 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 11 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 12 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 13 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 14 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 15 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 16 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 17 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 18 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 19 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 20 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 21 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 22 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 23 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 24 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 25 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Not unwinding loop _RNvNtCsarcUACBPeAt_12mlxl3_native13flash_support16reference_splits.0 iteration 26 file native/src/flash_support.rs line 30 column 5 function flash_support::reference_splits thread 0
+Runtime Symex: 0.0423322s
+size of program expression: 4332 steps
+slicing removed 2713 assignments
+Generated 309 VCC(s), 162 remaining after simplification
+Runtime Postprocess Equation: 0.000690291s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0155167s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 2.0292e-05s
+Solving with CaDiCaL 3.0.0
+29159 variables, 113439 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00102054s
+Runtime decision procedure: 0.0167683s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+29160 variables, 113440 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00123154s
+Runtime decision procedure: 0.00138925s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+29161 variables, 113441 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0191782s
+Runtime decision procedure: 0.0193315s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+29162 variables, 113442 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.143266s
+Runtime decision procedure: 0.143347s
+
+RESULTS:
+Check 1: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: splits.is_power_of_two()"
+	 - Location: native/src/flash_support.rs:282:9 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 2: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:283:27 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 3: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:283:27 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 4: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: splits <= (input / 128).max(1)"
+	 - Location: native/src/flash_support.rs:283:9 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 5: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:285:13 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 6: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:286:39 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 7: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:286:20 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 8: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:286:20 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 9: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.7
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(output) * u64::from(splits) >= 8192 || u64::from(input) /
+(2 * u64::from(splits)) < 128"
+	 - Location: native/src/flash_support.rs:284:9 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 10: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:289:51 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 11: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:289:51 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 12: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:289:21 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 13: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.10
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(output) * u64::from(splits / 2) < 8192"
+	 - Location: native/src/flash_support.rs:289:13 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 14: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:290:21 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 15: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:290:21 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 16: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.assertion.12
+	 - Status: SUCCESS
+	 - Description: "assertion failed: input / splits >= 128"
+	 - Location: native/src/flash_support.rs:290:13 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 17: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: splits == 1 && input == 160 && output == 40"
+	 - Location: native/src/flash_support.rs:292:9 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 18: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: splits > 1"
+	 - Location: native/src/flash_support.rs:293:9 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 19: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: output == 0"
+	 - Location: native/src/flash_support.rs:294:9 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 20: flash_support::reference_splits.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:30:11 in function flash_support::reference_splits
+
+Check 21: flash_support::reference_splits.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:31:37 in function flash_support::reference_splits
+
+Check 22: flash_support::reference_splits.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:31:12 in function flash_support::reference_splits
+
+Check 23: flash_support::reference_splits.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:31:12 in function flash_support::reference_splits
+
+Check 24: flash_support::reference_splits.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:33:9 in function flash_support::reference_splits
+
+Check 25: flash_support::reference_splits.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/flash_support.rs:31:12 in function flash_support::reference_splits
+
+Check 26: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/flash_support.rs:286:20 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 27: flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule.division-by-zero.2
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/flash_support.rs:290:21 in function flash_support::verification::reference_partition_is_bounded_and_matches_stopping_rule
+
+Check 28: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 29: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 30: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 31: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 32: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 33: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 34: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 35: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 36: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 37: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 38: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 39: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 40: flash_support::reference_splits.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: native/src/flash_support.rs:30:5 in function flash_support::reference_splits
+
+
+SUMMARY:
+ ** 0 of 37 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.42499942s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

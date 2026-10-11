@@ -9,6 +9,10 @@
 #define MLXL3_SLOT_MAJOR 0
 #endif
 
+#ifndef MLXL3_REFERENCE_ACCUMULATION
+#define MLXL3_REFERENCE_ACCUMULATION 0
+#endif
+
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
@@ -21,6 +25,9 @@
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials
                 [MLXL3_QMV_MB][MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
+#if MLXL3_REFERENCE_ACCUMULATION
+            threadgroup float reference_partials[MLXL3_QMV_MB][MLXL3_QMV_NT][MLXL3_QMV_SG][256];
+#endif
 
 #if MLXL3_K3_WINDOW_DECODE
             int k3_bit_end = int((lane * 8u + 257u) * 3u + 21u);
@@ -199,6 +206,11 @@
 
             for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
                 for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+#if MLXL3_REFERENCE_ACCUMULATION
+                    for (uint j = 0u; j < 8u; ++j) {
+                        reference_partials[batch_row][output_tile][simd][mlxl3_reference_positions[lane * 8u + j]] = acc[batch_row][output_tile][j];
+                    }
+#else
                     float column0 = quad_sum(
                         acc[batch_row][output_tile][0] + acc[batch_row][output_tile][1]
                     ) + quad_sum(
@@ -214,6 +226,7 @@
                         partials[batch_row][simd][output_tile * 16u + column] = column0;
                         partials[batch_row][simd][output_tile * 16u + column + 8u] = column1;
                     }
+#endif
                 }
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -225,9 +238,17 @@
                     uint output_tile = tid >> 4u;
                     uint column = tid & 15u;
                     float sum = 0.0f;
+#if MLXL3_REFERENCE_ACCUMULATION
+                    for (uint r = 0u; r < 16u; ++r) {
+                        for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
+                            sum += reference_partials[batch_row][output_tile][group][r * 16u + column];
+                        }
+                    }
+#else
                     for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                         sum += partials[batch_row][group][output_tile * 16u + column];
                     }
+#endif
                     yhat[
                         ((row_base + batch_row) * uint(N_SPLITS) + split)
                         * uint(LOCAL_OUTPUT_DIMS)

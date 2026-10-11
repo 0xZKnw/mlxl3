@@ -1,0 +1,453 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.93s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 5 tests
+test qwen4::tests::flash_components_match_reference_on_identical_inputs ... Flash Next: loading layer 1/48, 143 exact expert slots
+Flash Next: loading layer 2/48, 143 exact expert slots
+Flash Next: loading layer 3/48, 143 exact expert slots
+Flash Next: loading layer 4/48, 143 exact expert slots
+Flash Next: loading layer 5/48, 143 exact expert slots
+Flash Next: loading layer 6/48, 143 exact expert slots
+Flash Next: loading layer 7/48, 143 exact expert slots
+Flash Next: loading layer 8/48, 143 exact expert slots
+Flash Next: loading layer 9/48, 143 exact expert slots
+Flash Next: loading layer 10/48, 143 exact expert slots
+Flash Next: loading layer 11/48, 143 exact expert slots
+Flash Next: loading layer 12/48, 143 exact expert slots
+Flash Next: loading layer 13/48, 143 exact expert slots
+Flash Next: loading layer 14/48, 143 exact expert slots
+Flash Next: loading layer 15/48, 143 exact expert slots
+Flash Next: loading layer 16/48, 143 exact expert slots
+Flash Next: loading layer 17/48, 143 exact expert slots
+Flash Next: loading layer 18/48, 143 exact expert slots
+Flash Next: loading layer 19/48, 143 exact expert slots
+Flash Next: loading layer 20/48, 143 exact expert slots
+Flash Next: loading layer 21/48, 143 exact expert slots
+Flash Next: loading layer 22/48, 143 exact expert slots
+Flash Next: loading layer 23/48, 143 exact expert slots
+Flash Next: loading layer 24/48, 143 exact expert slots
+Flash Next: loading layer 25/48, 143 exact expert slots
+Flash Next: loading layer 26/48, 143 exact expert slots
+Flash Next: loading layer 27/48, 143 exact expert slots
+Flash Next: loading layer 28/48, 143 exact expert slots
+Flash Next: loading layer 29/48, 143 exact expert slots
+Flash Next: loading layer 30/48, 143 exact expert slots
+Flash Next: loading layer 31/48, 143 exact expert slots
+Flash Next: loading layer 32/48, 143 exact expert slots
+Flash Next: loading layer 33/48, 143 exact expert slots
+Flash Next: loading layer 34/48, 143 exact expert slots
+Flash Next: loading layer 35/48, 143 exact expert slots
+Flash Next: loading layer 36/48, 143 exact expert slots
+Flash Next: loading layer 37/48, 143 exact expert slots
+Flash Next: loading layer 38/48, 143 exact expert slots
+Flash Next: loading layer 39/48, 143 exact expert slots
+Flash Next: loading layer 40/48, 143 exact expert slots
+Flash Next: loading layer 41/48, 143 exact expert slots
+Flash Next: loading layer 42/48, 143 exact expert slots
+Flash Next: loading layer 43/48, 143 exact expert slots
+Flash Next: loading layer 44/48, 143 exact expert slots
+Flash Next: loading layer 45/48, 143 exact expert slots
+Flash Next: loading layer 46/48, 143 exact expert slots
+Flash Next: loading layer 47/48, 143 exact expert slots
+Flash Next: loading layer 48/48, 143 exact expert slots
+s0/l0/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/linear_attn: count=2560, relative_rmse=0.000138, max_abs=0.000183
+Error: attention differs bitwise at s0/l2/linear_attn
+FAILED
+test qwen4::tests::flash_hc_write_matches_upstream_rounding ... ok
+test qwen4::tests::flash_matches_independent_reference_states_and_logits ... Flash Next: loading layer 1/48, 143 exact expert slots
+Flash Next: loading layer 2/48, 143 exact expert slots
+Flash Next: loading layer 3/48, 143 exact expert slots
+Flash Next: loading layer 4/48, 143 exact expert slots
+Flash Next: loading layer 5/48, 143 exact expert slots
+Flash Next: loading layer 6/48, 143 exact expert slots
+Flash Next: loading layer 7/48, 143 exact expert slots
+Flash Next: loading layer 8/48, 143 exact expert slots
+Flash Next: loading layer 9/48, 143 exact expert slots
+Flash Next: loading layer 10/48, 143 exact expert slots
+Flash Next: loading layer 11/48, 143 exact expert slots
+Flash Next: loading layer 12/48, 143 exact expert slots
+Flash Next: loading layer 13/48, 143 exact expert slots
+Flash Next: loading layer 14/48, 143 exact expert slots
+Flash Next: loading layer 15/48, 143 exact expert slots
+Flash Next: loading layer 16/48, 143 exact expert slots
+Flash Next: loading layer 17/48, 143 exact expert slots
+Flash Next: loading layer 18/48, 143 exact expert slots
+Flash Next: loading layer 19/48, 143 exact expert slots
+Flash Next: loading layer 20/48, 143 exact expert slots
+Flash Next: loading layer 21/48, 143 exact expert slots
+Flash Next: loading layer 22/48, 143 exact expert slots
+Flash Next: loading layer 23/48, 143 exact expert slots
+Flash Next: loading layer 24/48, 143 exact expert slots
+Flash Next: loading layer 25/48, 143 exact expert slots
+Flash Next: loading layer 26/48, 143 exact expert slots
+Flash Next: loading layer 27/48, 143 exact expert slots
+Flash Next: loading layer 28/48, 143 exact expert slots
+Flash Next: loading layer 29/48, 143 exact expert slots
+Flash Next: loading layer 30/48, 143 exact expert slots
+Flash Next: loading layer 31/48, 143 exact expert slots
+Flash Next: loading layer 32/48, 143 exact expert slots
+Flash Next: loading layer 33/48, 143 exact expert slots
+Flash Next: loading layer 34/48, 143 exact expert slots
+Flash Next: loading layer 35/48, 143 exact expert slots
+Flash Next: loading layer 36/48, 143 exact expert slots
+Flash Next: loading layer 37/48, 143 exact expert slots
+Flash Next: loading layer 38/48, 143 exact expert slots
+Flash Next: loading layer 39/48, 143 exact expert slots
+Flash Next: loading layer 40/48, 143 exact expert slots
+Flash Next: loading layer 41/48, 143 exact expert slots
+Flash Next: loading layer 42/48, 143 exact expert slots
+Flash Next: loading layer 43/48, 143 exact expert slots
+Flash Next: loading layer 44/48, 143 exact expert slots
+Flash Next: loading layer 45/48, 143 exact expert slots
+Flash Next: loading layer 46/48, 143 exact expert slots
+Flash Next: loading layer 47/48, 143 exact expert slots
+Flash Next: loading layer 48/48, 143 exact expert slots
+s0/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s0/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s0/layer_1: count=10240, relative_rmse=0.000205, max_abs=0.000032
+s0/gdn_state_1: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s0/layer_2: count=10240, relative_rmse=0.000410, max_abs=0.000195
+s0/layer_3: count=10240, relative_rmse=0.000513, max_abs=0.000194
+s0/layer_4: count=10240, relative_rmse=0.000564, max_abs=0.000193
+s0/layer_5: count=10240, relative_rmse=0.000672, max_abs=0.000210
+s0/layer_6: count=10240, relative_rmse=0.000717, max_abs=0.000202
+s0/layer_7: count=10240, relative_rmse=0.000749, max_abs=0.000217
+s0/layer_8: count=10240, relative_rmse=0.000796, max_abs=0.000268
+s0/layer_9: count=10240, relative_rmse=0.000796, max_abs=0.000259
+s0/layer_10: count=10240, relative_rmse=0.000780, max_abs=0.000305
+s0/layer_11: count=10240, relative_rmse=0.000785, max_abs=0.000314
+s0/layer_12: count=10240, relative_rmse=0.000794, max_abs=0.000272
+s0/layer_13: count=10240, relative_rmse=0.000806, max_abs=0.000284
+s0/layer_14: count=10240, relative_rmse=0.000776, max_abs=0.000276
+s0/layer_15: count=10240, relative_rmse=0.000826, max_abs=0.000385
+s0/layer_16: count=10240, relative_rmse=0.000814, max_abs=0.000307
+s0/layer_17: count=10240, relative_rmse=0.000810, max_abs=0.000295
+s0/layer_18: count=10240, relative_rmse=0.000829, max_abs=0.000293
+s0/layer_19: count=10240, relative_rmse=0.000839, max_abs=0.000298
+s0/layer_20: count=10240, relative_rmse=0.000805, max_abs=0.000269
+s0/layer_21: count=10240, relative_rmse=0.000809, max_abs=0.000264
+s0/layer_22: count=10240, relative_rmse=0.000813, max_abs=0.000264
+s0/layer_23: count=10240, relative_rmse=0.000826, max_abs=0.000273
+s0/layer_24: count=10240, relative_rmse=0.000842, max_abs=0.000308
+s0/layer_25: count=10240, relative_rmse=0.000850, max_abs=0.000299
+s0/layer_26: count=10240, relative_rmse=0.000815, max_abs=0.000326
+s0/layer_27: count=10240, relative_rmse=0.000878, max_abs=0.000313
+s0/layer_28: count=10240, relative_rmse=0.000926, max_abs=0.000313
+s0/layer_29: count=10240, relative_rmse=0.001001, max_abs=0.000477
+s0/layer_30: count=10240, relative_rmse=0.000959, max_abs=0.000480
+s0/layer_31: count=10240, relative_rmse=0.001079, max_abs=0.000501
+s0/layer_32: count=10240, relative_rmse=0.001055, max_abs=0.000569
+s0/layer_33: count=10240, relative_rmse=0.001058, max_abs=0.000552
+s0/layer_34: count=10240, relative_rmse=0.001083, max_abs=0.000555
+s0/layer_35: count=10240, relative_rmse=0.001116, max_abs=0.000594
+s0/layer_36: count=10240, relative_rmse=0.000963, max_abs=0.001033
+s0/layer_37: count=10240, relative_rmse=0.000968, max_abs=0.001008
+s0/layer_38: count=10240, relative_rmse=0.000952, max_abs=0.001009
+s0/layer_39: count=10240, relative_rmse=0.001050, max_abs=0.001670
+s0/layer_40: count=10240, relative_rmse=0.001054, max_abs=0.001707
+s0/layer_41: count=10240, relative_rmse=0.001049, max_abs=0.001756
+s0/layer_42: count=10240, relative_rmse=0.001058, max_abs=0.001746
+s0/layer_43: count=10240, relative_rmse=0.001141, max_abs=0.001604
+s0/layer_44: count=10240, relative_rmse=0.001066, max_abs=0.004521
+s0/layer_45: count=10240, relative_rmse=0.001110, max_abs=0.004741
+s0/layer_46: count=10240, relative_rmse=0.001121, max_abs=0.016611
+s0/layer_47: count=10240, relative_rmse=0.000878, max_abs=0.013294
+s0/logits: count=248320, relative_rmse=0.001631, max_abs=0.023438
+s1/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s1/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s1/layer_1: count=10240, relative_rmse=0.000224, max_abs=0.000027
+s1/gdn_state_1: count=786432, relative_rmse=0.000230, max_abs=0.000049
+s1/layer_2: count=10240, relative_rmse=0.000463, max_abs=0.000047
+s1/layer_3: count=10240, relative_rmse=0.000598, max_abs=0.000066
+s1/layer_4: count=10240, relative_rmse=0.000748, max_abs=0.000106
+s1/layer_5: count=10240, relative_rmse=0.000953, max_abs=0.000112
+s1/layer_6: count=10240, relative_rmse=0.001125, max_abs=0.000140
+s1/layer_7: count=10240, relative_rmse=0.001175, max_abs=0.000127
+s1/layer_8: count=10240, relative_rmse=0.001187, max_abs=0.000132
+s1/layer_9: count=10240, relative_rmse=0.001196, max_abs=0.000131
+s1/layer_10: count=10240, relative_rmse=0.001235, max_abs=0.000133
+s1/layer_11: count=10240, relative_rmse=0.001247, max_abs=0.000133
+s1/layer_12: count=10240, relative_rmse=0.001280, max_abs=0.000140
+s1/layer_13: count=10240, relative_rmse=0.001309, max_abs=0.000143
+s1/layer_14: count=10240, relative_rmse=0.001352, max_abs=0.000165
+s1/layer_15: count=10240, relative_rmse=0.001446, max_abs=0.000161
+s1/layer_16: count=10240, relative_rmse=0.001483, max_abs=0.000167
+s1/layer_17: count=10240, relative_rmse=0.001538, max_abs=0.000175
+s1/layer_18: count=10240, relative_rmse=0.001543, max_abs=0.000187
+s1/layer_19: count=10240, relative_rmse=0.001617, max_abs=0.000181
+s1/layer_20: count=10240, relative_rmse=0.001608, max_abs=0.000178
+s1/layer_21: count=10240, relative_rmse=0.001700, max_abs=0.000179
+s1/layer_22: count=10240, relative_rmse=0.001810, max_abs=0.000210
+s1/layer_23: count=10240, relative_rmse=0.001830, max_abs=0.000221
+s1/layer_24: count=10240, relative_rmse=0.001883, max_abs=0.000222
+s1/layer_25: count=10240, relative_rmse=0.001952, max_abs=0.000257
+s1/layer_26: count=10240, relative_rmse=0.002096, max_abs=0.000711
+s1/layer_27: count=10240, relative_rmse=0.002276, max_abs=0.000467
+s1/layer_28: count=10240, relative_rmse=0.002325, max_abs=0.000501
+s1/layer_29: count=10240, relative_rmse=0.002365, max_abs=0.000486
+s1/layer_30: count=10240, relative_rmse=0.002440, max_abs=0.000561
+s1/layer_31: count=10240, relative_rmse=0.002688, max_abs=0.000640
+s1/layer_32: count=10240, relative_rmse=0.002754, max_abs=0.000713
+s1/layer_33: count=10240, relative_rmse=0.002906, max_abs=0.000859
+s1/layer_34: count=10240, relative_rmse=0.002904, max_abs=0.000840
+s1/layer_35: count=10240, relative_rmse=0.003030, max_abs=0.000995
+s1/layer_36: count=10240, relative_rmse=0.002682, max_abs=0.001567
+s1/layer_37: count=10240, relative_rmse=0.002670, max_abs=0.001602
+s1/layer_38: count=10240, relative_rmse=0.002717, max_abs=0.001611
+s1/layer_39: count=10240, relative_rmse=0.003235, max_abs=0.002179
+s1/layer_40: count=10240, relative_rmse=0.003216, max_abs=0.002338
+s1/layer_41: count=10240, relative_rmse=0.003197, max_abs=0.002507
+s1/layer_42: count=10240, relative_rmse=0.003098, max_abs=0.002321
+s1/layer_43: count=10240, relative_rmse=0.003245, max_abs=0.002692
+s1/layer_44: count=10240, relative_rmse=0.003213, max_abs=0.004008
+s1/layer_45: count=10240, relative_rmse=0.003072, max_abs=0.004351
+s1/layer_46: count=10240, relative_rmse=0.003271, max_abs=0.022434
+s1/layer_47: count=10240, relative_rmse=0.003686, max_abs=0.025915
+s1/logits: count=248320, relative_rmse=0.002823, max_abs=0.050781
+s2/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s2/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s2/layer_1: count=10240, relative_rmse=0.000263, max_abs=0.000030
+s2/gdn_state_1: count=786432, relative_rmse=0.000244, max_abs=0.000082
+s2/layer_2: count=10240, relative_rmse=0.000483, max_abs=0.000058
+s2/layer_3: count=10240, relative_rmse=0.000575, max_abs=0.000060
+s2/layer_4: count=10240, relative_rmse=0.000687, max_abs=0.000076
+s2/layer_5: count=10240, relative_rmse=0.000817, max_abs=0.000117
+s2/layer_6: count=10240, relative_rmse=0.000975, max_abs=0.000132
+s2/layer_7: count=10240, relative_rmse=0.001110, max_abs=0.000163
+s2/layer_8: count=10240, relative_rmse=0.001159, max_abs=0.000187
+s2/layer_9: count=10240, relative_rmse=0.001172, max_abs=0.000178
+s2/layer_10: count=10240, relative_rmse=0.001366, max_abs=0.000177
+s2/layer_11: count=10240, relative_rmse=0.001420, max_abs=0.000177
+s2/layer_12: count=10240, relative_rmse=0.001459, max_abs=0.000190
+s2/layer_13: count=10240, relative_rmse=0.001589, max_abs=0.000258
+s2/layer_14: count=10240, relative_rmse=0.001733, max_abs=0.000287
+s2/layer_15: count=10240, relative_rmse=0.001954, max_abs=0.000304
+s2/layer_16: count=10240, relative_rmse=0.002071, max_abs=0.000284
+s2/layer_17: count=10240, relative_rmse=0.002141, max_abs=0.000278
+s2/layer_18: count=10240, relative_rmse=0.002115, max_abs=0.000253
+s2/layer_19: count=10240, relative_rmse=0.002256, max_abs=0.000350
+s2/layer_20: count=10240, relative_rmse=0.002252, max_abs=0.000364
+s2/layer_21: count=10240, relative_rmse=0.002406, max_abs=0.000414
+s2/layer_22: count=10240, relative_rmse=0.002332, max_abs=0.000710
+s2/layer_23: count=10240, relative_rmse=0.002352, max_abs=0.000710
+s2/layer_24: count=10240, relative_rmse=0.002324, max_abs=0.000710
+s2/layer_25: count=10240, relative_rmse=0.002348, max_abs=0.000710
+s2/layer_26: count=10240, relative_rmse=0.002616, max_abs=0.000709
+s2/layer_27: count=10240, relative_rmse=0.002721, max_abs=0.000709
+s2/layer_28: count=10240, relative_rmse=0.002804, max_abs=0.000709
+s2/layer_29: count=10240, relative_rmse=0.003044, max_abs=0.000709
+s2/layer_30: count=10240, relative_rmse=0.003044, max_abs=0.000964
+s2/layer_31: count=10240, relative_rmse=0.003127, max_abs=0.001069
+s2/layer_32: count=10240, relative_rmse=0.003143, max_abs=0.001191
+s2/layer_33: count=10240, relative_rmse=0.003228, max_abs=0.001491
+s2/layer_34: count=10240, relative_rmse=0.003227, max_abs=0.001468
+s2/layer_35: count=10240, relative_rmse=0.003429, max_abs=0.001583
+s2/layer_36: count=10240, relative_rmse=0.002930, max_abs=0.002790
+s2/layer_37: count=10240, relative_rmse=0.002939, max_abs=0.002665
+s2/layer_38: count=10240, relative_rmse=0.003027, max_abs=0.002652
+s2/layer_39: count=10240, relative_rmse=0.003306, max_abs=0.003435
+s2/layer_40: count=10240, relative_rmse=0.003231, max_abs=0.003553
+s2/layer_41: count=10240, relative_rmse=0.003184, max_abs=0.003494
+s2/layer_42: count=10240, relative_rmse=0.002960, max_abs=0.003360
+s2/layer_43: count=10240, relative_rmse=0.002941, max_abs=0.003262
+s2/layer_44: count=10240, relative_rmse=0.002803, max_abs=0.004759
+s2/layer_45: count=10240, relative_rmse=0.002440, max_abs=0.004584
+s2/layer_46: count=10240, relative_rmse=0.002287, max_abs=0.005995
+s2/layer_47: count=10240, relative_rmse=0.002003, max_abs=0.009703
+s2/logits: count=248320, relative_rmse=0.001928, max_abs=0.027344
+s3/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s3/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s3/layer_1: count=10240, relative_rmse=0.000534, max_abs=0.000087
+s3/gdn_state_1: count=786432, relative_rmse=0.000235, max_abs=0.000048
+s3/layer_2: count=10240, relative_rmse=0.000834, max_abs=0.000436
+s3/layer_3: count=10240, relative_rmse=0.000951, max_abs=0.000434
+s3/layer_4: count=10240, relative_rmse=0.001055, max_abs=0.000436
+s3/layer_5: count=10240, relative_rmse=0.001355, max_abs=0.000439
+s3/layer_6: count=10240, relative_rmse=0.001351, max_abs=0.000438
+s3/layer_7: count=10240, relative_rmse=0.001372, max_abs=0.000417
+s3/layer_8: count=10240, relative_rmse=0.001399, max_abs=0.000417
+s3/layer_9: count=10240, relative_rmse=0.001393, max_abs=0.000417
+s3/layer_10: count=10240, relative_rmse=0.001392, max_abs=0.000417
+s3/layer_11: count=10240, relative_rmse=0.001408, max_abs=0.000417
+s3/layer_12: count=10240, relative_rmse=0.001414, max_abs=0.000428
+s3/layer_13: count=10240, relative_rmse=0.001415, max_abs=0.000420
+s3/layer_14: count=10240, relative_rmse=0.001454, max_abs=0.000427
+s3/layer_15: count=10240, relative_rmse=0.001467, max_abs=0.000431
+s3/layer_16: count=10240, relative_rmse=0.001464, max_abs=0.000432
+s3/layer_17: count=10240, relative_rmse=0.001467, max_abs=0.000432
+s3/layer_18: count=10240, relative_rmse=0.001458, max_abs=0.000413
+s3/layer_19: count=10240, relative_rmse=0.001482, max_abs=0.000411
+s3/layer_20: count=10240, relative_rmse=0.001469, max_abs=0.000415
+s3/layer_21: count=10240, relative_rmse=0.001485, max_abs=0.000404
+s3/layer_22: count=10240, relative_rmse=0.001493, max_abs=0.000496
+s3/layer_23: count=10240, relative_rmse=0.001500, max_abs=0.000497
+s3/layer_24: count=10240, relative_rmse=0.001622, max_abs=0.000497
+s3/layer_25: count=10240, relative_rmse=0.001622, max_abs=0.000497
+s3/layer_26: count=10240, relative_rmse=0.001744, max_abs=0.000497
+s3/layer_27: count=10240, relative_rmse=0.001781, max_abs=0.000497
+s3/layer_28: count=10240, relative_rmse=0.001833, max_abs=0.000534
+s3/layer_29: count=10240, relative_rmse=0.001953, max_abs=0.000566
+s3/layer_30: count=10240, relative_rmse=0.002095, max_abs=0.000639
+s3/layer_31: count=10240, relative_rmse=0.002276, max_abs=0.000784
+s3/layer_32: count=10240, relative_rmse=0.002483, max_abs=0.000836
+s3/layer_33: count=10240, relative_rmse=0.002630, max_abs=0.000981
+s3/layer_34: count=10240, relative_rmse=0.002690, max_abs=0.000957
+s3/layer_35: count=10240, relative_rmse=0.002921, max_abs=0.001080
+s3/layer_36: count=10240, relative_rmse=0.003232, max_abs=0.001577
+s3/layer_37: count=10240, relative_rmse=0.003293, max_abs=0.001741
+s3/layer_38: count=10240, relative_rmse=0.003592, max_abs=0.001702
+s3/layer_39: count=10240, relative_rmse=0.004637, max_abs=0.002839
+s3/layer_40: count=10240, relative_rmse=0.004755, max_abs=0.003282
+s3/layer_41: count=10240, relative_rmse=0.004759, max_abs=0.003165
+s3/layer_42: count=10240, relative_rmse=0.004815, max_abs=0.003365
+s3/layer_43: count=10240, relative_rmse=0.005056, max_abs=0.004074
+s3/layer_44: count=10240, relative_rmse=0.005579, max_abs=0.004738
+s3/layer_45: count=10240, relative_rmse=0.005690, max_abs=0.006421
+s3/layer_46: count=10240, relative_rmse=0.005984, max_abs=0.012722
+s3/layer_47: count=10240, relative_rmse=0.006766, max_abs=0.017890
+s3/logits: count=248320, relative_rmse=0.005889, max_abs=0.079102
+trajectory route mismatch s4/l47: native=[95, 100, 157, 272, 305, 352, 398, 414, 425, 430], oracle=[95, 100, 103, 157, 272, 305, 352, 398, 425, 430]
+s4/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s4/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s4/layer_1: count=10240, relative_rmse=0.000249, max_abs=0.000056
+s4/gdn_state_1: count=786432, relative_rmse=0.000309, max_abs=0.000065
+s4/layer_2: count=10240, relative_rmse=0.000631, max_abs=0.000060
+s4/layer_3: count=10240, relative_rmse=0.000788, max_abs=0.000091
+s4/layer_4: count=10240, relative_rmse=0.000965, max_abs=0.000118
+s4/layer_5: count=10240, relative_rmse=0.001135, max_abs=0.000170
+s4/layer_6: count=10240, relative_rmse=0.001408, max_abs=0.000186
+s4/layer_7: count=10240, relative_rmse=0.001444, max_abs=0.000178
+s4/layer_8: count=10240, relative_rmse=0.001466, max_abs=0.000177
+s4/layer_9: count=10240, relative_rmse=0.001494, max_abs=0.000185
+s4/layer_10: count=10240, relative_rmse=0.001565, max_abs=0.000189
+s4/layer_11: count=10240, relative_rmse=0.001588, max_abs=0.000181
+s4/layer_12: count=10240, relative_rmse=0.001634, max_abs=0.000208
+s4/layer_13: count=10240, relative_rmse=0.001692, max_abs=0.000229
+s4/layer_14: count=10240, relative_rmse=0.001778, max_abs=0.000240
+s4/layer_15: count=10240, relative_rmse=0.001801, max_abs=0.000239
+s4/layer_16: count=10240, relative_rmse=0.001786, max_abs=0.000237
+s4/layer_17: count=10240, relative_rmse=0.001826, max_abs=0.000236
+s4/layer_18: count=10240, relative_rmse=0.001872, max_abs=0.000236
+s4/layer_19: count=10240, relative_rmse=0.001908, max_abs=0.000243
+s4/layer_20: count=10240, relative_rmse=0.001892, max_abs=0.000238
+s4/layer_21: count=10240, relative_rmse=0.001954, max_abs=0.000238
+s4/layer_22: count=10240, relative_rmse=0.001985, max_abs=0.000263
+s4/layer_23: count=10240, relative_rmse=0.002039, max_abs=0.000254
+s4/layer_24: count=10240, relative_rmse=0.002154, max_abs=0.000271
+s4/layer_25: count=10240, relative_rmse=0.002265, max_abs=0.000330
+s4/layer_26: count=10240, relative_rmse=0.002445, max_abs=0.000400
+s4/layer_27: count=10240, relative_rmse=0.002531, max_abs=0.000400
+s4/layer_28: count=10240, relative_rmse=0.002588, max_abs=0.000412
+s4/layer_29: count=10240, relative_rmse=0.002847, max_abs=0.000540
+s4/layer_30: count=10240, relative_rmse=0.003219, max_abs=0.000820
+s4/layer_31: count=10240, relative_rmse=0.003672, max_abs=0.001157
+s4/layer_32: count=10240, relative_rmse=0.003771, max_abs=0.001108
+s4/layer_33: count=10240, relative_rmse=0.003737, max_abs=0.001059
+s4/layer_34: count=10240, relative_rmse=0.003658, max_abs=0.001107
+s4/layer_35: count=10240, relative_rmse=0.003769, max_abs=0.001134
+s4/layer_36: count=10240, relative_rmse=0.003531, max_abs=0.002688
+s4/layer_37: count=10240, relative_rmse=0.003494, max_abs=0.002625
+s4/layer_38: count=10240, relative_rmse=0.003477, max_abs=0.002629
+s4/layer_39: count=10240, relative_rmse=0.003911, max_abs=0.003917
+s4/layer_40: count=10240, relative_rmse=0.003893, max_abs=0.004109
+s4/layer_41: count=10240, relative_rmse=0.003854, max_abs=0.004211
+s4/layer_42: count=10240, relative_rmse=0.003769, max_abs=0.004062
+s4/layer_43: count=10240, relative_rmse=0.003833, max_abs=0.004171
+s4/layer_44: count=10240, relative_rmse=0.004129, max_abs=0.005701
+s4/layer_45: count=10240, relative_rmse=0.003718, max_abs=0.005852
+s4/layer_46: count=10240, relative_rmse=0.004211, max_abs=0.008837
+s4/layer_47: count=10240, relative_rmse=0.015630, max_abs=0.045486
+s4/logits: count=248320, relative_rmse=0.026400, max_abs=0.320312
+Error: reference differs at s4/logits: relative RMSE 0.026399697578677675
+FAILED
+test qwen4::tests::flash_norms_match_upstream_rounding ... norm/0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/1: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/2: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/3: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/4: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/5: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/6: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/7: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/8: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/9: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/10: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/11: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/12: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/13: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/14: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/15: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/16: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/17: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/18: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/19: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/20: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/21: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/22: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/23: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/24: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/25: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/26: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/27: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/28: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/29: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/30: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/31: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/32: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/33: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/34: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/35: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/36: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/37: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/38: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/39: count=30720, relative_rmse=0.000000, max_abs=0.000000
+ok
+test qwen4::tests::flash_projections_match_upstream_rounding ... projection/0: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/1: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/2: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/3: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/4: count=10240, relative_rmse=0.000000, max_abs=0.000000
+projection/5: count=10240, relative_rmse=0.000000, max_abs=0.000000
+projection/6: count=6144, relative_rmse=0.000000, max_abs=0.000000
+projection/7: count=6144, relative_rmse=0.000000, max_abs=0.000000
+projection/8: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/9: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/10: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/11: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/12: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/13: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/14: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/15: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/16: count=12288, relative_rmse=0.000000, max_abs=0.000000
+projection/17: count=12288, relative_rmse=0.000000, max_abs=0.000000
+projection/18: count=248320, relative_rmse=0.000000, max_abs=0.000000
+projection/19: count=248320, relative_rmse=0.000000, max_abs=0.000000
+ok
+
+failures:
+
+failures:
+    qwen4::tests::flash_components_match_reference_on_identical_inputs
+    qwen4::tests::flash_matches_independent_reference_states_and_logits
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 89 filtered out; finished in 31.92s
+
+error: test failed, to rerun pass `--lib`

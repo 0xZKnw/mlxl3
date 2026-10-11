@@ -1,0 +1,23 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: failed to run custom build command for `mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)`
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/Documents/mix-stq1_0/target/debug/build/mlxl3-native-a55c79145ba9aa54/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_09/HEAD
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_09/index
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/packed-refs
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/refs/heads/codex/flash-next-ssd-205
+  cargo:rerun-if-changed=native
+  cargo:rerun-if-changed=Cargo.toml
+  cargo:rerun-if-changed=Cargo.lock
+  cargo:rustc-env=MLXL3_BUILD_REVISION=894c7964ff35-dirty
+  cargo:rustc-env=MLXL3_BUILD_PROFILE=debug
+  cargo:rerun-if-env-changed=MLXL3_MLX_ROOT
+  cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp
+
+  --- stderr
+
+  thread 'main' (8796571) panicked at build.rs:79:14:
+  set MLXL3_MLX_ROOT to the installed MLX 0.32.2 package directory
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

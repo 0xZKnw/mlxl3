@@ -96,3 +96,42 @@ def test_duplicate_tensor_closes_every_open_descriptor(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="duplicate"):
         oracle.Store(tmp_path)
     assert len(closed) == 2
+
+
+@pytest.mark.parametrize("width", [2560, 10240])
+def test_probe_input_checks_shapes_counts_bytes_and_finiteness(tmp_path, width):
+    path = tmp_path / "input.f32"
+    entry = {"file": path.name, "count": width, "shape": [1, 1, width]}
+    values = np.linspace(-1, 1, width, dtype="<f4")
+    path.write_bytes(values.tobytes())
+    assert np.array_equal(oracle.probe_input(tmp_path, entry, width).reshape(-1), values)
+    for bad in (
+        {**entry, "count": 0},
+        {**entry, "shape": [1, width]},
+        {**entry, "shape": [0, 1, width]},
+    ):
+        with pytest.raises(ValueError, match="shape/count"):
+            oracle.probe_input(tmp_path, bad, width)
+    for payload in (b"", values.tobytes()[:-1], values.tobytes() + b"x"):
+        path.write_bytes(payload)
+        with pytest.raises(ValueError, match="bytes"):
+            oracle.probe_input(tmp_path, entry, width)
+    values[0] = np.nan
+    path.write_bytes(values.tobytes())
+    with pytest.raises(ValueError, match="nonfinite"):
+        oracle.probe_input(tmp_path, entry, width)
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ["--norm-only", "--projections-only"],
+        ["--norm-only", "--attention-only", "fixture"],
+        ["--projections-only", "--attention-only", "fixture"],
+    ],
+)
+def test_probe_modes_reject_conflicts_before_gpu_import(monkeypatch, flags):
+    monkeypatch.setattr(oracle.sys, "argv", ["oracle", "model", "output", *flags])
+    with pytest.raises(SystemExit) as error:
+        oracle.main()
+    assert error.value.code == 2

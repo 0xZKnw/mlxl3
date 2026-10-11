@@ -24,6 +24,17 @@ pub const EXPERT_BYTES: u64 = 1_248_012;
 pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
 
+/// Match PonyExl3's single-row accumulation order, including small experts.
+pub fn reference_splits(input_tiles: u32, output_tiles: u32) -> u32 {
+    let mut splits = 1u32;
+    while u64::from(output_tiles) * u64::from(splits) < 8192
+        && u64::from(input_tiles) / (u64::from(splits) * 2) >= 128
+    {
+        splits *= 2;
+    }
+    splits
+}
+
 pub fn row_offset(base: u64, row: u64, rows: u64, bytes: u64) -> Option<u64> {
     if row >= rows || bytes == 0 {
         return None;
@@ -150,6 +161,31 @@ impl ExpertCache {
 mod tests {
     use super::*;
     #[test]
+    fn reference_partition_covers_real_shapes_and_extremes() {
+        for (input, output, expected) in [
+            (160, 40, 1),
+            (40, 160, 1),
+            (384, 160, 2),
+            (768, 4, 4),
+            (160, 15520, 1),
+            (0, 0, 1),
+            (u32::MAX, u32::MAX, 1),
+            (u32::MAX, 0, 1 << 24),
+        ] {
+            assert_eq!(reference_splits(input, output), expected);
+        }
+        for input in 0..4096 {
+            for output in [0, 1, 4, 40, 160, 15520, u32::MAX] {
+                let splits = reference_splits(input, output);
+                assert!(splits.is_power_of_two() && splits <= (input / 128).max(1));
+                assert!(
+                    u64::from(output) * u64::from(splits) >= 8192
+                        || u64::from(input) / (2 * u64::from(splits)) < 128
+                );
+            }
+        }
+    }
+    #[test]
     fn disk_offsets_reject_boundaries_and_overflow() {
         assert_eq!(row_offset(8, 2, 3, 82), Some(172));
         assert_eq!(row_offset(8, 3, 3, 82), None);
@@ -237,6 +273,26 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(26)]
+    fn reference_partition_is_bounded_and_matches_stopping_rule() {
+        let input: u32 = kani::any();
+        let output: u32 = kani::any();
+        let splits = reference_splits(input, output);
+        assert!(splits.is_power_of_two());
+        assert!(splits <= (input / 128).max(1));
+        assert!(
+            u64::from(output) * u64::from(splits) >= 8192
+                || u64::from(input) / (2 * u64::from(splits)) < 128
+        );
+        if splits > 1 {
+            assert!(u64::from(output) * u64::from(splits / 2) < 8192);
+            assert!(input / splits >= 128);
+        }
+        kani::cover!(splits == 1 && input == 160 && output == 40);
+        kani::cover!(splits > 1);
+        kani::cover!(output == 0);
+    }
     #[kani::proof]
     fn disk_row_offsets_are_bounded_and_do_not_wrap() {
         let base: u64 = kani::any();

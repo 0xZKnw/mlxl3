@@ -93,6 +93,7 @@ pub struct Exl3Linear {
     rows: i32,
     cols: i32,
     simdgroups: i32,
+    reference_accumulation: bool,
 }
 
 impl Exl3Linear {
@@ -127,14 +128,19 @@ impl Exl3Linear {
             .last()
             .context("trellis must have dimensions")? as usize
             / 16;
-        Self::new(
+        let mut linear = Self::new(
             trellis,
             scale("suh", "su")?,
             scale("svh", "sv")?,
             bias,
             k,
             cb,
-        )
+        )?;
+        if checkpoint.model_type == "qwen4_exp" {
+            linear.simdgroups = 4;
+            linear.reference_accumulation = true;
+        }
+        Ok(linear)
     }
 
     pub fn new(
@@ -189,6 +195,7 @@ impl Exl3Linear {
             rows,
             cols,
             simdgroups,
+            reference_accumulation: false,
         })
     }
 
@@ -197,6 +204,14 @@ impl Exl3Linear {
     }
     pub fn output_dims(&self) -> i32 {
         self.cols
+    }
+
+    fn splits(&self, input_tiles: i32, output_tiles: i32) -> i32 {
+        if self.reference_accumulation {
+            crate::flash_support::reference_splits(input_tiles as u32, output_tiles as u32) as i32
+        } else {
+            split_count(input_tiles, output_tiles)
+        }
     }
 
     pub fn forward(&self, x: &Array) -> Result<Array> {
@@ -214,6 +229,15 @@ impl Exl3Linear {
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "EXL3 linear input cannot be empty");
+        if self.reference_accumulation && matrix_rows > 1 {
+            let matrix = x.reshape(&[matrix_rows, self.rows])?;
+            let rows = (0..matrix_rows)
+                .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let mut shape = x.shape().to_vec();
+            *shape.last_mut().context("empty EXL3 input shape")? = self.cols;
+            return Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
+        }
         if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
             return self.forward_qmm_tensor(x);
         }
@@ -252,7 +276,8 @@ impl Exl3Linear {
             .reshape(&[self.rows])?;
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
-        let mut header = codebook_header(self.cb);
+        let mut header =
+            codebook_header(self.cb) + &reference_reduction_header(self.reference_accumulation);
         let output = if self.k == 7 {
             let inverse = codec::permutation_inverse()
                 .map(|v| v.to_string())
@@ -282,8 +307,10 @@ impl Exl3Linear {
             )?
             .remove(0)
         } else {
-            let splits = split_count(input_tiles, output_tiles);
-            let nt = if output_tiles >= 1024 {
+            let splits = self.splits(input_tiles, output_tiles);
+            let nt = if self.reference_accumulation {
+                1
+            } else if output_tiles >= 1024 {
                 if output_tiles % 2 == 0 { 2 } else { 1 }
             } else if output_tiles % 4 == 0 {
                 4
@@ -1033,10 +1060,16 @@ fn expert_mapped_layout(
     let local_tiles = rows
         .checked_mul(output_tiles)
         .context("expert tile count overflow")?;
-    let splits = split_count(tiles_k, local_tiles);
+    let splits = if slot_major {
+        crate::flash_support::reference_splits(tiles_k as u32, output_tiles as u32) as i32
+    } else {
+        split_count(tiles_k, local_tiles)
+    };
     let m5 = array::is_m5_gpu()?;
     let use_nt4 = m5 && rows >= 64 && output_tiles % 4 == 0;
-    let mut nt = if use_nt4 {
+    let mut nt = if slot_major {
+        1
+    } else if use_nt4 {
         4
     } else if local_tiles >= 1024 {
         if local_tiles % 2 == 0 { 2 } else { 1 }
@@ -1050,7 +1083,7 @@ fn expert_mapped_layout(
     if output_tiles % nt != 0 {
         nt = 1;
     }
-    let simdgroups = if m5 && k == 2 {
+    let simdgroups = if slot_major || (m5 && k == 2) {
         4
     } else if m5 {
         8
@@ -1058,6 +1091,7 @@ fn expert_mapped_layout(
         4
     };
     let header = codebook_header(cb)
+        + &reference_reduction_header(slot_major)
         + &format!(
             "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n#define MLXL3_SLOT_MAJOR {}\n",
             u8::from(k == 3),
@@ -1127,6 +1161,16 @@ fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {
     splits
 }
 
+fn reference_reduction_header(enabled: bool) -> String {
+    if !enabled {
+        return String::new();
+    }
+    let positions = codec::permutation().map(|p| p.to_string()).join(",");
+    format!(
+        "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
+    )
+}
+
 pub(crate) fn codebook_header(cb: Codebook) -> String {
     let body = match cb {
         Codebook::Default => {
@@ -1178,7 +1222,7 @@ mod tests {
             for (route, &slot) in routes.iter().enumerate() {
                 for projection in 0..projections {
                     let index = slot as usize * projections + projection;
-                    let reference = Exl3Linear::new(
+                    let mut reference = Exl3Linear::new(
                         Array::from_u16(&packed[index * 2048..(index + 1) * 2048], &[8, 8, 32])?,
                         Array::from_f16_bits(&scales[..width], &[128])?,
                         Array::from_f16_bits(&scales[..width], &[128])?,
@@ -1186,6 +1230,9 @@ mod tests {
                         k,
                         Codebook::Mul1,
                     )?;
+                    // Match the Flash checkpoint policy; new() retains the legacy policy.
+                    reference.simdgroups = 4;
+                    reference.reference_accumulation = true;
                     let expected = reference
                         .forward(&Array::from_f16_bits(&input, &[1, 128])?)?
                         .to_f16_bits()?;

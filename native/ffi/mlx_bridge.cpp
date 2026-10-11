@@ -305,6 +305,29 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         case 20: return mx::broadcast_to(a, shape(args, nargs));
         case 21: return mx::argsort(a, -1);
         case 22: return mx::rsqrt(a);
+        case 23: {
+          thread_local auto activate = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::divide(x[0], mx::array(4.0f, x[0].dtype()));
+            return std::vector<mx::array>{mx::multiply(y, mx::sigmoid(y))};
+          }, false);
+          return activate({a})[0];
+        }
+        case 24: {
+          thread_local auto gate = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(mx::array(2.0f), mx::sigmoid(mx::divide(x[0], mx::array(4.0f))))};
+          }, false);
+          return gate({a})[0];
+        }
+        case 25: {
+          auto magnitude = mx::sqrt(mx::maximum(mx::abs(a), mx::array(1e-6f)));
+          return mx::sigmoid(mx::multiply(mx::sign(a), magnitude));
+        }
+        case 26: {
+          thread_local auto silu = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(x[0], mx::sigmoid(x[0]))};
+          }, true);
+          return silu({a})[0];
+        }
       }
       throw std::invalid_argument("invalid unary operation");
     };
@@ -352,6 +375,25 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           }, true);
           return geglu({a, b})[0];
         }
+        case 11: {
+          thread_local auto normalize = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::astype(x[0], mx::float32);
+            y = mx::multiply(y, mx::rsqrt(mx::add(mx::mean(mx::square(y), -1, true), x[2])));
+            y = mx::multiply(y, mx::add(mx::array(1.0f), mx::astype(x[1], mx::float32)));
+            return std::vector<mx::array>{mx::astype(y, x[0].dtype())};
+          }, false);
+          return normalize({a, b, mx::array(scalar, mx::float32)})[0];
+        }
+        case 12: {
+          thread_local auto mix = mx::compile([](const std::vector<mx::array>& x) {
+            auto dims = x[0].shape();
+            dims.back() /= 4;
+            dims.insert(dims.end() - 1, 4);
+            return std::vector<mx::array>{mx::mean(mx::multiply(mx::reshape(mx::sigmoid(x[0]), dims), mx::reshape(x[1], dims)), -2, false)};
+          }, false);
+          return mix({a, b})[0];
+        }
+        case 13: return mx::power(a, b);
       }
       throw std::invalid_argument("invalid binary operation");
     };

@@ -1,6 +1,10 @@
 // Ported from MLXL3's former Python/Metal prototype.
 // See THIRD_PARTY_NOTICES.md for attribution.
 
+#ifndef MLXL3_REFERENCE_ACCUMULATION
+#define MLXL3_REFERENCE_ACCUMULATION 0
+#endif
+
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
@@ -12,6 +16,9 @@
                           "fused epilogue supports one row");
             threadgroup float partials[MLXL3_QMV_SG]
                                       [MLXL3_QMV_MB * MLXL3_QMV_NT * 16u];
+#if MLXL3_REFERENCE_ACCUMULATION
+            threadgroup float reference_partials[MLXL3_QMV_MB][MLXL3_QMV_NT][MLXL3_QMV_SG][256];
+#endif
             threadgroup float ha[128];
             threadgroup float hb[128];
 
@@ -110,6 +117,11 @@
 
             for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
               for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+#if MLXL3_REFERENCE_ACCUMULATION
+                for (uint j = 0u; j < 8u; ++j) {
+                    reference_partials[batch_row][output_tile][simd][mlxl3_reference_positions[lane * 8u + j]] = acc[batch_row][output_tile][j];
+                }
+#else
                 // The EXL3 permutation assigns each four-lane quadgroup one
                 // output column and gives every lane four rows for columns
                 // c and c + 8. Reduce those rows in registers instead of
@@ -130,6 +142,7 @@
                     partials[simd][base + column] = column0;
                     partials[simd][base + column + 8u] = column1;
                 }
+#endif
               }
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -140,9 +153,18 @@
                 uint column = local & 15u;
                 uint partial = (batch_row * MLXL3_QMV_NT + output_tile) * 16u + column;
                 float sum = 0.0f;
+#if MLXL3_REFERENCE_ACCUMULATION
+                // Row-then-group order preserves Flash's expert decisions.
+                for (uint r = 0u; r < 16u; ++r) {
+                    for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
+                        sum += reference_partials[batch_row][output_tile][group][r * 16u + column];
+                    }
+                }
+#else
                 for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                     sum += partials[group][partial];
                 }
+#endif
                 if (MLXL3_FUSE_OUTPUT) ha[tid] = float(half(sum));
                 else if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
                     yhat[

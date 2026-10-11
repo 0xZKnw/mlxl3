@@ -28,6 +28,8 @@ pub struct SsdMoe {
     pub misses: u64,
     pub read_bytes: u64,
     overlap: bool,
+    #[cfg(test)]
+    pub(crate) route_ids: Vec<u32>,
 }
 
 impl SsdMoe {
@@ -113,6 +115,8 @@ impl SsdMoe {
             misses: 0,
             read_bytes: 0,
             overlap,
+            #[cfg(test)]
+            route_ids: Vec::new(),
         })
     }
 
@@ -197,6 +201,10 @@ impl SsdMoe {
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
         let (selected, weights) = self.route(x)?;
         let ids = selected.to_u32()?;
+        #[cfg(test)]
+        {
+            self.route_ids.clone_from(&ids);
+        }
         if let Some(last) = self.last.take() {
             last.eval()?;
         }

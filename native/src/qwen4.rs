@@ -28,6 +28,7 @@ struct Norm {
     width: i32,
     groups: i32,
     eps: f32,
+    zero_centered: bool,
 }
 
 impl Norm {
@@ -49,28 +50,38 @@ impl Norm {
             "invalid Flash norm {name}"
         );
         let raw = raw.astype(Dtype::Float32)?;
-        let gain = if zero_centered {
-            raw.add(&Array::from_f32(&[1.], &[])?)?
-        } else {
-            raw
-        };
+        let gain = raw;
         gain.eval()?;
         Ok(Self {
             gain,
             width,
             groups,
             eps,
+            zero_centered,
         })
     }
     fn forward(&self, x: &Array) -> Result<Array> {
-        let rows =
-            i32::try_from(x.byte_len()? / x.dtype().item_size())? / (self.width * self.groups);
-        let value = x
-            .astype(Dtype::Float32)?
-            .reshape(&[rows, self.groups, self.width])?
-            .rms_norm_without_weight(self.eps)?
-            .mul(&self.gain.reshape(&[self.groups, self.width])?)?;
-        value.reshape(x.shape())?.astype(x.dtype())
+        ensure!(
+            x.shape().last() == Some(&(self.width * self.groups)),
+            "invalid Flash norm input shape"
+        );
+        let mut shape = x.shape().to_vec();
+        if self.groups > 1 {
+            *shape.last_mut().context("empty Flash norm input")? = self.groups;
+            shape.push(self.width);
+        }
+        let grouped = x.reshape(&shape)?;
+        let value = if self.zero_centered {
+            let gain = if self.groups > 1 {
+                self.gain.reshape(&[self.groups, self.width])?
+            } else {
+                self.gain.try_clone()?
+            };
+            grouped.qwen4_rms_norm(&gain, self.eps)?
+        } else {
+            grouped.rms_norm(&self.gain, self.eps)?
+        };
+        value.reshape(x.shape())
     }
 }
 
@@ -92,25 +103,15 @@ impl Hc {
         })
     }
     fn read(&self, streams: &Array) -> Result<(Array, Option<Array>)> {
-        let normalized = self.norm.forward(streams)?;
+        let normalized = self.norm.forward(&streams.reshape(&[1, 1, WIDTH])?)?;
         let weights = self
             .up
-            .forward(&self.down.forward(&normalized)?.scalar_mul(0.25)?.silu()?)?
-            .sigmoid()?;
-        let mixed = weights
-            .mul(&normalized)?
-            .reshape(&[1, HC, H])?
-            .sum(1, false)?
-            .scalar_mul(0.25)?;
+            .forward(&self.down.forward(&normalized)?.qwen4_hc_activate()?)?;
+        let mixed = weights.qwen4_hc_mix(&normalized)?.reshape(&[1, H])?;
         let injection = self
             .inject
             .as_ref()
-            .map(|p| {
-                p.forward(&normalized)?
-                    .scalar_mul(0.25)?
-                    .sigmoid()?
-                    .scalar_mul(2.)
-            })
+            .map(|p| p.forward(&normalized)?.qwen4_hc_gate()?.reshape(&[1, HC]))
             .transpose()?;
         Ok((mixed, injection))
     }
@@ -125,6 +126,8 @@ impl Hc {
 }
 
 struct Gdn {
+    #[cfg(test)]
+    stages: Vec<(String, Array)>,
     qkv: Projection,
     z: Projection,
     a: Projection,
@@ -142,6 +145,8 @@ impl Gdn {
         let proj =
             |name: &str, output| Projection::load(c, &format!("{p}.{name}"), H, output, false);
         Ok(Self {
+            #[cfg(test)]
+            stages: Vec::new(),
             qkv: proj("in_proj_qkv", 10240)?,
             z: proj("in_proj_z", 6144)?,
             a: proj("in_proj_a", 48)?,
@@ -157,11 +162,22 @@ impl Gdn {
         })
     }
     fn forward(&mut self, x: &Array) -> Result<Array> {
+        #[cfg(test)]
+        self.stages.clear();
+        macro_rules! stage {
+            ($name:expr, $value:expr) => {
+                #[cfg(test)]
+                self.stages.push(($name.into(), $value.try_clone()?));
+            };
+        }
+        let half_input = x.astype(Dtype::Float16)?;
+        let x = &half_input;
         let qkv = self
             .qkv
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 10240])?;
+        stage!("qkv", qkv);
         let history = match &self.history {
             Some(h) => h.try_clone()?,
             None => Array::zeros_dtype(&[1, 3, 10240], Dtype::Float16)?,
@@ -174,6 +190,7 @@ impl Gdn {
             .sum(1, true)?
             .astype(Dtype::Float16)?
             .silu()?;
+        stage!("conv", conv);
         let q = conv.slice(2, 0, 2048)?.reshape(&[1, 1, 16, 128])?;
         let k = conv.slice(2, 2048, 4096)?.reshape(&[1, 1, 16, 128])?;
         let v = conv.slice(2, 4096, 10240)?.reshape(&[1, 1, 48, 128])?;
@@ -184,40 +201,42 @@ impl Gdn {
         };
         let q = norm(&q, 1. / 128f32.sqrt())?;
         let k = norm(&k, 1.)?;
+        stage!("q", q);
+        stage!("k", k);
+        stage!("v", v);
         let state = match &self.state {
             Some(s) => s.try_clone()?,
             None => Array::zeros_dtype(&[1, 48, 128, 128], Dtype::Float32)?,
         };
-        let (value, state) = gated_delta::step_with_gates(
-            &q,
-            &k,
-            &v,
-            &self
-                .a
-                .forward(x)?
-                .astype(Dtype::Float16)?
-                .reshape(&[1, 1, 48])?,
-            &self
-                .b
-                .forward(x)?
-                .astype(Dtype::Float16)?
-                .reshape(&[1, 1, 48])?,
-            &self.a_log,
-            &self.dt_bias,
-            &state,
-        )?;
+        let a = self
+            .a
+            .forward(x)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, 1, 48])?;
+        let b = self
+            .b
+            .forward(x)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, 1, 48])?;
+        stage!("a", a);
+        stage!("b", b);
+        let (value, state) =
+            gated_delta::step_with_gates(&q, &k, &v, &a, &b, &self.a_log, &self.dt_bias, &state)?;
+        stage!("delta", value);
         self.state = Some(state);
         let z = self
             .z
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 48, 128])?;
-        let gated = self
-            .norm
-            .forward(&value)?
+        stage!("z", z);
+        let normed = self.norm.forward(&value)?;
+        stage!("normed", normed);
+        let gated = normed
             .astype(Dtype::Float32)?
             .mul(&z.astype(Dtype::Float32)?.sigmoid()?)?
             .astype(Dtype::Float16)?;
+        stage!("gated", gated);
         self.out
             .forward(&gated.reshape(&[1, 6144])?)?
             .astype(Dtype::Float32)
@@ -229,6 +248,8 @@ impl Gdn {
 }
 
 struct Qsa {
+    #[cfg(test)]
+    stages: Vec<(String, Array)>,
     q: Projection,
     k: Projection,
     v: Projection,
@@ -243,13 +264,27 @@ struct Qsa {
     index_tail: Option<Array>,
     blocks: Option<Array>,
     offset: i32,
-    rope: f32,
+    frequencies: [Array; 2],
 }
 impl Qsa {
     fn load(c: &Checkpoint, p: &str, eps: f32, rope: f32) -> Result<Self> {
         let proj =
             |name: &str, output| Projection::load(c, &format!("{p}.{name}"), H, output, false);
+        let base = Array::from_f32(&[rope], &[])?;
+        let frequencies = [32, 64].map(|dimensions| -> Result<Array> {
+            let exponents = (0..dimensions / 2)
+                .map(|i| (2 * i) as f32 / dimensions as f32)
+                .collect::<Vec<_>>();
+            let inverse = Array::from_f32(&[1.], &[])?
+                .div(&base.pow(&Array::from_f32(&exponents, &[dimensions / 2])?)?)?;
+            inverse.eval()?;
+            Ok(inverse)
+        });
+        let [small, large] = frequencies;
+        let frequencies = [small?, large?];
         Ok(Self {
+            #[cfg(test)]
+            stages: Vec::new(),
             q: proj("q_proj", 12288)?,
             k: proj("k_proj", 512)?,
             v: proj("v_proj", 512)?,
@@ -278,8 +313,50 @@ impl Qsa {
             index_tail: None,
             blocks: None,
             offset: 0,
-            rope,
+            frequencies,
         })
+    }
+    fn rope(&self, x: &Array, dimensions: i32, offset: i32) -> Result<Array> {
+        let [batch, heads, time, width]: [i32; 4] = x
+            .shape()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("invalid Flash RoPE rank"))?;
+        ensure!(
+            batch == 1
+                && time == 1
+                && heads > 0
+                && width >= dimensions
+                && offset >= 0
+                && x.dtype() == Dtype::Float16,
+            "invalid Flash RoPE input"
+        );
+        let frequencies = match dimensions {
+            32 => &self.frequencies[0],
+            64 => &self.frequencies[1],
+            _ => anyhow::bail!("unsupported Flash rotary width"),
+        };
+        let work = heads
+            .checked_mul(width - dimensions / 2)
+            .context("Flash RoPE grid overflow")?;
+        array::metal_kernel(
+            &format!("mlxl3_flash_mrope_r{dimensions}_h{heads}_w{width}"),
+            &["x", "inv_freq", "position"],
+            &["out"],
+            &format!(
+                "#define ROTARY {dimensions}
+#define WIDTH {width}
+#define HEADS {heads}
+"
+            ),
+            include_str!("../shaders/flash_rope.metal"),
+            &[x, frequencies, &Array::from_i32(&[offset], &[1])?],
+            &[x.shape().to_vec()],
+            &[Dtype::Float16],
+            [work, 1, 1],
+            [256, 1, 1],
+        )?
+        .pop()
+        .context("missing Flash RoPE output")
     }
     fn append(old: &Option<Array>, value: &Array, axis: i32) -> Result<Array> {
         match old {
@@ -288,6 +365,14 @@ impl Qsa {
         }
     }
     fn forward(&mut self, x: &Array) -> Result<Array> {
+        #[cfg(test)]
+        self.stages.clear();
+        macro_rules! stage {
+            ($name:expr, $value:expr) => {
+                #[cfg(test)]
+                self.stages.push(($name.into(), $value.try_clone()?));
+            };
+        }
         let qk = self
             .index
             .forward(x)?
@@ -301,11 +386,11 @@ impl Qsa {
                 .sum(1, true)?
                 .scalar_mul(0.25)?
                 .astype(Dtype::Float16)?;
-            let block = self
-                .ik_norm
-                .forward(&pool)?
-                .reshape(&[1, 1, 1, 128])?
-                .rope(32, self.rope, self.offset - 3)?;
+            let block = self.rope(
+                &self.ik_norm.forward(&pool)?.reshape(&[1, 1, 1, 128])?,
+                32,
+                self.offset - 3,
+            )?;
             self.blocks = Some(Self::append(&self.blocks, &block, 2)?);
             self.index_tail = None;
         } else {
@@ -317,39 +402,42 @@ impl Qsa {
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 24, 512])?;
         let gate = qg.slice(3, 256, 512)?.reshape(&[1, 6144])?;
-        let query = self
-            .q_norm
-            .forward(&qg.slice(3, 0, 256)?)?
-            .transpose(&[0, 2, 1, 3])?
-            .rope(64, self.rope, self.offset)?;
-        let key = self
-            .k_norm
-            .forward(
-                &self
-                    .k
-                    .forward(x)?
-                    .astype(Dtype::Float16)?
-                    .reshape(&[1, 1, 2, 256])?,
-            )?
-            .transpose(&[0, 2, 1, 3])?
-            .rope(64, self.rope, self.offset)?;
+        stage!("q_proj", qg);
+        let query_norm = self.q_norm.forward(&qg.slice(3, 0, 256)?)?;
+        stage!("q_norm", query_norm);
+        let query = self.rope(&query_norm.transpose(&[0, 2, 1, 3])?, 64, self.offset)?;
+        stage!("q_rope", query);
+        let raw_key = self
+            .k
+            .forward(x)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, 1, 2, 256])?;
+        stage!("k_proj", raw_key);
+        let key_norm = self.k_norm.forward(&raw_key)?;
+        stage!("k_norm", key_norm);
+        let key = self.rope(&key_norm.transpose(&[0, 2, 1, 3])?, 64, self.offset)?;
+        stage!("k_rope", key);
         let value = self
             .v
             .forward(x)?
             .astype(Dtype::Float16)?
-            .reshape(&[1, 1, 2, 256])?
-            .transpose(&[0, 2, 1, 3])?;
+            .reshape(&[1, 1, 2, 256])?;
+        stage!("v_proj", value);
+        let value = value.transpose(&[0, 2, 1, 3])?;
         self.keys = Some(Self::append(&self.keys, &key, 2)?);
         self.values = Some(Self::append(&self.values, &value, 2)?);
         let keys = self.keys.as_ref().context("missing QSA keys")?;
         let values = self.values.as_ref().context("missing QSA values")?;
         let count = (self.offset + 1) / 4;
         let (attn_keys, attn_values) = if count > 512 {
-            let iq = self
-                .iq_norm
-                .forward(&qk.slice(2, 0, 4)?)?
-                .transpose(&[0, 2, 1, 3])?
-                .rope(32, self.rope, self.offset)?;
+            let iq = self.rope(
+                &self
+                    .iq_norm
+                    .forward(&qk.slice(2, 0, 4)?)?
+                    .transpose(&[0, 2, 1, 3])?,
+                32,
+                self.offset,
+            )?;
             let scores = iq.astype(Dtype::Float32)?.matmul(
                 &self
                     .blocks
@@ -379,9 +467,9 @@ impl Qsa {
             .transpose(&[0, 2, 1, 3])?
             .reshape(&[1, 6144])?;
         self.offset = self.offset.checked_add(1).context("QSA offset exhausted")?;
-        self.out
-            .forward(&attention.mul(&gate.sigmoid()?)?)?
-            .astype(Dtype::Float32)
+        let gated = attention.mul(&gate.sigmoid()?)?;
+        stage!("gated", gated);
+        self.out.forward(&gated)?.astype(Dtype::Float32)
     }
     fn reset(&mut self) {
         self.keys = None;
@@ -536,6 +624,8 @@ impl Ngrams {
 }
 
 struct Ple {
+    #[cfg(test)]
+    stages: Vec<(String, Array)>,
     rows: Ngrams,
     key: Projection,
     value: Projection,
@@ -548,6 +638,8 @@ struct Ple {
 impl Ple {
     fn load(c: &Checkpoint, p: &str, eps: f32) -> Result<Self> {
         Ok(Self {
+            #[cfg(test)]
+            stages: Vec::new(),
             rows: Ngrams::load(c, &format!("{p}.ple_embedding.ngram_embedding"))?,
             key: Projection::load(c, &format!("{p}.key_proj"), H, WIDTH, false)?,
             value: Projection::load(c, &format!("{p}.value_proj"), H, H, false)?,
@@ -560,19 +652,30 @@ impl Ple {
         })
     }
     fn forward(&mut self, streams: &Array, token: u32) -> Result<Array> {
+        #[cfg(test)]
+        self.stages.clear();
+        macro_rules! stage {
+            ($name:expr, $value:expr) => {
+                #[cfg(test)]
+                self.stages.push(($name.into(), $value.try_clone()?));
+            };
+        }
         let embedding = self.rows.forward(token)?;
+        stage!("embedding", embedding);
         let key = self
             .nk
             .forward(&self.key.forward(&embedding)?)?
             .reshape(&[1, HC, H])?;
         let query = self.nq.forward(streams)?.reshape(&[1, HC, H])?;
+        stage!("key", key);
+        stage!("query", query);
         let raw = key
             .mul(&query)?
             .sum(2, true)?
-            .scalar_mul(1. / (H as f32).sqrt())?;
-        let gate=array::metal_kernel("mlxl3_flash_ple_gate",&["x"],&["out"],"",
-            "uint i=thread_position_in_grid.x;if(i<4){float x0=x[i];float v=x0==0.0f?0.0f:copysign(sqrt(max(abs(x0),1e-6f)),x0);out[i]=1.0f/(1.0f+exp(-v));}",
-            &[&raw],&[vec![1,HC,1]],&[Dtype::Float32],[4,1,1],[4,1,1])?.remove(0);
+            .div(&Array::from_f32(&[(H as f32).sqrt()], &[])?)?;
+        let gate = raw.qwen4_ple_gate()?;
+        stage!("raw", raw);
+        stage!("gate", gate);
         let gated = self
             .value
             .forward(&embedding)?
@@ -580,7 +683,9 @@ impl Ple {
             .reshape(&[1, 1, H])?
             .mul(&gate)?
             .reshape(&[1, WIDTH])?;
+        stage!("gated", gated);
         let normed = self.nc.forward(&gated)?.reshape(&[1, 1, WIDTH])?;
+        stage!("normed", normed);
         let old = match &self.history {
             Some(h) => h.try_clone()?,
             None => Array::zeros(&[1, 9, WIDTH])?,
@@ -588,11 +693,13 @@ impl Ple {
         let input = Array::concatenate(&[&old, &normed], 1)?;
         self.history = Some(input.slice(1, 1, 10)?);
         let indices = Array::from_u32(&[0, 3, 6, 9], &[4])?;
-        let convolution = input
+        let conv_raw = input
             .take(&indices, 1)?
-            .mul(&self.conv)?
-            .sum(1, false)?
-            .silu()?;
+            .conv1d(&self.conv.transpose(&[2, 1, 0])?, WIDTH)?
+            .reshape(&[1, WIDTH])?;
+        stage!("conv_raw", conv_raw);
+        let convolution = conv_raw.compiled_silu()?;
+        stage!("convolution", convolution);
         streams.add(&gated.add(&convolution)?)
     }
     fn reset(&mut self) {
@@ -927,12 +1034,285 @@ mod tests {
         Array::from_bytes(&bytes, &[1, width], Dtype::Float32)
     }
     #[test]
+    #[ignore = "physical Apple GPU and independent Pony projection fixture"]
+    fn flash_projections_match_upstream_rounding() -> Result<()> {
+        let root = std::env::var("MLXL3_FLASH_PROJECTION_REFERENCE")?;
+        let root = Path::new(&root);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(data["status"] == "complete", "projection oracle incomplete");
+        let cases = data["projections"]
+            .as_array()
+            .context("missing projections")?;
+        ensure!(cases.len() == 20, "insufficient projection coverage");
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        for (index, case) in cases.iter().enumerate() {
+            let width = i32::try_from(case["input_width"].as_i64().context("missing width")?)?;
+            let out = i32::try_from(
+                case["output_width"]
+                    .as_i64()
+                    .context("missing output width")?,
+            )?;
+            let projection = Projection::load(
+                &checkpoint,
+                case["prefix"].as_str().context("missing projection")?,
+                width,
+                out,
+                false,
+            )?;
+            let dtype = if case["dtype"] == "mlx.core.float16" {
+                Dtype::Float16
+            } else {
+                Dtype::Float32
+            };
+            let x = input(root, &case["input"], width)?.astype(dtype)?;
+            let y = projection.forward(&x)?;
+            check(
+                root,
+                &case["output"],
+                &y,
+                &format!("projection/{index}"),
+                1e-5,
+            )?;
+            ensure!(
+                y.astype(Dtype::Float32)?.to_bytes()?
+                    == input(root, &case["output"], out)?.to_bytes()?,
+                "projection {index} differs bitwise"
+            );
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and independent upstream HC fixture"]
+    fn flash_hc_write_matches_upstream_rounding() -> Result<()> {
+        let root = std::env::var("MLXL3_FLASH_NORM_REFERENCE")?;
+        let root = Path::new(&root);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(data["status"] == "complete", "HC oracle incomplete");
+        let cases = data["hc_write"].as_array().context("missing HC cases")?;
+        ensure!(cases.len() == 6, "insufficient HC coverage");
+        for (index, case) in cases.iter().enumerate() {
+            let dtype = if case["branch_dtype"] == "mlx.core.float16" {
+                Dtype::Float16
+            } else {
+                Dtype::Float32
+            };
+            let streams = input(root, &case["streams"], WIDTH)?;
+            let branch = input(root, &case["branch"], H)?.astype(dtype)?;
+            let gate = input(root, &case["gate"], HC)?;
+            let actual = Hc::write(&streams, &branch, &gate)?.to_bytes()?;
+            let expected = input(root, &case["output"], WIDTH)?.to_bytes()?;
+            ensure!(actual == expected, "HC write differs bitwise at {index}");
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and independent upstream norm fixture"]
+    fn flash_norms_match_upstream_rounding() -> Result<()> {
+        let root = std::env::var("MLXL3_FLASH_NORM_REFERENCE")?;
+        let root = Path::new(&root);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(data["status"] == "complete", "norm oracle incomplete");
+        let cases = data["cases"].as_array().context("missing norm cases")?;
+        ensure!(cases.len() == 40, "insufficient norm coverage");
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        for (index, case) in cases.iter().enumerate() {
+            let width = i32::try_from(case["width"].as_i64().context("missing width")?)?;
+            let groups = i32::try_from(case["groups"].as_i64().context("missing groups")?)?;
+            let norm = Norm::load(
+                &checkpoint,
+                case["weight"].as_str().context("missing weight")?,
+                width,
+                groups,
+                1e-6,
+                case["centered"]
+                    .as_bool()
+                    .context("missing centered flag")?,
+            )?;
+            let dtype = match case["dtype"].as_str() {
+                Some("mlx.core.float16") => Dtype::Float16,
+                Some("mlx.core.float32") => Dtype::Float32,
+                other => anyhow::bail!("unsupported oracle dtype {other:?}"),
+            };
+            let rows = i32::try_from(case["rows"].as_i64().context("missing rows")?)?;
+            let x = input(root, &case["input"], rows * width * groups)?
+                .reshape(&[rows, width * groups])?
+                .astype(dtype)?;
+            let y = norm.forward(&x)?;
+            check(root, &case["output"], &y, &format!("norm/{index}"), 1e-5)?;
+            let expected = input(root, &case["output"], rows * width * groups)?;
+            ensure!(
+                y.astype(Dtype::Float32)?.to_bytes()? == expected.to_bytes()?,
+                "norm {index} differs bitwise"
+            );
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and independent QSA-stage fixture"]
+    fn flash_qsa_stages_match_upstream() -> Result<()> {
+        let root = std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?;
+        let root = Path::new(&root);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(
+            data["status"] == "complete" && data["mode"] == "eval",
+            "QSA oracle incomplete or wrong mode"
+        );
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        for index in [15, 35] {
+            let steps = data["attention"][index.to_string()]
+                .as_array()
+                .context("missing QSA probe")?;
+            ensure!((5..=32).contains(&steps.len()), "insufficient QSA coverage");
+            let mut qsa = Qsa::load(
+                &c,
+                &format!("model.language_model.layers.{index}.self_attn"),
+                1e-6,
+                1e7,
+            )?;
+            for shape in [&[1, 256][..], &[1, 0, 1, 256], &[1, 2, 2, 256]] {
+                let x = Array::zeros_dtype(shape, Dtype::Float16)?;
+                ensure!(qsa.rope(&x, 64, 0).is_err(), "invalid RoPE shape accepted");
+            }
+            let x = Array::zeros_dtype(&[1, 2, 1, 256], Dtype::Float16)?;
+            ensure!(
+                qsa.rope(&x, 64, -1).is_err(),
+                "negative RoPE offset accepted"
+            );
+            ensure!(
+                qsa.rope(&x, 65, 0).is_err(),
+                "invalid rotary width accepted"
+            );
+            ensure!(
+                qsa.rope(&x.astype(Dtype::Float32)?, 64, 0).is_err(),
+                "invalid RoPE dtype accepted"
+            );
+            ensure!(
+                qsa.offset == 0 && qsa.keys.is_none(),
+                "rejected RoPE changed cache"
+            );
+            for (step, case) in steps.iter().enumerate() {
+                let output = qsa.forward(&input(root, &case["input"], H)?)?;
+                for (name, value) in qsa
+                    .stages
+                    .iter()
+                    .chain(std::iter::once(&("out".into(), output)))
+                {
+                    let reference = &case["stages"][name];
+                    check(
+                        root,
+                        reference,
+                        value,
+                        &format!("QSA/{index}/{step}/{name}"),
+                        f64::INFINITY,
+                    )?;
+                    let expected = input(root, reference, value.shape().iter().product())?;
+                    ensure!(
+                        value.astype(Dtype::Float32)?.to_bytes()? == expected.to_bytes()?,
+                        "QSA stage differs bitwise at layer {index}/step {step}/{name}"
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and independent PLE-stage fixture"]
+    fn flash_ple_stages_match_upstream() -> Result<()> {
+        let root = std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?;
+        let root = Path::new(&root);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(
+            data["status"] == "complete" && data["mode"] == "eval",
+            "PLE oracle incomplete or wrong mode"
+        );
+        let steps = data["attention"]["1"]
+            .as_array()
+            .context("missing PLE probe")?;
+        ensure!((5..=32).contains(&steps.len()), "insufficient PLE coverage");
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut ple = Ple::load(&c, "model.language_model.layers.1.ple", 1e-6)?;
+        for (step, case) in steps.iter().enumerate() {
+            let output = ple.forward(
+                &input(root, &case["input"], WIDTH)?,
+                u32::try_from(case["token"].as_u64().context("missing PLE token")?)?,
+            )?;
+            for (name, value) in ple
+                .stages
+                .iter()
+                .chain(std::iter::once(&("out".into(), output)))
+            {
+                let reference = &case["stages"][name];
+                check(
+                    root,
+                    reference,
+                    value,
+                    &format!("PLE/{step}/{name}"),
+                    f64::INFINITY,
+                )?;
+                let expected = input(root, reference, value.shape().iter().product())?;
+                ensure!(
+                    value.astype(Dtype::Float32)?.to_bytes()? == expected.to_bytes()?,
+                    "PLE stage differs bitwise at step {step}/{name}"
+                );
+            }
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU and independent attention-stage fixture"]
+    fn flash_attention_stages_match_upstream() -> Result<()> {
+        let root = std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?;
+        let root = Path::new(&root);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(
+            data["status"] == "complete" && data["mode"] == "eval",
+            "attention oracle incomplete or wrong mode"
+        );
+        let steps = data["attention"]["2"]
+            .as_array()
+            .context("missing GDN probe")?;
+        ensure!(
+            (5..=32).contains(&steps.len()),
+            "insufficient attention coverage"
+        );
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut gdn = Gdn::load(&c, "model.language_model.layers.2.linear_attn", 1e-6)?;
+        for (step, case) in steps.iter().enumerate() {
+            let output = gdn.forward(&input(root, &case["input"], H)?)?;
+            for (name, value) in gdn
+                .stages
+                .iter()
+                .chain(std::iter::once(&("out".into(), output)))
+            {
+                let reference = &case["stages"][name];
+                check(
+                    root,
+                    reference,
+                    value,
+                    &format!("GDN/{step}/{name}"),
+                    f64::INFINITY,
+                )?;
+                let expected = input(root, reference, value.shape().iter().product())?;
+                ensure!(
+                    value.astype(Dtype::Float32)?.to_bytes()? == expected.to_bytes()?,
+                    "attention stage differs bitwise at step {step}/{name}"
+                );
+            }
+        }
+        Ok(())
+    }
+    #[test]
     #[ignore = "physical M5 and independent per-component Flash fixture"]
     fn flash_components_match_reference_on_identical_inputs() -> Result<()> {
         let root = std::env::var("MLXL3_FLASH_REFERENCE")?;
         let root = Path::new(&root);
         let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
-        ensure!(data["status"] == "complete", "oracle incomplete");
+        ensure!(
+            data["status"] == "complete" && data["mode"] == "eval",
+            "oracle incomplete or wrong mode"
+        );
         let checkpoint =
             crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let mut model = FlashNext::from_checkpoint(&checkpoint)?;
@@ -961,6 +1341,10 @@ mod tests {
                         &format!("s{step}/l{index}/{name}/gate"),
                         0.005,
                     )?;
+                    ensure!(
+                        mixed.to_bytes()? == input(root, &reference["mixed"], H)?.to_bytes()?,
+                        "HC mixed differs bitwise at s{step}/l{index}/{name}"
+                    );
                 }
                 let name = match &layer.attention {
                     Attention::Gdn(_) => "linear_attn",
@@ -979,6 +1363,10 @@ mod tests {
                     &format!("s{step}/l{index}/{name}"),
                     0.005,
                 )?;
+                ensure!(
+                    output.to_bytes()? == input(root, &reference["output"], H)?.to_bytes()?,
+                    "attention differs bitwise at s{step}/l{index}/{name}"
+                );
                 let reference = &component["mlp"];
                 let x = input(root, &reference["input"], H)?;
                 let mut selected = layer.moe.route(&x)?.0.to_u32()?;
@@ -1062,7 +1450,10 @@ mod tests {
         let root = std::env::var("MLXL3_FLASH_REFERENCE")?;
         let root = Path::new(&root);
         let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
-        ensure!(data["status"] == "complete", "oracle incomplete");
+        ensure!(
+            data["status"] == "complete" && data["mode"] == "eval",
+            "oracle incomplete or wrong mode"
+        );
         let steps = data["steps"].as_array().context("missing oracle steps")?;
         ensure!(steps.len() >= 5, "empty or insufficient oracle coverage");
         let checkpoint =
@@ -1072,6 +1463,27 @@ mod tests {
             let (logits, trace) = model.forward_trace(u32::try_from(
                 step["token"].as_u64().context("invalid token")?,
             )?)?;
+            let mut same_routes = true;
+            for (index, layer) in model.layers.iter().enumerate() {
+                let mut actual = layer.moe.route_ids.clone();
+                actual.sort_unstable();
+                let expected = step["route_ids"][index]
+                    .as_array()
+                    .context("missing routes")?
+                    .iter()
+                    .map(|v| {
+                        v.as_u64()
+                            .and_then(|v| u32::try_from(v).ok())
+                            .context("invalid route")
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                if actual != expected {
+                    eprintln!(
+                        "trajectory route mismatch s{i}/l{index}: native={actual:?}, oracle={expected:?}"
+                    );
+                    same_routes = false;
+                }
+            }
             for (name, value) in trace {
                 let entry = if let Some(index) = name.strip_prefix("layer_") {
                     &step["layers"][index.parse::<usize>()?]
@@ -1090,6 +1502,13 @@ mod tests {
                             0.003
                         },
                     )?;
+                    if name.starts_with("gdn_state_") {
+                        ensure!(
+                            value.astype(Dtype::Float32)?.to_bytes()?
+                                == input(root, entry, 786432)?.to_bytes()?,
+                            "coupled recurrent state differs bitwise at s{i}/{name}"
+                        );
+                    }
                 }
             }
             check(
@@ -1097,8 +1516,14 @@ mod tests {
                 &step["logits"],
                 &logits,
                 &format!("s{i}/logits"),
-                0.05,
+                0.01,
             )?;
+            ensure!(
+                logits.astype(Dtype::Float32)?.to_bytes()?
+                    == input(root, &step["logits"], 248320)?.to_bytes()?,
+                "full logits differ bitwise at s{i}"
+            );
+            ensure!(same_routes, "full trajectory routing differs at s{i}");
             let values = logits.astype(Dtype::Float32)?.to_f32()?;
             let chosen = values
                 .iter()

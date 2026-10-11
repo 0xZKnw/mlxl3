@@ -4,7 +4,9 @@
 
 `native/src/qwen4.rs` and its independent verification script follow Qwen's
 released Flash Next configuration and the MIT-licensed MLX-VLM 0.7.3 text
-architecture, including HyperConnections, sparse attention and PLE:
+architecture, including HyperConnections, sparse attention and PLE.
+`native/shaders/flash_rope.metal` adapts the text half-split MRoPE body from
+MLX-VLM `models/rope_utils.py` under the same MIT license:
 <https://github.com/Blaizzy/mlx-vlm/tree/main/mlx_vlm/models/qwen4_exp>.
 Copyright © 2025 Prince Canuma. The MIT license is provided in
 `LICENSES/MLX-VLM-MIT.txt`. Existing EXL3 kernels retain their PonyExl3

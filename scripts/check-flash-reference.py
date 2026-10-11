@@ -115,18 +115,127 @@ def parse_tokens(value: str) -> list[int]:
     return tokens
 
 
+def probe_input(root: Path, entry: dict, width: int) -> np.ndarray:
+    if entry.get("count") != width or entry.get("shape") != [1, 1, width]:
+        raise ValueError("invalid probe input shape/count")
+    with (root / entry["file"]).open("rb") as handle:
+        payload = handle.read(width * 4 + 1)
+    if len(payload) != width * 4:
+        raise ValueError("invalid probe input bytes")
+    data = np.frombuffer(payload, dtype="<f4")
+    if not np.isfinite(data).all():
+        raise ValueError("nonfinite probe input")
+    return data.reshape(1, 1, width)
+
+
+def norm_reference(model: Path, output: Path):
+    """Small oracle using the actual upstream norms, including grouped FP32 HC."""
+    import mlx.core as mx
+    from mlx_vlm.models.qwen4_exp.language import Qwen4ExpRMSNorm, _qwen4_inject
+
+    output.mkdir(parents=True, exist_ok=False)
+    report = {"status": "in_progress", "cases": []}
+    store = Store(model)
+    try:
+        names = [
+            ("layers.0.attn_hyper_connection.hc_norm", 2560, 4, True),
+            ("layers.0.linear_attn.norm", 128, 1, False),
+            ("layers.3.self_attn.q_norm", 256, 1, True),
+            ("layers.3.self_attn.k_norm", 256, 1, True),
+            ("layers.3.self_attn.indexer.q_layernorm", 128, 1, True),
+            ("layers.3.self_attn.indexer.k_layernorm", 128, 1, True),
+            ("layers.1.ple.norm_key", 2560, 4, True),
+            ("layers.1.ple.norm_query", 2560, 4, True),
+            ("layers.1.ple.norm_conv", 2560, 4, True),
+            ("hyper_connection_mixer.hc_norm", 2560, 4, True),
+        ]
+        for name, width, groups, centered in names:
+            name = "model.language_model." + name + ".weight"
+            weight = mx.array(store.read(name))
+            norm = Qwen4ExpRMSNorm(
+                width * groups, group_size=width if groups > 1 else None, eps=1e-6
+            )
+            norm.weight = weight
+            for dtype in (mx.float16, mx.float32):
+                for rows in (1, 3):
+                    values = (
+                        (np.arange(rows * width * groups, dtype=np.int64) * 3571) % 20011 - 10005
+                    ) / 37.0
+                    x = mx.array(values.astype(np.float32).reshape(rows, width * groups)).astype(
+                        dtype
+                    )
+                    y = norm(x) if centered else mx.fast.rms_norm(x, weight, 1e-6)
+                    case = {
+                        "weight": name,
+                        "width": width,
+                        "groups": groups,
+                        "centered": centered,
+                        "dtype": str(dtype),
+                        "rows": rows,
+                    }
+                    for kind, value in (("input", x), ("output", y)):
+                        data = np.asarray(value.astype(mx.float32))
+                        if data.size != rows * width * groups or not np.isfinite(data).all():
+                            raise ValueError("invalid norm oracle")
+                        path = f"norm-{len(report['cases'])}-{kind}.f32"
+                        data.astype("<f4").tofile(output / path)
+                        case[kind] = {
+                            "file": path,
+                            "shape": list(data.shape),
+                            "count": int(data.size),
+                        }
+                    report["cases"].append(case)
+        report["hc_write"] = []
+        for branch_dtype in (mx.float16, mx.float32):
+            for scale in (0.001, 1.0, 100.0):
+                values = ((np.arange(10240) * 3571) % 20011 - 10005).astype(np.float32) / 37.0
+                streams = mx.array(values.reshape(1, 10240)) * scale
+                branch = mx.array(values[:2560].reshape(1, 2560)).astype(branch_dtype)
+                gate = mx.array([[0.073891, 0.528147, 1.473211, 1.873529]])
+                case = {"branch_dtype": str(branch_dtype)}
+                for kind, value in (
+                    ("streams", streams),
+                    ("branch", branch),
+                    ("gate", gate),
+                    ("output", _qwen4_inject(branch, streams, gate)),
+                ):
+                    data = np.asarray(value.astype(mx.float32))
+                    if data.size == 0 or not np.isfinite(data).all():
+                        raise ValueError("invalid HC oracle")
+                    path = f"hc-{len(report['hc_write'])}-{kind}.f32"
+                    data.astype("<f4").tofile(output / path)
+                    case[kind] = {"file": path, "shape": list(data.shape), "count": int(data.size)}
+                report["hc_write"].append(case)
+        report["status"] = "complete"
+    except BaseException as error:
+        report.update(status="failed", error=str(error))
+        raise
+    finally:
+        store.close()
+        (output / "reference.json").write_text(json.dumps(report, indent=2) + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--pony", type=Path, default=Path("build/research-ponyexl3"))
     parser.add_argument("--tokens", default="248044,1,42,248044,7")
+    parser.add_argument("--norm-only", action="store_true")
+    parser.add_argument("--projections-only", action="store_true")
+    parser.add_argument("--attention-only", type=Path)
     args = parser.parse_args()
+    if sum((args.norm_only, args.projections_only, args.attention_only is not None)) > 1:
+        parser.error("choose a single probe mode")
+    if args.norm_only:
+        norm_reference(args.model, args.output)
+        return
     tokens = parse_tokens(args.tokens)
     sys.path.insert(0, str(args.pony.resolve()))
     import mlx.core as mx
     from mlx import nn
     from mlx_vlm.models.activations import swiglu
+    from mlx_vlm.models.qwen3_5.gated_delta import _compute_g_beta
     from mlx_vlm.models.qwen4_exp.language import (
         ArraysCache,
         QSAKVCache,
@@ -145,6 +254,7 @@ def main():
         "steps": [],
         "reference": "mlx-vlm 0.7.3 + PonyExl3 8e7fa6b",
         "branch_dtype": "float16",
+        "mode": "eval",
         "activation": "upstream compiled float16 swiglu",
     }
     report_path = args.output / "reference.json"
@@ -280,13 +390,189 @@ def main():
 
     try:
         save_report()
+        if args.projections_only:
+            report["projections"] = []
+            specs = [
+                ("layers.0.linear_attn.in_proj_a", 2560, 48),
+                ("layers.0.linear_attn.in_proj_b", 2560, 48),
+                ("layers.0.linear_attn.in_proj_qkv", 2560, 10240),
+                ("layers.0.linear_attn.in_proj_z", 2560, 6144),
+                ("layers.0.linear_attn.out_proj", 6144, 2560),
+                ("layers.0.mlp.experts.0.gate_proj", 2560, 640),
+                ("layers.0.mlp.experts.0.up_proj", 2560, 640),
+                ("layers.0.mlp.experts.0.down_proj", 640, 2560),
+                ("layers.3.self_attn.q_proj", 2560, 12288),
+                ("lm_head", 2560, 248320),
+            ]
+            for suffix, width, out in specs:
+                prefix = suffix if suffix == "lm_head" else "model.language_model." + suffix
+                if prefix + ".trellis" in store.entries:
+                    module = Packed(prefix, out)
+                else:
+                    module = nn.Linear(width, out, bias=False)
+                    module.weight = mx.array(store.read(prefix + ".weight").astype(np.float16))
+                for dtype in (mx.float16, mx.float32):
+                    values = ((np.arange(width) * 3571) % 20011 - 10005).astype(np.float32) / 4000.0
+                    x = mx.array(values.reshape(1, width)).astype(dtype)
+                    y = module(x)
+                    index = len(report["projections"])
+                    report["projections"].append(
+                        {
+                            "prefix": prefix,
+                            "input_width": width,
+                            "output_width": out,
+                            "dtype": str(dtype),
+                            "input": save(f"p{index}-input", x),
+                            "output": save(f"p{index}-output", y),
+                        }
+                    )
+                    print(f"projection {prefix} {dtype}", flush=True)
+                del module
+                clear_layer_caches()
+            report["status"] = "complete"
+            return
         config = TextConfig.from_dict(
             json.loads((args.model / "config.json").read_text())["text_config"]
         )
+        if args.attention_only is not None:
+            original = json.loads((args.attention_only / "reference.json").read_text())
+            steps = original.get("steps", [])
+            if original.get("status") != "complete" or not 5 <= len(steps) <= 32:
+                raise ValueError("invalid input attention fixture")
+            report["attention"] = {}
+            for index in (1, 2, 15, 35):
+                parent = Qwen4ExpDecoderLayer(config, index)
+                is_ple = index == 1
+                is_gdn = parent.is_linear and not is_ple
+                name = "ple" if is_ple else "linear_attn" if is_gdn else "self_attn"
+                module = parent[name]
+                load(module, f"model.language_model.layers.{index}.{name}")
+                module.eval()
+                if module.training:
+                    raise ValueError("attention oracle is not in inference mode")
+                names = (
+                    (
+                        "ple_embedding",
+                        "key_proj",
+                        "value_proj",
+                        "norm_key",
+                        "norm_query",
+                        "norm_conv",
+                        "conv1d",
+                    )
+                    if is_ple
+                    else ("in_proj_qkv", "in_proj_z", "in_proj_a", "in_proj_b", "out_proj", "norm")
+                    if is_gdn
+                    else ("q_proj", "k_proj", "v_proj", "o_proj", "q_norm", "k_norm")
+                )
+                for child in names:
+                    module[child] = Observe(module[child])
+                captured = {}
+                if is_gdn:
+                    conv = module._causal_conv1d_decode
+                    normalize = module._normalize_qk
+
+                    def capture_conv(x, _conv=conv, _captured=captured):
+                        value = _conv(x)
+                        _captured["conv"] = nn.silu(value)
+                        return value
+
+                    def capture_qk(q, k, _normalize=normalize, _captured=captured):
+                        result = _normalize(q, k)
+                        _captured["q"], _captured["k"] = result
+                        return result
+
+                    module._causal_conv1d_decode = capture_conv
+                    module._normalize_qk = capture_qk
+                if not parent.is_linear:
+                    rotary = module.rotary_emb.apply_rotary
+
+                    def capture_rotary(
+                        q, k, *arguments, _rotary=rotary, _captured=captured, **kwargs
+                    ):
+                        result = _rotary(q, k, *arguments, **kwargs)
+                        _captured["q_rope"], _captured["k_rope"] = result
+                        return result
+
+                    module.rotary_emb.apply_rotary = capture_rotary
+                cache = ArraysCache(size=4) if parent.is_linear else QSAKVCache()
+                report["attention"][str(index)] = []
+                for step, old in enumerate(steps):
+                    entry = old["layers"][0] if is_ple else old["components"][index][name]["input"]
+                    x = mx.array(probe_input(args.attention_only, entry, 10240 if is_ple else 2560))
+                    captured.clear()
+                    if is_ple:
+                        y = x + module(x, mx.array([[old["token"]]]), cache, None)
+                    else:
+                        y = module(
+                            x.astype(mx.float16) if is_gdn else x,
+                            mask=None,
+                            cache=cache,
+                            **({} if is_gdn else {"position_ids": mx.array([[step]], mx.int32)}),
+                        )
+                    if is_ple:
+                        key = module.norm_key._output.reshape(1, 1, 4, 2560)
+                        query = module.norm_query._output.reshape(1, 1, 4, 2560)
+                        raw = mx.sum(key * query, axis=-1, keepdims=True) / (2560**0.5)
+                        gate = mx.sigmoid(mx.sign(raw) * mx.sqrt(mx.maximum(mx.abs(raw), 1e-6)))
+                        captured.update(
+                            embedding=module.ple_embedding._output,
+                            key=key,
+                            query=query,
+                            raw=raw,
+                            gate=gate,
+                            gated=module.norm_conv._input,
+                            normed=module.norm_conv._output,
+                            conv_raw=module.conv1d._output,
+                            convolution=nn.silu(module.conv1d._output),
+                        )
+                    elif is_gdn:
+                        captured["decay"], captured["beta"] = _compute_g_beta(
+                            module.A_log,
+                            module.in_proj_a._output,
+                            module.in_proj_b._output,
+                            module.dt_bias,
+                        )
+                        captured.update(
+                            qkv=module.in_proj_qkv._output,
+                            a=module.in_proj_a._output,
+                            b=module.in_proj_b._output,
+                            z=module.in_proj_z._output,
+                            delta=module.norm._input,
+                            normed=mx.fast.rms_norm(
+                                module.norm._input, module.norm._layer.weight, 1e-6
+                            ),
+                            gated=module.norm._output,
+                            v=captured["conv"][..., 4096:].reshape(1, 1, 48, 128),
+                        )
+                    else:
+                        captured.update({child: module[child]._output for child in names[:-1]})
+                        captured["k_norm"] = module.k_norm._output
+                        captured["gated"] = module.o_proj._input
+                    captured["out"] = y
+                    prefix = f"a{index}-s{step}"
+                    report["attention"][str(index)].append(
+                        {
+                            "token": old["token"],
+                            "input": save(prefix + "-input", x),
+                            "stages": {
+                                key: save(prefix + "-" + key, value)
+                                for key, value in captured.items()
+                            },
+                        }
+                    )
+                    print(f"attention {index} step {step + 1}/{len(steps)}", flush=True)
+                del parent, module
+                clear_layer_caches()
+            report["status"] = "complete"
+            return
         layers, caches = [], []
         for i in range(48):
             layer = Qwen4ExpDecoderLayer(config, i)
             load(layer, f"model.language_model.layers.{i}")
+            layer.eval()
+            if layer.training or (layer.is_linear and layer.linear_attn.training):
+                raise ValueError("oracle layer is not in inference mode")
             if layer.is_linear:
                 layer.linear_attn = HalfGdn(layer.linear_attn)
             for name in (

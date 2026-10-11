@@ -712,6 +712,24 @@ impl Array {
     pub fn rms_norm(&self, weight: &Self, eps: f32) -> Result<Self> {
         self.binary(weight, 4, 0, eps)
     }
+    pub(crate) fn qwen4_rms_norm(&self, raw_weight: &Self, eps: f32) -> Result<Self> {
+        self.binary(raw_weight, 11, 0, eps)
+    }
+    pub(crate) fn qwen4_hc_activate(&self) -> Result<Self> {
+        self.unary(23, &[], 0., 0)
+    }
+    pub(crate) fn qwen4_hc_gate(&self) -> Result<Self> {
+        self.unary(24, &[], 0., 0)
+    }
+    pub(crate) fn qwen4_hc_mix(&self, normalized: &Self) -> Result<Self> {
+        self.binary(normalized, 12, 0, 0.)
+    }
+    pub(crate) fn qwen4_ple_gate(&self) -> Result<Self> {
+        self.unary(25, &[], 0., 0)
+    }
+    pub(crate) fn compiled_silu(&self) -> Result<Self> {
+        self.unary(26, &[], 0., 0)
+    }
     pub fn conv1d(&self, weight: &Self, groups: i32) -> Result<Self> {
         self.binary(weight, 5, groups, 0.)
     }
@@ -726,6 +744,9 @@ impl Array {
     }
     pub fn div(&self, other: &Self) -> Result<Self> {
         self.binary(other, 9, 0, 0.)
+    }
+    pub(crate) fn pow(&self, exponent: &Self) -> Result<Self> {
+        self.binary(exponent, 13, 0, 0.)
     }
     pub fn geglu(&self, up: &Self) -> Result<Self> {
         self.binary(up, 10, 0, 0.)
