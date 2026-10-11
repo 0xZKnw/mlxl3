@@ -40,8 +40,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install pytest==8.4.2
+      - run: python -m pip install pytest==8.4.2 numpy==2.2.6
       - name: Check bridge benchmark mode validation
-        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_flash_reference.py
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
       # not enable the optional mlx feature, which needs a supplied libmlx.

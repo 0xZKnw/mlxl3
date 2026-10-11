@@ -5,6 +5,10 @@
 #define MLXL3_QMV_MB 1u
 #endif
 
+#ifndef MLXL3_SLOT_MAJOR
+#define MLXL3_SLOT_MAJOR 0
+#endif
+
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
@@ -59,9 +63,13 @@
                 uint route = sub / uint(ROUTING_REPEAT);
                 uint projection = sub - route * uint(ROUTING_REPEAT);
                 uint source_base =
+#if MLXL3_SLOT_MAJOR
+                    group_in_row * MLXL3_QMV_NT;
+#else
                     tile_map[route] * uint(OUTPUT_TILES)
                     + projection * uint(PROJECTION_STRIDE_TILES)
                     + group_in_row * MLXL3_QMV_NT;
+#endif
                 for (
                     uint output_tile = 0u;
                     output_tile < MLXL3_QMV_NT;
@@ -118,7 +126,13 @@
                     ++output_tile
                 ) {
                     const device uint* words = trellis +
+#if MLXL3_SLOT_MAJOR
+                        ((tile_map[sub / uint(ROUTING_REPEAT)] * uint(ROUTING_REPEAT)
+                            + sub % uint(ROUTING_REPEAT)) * uint(TILES_K) * uint(TILES_N)
+                            + tile_k * uint(TILES_N) + tile_ns[output_tile])
+#else
                         (tile_k * uint(TILES_N) + tile_ns[output_tile])
+#endif
                         * uint(PACKED_U32);
 #if MLXL3_K3_WINDOW_DECODE
                     ulong merged = (ulong(words[k3_word0]) << 32)

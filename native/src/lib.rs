@@ -8,6 +8,7 @@ pub mod codec;
 mod contracts;
 pub use contracts::reusable_prefix_len;
 pub mod dflash;
+pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(feature = "mlx")]
@@ -27,10 +28,14 @@ pub mod moe;
 pub mod mtp;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
+#[cfg(feature = "mlx")]
+pub mod qwen4;
 pub mod registry;
 #[cfg(feature = "mlx")]
 pub mod router;
 pub mod speculative;
+#[cfg(feature = "mlx")]
+pub mod ssd_moe;
 pub mod streaming;
 #[cfg(feature = "chat")]
 pub mod tokenizer;

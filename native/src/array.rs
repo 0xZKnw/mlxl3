@@ -107,6 +107,17 @@ unsafe extern "C" {
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
+    fn mlxl3_array_async_eval(p: *mut c_void) -> i32;
+    fn mlxl3_array_preadv(
+        fd: i32,
+        offset: u64,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        count: usize,
+    ) -> i32;
     fn mlxl3_array_copy_bytes(p: *mut c_void, out: *mut u8, count: usize) -> i32;
     fn mlxl3_array_unary(
         p: *mut c_void,
@@ -446,6 +457,61 @@ impl Array {
     pub fn eval(&self) -> Result<()> {
         checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
     }
+    pub fn async_eval(&self) -> Result<()> {
+        checked(unsafe { mlxl3_array_async_eval(self.handle.as_ptr()) })
+    }
+
+    /// Fill persistent storage after the caller has evaluated every GPU consumer
+    /// of the replaced slots. Aliasing views must not escape that ownership.
+    pub(crate) fn read_record(
+        file: &File,
+        offset: u64,
+        buffers: &mut [Self],
+        destinations: &[(usize, usize, usize)],
+    ) -> Result<()> {
+        ensure!(
+            !destinations.is_empty() && destinations.len() <= 64,
+            "invalid disk record"
+        );
+        let mut total = 0u64;
+        for &(index, start, length) in destinations {
+            let buffer = buffers.get(index).context("invalid disk buffer index")?;
+            let bytes = buffer.byte_len()?;
+            ensure!(
+                length > 0 && start.checked_add(length).is_some_and(|end| end <= bytes),
+                "invalid disk destination range"
+            );
+            total = total
+                .checked_add(u64::try_from(length)?)
+                .context("disk record size overflow")?;
+        }
+        let file_len = file.metadata()?.len();
+        ensure!(
+            offset
+                .checked_add(total)
+                .is_some_and(|end| end <= i64::MAX as u64 && end <= file_len),
+            "invalid disk source range"
+        );
+        let ptrs = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let indices = destinations.iter().map(|d| d.0).collect::<Vec<_>>();
+        let starts = destinations.iter().map(|d| d.1).collect::<Vec<_>>();
+        let lengths = destinations.iter().map(|d| d.2).collect::<Vec<_>>();
+        checked(unsafe {
+            mlxl3_array_preadv(
+                file.as_raw_fd(),
+                offset,
+                ptrs.as_ptr(),
+                buffers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                destinations.len(),
+            )
+        })
+    }
     pub fn try_clone(&self) -> Result<Self> {
         Self::output(|out| unsafe { mlxl3_array_clone(self.handle.as_ptr(), out) })
     }
@@ -581,6 +647,9 @@ impl Array {
     }
     pub fn exp(&self) -> Result<Self> {
         self.unary(12, &[], 0., 0)
+    }
+    pub fn rsqrt(&self) -> Result<Self> {
+        self.unary(22, &[], 0., 0)
     }
     pub fn rms_norm_without_weight(&self, eps: f32) -> Result<Self> {
         self.unary(13, &[], eps, 0)

@@ -114,6 +114,44 @@ fn checkpoint_round_trip_and_lazy_payload_read() {
 }
 
 #[test]
+fn flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail() {
+    let root = tempfile::tempdir().unwrap();
+    let model = make_checkpoint(root.path(), "flash");
+    let sidecar = model.join("ngram_embedding.safetensors");
+    write_safetensors(
+        &sidecar,
+        &json!({"ple.head_bias": {
+            "dtype":"F16", "shape":[1], "data_offsets":[0,2]
+        }}),
+        &[0, 0],
+    );
+    assert!(
+        !checkpoint::inspect(&model)
+            .unwrap()
+            .tensors
+            .contains_key("ple.head_bias")
+    );
+    write_json(
+        &model.join("config.json"),
+        &json!({"model_type":"qwen4_exp"}),
+    );
+    assert!(
+        checkpoint::inspect(&model)
+            .unwrap()
+            .tensors
+            .contains_key("ple.head_bias")
+    );
+    write_safetensors(
+        &model.join("mtp_hyper_connection_mixer_patch.safetensors"),
+        &json!({"ple.head_bias": {
+            "dtype":"F16", "shape":[1], "data_offsets":[0,2]
+        }}),
+        &[0, 0],
+    );
+    assert!(checkpoint::inspect(&model).is_err());
+}
+
+#[test]
 fn safetensors_accepts_scalars_and_zero_sized_tensors() {
     let root = tempfile::tempdir().unwrap();
     let file = root.path().join("scalar.safetensors");

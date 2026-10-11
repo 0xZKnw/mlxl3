@@ -177,7 +177,12 @@ pub fn inspect(path: &Path) -> Result<Checkpoint> {
         let name = name.to_string_lossy();
         tokenizer |=
             name.starts_with("tokenizer") || name.ends_with(".model") || name == "vocab.json";
-        if name.starts_with("model") && name.ends_with(".safetensors") {
+        let flash_sidecar = config["model_type"] == "qwen4_exp"
+            && matches!(
+                name.as_ref(),
+                "ngram_embedding.safetensors" | "mtp_hyper_connection_mixer_patch.safetensors"
+            );
+        if (name.starts_with("model") || flash_sidecar) && name.ends_with(".safetensors") {
             for (name, info) in read_header(&entry.path())? {
                 ensure!(
                     tensors.insert(name.clone(), info).is_none(),

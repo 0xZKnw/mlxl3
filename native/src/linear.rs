@@ -900,18 +900,99 @@ pub fn expert_mapped(
     input_pretransformed: bool,
     return_raw: bool,
 ) -> Result<Array> {
+    expert_mapped_layout(
+        x,
+        trellis,
+        suh,
+        svh,
+        selected,
+        output_dims,
+        projections_per_route,
+        projection_stride_tiles,
+        k,
+        cb,
+        input_pretransformed,
+        return_raw,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn expert_slots(
+    x: &Array,
+    trellis: &Array,
+    suh: &Array,
+    svh: &Array,
+    selected: &Array,
+    output_dims: i32,
+    projections_per_route: i32,
+    k: usize,
+    cb: Codebook,
+) -> Result<Array> {
+    ensure!(
+        trellis.shape().len() == 5
+            && selected.dtype() == Dtype::UInt32
+            && selected
+                .to_u32()?
+                .iter()
+                .all(|&slot| slot < trellis.shape()[0] as u32),
+        "expert slot outside bank"
+    );
+    expert_mapped_layout(
+        x,
+        trellis,
+        Some(suh),
+        Some(svh),
+        selected,
+        output_dims,
+        projections_per_route,
+        0,
+        k,
+        cb,
+        false,
+        false,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn expert_mapped_layout(
+    x: &Array,
+    trellis: &Array,
+    suh: Option<&Array>,
+    svh: Option<&Array>,
+    selected: &Array,
+    output_dims: i32,
+    projections_per_route: i32,
+    projection_stride_tiles: i32,
+    k: usize,
+    cb: Codebook,
+    input_pretransformed: bool,
+    return_raw: bool,
+    slot_major: bool,
+) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
     let [rows, input_dims]: [i32; 2] = x
         .shape()
         .try_into()
         .map_err(|_| anyhow::anyhow!("expert QMV input must have rank 2"))?;
-    ensure!(
-        trellis.shape().len() == 3
-            && trellis.shape()[0] * 16 == input_dims
-            && trellis.shape()[2] == (16 * k) as i32,
-        "invalid expert trellis"
-    );
+    let shape = trellis.shape();
+    let valid_trellis = if slot_major {
+        shape.len() == 5
+            && shape[0] > 0
+            && shape[1] == projections_per_route
+            && shape[2].checked_mul(16) == Some(input_dims)
+            && shape[3].checked_mul(16) == Some(output_dims)
+            && shape[4] == (16 * k) as i32
+    } else {
+        shape.len() == 3
+            && shape[0].checked_mul(16) == Some(input_dims)
+            && shape[2] == (16 * k) as i32
+    };
+    ensure!(valid_trellis, "invalid expert trellis");
+    let tiles_k = shape[if slot_major { 2 } else { 0 }];
+    let tiles_n = shape[if slot_major { 3 } else { 1 }];
     ensure!(
         output_dims > 0 && output_dims % 128 == 0,
         "expert output width must be 128-aligned"
@@ -952,7 +1033,7 @@ pub fn expert_mapped(
     let local_tiles = rows
         .checked_mul(output_tiles)
         .context("expert tile count overflow")?;
-    let splits = split_count(trellis.shape()[0], local_tiles);
+    let splits = split_count(tiles_k, local_tiles);
     let m5 = array::is_m5_gpu()?;
     let use_nt4 = m5 && rows >= 64 && output_tiles % 4 == 0;
     let mut nt = if use_nt4 {
@@ -978,19 +1059,27 @@ pub fn expert_mapped(
     };
     let header = codebook_header(cb)
         + &format!(
-            "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n",
+            "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n#define MLXL3_SLOT_MAJOR {}\n",
             u8::from(k == 3),
             cb as u32,
             k * 8,
-            trellis.shape()[0],
-            trellis.shape()[1],
+            tiles_k,
+            tiles_n,
             local_tiles * 16,
+            u8::from(slot_major),
         );
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
     let partials = array::metal_kernel(
         &format!(
-            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}",
-            input_dims, output_dims, k, cb as u32, nt, simdgroups, splits
+            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}",
+            input_dims,
+            output_dims,
+            k,
+            cb as u32,
+            nt,
+            simdgroups,
+            splits,
+            u8::from(slot_major)
         ),
         &["xhat", "trellis", "tile_map", "tile_sub"],
         &["yhat"],
@@ -1055,6 +1144,78 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore = "physical Apple GPU; exact SSD slot layout versus resident EXL3"]
+    fn streamed_slots_match_resident_exl3_and_reject_invalid_routes() -> anyhow::Result<()> {
+        use super::*;
+        let (slots, projections, width, k) = (3usize, 2usize, 128usize, 2usize);
+        let packed = (0..slots * projections * 8 * 8 * 32)
+            .map(|i| (i as u16).wrapping_mul(1777))
+            .collect::<Vec<_>>();
+        let bank = Array::from_u16(&packed, &[3, 2, 8, 8, 32])?;
+        let input = (0..width)
+            .map(|i| half::f16::from_f32((i as f32 - 61.) / 79.).to_bits())
+            .collect::<Vec<_>>();
+        for routes in [vec![2u32], vec![0, 2], vec![2, 0, 1, 2, 1, 0, 2, 2, 0, 1]] {
+            let rows = (routes.len() * projections) as i32;
+            let x = Array::from_f16_bits(&input.repeat(rows as usize), &[rows, 128])?;
+            let scales = vec![half::f16::from_f32(0.5).to_bits(); rows as usize * width];
+            let suh = Array::from_f16_bits(&scales, &[rows, 128])?;
+            let svh = Array::from_f16_bits(&scales, &[rows, 128])?;
+            let actual = expert_slots(
+                &x,
+                &bank,
+                &suh,
+                &svh,
+                &Array::from_u32(&routes, &[routes.len() as i32])?,
+                128,
+                2,
+                k,
+                Codebook::Mul1,
+            )?
+            .to_f16_bits()?;
+            assert_eq!(actual.len(), rows as usize * width);
+            for (route, &slot) in routes.iter().enumerate() {
+                for projection in 0..projections {
+                    let index = slot as usize * projections + projection;
+                    let reference = Exl3Linear::new(
+                        Array::from_u16(&packed[index * 2048..(index + 1) * 2048], &[8, 8, 32])?,
+                        Array::from_f16_bits(&scales[..width], &[128])?,
+                        Array::from_f16_bits(&scales[..width], &[128])?,
+                        None,
+                        k,
+                        Codebook::Mul1,
+                    )?;
+                    let expected = reference
+                        .forward(&Array::from_f16_bits(&input, &[1, 128])?)?
+                        .to_f16_bits()?;
+                    let start = (route * 2 + projection) * width;
+                    assert_eq!(
+                        &actual[start..start + width],
+                        expected,
+                        "slot={slot}, projection={projection}"
+                    );
+                }
+            }
+        }
+        let x = Array::from_f16_bits(&input.repeat(2), &[2, 128])?;
+        let scales = Array::from_f16_bits(&vec![half::f16::ONE.to_bits(); 256], &[2, 128])?;
+        assert!(
+            expert_slots(
+                &x,
+                &bank,
+                &scales,
+                &scales,
+                &Array::from_u32(&[3], &[1])?,
+                128,
+                2,
+                k,
+                Codebook::Mul1
+            )
+            .is_err()
+        );
+        Ok(())
+    }
     use super::*;
     use half::f16;
     use std::{path::Path, time::Instant};

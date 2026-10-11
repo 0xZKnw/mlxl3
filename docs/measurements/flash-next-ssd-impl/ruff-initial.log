@@ -1,0 +1,61 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> scripts/check-flash-reference.py:118:5
+    |
+116 |       tokens = parse_tokens(args.tokens)
+117 |       sys.path.insert(0, str(args.pony.resolve()))
+118 | /     import mlx.core as mx
+119 | |     from mlx import nn
+120 | |     from ponyexl3.mlx.exl3_linear import EXL3Linear
+121 | |     from ponyexl3.mlx import exl3_linear as upstream_linear
+122 | |     from ponyexl3.mlx.layer_state import clear_layer_caches
+123 | |     from ponyexl3.ref.layer import EXL3Layer
+124 | |     from mlx_vlm.models.qwen4_exp.language import (
+125 | |         ArraysCache, QSAKVCache, Qwen4ExpDecoderLayer, Qwen4ExpGatedResidual, TextConfig,
+126 | |     )
+127 | |     from mlx.utils import tree_flatten
+    | |______________________________________^
+128 |
+129 |       args.output.mkdir(parents=True, exist_ok=False)
+    |
+help: Organize imports
+    |
+119 |     from mlx import nn
+120 +     from mlx.utils import tree_flatten
+121 +     from mlx_vlm.models.qwen4_exp.language import (
+122 +         ArraysCache,
+123 +         QSAKVCache,
+124 +         Qwen4ExpDecoderLayer,
+125 +         Qwen4ExpGatedResidual,
+126 +         TextConfig,
+127 +     )
+128 +     from ponyexl3.mlx import exl3_linear as upstream_linear
+129 |     from ponyexl3.mlx.exl3_linear import EXL3Linear
+    -     from ponyexl3.mlx import exl3_linear as upstream_linear
+130 |     from ponyexl3.mlx.layer_state import clear_layer_caches
+131 |     from ponyexl3.ref.layer import EXL3Layer
+    -     from mlx_vlm.models.qwen4_exp.language import (
+    -         ArraysCache, QSAKVCache, Qwen4ExpDecoderLayer, Qwen4ExpGatedResidual, TextConfig,
+    -     )
+    -     from mlx.utils import tree_flatten
+132 |
+    |
+
+F401 [*] `mlx.utils.tree_flatten` imported but unused
+   --> scripts/check-flash-reference.py:127:27
+    |
+125 |         ArraysCache, QSAKVCache, Qwen4ExpDecoderLayer, Qwen4ExpGatedResidual, TextConfig,
+126 |     )
+127 |     from mlx.utils import tree_flatten
+    |                           ^^^^^^^^^^^^
+128 |
+129 |     args.output.mkdir(parents=True, exist_ok=False)
+    |
+help: Remove unused import: `mlx.utils.tree_flatten`
+    |
+126 |     )
+    -     from mlx.utils import tree_flatten
+127 |
+    |
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.

@@ -1,5 +1,25 @@
 # Third-party notices
 
+## Flash Next architecture and SSD integration
+
+`native/src/qwen4.rs` and its independent verification script follow Qwen's
+released Flash Next configuration and the MIT-licensed MLX-VLM 0.7.3 text
+architecture, including HyperConnections, sparse attention and PLE:
+<https://github.com/Blaizzy/mlx-vlm/tree/main/mlx_vlm/models/qwen4_exp>.
+Copyright (c) MLX-VLM contributors. The MIT license text reproduced below also
+applies to this architecture port. Existing EXL3 kernels retain their PonyExl3
+attribution and Apache-2.0 license.
+
+The SSD design was compared with the user's `localqwen3.8flash` project and
+Sushi <https://github.com/beamivalice/sushi> at
+`eaaca12c5508e6a24a01671384a9a41089370058` (HC, QSA, EXL3 and n-gram kernels).
+Sushi kernel source has not been copied; its compiled bank/n-gram format and
+optional approximate expert selection are not used by this implementation.
+
+MLXL3 is an independent implementation that adapts algorithms and kernel
+structures from the following projects.
+
+
 MLXL3 is an independent implementation that adapts algorithms and kernel
 structures from the following projects.
 

@@ -1025,6 +1025,7 @@ fn run(cli: Cli) -> Result<()> {
             }
             for token in tokens {
                 let (logits, arrays) = match (&mut model, states) {
+                    (NativeChatModel::Flash(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Lfm2(model), true) => {
                         let logits = model.forward(&[token])?;
@@ -1348,6 +1349,7 @@ enum NativeChatModel {
     Lfm2(mlxl3_native::lfm2::Lfm2),
     Ling(mlxl3_native::ling::Ling),
     Qwen(mlxl3_native::qwen35::Qwen35Moe),
+    Flash(Box<mlxl3_native::qwen4::FlashNext>),
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1359,6 +1361,9 @@ impl NativeChatModel {
 
     fn from_checkpoint(checkpoint: &checkpoint::Checkpoint) -> Result<Self> {
         match checkpoint.model_type.as_str() {
+            "qwen4_exp" => Ok(Self::Flash(Box::new(
+                mlxl3_native::qwen4::FlashNext::from_checkpoint(checkpoint)?,
+            ))),
             "gemma4" => Ok(Self::Gemma4(mlxl3_native::gemma4::Gemma4::from_checkpoint(
                 checkpoint,
             )?)),
@@ -1381,6 +1386,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.forward(&[token]),
             Self::Ling(model) => model.forward(token),
             Self::Qwen(model) => model.forward(token),
+            Self::Flash(model) => model.forward(token),
         }
     }
 
@@ -1394,6 +1400,7 @@ impl NativeChatModel {
                 Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
                 Self::Ling(_) => self.forward_many_serial(tokens),
                 Self::Qwen(model) => model.forward_tokens(tokens),
+                Self::Flash(model) => model.forward_tokens(tokens),
                 Self::Gemma4(_) | Self::Lfm2(_) => self.forward_many_serial(tokens),
             };
         }
@@ -1403,6 +1410,7 @@ impl NativeChatModel {
     fn forward_many_serial(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         match self {
             Self::Qwen(model) => return model.prefill_serial(tokens),
+            Self::Flash(model) => return model.forward_tokens(tokens),
             Self::Ling(model) => return model.prefill_serial(tokens),
             _ => {}
         }
@@ -1418,6 +1426,7 @@ impl NativeChatModel {
             Self::Gemma4(_) => 256,
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
             Self::Qwen(_) => 256,
+            Self::Flash(_) => 8,
             Self::Ling(_) => 128,
             Self::Lfm2(_) => 1,
         }
@@ -1429,6 +1438,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.context_limit(),
             Self::Ling(model) => model.context_limit(),
             Self::Qwen(model) => model.context_limit(),
+            Self::Flash(model) => model.context_limit(),
         }
     }
 
@@ -1438,6 +1448,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.reset(),
             Self::Ling(model) => model.reset(),
             Self::Qwen(model) => model.reset(),
+            Self::Flash(model) => model.reset(),
         }
     }
 
@@ -1448,7 +1459,7 @@ impl NativeChatModel {
                     state.eval()?;
                 }
             }
-            Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) => {}
+            Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) | Self::Flash(_) => {}
         }
         Ok(())
     }
@@ -1459,6 +1470,7 @@ impl NativeChatModel {
             Self::Lfm2(_) => "LFM2",
             Self::Ling(_) => "Ling 3",
             Self::Qwen(_) => "Qwen3.5",
+            Self::Flash(_) => "Qwen3.8 Flash Next",
         }
     }
 }

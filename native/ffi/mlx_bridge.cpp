@@ -17,12 +17,14 @@
 #include <unistd.h>
 #include <libproc.h>
 #include <sys/resource.h>
+#include <sys/uio.h>
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
 #include "mlx/device.h"
 #include "mlx/fast.h"
 #include "mlx/ops.h"
+#include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
 
@@ -165,6 +167,51 @@ int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
     *out = output.release();
   });
 }
+int mlxl3_array_preadv(int fd, uint64_t offset, void* const* buffers,
+                       size_t buffer_count,
+                       const size_t* buffer_indices, const size_t* starts,
+                       const size_t* lengths, size_t count) noexcept {
+  return protect([&] {
+    if (!buffers || !buffer_indices || !starts || !lengths || !count || count > 64)
+      throw std::invalid_argument("invalid disk record destinations");
+    std::vector<iovec> vectors;
+    size_t total = 0;
+    for (size_t i = 0; i < count; ++i) {
+      if (buffer_indices[i] >= buffer_count)
+        throw std::invalid_argument("invalid disk record buffer index");
+      auto& a = arr(buffers[buffer_indices[i]]);
+      a.eval();
+      if (!a.flags().row_contiguous || starts[i] > a.nbytes() ||
+          lengths[i] > a.nbytes() - starts[i] || !lengths[i] ||
+          lengths[i] > std::numeric_limits<size_t>::max() - total)
+        throw std::invalid_argument("invalid disk record destination range");
+      vectors.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
+      total += lengths[i];
+    }
+    auto max_offset = uint64_t(std::numeric_limits<off_t>::max());
+    if (offset > max_offset || total > max_offset - offset)
+      throw std::overflow_error("disk record offset overflow");
+    size_t index = 0, done = 0;
+    while (index < vectors.size()) {
+      auto n = ::preadv(fd, vectors.data() + index, int(vectors.size() - index), off_t(offset + done));
+      if (n < 0 && errno == EINTR) continue;
+      if (n < 0) throw std::runtime_error(std::string("preadv failed: ") + std::strerror(errno));
+      if (n == 0) throw std::runtime_error("checkpoint truncated during disk record read");
+      done += size_t(n);
+      auto remaining = size_t(n);
+      while (remaining && index < vectors.size()) {
+        auto consumed = std::min(remaining, vectors[index].iov_len);
+        vectors[index].iov_base = static_cast<uint8_t*>(vectors[index].iov_base) + consumed;
+        vectors[index].iov_len -= consumed;
+        remaining -= consumed;
+        if (!vectors[index].iov_len) ++index;
+      }
+    }
+  });
+}
+int mlxl3_array_async_eval(void* p) noexcept {
+  return protect([&] { mx::async_eval({arr(p)}); });
+}
 int mlxl3_arrays_from_files(const int* fds, const uint64_t* offsets,
                             const int32_t* dims, const size_t* ranks,
                             const int* types, size_t count, size_t workers,
@@ -257,6 +304,7 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         case 19: return mx::argmax(a, -1, false);
         case 20: return mx::broadcast_to(a, shape(args, nargs));
         case 21: return mx::argsort(a, -1);
+        case 22: return mx::rsqrt(a);
       }
       throw std::invalid_argument("invalid unary operation");
     };

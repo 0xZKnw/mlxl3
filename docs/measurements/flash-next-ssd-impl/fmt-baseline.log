@@ -1,0 +1,74 @@
+Diff in /Users/justin/Documents/mix-stq1_0/native/src/qwen4.rs:100:
+                 let x = input(root, &reference["input"], H)?;
+                 let mut selected = layer.moe.route(&x)?.0.to_u32()?;
+                 selected.sort_unstable();
+-                let expected = data["steps"][step]["route_ids"][index].as_array()
+-                    .context("missing reference route cohort")?.iter()
+-                    .map(|v| v.as_u64().context("invalid reference route").and_then(|v|Ok(u32::try_from(v)?)))
++                let expected = data["steps"][step]["route_ids"][index]
++                    .as_array()
++                    .context("missing reference route cohort")?
++                    .iter()
++                    .map(|v| {
++                        v.as_u64()
++                            .context("invalid reference route")
++                            .and_then(|v| Ok(u32::try_from(v)?))
++                    })
+                     .collect::<Result<Vec<_>>>()?;
+-                ensure!(selected==expected, "router differs at s{step}/l{index}");
++                ensure!(selected == expected, "router differs at s{step}/l{index}");
+                 let output = layer.moe.forward(&x)?;
+                 check(
+                     root,
+Diff in /Users/justin/Documents/mix-stq1_0/native/src/qwen4.rs:378:
+         };
+         let input = Array::concatenate(&[&history, &qkv], 1)?;
+         self.history = Some(input.slice(1, 1, 4)?);
+-        let conv = input.astype(Dtype::Float32)?
+-            .mul(&self.conv.transpose(&[2,1,0])?.astype(Dtype::Float32)?)?
+-            .sum(1,true)?.astype(Dtype::Float16)?.silu()?;
++        let conv = input
++            .astype(Dtype::Float32)?
++            .mul(&self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?)?
++            .sum(1, true)?
++            .astype(Dtype::Float16)?
++            .silu()?;
+         let q = conv.slice(2, 0, 2048)?.reshape(&[1, 1, 16, 128])?;
+         let k = conv.slice(2, 2048, 4096)?.reshape(&[1, 1, 16, 128])?;
+         let v = conv.slice(2, 4096, 10240)?.reshape(&[1, 1, 48, 128])?;
+Diff in /Users/justin/Documents/mix-stq1_0/native/src/qwen4.rs:387:
+         let norm = |value: &Array, scale: f32| -> Result<Array> {
+-            let eps=Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()],&[])?;
+-            let inverse=value.mul(value)?.sum(3,true)?.add(&eps)?.rsqrt()?;
++            let eps = Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()], &[])?;
++            let inverse = value.mul(value)?.sum(3, true)?.add(&eps)?.rsqrt()?;
+             value.mul(&inverse)?.scalar_mul(scale)
+         };
+         let q = norm(&q, 1. / 128f32.sqrt())?;
+Diff in /Users/justin/Documents/mix-stq1_0/native/src/qwen4.rs:396:
+             None => Array::zeros_dtype(&[1, 48, 128, 128], Dtype::Float32)?,
+         };
+         let (value, state) = gated_delta::step_with_gates(
+-            &q, &k, &v,
+-            &self.a.forward(x)?.astype(Dtype::Float16)?.reshape(&[1,1,48])?,
+-            &self.b.forward(x)?.astype(Dtype::Float16)?.reshape(&[1,1,48])?,
+-            &self.a_log, &self.dt_bias, &state,
++            &q,
++            &k,
++            &v,
++            &self
++                .a
++                .forward(x)?
++                .astype(Dtype::Float16)?
++                .reshape(&[1, 1, 48])?,
++            &self
++                .b
++                .forward(x)?
++                .astype(Dtype::Float16)?
++                .reshape(&[1, 1, 48])?,
++            &self.a_log,
++            &self.dt_bias,
++            &state,
+         )?;
+         self.state = Some(state);
+         let z = self

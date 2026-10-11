@@ -60,9 +60,14 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, 
         "invalid router top-k"
     );
     ensure!(
-        values.dtype() == Dtype::Float16,
-        "native router currently expects FP16 values"
+        matches!(values.dtype(), Dtype::Float16 | Dtype::Float32),
+        "native router expects FP16 or FP32 values"
     );
+    let arithmetic = if values.dtype() == Dtype::Float32 {
+        "float"
+    } else {
+        "half"
+    };
     let score = if normalize { "score / sum" } else { "score" };
     let source = format!(
         r#"
@@ -95,12 +100,12 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, 
             threadgroup_barrier(mem_flags::mem_threadgroup);
 
             if (tid == 0u) {{
-                half sum = half(0);
+                {arithmetic} sum = {arithmetic}(0);
                 for (uint slot = 0u; slot < TOP_K; ++slot) {{
-                    sum = half(top_values[slot]) + sum;
+                    sum = {arithmetic}(top_values[slot]) + sum;
                 }}
                 for (uint slot = 0u; slot < TOP_K; ++slot) {{
-                    half score = half(top_values[slot]);
+                    {arithmetic} score = {arithmetic}(top_values[slot]);
                     scores[row * TOP_K + slot] = {score};
                 }}
             }}
@@ -108,8 +113,9 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, 
     );
     let mut outputs = array::metal_kernel(
         &format!(
-            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_v2",
-            u8::from(normalize)
+            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v3",
+            u8::from(normalize),
+            u8::from(values.dtype() == Dtype::Float32)
         ),
         &["selection", "values"],
         &["indices", "scores"],
@@ -117,7 +123,7 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, 
         &source,
         &[values, values],
         &[vec![rows, top_k as i32], vec![rows, top_k as i32]],
-        &[Dtype::UInt32, Dtype::Float16],
+        &[Dtype::UInt32, values.dtype()],
         [experts, rows, 1],
         [experts, 1, 1],
     )?;
@@ -443,6 +449,46 @@ pub fn grouped_topk_biased(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore = "physical Apple GPU; Flash router must preserve FP32 rank differences"]
+    fn float_router_preserves_precision_ties_and_boundaries() -> Result<()> {
+        let values = (0..34)
+            .map(|i| 0.2 + ((i * 7) % 17) as f32 * 0.000001)
+            .collect::<Vec<_>>();
+        let x = Array::from_f32(&values, &[2, 17])?;
+        for k in [1, 10, 17] {
+            let (ids, scores) = topk(&x, k, true)?;
+            assert_eq!(scores.dtype(), Dtype::Float32);
+            let ids = ids.to_u32()?;
+            let scores = scores.to_f32()?;
+            for row in 0..2 {
+                let mut expected = (0..17u32).collect::<Vec<_>>();
+                expected.sort_by(|&a, &b| {
+                    values[row * 17 + a as usize]
+                        .total_cmp(&values[row * 17 + b as usize])
+                        .then(a.cmp(&b))
+                });
+                let expected = &expected[17 - k..];
+                assert_eq!(&ids[row * k..(row + 1) * k], expected);
+                let sum = expected
+                    .iter()
+                    .map(|&id| values[row * 17 + id as usize])
+                    .sum::<f32>();
+                for (i, &id) in expected.iter().enumerate() {
+                    assert!(
+                        (scores[row * k + i] - values[row * 17 + id as usize] / sum).abs()
+                            < 0.000001
+                    );
+                }
+            }
+        }
+        let tie = Array::from_f32(&[2., 1., 2.], &[1, 3])?;
+        assert_eq!(topk(&tie, 1, false)?.0.to_u32()?, vec![2]);
+        assert!(topk(&x, 0, true).is_err());
+        assert!(topk(&x, 18, true).is_err());
+        assert!(topk(&Array::zeros_dtype(&[1, 17], Dtype::UInt32)?, 1, true).is_err());
+        Ok(())
+    }
     use super::*;
 
     #[test]

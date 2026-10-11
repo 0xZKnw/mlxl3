@@ -434,3 +434,13 @@ Local model weights, build products and benchmark artifacts are not committed.
 MLXL3 is released under the [MIT License](LICENSE). Components and algorithms
 adapted from upstream projects retain their respective notices in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and `LICENSES/`.
+
+## Flash Next 2.05 bpw with SSD streaming
+
+The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
+`2.05bpw_h4_ng4` checkpoint with a bounded expert cache, direct SSD reads and
+GPU/I/O overlap. The default expert budget is 8 GiB on the 24 GiB M5.
+See [setup, verification and numerical limits](docs/flash-next-ssd-implementation.md).
+The independent engines differ by up to 2.65% relative logit RMSE in the
+five-token fixture; their argmax matches. MTP and its throughput comparison are
+still being implemented.
