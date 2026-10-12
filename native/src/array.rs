@@ -273,6 +273,15 @@ pub fn clear_cache() -> Result<()> {
     checked(unsafe { mlxl3_clear_cache() })
 }
 
+/// Select a model's default without overriding the explicit allocator setting.
+pub fn set_default_cache_limit(bytes: u64) -> Result<()> {
+    initialize()?;
+    if std::env::var_os("MLXL3_ALLOCATOR_CACHE_MIB").is_none() {
+        checked(unsafe { mlxl3_set_cache_limit(bytes) })?;
+    }
+    Ok(())
+}
+
 /// Finish submitted GPU work before reporting a settled load/unload state.
 pub fn synchronize() -> Result<()> {
     initialize()?;
@@ -1165,6 +1174,7 @@ mod tests {
     fn allocator_cache_limit_preserves_live_arrays() -> Result<()> {
         let limit = std::env::var("MLXL3_ALLOCATOR_CACHE_MIB")?.parse::<usize>()?;
         ensure!(limit <= 1, "run this check with cache limit0 or1");
+        set_default_cache_limit(512 << 20)?;
         let input = Array::from_f16_bits(&vec![0x3c00; 512 * 512], &[512, 512])?;
         let live = input.try_clone()?;
         for _ in 0..3 {
@@ -1173,6 +1183,29 @@ mod tests {
         synchronize()?;
         assert!(memory_stats(false)?.mlx_cache_bytes <= (limit * 1_048_576) as u64);
         assert!(live.to_f16_bits()?.iter().all(|&word| word == 0x3c00));
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; run alone without MLXL3_ALLOCATOR_CACHE_MIB"]
+    fn model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays() -> Result<()> {
+        ensure!(
+            std::env::var_os("MLXL3_ALLOCATOR_CACHE_MIB").is_none(),
+            "run without allocator override"
+        );
+        set_default_cache_limit(1 << 20)?;
+        let live = Array::from_f32(&[1.25, -3.5, 0.0], &[3])?;
+        live.eval()?;
+        {
+            let temporary = Array::from_f32(&vec![3.25; 8 * 1024 * 1024], &[8 * 1024 * 1024])?;
+            temporary.eval()?;
+        }
+        // MLX reclaims excess cached buffers on the next allocation, not free().
+        let next = live.add(&live)?;
+        next.eval()?;
+        synchronize()?;
+        assert!(memory_stats(false)?.mlx_cache_bytes <= 1 << 20);
+        assert_eq!(next.to_f32()?, [2.5, -7.0, 0.0]);
+        assert_eq!(live.to_f32()?, [1.25, -3.5, 0.0]);
         Ok(())
     }
     #[test]

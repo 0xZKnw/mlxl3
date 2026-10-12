@@ -583,7 +583,14 @@ adapted from upstream projects retain their respective notices in
 
 The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
 `2.05bpw_h4_ng4` checkpoint with a bounded expert cache, direct SSD reads and
-GPU/I/O overlap. The default expert budget is 8 GiB on the 24 GiB M5.
+GPU/I/O overlap. The automatic expert cache is capped at 6 GiB and reduced
+when system memory is limited. Flash also sets the MLX buffer cache target to 512 MiB.
+Explicit cache environment
+settings remain available; the measurements below used the previous 8 GiB budget.
+On the 24 GiB M5 with other applications open, the automatic budget reduced
+measured process peaks from 12.98 GiB to 9.31–10.60 GiB across two runs.
+Outputs remained exact; system swap writes were zero in those runs, but this
+is not a guarantee against future system-wide swap or a throughput improvement.
 See [setup, verification and numerical limits](docs/flash-next-ssd-implementation.md).
 The corrected path matches the independent inference reference bit for bit on
 16 checked positions, including full logits and recurrent states. The first

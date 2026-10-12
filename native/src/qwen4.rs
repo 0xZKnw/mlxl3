@@ -994,19 +994,38 @@ impl FlashNext {
             "invalid Flash numerical configuration"
         );
         let budget = match std::env::var("MLXL3_SSD_CACHE_GIB") {
-            Ok(value) => value
-                .parse::<f64>()
-                .context("invalid MLXL3_SSD_CACHE_GIB")?,
-            Err(std::env::VarError::NotPresent) => 8.,
+            Ok(value) => Some(
+                value
+                    .parse::<f64>()
+                    .context("invalid MLXL3_SSD_CACHE_GIB")?,
+            ),
+            Err(std::env::VarError::NotPresent) => None,
             Err(error) => return Err(error.into()),
         };
-        ensure!(
-            budget.is_finite() && (0.6..=12.).contains(&budget),
-            "SSD expert cache budget must be 0.6..12 GiB"
-        );
-        let slots = ((budget * (1u64 << 30) as f64 / (48. * flash_support::EXPERT_BYTES as f64))
-            .floor() as usize)
-            .clamp(10, 512);
+        let slots = if let Some(budget) = budget {
+            ensure!(
+                budget.is_finite() && (0.6..=12.).contains(&budget),
+                "SSD expert cache budget must be 0.6..12 GiB"
+            );
+            ((budget * (1u64 << 30) as f64 / (48. * flash_support::EXPERT_BYTES as f64)).floor()
+                as usize)
+                .clamp(10, 512)
+        } else {
+            #[cfg(target_os = "macos")]
+            let available = flash_support::available_memory_bytes()?;
+            #[cfg(not(target_os = "macos"))]
+            let available = 14 << 30;
+            let slots = flash_support::automatic_cache_slots(available).context(
+                "not enough system memory for Flash's minimum SSD cache and memory reserve",
+            )?;
+            eprintln!(
+                "Flash Next: auto cache {:.2} GiB ({slots} slots/layer), estimated available {:.2} GiB",
+                slots as f64 * 48. * flash_support::EXPERT_BYTES as f64 / (1u64 << 30) as f64,
+                available as f64 / (1u64 << 30) as f64
+            );
+            slots
+        };
+        crate::array::set_default_cache_limit(512 << 20)?;
         let overlap = match std::env::var("MLXL3_SSD_OVERLAP") {
             Ok(value) => match value.as_str() {
                 "0" => false,

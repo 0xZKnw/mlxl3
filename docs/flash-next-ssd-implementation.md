@@ -2,7 +2,28 @@
 
 État : parcours texte et MTP1 implémentés, contrôlés et mesurés sur M5 ; aucun gain de MTP établi sur les deux prompts testés, défaut OFF conservé. Aucun remplacement de l'app installée.
 
-## Débit de la source publiée dans la PR, base 1.4.3
+## Correction du budget RAM, 12 octobre
+
+La capacité fixe de8Gio est remplacée par un cache automatique plafonné à6Gio, avec une réserve estimée au chargement pour les autres usages. Le LFU garde les experts fréquents ; les autres sont lus sur le SSD. Le cache de buffers MLX inutilisés vise512Mio. Les variables explicites conservent la priorité. La tête MTP reste résidente lorsqu'elle est active, pour environ0,665Gio supplémentaires.
+
+Comparaison A/G/G/A sur le M5/24Gio avec les applications utilisateur ouvertes, quatre réponses MAIN/HOLD × OFF/MTP64 par processus, même contexte4096 et mêmes sorties :
+
+| Passage | Experts en RAM | Pic processus | Nouvelles écritures swap système |
+|---|---:|---:|---:|
+| A, ancien défaut | 7,98Gio,143slots/couche | 12,98Gio | 0Mio |
+| G, automatique | 4,63Gio,83slots/couche | 9,31Gio | 0Mio |
+| G, automatique | 5,91Gio,106slots/couche | 10,60Gio | 0Mio |
+| A, ancien défaut | 7,98Gio,143slots/couche | 12,98Gio | 262,88Mio |
+
+Réduction d'empreinte processus observée de2,38à3,67Gio. Les compteurs swap/compression sont globaux ; ils ne prouvent pas à eux seuls la causalité ni l'absence de swap futur. L'estimation est faite au chargement et peut changer entre deux processus. Secteur100% et absence d'alertepmset relevés pour les trois derniers passages ; alimentation non consignée séparément pour le premier. Les timings échantillonnés de ce diagnostic ne valident pas un gain de vitesse. [Matrice et limites](measurements/flash-next-ssd-impl/opt-12-memory/G-memory-summary.json).
+
+Le binaire G `938e2aa7b3532c608607c852810313bf9fe6630b021d8560cffb992c64b1478e` vient deee114bf6 avec les modifications source identifiées dans [G-identity.json](measurements/flash-next-ssd-impl/opt-12-memory/G-identity.json).19contrôles physiques passent : oracles logits/états/composants, MTP/T2/commits, cohortes froides/chaudes, erreurs de lecture, plafond MLX et overrides. Le bridge passe16générations ABBA aux budgets1/2/3/17 et deux annulations/reprises. Format, Clippystrict,84testsCPU/2ignorés et104testsrelease `mlx,chat`/94ignorés passent. Les contrôles physiques sont sélectionnés séparément. [Commandes build/tests](measurements/flash-next-ssd-impl/opt-12-memory/G-build.json), [qualité physique](measurements/flash-next-ssd-impl/opt-12-memory/G-quality.json), [bridge](measurements/flash-next-ssd-impl/opt-12-memory/G-bridge.json).
+
+Kani vérifie les deux nouveaux contrats du budget sur le domaineu64 complet sans hypothèse :187obligations,6couvertures,0inatteignable ; la suite ciblée de huit contrats passe1024obligations/27couvertures/3inatteignables. Les chemins réels OS/MLX et le package complet échouent en compilation du vérificateur (`intrinsics.rs:243`), sans propriété GPU prouvée. CrossHair ne confirme pas le parseur VM. Le test initial de l'allocateur demandait à tort une limite immédiate au free ; échec conservé et test corrigé suivant le contrat MLX de récupération à l'allocation suivante. Le prototypeF_NOCACHE et l'échec initial du superviseur de bridge restent archivés ; ils ne qualifient pas le code G. [Tentatives formelles](measurements/flash-next-ssd-impl/opt-12-memory/formal.json), [journal](../opti.md).
+
+La comparaison [Sushi/Strata](flash-ssd-upstream-2026-10-12.md) retient les lectures manquantes parallèles comme piste suivante. NT2 et le regroupement MTP restent différés ; aucun gain n'est annoncé pour ces prototypes. L'objectif15tok/s reste non atteint.
+
+## Débit historique à cache8Gio, base 1.4.3
 
 Source `2162c5f64a16558e1443758b4dbf22ba09566a78`, release `mlx,chat` SHA256 `cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa`, M5/24Gio/MLX0.32.2. La composition avec 1.4.3 est requalifiée avant mesure. Même protocole OFF/MTP1 que ci-dessous : contexte4096, cache8Gio/overlap1, greedy, quatre warmups puis trois répétitions de64tokens/63decode par couple, modes alternés dans un seul bridge. Aucun compilateur, prouveur ou autre modèle pendant cette campagne. [Rapport brut](measurements/flash-next-ssd-impl/mtp-speed-143/report.json), [résumé et conditions](measurements/flash-next-ssd-impl/mtp-speed-143/summary.json), [empreintes avant/après](measurements/flash-next-ssd-impl/mtp-speed-143/identity.json).
 
@@ -45,7 +66,9 @@ Checkpoint `turboderp/Qwen3.8-Flash-Next-exl3`, branche `2.05bpw_h4_ng4`, révis
 
 Le moteur couvre les 48 couches texte, les quatre flux HyperConnections, 36 blocs Gated DeltaNet, 12 blocs QSA et le PLE/n-grammes de la couche 1. Les embeddings BF16 sont lus par ligne. Les poids communs et la tête EXL3 restent résidents ; les experts K2/MUL1 utilisent des banques persistantes, un cache LFU borné et des lectures `preadv` directes. La cohorte entière est protégée avant toute éviction. Tous les dix experts sélectionnés sont calculés ; pas de suppression approximative d'expert. Le travail GPU sur les hits peut recouvrir la lecture des misses.
 
-`MLXL3_SSD_CACHE_GIB` vaut 8 par défaut (0,6 à 12 autorisés) ; `MLXL3_SSD_OVERLAP=0` désactive le recouvrement pour les contrôles. Le cache n-grammes est borné à 16 384 lignes. Le nombre 2,05 bpw décrit le checkpoint publié, pas une nouvelle quantification faite ici.
+Sans `MLXL3_SSD_CACHE_GIB`, le cache experts est automatique : plafond6Gio, réduit selon la mémoire libre/fichiers estimée au chargement, avec8Gio réservés pour les poids résidents, MTP, les buffers et les autres usages. Le chargement échoue explicitement si même10slots par couche ne tiennent pas dans cette politique. C'est une estimation au chargement, pas une garantie contre le swap si les autres applications grossissent ensuite. Une valeur explicite de0,6 à12Gio conserve le contrôle manuel et peut dépasser ce budget prudent. Les anciennes mesures ci-dessus employaient8Gio.
+
+Flash fixe aussi une cible de512Mio pour les buffers MLX inutilisés (`MLXL3_ALLOCATOR_CACHE_MIB` explicite reste prioritaire). MLX récupère l'excédent à l'allocation suivante : libérer un gros buffer peut donc dépasser temporairement cette cible ; le cleanup existant libère aussi le cache inutilisé au-delà de512Mio après une réponse. C'est le contrat de [l'allocateur MLX0.32.2](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/allocator.cpp). Les descripteurs restent attachés à l'inode inspecté ; le lecteur conserve le cache fichiers macOS. Le prototype F_NOCACHE a été retiré après un contrôle montrant un coût I/O important sans baisse claire de l'empreinte moteur. `MLXL3_SSD_OVERLAP=0` désactive le recouvrement pour les contrôles. Le cache n-grammes est borné à16384lignes. La réduction du cache experts peut augmenter les lectures SSD ; les résultats RAM et leurs limites sont consignés dans l'essai12 de [opti.md](../opti.md). Le nombre2,05bpw décrit le checkpoint publié, pas une nouvelle quantification faite ici.
 
 ## Correction de la divergence avant MTP
 

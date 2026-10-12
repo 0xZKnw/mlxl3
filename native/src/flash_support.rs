@@ -24,6 +24,48 @@ pub const EXPERT_BYTES: u64 = 1_248_012;
 pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
 
+/// Reserve resident weights, MTP, scratch buffers and room for other applications.
+pub fn automatic_cache_slots(available_bytes: u64) -> Option<usize> {
+    let budget = available_bytes.checked_sub(8 << 30)?.min(6 << 30);
+    let slots = budget / (48 * EXPERT_BYTES);
+    (slots >= 10).then_some(slots as usize)
+}
+
+#[cfg(target_os = "macos")]
+#[allow(deprecated)] // libc already provides the Mach ABI; no extra dependency.
+pub fn available_memory_bytes() -> Result<u64> {
+    unsafe extern "C" {
+        fn mach_port_deallocate(
+            task: libc::mach_port_t,
+            name: libc::mach_port_t,
+        ) -> libc::kern_return_t;
+    }
+    let mut info: libc::vm_statistics64 = unsafe { std::mem::zeroed() };
+    let mut count = libc::HOST_VM_INFO64_COUNT;
+    let host = unsafe { libc::mach_host_self() };
+    let status = unsafe {
+        libc::host_statistics64(
+            host,
+            libc::HOST_VM_INFO64,
+            (&mut info as *mut libc::vm_statistics64).cast(),
+            &mut count,
+        )
+    };
+    let released = unsafe { mach_port_deallocate(libc::mach_task_self(), host) };
+    anyhow::ensure!(
+        status == 0 && count == libc::HOST_VM_INFO64_COUNT && released == 0,
+        "cannot query available system memory ({status}/{released})"
+    );
+    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+    anyhow::ensure!(page_size > 0, "invalid system page size");
+    // Speculative file pages are included in both free_count and external_count.
+    let pages = u64::from(info.free_count.saturating_sub(info.speculative_count))
+        + u64::from(info.external_page_count);
+    pages
+        .checked_mul(page_size as u64)
+        .ok_or_else(|| anyhow::anyhow!("system memory size overflow"))
+}
+
 /// Match PonyExl3's single-row accumulation order, including small experts.
 pub fn reference_splits(input_tiles: u32, output_tiles: u32) -> u32 {
     let mut splits = 1u32;
@@ -169,6 +211,36 @@ impl ExpertCache {
 mod tests {
     use super::*;
     #[test]
+    fn automatic_cache_reserves_headroom_and_stays_bounded() {
+        let minimum = (8 << 30) + 10 * 48 * EXPERT_BYTES;
+        for bytes in [0, 1, (8 << 30) - 1, 8 << 30, minimum - 1] {
+            assert_eq!(automatic_cache_slots(bytes), None);
+        }
+        assert_eq!(automatic_cache_slots(minimum), Some(10));
+        assert_eq!(automatic_cache_slots(12 << 30), Some(71));
+        assert_eq!(automatic_cache_slots(14 << 30), Some(107));
+        assert_eq!(automatic_cache_slots(u64::MAX), Some(107));
+        for slots in 10..=107 {
+            let threshold = (8 << 30) + slots * 48 * EXPERT_BYTES;
+            assert_eq!(automatic_cache_slots(threshold), Some(slots as usize));
+            assert_eq!(automatic_cache_slots(threshold + 1), Some(slots as usize));
+            assert_eq!(
+                automatic_cache_slots(threshold - 1),
+                if slots == 10 {
+                    None
+                } else {
+                    Some(slots as usize - 1)
+                }
+            );
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn available_memory_query_returns_a_positive_snapshot() {
+        assert!(available_memory_bytes().unwrap() > 0);
+    }
+    #[test]
     fn pair_commits_reject_stale_invalid_and_overflowing_positions() {
         for base in [
             i32::MIN,
@@ -304,6 +376,42 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    fn automatic_cache_cannot_spend_reserved_memory() {
+        let available: u64 = kani::any();
+        let result = automatic_cache_slots(available);
+        let minimum = (8u128 << 30) + 10 * 48 * u128::from(EXPERT_BYTES);
+        assert_eq!(result.is_some(), u128::from(available) >= minimum);
+        if let Some(slots) = result {
+            assert!((10..=107).contains(&slots));
+            let allocated = slots as u128 * 48 * u128::from(EXPERT_BYTES);
+            assert!(allocated <= 6u128 << 30);
+            assert!(allocated + (8u128 << 30) <= u128::from(available));
+            kani::cover!(slots == 10);
+            kani::cover!(slots == 71);
+            kani::cover!(slots == 107);
+        }
+        kani::cover!(available == u64::MAX);
+        kani::cover!(result.is_none());
+    }
+
+    #[kani::proof]
+    fn automatic_cache_is_monotone() {
+        let a: u64 = kani::any();
+        let b: u64 = kani::any();
+        if a <= b {
+            assert!(automatic_cache_slots(a) <= automatic_cache_slots(b));
+        }
+        kani::cover!(
+            a < b && automatic_cache_slots(a) == Some(10) && automatic_cache_slots(b) == Some(107)
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[kani::proof]
+    fn available_memory_real_os_path() {
+        assert!(available_memory_bytes().unwrap() > 0);
+    }
     #[kani::proof]
     fn pair_commit_preserves_exact_valid_prefix_without_overflow() {
         let base: i32 = kani::any();

@@ -2,6 +2,8 @@
 
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,7 @@ spec.loader.exec_module(bench)
     "fault",
     [
         "ok",
+        "auto_cache",
         "mode",
         "hash",
         "empty",
@@ -33,14 +36,15 @@ spec.loader.exec_module(bench)
         "missing_counter",
     ],
 )
-def test_campaign(tmp_path, fault):
+def test_campaign(tmp_path, fault, monkeypatch):
+    monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
     engine = tmp_path / "bridge"
     engine.write_text(
         "#!/usr/bin/env python3\n"
         + f"fault = {fault!r}\n"
         + """
-import json, sys, time
-print(json.dumps({"type": "ready"}), flush=True)
+import json, os, sys, time
+print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
 counter = 0
 for line in sys.stdin:
     r = json.loads(line)
@@ -50,8 +54,9 @@ for line in sys.stdin:
     if fault == 'crash': sys.exit(3)
     if fault == 'invalid': print('null', flush=True); continue
     if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': False}), flush=True)
+    tokens = r['max_tokens']
     e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
-         'stats': {'generated_tokens': 2, 'decode_tokens': 1, 'decode_seconds': .1, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+         'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
     if fault == 'hash': del e['token_hash']
     if fault == 'empty': e['cache_context'] = ''
     if fault == 'timing': e['stats']['decode_tps'] = float('nan')
@@ -69,9 +74,14 @@ for line in sys.stdin:
     )
     engine.chmod(0o755)
     output = tmp_path / "results"
-    if fault == "ok":
-        result = bench.run(engine, tmp_path, output, tokens=2, repeats=1, timeout=2)
+    if fault in ("ok", "auto_cache"):
+        automatic = fault == "auto_cache"
+        result = bench.run(
+            engine, tmp_path, output, tokens=2, repeats=1, timeout=2, auto_cache=automatic
+        )
         assert result["status"] == "validated"
+        assert result["runtime"]["expert_cache"] == (None if automatic else "8")
+        assert result["expert_cache_gib"] == (None if automatic else 8)
         assert len(result["runs"]) == len(result["warmup"]) == 2
         assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
         comparison = bench.run(
@@ -92,6 +102,27 @@ for line in sys.stdin:
             "baseline",
             "mtp",
         ]
+        if automatic:
+            cli_output = tmp_path / "cli"
+            subprocess.run(
+                [
+                    sys.executable,
+                    spec.origin,
+                    str(engine),
+                    str(tmp_path),
+                    str(cli_output),
+                    "--compare",
+                    "--auto-cache",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            cli = json.loads((cli_output / "report.json").read_text())
+            assert cli["status"] == "validated" and len(cli["runs"]) == 12
+            assert cli["runtime"]["expert_cache"] is None
+            assert cli["expert_cache_gib"] is None
     else:
         with pytest.raises((ValueError, RuntimeError, TimeoutError)):
             bench.run(

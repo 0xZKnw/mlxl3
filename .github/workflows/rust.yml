@@ -27,6 +27,8 @@ jobs:
             --harness pair_commit_preserves_exact_valid_prefix_without_overflow
             --harness tensor_source_interval_is_ordered_and_cannot_wrap
             --harness reference_partition
+            --harness automatic_cache_cannot_spend_reserved_memory
+            --harness automatic_cache_is_monotone
             --harness mtp_depth_one_commits_only_target_tokens_inside_budgets
             --harness mtp_all_depths_commit_target_prefix_within_budgets
             --harness greedy_acceptance_is_the_maximal_matching_prefix
@@ -89,6 +91,11 @@ jobs:
         run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
       - name: Check idle-memory benchmark failure and parity gates
         run: |
+          ruff format --check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
+          ruff check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
+          ruff format --check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+          ruff check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+          python -m pytest -q tests/test_flash_memory.py
           ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
           ruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
           python -m pytest -q tests/test_idle_memory_benchmark.py

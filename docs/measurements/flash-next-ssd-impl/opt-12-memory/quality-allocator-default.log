@@ -1,0 +1,15 @@
+
+running 1 test
+
+thread 'array::tests::model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays' (9262397) panicked at native/src/array.rs:1203:9:
+assertion failed: memory_stats(false)?.mlx_cache_bytes <= 1 << 20
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test array::tests::model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays ... FAILED
+
+failures:
+
+failures:
+    array::tests::model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 160 filtered out; finished in 0.02s
+

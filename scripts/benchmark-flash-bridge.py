@@ -60,6 +60,7 @@ def run(
     repeats=3,
     timeout=300.0,
     compare=False,
+    auto_cache=False,
 ):
     if tokens < 2 or repeats < 1 or not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("tokens >= 2, repeats >= 1 and finite timeout > 0 required")
@@ -72,6 +73,7 @@ def run(
         "model": str(model.resolve()),
         "tokens": tokens,
         "repeats": repeats,
+        "expert_cache_gib": None if auto_cache else 8,
         "prompts": PROMPTS,
         "runs": [],
         "warmup": [],
@@ -86,6 +88,8 @@ def run(
         (output / "stderr.log").open("w") as stderr,
     ):
         env = {**os.environ, "MLXL3_SSD_CACHE_GIB": "8", "MLXL3_SSD_OVERLAP": "1"}
+        if auto_cache:
+            env.pop("MLXL3_SSD_CACHE_GIB")
         process = subprocess.Popen(
             [
                 str(engine.resolve()),
@@ -247,5 +251,15 @@ if __name__ == "__main__":
     modes.add_argument(
         "--compare", action="store_true", help="alternate baseline/MTP on the same binary"
     )
+    parser.add_argument(
+        "--auto-cache", action="store_true", help="use the engine's automatic RAM budget"
+    )
     args = parser.parse_args()
-    run(args.engine, args.model, args.output, args.mtp, compare=args.compare)
+    run(
+        args.engine,
+        args.model,
+        args.output,
+        args.mtp,
+        compare=args.compare,
+        auto_cache=args.auto_cache,
+    )
