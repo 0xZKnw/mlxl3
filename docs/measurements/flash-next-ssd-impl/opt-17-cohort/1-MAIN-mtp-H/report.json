@@ -1,0 +1,153 @@
+{
+  "status": "validated",
+  "mode": "mtp",
+  "engine": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-17-cohort/H.sh",
+  "binary_sha256": "fa9da239fbe1482e2101a8d0dc1417a0b2426043d5b202c59ab8868a1202ae3b",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "tokens": 64,
+  "repeats": 1,
+  "expert_cache_gib": 5.0,
+  "prompts": {
+    "MAIN": "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE."
+  },
+  "runs": [
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "repeat": 1,
+      "token_hash": "d7c2f53d11d70633",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'",
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 151,
+        "decode_seconds": 8.597256292000003,
+        "decode_tokens": 63,
+        "decode_tps": 7.327919264035822,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 20.951972916,
+        "end_to_end_ttft_seconds": 12.354722416000001,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 9447153120,
+          "mlx_cache_bytes": 269535772,
+          "mlx_peak_bytes": 9693759644,
+          "process_footprint_bytes": 10147160152,
+          "process_lifetime_peak_bytes": 10147455064
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": 28,
+        "mtp_blocks": 34,
+        "mtp_depth_blocks": [
+          0,
+          34,
+          0,
+          0
+        ],
+        "mtp_lookup_blocks": 0,
+        "mtp_proposed_tokens": 34,
+        "prefill_seconds": 12.35398575,
+        "prefill_tps": 7.042261644182324,
+        "prepare_seconds": 0.000337292,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 12.354706791
+      }
+    }
+  ],
+  "warmup": [
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "repeat": 0,
+      "token_hash": "d7c2f53d11d70633",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'",
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 151,
+        "decode_seconds": 8.592417082999999,
+        "decode_tokens": 63,
+        "decode_tps": 7.332046313795078,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.886511375,
+        "elapsed_seconds": 22.782619291,
+        "end_to_end_ttft_seconds": 14.190220791,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 9447153120,
+          "mlx_cache_bytes": 269355508,
+          "mlx_peak_bytes": 9693808796,
+          "process_footprint_bytes": 10147192920,
+          "process_lifetime_peak_bytes": 10147209304
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": 28,
+        "mtp_blocks": 34,
+        "mtp_depth_blocks": [
+          0,
+          34,
+          0,
+          0
+        ],
+        "mtp_lookup_blocks": 0,
+        "mtp_proposed_tokens": 34,
+        "prefill_seconds": 13.300388208,
+        "prefill_tps": 6.541162456271066,
+        "prepare_seconds": 0.001192875,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 14.190191083
+      }
+    }
+  ],
+  "runtime": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": null,
+    "dflash_configure_supported": true,
+    "dflash_family": null,
+    "dflash_supported": false,
+    "dflash_tune_supported": false,
+    "dflash_tuning_key": "61902be23c3e0c23:1.4.3:bdc3889b6f3f-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=513:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+    "load_seconds": 1.295201708,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "model_context_limit": 262144,
+    "modules": 74041,
+    "mtp_auto_download_supported": false,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 1,
+    "mtp_supported": true,
+    "mtp_tune_supported": false,
+    "mtp_tuning_key": "61902be23c3e0c23:1.4.3:bdc3889b6f3f-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=513:lookup=0:smallm-v1=0",
+    "resident_gb": 62.815131785,
+    "runtime_commit": "bdc3889b6f3f-dirty",
+    "runtime_executable": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.3",
+    "type": "ready"
+  },
+  "median_decode_tps": {
+    "MAIN": 7.327919264035822
+  }
+}

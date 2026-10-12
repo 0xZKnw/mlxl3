@@ -1,5 +1,155 @@
 # MLXL3 — journal des optimisations
 
+### FLASHSSD-2026-10-12-19 — diagnostic des factories Metal — terminé, piste rejetée
+
+- Raison nouvelle :18 passe les oracles mais son micro HC favorable ne se traduit pas en débit ; crible8bras rejeté (−7,90/−1,40% OFF,−0,84/+0,43% MTP). Chercher si le cache de128factories évince/reconstruit fréquemment des kernels pendant le vrai parcours. Historique HENK0O-QWEN27-10 relu :59clés/0éviction sur27Bdense, pas de levier ; ici Flash512experts avec cohortes variables/T2 et HC18 ajoute une spécialisation. KEY-VIEW2026-10-08 déjà intégré : ne pas répéter le cache par nom rejetéPERF06/33 ni réintroduire les copies de clés.
+- Diagnostic temporaire uniquement sur la sourceHC18 corrigée51e05452, qui reste rejetée et sera retirée après ce contrôle. Réutiliser l'instrumentation historique de `mlxl3_metal_kernel`, adaptée aux vues : appels, misses, évictions, cardinalité maximale, temps lookup/factory et sous-compteurs HC. Opt-in environnement, sortieJSON agrégée stderr à shutdown, aucune modification d'identité de clé, d'éviction128, de shader ou de budget modèle. Archiver diff/source/empreintes ; instrumentation retirée avant toute publication.
+- Avant lancement modèle : compile/lint livré et tentativeCBMC sur C++réel avec includesMLX ; testGPU existant collisions/header/source/>128clés, contrôles des compteurs positifs et des évictions, aucune vacuité admise. Puis pilote bridge existant `--compare --repeats 1 --cache-gib 5`, MAIN/HOLD OFF/MTP, une chauffe et64tokens chacun, ctx4096/allocator512/lecteurs4/overlap1, un seul modèle sans build/proveur concurrent. Borne480s et nettoyage, VM/secteur/thermique,8textes/hashes exacts avant qualification des compteurs. Les débits instrumentés seront exclus de toute revendication de gain.
+- Décision : si aucune éviction et misses initiaux seulement, rejeter la piste cache et retirerHC/instrumentation. Si churn mesuré, localiser son coût avant préenregistrement d'un correctif minimal distinct, mémoire des métadonnées séparée des poids. Baseline nouvelle non mesurée, preuves `opt-19-factories/`.
+
+- **19 terminé, cache innocent sur ce parcours** :819270appels,58misses initiaux,58/128entrées maximales,0éviction ; HC115968appels/1création. Lookup715,40ms et factories4,23ms sur177,95s instrumentées (~0,40% agrégé pour les deux), sans chronométrer la compilationMetal différée.8réponses exactes (4chauffes/4mesures du pilote utilisées seulement comme diagnostic), secteur ; swapouts système+69926912octets (~66,69Mio), picprocessus10697253000octets (~9,96Gio). Ce protocole long/comparé est différent des bras isolés17/18 ; aucune causalité attribuée au seul modèle ni gainTPS/RAM déduit. CBMC échoue au parsing de libc++ Apple, pas de preuveC++ nouvelle.
+- Sources temporaires18/19 archivées puis retirées : `native/src/qwen4.rs` et `native/ffi/mlx_bridge.cpp` restaurés exactement àHEADf4 (natif2e83), shaderHC créé pour18 supprimé après vérificationSHA. Les résultats négatifs et mutants restent en preuves. Rebuild et identité du moteur retenu à contrôler avant clôture ; aucun gain runtime nouveau à pousser. CI exactef4 :Linux/macOS/Kani ciblé/Desktop réussis, Kani complet annulé après limite1h confirmée par annotationGitHub ; cette limite préexistante reste visible.
+
+- 19 instrumentation construite/lint/suite livrée passés ; tentativeCBMC enregistrée, diagnostic à inspecter. `opt-19-factories/checks.json`, `identity.json`, `diagnostic.patch`. Aucun modèle/timing19 encore exécuté.
+
+- 19 contrôle instrumentation/collisions réel réussi :330requêtes/1320valeurs finies exactes, compteurs vérifiés et éviction exercée ; `opt-19-factories/cache-quality.json`. Les compteurs du modèle seront distincts, aucune vitesse déduite de ce test.
+
+- 19 modèle : **validated_diagnostic**, durée177.95s, compteurs[{"calls": 819270, "misses": 58, "evictions": 0, "key_ns": 715404019, "factory_ns": 4229416, "max_entries": 58, "hc_calls": 115968, "hc_misses": 1, "hc_factory_ns": 4042}] ; `opt-19-factories/model-execution.json`. Débits du pilote instrumenté exclus des comparaisons.
+
+- 18/19 retrait qualifié :fmt/Clippy strict/suite release/build passent. Binairetests retenu byteexactb564c6dd ; moteur reconstruit identique àbd89a7d6 hors2chaînes de révisionGit/UUIDMach-O/signature générée. Tous autres octets exacts, `opt-19-factories/restore-identity.json`. Aucun changement runtime conservé ; aucun modèleGPU de cette campagne ne reste chargé.
+
+- Rapport19 : [cache de kernels](docs/flash-kernel-cache-2026-10-12.md). Essais16/17/18/19 clos, tous processus joints ; moteur14B conservé, source native2e83 et rebuildad6a8ccb qualifié. Aucun gain nouveau ni app installée, objectif15tok/s non atteint. Les mesures négatives et limites formelles/CI restent conservées.
+
+- Clôture documentaire16–19 :43JSON initiaux analysés, liens des trois rapports valides, aucun diff exécutable conservé. Premier diffcheck refuse une ligne vide ajoutée en fin de journal ; corrigée. Les espaces des trois patchs bruts restent préservés, autres fichiers à vérifier après correction. Compte rendu et preuves prêts pour PR34 ; aucun gain runtime nouveau.
+
+### FLASHSSD-2026-10-12-18 — injection HC en un kernel avec arrondi séparé — rejeté, prototype retiré
+
+- **18-Q1 échec conservé avant vitesse** : suite physique10passés/2échoués (`qwen.log`), têteMTP/session refusées par la gardeFP32. `FlashMtpHead::mixed` retourne FP16 et `Qsa::forward` conserve ce dtype ; l'injection de la tête peut donc être entièrementFP16. Le kernelFP32 passe ses oracles, mais le contrat initial était trop étroit. Correction prévue avant code/relance : formes identiques, accepter Float16/Float32 et garder le graphe historique si streams ou gate sontFP16 ; fastpathFP32 inchangé. Ajouter les cinq combinaisons mixtes/FP16 contre CPU avec arrondi du produit puis de la somme et grapheMLX ; muter temporairement la condition pour vérifier le refus détecté sur ce nouveau cas. Refaire format/lint/build/suites, tentativeKani réelle et contrôles physiques/bridge affectés sur un nouveau binaire identifié. Bruts initiaux conservés, nouveaux sous `opt-18-hc/repair/`. Critères de vitesse inchangés, aucun gain18 mesuré.
+
+- Motivation16 : préparation HC/attention92–99ms/pas et injection HC seule10,86–11,45ms dans la passe intrusive ; ces valeurs incluent les barrières et ne prédisent pas un gain réel. `Hc::write` exécute actuellement produit puis addition, avec plusieurs vues et un intermédiaireWIDTH. Tester une seule soumission Metal, sans changer les lectures HC, EXL3, MTP T2 ou précision. Recherche code/journal : pas de HCwrite fusionné déjà testé ; les rejets de postHadamard/NT2/T2 portent sur d'autres opérations et ne sont pas réintroduits.
+- Portée minimale : `Hc::write` et shader dédié ; appelants `Layer::prepare/forward/forward_pair`, cible T1/MTP et couche de tête. Contrat interne streamsFP32[1,10240], brancheFP16/FP32[1,2560], gateFP32[1,4], sortieFP32[1,10240]. Chaque élément doit conserver produitFP32 arrondi puis additionFP32, sans FMA. Garde formes/dtypes avant dispatch ; entrées noncontiguës via bridge Metal existant. Aucun changement de budget, état, sélection d'expert ni nouvelle option produit.
+- Avant vitesse :6fixturesHC amont indépendantes, nouveau test déterministe contre CPU et ancien grapheMLX sur FP16/FP32/strides/signes/zéros/cancellation/frontières et erreurs ; témoin de FMA qui diverge, mutation effective du shader détectée puis restauration. Kani tenté sur le cheminRust→Metal réel avec entrées symboliques, CBMC sur le MSL réel ; limites/outils non compatibles conservés, aucune preuveGPU par traduction. Fmt/Clippy strict/build livré/suitesRustCPU/MLXchat, oracles16positions/composants/états/commits/sessions/SSD et bridge réel OFF/MTP budgets/config/annulation. CI touchée inspectée ; aucun chrono pendant compilation/preuve.
+- Crible micro : si bits exacts,256injections par bras après16chauffes, cinq paires alternées ancien graphe/kernel, entrées réutilisées et sortie évaluée ; micro seulement. Puis macro immuablebd89a7d6 vs candidat identifié, mêmes réglages17 (overlap1), premier tour MAIN/HOLD OFF puisMTP ; continuer seulement si gain≥1% dans chaque cellule, puis deux toursC-H/H-C. Rétention chaque paire≥1%, étendue≤3points, mémoireC≤H+256Mio et swapouts≤256Mio/bras, toutes sorties/identités exactes. Sinon archiver/retirer. Les artefacts17 restent immuables pendant le travail18 ; ne pas cumuler les gains. Preuves `opt-18-hc/`, aucun prototype ni timing18 encore lancé.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- Rapport18 : [injection HC et vérifications](docs/flash-hc-injection-2026-10-12.md), essai en cours, aucune publication avant débit validé.
+
+- 18 prototype local écrit (Rust+MSL, non compilé) ; tests couvrent40960valeurs CPU/grapheMLX,24refusmetadata et contre-exemple FMA. Relecture complémentaire Sushi `qwen4_hc.zig` dans cloneeaaca12c : HCwrite compilé et HCread fusionné, mais read utilise une autre quantification et un autre ordre d’accumulation ; aucun kernel copié. Ce n’est pas la révision13ad562c40 ; source et portée distinguées.
+
+- 18 vérifications inspectées : fmt/Clippystrict/build passent,87testsCPU/2ignorés et107testsrelease/97ignorés. Kani10contratsCPU inchangés réussis (1118obligations/33covers/3inatteignables historiques). CheminHC symbolique réel (3i8 indépendants, broadcast aux formes produit) : ICE du compilateurKani avant obligations ; CBMC refuse le fichierMSL. SourceGPU non prouvée, aucune traduction/stub. `proof-inspection.json` précise cette portée.
+
+- 18 qualité réparée complète :13testsQwen,1oracle tenu àpart et3testsSSD passés ; les16positions gardent tous logits/états exacts. Bridge1/2/3/17/config/annulation/reprise réussi256,81s. Micro isolé5paires×256injections réussi : médianes170.782→148.122µs/appel ; diagnostic wall-clock évalué, pas gainmodèle. Source51e05452/tests2db4db15, aucune compilation/proveur pendant micro. Les relevés VM séparés du micro ne sont pas disponibles, ne pas lui attribuer un picRAM/swap. Lancer maintenant la comparaison bridge18 préenregistrée, overlap1/cache5Gio.
+
+- 18 compilation/contrôles initiaux : **passed**, commandes et résultats `opt-18-hc/build.json`. Aucune mesure18 ni validation GPU encore.
+
+- 18 première invocation du lanceur de preuves refusée par SyntaxError Python (échappement dans le résumé), avant tout vérificateur. Correction de la commande de journalisation puis lancement du même protocole ; aucun résultat supprimé.
+
+- 18 vérificateurs exécutés : kani-contracts passed/exit0, kani-actual-hc failed/exit1, cbmc-metal failed/exit1. Obligations/diagnostics à inspecter ; aucune preuve GPU revendiquée. `opt-18-hc/proofs.json` et logs.
+
+- 18 HC physique flash_hc_write_preserves_cpu_rounding_and_rejects_invalid_tensors : **passed**, preuve `opt-18-hc/flash_hc_write_preserves_cpu_rounding_and_rejects_invalid_tensors.log`. Vitesse non lancée.
+
+- 18 HC physique flash_hc_write_matches_upstream_rounding : **passed**, preuve `opt-18-hc/flash_hc_write_matches_upstream_rounding.log`. Vitesse non lancée.
+
+- 18 mutation FMA réelle détectée par le test CPU, puis shader restauré et test repassé ; binairetests restauré byteexact14b0b89d. Logs/commandes `opt-18-hc/mutation.json`, shader mutant conservé, aucun chrono sur mutant.
+
+- 18 qualité qwen : **failed**, exit101, 35.26s ; commande/conditions dans `opt-18-hc/quality.json`, sortie `qwen.log`. Débit bridge comparatif non mesuré.
+
+- 18 réparation : nouveau test FP16 détecte la garde fautive réintroduite, source restaurée ; fmt/Clippy/build/suites réussis, tentative KaniHC réelle conservée. Nouveau binaire identifié sous `opt-18-hc/repair/identity.json`, commandes `checks.json`. Requalification physique/bridge requise avant vitesse.
+
+- 18 qualité réparée qwen : **passed**, exit0, 45.27s ; `opt-18-hc/repair/quality.json` et `qwen.log`. Débit bridge comparatif non mesuré.
+
+- 18 qualité réparée held : **passed**, exit0, 4.83s ; `opt-18-hc/repair/quality.json` et `held.log`. Débit bridge comparatif non mesuré.
+
+- 18 qualité réparée ssd : **passed**, exit0, 1.48s ; `opt-18-hc/repair/quality.json` et `ssd.log`. Débit bridge comparatif non mesuré.
+
+- 18 qualité réparée bridge : **passed**, exit0, 256.81s ; `opt-18-hc/repair/quality.json` et `bridge.log`. Débit bridge comparatif non mesuré.
+
+- 18 qualité réparée micro : **passed**, exit0, 0.56s ; `opt-18-hc/repair/quality.json` et `micro.log`. Débit bridge comparatif non mesuré.
+
+- 18 1-MAIN-baseline-H : **validated**, débit7.2977426286573195tok/s, pic9320979944octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-MAIN-baseline-H/report.json`.
+
+- 18 1-MAIN-baseline-C : **validated**, débit6.721368441219848tok/s, pic9302400440octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-MAIN-baseline-C/report.json`.
+
+- 18 1-HOLD-baseline-H : **validated**, débit7.251889548887576tok/s, pic9323961832octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-HOLD-baseline-H/report.json`.
+
+- 18 1-HOLD-baseline-C : **validated**, débit7.150385619303341tok/s, pic9305546216octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-HOLD-baseline-C/report.json`.
+
+- 18 1-MAIN-mtp-H : **validated**, débit7.222061126952198tok/s, pic10289534352octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-MAIN-mtp-H/report.json`.
+
+- 18 1-MAIN-mtp-C : **validated**, débit7.161749234028155tok/s, pic10131087448octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-MAIN-mtp-C/report.json`.
+
+- 18 1-HOLD-mtp-H : **validated**, débit7.145224707393124tok/s, pic10147995784octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-HOLD-mtp-H/report.json`.
+
+- 18 1-HOLD-mtp-C : **validated**, débit7.176035050305753tok/s, pic10148913216octets, swapouts+0octets ; `opt-18-hc/speed/execution.json` et `1-HOLD-mtp-C/report.json`.
+
+- **18 clôture vitesse :rejected**, 8/24bras terminés ; raisonfirst-round speed criterion failed. Résultat `opt-18-hc/speed/result.json`, tous bruts conservés ; intégration/retrait à qualifier.
+
+### FLASHSSD-2026-10-12-17 — cohorte MoE unique après lecteurs4 — rejeté, overlap conservé
+
+- Hypothèse issue16 : ~78%hits mais seulement28ms de fills avec4lecteurs ; calculer séparément hot/cold impose deux séries de projections et des gathers. Nouvelle raison par rapport à l'overlap du port initial : les lecteurs4 de14B raccourcissent la fenêtre où le calcul hot est masqué. Tester le chemin existant `MLXL3_SSD_OVERLAP=0` contre1 ; même format, cache, experts, kernels, ordre de réduction, aucune allocation de poids supplémentaire. Aucun changement exécutable produit au départ.
+- Sources immuables16/2e83, moteurbd89a7d6 et testsb564c6dd. Le pilote fixe overlap1 : deux wrappers shell identifiés, mêmes arguments/binaire interne, remplacent uniquement cette variable après le pilote. Conserver leur contenu/SHA et vérifier le SHA interne ; ne pas confondre SHA wrapper et moteur. Appels réels `SsdMoe::forward/forward_many` utilisés par T1/verify_pair/tête ; comportement erreurs/slots déjà exercé par14 et source inchangée.
+- Avant vitesse : exécuter les11testsQwen physiques hors profil avec env0 (composants/oracles/tête/commits/sessions), les11positions tenues àpart et le test MoE90cohortes1/2/4lecteurs/10/20/143slots/overlapON-OFF/échec-reprise ; exiger formes/finitude/bytes exacts. Puis bridge réel OFF/MTP budgets1/2/3/17 avec wrapper0, contrôles configuration et annulation/reprise. Bornes de durée et nettoyage des groupes en cas d'erreur.
+- Crible puis confirmation sur les mêmes sources : MAIN/HOLD×OFF/MTP, un prompt/mode/processus, chauffe64 puis mesure64/63, ctx4096/cache5Gio89slots/allocator512Mio/lecteurs4, secteur et applications ouvertes. Premier tour H-C pour les4cellules, OFF d'abord. Continuer à deux autres tours C-H puis H-C uniquement si toutes les paires du premier tour gagnent≥1%. Rétention : chacune des3paires de chaque cellule≥1%, étendue des gains≤3points par cellule, picC≤H+256Mio et chaque bras≤256Mio de swapout système, sorties/compteurs/identités exacts. Arrêt immédiat sur qualité/mémoire, finir le premier tour de4cellules même si vitesse défavorable afin de distinguer OFF/MTP. Pas de compilation/preuve/modèle concurrent. Si rejet, garder overlap1 ; pas de réglage du critère après résultats. Preuves `opt-17-cohort/`, débit encore non mesuré.
+
+- 17 qualité qwen : **passed**, exit0, 40.88s ; commande/conditions dans `opt-17-cohort/quality.json`, sortie `qwen.log`. Vitesse non lancée.
+
+- 17 qualité held : **passed**, exit0, 4.84s ; commande/conditions dans `opt-17-cohort/quality.json`, sortie `held.log`. Vitesse non lancée.
+
+- 17 qualité ssd : **passed**, exit0, 1.49s ; commande/conditions dans `opt-17-cohort/quality.json`, sortie `ssd.log`. Vitesse non lancée.
+
+- 17 qualité bridge : **passed**, exit0, 252.04s ; commande/conditions dans `opt-17-cohort/quality.json`, sortie `bridge.log`. Vitesse non lancée.
+
+- 17 1-MAIN-baseline-H : **validated**, débit7.266771909663257tok/s, pic9323994648octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-MAIN-baseline-H/report.json`.
+
+- 17 1-MAIN-baseline-C : **validated**, débit7.2481704786760845tok/s, pic9320504784octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-MAIN-baseline-C/report.json`.
+
+- 17 1-HOLD-baseline-H : **validated**, débit7.347130129051093tok/s, pic9319833064octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-HOLD-baseline-H/report.json`.
+
+- 17 1-HOLD-baseline-C : **validated**, débit7.199847020119035tok/s, pic9324944896octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-HOLD-baseline-C/report.json`.
+
+- 17 1-MAIN-mtp-H : **validated**, débit7.327919264035822tok/s, pic10147455064octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-MAIN-mtp-H/report.json`.
+
+- 17 1-MAIN-mtp-C : **validated**, débit7.14794931358326tok/s, pic10145701976octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-MAIN-mtp-C/report.json`.
+
+- 17 1-HOLD-mtp-H : **validated**, débit7.174650081912264tok/s, pic10145882248octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-HOLD-mtp-H/report.json`.
+
+- 17 1-HOLD-mtp-C : **validated**, débit6.792540559786388tok/s, pic10150879296octets, swapouts+0octets ; `opt-17-cohort/execution.json` et `1-HOLD-mtp-C/report.json`.
+
+- **17 clôture :rejected**, 8/24bras terminés ; raisonfirst-round speed criterion failed. Résultat `opt-17-cohort/result.json`, sorties partielles conservées. Aucun changement par défaut avant décision finale.
+
+- 17 décision :8bras du crible terminés,16réponses exactes, aucune confirmation lancée (16bras nonlancés), gains−0,256/−2,005% OFF et−2,456/−5,326% MTP MAIN/HOLD. Tous swapouts0, écarts de pics−3,33à+4,88Mio. Overlap1 reste inchangé ; pas de publication d’un gain. Les11testsQwen+oracle tenu àpart+3testsSSD et bridge ont passé ; aucune régression source n’est ajoutée.
+
+### FLASHSSD-2026-10-12-16 — profil après lecteurs4 et budget RAM corrigé — diagnostic terminé
+
+- Demande : poursuivre OFF/MTP vers15tok/s sans augmenter RAM/swap, pousser les gains validés dansPR34. Relus09/10/12/13/14/15/15B, rapport amont13 et code actuel. Nouvelle raison de répétition du diagnostic09 : lecteurs4 de14B et cache5Gio/89slots remplacent lectures sérielles/cache8Gio ; les coûts et hitrates anciens ne représentent plus le moteur livré. Aucun nouvel essaiNT2/T2 inchangé, leurs conclusions restent conservées.
+- Source conservée : HEADf4d97231617fc3eb9db6f84b59a944e556a6d84a, natif identique2e83f157 ; test immuable `build/flash-opt-15/readers4/mlxl3_native-28585053ede733ec` SHAb564c6dd57064db5acb6d7c086844ba669792d5d0870cc345fc715e02c0a427e. M5/24Gio, MLX0.32.2, macOS27.2, checkpoint65c89531 EXL3K2MUL1. Cache5Gio, allocator512Mio, overlap1, lecteurs par défaut4 ; applications utilisateur laissées ouvertes.
+- Protocole avant lancement : réutiliser sans modification `qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states --exact --ignored --test-threads=1 --nocapture`, une exécution bornée480s, MAIN/HOLD32pas, chauffe de chaque mode. Le harnais vérifie tous les logits T1 instrumentés et états cible, puis tokens/états MTP et budgets. Identités avant/après, VM/alimentation/thermique, stderr/stdout conservés sous `docs/measurements/flash-next-ssd-impl/opt-16-profile/`. Un seul modèle, aucun compilateur/proveur/inférence concurrent.
+- Lire séparément natif, frontière routes (inclut GPU amont), fills/logicalbytes, préparation attention/HC, MoE et final avec barrières intrusives, tête/verify/repair MTP. Ces durées ne sont ni débit bridge ni tempsGPU exclusif, têteMTP résidente dans toutes les phases ; aucune baisseRAM/gain annoncé sur ce diagnostic. Arrêter sur divergence/nonfinitude/incomplétude. Choisir ensuite une piste motivée et la préenregistrer séparément avant code/mesure.
+- CI exacte f4 inspectée : Linux/macOS, contratsKani ciblés et régressions réussis ; Kani complet encore en cours, non déclaré validé.
+
+- **16 diagnostic validé** :177,19s,1test/deux prompts32pas ;64logits complets et tous états instrumentés exacts, tokens/étatsMTP exacts, empreinteb564c6dd inchangée, swapouts système+0octet. MAIN/HOLD :MAIN natif147.96ms/pas, fills28.09ms, lectures125.34Mio/pas, hits78.06%, verifyMTP95.67%; HOLD natif138.59ms/pas, fills27.68ms, lectures123.15Mio/pas, hits78.44%, verifyMTP95.58%. La RAM processus n’est pas mesurée par ce harnais ; un chiffre MLX ne la remplace pas. Le SSD reste minoritaire, coût amont/compute et vérification cible dominants. Prochaine piste17 : vérifier si le découpage hot/cold reste rentable depuis les lecteurs4, sans ajouter de mémoire. Bruts/conditions/identités dans `opt-16-profile/{execution,summary}.json` et `run.log` ; aucun gain bridge revendiqué.
+
+- Rapport16 : [profil actuel](docs/flash-profile-2026-10-12.md), limites et prochaines hypothèses explicitées ; aucun débit bridge ni picRAM déduit des horloges du test.
+
 ### FLASHSSD-2026-10-12-15B — confirmation MTP par gains appariés — rejeté, prototype retiré
 
 - Raison nouvelle explicite :15 exigeait une séparation de toutes les enveloppes absolues malgré son ordre apparié. Le dernier coupleHOLD déplace ensemble H etC vers le haut, tout en gardant +5,81% ; ce critère échoue donc sur une variation entre couples dont la cause reste inconnue.15 reste non concluant, sans exclusion ni requalification. Une seule confirmation indépendante est autorisée par ce protocole corrigé ; ensuite rétention ou retrait, sans nouvelle relance de cette même idée.

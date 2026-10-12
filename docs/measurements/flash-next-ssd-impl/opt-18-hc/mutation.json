@@ -1,0 +1,62 @@
+[
+  {
+    "name": "mutant-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "completed",
+    "exit": 0,
+    "seconds": 28.90757899999153
+  },
+  {
+    "name": "mutant-check",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_hc_write_preserves_cpu_rounding_and_rejects_invalid_tensors",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "status": "completed",
+    "exit": 101,
+    "seconds": 0.3950920829665847
+  },
+  {
+    "name": "restored-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "completed",
+    "exit": 0,
+    "seconds": 29.053697374998592
+  },
+  {
+    "name": "restored-check",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_hc_write_preserves_cpu_rounding_and_rejects_invalid_tensors",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "status": "completed",
+    "exit": 0,
+    "seconds": 0.23782137496164069
+  }
+]

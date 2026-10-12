@@ -1,0 +1,65 @@
+[
+  {
+    "name": "kani-contracts",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pair_commit_preserves_exact_valid_prefix_without_overflow",
+      "--harness",
+      "tensor_source_interval_is_ordered_and_cannot_wrap",
+      "--harness",
+      "disk_destinations_cannot_wrap_or_exceed_owned_storage",
+      "--harness",
+      "reference_partition",
+      "--harness",
+      "automatic_cache_cannot_spend_reserved_memory",
+      "--harness",
+      "automatic_cache_is_monotone",
+      "--harness",
+      "mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "--harness",
+      "mtp_all_depths_commit_target_prefix_within_budgets",
+      "--harness",
+      "greedy_acceptance_is_the_maximal_matching_prefix",
+      "--harness",
+      "qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 8.313667291018646
+  },
+  {
+    "name": "kani-actual-hc",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "physical_hc_write_preserves_separate_rounding"
+    ],
+    "status": "failed",
+    "exit": 1,
+    "seconds": 3.444621167029254
+  },
+  {
+    "name": "cbmc-metal",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/shaders/flash_hc_write.metal",
+      "--bounds-check",
+      "--pointer-check",
+      "--unwinding-assertions",
+      "--unwind",
+      "4"
+    ],
+    "status": "failed",
+    "exit": 1,
+    "seconds": 0.005107040982693434
+  }
+]
