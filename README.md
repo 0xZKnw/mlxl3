@@ -590,6 +590,7 @@ The corrected path matches the independent inference reference bit for bit on
 M5 baseline measured about 7 tokens/s before this correction. The built-in
 MTP head now supports depth-one greedy decoding through Desktop and the bridge,
 with exact target verification and rollback. Numerical and bridge checks pass.
-On the corrected binary, median decode is 7.21/7.15 tok/s without MTP and
-7.20/6.89 tok/s with MTP1 on the two fixed prompts (three runs of 64 tokens each).
-No MTP speedup was established; it stays OFF by default.
+On the corrected PR binary integrated with 1.4.3 (`2162c5f6`), median decode is
+7.60/7.57 tok/s without MTP and 7.54/7.31 tok/s with MTP1 on the two fixed prompts
+(three runs of 64 tokens each, 63 decode tokens, alternating modes on one binary).
+MTP is slower in all six measured pairs; it stays OFF by default.

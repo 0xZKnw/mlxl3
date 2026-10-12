@@ -2,7 +2,20 @@
 
 État : parcours texte et MTP1 implémentés, contrôlés et mesurés sur M5 ; aucun gain de MTP établi sur les deux prompts testés, défaut OFF conservé. Aucun remplacement de l'app installée.
 
-## Débit du binaire corrigé, sans MTP puis avec MTP1
+## Débit de la source publiée dans la PR, base 1.4.3
+
+Source `2162c5f64a16558e1443758b4dbf22ba09566a78`, release `mlx,chat` SHA256 `cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa`, M5/24Gio/MLX0.32.2. La composition avec 1.4.3 est requalifiée avant mesure. Même protocole OFF/MTP1 que ci-dessous : contexte4096, cache8Gio/overlap1, greedy, quatre warmups puis trois répétitions de64tokens/63decode par couple, modes alternés dans un seul bridge. Aucun compilateur, prouveur ou autre modèle pendant cette campagne. [Rapport brut](measurements/flash-next-ssd-impl/mtp-speed-143/report.json), [résumé et conditions](measurements/flash-next-ssd-impl/mtp-speed-143/summary.json), [empreintes avant/après](measurements/flash-next-ssd-impl/mtp-speed-143/identity.json).
+
+| Prompt | Sans MTP | MTP1 | Écart médian | Acceptation |
+| --- | ---: | ---: | ---: | ---: |
+| MAIN, cache LFU | **7,60 tok/s** (7,599–7,610) | **7,54 tok/s** (7,501–7,552) | −0,79% | 28/34 (82,35%) |
+| HOLD, merge_intervals | **7,57 tok/s** (7,537–7,579) | **7,31 tok/s** (7,285–7,332) | −3,43% | 27/35 (77,14%) |
+
+Les16générations, warmups inclus, ont les mêmes hashes/textes pour chaque prompt entre modes, répétitions et campagne06. MTP est inférieur à OFF dans chacune des six paires ; les étendues relatives OFF sont0,14%/0,55%. **Gain MTP rejeté sur ces deux cas, défaut OFF conservé.** La tête intégrée et ses commits restent fonctionnellement validés. Ces chiffres ne sont pas une comparaison causale avec la campagne06, dont la source et les conditions diffèrent.
+
+TTFT médian MAIN OFF12,21s/MTP12,35s, HOLD11,44s/13,38s ; prefill MAIN7,13/7,04tok/s, HOLD7,17/6,62tok/s ; temps complet MAIN20,48/20,71s, HOLD19,76/22,02s. Les réactivations MTP incluent le rechargement de sa tête. Actif MLX≈11,147/11,812Gio (+0,665Gio), pic maximal11,207/12,042Gio ; RAM processus≈12,98Gio dans les deux modes, mesurée séparément. Secteur, batterie94→96% en charge, swap4246,38→4241,12Mio, aucune alerte pmset ; températures et octets SSD physiques non mesurés. Aucun remplacement de l'app installée ni release.
+
+## Comparaison historique corrigée avant l'intégration 1.4.3
 
 Source publiée `d506cc78243e680668aaf73961c56824852b4798`, release SHA256 `e89da70ad32906743e332702575053ead81922a42d85d3f33a65e277bf434dfb`, M5 avec 24 Gio et MLX 0.32.2. Même processus et binaire, contexte de 4096 tokens, cache experts de 8 Gio, overlap1 et greedy ; MCP, DFlash et cache préfixe OFF. Quatre warmups puis trois passages de 64 tokens (63 en decode) par couple prompt/mode, ordre alterné. [Résultats bruts](measurements/flash-next-ssd-impl/mtp-speed-resume-20261012/report.json), [médianes, étendues, mémoire et conditions](measurements/flash-next-ssd-impl/mtp-speed-resume-20261012/summary.json), [identités](measurements/flash-next-ssd-impl/mtp-speed-resume-20261012/identity.json).
 
@@ -58,6 +71,10 @@ Le bridge release passe16générations A/B/B/A aux budgets1/2/3/17, mêmes hashe
 
 ## Vérification source et limites
 
+La PR intègre la base 1.4.3 `b4dfd3915e262b2d33581102ae3320042acee5c9` ; source publiée `2162c5f64a16558e1443758b4dbf22ba09566a78`. Les évolutions du cache Metal, du bridge, de la mémoire, de DFlash et du Desktop sont conservées. La préparation native de la tête intégrée est raccordée à `set_mtp` ; les contrôles Desktop couvrent ON/OFF sauvegardé, configuration et éjection immédiate avant préparation. Une perte d'activation sauvegardée détectée après composition est corrigée, avec son échec initial conservé.
+
+Cette composition passe 102 tests Rust `mlx,chat` (74 bibliothèque, 12 main, 16 contrats ; 92 ignorés par cette suite), 431 tests Python (4 sauts), le Desktop complet puis le typecheck et hardening Swift6 stricts. Les 15 tests physiques affectés sont exécutés séparément et passent : 16 positions du tronc, 10 de la tête, états et commits T2, sessions, cohortes SSD et slots. Les bridges release Flash/Qwen3.6 passent aussi configuration ON/OFF, générations ABBA, erreurs, annulations et reprise. Les six harnais Kani conservent les mêmes domaines et résultats ci-dessous ; ASan/UBSan du cache C++ passe. CBMC refuse toujours le vrai contexte libc++, et CrossHair n'analyse pas ce checker I/O. [Manifestes, commandes, diagnostics initiaux et limites de l'intégration](measurements/flash-next-ssd-impl/integration-143/quality.json). Ces vérifications finies ne constituent pas une preuve de l'inférence complète.
+
 Kani 0.68 : contrat d'offsets u64, 12 obligations et deux couvertures satisfaites ; hash n-grammes u64, boucle au plus trois éléments, 87 obligations (une inatteignable) et deux couvertures satisfaites. Le harnais de réservation sur deux routes symboliques et dix slots a été tenté sur la fonction réelle ; après correction d'une ICE liée aux erreurs anyhow, l'exploration a été interrompue après environ cinq minutes. **Cache non prouvé** ; 2 000 cohortes déterministes couvrent vieillissement, évictions, doublons, erreurs et invalidation après lecture échouée.
 
 Kani du calcul de partitions réel : domaines u32 complets, unwind26,37obligations réussies et3couvertures satisfaites ; vérification bornée CPU, sans preuve des réductions flottantes Metal. [Preuve](measurements/flash-next-ssd-impl/divergence/kani-partition.log).
@@ -76,7 +93,7 @@ Qualification du premier commit, conservée : au worktree isolé, format/Ruff, C
 
 Sushi `beamivalice/sushi` à `eaaca12c5508e6a24a01671384a9a41089370058` a été inspecté : kernels HC/QSA/EXL3 et format n-grammes. Son format de banques compilées diffère du checkpoint brut ; aucun corps de kernel Sushi n'est copié et sa sélection tolérante d'experts n'est pas utilisée. Le moteur réutilise les kernels EXL3 de MLXL3/Pony et les idées de caches directs du projet SSD local. [Recherche et antécédents](recherche-flash-next-ssd-205-2026-10-11.md), [attributions](../THIRD_PARTY_NOTICES.md).
 
-Les changements préexistants concernant la projection draft Q4, `mtp.rs`, `qwen35.rs`, le README et le journal sont conservés dans le checkout de travail ; ils ne font pas partie du commit Flash Next. La PR est construite dans un worktree séparé pour vérifier cette séparation.
+Les modifications locales préexistantes restent dans le checkout principal, préservé. La PR est construite dans un worktree séparé ; elle intègre maintenant la base 1.4.3 et ses fonctionnalités publiées. Son diff contre cette base n'ajoute aucune modification propre à `mtp.rs` ou `qwen35.rs`.
 
 ## Utilisation locale
 
