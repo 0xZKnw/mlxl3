@@ -1,6 +1,104 @@
 # MLXL3 — journal des optimisations
 
-### FLASHSSD-2026-10-12-14B — avantage SSD validé sur comparaisons rapprochées, code local
+### FLASHSSD-2026-10-12-15B — confirmation MTP par gains appariés — rejeté, prototype retiré
+
+- Raison nouvelle explicite :15 exigeait une séparation de toutes les enveloppes absolues malgré son ordre apparié. Le dernier coupleHOLD déplace ensemble H etC vers le haut, tout en gardant +5,81% ; ce critère échoue donc sur une variation entre couples dont la cause reste inconnue.15 reste non concluant, sans exclusion ni requalification. Une seule confirmation indépendante est autorisée par ce protocole corrigé ; ensuite rétention ou retrait, sans nouvelle relance de cette même idée.
+- Sources et matériel inchangés : binaireH lecteurs4 `bd89a7d6`, C T2 `4fc51f1e`, modèle65c89531/EXL3K2MUL1, M5/24Gio/MLX0.32.2, code15 archivé et toujours local. Qualité15 déjà acquise et empreintes à revérifier ; aucune compilation/preuve/ autre inférence pendant la mesure. Contrôles OFF15 réussis sur6paires et code inchangé, pas de répétitionOFF ni mélange de ces débits avec15B.
+- Nouveaux bruts uniquement :8paires MTP,16processus,4répétitions par promptMAIN/HOLD, ordres H-C/C-H/H-C/C-H avec ordre des prompts inversé un tour sur deux. Un prompt/mode par processus, une chauffe puis64tokens/63decode ; contexte4096, cache5Gio/89slots, allocator512Mio, lecteurs4, overlap1, mêmes applications ouvertes. VM/alimentation/thermique avant/après ; textes/hashes historiques et métriques complets pour les32réponses.
+- Critères fixés avant15B : chaque gain apparié≥3% ET étendue des quatre gains≤2points de pourcentage dans chaque prompt. Il s'agit de répétabilité relative dans les passages observés, sans garantie de stabilité absolue ni test statistique IID. Conserver toutes les valeurs et ordres. Identités/qualité exactes, picC≤H+256Mio par paire, aucun bras>256Mio de swapout système. Aucune somme avec14B/15 ; tout échec entraîne archivage et retraitT2, garder le lecteur14B publié. Matrice et bruts `opt-15-t2/paired-confirmation/`; aucune mesure15B encore exécutée.
+
+- 15B 1-MAIN-mtp-H : **validated**, 7.034773471500749tok/s, pic10350957872octets, swapouts+0octets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `1-MAIN-mtp-H/report.json` ; décision comparative en attente.
+
+- 15B 1-MAIN-mtp-C : **validated**, 7.326475054922396tok/s, pic10155155592octets, swapouts+0octets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `1-MAIN-mtp-C/report.json` ; décision comparative en attente.
+
+- 15B 1-HOLD-mtp-H : **validated**, 6.812550619873396tok/s, pic10147405912octets, swapouts+0octets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `1-HOLD-mtp-H/report.json` ; décision comparative en attente.
+
+- 15B 1-HOLD-mtp-C : **validated**, 6.9682471810583175tok/s, pic10146930776octets, swapouts+0octets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `1-HOLD-mtp-C/report.json` ; décision comparative en attente.
+
+- 15B 2-HOLD-mtp-C : **validated**, 7.106524799546756tok/s, pic10147995784octets, swapouts+0octets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `2-HOLD-mtp-C/report.json` ; décision comparative en attente.
+
+- 15B 2-HOLD-mtp-H : **validated**, 6.799668665702086tok/s, pic10148044912octets, swapouts+0octets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `2-HOLD-mtp-H/report.json` ; décision comparative en attente.
+
+- 15B 2-MAIN-mtp-C : **validated**, 7.058349973837811tok/s, pic10147602544octets, swapouts+0octets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `2-MAIN-mtp-C/report.json` ; décision comparative en attente.
+
+- 15B 2-MAIN-mtp-H : **interrupted**, non mesurétok/s, picnon mesuréoctets, swapouts+non mesuréoctets. Commandes/conditions/bruts dans `opt-15-t2/paired-confirmation/execution.json` et `2-MAIN-mtp-H/report.json` ; décision comparative en attente.
+
+- **15B rejeté, arrêt borné et retrait.** Première paireHOLD :6,81255→6,96825tok/s, gain2,2854%<3% préenregistrés. 7bras complets sont conservés, 1interrompu et8nonlancés ; aucune parité complète ni validation de gain. Superviseur rejoint aprèsSIGINT, groupe du pilote/inférence interrompu et rejoint. Tous les bras complets gardent leurs sorties exactes et swapouts0. Source15 archivée avec tests dans `prototype-15.patch`, les3fichiersRust et le workflow sont restaurés octet pour octet à2e83, seul lecteur14B conservé. Nouvelle raison de contrôle : reconstruire la cible locale pour retirer aussi le binaireT2 partagé et comparer ses SHA àbd89a7d6/b564c6dd déjà qualifiés, sans refaire la campagne de vitesse.
+
+- 15B restauration : fmt/build et rebuildtests passent, source native exactement2e83 et binairetests exactementb564c6dd. Le SHA moteur attendu diffère :4fa70acb au lieu debd89a7d6 ; échec de ce contrôle conservé dans `restore.json`. `build.rs` embarque la révisionGit courante, passée debdc3889b6f3f à2e83f157d986. Avant de qualifier le rebuild, contrôler que les seules différences sont ces chaînes, le UUIDMach-O et la signature générée, et exiger l'égalité de tous les autres octets. Aucun nouveau benchmark.
+
+- **15B retrait qualifié.** Le rebuild4fa70acb et bd89a7d6 ne diffèrent que par les2occurrences de révisionGit,16octets UUIDMach-O et signature générée ; tous les autres octets sont identiques (normalisationSHA37670775). Binairetests identiqueb564c6dd, versionsCLI1.4.3, source native/workflow identiques2e83. Aucun changement runtime conservé de15/15B, aucune nouvelle mesure du rebuild ni app installée remplacée. Preuve `restore-identity-inspection.json` ; le contrôle initial d'égalité brute échoué est conservé. Aucun modèleGPU ne reste chargé par cette campagne.
+
+- 15B clôture documentaire :51JSON analysés sans erreur, liens locaux vérifiés,33empreintes des sources conservées identiques à14B (`retained-source.json`). `git diff --cached --check` signale les lignes de contexte vides (un espace) des patchs unifiés archivés ; ces octets nécessaires sont conservés. Le contrôle de tous les autres fichiers passe, détail `final-diff-checks.json`. CI2e83 inspectée :Linux/macOS/Kani ciblé/Desktop passent, Kani complet toujours en cours, non déclaré validé. Les essais15/15B sont clos et les processus joints.
+
+### FLASHSSD-2026-10-12-15 — vérification MTP groupée exacte — non concluant, prototype archivé
+
+- Les essais14/14B sont clos et le lecteur4 est publié dans2e83f157. Reprendre la piste11, seulement préparée auparavant : le profil09 attribuait95% du coût MTP à la vérification cible ; actuellement seuls les experts routés sont groupés. Nouvelle implémentation : amortir les poids et soumissions sur deux lignes pour HC, projectionsGDN, experts partagés et tête vocabulaire. Base réelle2e83f157, binaire témoinbd89a7d6 (lecteurs4, correctifRAM12), modèle65c89531/EXL3K2MUL1, M5/24Gio/MLX0.32.2. Le vieux patch11 contientNT2 et l'ancien budget8Gio : ne porter que les hunksT2, préserver le budget auto et les lecteurs4, ne pas réintroduireNT2.
+- Portée : `Exl3Linear::forward/forward_qmv_batch` autorise MB2 avec partition et accumulation de référenceSG4/NT1, réduction des splits séparée par ligne ; MTPfc_hiddenMB4 inchangé. `Hc::read/write`, GDN et `Layer::forward_pair`, sharedMoE et `FlashNext::verify_pair/logits` regroupent les opérations indépendantes. Projections denses par ligne pour garder l'arrondiGEMV ; GDN/QSA/PLE restent causales, snapshots après premier token et commits1/2 exacts. Appelants/testsfiltres/CLI/bridge concernés, aucune nouvelle option ni précision/quantification/expert modifiés.
+- Avant vitesse : nouveau test des huit projections réelles MB2 contre deux appelsT1, entrées FP32/FP16/noncontiguës et formes/valeurs finies/nombre/bytes ; testHC deux lignes et frontières. Mutation de la réduction de référence sur le vrai cheminMB2 pour confirmer la sensibilité du test (restaurer et refaire les contrôles touchés), ou contre-exemple réel documenté si la première implémentation échoue. Oracles16positions, composants, têteMTP, commits1/2, cohortes90paires/erreurs, sessions et bridge1/2/3/17/configuration/annulation. Fmt/Clippy/build/suitesCPU/livrées ; Kani sur partitions/layout/commits réels et tentative du cheminGPU sansstub. Aucune prétention de preuveMLX/Metal ; conserver tous les diagnostics.
+- Mesure après qualité : protocole de paires rapprochées14B réutilisé (un prompt/mode, une chauffe puis64/63, cache5Gio/89slots, contexte4096, allocator512Mio, lecteurs4, un modèleGPU sans compilation/preuve, applications ouvertes). Ordre12paires H-C/C-H/H-C pour MAIN/HOLD×OFF/MTP, source/binaire identifiés avant lancement. Gains MTP appariés≥3% dans chacune des trois paires par prompt, minimum candidatMTP supérieur de≥1% au maximum témoin. OFF contrôle : chaque paire≥−3%, médiane des gains≥−1% par prompt. Pic candidat≤témoin apparié+256Mio et pas de bras>256Mio de swapout système ; sinon non concluant/rejeté, archiver le prototype et garder14B. Ne pas additionner ces gains aux campagnes précédentes. Pousser toute étape retenue dansPR34 ; cible15toujours non atteinte.
+- État : préenregistré, aucun code15 exécuté, aucune mesure15. Preuves sous `docs/measurements/flash-next-ssd-impl/opt-15-t2/` ; le patch11 préparé reste une référence non mesurée.
+- 15 port sélectif local : premier `git apply --check --recount` refuse les diff concaténés sans séparateurs de fichiers, avant toute mutation native. Les fragments initiaux sont conservés ; ajout des en-têtes `diff --git`, vérification puis application réussies. Seuls MB2/HC/GDN/shared/logits et leurs tests sont portés ; assertions de présence du budget auto/512Mio/lecteurs4 et d'absence deNT2 réussies. Fmt exécuté, aucune compilation ni mesure encore.
+
+- 15 première qualification CPU : fmt, Clippy strict mlx/chat,87tests CPU (2ignorés),107tests release (97ignorés) et build livrable passent ; moteur4fc51f1e/test5b890bcb. Kani :10harnais CPU réussis ; tentative du parcoursT2/MLX réel échouée en compilation (diagnostic conservé, aucune preuveGPU). Avant vitesse, lancer les deux nouveaux tests physiques projectionsMB2 etHC ; détails dans `opt-15-t2/{build,proofs}.json`.
+
+- 15 projectionsMB2 etHC physiques passent. Mutation réelle du drapeau d'accumulation : le test détecte une divergence sur shared_expert.down_proj ; source restaurée, test repassé et SHA du binaire de tests restauré identique à5b890bcb (`mutation.json`). Aucune mesure de vitesse avec le mutant. Ajouter le contrat de couverture des lignesQMV au job Kani ciblé existant ; la suite10harnais compte1121obligations/33covers (3inatteignables anciens), sourceCPU inchangée. CI2e83 : Linux/macOS, contrats ciblés et desktop/protocole réussis, Kani complet encore en cours. Lancer la qualification numérique complète, puis bridge.
+
+- 15 qualité native complète réussie :12testsQwen physiques, référence tenue àpart11positions,3testsSSD dont90paires de cohortes et oracle slots ; les16positions indépendantes gardent logits/états exacts. Avec les2tests nouveaux et la répétition après mutation,20exécutions physiques réussies hors mutant. Bridge réel1/2/3/17 en cours ; vitesse non lancée.
+
+- 15 bridge terminé : **passed**, exit0, durée262.02s ; commandes, sorties et résumé dans `opt-15-t2/bridge.json` et `bridge.log`. Aucune vitesse encore mesurée.
+
+- 15 1-MAIN-baseline-H : **validated**, 6.92565048109661tok/s, pic9320046080octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-MAIN-baseline-H/report.json` ; comparaison finale en attente.
+
+- 15 1-MAIN-baseline-C : **validated**, 6.921442714928266tok/s, pic9330515504octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-MAIN-baseline-C/report.json` ; comparaison finale en attente.
+
+- 15 1-HOLD-baseline-H : **validated**, 6.814846028492302tok/s, pic9319521768octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-HOLD-baseline-H/report.json` ; comparaison finale en attente.
+
+- 15 1-HOLD-baseline-C : **validated**, 6.89505034296514tok/s, pic9329729024octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-HOLD-baseline-C/report.json` ; comparaison finale en attente.
+
+- 15 1-MAIN-mtp-H : **validated**, 6.946758243297397tok/s, pic10148241496octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-MAIN-mtp-H/report.json` ; comparaison finale en attente.
+
+- 15 1-MAIN-mtp-C : **validated**, 7.28802964548441tok/s, pic10155614344octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-MAIN-mtp-C/report.json` ; comparaison finale en attente.
+
+- 15 1-HOLD-mtp-H : **validated**, 6.783025491025822tok/s, pic10147307608octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-HOLD-mtp-H/report.json` ; comparaison finale en attente.
+
+- 15 1-HOLD-mtp-C : **validated**, 7.145598685468988tok/s, pic10159235208octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `1-HOLD-mtp-C/report.json` ; comparaison finale en attente.
+
+- 15 2-HOLD-mtp-C : **validated**, 7.161064982785808tok/s, pic10156580952octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-HOLD-mtp-C/report.json` ; comparaison finale en attente.
+
+- 15 2-HOLD-mtp-H : **validated**, 6.820800641704562tok/s, pic10147946584octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-HOLD-mtp-H/report.json` ; comparaison finale en attente.
+
+- 15 2-MAIN-mtp-C : **validated**, 7.309479080401397tok/s, pic10155171928octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-MAIN-mtp-C/report.json` ; comparaison finale en attente.
+
+- 15 2-MAIN-mtp-H : **validated**, 6.975491963959664tok/s, pic10147274864octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-MAIN-mtp-H/report.json` ; comparaison finale en attente.
+
+- 15 2-HOLD-baseline-C : **validated**, 6.947449747168062tok/s, pic9316802048octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-HOLD-baseline-C/report.json` ; comparaison finale en attente.
+
+- 15 2-HOLD-baseline-H : **validated**, 6.886680814969806tok/s, pic9319144960octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-HOLD-baseline-H/report.json` ; comparaison finale en attente.
+
+- 15 2-MAIN-baseline-C : **validated**, 6.8762398753451395tok/s, pic9323814424octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-MAIN-baseline-C/report.json` ; comparaison finale en attente.
+
+- 15 2-MAIN-baseline-H : **validated**, 6.903191811013721tok/s, pic9324879336octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `2-MAIN-baseline-H/report.json` ; comparaison finale en attente.
+
+- 15 3-MAIN-baseline-H : **validated**, 6.919885791129398tok/s, pic9321258448octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-MAIN-baseline-H/report.json` ; comparaison finale en attente.
+
+- 15 3-MAIN-baseline-C : **validated**, 6.925728804423935tok/s, pic9322733056octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-MAIN-baseline-C/report.json` ; comparaison finale en attente.
+
+- 15 3-HOLD-baseline-H : **validated**, 6.887406496111615tok/s, pic9323716072octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-HOLD-baseline-H/report.json` ; comparaison finale en attente.
+
+- 15 3-HOLD-baseline-C : **validated**, 6.883728817334094tok/s, pic9329155584octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-HOLD-baseline-C/report.json` ; comparaison finale en attente.
+
+- 15 3-MAIN-mtp-H : **validated**, 6.9375058870725175tok/s, pic10195031344octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-MAIN-mtp-H/report.json` ; comparaison finale en attente.
+
+- 15 3-MAIN-mtp-C : **validated**, 7.273765227479576tok/s, pic10148618352octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-MAIN-mtp-C/report.json` ; comparaison finale en attente.
+
+- 15 3-HOLD-mtp-H : **validated**, 7.245867063096105tok/s, pic10151878720octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-HOLD-mtp-H/report.json` ; comparaison finale en attente.
+
+- 15 3-HOLD-mtp-C : **validated**, 7.666624616853209tok/s, pic10155302976octets, swapouts+0octets. Commande/conditions/bruts `opt-15-t2/execution.json` et `3-HOLD-mtp-C/report.json` ; comparaison finale en attente.
+
+- **15 clos : non concluant selon le critère préenregistré.** Les24bras et48réponses sont exacts, chaque gainMTP apparié passe (+4,79à+5,81%), les6contrôlesOFF et les limitesRAM passent, swapouts0. Mais le dernier HOLD témoin monte à7,2459tok/s et son candidat à7,6666 ; le minimum candidatHOLD7,1456 est inférieur au maximum témoin7,2459 (ratio0,9862<1,01). Cause du déplacement commun non établie. Aucun passage exclu et aucun gain15 déclaré validé ; conserver `result.json` et `prototype-15.patch`, lecteur14B reste seul code publié.
+
+### FLASHSSD-2026-10-12-14B — avantage SSD validé et poussé dans PR34
 
 - Nouvelle raison : 14 ne respecte pas son seuil de spread absolu, conservé comme non concluant. Les douze comparaisons sont favorables, mais les bras réunissant quatre cellules éloignent les mesures d'un même couple de plusieurs minutes. La cause de la variation C2 n'est pas établie ; aucune attribution thermique ni exclusion de C2. Une seule nouvelle campagne est prévue, puis décision et reprise de11/T2.
 - Code natif inchangé : H5e423506 contre candidatbd89a7d6 à4lecteurs, sources et qualité de14 conservées. Même modèle65c89531, M5/24Gio/MLX0.32.2, budget5Gio/89slots, allocator512Mio, overlap1, contexte4096, greedy, applications ouvertes. Réutiliser le pilote validé en ajoutant uniquement une sélection de prompt et le nombre de répétitions en CLI ; tester sélection exacte/non vide, valeur invalide, CLI et erreurs, Ruff/suite Python pertinente/CrossHair avant toute nouvelle mesure. Enregistrer le nouveau pilote séparément des artefacts14.
@@ -60,6 +158,8 @@
 - 14B 3-HOLD-mtp-C : validated, 6.767972289987737tok/s, pic10147455064octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-HOLD-mtp-C/report.json` ; décision comparative en attente.
 
 - **14B terminée / critères satisfaits** :24bras/48générations (24chauffes+24mesures), hashes/textes identiques aux références, sources/binaires inchangés. Les12gains appariés sont tous≥1%, et chaque minimum candidat dépasse le maximum témoin de≥1% ; limitesRAM/swap satisfaites. Résultats et chaque paire dans `adjacent/result.json`. Gains observés5,53–10,42%, médianes candidat OFF7,290/7,046 et MTP7,126/6,886tok/s. Swapouts système0, pic candidat 9.451Gio. Ce sont des avantages comparatifs sur ce protocole, pas une stabilité absolue ni15tok/s. Défaut4 retenu, inspection du diff et pushPR34 àfaire ; campagne14 antérieure reste non concluante.
+
+- **14B publiée** : commit2e83f157d986f8c673790c3dc2325254b08cab2f poussé dansPR34, corps dePR réécrit autour du code livré et des mesures14B. Les33sources du manifeste correspondent au commit ; binaires immuablesbd89a7d6/b564c6dd. Aucun remplacement de l’app, aucune fusion/release. CI de cette tête en cours, àinspecter ; l’ancienbdc aLinux/macOS/contratsKani/Desktop réussis etKani complet annulé après≈1h, pas de preuve globale. Essais14/14B clos.
 
 ### FLASHSSD-2026-10-12-14 — lectures SSD parallèles — qualité validée, débit non concluant
 

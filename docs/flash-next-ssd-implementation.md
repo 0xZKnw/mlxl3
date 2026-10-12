@@ -2,6 +2,10 @@
 
 État : parcours texte et MTP1 implémentés, contrôlés et mesurés sur M5 ; aucun gain de MTP établi sur les deux prompts testés, défaut OFF conservé. Aucun remplacement de l'app installée.
 
+## Regroupement MTP essayé puis retiré, 12 octobre
+
+Le [prototype par paires](flash-mtp-pairs-2026-10-12.md) préserve les logits, états et sorties, mais ne passe pas les critères de vitesse. Une première campagne de 24 processus reste non concluante ; la confirmation indépendante descend à +2,29 % sur une paire, sous le seuil de 3 %, puis est arrêtée. Le code et le binaire local sont restaurés sur les quatre lecteurs SSD validés par 14B. Aucun nouveau gain MTP n'est livré ; les résultats et le patch sont conservés pour éviter de refaire le même essai sans raison nouvelle.
+
 ## Lectures SSD parallèles, 12 octobre
 
 Les experts absents sont désormais lus par quatre lecteurs bornés, directement dans les banques existantes. Toutes les lectures se terminent avant le retour, y compris après erreur. Le LFU et le budget RAM adaptatif sont conservés ; `MLXL3_SSD_READERS=1` active les lectures séquentielles (valeurs permises : 1 à 4).
@@ -27,7 +31,7 @@ Le binaire G `938e2aa7b3532c608607c852810313bf9fe6630b021d8560cffb992c64b1478e` 
 
 Kani vérifie les deux nouveaux contrats du budget sur le domaineu64 complet sans hypothèse :187obligations,6couvertures,0inatteignable ; la suite ciblée de huit contrats passe1024obligations/27couvertures/3inatteignables. Les chemins réels OS/MLX et le package complet échouent en compilation du vérificateur (`intrinsics.rs:243`), sans propriété GPU prouvée. CrossHair ne confirme pas le parseur VM. Le test initial de l'allocateur demandait à tort une limite immédiate au free ; échec conservé et test corrigé suivant le contrat MLX de récupération à l'allocation suivante. Le prototypeF_NOCACHE et l'échec initial du superviseur de bridge restent archivés ; ils ne qualifient pas le code G. [Tentatives formelles](measurements/flash-next-ssd-impl/opt-12-memory/formal.json), [journal](../opti.md).
 
-La comparaison [Sushi/Strata](flash-ssd-upstream-2026-10-12.md) retient les lectures manquantes parallèles comme piste suivante. NT2 et le regroupement MTP restent différés ; aucun gain n'est annoncé pour ces prototypes. L'objectif15tok/s reste non atteint.
+À l'issue de l'essai 12, la comparaison [Sushi/Strata](flash-ssd-upstream-2026-10-12.md) retenait les lectures manquantes parallèles comme piste suivante. Elles sont désormais validées par 14B. NT2 reste retiré ; le regroupement MTP a été essayé puis retiré après 15/15B, sans gain livré. L'objectif de 15 tok/s reste non atteint.
 
 La CI macOS26 a détecté un refus incorrect des révisions plus courtes de `host_statistics64` (commit7fcea298). La correctionH accepte une réponse couvrant les champs lus et rejette toute taille hors capacité ; le calcul du budget reste identique. La régression échoue avant correction puis passe, avec le vrai snapshot système et les frontières. Kani du prédicat réel couvre tous les comptesu32 sans hypothèse :66obligations/4couvertures, aucune inatteignable. La tentative de l'appelOS réel reste bloquée par l'ICE du vérificateur.
 

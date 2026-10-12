@@ -608,3 +608,7 @@ With an effective automatic cache of 5.24 GiB, median decode was
 These are separate throughput measurements of RAM-stage binary `938e2aa7`;
 prior measurements at 8 GiB remain in the linked report. No consistent MTP
 speedup is established, so MTP stays OFF by default.
+An exact two-token grouped MTP prototype was subsequently tested and withdrawn:
+its independent confirmation included a 2.29% paired gain, below the predeclared
+3% retention threshold. The validated four-reader engine is retained.
+See the [complete trials, rejected prototype and restoration checks](docs/flash-mtp-pairs-2026-10-12.md).
