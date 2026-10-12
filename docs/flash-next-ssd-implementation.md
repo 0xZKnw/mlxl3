@@ -1,6 +1,19 @@
 # Flash Next EXL3 2,05 bpw avec streaming SSD
 
-État : parcours texte et MTP1 implémentés et validés localement sur M5 ; campagne comparative de débit à exécuter sur le binaire corrigé. Aucun remplacement de l'app installée.
+État : parcours texte et MTP1 implémentés, contrôlés et mesurés sur M5 ; aucun gain de MTP établi sur les deux prompts testés, défaut OFF conservé. Aucun remplacement de l'app installée.
+
+## Débit du binaire corrigé, sans MTP puis avec MTP1
+
+Source publiée `d506cc78243e680668aaf73961c56824852b4798`, release SHA256 `e89da70ad32906743e332702575053ead81922a42d85d3f33a65e277bf434dfb`, M5 avec 24 Gio et MLX 0.32.2. Même processus et binaire, contexte de 4096 tokens, cache experts de 8 Gio, overlap1 et greedy ; MCP, DFlash et cache préfixe OFF. Quatre warmups puis trois passages de 64 tokens (63 en decode) par couple prompt/mode, ordre alterné. [Résultats bruts](measurements/flash-next-ssd-impl/mtp-speed-resume-20261012/report.json), [médianes, étendues, mémoire et conditions](measurements/flash-next-ssd-impl/mtp-speed-resume-20261012/summary.json), [identités](measurements/flash-next-ssd-impl/mtp-speed-resume-20261012/identity.json).
+
+| Prompt | Sans MTP | MTP1 | Acceptation MTP |
+| --- | ---: | ---: | ---: |
+| MAIN, cache LFU | **7,21 tok/s** (6,62–7,54) | **7,20 tok/s** (7,15–7,48) | 28/34 (82,35%) |
+| HOLD, merge_intervals | **7,15 tok/s** (6,92–7,50) | **6,89 tok/s** (6,80–7,15) | 27/35 (77,14%) |
+
+Les 16 générations, warmups inclus, donnent les mêmes hashes et textes dans les deux modes pour chaque prompt. L’écart médian MAIN de −0,17% est dans le bruit ; HOLD atteint −3,70%, avec MTP inférieur au contrôle dans les trois paires. Aucun gain MTP établi ; le mode reste disponible pour activation explicite. TTFT médian MAIN : 12,74 s/OFF contre 13,12 s/MTP ; HOLD : 12,07 s contre 15,88 s. Temps complet MAIN : 21,48/21,80 s et HOLD : 20,88/25,08 s ; les passages qui réactivent MTP incluent le rechargement de sa tête.
+
+Actif MLX : environ 11,147 Gio/OFF contre 11,812 Gio/MTP (+0,665 Gio), pic maximal 11,207/12,042 Gio. RAM processus médiane : environ 12,977 Gio dans les deux modes, mesurée séparément ; ce processus conserve des allocations et caches. Sur secteur, batterie de 22 à 27% en charge, swap de 1931,38 à 4531,31 Mio, aucune alerte pmset. Températures et octets SSD physiques non mesurés ; deux prompts et trois répétitions ne démontrent pas un gain général. La précédente campagne sur batterie a été interrompue à 11/12 passages : [rapport incomplet conservé](measurements/flash-next-ssd-impl/mtp-speed/report.json), [état d’interruption](measurements/flash-next-ssd-impl/mtp-speed/interruption.json). Ses chiffres ne sont pas combinés avec cette reprise.
 
 ## Première mesure sans MTP, avant correction de la divergence
 
@@ -52,6 +65,8 @@ Kani du calcul de partitions réel : domaines u32 complets, unwind26,37obligatio
 CBMC a été tenté sur la FFI C++ réelle préprocessée : parsing libc++/MLX incompatible. CrossHair a exploré le parseur de tokens pendant huit secondes : deux propriétés non confirmées. Aucun de ces résultats ne prouve la concurrence GPU, MLX, Metal ou l'inférence complète. Le contexte QSA au-delà de 2 048 tokens n'est pas encore contrôlé physiquement ; le parcours multimodal n'est pas implémenté dans ce port texte.
 
 Pour MTP : six harnais Kani réussis,837obligations/21couvertures,3obligations inatteignables dans les contrats d'acceptation existants. Intervalle tensoriel u64 complet et commit i32 complet sans hypothèses ; partition u32 complète/unwind26 ; préfixe greedy au plus7propositions/unwind9 ; profondeur1/unwind4 et profondeurs0..3/unwind6 avec budgets symboliques. Ce sont des vérifications bornées de helpers CPU de production. La suite `mlx,chat` passe43tests bibliothèque+7main+16contrats,65ignorés ; les14contrôles physiques ciblés de cette étape sont sélectionnés séparément. Python68pass/4skips ; Desktop E2E et sources app complètes Swift6/warnings-as-errors réussis. Le build strict du package entier échoue sur les dépréciations CoreText préexistantes de SwiftMath ; le vendor n'est pas modifié. CBMC/Swift/Metal/concurrence et cache symbolique restent non prouvés. [Commandes, bornes, sources et limites](measurements/flash-next-ssd-impl/mtp-impl/quality.json).
+
+CI du commit MTP d506cc7 inspectée : [Desktop/Python/E2E réussis](https://github.com/0xZKnw/mlxl3/actions/runs/38166474586) ; [Rust Linux/macOS et Kani ciblé réussis, Kani complet annulé](https://github.com/0xZKnw/mlxl3/actions/runs/38166474556). Le harnais de cache ajouté avec le streaming Flash dépasse30minutes d’exploration dans la suite complète ; il reste non prouvé. Les logs des jobs sont conservés, sans déclarer cette CI intégralement verte.
 
 Pour la correction :11contrôles GPU ciblés,39tests CPU+15contrats et39tests Python réussis,3tests CPU ignorés ; fmt/Ruff et Clippy strict avec/sans MLX, build release `mlx,chat` réussis. Le bridge release vérifie16tokens par prompt MAIN/HOLD avec warmup+1répétition et hash/texte stables ; la CLI génère4tokens. Le rebuild final conserve exactement l’empreinte du binaire testé. Ces timings courts sont des contrôles fonctionnels, sans gain revendiqué. CBMC reste incompatible avec libc++ et CrossHair ne confirme pas les deux contrats du parseur en8s. CI précédente894c796 : Desktop/Rust Linux/macOS réussis, Kani annulé ; statut du nouveau SHA à inspecter après push.
 

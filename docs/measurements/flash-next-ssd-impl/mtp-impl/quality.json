@@ -248,15 +248,15 @@
     },
     "CBMC": "actual preprocessed C++ FFI cannot parse libc++; unverified",
     "CrossHair": "parser2 contracts unconfirmed8s; I/O checkers have no analyzable functions",
-    "cache": "symbolic reservation harness previously interrupted locally5min and remote30min; unproved",
+    "cache": "cache reservation harness introduced with Flash streaming; local exploration interrupted5min, CI cancelled30min; unproved",
     "Swift_Metal_MLX_concurrency": "unproved"
   },
   "limits": [
     "QSA sparse branch beyond2048 tokens not physically checked",
     "multimodal not implemented in this text port",
     "65 ignored Rust tests not executed by full mlx suite; separately selected Flash tests recorded",
-    "CI for new commit pending push",
-    "app not installed; no merge or release"
+    "app not installed; no merge or release",
+    "Full CI Kani cancelled at30min; CPU cache proof remains unverified"
   ],
   "failures_retained": [
     "head-reference-01..05",
@@ -354,6 +354,30 @@
     "swift-strict-04.log": "47255d093d45b28f12290e3907b260ddcb14cdde2bdb2f257039542019daa8bd",
     "swift-strict.log": "6ba4b657564a8d35279695058af1afa7e502d5a3234e3b8aad5b2f36bf48cad5",
     "target-held.log": "43e2b526f7a8ae84184e172c5a031a4a6cfb1307009d57af7164d46fb7519ed7",
-    "target-original.log": "2b68da75d2ab27b86cce29573a368edcba20a4d8c6576c186d7ac5b986333fe3"
+    "target-original.log": "2b68da75d2ab27b86cce29573a368edcba20a4d8c6576c186d7ac5b986333fe3",
+    "ci-d506-desktop.json": "6a9f6aa21ff5f73ac2300f7d6063cb3f2e322fcd34cb1fa48a2f536366e1fc1d",
+    "ci-d506-desktop.log": "2870b8e4128e657735304ad55db10940a4520cca968967f45b0d319a9b51e3bb",
+    "ci-d506-kani-flash.log": "c188340bcc7a2159dd5b2fbb3d0595c190c2504e1781482631b0b39f790b5cd4",
+    "ci-d506-kani-full.log": "aa8fd208ad7694079ba6e7218852132b091496c647d01bcc56fdd12cf5d6e275",
+    "ci-d506-linux.log": "72a9e629e1ee1c04714545b543724001b5f608b71a5889215af2e316dfc272af",
+    "ci-d506-macos.log": "409d5dd80f5a44a145da70f04cfedbb8ed4ee417385cdcf07167ddf47c042d9a",
+    "ci-d506-native.json": "aeac8bd96c6fe80056db7aba8e85886aae3b42bad055ccbb38b8029447bfb60c"
+  },
+  "CI": {
+    "source_commit": "d506cc78243e680668aaf73961c56824852b4798",
+    "Desktop": {
+      "status": "success",
+      "run": 38166474586,
+      "log": "ci-d506-desktop.log"
+    },
+    "Rust": {
+      "run": 38166474556,
+      "status": "cancelled",
+      "Linux": "success",
+      "macOS": "success",
+      "kani_flash_contracts": "success",
+      "kani_full": "cancelled at30min in cache harness introduced with Flash streaming, before MTP; not a proof"
+    },
+    "logs_inspected": true
   }
 }
