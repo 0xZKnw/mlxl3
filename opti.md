@@ -1,5 +1,12 @@
 # MLXL3 — journal des optimisations
 
+### FLASHSSD-2026-10-12-07 — intégration de la base1.4.3 et revalidation — en cours
+
+- Blocage découvert au contrôle final de PR34 : tête `95d7702a9d65352b07e8f4d00aa152dff9ea16d2` qualifiée, base distante maintenant `b4dfd3915e262b2d33581102ae3320042acee5c9` (release1.4.3), PR `CONFLICTING`. Intégrer cette base dans la seule branche de travail pour rendre la PR applicable, préserver les changements amont et tous les rapports. Pas de merge de PR, release ou modification du checkout principal.
+- Hypothèse/risque : chemins partagés EXL3, FFI, mémoire, bridge et Desktop ont évolué ; résolution manuelle des conflits ne valide pas leur composition. Avant essais : identifier conflits et appelants touchés, conserver Flash et nouvelles fonctionnalités amont ; format/lint/types/build/tests complets pertinents, Kani/CBMC/CrossHair pour les propriétés modifiées ; refaire les oracles numériques Flash/tête/cohortes/T2 et les bridges/cancel/legacy/GUI affectés, isolés des compilations/proveurs. Benchmark final uniquement après correction et dans une entrée distincte si code livré différent de d506cc7.
+- Baseline et identités : d506cc7/e89da70a, mesures06 complètes conservées (7,21/7,15 OFF,7,20/6,89 MTP), sources/fixturesscensuses02 ; base1.4.3 à inspecter, aucune vitesse ni parité de la composition revendiquée. Preuves `docs/measurements/flash-next-ssd-impl/integration-143/`, état local avant intégration propre. Push des étapes qualifiées dans PR34, sans fusion/publication/app installée.
+- Préparation merge01 refusée avant modification des sources : l’entrée de protocole07 non commitée aurait été écrasée par `opti.md` amont. Conserver le diagnostic, commiter ce préenregistrement localement, puis résoudre l’intégration ; aucun test ni benchmark de composition exécuté.
+
 ### FLASHSSD-2026-10-12-06 — reprise de la comparaison corrigée OFF/MTP1 — mesure validée, gain MTP non établi
 
 - Motif explicite de répétition05 : interruption externe à11/12passages, processus disparus, rapport encore `incomplete`, aucun relevé final. Reprise demandée par l’utilisateur le12octobre ; Mac désormais sur secteur20% en charge au contrôle initial, contre batterie40% au début05. Ne pas compléter la matrice avec un passage dans de nouvelles conditions ; conserver intégralement05.
