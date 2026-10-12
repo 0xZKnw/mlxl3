@@ -19,6 +19,7 @@
 #include <sys/resource.h>
 #include <sys/uio.h>
 #include "kernel_cache_key.h"
+#include "disk_reader.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -253,46 +254,39 @@ int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
     *out = output.release();
   });
 }
-int mlxl3_array_preadv(int fd, uint64_t offset, void* const* buffers,
-                       size_t buffer_count,
-                       const size_t* buffer_indices, const size_t* starts,
-                       const size_t* lengths, size_t count) noexcept {
+int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
+                        void* const* buffers, size_t buffer_count,
+                        const size_t* indices, const size_t* starts,
+                        const size_t* lengths, size_t segments, size_t workers) noexcept {
   return protect([&] {
-    if (!buffers || !buffer_indices || !starts || !lengths || !count || count > 64)
-      throw std::invalid_argument("invalid disk record destinations");
-    std::vector<iovec> vectors;
-    size_t total = 0;
-    for (size_t i = 0; i < count; ++i) {
-      if (buffer_indices[i] >= buffer_count)
-        throw std::invalid_argument("invalid disk record buffer index");
-      auto& a = arr(buffers[buffer_indices[i]]);
+    if (!fds || !offsets || !buffers || !indices || !starts || !lengths ||
+        !records || records > 512 || !segments || segments > 64 || !workers || workers > 4)
+      throw std::invalid_argument("invalid disk reader metadata");
+    std::vector<uint8_t*> pointers;
+    std::vector<size_t> capacities;
+    for (size_t i = 0; i < buffer_count; ++i) {
+      auto& a = arr(buffers[i]);
       a.eval();
-      if (!a.flags().row_contiguous || starts[i] > a.nbytes() ||
-          lengths[i] > a.nbytes() - starts[i] || !lengths[i] ||
-          lengths[i] > std::numeric_limits<size_t>::max() - total)
-        throw std::invalid_argument("invalid disk record destination range");
-      vectors.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
-      total += lengths[i];
+      if (!a.flags().row_contiguous) throw std::invalid_argument("noncontiguous disk buffer");
+      pointers.push_back(a.data<uint8_t>());
+      capacities.push_back(a.nbytes());
     }
-    auto max_offset = uint64_t(std::numeric_limits<off_t>::max());
-    if (offset > max_offset || total > max_offset - offset)
-      throw std::overflow_error("disk record offset overflow");
-    size_t index = 0, done = 0;
-    while (index < vectors.size()) {
-      auto n = ::preadv(fd, vectors.data() + index, int(vectors.size() - index), off_t(offset + done));
-      if (n < 0 && errno == EINTR) continue;
-      if (n < 0) throw std::runtime_error(std::string("preadv failed: ") + std::strerror(errno));
-      if (n == 0) throw std::runtime_error("checkpoint truncated during disk record read");
-      done += size_t(n);
-      auto remaining = size_t(n);
-      while (remaining && index < vectors.size()) {
-        auto consumed = std::min(remaining, vectors[index].iov_len);
-        vectors[index].iov_base = static_cast<uint8_t*>(vectors[index].iov_base) + consumed;
-        vectors[index].iov_len -= consumed;
-        remaining -= consumed;
-        if (!vectors[index].iov_len) ++index;
+    std::vector<mlxl3::DiskRead> reads;
+    reads.reserve(records);
+    for (size_t r = 0; r < records; ++r) {
+      mlxl3::DiskRead read{fds[r], offsets[r], {}};
+      read.destinations.reserve(segments);
+      for (size_t s = 0; s < segments; ++s) {
+        auto i = r * segments + s;
+        auto bank = indices[i];
+        if (bank >= buffer_count || starts[i] > capacities[bank] ||
+            lengths[i] > capacities[bank] - starts[i])
+          throw std::invalid_argument("invalid disk destination range");
+        read.destinations.push_back({pointers[bank] + starts[i], lengths[i]});
       }
+      reads.push_back(std::move(read));
     }
+    mlxl3::read_disk_records(reads, workers);
   });
 }
 int mlxl3_array_async_eval(void* p) noexcept {

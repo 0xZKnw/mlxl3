@@ -61,9 +61,16 @@ def run(
     timeout=300.0,
     compare=False,
     auto_cache=False,
+    cache_gib=8.0,
+    prompt=None,
 ):
     if tokens < 2 or repeats < 1 or not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("tokens >= 2, repeats >= 1 and finite timeout > 0 required")
+    if not math.isfinite(cache_gib) or not 0.6 <= cache_gib <= 12:
+        raise ValueError("finite expert cache between 0.6 and 12 GiB required")
+    if prompt is not None and prompt not in PROMPTS:
+        raise ValueError("unknown benchmark prompt")
+    prompts = PROMPTS if prompt is None else {prompt: PROMPTS[prompt]}
     output.mkdir(parents=True, exist_ok=True)
     report = {
         "status": "incomplete",
@@ -73,8 +80,8 @@ def run(
         "model": str(model.resolve()),
         "tokens": tokens,
         "repeats": repeats,
-        "expert_cache_gib": None if auto_cache else 8,
-        "prompts": PROMPTS,
+        "expert_cache_gib": None if auto_cache else cache_gib,
+        "prompts": prompts,
         "runs": [],
         "warmup": [],
     }
@@ -87,7 +94,7 @@ def run(
         tempfile.TemporaryDirectory(prefix="flash-bench-") as directory,
         (output / "stderr.log").open("w") as stderr,
     ):
-        env = {**os.environ, "MLXL3_SSD_CACHE_GIB": "8", "MLXL3_SSD_OVERLAP": "1"}
+        env = {**os.environ, "MLXL3_SSD_CACHE_GIB": f"{cache_gib:g}", "MLXL3_SSD_OVERLAP": "1"}
         if auto_cache:
             env.pop("MLXL3_SSD_CACHE_GIB")
         process = subprocess.Popen(
@@ -148,16 +155,16 @@ def run(
                 if compare and repeat % 2:
                     modes = tuple(reversed(modes))
                 schedule = [
-                    (label, prompt, enabled)
-                    for label, prompt in PROMPTS.items()
+                    (label, prompt_text, enabled)
+                    for label, prompt_text in prompts.items()
                     for enabled in modes
                 ]
-                for label, prompt, enabled in schedule:
+                for label, prompt_text, enabled in schedule:
                     request_id = f"{repeat}-{label}-{enabled}"
                     request = {
                         "type": "generate",
                         "request_id": request_id,
-                        "messages": [{"role": "user", "content": prompt}],
+                        "messages": [{"role": "user", "content": prompt_text}],
                         "max_tokens": tokens,
                         "temperature": 0,
                         "top_k": 1,
@@ -215,7 +222,7 @@ def run(
                         for r in report["runs"]
                         if r["prompt"] == label and r["mode"] == mode
                     )
-                    for label in PROMPTS
+                    for label in prompts
                 }
                 for mode in ({r["mode"] for r in report["runs"]})
             }
@@ -251,9 +258,15 @@ if __name__ == "__main__":
     modes.add_argument(
         "--compare", action="store_true", help="alternate baseline/MTP on the same binary"
     )
-    parser.add_argument(
+    cache = parser.add_mutually_exclusive_group()
+    cache.add_argument(
         "--auto-cache", action="store_true", help="use the engine's automatic RAM budget"
     )
+    cache.add_argument(
+        "--cache-gib", type=float, default=8.0, help="fixed expert RAM budget in GiB"
+    )
+    parser.add_argument("--prompt", choices=tuple(PROMPTS), help="measure only this fixed prompt")
+    parser.add_argument("--repeats", type=int, default=3, help="measured repetitions after warmup")
     args = parser.parse_args()
     run(
         args.engine,
@@ -262,4 +275,7 @@ if __name__ == "__main__":
         args.mtp,
         compare=args.compare,
         auto_cache=args.auto_cache,
+        cache_gib=args.cache_gib,
+        prompt=args.prompt,
+        repeats=args.repeats,
     )

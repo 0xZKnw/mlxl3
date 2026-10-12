@@ -20,6 +20,8 @@ spec.loader.exec_module(bench)
     [
         "ok",
         "auto_cache",
+        "fixed_cache",
+        "one_prompt",
         "mode",
         "hash",
         "empty",
@@ -74,16 +76,61 @@ for line in sys.stdin:
     )
     engine.chmod(0o755)
     output = tmp_path / "results"
-    if fault in ("ok", "auto_cache"):
+    if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt"):
         automatic = fault == "auto_cache"
+        budget = 4.75 if fault == "fixed_cache" else 8
         result = bench.run(
-            engine, tmp_path, output, tokens=2, repeats=1, timeout=2, auto_cache=automatic
+            engine,
+            tmp_path,
+            output,
+            tokens=2,
+            repeats=1,
+            timeout=2,
+            auto_cache=automatic,
+            cache_gib=budget,
         )
         assert result["status"] == "validated"
-        assert result["runtime"]["expert_cache"] == (None if automatic else "8")
-        assert result["expert_cache_gib"] == (None if automatic else 8)
+        assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+        assert result["expert_cache_gib"] == (None if automatic else budget)
         assert len(result["runs"]) == len(result["warmup"]) == 2
         assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+        if fault == "one_prompt":
+            selected = bench.run(
+                engine,
+                tmp_path,
+                tmp_path / "selected",
+                tokens=2,
+                repeats=1,
+                timeout=2,
+                prompt="HOLD",
+                mtp=True,
+            )
+            assert selected["status"] == "validated"
+            assert selected["prompts"] == {"HOLD": bench.PROMPTS["HOLD"]}
+            assert selected["median_decode_tps"] == {"HOLD": 10}
+            assert len(selected["runs"]) == len(selected["warmup"]) == 1
+            assert selected["runs"][0]["mode"] == "mtp"
+            subprocess.run(
+                [
+                    sys.executable,
+                    spec.origin,
+                    str(engine),
+                    str(tmp_path),
+                    str(tmp_path / "selected-cli"),
+                    "--prompt",
+                    "MAIN",
+                    "--repeats",
+                    "1",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=10,
+            )
+            cli = json.loads((tmp_path / "selected-cli/report.json").read_text())
+            assert cli["status"] == "validated" and cli["prompts"] == {
+                "MAIN": bench.PROMPTS["MAIN"]
+            }
+            assert len(cli["runs"]) == len(cli["warmup"]) == 1
         comparison = bench.run(
             engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
         )
@@ -102,7 +149,7 @@ for line in sys.stdin:
             "baseline",
             "mtp",
         ]
-        if automatic:
+        if automatic or fault == "fixed_cache":
             cli_output = tmp_path / "cli"
             subprocess.run(
                 [
@@ -112,7 +159,7 @@ for line in sys.stdin:
                     str(tmp_path),
                     str(cli_output),
                     "--compare",
-                    "--auto-cache",
+                    *(["--auto-cache"] if automatic else ["--cache-gib", str(budget)]),
                 ],
                 check=True,
                 capture_output=True,
@@ -121,8 +168,8 @@ for line in sys.stdin:
             )
             cli = json.loads((cli_output / "report.json").read_text())
             assert cli["status"] == "validated" and len(cli["runs"]) == 12
-            assert cli["runtime"]["expert_cache"] is None
-            assert cli["expert_cache_gib"] is None
+            assert cli["runtime"]["expert_cache"] == (None if automatic else str(budget))
+            assert cli["expert_cache_gib"] == (None if automatic else budget)
     else:
         with pytest.raises((ValueError, RuntimeError, TimeoutError)):
             bench.run(
@@ -145,3 +192,33 @@ for line in sys.stdin:
 def test_invalid_protocol(tmp_path, tokens, repeats, timeout):
     with pytest.raises(ValueError):
         bench.run(tmp_path, tmp_path, tmp_path, tokens=tokens, repeats=repeats, timeout=timeout)
+
+
+@pytest.mark.parametrize("budget", [0, 0.59, 12.01, float("inf"), float("nan")])
+def test_invalid_cache_budget(tmp_path, budget):
+    with pytest.raises(ValueError, match="expert cache"):
+        bench.run(tmp_path, tmp_path, tmp_path, cache_gib=budget)
+
+
+@pytest.mark.parametrize("prompt", ["", "missing", "main"])
+def test_invalid_prompt_selection(tmp_path, prompt):
+    with pytest.raises(ValueError, match="unknown benchmark prompt"):
+        bench.run(tmp_path, tmp_path, tmp_path, prompt=prompt)
+
+
+def test_mutually_exclusive_cache_modes(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            spec.origin,
+            *([str(tmp_path)] * 3),
+            "--auto-cache",
+            "--cache-gib",
+            "4.75",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 2 and "not allowed" in result.stderr

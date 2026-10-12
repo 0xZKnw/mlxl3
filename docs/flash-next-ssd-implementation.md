@@ -2,6 +2,12 @@
 
 État : parcours texte et MTP1 implémentés, contrôlés et mesurés sur M5 ; aucun gain de MTP établi sur les deux prompts testés, défaut OFF conservé. Aucun remplacement de l'app installée.
 
+## Lectures SSD parallèles, 12 octobre
+
+Les experts absents sont désormais lus par quatre lecteurs bornés, directement dans les banques existantes. Toutes les lectures se terminent avant le retour, y compris après erreur. Le LFU et le budget RAM adaptatif sont conservés ; `MLXL3_SSD_READERS=1` active les lectures séquentielles (valeurs permises : 1 à 4).
+
+Le [rapport des lecteurs](flash-ssd-readers-2026-10-12.md) conserve une première campagne non concluante et une confirmation distincte préenregistrée. Sur ce M5, à budget experts fixe de 5 Gio, les douze nouvelles paires donnent un gain de 5,5–10,4 %, avec sorties exactes et zéro nouvelle écriture de swap système. Médianes candidat : OFF 7,29/7,05 tok/s, MTP1 7,13/6,89 tok/s pour MAIN/HOLD. Cela ne valide ni 15 tok/s ni un débit constant dans d'autres conditions.
+
 ## Correction du budget RAM, 12 octobre
 
 La capacité fixe de8Gio est remplacée par un cache automatique plafonné à6Gio, avec une réserve estimée au chargement pour les autres usages. Le LFU garde les experts fréquents ; les autres sont lus sur le SSD. Le cache de buffers MLX inutilisés vise512Mio. Les variables explicites conservent la priorité. La tête MTP reste résidente lorsqu'elle est active, pour environ0,665Gio supplémentaires.

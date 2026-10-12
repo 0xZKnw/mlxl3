@@ -26,6 +26,7 @@ jobs:
             --lib --no-default-features
             --harness pair_commit_preserves_exact_valid_prefix_without_overflow
             --harness tensor_source_interval_is_ordered_and_cannot_wrap
+            --harness disk_destinations_cannot_wrap_or_exceed_owned_storage
             --harness reference_partition
             --harness automatic_cache_cannot_spend_reserved_memory
             --harness automatic_cache_is_monotone
@@ -67,6 +68,14 @@ jobs:
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
           build/ci/kernel-cache-key
           c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
+      - name: Check synchronous SSD readers and failure draining
+        if: matrix.os == 'macos-26'
+        run: |
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader
+          build/ci/disk-reader
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader-tsan
+          build/ci/disk-reader-tsan
+          c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/disk_reader_proof.cpp
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

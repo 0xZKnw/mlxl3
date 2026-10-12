@@ -1,0 +1,51 @@
+[
+  {
+    "name": "cbmc-02",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/tests/disk_reader_proof.cpp",
+      "--function",
+      "proof",
+      "--cpp11",
+      "-I",
+      "native/ffi",
+      "--unwind",
+      "17",
+      "--unwinding-assertions",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unsigned-overflow-check"
+    ],
+    "exit": 6,
+    "seconds": 0.132887708,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/cbmc-02.log"
+  },
+  {
+    "name": "kani-ffi-02",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "disk_batch_reads_real_owned_storage"
+    ],
+    "exit": 1,
+    "seconds": 3.4272653330000002,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/kani-ffi-02.log"
+  },
+  {
+    "name": "kani-package",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features"
+    ],
+    "exit": 1,
+    "seconds": 1.0582757499999995,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/kani-package.log"
+  }
+]

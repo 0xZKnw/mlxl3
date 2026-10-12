@@ -1,0 +1,44 @@
+[
+  {
+    "readers": "0",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3-rs",
+      "--registry",
+      "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-invalid-readers-p_77fgq6/models.json",
+      "bridge",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+    ],
+    "exit": 2,
+    "stdout": "{\"model\":\"/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531\",\"type\":\"loading\"}\n",
+    "stderr": "Flash Next: auto cache 5.47 GiB (98 slots/layer), estimated available 13.52 GiB\nFlash Next: loading layer 1/48, 98 exact expert slots\nError: SSD readers must be in 1..=4\n",
+    "passed": true
+  },
+  {
+    "readers": "5",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3-rs",
+      "--registry",
+      "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-invalid-readers-e7f3pw_b/models.json",
+      "bridge",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+    ],
+    "exit": 2,
+    "stdout": "{\"model\":\"/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531\",\"type\":\"loading\"}\n",
+    "stderr": "Flash Next: auto cache 5.52 GiB (99 slots/layer), estimated available 13.53 GiB\nFlash Next: loading layer 1/48, 99 exact expert slots\nError: SSD readers must be in 1..=4\n",
+    "passed": true
+  },
+  {
+    "readers": "bad",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3-rs",
+      "--registry",
+      "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-invalid-readers-q0so71_j/models.json",
+      "bridge",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+    ],
+    "exit": 2,
+    "stdout": "{\"model\":\"/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531\",\"type\":\"loading\"}\n",
+    "stderr": "Flash Next: auto cache 5.47 GiB (98 slots/layer), estimated available 13.49 GiB\nFlash Next: loading layer 1/48, 98 exact expert slots\nError: invalid SSD reader count: invalid digit found in string\n",
+    "passed": true
+  }
+]

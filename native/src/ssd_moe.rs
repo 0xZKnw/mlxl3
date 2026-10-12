@@ -28,6 +28,7 @@ pub struct SsdMoe {
     pub misses: u64,
     pub read_bytes: u64,
     overlap: bool,
+    readers: usize,
     #[cfg(test)]
     pub(crate) route_ids: Vec<u32>,
     #[cfg(test)]
@@ -36,6 +37,11 @@ pub struct SsdMoe {
 
 impl SsdMoe {
     pub fn load(c: &Checkpoint, prefix: &str, slots: usize, overlap: bool) -> Result<Self> {
+        let readers = std::env::var("MLXL3_SSD_READERS")
+            .unwrap_or_else(|_| "4".into())
+            .parse::<usize>()
+            .context("invalid SSD reader count")?;
+        ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut records = Vec::with_capacity(512);
         for expert in 0..512 {
             let p = format!("{prefix}.experts.{expert}");
@@ -117,6 +123,7 @@ impl SsdMoe {
             misses: 0,
             read_bytes: 0,
             overlap,
+            readers,
             #[cfg(test)]
             route_ids: Vec::new(),
             #[cfg(test)]
@@ -124,9 +131,8 @@ impl SsdMoe {
         })
     }
 
-    fn fill(&mut self, expert: u32, slot: usize) -> Result<()> {
-        let (file, offset) = self.records[expert as usize].source()?;
-        let dest = [
+    fn destinations(slot: usize) -> [(usize, usize, usize); 12] {
+        [
             (4, slot * I as usize * 2, I as usize * 2),
             (5, slot * H as usize * 2, H as usize * 2),
             (6, slot * 12, 4),
@@ -139,12 +145,36 @@ impl SsdMoe {
             (3, (slot * 2 + 1) * I as usize * 2, I as usize * 2),
             (6, slot * 12 + 8, 4),
             (0, (slot * 2 + 1) * TRELLIS, TRELLIS),
-        ];
-        Array::read_record(file, offset, &mut self.banks, &dest)?;
-        self.read_bytes = self
-            .read_bytes
-            .checked_add(EXPERT_BYTES)
+        ]
+    }
+
+    fn fill_many(&mut self, jobs: &[(u32, usize)]) -> Result<()> {
+        if jobs.is_empty() {
+            return Ok(());
+        }
+        let sources = jobs
+            .iter()
+            .map(|&(expert, _)| {
+                self.records
+                    .get(expert as usize)
+                    .context("invalid expert")?
+                    .source()
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let destinations = jobs
+            .iter()
+            .map(|&(_, slot)| Self::destinations(slot))
+            .collect::<Vec<_>>();
+        let views = destinations
+            .iter()
+            .map(|ranges| ranges.as_slice())
+            .collect::<Vec<_>>();
+        let bytes = EXPERT_BYTES
+            .checked_mul(jobs.len() as u64)
+            .and_then(|n| self.read_bytes.checked_add(n))
             .context("SSD byte counter exhausted")?;
+        Array::read_records(&sources, &mut self.banks, &views, self.readers)?;
+        self.read_bytes = bytes;
         Ok(())
     }
 
@@ -217,11 +247,14 @@ impl SsdMoe {
         );
         let ids = (0..512u32).collect::<Vec<_>>();
         let routes = self.cache.reserve(&ids)?;
-        for (&id, &(slot, hit)) in ids.iter().zip(&routes) {
-            if !hit && let Err(error) = self.fill(id, slot) {
-                self.cache.invalidate();
-                return Err(error);
-            }
+        let jobs = ids
+            .iter()
+            .zip(&routes)
+            .filter_map(|(&id, &(slot, hit))| (!hit).then_some((id, slot)))
+            .collect::<Vec<_>>();
+        if let Err(error) = self.fill_many(&jobs) {
+            self.cache.invalidate();
+            return Err(error);
         }
         Ok(())
     }
@@ -297,16 +330,16 @@ impl SsdMoe {
         let mut filled = BTreeSet::new();
         #[cfg(test)]
         let read_start = std::time::Instant::now();
-        for &(i, slot) in &cold {
-            if filled.insert(slot)
-                && let Err(error) = self.fill(ids[i], slot as usize)
-            {
-                self.cache.invalidate();
-                if let Some(hot) = &hot_output {
-                    hot.eval()?;
-                }
-                return Err(error.context("loading cold EXL3 expert"));
+        let jobs = cold
+            .iter()
+            .filter_map(|&(i, slot)| filled.insert(slot).then_some((ids[i], slot as usize)))
+            .collect::<Vec<_>>();
+        if let Err(error) = self.fill_many(&jobs) {
+            self.cache.invalidate();
+            if let Some(hot) = &hot_output {
+                hot.eval()?;
             }
+            return Err(error.context("loading cold EXL3 experts"));
         }
         #[cfg(test)]
         {
@@ -414,13 +447,21 @@ mod tests {
             expected.push(read("output")?);
         }
         for slots in [10, 20, 143] {
-            for overlap in [false, true] {
+            for (overlap, readers) in [
+                (false, 1),
+                (true, 1),
+                (false, 2),
+                (true, 2),
+                (false, 4),
+                (true, 4),
+            ] {
                 let mut moe = SsdMoe::load(
                     &checkpoint,
                     "model.language_model.layers.0.mlp",
                     slots,
                     overlap,
                 )?;
+                moe.readers = readers;
                 for pair in [[0, 1], [0, 1], [1, 0], [0, 0], [1, 2]] {
                     let x = Array::concatenate(&[&inputs[pair[0]], &inputs[pair[1]]], 0)?;
                     let output = moe.forward_many(&x)?.to_bytes()?;
@@ -503,6 +544,53 @@ mod tests {
             assert!(Array::read_record(&file, offset, &mut banks, &ranges).is_err());
             assert_eq!(banks[0].to_bytes()?, a);
             assert_eq!(banks[1].to_bytes()?, b);
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; concurrent disk reads into shared buffers"]
+    fn disk_batches_reject_aliases_and_validate_every_record_before_writing() -> anyhow::Result<()>
+    {
+        use crate::array::{Array, Dtype};
+        use std::io::Write;
+        let mut file = tempfile::tempfile()?;
+        file.write_all(&(0..64u8).collect::<Vec<_>>())?;
+        for workers in 1..=4 {
+            let mut banks = vec![Array::zeros_dtype(&[16], Dtype::UInt8)?];
+            Array::read_records(
+                &[(&file, 8), (&file, 20)],
+                &mut banks,
+                &[&[(0, 1, 4), (0, 5, 2)], &[(0, 9, 3), (0, 14, 2)]],
+                workers,
+            )?;
+            let expected = vec![0, 8, 9, 10, 11, 12, 13, 0, 0, 20, 21, 22, 0, 0, 23, 24];
+            assert_eq!(banks[0].to_bytes()?, expected);
+            banks.push(banks[0].clone());
+            for destinations in [
+                vec![vec![(0, 0, 8)], vec![(0, 7, 2)]],
+                vec![vec![(0, 0, 8)], vec![(1, 7, 2)]],
+                vec![vec![(0, 0, 8)], vec![(0, 16, 2)]],
+                vec![vec![(0, 0, 8)], vec![(2, 0, 2)]],
+                vec![vec![(0, 0, 8)], vec![(0, 8, 2), (0, 10, 2)]],
+            ] {
+                let views = destinations.iter().map(Vec::as_slice).collect::<Vec<_>>();
+                assert!(
+                    Array::read_records(&[(&file, 0), (&file, 16)], &mut banks, &views, workers)
+                        .is_err()
+                );
+                assert_eq!(banks[0].to_bytes()?, expected);
+            }
+            assert!(
+                Array::read_records(
+                    &[(&file, 0), (&file, 64)],
+                    &mut banks,
+                    &[&[(0, 0, 1)], &[(0, 1, 1)]],
+                    workers
+                )
+                .is_err()
+            );
+            assert_eq!(banks[0].to_bytes()?, expected);
         }
         Ok(())
     }

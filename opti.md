@@ -1,5 +1,106 @@
 # MLXL3 — journal des optimisations
 
+### FLASHSSD-2026-10-12-14B — avantage SSD validé sur comparaisons rapprochées, code local
+
+- Nouvelle raison : 14 ne respecte pas son seuil de spread absolu, conservé comme non concluant. Les douze comparaisons sont favorables, mais les bras réunissant quatre cellules éloignent les mesures d'un même couple de plusieurs minutes. La cause de la variation C2 n'est pas établie ; aucune attribution thermique ni exclusion de C2. Une seule nouvelle campagne est prévue, puis décision et reprise de11/T2.
+- Code natif inchangé : H5e423506 contre candidatbd89a7d6 à4lecteurs, sources et qualité de14 conservées. Même modèle65c89531, M5/24Gio/MLX0.32.2, budget5Gio/89slots, allocator512Mio, overlap1, contexte4096, greedy, applications ouvertes. Réutiliser le pilote validé en ajoutant uniquement une sélection de prompt et le nombre de répétitions en CLI ; tester sélection exacte/non vide, valeur invalide, CLI et erreurs, Ruff/suite Python pertinente/CrossHair avant toute nouvelle mesure. Enregistrer le nouveau pilote séparément des artefacts14.
+- Protocole corrigé : un seul prompt et un seul mode par processus ; une chauffe puis une génération64tokens/63decode mesurée, toujours deux réponses complètes et exactes. Douze paires,24processus : round0 H-C sur MAIN/OFF,HOLD/OFF,MAIN/MTP,HOLD/MTP ; round1 C-H dans l'ordre inverse des cellules ; round2 H-C dans l'ordre initial. Les mesures homologues sont adjacentes, les états du cache commencent au même point pour chaque binaire ; ce protocole ne se mélange pas aux mesures14 niS.
+- Critère comparatif fixé avant les nouvelles données : dans chacune des quatre cellules, les trois gains appariés doivent être≥1%, et le minimum candidat doit dépasser le maximum témoin d'au moins1%. Publier toutes les valeurs/ranges ; cela vérifie un avantage répété sur les passages observés, pas une stabilité absolue du débit. Le critère de14 n'est ni effacé ni requalifié a posteriori. Tous les hashes/textes/counters et identités doivent passer ; aucun bras avec>256Mio de swapout système, ni hausse du pic processus>256Mio par rapport au témoin de sa paire. Sinon résultat rejeté/non concluant et retrait/archivage du lecteur pour passer àT2, sans troisième relance de la même idée. VM/power/thermal avant/après uniquement, aucune compilation/preuve/inférence concurrente.
+- État : préenregistré, aucune mesure14B lancée ; `opt-14-readers/adjacent/` contiendra la matrice, les commandes et bruts. Premier patch groupé refusé avant toute écriture (contexte Ruff multiligne), protocole enregistré séparément avant correction du patch. Le défaut4 reste local et non publié.
+- 14B première qualification du pilote arrêtée par Ruff : le paramètre `prompt` était masqué par la variable de boucle. Renommer cette dernière `prompt_text`, puis relancer ; aucun benchmark ni test GPU lancé avec ce pilote non qualifié. Log initial conservé dans `adjacent/ruff.log`.
+
+- 14B pilote qualifié avant lancement :31tests ciblés et465Python complets passent,4sautés ; Ruff/check-format passent. Le mutant qui ignore la sélection échoue, sources restaurées. CrossHair ne trouve toujours pas de fonction vérifiable dans le cheminI/O. Matrice24bras et nouvelles empreintes enregistrées dans `adjacent/{matrix,identity,checks-02}.json` ; binaires natifs identiques à14, aucune mesure14B encore produite.
+
+- 14B 1-MAIN-baseline-H : validated, 6.92697179032696tok/s, pic9323224552octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-MAIN-baseline-H/report.json` ; décision comparative en attente.
+
+- 14B 1-MAIN-baseline-C : validated, 7.437889636947751tok/s, pic9320340944octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-MAIN-baseline-C/report.json` ; décision comparative en attente.
+
+- 14B 1-HOLD-baseline-H : validated, 6.693047959004555tok/s, pic9302400440octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-HOLD-baseline-H/report.json` ; décision comparative en attente.
+
+- 14B 1-HOLD-baseline-C : validated, 7.098453579352965tok/s, pic9322946000octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-HOLD-baseline-C/report.json` ; décision comparative en attente.
+
+- 14B 1-MAIN-mtp-H : validated, 6.520834808777872tok/s, pic10142818296octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-MAIN-mtp-H/report.json` ; décision comparative en attente.
+
+- 14B 1-MAIN-mtp-C : validated, 7.126494149119968tok/s, pic10148208752octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-MAIN-mtp-C/report.json` ; décision comparative en attente.
+
+- 14B 1-HOLD-mtp-H : validated, 6.358692506546501tok/s, pic10145734720octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-HOLD-mtp-H/report.json` ; décision comparative en attente.
+
+- 14B 1-HOLD-mtp-C : validated, 6.886121906655667tok/s, pic10146979928octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `1-HOLD-mtp-C/report.json` ; décision comparative en attente.
+
+- 14B 2-HOLD-mtp-C : validated, 6.891020206038459tok/s, pic10147029104octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-HOLD-mtp-C/report.json` ; décision comparative en attente.
+
+- 14B 2-HOLD-mtp-H : validated, 6.349067018458728tok/s, pic10142179392octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-HOLD-mtp-H/report.json` ; décision comparative en attente.
+
+- 14B 2-MAIN-mtp-C : validated, 7.153958519421704tok/s, pic10148241496octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-MAIN-mtp-C/report.json` ; décision comparative en attente.
+
+- 14B 2-MAIN-mtp-H : validated, 6.540878620844729tok/s, pic10141294632octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-MAIN-mtp-H/report.json` ; décision comparative en attente.
+
+- 14B 2-HOLD-baseline-C : validated, 7.046040459126855tok/s, pic9319751144octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-HOLD-baseline-C/report.json` ; décision comparative en attente.
+
+- 14B 2-HOLD-baseline-H : validated, 6.644763790542957tok/s, pic9321356728octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-HOLD-baseline-H/report.json` ; décision comparative en attente.
+
+- 14B 2-MAIN-baseline-C : validated, 7.029686594563118tok/s, pic9323945424octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-MAIN-baseline-C/report.json` ; décision comparative en attente.
+
+- 14B 2-MAIN-baseline-H : validated, 6.658821676319513tok/s, pic9302449568octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `2-MAIN-baseline-H/report.json` ; décision comparative en attente.
+
+- 14B 3-MAIN-baseline-H : validated, 6.682368021739971tok/s, pic9303940536octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-MAIN-baseline-H/report.json` ; décision comparative en attente.
+
+- 14B 3-MAIN-baseline-C : validated, 7.289792294010136tok/s, pic9321274856octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-MAIN-baseline-C/report.json` ; décision comparative en attente.
+
+- 14B 3-HOLD-baseline-H : validated, 6.4676290888793435tok/s, pic9302105576octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-HOLD-baseline-H/report.json` ; décision comparative en attente.
+
+- 14B 3-HOLD-baseline-C : validated, 6.825100049084745tok/s, pic9319898600octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-HOLD-baseline-C/report.json` ; décision comparative en attente.
+
+- 14B 3-MAIN-mtp-H : validated, 6.34634521722992tok/s, pic10188707216octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-MAIN-mtp-H/report.json` ; décision comparative en attente.
+
+- 14B 3-MAIN-mtp-C : validated, 7.007609777578883tok/s, pic10148061272octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-MAIN-mtp-C/report.json` ; décision comparative en attente.
+
+- 14B 3-HOLD-mtp-H : validated, 6.300824226569139tok/s, pic10126123024octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-HOLD-mtp-H/report.json` ; décision comparative en attente.
+
+- 14B 3-HOLD-mtp-C : validated, 6.767972289987737tok/s, pic10147455064octets, swapouts+0octets. Commande/conditions/bruts dans `adjacent/execution.json` et `3-HOLD-mtp-C/report.json` ; décision comparative en attente.
+
+- **14B terminée / critères satisfaits** :24bras/48générations (24chauffes+24mesures), hashes/textes identiques aux références, sources/binaires inchangés. Les12gains appariés sont tous≥1%, et chaque minimum candidat dépasse le maximum témoin de≥1% ; limitesRAM/swap satisfaites. Résultats et chaque paire dans `adjacent/result.json`. Gains observés5,53–10,42%, médianes candidat OFF7,290/7,046 et MTP7,126/6,886tok/s. Swapouts système0, pic candidat 9.451Gio. Ce sont des avantages comparatifs sur ce protocole, pas une stabilité absolue ni15tok/s. Défaut4 retenu, inspection du diff et pushPR34 àfaire ; campagne14 antérieure reste non concluante.
+
+### FLASHSSD-2026-10-12-14 — lectures SSD parallèles — qualité validée, débit non concluant
+
+- **Alerte de stabilité pendant la confirmation** : C2 HOLD OFF6,868 contre C1 7,393tok/s, soit un spread déjà supérieur au seuil5%. La qualité et les limites mémoire passent ; le gain de performance ne peut pas être retenu selon cette matrice. Finir les bras restants pour documenter les variations du témoin, sans effacer cet échec ni sélectionner les meilleurs passages. Cause thermique ou charge externe non établie à ce stade.
+
+- Demande utilisateur : tester les pistes de13, préserver la RAM corrigée et viser plus de tokens/s OFF/MTP. Rapport13 et essais09/10/11/12 relus ; les lectures de ce port restent séquentielles. Les anciens essais02/03/04 de44166b7 utilisaient un autre lecteur/format ; aucune répétition de copie contiguë ni F_NOCACHE. Nouvelle hypothèse : grouper les records EXL3 actuels et lire les misses indépendants avec2/4lecteurs peut réduire leur attente sans augmenter les banques ni changer les experts calculés.
+- Baseline : branche proprebdc3889b, codefe998151, binaireH5e423506 (archivé `build/flash-opt-15/memory-H/mlxl3-rs`), modèle65c89531/EXL3K2MUL1, M5/24Gio/MLX0.32.2. Les chiffresS àcacheauto5,24Gio restent historiques, pas le témoin de cette campagne. Applications utilisateur laissées ouvertes.
+- Portée : FFI de lectures groupées, métadonnées/ranges validées avant toute écriture, destinations réellement disjointes (alias inclus), toute la cohorte réservée, tous les lecteurs rejoints même après erreur, invalidation/reprise inchangée. File système macOS `dispatch_apply_f`, synchrone d'après les sources Apple/libdispatch, pour réutiliser ses threads ; pas de pool par couche ni de copie du payload. Réutiliser le lecteurpreadv/gestion EINTR/troncature ; mode1 témoin,2/4candidats via option expérimentale bornée. Appelants Array/read_record, SsdMoe/fill/forward_many/warm_all, tests/FFI/CI concernés ; aucune modification numérique.
+- Qualification avant vitesse : tests CPU réels des lectures/ranges/alias/erreurs/sentinelles et retour après achèvement, ASan/UBSan et TSan si pris en charge ; Kani sur les gardes CPU réelles et tentative du chemin FFI réel sansstub, CBMC sur le lecteur C++ réel (limitesstdlib/dispatch explicites). Régression par mutant pertinent, puis oracles indépendants logits/états/cohortes, tests chaud/froid/petitscaches/erreurs/MTP et bridge réel. Fmt/lint/build/suites pertinentes et CI mises àjour pour les nouveaux contrôles. Aucune mesure si la parité échoue.
+- Benchmark contrôlé : permettre au pilote existant un budget explicite ; figer un budgetcommun≤5Gio et≤budgetauto initial (arrondi inférieur0,25Gio) avant le premier passage. Tous les bras gardent ce même budget, allocator512Mio, overlap1, contexte4096/greedy, modèle unique sanscompilation/proveur. Crible3modes lecteurs1/2/4 avec warmups et MAIN/HOLD OFF/MTP64/63 ; si favorable, comparaison du candidat àH par paires AB/BA/AB, troisrépétitions/couple et identités immuables. Budget exact, ordre et seuils consignés avant lancement dans matrice14 ; arrêter/qualifier non concluant si forte dérive ou nouvelle pression mémoire. Inspecter texte/hash/counters et empreinte processus, VM avant/après seulement. Retenir un gain stable≥1% sur les deux prompts avec qualité inchangée, sans addition de gains incompatibles ; sinon retirer/archiver le prototype. Pousser toute étape retenue dansPR34. T2/11 sera repris séparément après clôture14 avec baseline RAM explicite.
+- État : prototype local écrit, aucun benchmark lancé ni gain mesuré. Sources Apple consultées : `apple-oss-distributions/libdispatch/dispatch/queue.h` et SDK26.5 ; première URL documentaire Apple inaccessible, fallback primaire consulté.
+- 14 qualification initiale : 72cas du lecteur C++ réel passent sous ASan/UBSan puis TSan (1..4lecteurs,1/2/5/512records, alias, overflow, troncature, fdinvalide, reprise et achèvement des autres jobs après erreur). Clippy mlx,chat passe ; Ruff signale `check=False` absent dans le nouveau test CLI, corrigé, relance prévue. Logs `opt-14-readers/checks-01.json` et `ruff.log`. Le mode1 utilise aussi la nouvelle FFI groupée (évaluation des banques une fois par lot) ; il contrôle la concurrence, pas toute la modification. Toute conclusion finale utilisera aussi le binaireH inchangé.
+- 14 CPU terminé : fmt/Clippy/buildmlx,chat passent,87testsCPU/2ignorés,107release/95ignorés ;461testsPython/4sautés,27tests du pilote ciblés et Ruff corrigé passent. Mutants isolés détectés : suppression du rejet des alias et budget4,75 ignoré au profit de8 ; sources de production intactes. Kani garde des destinations :12obligations/3couvertures, usize complet sanshypothèse ; suite10harnais ciblés réussie. Tentative FFI initiale mal configurée sansMetal (conservée), puis configuration livrée échoue dansKani `intrinsics.rs:243` ; suiteCPU complète même ICE. CBMC première option`--std` invalide, corrigée en`--cpp11`, puis parseurlibc++ incompatible ; aucune propriété C++/concurrence prouvée. CrossHair ne trouve aucune fonction vérifiable dans le piloteI/O. Limites et commandes dans `opt-14-readers/{build,mutants-formal,formal-02,python-checks}.json`. Binaires d93bd5b7/a9655ebc archivés ; contrôles physiques en cours, aucun débit mesuré.
+- 14 numérique validé :29tests physiques explicites passent, lecteurs2/4 chacun contre16positions/logits/états indépendants et suitesMTP ;90paires de cohortes (slots10/20/143,overlapOFF/ON,lecteurs1/2/4), lecteurs1..4 sur destinations réelles/alias et reprise, R1 contre5positions. Trois valeurs de configuration invalides sont rejetées par le vrai bridge. SuiteKani ciblée :1102obligations/34couvertures/3inatteignables. Tests bridge1/2/3/17tokens et annulation encore en cours (cache4,5Gio diagnostic). Matrice de crible/confirmation et critères chiffrés écrits dans `opt-14-readers/matrix.json` avant vitesse : ordre1/2/4 puisH-C/C-H/H-C si favorable, budget figé après contrôle fonctionnel, spreads≤5%, gains≥1% dans les quatre cellules et au moins2/3paires positives, limitesRAM/swap explicites. Aucun résultat de débit à ce stade.
+
+- 14 avant crible : bridge validé (budgets1/2/3/17, ABBA, configuration/annulation/reprise), empreintes sources/binaires intactes. Budget commun figé à5Gio (89slots/couche), disponible initial13.820Gio, automatique effectif104slots. Matrice horodatée avant premier lancement. Crible1/2/4 prêt ; aucun résultat encore.
+
+- 14 crible R1 : validated, médianes ponctuelles{'mtp': {'MAIN': 6.433512267520757, 'HOLD': 6.220733572723369}, 'baseline': {'MAIN': 6.415934411022759, 'HOLD': 6.4529909515036215}}, pic processus10515112000octets ; conditions et bruts dans `opt-14-readers/screen-R1/report.json` et `screen.json`. Crible une répétition seulement, aucun gain confirmé ; sources inchangées=True.
+
+- 14 crible R2 : validated, médianes ponctuelles{'mtp': {'MAIN': 7.2915990463687965, 'HOLD': 7.155893965484815}, 'baseline': {'MAIN': 7.276756020031755, 'HOLD': 7.265747960890902}}, pic processus10677231656octets ; conditions et bruts dans `opt-14-readers/screen-R2/report.json` et `screen.json`. Crible une répétition seulement, aucun gain confirmé ; sources inchangées=True.
+
+- 14 crible R4 : validated, médianes ponctuelles{'baseline': {'MAIN': 7.3765286202579095, 'HOLD': 7.4028671128069155}, 'mtp': {'MAIN': 7.524723156948839, 'HOLD': 7.319153872715798}}, pic processus10379157544octets ; conditions et bruts dans `opt-14-readers/screen-R4/report.json` et `screen.json`. Crible une répétition seulement, aucun gain confirmé ; sources inchangées=True.
+
+- 14 sélection avant confirmation : R4 gagne le crible géométrique àchaque prompt, R2intermédiaire ; zéro swapout système pour les3bras. La chauffeR2 dérive vers le haut, donc aucun gain causal encore établi. Retenir4 pour confirmationH-C/C-H/H-C. Mettre le défaut du prototype à4 (override1..4 conservé), rebuild immutable distinct, puis revalider le chemin sansvariable avant mesure ; corps de lecture et kernels inchangés. Budget5Gio et critères de `matrix.json` restent figés.
+
+- 14 confirmation prête : défaut4 dans le binairebd89a7d6 (testb564c6dd), fmt/Clippy/release107tests passent ; trois contrôles physiques sansvariable lecteurs passent (logits/états, têteMTP, session/transactions). Seul le défaut change depuisd93bd5b7 ; lectures/kernels déjà qualifiés inchangés. ComparaisonH5e423506 contrebd89a7d6, ordreH1-C1-C2-H2-H3-C3, budget5Gio/89slots, mêmes critères. Manifestes `default4-{build,identity,quality}.json` ; nouveau débit nonmesuré avant ce lancement.
+
+- 14 confirmation H1 : contrôlevalidated, valeurs{'mtp': {'MAIN': 6.369342313212938, 'HOLD': 6.286818794184451}, 'baseline': {'MAIN': 6.516017098114506, 'HOLD': 6.444551147548393}}, pic10677575720octets, swapouts+0octets. Bruts `opt-14-readers/H1/report.json`, conditions `confirmation.json` ; comparaison complète encore requise, pas de gain conclu sur ce seul bras.
+
+- 14 confirmation C1 : contrôlevalidated, valeurs{'mtp': {'MAIN': 7.514450744120877, 'HOLD': 7.332402482975921}, 'baseline': {'MAIN': 7.355305524322444, 'HOLD': 7.393335150604941}}, pic10719436744octets, swapouts+0octets. Bruts `opt-14-readers/C1/report.json`, conditions `confirmation.json` ; comparaison complète encore requise, pas de gain conclu sur ce seul bras.
+
+- 14 confirmation C2 : contrôlevalidated, valeurs{'baseline': {'MAIN': 6.82383283576636, 'HOLD': 6.868889186977601}, 'mtp': {'MAIN': 6.927007301691435, 'HOLD': 6.720472285401353}}, pic10697400408octets, swapouts+0octets. Bruts `opt-14-readers/C2/report.json`, conditions `confirmation.json` ; comparaison complète encore requise, pas de gain conclu sur ce seul bras.
+
+- 14 confirmation H2 : contrôlevalidated, valeurs{'mtp': {'MAIN': 6.358096658059777, 'HOLD': 6.155880074662031}, 'baseline': {'MAIN': 6.370598199036399, 'HOLD': 6.380756906353628}}, pic10676183056octets, swapouts+0octets. Bruts `opt-14-readers/H2/report.json`, conditions `confirmation.json` ; comparaison complète encore requise, pas de gain conclu sur ce seul bras.
+
+- 14 confirmation H3 : contrôlevalidated, valeurs{'baseline': {'MAIN': 6.500947063282446, 'HOLD': 6.49318128832417}, 'mtp': {'MAIN': 6.437411401459839, 'HOLD': 6.2871950013431395}}, pic10692223016octets, swapouts+0octets. Bruts `opt-14-readers/H3/report.json`, conditions `confirmation.json` ; comparaison complète encore requise, pas de gain conclu sur ce seul bras.
+
+- 14 confirmation C3 : contrôlevalidated, valeurs{'mtp': {'MAIN': 7.421004803258788, 'HOLD': 7.288157307576219}, 'baseline': {'MAIN': 7.350302377596743, 'HOLD': 7.389510687613107}}, pic10721320880octets, swapouts+0octets. Bruts `opt-14-readers/C3/report.json`, conditions `confirmation.json` ; comparaison complète encore requise, pas de gain conclu sur ce seul bras.
+
+- **14 clôturée, performance non concluante** : six bras H-C/C-H/H-C terminés, qualité/identités validées, zéro swapout système. Les médianes et chaque valeur restent dans `opt-14-readers/result.json` : tous les couples sont favorables au candidat, mais ses quatre cellules dépassent le spread5% préenregistré. Aucun gain confirmé selon ce protocole, aucun push de ce défaut. La cause de la variabilité n’est pas établie. Prototype local et preuves conservés ; une éventuelle répétition exigera un nouveau protocole annoncé avant lancement.
+
 ### FLASHSSD-2026-10-12-13 — comparaison Sushi, Strata et streaming SSD — recherche terminée
 
 - Demande explicite : examiner Sushi, Strata et d'autres moteurs SSD pour identifier des mécanismes applicables. Relecture des essais Flash01/09/10/12 et de `docs/recherche-flash-next-ssd-205-2026-10-11.md` ; le LFU, les slots préalloués, preadv direct et l'overlap existent déjà ici. Les rejets historiques de copie contiguë, relais drafter et kernels à ordre différent restent des antécédents, pas de nouveaux gains.

@@ -24,6 +24,11 @@ pub const EXPERT_BYTES: u64 = 1_248_012;
 pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn disk_destination_fits(start: usize, length: usize, capacity: usize) -> bool {
+    length > 0 && start.checked_add(length).is_some_and(|end| end <= capacity)
+}
+
 /// Reserve resident weights, MTP, scratch buffers and room for other applications.
 pub fn automatic_cache_slots(available_bytes: u64) -> Option<usize> {
     let budget = available_bytes.checked_sub(8 << 30)?.min(6 << 30);
@@ -219,6 +224,15 @@ impl ExpertCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn disk_ranges_reject_empty_overflow_and_out_of_bounds() {
+        assert!(disk_destination_fits(0, 1, 1));
+        assert!(disk_destination_fits(7, 9, 16));
+        assert!(disk_destination_fits(usize::MAX - 1, 1, usize::MAX));
+        assert!(!disk_destination_fits(0, 0, 16));
+        assert!(!disk_destination_fits(7, 10, 16));
+        assert!(!disk_destination_fits(usize::MAX, 1, usize::MAX));
+    }
     #[test]
     fn automatic_cache_reserves_headroom_and_stays_bounded() {
         let minimum = (8 << 30) + 10 * 48 * EXPERT_BYTES;
@@ -420,6 +434,20 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    fn disk_destinations_cannot_wrap_or_exceed_owned_storage() {
+        let start: usize = kani::any();
+        let length: usize = kani::any();
+        let capacity: usize = kani::any();
+        let fits = disk_destination_fits(start, length, capacity);
+        assert_eq!(
+            fits,
+            length > 0 && start as u128 + length as u128 <= capacity as u128
+        );
+        kani::cover!(fits && start + length == capacity);
+        kani::cover!(!fits && length == 0);
+        kani::cover!(!fits && start as u128 + length as u128 > usize::MAX as u128);
+    }
     #[kani::proof]
     fn automatic_cache_cannot_spend_reserved_memory() {
         let available: u64 = kani::any();

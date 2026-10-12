@@ -586,6 +586,12 @@ The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
 GPU/I/O overlap. The automatic expert cache is capped at 6 GiB and reduced
 when system memory is limited. Flash also sets the MLX buffer cache target to 512 MiB.
 Explicit cache environment settings remain available.
+Cold expert records now use up to four concurrent SSD readers, writing directly
+into the existing banks. `MLXL3_SSD_READERS=1` selects sequential reads (valid range: 1–4).
+On the M5 at a fixed 5 GiB expert budget, twelve paired comparisons measured
+5.5–10.4% faster decoding with exact outputs and no new system swap writes.
+Median decode was 7.29/7.05 tok/s OFF and 7.13/6.89 tok/s with MTP1 on two prompts.
+See the [reader protocol, full results and earlier inconclusive campaign](docs/flash-ssd-readers-2026-10-12.md).
 On the 24 GiB M5 with other applications open, the automatic budget reduced
 measured process peaks from 12.98 GiB to 9.31–10.60 GiB across two runs.
 Outputs remained exact; system swap writes were zero in those runs, but this

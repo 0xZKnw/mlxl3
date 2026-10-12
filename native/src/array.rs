@@ -116,15 +116,17 @@ unsafe extern "C" {
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
     fn mlxl3_array_async_eval(p: *mut c_void) -> i32;
-    fn mlxl3_array_preadv(
-        fd: i32,
-        offset: u64,
+    fn mlxl3_arrays_preadv(
+        fds: *const i32,
+        offsets: *const u64,
+        records: usize,
         buffers: *const *mut c_void,
         buffer_count: usize,
         indices: *const usize,
         starts: *const usize,
         lengths: *const usize,
-        count: usize,
+        segments: usize,
+        workers: usize,
     ) -> i32;
     fn mlxl3_arrays_async_eval(inputs: *const *mut c_void, count: usize) -> i32;
     fn mlxl3_array_copy_bytes(p: *mut c_void, out: *mut u8, count: usize) -> i32;
@@ -626,52 +628,85 @@ impl Array {
 
     /// Fill persistent storage after the caller has evaluated every GPU consumer
     /// of the replaced slots. Aliasing views must not escape that ownership.
+    #[cfg(test)]
     pub(crate) fn read_record(
         file: &File,
         offset: u64,
         buffers: &mut [Self],
         destinations: &[(usize, usize, usize)],
     ) -> Result<()> {
+        Self::read_records(&[(file, offset)], buffers, &[destinations], 1)
+    }
+
+    /// As above, with disjoint destinations and all readers joined before return.
+    pub(crate) fn read_records(
+        sources: &[(&File, u64)],
+        buffers: &mut [Self],
+        destinations: &[&[(usize, usize, usize)]],
+        workers: usize,
+    ) -> Result<()> {
         ensure!(
-            !destinations.is_empty() && destinations.len() <= 64,
-            "invalid disk record"
+            (1..=512).contains(&sources.len())
+                && sources.len() == destinations.len()
+                && (1..=4).contains(&workers),
+            "invalid disk reader batch"
         );
-        let mut total = 0u64;
-        for &(index, start, length) in destinations {
-            let buffer = buffers.get(index).context("invalid disk buffer index")?;
-            let bytes = buffer.byte_len()?;
+        let segments = destinations[0].len();
+        ensure!((1..=64).contains(&segments), "invalid disk record");
+        for (&(file, offset), ranges) in sources.iter().zip(destinations) {
             ensure!(
-                length > 0 && start.checked_add(length).is_some_and(|end| end <= bytes),
-                "invalid disk destination range"
+                ranges.len() == segments,
+                "inconsistent disk record segments"
             );
-            total = total
-                .checked_add(u64::try_from(length)?)
-                .context("disk record size overflow")?;
+            let mut total = 0u64;
+            for &(index, start, length) in *ranges {
+                let buffer = buffers.get(index).context("invalid disk buffer index")?;
+                ensure!(
+                    crate::flash_support::disk_destination_fits(start, length, buffer.byte_len()?),
+                    "invalid disk destination range"
+                );
+                total = total
+                    .checked_add(u64::try_from(length)?)
+                    .context("disk record size overflow")?;
+            }
+            let file_len = file.metadata()?.len();
+            ensure!(
+                offset
+                    .checked_add(total)
+                    .is_some_and(|end| end <= i64::MAX as u64 && end <= file_len),
+                "invalid disk source range"
+            );
         }
-        let file_len = file.metadata()?.len();
-        ensure!(
-            offset
-                .checked_add(total)
-                .is_some_and(|end| end <= i64::MAX as u64 && end <= file_len),
-            "invalid disk source range"
-        );
         let ptrs = buffers
             .iter()
             .map(|a| a.handle.as_ptr())
             .collect::<Vec<_>>();
-        let indices = destinations.iter().map(|d| d.0).collect::<Vec<_>>();
-        let starts = destinations.iter().map(|d| d.1).collect::<Vec<_>>();
-        let lengths = destinations.iter().map(|d| d.2).collect::<Vec<_>>();
+        let fds = sources.iter().map(|s| s.0.as_raw_fd()).collect::<Vec<_>>();
+        let offsets = sources.iter().map(|s| s.1).collect::<Vec<_>>();
+        let indices = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.0))
+            .collect::<Vec<_>>();
+        let starts = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.1))
+            .collect::<Vec<_>>();
+        let lengths = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.2))
+            .collect::<Vec<_>>();
         checked(unsafe {
-            mlxl3_array_preadv(
-                file.as_raw_fd(),
-                offset,
+            mlxl3_arrays_preadv(
+                fds.as_ptr(),
+                offsets.as_ptr(),
+                sources.len(),
                 ptrs.as_ptr(),
                 buffers.len(),
                 indices.as_ptr(),
                 starts.as_ptr(),
                 lengths.as_ptr(),
-                destinations.len(),
+                segments,
+                workers,
             )
         })
     }
@@ -1648,6 +1683,16 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    fn disk_batch_reads_real_owned_storage() {
+        use std::io::Write;
+        let value: u8 = kani::any();
+        let mut file = tempfile::tempfile().unwrap();
+        file.write_all(&[value]).unwrap();
+        let mut banks = [Array::zeros_dtype(&[1], Dtype::UInt8).unwrap()];
+        Array::read_records(&[(&file, 0)], &mut banks, &[&[(0, 0, 1)]], 1).unwrap();
+        assert_eq!(banks[0].to_bytes().unwrap(), [value]);
+    }
     #[kani::proof]
     fn async_group_preserves_values() {
         let values: [u32; 2] = kani::any();
