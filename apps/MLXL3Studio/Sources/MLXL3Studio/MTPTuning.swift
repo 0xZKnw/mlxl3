@@ -12,6 +12,7 @@ struct MTPTuningRow: Codable, Sendable, Identifiable {
     let tokenHashes: [String]
     var id: Int { depth }
     var label: String { depth == 0 ? "Baseline" : "MTP\(depth)" }
+    var dflashLabel: String { ["Baseline", "Auto", "2 tokens", "7 tokens"][min(3, max(0, depth))] }
     enum CodingKeys: String, CodingKey {
         case depth, eligible, reason
         case decodeTPS = "decode_tps", decodeTokens = "decode_tokens", decodeSeconds = "decode_seconds"
@@ -38,13 +39,13 @@ struct MTPConfigurationKey: Codable, Equatable, Sendable {
     let headRevision: String
     let runtime: String
 
-    init(modelPath: String, headPath: String, runtime: String) {
+    init(modelPath: String, headPath: String, runtime: String, packedDraft: Bool = false) {
         self.modelPath = URL(fileURLWithPath: modelPath).resolvingSymlinksInPath().path
         let head = URL(fileURLWithPath: headPath).resolvingSymlinksInPath()
         self.headPath = head.path
         self.runtime = runtime
-        let files = (try? FileManager.default.contentsOfDirectory(at: head, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? []
-        self.headRevision = files.filter { ["json", "safetensors"].contains($0.pathExtension) }
+        let files = (try? FileManager.default.contentsOfDirectory(at: packedDraft ? head.appendingPathComponent("draft") : head, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? []
+        self.headRevision = files.filter { ["json", "safetensors", "bin"].contains($0.pathExtension) }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }.map { file in
                 let values = try? file.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
                 return "\(file.lastPathComponent):\(values?.fileSize ?? -1):\(values?.contentModificationDate?.timeIntervalSince1970 ?? -1)"
@@ -78,8 +79,8 @@ enum MTPTuning {
         return best
     }
 
-    static func load(key: MTPConfigurationKey, preferences: UserDefaults) -> MTPSelection? {
-        guard let data = preferences.data(forKey: "studio.mtpSelections"),
+    static func load(key: MTPConfigurationKey, preferences: UserDefaults, storageKey: String = "studio.mtpSelections") -> MTPSelection? {
+        guard let data = preferences.data(forKey: storageKey),
               let records = try? JSONDecoder().decode([MTPSelection].self, from: data) else { return nil }
         return records.first { record in
             record.key == key && (0...3).contains(record.depth)
@@ -87,13 +88,13 @@ enum MTPTuning {
         }
     }
 
-    static func save(_ selection: MTPSelection, preferences: UserDefaults) {
-        var records = preferences.data(forKey: "studio.mtpSelections")
+    static func save(_ selection: MTPSelection, preferences: UserDefaults, storageKey: String = "studio.mtpSelections") {
+        var records = preferences.data(forKey: storageKey)
             .flatMap { try? JSONDecoder().decode([MTPSelection].self, from: $0) } ?? []
         records.removeAll { $0.key == selection.key }
         records.append(selection)
         if let data = try? JSONEncoder().encode(Array(records.suffix(64))) {
-            preferences.set(data, forKey: "studio.mtpSelections")
+            preferences.set(data, forKey: storageKey)
         }
     }
 }

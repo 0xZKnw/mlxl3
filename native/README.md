@@ -123,6 +123,27 @@ Displayed timings are diagnostic, not a claimed improvement over the existing
 engine. The optional offline PonyExl3 converter is outside the installed
 runtime and remains Python-based.
 
+## Managed Qwen MTP heads
+
+Engine1.4.0 selects the pinned dense27B or MoE35B-A3B head from the target
+configuration. Downloads are resumable and checked against fixed hashes:
+
+```sh
+./target/release/mlxl3-rs mtp-head --target /path/to/Qwen3.8-27B-EXL3
+./target/release/mlxl3-rs mtp-head --target /path/to/Qwen3.6-35B-A3B-EXL3
+```
+
+Without `--target`, the legacy MoE download remains available. The bridge exposes
+target-aware availability and `set_mtp` for explicit load/unload; generation and
+tuning reuse the same loader. Desktop1.4.0 is required for this engine archive.
+[Physical checks, source verification and measurements](../docs/mtp-dense-1.4.0-validation.md).
+
+The MTPLX-derived add/RMSNorm paths are experimental and OFF by default.
+For an explicit comparison, set `MLXL3_MTP_FUSED_NORM=1` for the head or
+`MLXL3_QWEN_FUSED_NORM=1` for eligible dense27B target rows before starting
+the process. Other shapes/dtypes keep the stock MLX path. The M5 measurements
+do not establish a gain; no app setting enables these experimental kernels.
+
 ## Numerical validation
 
 On the development M5, 154 differential checks pass bit-for-bit: CPU codecs,

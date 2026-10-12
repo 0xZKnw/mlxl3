@@ -1,0 +1,116 @@
+{
+  "status": "validated locally; push/CI/merge pending",
+  "fix": "Open inspector after eligibility guard and scroll to MTP feedback on start/finish/mount with existing results or errors",
+  "python": {
+    "passed": 319,
+    "skipped": 4,
+    "scope": "complete suite on integrated main; unchanged by subsequent Swift-only focus extension"
+  },
+  "desktop": {
+    "command": "scripts/check-desktop.sh",
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 224.89,
+    "timeout_seconds": 900,
+    "env": {
+      "SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+      "MLXL3_MACOS_SDK": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+      "MLXL3_SKIP_METAL_CHECK": "1",
+      "PYTHONPATH": "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/src",
+      "MLXL3_TEST_PYTHON": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python"
+    }
+  },
+  "focused_hardening": [
+    {
+      "stage": "green-compile",
+      "command": [
+        "swiftc",
+        "-swift-version",
+        "6",
+        "-warnings-as-errors",
+        "-parse-as-library",
+        "-sdk",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+        "-module-cache-path",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/build/pr30-fix/modules",
+        "-I",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AppDelegate.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatAttachment.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatComponents.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ChatTimelineCheck.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ConversationStore.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/DownloadProgressCard.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfiguration.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuning.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MenuBarPanel.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/MessageCopyButton.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelIdleUnload.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelLibrary.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ModelManager.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/SidebarUpdateBadge.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UIPreview.swift",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/.build/out/Products/Debug/SwiftMath.o",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/build/pr30-fix/HardeningGreen.swift",
+        "-o",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/build/pr30-fix/hardening-green"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "elapsed_seconds": 11.37,
+      "timeout_seconds": 180
+    },
+    {
+      "stage": "green-run",
+      "command": [
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/build/pr30-fix/hardening-green",
+        "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/tests/fake-desktop-engine.py"
+      ],
+      "exit_code": 0,
+      "status": "passed",
+      "elapsed_seconds": 16.64,
+      "timeout_seconds": 180
+    }
+  ],
+  "regression_oracles": [
+    "New eligible start visibility assertion fails on original production code",
+    "Viewport bitmap assertion fails on opening-only variant; both real error cases pass after scroll focus"
+  ],
+  "visuals": {
+    "reviewed": [
+      "render-final/mtp-error-minimum-window.png",
+      "render-final/mtp-good-visible.png"
+    ],
+    "viewports": [
+      "820x600pt",
+      "1280x700pt"
+    ]
+  },
+  "negative_history": [
+    "red-oracle.json",
+    "viewport-red-oracle.json",
+    "e2e-interruption.json"
+  ],
+  "warnings": "Historical linker CLT paths and non-fatal PDF test diagnostic retained",
+  "formal": "No applicable SwiftUI source verifier supplied by project/skill; finite fixture/render tests only. No Rust diff against main; native/Kani CI retained.",
+  "unverified": [
+    "physical inference/performance",
+    "automated actual button click",
+    "universal SwiftUI/OS/concurrency proof"
+  ],
+  "publication": "No release or installed app replacement"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "cache-collision",
+  "command": [
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-lib",
+    "--ignored",
+    "--exact",
+    "array::tests::metal_cache_full_key_and_eviction_preserve_outputs",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "MTL_DEBUG_LAYER": "1",
+    "MTL_SHADER_VALIDATION": "1",
+    "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+    "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1"
+  },
+  "status": "failed",
+  "parity": null,
+  "gpu_timing": false,
+  "log": "docs/measurements/dflash2-web-03/key-view-cache-collision.log",
+  "exit": 101,
+  "timeout": false,
+  "seconds": 0.0914090410224162,
+  "nonempty_test_result": false
+}

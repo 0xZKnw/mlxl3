@@ -1,0 +1,224 @@
+"""Isolated production Tune diagnostics; never alters Desktop preferences."""
+
+import copy
+import hashlib
+import json
+import math
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "scripts"))
+from native_json_process import JsonProcess
+
+
+def validate(result, reference=None):
+    rows = result["rows"]
+    assert len(rows) == 4 and [r["depth"] for r in rows] == [0, 1, 2, 3]
+    hashes = rows[0]["token_hashes"]
+    assert len(hashes) == 2 and all(isinstance(h, str) and h for h in hashes)
+    assert reference is None or hashes == reference
+    for row in rows:
+        assert row["token_hashes"] == hashes
+        assert row["decode_tokens"] == 190
+        for key in ("decode_tps", "decode_seconds"):
+            assert math.isfinite(row[key]) and row[key] > 0
+        assert math.isclose(row["decode_tps"] * row["decode_seconds"], 190, rel_tol=1e-6)
+        assert row["eligible"] and row["reason"] is None
+        assert 0 <= row["accepted_tokens"] <= row["proposed_tokens"]
+        assert row["depth"] == 0 or row["accepted_tokens"] > 0
+    base = int(rows[0]["decode_tps"] * 1000)
+    best, fastest = 0, base
+    for row in rows[1:]:
+        score = int(row["decode_tps"] * 1000)
+        if score > fastest and score * 100 > base * 103:
+            best, fastest = row["depth"], score
+    assert result["best_depth"] == best
+    return hashes
+
+
+class ValidationTests(unittest.TestCase):
+    def test_complete_and_reject_corrupt_results(self):
+        valid = {
+            "best_depth": 2,
+            "rows": [
+                {
+                    "depth": d,
+                    "decode_tokens": 190,
+                    "decode_tps": tps,
+                    "decode_seconds": 190 / tps,
+                    "eligible": True,
+                    "reason": None,
+                    "accepted_tokens": 0 if d == 0 else 80,
+                    "proposed_tokens": 0 if d == 0 else 100,
+                    "token_hashes": ["a", "b"],
+                }
+                for d, tps in enumerate([50, 60, 75, 70])
+            ],
+        }
+        self.assertEqual(validate(valid), ["a", "b"])
+        for field, bad in [
+            ("decode_tokens", 0),
+            ("decode_tps", float("nan")),
+            ("decode_seconds", -1),
+            ("token_hashes", []),
+            ("eligible", False),
+            ("accepted_tokens", 101),
+        ]:
+            corrupt = copy.deepcopy(valid)
+            corrupt["rows"][1][field] = bad
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                validate(corrupt)
+        for corrupt in [dict(valid, rows=[]), dict(valid, best_depth=0)]:
+            with self.assertRaises(AssertionError):
+                validate(corrupt)
+        with self.assertRaises(AssertionError):
+            validate(valid, ["different", "b"])
+
+
+def main():
+    output = Path(__file__).parent
+    engine = ROOT / "dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3"
+    model = (
+        Path.home()
+        / "Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0"
+    )
+    head = Path.home() / "Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit"
+    cases = [
+        ("C-zero", "1", "0"),
+        ("B-default", "1", None),
+        ("D-256", "1", "256"),
+        ("A-dense", "0", None),
+        ("B-default-repeat", "1", None),
+    ]
+    status = {
+        "status": "running",
+        "parity": False,
+        "cases": [],
+        "engine_sha256": hashlib.sha256(engine.read_bytes()).hexdigest(),
+        "model": str(model),
+        "head": str(head),
+        "context": 4096,
+    }
+    status_path = output / "diagnostic-status.json"
+    assert not status_path.exists(), "Preserve an existing campaign; use a new output directory"
+    reference = None
+    try:
+        for label, packed, limit in cases:
+            record = {
+                "label": label,
+                "packed": packed,
+                "allocator_cache_mib": limit,
+                "status": "running",
+                "child_reaped": False,
+            }
+            status["cases"].append(record)
+            status_path.write_text(json.dumps(status, indent=2) + "\n")
+            record["conditions"] = {
+                name: subprocess.check_output(command, text=True, timeout=10).strip()
+                for name, command in [
+                    ("power", ["pmset", "-g", "batt"]),
+                    ("thermal", ["pmset", "-g", "therm"]),
+                    ("swap", ["sysctl", "vm.swapusage"]),
+                ]
+            }
+            env = os.environ.copy()
+            env.update(
+                MLXL3_MTP_ADAPTIVE="1", MLXL3_EMBEDDINGS_PACKED=packed, MLXL3_PROMPT_CACHE_MIB="256"
+            )
+            env.pop("MLXL3_ALLOCATOR_CACHE_MIB", None)
+            if limit is not None:
+                env["MLXL3_ALLOCATOR_CACHE_MIB"] = limit
+            started = time.monotonic()
+            child = None
+            try:
+                with tempfile.TemporaryDirectory(prefix="mlxl3-tune-diagnostic-") as directory:
+                    env["MLXL3_HOME"] = directory
+                    command = [
+                        str(engine),
+                        "--registry",
+                        str(Path(directory) / "models.json"),
+                        "bridge",
+                        str(model),
+                        "--context-length",
+                        "4096",
+                    ]
+                    record["command"] = command
+                    with (
+                        (output / f"{label}.stderr").open("w") as stderr,
+                        (output / f"{label}.jsonl").open("w") as log,
+                        JsonProcess(command, env=env, stderr=stderr) as child,
+                    ):
+                        deadline = time.monotonic() + 120
+                        while True:
+                            event = child.receive(deadline)
+                            log.write(
+                                json.dumps({"elapsed": time.monotonic() - started, "event": event})
+                                + "\n"
+                            )
+                            log.flush()
+                            if event["type"] == "error":
+                                raise RuntimeError(event)
+                            if event["type"] == "ready":
+                                break
+                        record["ready_seconds"] = time.monotonic() - started
+                        deadline = time.monotonic() + 360
+                        child.send(
+                            {"type": "tune_mtp", "request_id": label, "mtp_head_path": str(head)},
+                            deadline,
+                        )
+                        while True:
+                            event = child.receive(deadline)
+                            log.write(
+                                json.dumps({"elapsed": time.monotonic() - started, "event": event})
+                                + "\n"
+                            )
+                            log.flush()
+                            if event["type"] in ("error", "cancelled"):
+                                raise RuntimeError(event)
+                            if event["type"] == "mtp_tune_complete":
+                                reference = validate(event, reference)
+                                record["result"] = event
+                                break
+                record["total_seconds"] = time.monotonic() - started
+            finally:
+                record["child_reaped"] = child is not None and child.process.poll() is not None
+                if child is not None:
+                    record["exit_code"] = child.process.returncode
+                status_path.write_text(json.dumps(status, indent=2) + "\n")
+            record["power_after"] = subprocess.check_output(
+                ["pmset", "-g", "batt"], text=True, timeout=10
+            ).strip()
+            assert record["child_reaped"] and record["exit_code"] == 0
+            record["status"] = "passed"
+            print(
+                json.dumps(
+                    {
+                        "case": label,
+                        "seconds": record["total_seconds"],
+                        "winner": record["result"]["best_depth"],
+                        "tps": [r["decode_tps"] for r in record["result"]["rows"]],
+                    }
+                ),
+                flush=True,
+            )
+        status.update(status="passed", parity=True)
+    except BaseException as error:
+        if status["cases"] and status["cases"][-1]["status"] == "running":
+            status["cases"][-1]["status"] = "failed"
+        status.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        status_path.write_text(json.dumps(status, indent=2) + "\n")
+
+
+if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        unittest.main(argv=[sys.argv[0]])
+    else:
+        main()

@@ -1,0 +1,122 @@
+{
+  "review": "PR25",
+  "base_sha": "c73c2a8414f68acf2b70b1a7e8ccba4a334e8639",
+  "head_sha": "c6406a892495ae6c9415b52dbef351e97529fb36",
+  "status": "complete",
+  "findings": [],
+  "runtime_changes_by_reviewer": false,
+  "commands": {
+    "format": "cargo fmt --check",
+    "clippy": "MLXL3_MLX_ROOT=<MLX0.32.2> cargo clippy --release --locked --all-targets --features mlx,chat -- -D warnings",
+    "rust_tests": "MLXL3_MLX_ROOT=<MLX0.32.2> cargo test --release --locked --features mlx,chat",
+    "build": "MLXL3_MLX_ROOT=<MLX0.32.2> cargo build --release --locked --features mlx,chat",
+    "python_tests": "python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_decode_microbenchmarks.py",
+    "python_lint": "python -m ruff check + ruff format --check on 9 workflow paths; py_compile on 5 production scripts",
+    "kani_targeted": "cargo kani -Z unstable-options --lib --no-default-features --harness dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries --harness-timeout 120",
+    "kani_full": "cargo kani -Z unstable-options --lib --no-default-features --harness-timeout 120",
+    "crosshair": "python -m crosshair check --analysis_kind=asserts --per_condition_timeout=20 --per_path_timeout=5 benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py",
+    "gpu_decode": "python benchmarks/benchmark_decode_tiles.py --iterations 1 --output docs/measurements/pr25-review/gpu-decode.json",
+    "gpu_gdn": "python benchmarks/benchmark_gdn_norm_gate.py --iterations 1 --output docs/measurements/pr25-review/gpu-gdn.json"
+  },
+  "rust": {
+    "passed": 61,
+    "ignored": 54,
+    "failed": 0,
+    "features": [
+      "mlx",
+      "chat"
+    ],
+    "profile": "release"
+  },
+  "python": {
+    "passed": 117,
+    "failed": 0,
+    "new_cli_cases": 16
+  },
+  "format_lint_build": "passed",
+  "kani": {
+    "verifier": "Kani0.68.0/CBMC6.11.0",
+    "target": "aarch64-apple-darwin",
+    "harnesses": 32,
+    "status_counts": {
+      "SUCCESS": 4473,
+      "UNREACHABLE": 70,
+      "SATISFIED": 74
+    },
+    "new_harness": {
+      "name": "dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+      "inputs": "all i32/i32/usize/bool/bool; no assumptions, loops, stubs",
+      "safety_checks": 7,
+      "covers": 3
+    },
+    "scope": "bounded Rust CPU contracts, not Metal/MLX/FFI/allocator/concurrency/generation"
+  },
+  "ci": {
+    "exact_head_verified": true,
+    "jobs_passed": 4,
+    "jobs_failed": 0,
+    "native_run": 37381126958,
+    "desktop_run": 37381127191,
+    "cpu_rust_per_os": 50,
+    "cpu_rust_ignored": {
+      "ubuntu": 2,
+      "macos": 3
+    },
+    "python_native_per_os": 117,
+    "desktop_python": {
+      "passed": 119,
+      "skipped": 4
+    },
+    "desktop_e2e": "passed",
+    "pr_merge_tree_matches_head": true
+  },
+  "limits": [
+    "checkpoint dense exact and saved references absent locally; model parity and bridge not independently replayed",
+    "54 ignored Rust GPU/model tests not all executed",
+    "CrossHair found no checkable contracts; Python source verification unconfirmed",
+    "Kani verifies bounded Rust CPU contracts, not Metal, MLX, FFI, allocator, concurrency, or complete generation",
+    "no independent speed/RAM campaign; author native forward gain conditional; bridge gain inconclusive"
+  ],
+  "non_code_failures_preserved": [
+    "kani-cli-error.log: timeout flag requires unstable-options",
+    "kani-parallel-cli-error.log: jobs flag requires terse output",
+    "artifact-audit-python39-error.json: reviewer used system Python3.9 with zip(strict=True)",
+    "artifact-audit-schema-error.json: legacy parity-flag schema",
+    "artifact-audit-paired-schema-error.json: rejected-prototype gain-key schema"
+  ],
+  "binary_sha256": "4c8b648f38360bb3098d42e280592540070419cfbad9f390a9a2c7f8b1bcb0cb",
+  "gpu-decode": {
+    "status": "complete",
+    "checks": 48,
+    "timed_shapes": 6,
+    "parity": true,
+    "purpose": "functional/numerical validation only; incidental timings not speed evidence"
+  },
+  "gpu-gdn": {
+    "status": "complete",
+    "checks": 40,
+    "timed_shapes": 3,
+    "parity": true,
+    "purpose": "functional/numerical validation only; incidental timings not speed evidence"
+  },
+  "tool_versions": {
+    "rust": "1.98.1",
+    "python": "3.12.14",
+    "mlx": "0.32.2",
+    "numpy": "2.5.2",
+    "ruff": "0.16.5",
+    "crosshair": "0.0.101",
+    "kani": "0.68.0",
+    "cbmc": "6.11.0",
+    "os": "macOS27.2 arm64",
+    "gpu": "Apple M5 / 10 cores"
+  },
+  "relevant_environment": {
+    "MLXL3_DENSE_DECODE_NT4": null,
+    "MLXL3_DENSE_PREFILL_M64": null,
+    "MLXL3_DISABLE_TENSOR_OPS": null,
+    "MLXL3_MUL1_SWAR": null,
+    "MLX_METAL_PATH": null
+  },
+  "mlx_root_used": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+}

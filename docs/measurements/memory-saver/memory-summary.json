@@ -1,0 +1,96 @@
+{
+  "status": "complete",
+  "scope": "short synthetic context only; RAM-02 baseline; no speed claim",
+  "models": {
+    "dense": {
+      "cross_order_parity": true,
+      "runs": 4,
+      "cases": 32,
+      "completions": 24,
+      "cancelled": 4,
+      "expected_errors": 4,
+      "comparisons": [
+        {
+          "order": "AB",
+          "case": "cache-warm",
+          "normal_footprint_bytes": 10360739480,
+          "saver_footprint_bytes": 9582089640,
+          "saved_footprint_bytes": 778649840,
+          "normal_mlx_active_bytes": 9855680380,
+          "saver_mlx_active_bytes": 9411084156,
+          "normal_mlx_cache_bytes": 0,
+          "saver_mlx_cache_bytes": 0,
+          "prompt_tokens": 687,
+          "generated_tokens": 32,
+          "normal_cached_tokens": 512,
+          "saver_cached_tokens": 0,
+          "source": "docs/measurements/memory-saver/dense-ab.json",
+          "source_sha256": "65ce360ba6d7a6d64bf71da1f5c1ea47ed286f0cfc35fe643014b8cb509f84b2"
+        },
+        {
+          "order": "BA",
+          "case": "cache-warm",
+          "normal_footprint_bytes": 10058618328,
+          "saver_footprint_bytes": 9583940984,
+          "saved_footprint_bytes": 474677344,
+          "normal_mlx_active_bytes": 9855680380,
+          "saver_mlx_active_bytes": 9411084156,
+          "normal_mlx_cache_bytes": 0,
+          "saver_mlx_cache_bytes": 0,
+          "prompt_tokens": 687,
+          "generated_tokens": 32,
+          "normal_cached_tokens": 512,
+          "saver_cached_tokens": 0,
+          "source": "docs/measurements/memory-saver/dense-ba.json",
+          "source_sha256": "b295c6fd29f6c4bce5e42ccf270bc1bd51e199a57241577e66b003a21624157a"
+        }
+      ],
+      "decision": "validated for this dense cached workload"
+    },
+    "moe": {
+      "cross_order_parity": true,
+      "runs": 4,
+      "cases": 32,
+      "completions": 24,
+      "cancelled": 4,
+      "expected_errors": 4,
+      "comparisons": [
+        {
+          "order": "AB",
+          "case": "cache-warm",
+          "normal_footprint_bytes": 13583945304,
+          "saver_footprint_bytes": 13640617416,
+          "saved_footprint_bytes": -56672112,
+          "normal_mlx_active_bytes": 12756908608,
+          "saver_mlx_active_bytes": 12553599552,
+          "normal_mlx_cache_bytes": 0,
+          "saver_mlx_cache_bytes": 0,
+          "prompt_tokens": 645,
+          "generated_tokens": 32,
+          "normal_cached_tokens": 512,
+          "saver_cached_tokens": 0,
+          "source": "docs/measurements/memory-saver/moe-ab.json",
+          "source_sha256": "72ddcc444162f023d9a40d6500455e4f9f88e1666fd6ba1182dccdcf65954199"
+        },
+        {
+          "order": "BA",
+          "case": "cache-warm",
+          "normal_footprint_bytes": 13691539080,
+          "saver_footprint_bytes": 13459361320,
+          "saved_footprint_bytes": 232177760,
+          "normal_mlx_active_bytes": 12756908608,
+          "saver_mlx_active_bytes": 12553599552,
+          "normal_mlx_cache_bytes": 0,
+          "saver_mlx_cache_bytes": 0,
+          "prompt_tokens": 645,
+          "generated_tokens": 32,
+          "normal_cached_tokens": 512,
+          "saver_cached_tokens": 0,
+          "source": "docs/measurements/memory-saver/moe-ba.json",
+          "source_sha256": "17a4c65ac407d74cafd94c09a7340fa16eed801938bc985f6f195da87a6fc650"
+        }
+      ],
+      "decision": "process footprint non-conclusive; cache release validated"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "status": "blocked_by_inherited_tensor_alignment",
+  "checks": [
+    {
+      "status": "validated",
+      "name": "quality",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_gate_up_row_merge_is_exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.566768833,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-quality.log",
+      "parity": true,
+      "gpu_timing": false,
+      "source_sha256": "3c8c0d3ad38b618c224b1df1636187700e5d59e595114d60c07b95e849012b35",
+      "binary_sha256": "5e434cd8e54791f4381867405681d8fd044754caa844ff688484dfdc0d192f3b"
+    },
+    {
+      "status": "failed",
+      "name": "validation",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_gate_up_row_merge_is_exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "MTL_DEBUG_LAYER": "1",
+        "MTL_SHADER_VALIDATION": "1",
+        "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+        "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1"
+      },
+      "exit": -6,
+      "timeout": false,
+      "seconds": 0.9079885420000001,
+      "log": "docs/measurements/dflash2-web-03/gate-up-sums-validation.log",
+      "parity": null,
+      "gpu_timing": false,
+      "source_sha256": "3c8c0d3ad38b618c224b1df1636187700e5d59e595114d60c07b95e849012b35",
+      "binary_sha256": "5e434cd8e54791f4381867405681d8fd044754caa844ff688484dfdc0d192f3b"
+    }
+  ],
+  "interpretation": "Normal bitexact quality passes; Apple tensor validation aborts. Prior original-header binary fails the same stride64/128-byte alignment check. No speed experiment launched."
+}

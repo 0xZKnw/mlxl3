@@ -1,0 +1,10 @@
+--- contracts.rs
++++ contracts-mutant.rs
+@@ -252,7 +252,6 @@
+     enabled: bool,
+ ) -> Option<(i32, i32)> {
+     if enabled
+-        && m5
+         && mul1
+         && rows == 3
+         && input == 5120

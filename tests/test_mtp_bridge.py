@@ -29,6 +29,7 @@ spec.loader.exec_module(bridge)
         "divergence",
         "accept-invalid",
         "cancel-corruption",
+        "configure",
     ],
 )
 def test_bridge_boundaries_and_cleanup(tmp_path, capsys, monkeypatch, fault):
@@ -45,7 +46,7 @@ def cancel(*args):
     cancelled = True
 signal.signal(signal.SIGUSR1, cancel)
 def emit(**event): print(json.dumps(event), flush=True)
-emit(type='ready', mtp_max_depth=1)
+emit(type='ready', mtp_max_depth=1, mtp_configure_supported=fault in ('ok', 'configure'))
 seen = set()
 for line in sys.stdin:
     r = json.loads(line)
@@ -64,6 +65,9 @@ for line in sys.stdin:
         emit(type='error', request_id=rid, message='duplicate request ID')
         continue
     seen.add(rid)
+    if r['type'] == 'set_mtp':
+        emit(type='mtp_status', request_id=rid, mtp_active=not r['enabled'] if fault == 'configure' else r['enabled'])
+        continue
     if (not r['mtp_head_path'] or r['mtp_head_path'] == '/missing-head' or r.get('dflash2') or r.get('mtp_depth', 1) != 1) and fault != 'accept-invalid':
         emit(type='error', request_id=rid, message='rejected')
         continue

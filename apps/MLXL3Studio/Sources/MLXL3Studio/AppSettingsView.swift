@@ -45,6 +45,42 @@ struct AppSettingsView: View {
                     .pickerStyle(.segmented)
                     .accessibilityLabel(L("Langue de l’app", "App language"))
                     Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label(L("Déchargement automatique du modèle", "Automatic model unloading"), systemImage: "moon.zzz")
+                            .font(.system(size: 13, weight: .semibold))
+                        Picker(L("Après une période d’inactivité", "After inactivity"), selection: Binding(
+                            get: { studio.modelIdleUnloadDelay },
+                            set: { studio.setModelIdleUnloadDelay($0) }
+                        )) {
+                            ForEach(ModelIdleUnloadDelay.allCases, id: \.self) { delay in
+                                Text(delay.title).tag(delay)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .accessibilityLabel(L("Délai de déchargement automatique", "Automatic unload delay"))
+                        Text(L("Libère la mémoire du modèle lorsque tu ne l’utilises plus. Le délai commence après le chargement ou la fin de la dernière utilisation. Les générations et le tuning ne sont jamais interrompus. Tes conversations sont conservées ; sélectionne de nouveau le modèle pour le recharger.", "Frees the model’s memory when it is no longer in use. The delay starts after loading or the last use finishes. Generation and tuning are never interrupted. Your conversations are kept; select the model again to reload it."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(L("Économie de mémoire", "Memory saving"), isOn: Binding(
+                            get: { studio.memorySaverEnabled },
+                            set: { studio.setMemorySaverEnabled($0) }
+                        ))
+                        .disabled(studio.isGenerating || studio.isTuningMTP || (studio.engineState.isReady && !studio.memorySaverSupported))
+                        if studio.engineState.isReady && !studio.memorySaverSupported {
+                            Text(L("Mets à jour le moteur pour utiliser cette option.", "Update the engine to use this option."))
+                                .font(.system(size: 11))
+                                .foregroundStyle(StudioTheme.secondary)
+                        }
+                        Text(L("Après les prochaines réponses, libère aussi le cache de contexte et les petits buffers inutilisés. Le modèle et tes conversations restent chargés. Le prochain message recalculera son contexte et peut démarrer plus lentement.", "After future responses, also frees the context cache and small unused buffers. The model and your conversations stay loaded. The next message recomputes its context and may start more slowly."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Divider()
                     HuggingFaceAccountView(library: studio.modelLibrary)
                     HStack {
                         Button(L("Exporter les conversations", "Export conversations"), action: studio.exportConversations)
@@ -103,6 +139,8 @@ struct AppSettingsView: View {
                     }
                     .padding(.vertical, 17)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    Link("Powered by MTPLX", destination: URL(string: "https://github.com/youssofal/MTPLX")!)
+                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                 }
                 .padding(26)
             }

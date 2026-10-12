@@ -1,0 +1,11 @@
+--- qwen35.rs
++++ qwen35-mutant.rs
+@@ -293,7 +293,7 @@
+                     .reshape(&[rows, hidden])?;
+                 let output = self.forward(&batch)?;
+                 return (0..rows)
+-                    .map(|row| output.slice(0, row, row + 1)?.reshape(&[1, 1, hidden]))
++                    .map(|row| output.slice(0, rows - row - 1, rows - row)?.reshape(&[1, 1, hidden]))
+                     .collect();
+             }
+             return values

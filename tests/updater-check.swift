@@ -154,22 +154,28 @@ import Foundation
     }
     if CommandLine.arguments.count > 2 {
       let archive = URL(fileURLWithPath: CommandLine.arguments[2])
+      let version = CommandLine.arguments.count > 3 ? CommandLine.arguments[3] : "1.2.0"
       let release = AppUpdateRelease(
-        version: "1.2.0", tag: "engine-v1.2.0", title: "Engine integration", notes: "",
-        pageURL: URL(string: "https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.2.0")!,
+        version: version, tag: "engine-v\(version)", title: "Engine integration", notes: "",
+        pageURL: URL(string: "https://github.com/0xZKnw/mlxl3/releases/tag/engine-v\(version)")!,
         asset: AppUpdateAsset(
           name: archive.lastPathComponent, downloadURL: archive,
           size: Int64(try Data(contentsOf: archive).count),
           digest: "sha256:" + (try UpdateManager.sha256(at: archive))))
       let store = root.appendingPathComponent("signed-engine")
       try EngineRuntimeStore.install(
-        archive: archive, release: release, appVersion: "1.2.0", root: store)
+        archive: archive, release: release, appVersion: version, root: store)
       let selected = EngineRuntimeStore.resolve(
-        appVersion: "1.2.0", root: store, bundledVersion: "1.2.0")!
+        appVersion: version, root: store, bundledVersion: version)!
       _ = try UpdateManager.runProcess(selected.path, arguments: ["runtime-info"])
+      let realManifest = try EngineRuntimeStore.readManifest(selected.deletingLastPathComponent())
+      check(realManifest.version == version)
+      if version == "1.4.0" {
+        fails("MTP engine on old Desktop") { try realManifest.validate(appVersion: "1.3.0") }
+      }
       check(EngineRuntimeStore.reject(selected, root: store))
       check(
-        EngineRuntimeStore.resolve(appVersion: "1.2.0", root: store, bundledVersion: "1.2.0") == nil
+        EngineRuntimeStore.resolve(appVersion: version, root: store, bundledVersion: version) == nil
       )
       print("Signed engine installation, relocation, execution and fallback passed")
     }

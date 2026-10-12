@@ -1,0 +1,160 @@
+{
+  "status": "nonconclusive_drift",
+  "parity": true,
+  "summary": {
+    "short": {
+      "decode_tps": {
+        "A": 57.12806163170086,
+        "B": 61.19211708905907,
+        "change_percent": 7.113939001744507
+      },
+      "prefill_tps": {
+        "A": 184.95084032280434,
+        "B": 184.67888401511303,
+        "change_percent": -0.14704248286553367
+      },
+      "ttft_seconds": {
+        "A": 0.14734751025,
+        "B": 0.1473749895,
+        "change_percent": 0.018649280163174353
+      },
+      "elapsed_seconds": {
+        "A": 2.3823483125,
+        "B": 2.228084854,
+        "change_percent": -6.47526886352392
+      }
+    },
+    "document": {
+      "decode_tps": {
+        "A": 63.95998778510544,
+        "B": 70.1243225231938,
+        "change_percent": 9.637798491768734
+      },
+      "prefill_tps": {
+        "A": 193.85845386365327,
+        "B": 195.6697293492528,
+        "change_percent": 0.9343288618578693
+      },
+      "ttft_seconds": {
+        "A": 0.18173361475,
+        "B": 0.17945662499999998,
+        "change_percent": -1.2529271225537042
+      },
+      "elapsed_seconds": {
+        "A": 2.1771866665,
+        "B": 1.992192448,
+        "change_percent": -8.496938794751706
+      }
+    }
+  },
+  "drift": {
+    "short": {
+      "A": {
+        "tps": [
+          61.262313489048395,
+          52.99380977435333
+        ],
+        "percent": -13.496884534360898
+      },
+      "B": {
+        "tps": [
+          63.980402197826834,
+          58.40383198029131
+        ],
+        "percent": -8.71605995894309
+      }
+    },
+    "document": {
+      "A": {
+        "tps": [
+          68.30820736438524,
+          59.61176820582563
+        ],
+        "percent": -12.73117754674643
+      },
+      "B": {
+        "tps": [
+          72.20693272504269,
+          68.0417123213449
+        ],
+        "percent": -5.768449436231505
+      }
+    }
+  },
+  "all_control_drifts_within_3pct": false,
+  "continue_baab": false,
+  "conditions": [
+    {
+      "recorded_at_unix": 1791485784.500861,
+      "power": {
+        "returncode": 0,
+        "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t51%; charging; 1:54 remaining present: true\n",
+        "stderr": ""
+      },
+      "thermal": {
+        "returncode": 0,
+        "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "stderr": ""
+      },
+      "swap": {
+        "returncode": 0,
+        "stdout": "vm.swapusage: total = 7168.00M  used = 5523.94M  free = 1644.06M  (encrypted)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "recorded_at_unix": 1791485804.41754,
+      "power": {
+        "returncode": 0,
+        "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t52%; charging; 1:44 remaining present: true\n",
+        "stderr": ""
+      },
+      "thermal": {
+        "returncode": 0,
+        "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "stderr": ""
+      },
+      "swap": {
+        "returncode": 0,
+        "stdout": "vm.swapusage: total = 7168.00M  used = 5844.50M  free = 1323.50M  (encrypted)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "recorded_at_unix": 1791485826.607038,
+      "power": {
+        "returncode": 0,
+        "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t52%; charging; 1:44 remaining present: true\n",
+        "stderr": ""
+      },
+      "thermal": {
+        "returncode": 0,
+        "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "stderr": ""
+      },
+      "swap": {
+        "returncode": 0,
+        "stdout": "vm.swapusage: total = 7168.00M  used = 6042.31M  free = 1125.69M  (encrypted)\n",
+        "stderr": ""
+      }
+    },
+    {
+      "recorded_at_unix": 1791485846.498176,
+      "power": {
+        "returncode": 0,
+        "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t52%; charging; 1:44 remaining present: true\n",
+        "stderr": ""
+      },
+      "thermal": {
+        "returncode": 0,
+        "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "stderr": ""
+      },
+      "swap": {
+        "returncode": 0,
+        "stdout": "vm.swapusage: total = 7168.00M  used = 6026.31M  free = 1141.69M  (encrypted)\n",
+        "stderr": ""
+      }
+    }
+  ]
+}

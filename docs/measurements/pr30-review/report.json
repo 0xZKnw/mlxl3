@@ -1,0 +1,70 @@
+{
+  "review_status": "complete",
+  "date": "2026-10-08",
+  "pr": "https://github.com/0xZKnw/mlxl3/pull/30",
+  "head": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+  "base": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "merge_base": "d20ca721d808759f07ecf8976274d878e64a1ed3",
+  "scope": "Move Tune MTP to conversation header. No RAM change in diff. Single-user desktop app.",
+  "findings": [
+    {
+      "priority": 2,
+      "path": "apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift",
+      "start": 310,
+      "end": 312,
+      "title": "Surface tuning errors when launched with inspector closed",
+      "scenario": "Ready compatible model and prepared head; inspector closed by default; new header calls tuneMTP; engine sends error or unreadable reply.",
+      "observed": "mtpError is set; engine remains ready; inspector stays closed; button returns to idle label and generic tooltip. The only UI reading mtpError is GenerationInspector, so the failure is invisible. Successful result rows also remain hidden.",
+      "smallest_fix": "Open the inspector when starting from the header, or display terminal tuning feedback next to this button. Add a regression for the new entry path.",
+      "evidence": [
+        "header-counterexamples.json",
+        "header-run.log",
+        "mtp-error-closed.png"
+      ],
+      "verification_limit": "Calls the exact production StudioModel entry used by the button and renders actual StudioView. No automated physical click on SwiftUI button."
+    }
+  ],
+  "integration": {
+    "merge_conflicts": [
+      "opti.md"
+    ],
+    "workflow_runs_for_head": 0,
+    "check_runs_for_head": 0
+  },
+  "checks": {
+    "python_passed": 296,
+    "python_skipped": 4,
+    "header_fixture_scenarios": 4,
+    "source_files_match_head": true,
+    "submitted_log_checksums_match": true,
+    "full_e2e": {
+      "command": "scripts/check-e2e.sh",
+      "status": "passed",
+      "exit_code": 0,
+      "elapsed_seconds": 316.58,
+      "timeout_seconds": 900,
+      "env": {
+        "SDKROOT": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+        "MLXL3_MACOS_SDK": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+        "MLXL3_SKIP_METAL_CHECK": "1",
+        "PYTHONPATH": "/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/src",
+        "MLXL3_TEST_PYTHON": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python"
+      }
+    },
+    "swift_tuning_rate_grids": 64,
+    "strict_swift_compile": "passed",
+    "warnings": "Existing SwiftMath deprecations/linker paths and non-fatal CoreGraphics PDF fixture diagnostic"
+  },
+  "unverified": [
+    "physical model inference/performance",
+    "interactive UI click",
+    "SwiftUI formal proof"
+  ],
+  "mutations": "No production source, commit, push, merge, release or installed app change; only local review evidence and opti journal.",
+  "verdict": "fix finding 1 before merge; resolve opti.md conflict and obtain exact-head CI",
+  "failures": [
+    "Confirmed hidden error/result feedback in new header entry",
+    "Initial review harness setup assumed wrong SwiftPM build path; corrected before compile"
+  ],
+  "active_trial_or_process": "none"
+}

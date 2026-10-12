@@ -1,0 +1,62 @@
+{
+  "command": [
+    "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/benchmarks/benchmark_idle_memory.py",
+    "--baseline",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/build/memory-saver/baseline-rs",
+    "--candidate",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/build/memory-saver/candidate-rs",
+    "--model",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.6-35B-A3B-exl3-2.49bpw-1bde3c20",
+    "--head",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.6-35B-A3B-MTP-4bit",
+    "--output",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/memory-saver/moe-ba.json",
+    "--order",
+    "BA",
+    "--candidate-memory-saver",
+    "--short-only"
+  ],
+  "cwd": "/Users/henko/Documents/Code/mlxl3-post-smallm",
+  "before": {
+    "battery": {
+      "exit_code": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t68%; discharging; 8:09 remaining present: true\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit_code": 0,
+      "stdout": "vm.swapusage: total = 2048.00M  used = 1602.06M  free = 445.94M  (encrypted)\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit_code": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    }
+  },
+  "timeout_seconds": 930,
+  "status": "complete",
+  "start_unix": 1791489096.838675,
+  "driver_sha256": "46250f3c74709d3de48a5c3b1c414917204f2475e77b436a5e42ce24b8014141",
+  "exit_code": 0,
+  "after": {
+    "battery": {
+      "exit_code": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t68%; discharging; 8:09 remaining present: true\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit_code": 0,
+      "stdout": "vm.swapusage: total = 2048.00M  used = 1602.06M  free = 445.94M  (encrypted)\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit_code": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    }
+  },
+  "end_unix": 1791489143.070291,
+  "child_reaped": true
+}

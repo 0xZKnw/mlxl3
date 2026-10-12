@@ -1,14 +1,20 @@
-# MLXL3
+# MLXL3 — EXL3 inference on macOS
 
-**Native EXL3 inference for Apple Silicon, built with Rust, MLX and custom Metal kernels.**
+**An open-source EXL3 inference engine for macOS and Apple Silicon, built with Rust, MLX and custom Metal kernels.**
 
-[Download MLXL3 Desktop v1.1.3](https://github.com/0xZKnw/mlxl3/releases/latest)
+[MLXL3 website](https://mlxl3.0xzknw.tech/)
+· [Download MLXL3 Desktop](https://github.com/0xZKnw/mlxl3/releases/latest)
 · [Validation scope](docs/v1-validation.md)
 · [Optimization journal](opti.md)
 · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-MLXL3 runs supported EXL3 language models locally on Apple Silicon. The project
-ships three pieces that share the same native engine:
+MLXL3 runs supported EXL3 language models locally on an Apple Silicon Mac.
+To run an EXL3 model on macOS, install MLXL3 Desktop, download or import a
+compatible checkpoint, then load it and start a conversation. The desktop
+distribution includes its native runtime; no Python or Homebrew installation
+is required. Model weights are downloaded separately.
+
+The project ships three pieces that share the same native engine:
 
 - **MLXL3 Desktop**, a SwiftUI chat application with model management, Markdown,
   saved conversations, MCP tools and live performance metrics;
@@ -24,15 +30,114 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
-## v1.2.0
+## DFlash2 in v1.4.3
+
+In **Generation → DFlash2**, one switch downloads, verifies and loads the
+matching Q4 draft for **Qwen3.6-35B-A3B** (~457 MiB) or **Qwen3.8-27B**
+(~1.18 GiB). Greedy settings apply automatically. The selection persists across
+relaunches; model changes select the matching draft, and OFF releases it.
+Desktop 1.4.3 provides this setup and tuning flow.
+
+**Tune DFlash2** compares ordinary decoding, Auto (2/5 proposals), fixed 2 and
+fixed 7. It checks target-token parity, uses local code and French prompts in reversed
+measurement order, and saves the result per target, draft, runtime, context
+and Mac. Ordinary decoding wins when no eligible mode exceeds it by 3%.
+An interrupted or invalid test preserves the previous setting. MTP and DFlash2
+use the same tuning controls and cannot be enabled together.
+
+The native downloader pins each draft revision and verifies every file's size
+and SHA-256. It excludes Splash's target weights. To prepare the matching draft
+from the CLI:
+
+```sh
+target/release/mlxl3-rs dflash-draft --target /path/to/EXL3-target
+```
+
+[Validation, measurements and checkpoint research](docs/dflash2-stable-validation.md).
+
+The engine also provides an optional context-copy path for **35B Auto**:
+set `MLXL3_DFLASH_CONTEXT_COPY=1` in the engine's environment. It proposes
+matching text from the recent context and still verifies every token with the
+target. Chat and Tune share this policy, with separate tuning profiles for ON
+and OFF. It remains **OFF by default**: the copy-code benchmark showed a positive
+signal, but its confirmation failed the control-drift limit. Fixed modes and
+27B keep their existing path. [Upstream research, tests and measurement limits](docs/dflash2-web-optimisations-2026-10-08.md).
+
+The engine also avoids key copies on Metal kernel-cache hits. See the
+[exact 35B optimization results and verification limits](docs/dflash2-exact-optimisations-2026-10-08.md)
+for the CPU microtest, unchanged output checks and rejected GPU prototypes.
+
+## Desktop and engine v1.4.3
+
+Desktop **1.4.3, build 25** bundles engine **1.4.3**. It includes the DFlash2
+setup and Tune above, optional memory saving, a context recommendation to apply
+manually, bounded prefill checkpoints and conditional lossless cache compaction.
+Tune keeps the conversation visible and shows progress, cancellation and results
+in the toolbar. Adaptive MTP, packed embeddings and additional dense execution
+paths remain optional and off by default. No new global speedup is claimed.
+
+[Desktop changelog](docs/release-v1.4.3.md) ·
+[Engine changelog](docs/release-engine-v1.4.3.md).
+
+## Desktop and engine v1.4.2
+
+Desktop **1.4.2, build 24** includes engine **1.4.2**, fixes Send/Tune becoming
+disabled during background update checks/downloads, and adds automatic model
+unloading after inactivity. The default is 15 minutes; choose **Never** or a
+different delay in Settings. Generation, tools and MTP preparation/tuning suspend
+the deadline. MTP preparation also recovers from malformed replies and an
+unacknowledged OFF request instead of leaving the composer blocked. Installing
+an update still blocks inference; these UI changes require the Desktop update.
+
+[Desktop changelog](docs/release-v1.4.2.md) ·
+[Engine changelog](docs/release-engine-v1.4.2.md).
+
+An explicitly prepared **compact Q4 MTP draft projection** can accelerate
+Qwen3.6-35B-A3B EXL3 without changing its target vocabulary or greedy results.
+On M5, MTP2 decode improved **8.2% on the code prompt** and **11.6–15.3% in
+the tuner** against engine1.4.1. The extra projection and ID map use **87.77 MiB**;
+the full Q4 prototype used 272.81 MiB and regressed on code, so it is not a
+general speed recommendation. These measurements use fixed token budgets,
+not complete-task accuracy evaluations, and do not establish gains for other models.
+
+MTP target-layer graphs are also submitted progressively on the measured
+Qwen3.6-35B-A3B geometry on **Apple M5**. With the stock head, MTP2 code
+decode improved **7.16–7.80%** versus the same 1.4.2 binary with submission
+disabled; complete time fell **6.27–6.80%**, confirmed in opposite pass orders.
+This result is separate from the compact-head gain above. The default applies
+to MTP only; `MLXL3_QWEN_PIPELINE=0` disables it. Value `1` experimentally
+extends submission to all Qwen trunk paths. Other geometries and devices keep
+the previous default. See [protocols and limits](docs/engine-v1.4.2-pipeline.md).
+
+A separate prompt-lookup experiment can draft continuations of repeated code
+with `MLXL3_MTP_LOOKUP=1`. It is **off by default**: the initial copy speed
+signal was not reproduced within the control-drift limits. The full target
+verifies its proposals and the runtime repairs exact caches before continuing.
+It falls back to the neural draft after a full rejection. See the
+[Sushi/TensorFold review](docs/measurements/engine-v1.4.2/sushi-tensorfold-deepening.json)
+for examined mechanisms and numerical compatibility limits.
+
+Protocols, rejected experiments, tests and limits are in the
+[optimization journal](opti.md) and [validation evidence](docs/measurements/engine-v1.4.2/validation.json).
+
+## v1.4.0
+
+MTP automatically selects and downloads the pinned head for **Qwen3.8-27B**
+or **Qwen3.6-35B-A3B**. Switching models unloads the previous head; the global
+ON/OFF preference remains in force even with saved Tune MTP results. Desktop
+build23 includes engine1.4.0; the independent engine update requires Desktop
+1.4.0. [Release notes](docs/release-v1.4.0.md) and
+[validation/measurements](docs/mtp-dense-1.4.0-validation.md).
+
+## MTP and independent updates
 
 Desktop now uses native **MTP** for Qwen3.5/3.6 checkpoints with a matching
 MLX affine 4-bit/group64 head. The Qwen3.6-35B-A3B head downloads on demand,
 from a pinned revision with full SHA-256 verification. Version 1 uses one
 proposal per verification block in greedy mode (temperature 0 / top-k 1,
 repetition penalty 1); other settings use ordinary decoding. Proposed tokens
-are delivered only after target verification. DFlash is retained as a CLI
-experiment and is disabled in Desktop on relaunch.
+are delivered only after target verification. This describes v1.2.0; the next
+build also offers the DFlash2 path described above.
 
 The app and engine have independent GitHub release channels: `vX.Y.Z` for
 DMGs and `engine-vX.Y.Z` for `MLXL3-Engine-vX.Y.Z-arm64.tar.gz`. Engine updates
@@ -87,7 +192,7 @@ costs about **1 ms**, down from 127–132 ms for restore-and-recompute. The targ
 sequence and all **80 recurrent/KV state arrays** were compared with ordinary
 greedy execution for retained widths 1 through 8. Desktop v1.1.0–v1.1.3 exposed
 this path for Qwen3.6-35B-A3B; v1.2.0 replaces it with MTP. The historical
-DFlash CLI experiment requires separate draft weights; the benchmark rate is not a guarantee
+DFlash campaign required separate draft weights; the benchmark rate is not a guarantee
 of in-app speed or of performance on another Mac.
 
 Peak MLX allocation is not the model file size, process RSS or total macOS
@@ -109,19 +214,43 @@ an older document disagree.
    folder. Select the desired branch, tag or quantization before downloading.
 5. Load the model and start a conversation.
 
-### Optional native MTP for Qwen3.5/3.6
+### Optional native MTP for Qwen3.5/3.6/3.8
 
-In **Generation → MTP**, enable the switch. For Qwen3.6-35B-A3B, MLXL3
-downloads and verifies the matching affine 4-bit head (~453 MiB). Downloads
-resume after cancellation. Other Qwen3.5-family models require a matching
+In **Generation → MTP**, enable the switch. For Qwen3.8-27B (~228 MiB) or
+Qwen3.6-35B-A3B (~453 MiB), MLXL3 downloads and verifies the matching affine
+4-bit head. Switching models cancels obsolete preparation and loads the
+matching head before chat becomes available; OFF releases head and caches.
+Downloads resume after cancellation. Other Qwen3.5-family models require a matching
 MLX 4-bit/group64 head selected through the folder button; mismatched layouts
 are rejected. The DMG contains neither target nor MTP weights.
 
 MTP applies greedy settings and checks every proposal against the target.
 The first request can take longer while Metal compiles kernels. A prefix
 checkpoint retains both target state and MTP KV when the conversation's
-encoded prefix and chunk boundary match. DFlash remains available to CLI
-experiments; its former Desktop toggle has been replaced.
+encoded prefix and chunk boundary match. DFlash2 has its own switch and
+matching draft in the next build.
+
+#### Experimental compact draft preparation
+
+Preparation uses the development Python/MLX environment and supports unbiased
+Default/MCG EXL3 heads. The native runtime reads the resulting files directly.
+Automatic head downloads keep the stock projection. For the tested Qwen3.6
+tokenizer, save the pinned [TensorFold draft ID list](https://github.com/ashhart/TensorFold/blob/cb2ebf0540f42604e2759b2ddef497861e928248/src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt)
+as `draft-vocab.txt`, then use new disposable output folders:
+
+```sh
+python scripts/experimental-draft-head.py /path/to/EXL3-target /tmp/mtp-full
+ln -s /absolute/path/to/MTP-head/config.json /tmp/mtp-full/config.json
+ln -s /absolute/path/to/MTP-head/model.safetensors /tmp/mtp-full/model.safetensors
+python scripts/experimental-draft-head.py /tmp/mtp-full /tmp/mtp-compact --draft-vocab /path/to/draft-vocab.txt
+```
+
+Select `/tmp/mtp-compact` with the MTP folder button and run **Tune MTP**.
+The ID map is sorted, validated and padded to whole 64-row tiles; only draft
+scores are pruned. Every proposed token is still verified by the full target.
+`conversion.json` reports conversion, not validated parity or speed. The full
+Q4 projection is an intermediate; original checkpoints are read only, and
+existing output files or symlinks are refused.
 
 No Python, Homebrew, Hugging Face CLI or separate MLX installation is required
 for the DMG. Managed weights are stored under:
@@ -376,7 +505,19 @@ differential tests against reference operations and imposed-token model runs.
 Passing either class of check is not a proof that the entire application has no
 bugs.
 
-To reproduce the current Qwen DFlash2 end-to-end campaign, place the target and
+To check the production DFlash2 bridge on either supported target, run:
+
+```sh
+python scripts/check_dflash2.py target/release/mlxl3-rs /path/to/EXL3-target \
+  /path/to/DFlash2-draft --output /tmp/dflash2-check.json
+```
+
+It checks all policies, budgets, cancellation/recovery, prompt reuse, ON/OFF
+and Tune with a bounded wait and an isolated registry. The report certifies
+parity only after every check completes. GPU speed comparisons run separately
+through `benchmarks/compare_native.py --dflash-mode 1 --dflash-draft ...`.
+
+To reproduce the historical Qwen3.6 DFlash2 campaign, place the target and
 draft package at the paths named by the ignored test, then run:
 
 ```bash
@@ -421,8 +562,11 @@ Local model weights, build products and benchmark artifacts are not committed.
 
 - Apple Silicon/macOS only for native inference and Desktop.
 - No multimodal Gemma input.
-- DFlash2 is opt-in, greedy-only and validated for Qwen3.6-35B-A3B on M5;
+- DFlash2 is opt-in and greedy-only for Qwen3.6-35B-A3B and Qwen3.8-27B;
   the separate draft weights are not bundled.
+- Apple GPU validation reports an inherited alignment violation in the 35B
+  DFlash2 Q4/MPP path; it remains open despite passing normal numerical checks.
+  [Reproducer and scope](docs/dflash2-exact-optimisations-2026-10-08.md).
 - Performance on M1–M4 is not inferred from M5 measurements.
 - The release is not notarized.
 - MCP processes are trusted external tools, not a sandbox.

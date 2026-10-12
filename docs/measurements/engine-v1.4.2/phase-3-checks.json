@@ -1,0 +1,101 @@
+[
+  {
+    "command": [
+      "/usr/bin/clang++",
+      "-std=c++20",
+      "-fsyntax-only",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-isystem",
+      "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include",
+      "native/ffi/mlx_bridge.cpp"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 0.6688830829807557,
+    "log": "phase-3-cpp-lint.log"
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 0.3413422919693403,
+    "log": "phase-3-fmt.log"
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 3.2282484580064192,
+    "log": "phase-3-clippy-mlx.log"
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 1.4795835409895517,
+    "log": "phase-3-rust-mlx.log"
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 0.7197019169689156,
+    "log": "phase-3-clippy-cpu.log"
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 2.733167207974475,
+    "log": "phase-3-rust-cpu.log"
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 0.07644325000001118,
+    "log": "phase-3-build-mlx.log"
+  }
+]

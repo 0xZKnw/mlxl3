@@ -1,0 +1,16 @@
+{
+  "status": "first_attempt_interrupted_then_cfg_kani_split",
+  "time_unix": 1791489435.44181,
+  "old_harness": "dflash_copy_records_committed_prefix_and_disables_on_refusal",
+  "reason": "Combined disabled proposal call symbolically explores irrelevant matcher; split contracts, preserve all domains and properties, no stubs/assumptions",
+  "production_unchanged": true,
+  "process_to_interrupt": 80644,
+  "termination": "SIGTERM did not complete within 10s; SIGKILL sent to owned CBMC child80644",
+  "termination_unix": 1791489454.7210538,
+  "old_attempt_seconds": 478.6046147919842,
+  "old_attempt_result": "indeterminate, process interrupted (CBMC status15), no functional counterexample/no proof",
+  "new_harnesses": [
+    "dflash_copy_records_committed_prefix_and_disables_on_refusal",
+    "dflash_disabled_copy_never_proposes"
+  ]
+}

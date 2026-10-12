@@ -1,0 +1,44 @@
+{
+  "id": "DFLASH2-2026-10-08-GATE-UP-BLOCK256",
+  "status": "completed_rejected",
+  "reason": "Full-K alignment passed correctness but regressed6.9% at low drift. Change physical packed block width2048 to256 for aligned128-byte rows, preserving Q4 values/order and reuse4 groups per row.",
+  "geometry": "test-only merged M8/H2048/N12288, no27B",
+  "packing": "[N/256,K/256,4,256,32] transpose[0,1,3,2,4] flat",
+  "normal_quality": "same six layers/3inputs, compare old canonical Q4 projections+SwiGLU bitexact, verify inverse-repack bytes exact/nonempty/finite; bad view mutation remains",
+  "instrumented_quality": "new aligned kernel only in a separate test with Apple API/Shader Validation; normal comparison separately exercises baseline (known to abort if instrumented). No disabling of tensor validation.",
+  "micro": {
+    "orders": [
+      "ABBA",
+      "BAAB"
+    ],
+    "warmup_traversals_per_variant": 200,
+    "samples": 7,
+    "traversals_per_sample": 1000,
+    "layers_per_traversal": 6,
+    "minimum_gain_percent": 3,
+    "maximum_same_variant_drift_percent": 1
+  },
+  "conditional_timing": "only after both quality passes; same single ABBA/BAAB campaign, 240s deadline, no retries for noise",
+  "production_enabled": false,
+  "sources_before": {
+    "native/src/dflash.rs": "3c8c0d3ad38b618c224b1df1636187700e5d59e595114d60c07b95e849012b35",
+    "native/shaders/dflash_q4_mpp.h": "969aab189ab078272c946aeaa0acee96f705a5f2f12d9a4e68d626f63c782752",
+    "native/shaders/dflash_q4_gate_up.metal": "cdeeed3a41ddd7993f0ca7526eb44385595612a3ce4cbc5b4edf1e7530ac6fd4"
+  },
+  "source_fixture": "build/dflash2-web-03/gate-up-aligned/candidate",
+  "restored_baseline": {
+    "status": "sources_restored_byteexact",
+    "sources": {
+      "native/src/dflash.rs": "6efc6688bb64e44a29cd0a0ae2742d63b54cef81a2f969444e25ba825af1dec8",
+      "native/shaders/dflash_q4_mpp.h": "7983faeeca8f66daf3f3a0e8edbe7e93a40dc4df9c2fb05f88fbe739a757da52"
+    },
+    "production_bundle": "ad0bef remains unchanged; cargo rebuild pending final trial decision",
+    "archived_candidates": [
+      "gate-up",
+      "gate-up-sums",
+      "gate-up-aligned"
+    ]
+  },
+  "preregistered_or_initial_status": "preregistered",
+  "final_result": "gate-up-block256-decision.json"
+}

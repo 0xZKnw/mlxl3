@@ -1,0 +1,194 @@
+{
+  "status": "complete",
+  "command": [
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+    "--ignored",
+    "--exact",
+    "dflash::tests::benchmarks_q4_gate_up_row_merge",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "source_sha256": "26ee5ee14d72810f23a9527b75cb5852887b5a1f581e0b8f8a93535e911946ec",
+  "binary_sha256": "351866b375767642f876354c3a05f2770964a03ce5cf75a7554064f7fe435022",
+  "model_identity": "gate-up-identity.json",
+  "parity_quality": "gate-up-quality.json",
+  "conflicts_before": [],
+  "rows": [
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170098688, mlx_cache_bytes: 655360, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218317640), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "ABBA",
+      "pass": 0,
+      "seconds_per_six_pairs": [
+        0.0025500710829999998,
+        0.0025424409169999998,
+        0.002551284666,
+        0.002552565334,
+        0.002542972125,
+        0.002545016125,
+        0.002546929375
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "A"
+    },
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170196992, mlx_cache_bytes: 557056, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218317640), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "ABBA",
+      "pass": 1,
+      "seconds_per_six_pairs": [
+        0.002528442333,
+        0.002524590125,
+        0.002523501708,
+        0.002520647584,
+        0.00252609675,
+        0.002524903417,
+        0.0025237284579999997
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "B"
+    },
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170196992, mlx_cache_bytes: 557056, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218284872), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "ABBA",
+      "pass": 2,
+      "seconds_per_six_pairs": [
+        0.002522842791,
+        0.00252355725,
+        0.002521521666,
+        0.002519858042,
+        0.0025240972080000004,
+        0.0025700563330000002,
+        0.002538284541
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "B"
+    },
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170098688, mlx_cache_bytes: 655360, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218284872), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "ABBA",
+      "pass": 3,
+      "seconds_per_six_pairs": [
+        0.0025505535,
+        0.002538517208,
+        0.002543165709,
+        0.0025455105840000002,
+        0.002840160166,
+        0.0025435204169999997,
+        0.002548695375
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "A"
+    },
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170196992, mlx_cache_bytes: 557056, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218317640), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "BAAB",
+      "pass": 0,
+      "seconds_per_six_pairs": [
+        0.002522569083,
+        0.002521185375,
+        0.002523525917,
+        0.0025241142079999996,
+        0.002522274666,
+        0.0025493095,
+        0.0028384734160000003
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "B"
+    },
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170098688, mlx_cache_bytes: 655360, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218317640), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "BAAB",
+      "pass": 1,
+      "seconds_per_six_pairs": [
+        0.002546537291,
+        0.002543457958,
+        0.0025455702909999997,
+        0.002557186166,
+        0.002546865375,
+        0.002547784542,
+        0.0025640813329999997
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "A"
+    },
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170098688, mlx_cache_bytes: 655360, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218317640), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "BAAB",
+      "pass": 2,
+      "seconds_per_six_pairs": [
+        0.002548662167,
+        0.002545061209,
+        0.002546139,
+        0.002545528583,
+        0.0025452787500000002,
+        0.002551296833,
+        0.002544885708
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "A"
+    },
+    {
+      "layers": 6,
+      "memory": "MemoryStats { mlx_active_bytes: 170196992, mlx_cache_bytes: 557056, mlx_peak_bytes: 170491904, process_footprint_bytes: Some(218317640), process_lifetime_peak_bytes: Some(218366792) }",
+      "order": "BAAB",
+      "pass": 3,
+      "seconds_per_six_pairs": [
+        0.0025261803330000002,
+        0.00252264975,
+        0.002522176125,
+        0.002521917833,
+        0.0025323400839999998,
+        0.0025374447500000003,
+        0.002522556375
+      ],
+      "traversals_per_sample": 1000,
+      "variant": "B"
+    }
+  ],
+  "exit": 0,
+  "timeout": false,
+  "seconds": 143.97260954200001,
+  "decisions": [
+    {
+      "order": "ABBA",
+      "medians_seconds_per_six_pairs": {
+        "A": 0.0025462199795,
+        "B": 0.0025240736875
+      },
+      "drift_percent": {
+        "A": -0.05570594198356371,
+        "B": -0.04091258179979018
+      },
+      "gain_percent": 0.8774027521333938,
+      "within_drift_limit": true,
+      "gain_at_least_3_percent": false
+    },
+    {
+      "order": "BAAB",
+      "medians_seconds_per_six_pairs": {
+        "A": 0.0025461969789999997,
+        "B": 0.0025230878335
+      },
+      "drift_percent": {
+        "A": -0.05248773700887721,
+        "B": -0.03471995251157489
+      },
+      "gain_percent": 0.9159072939582513,
+      "within_drift_limit": true,
+      "gain_at_least_3_percent": false
+    }
+  ],
+  "qualified_micro": false,
+  "general_generation_gain": false,
+  "conditions_after": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t60%; discharging; 3:58 remaining present: true\n",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+  },
+  "decision": "rejected: stable micro gain below fixed 3% threshold; no generation experiment; prototype archived and superseded only in tests by a separately preregistered shared-sum mechanism"
+}

@@ -1,0 +1,6 @@
+Initial focused command did not use SwiftPM --show-bin-path and stopped before compilation:
+zsh:7: no matches found: apps/MLXL3Studio/.build/arm64-apple-macosx/debug/SwiftMath.build/*.swift.o
+Second command added the SwiftMath.o fallback but kept the same incorrect binary directory; it also stopped before compilation:
+zsh:10: no matches found: apps/MLXL3Studio/.build/arm64-apple-macosx/debug/SwiftMath.build/*.swift.o
+SwiftPM --show-bin-path reports apps/MLXL3Studio/.build/out/Products/Debug on this toolchain.
+Corrected focused commands and the existing check-desktop.sh discover that path directly. These command setup failures are not test failures or valid checks.

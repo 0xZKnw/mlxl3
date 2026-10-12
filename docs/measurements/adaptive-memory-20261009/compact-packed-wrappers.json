@@ -1,0 +1,12 @@
+{
+  "control-bridge": {
+    "path": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/adaptive-memory/control-bridge",
+    "content": "#!/bin/sh\nexport MLXL3_EMBEDDINGS_PACKED=0\nexport MLXL3_CACHE_COMPACTION=0\nexport MLXL3_PROMPT_CACHE_MIB=1024\nexport MLXL3_ALLOCATOR_CACHE_MIB=0\nunset MLXL3_MTP_ADAPTIVE\nexec /Users/henko/Documents/Code/mlxl3-post-smallm/target/release/mlxl3-rs \"$@\"\n",
+    "sha256": "84634b0ae9ab3d667f27c2a03ac3445631f72a7b5de14848cb67fa80e18b26f0"
+  },
+  "compact-packed-bridge": {
+    "path": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/adaptive-memory/compact-packed-bridge",
+    "content": "#!/bin/sh\nexport MLXL3_EMBEDDINGS_PACKED=1\nexport MLXL3_CACHE_COMPACTION=1\nexport MLXL3_PROMPT_CACHE_MIB=1024\nexport MLXL3_ALLOCATOR_CACHE_MIB=0\nunset MLXL3_MTP_ADAPTIVE\nexec /Users/henko/Documents/Code/mlxl3-post-smallm/target/release/mlxl3-rs \"$@\"\n",
+    "sha256": "f0f23613c32f4bbac3c899efd026491ac2568594ebe4e52889172c71ee64503b"
+  }
+}

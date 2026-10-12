@@ -101,7 +101,7 @@ enum MCPPreferenceCheck {
         try check(!instance().dflash2Enabled, "DFlash2 with no draft must not survive relaunch")
         preferences.set("/local/draft", forKey: "studio.dflashDraftPath")
         first.enableDFlashGreedy()
-        try check(!instance().dflash2Enabled, "Legacy DFlash2 must remain disabled on relaunch in v1.2")
+        try check(instance().dflash2Enabled, "Configured DFlash2 must survive relaunch")
         first.setDFlash2Enabled(false)
         try check(!instance().dflash2Enabled, "DFlash2 disabled state was not persisted")
         preferences.set(true, forKey: "studio.mtpEnabled")

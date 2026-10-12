@@ -1,0 +1,35 @@
+[
+  {
+    "command": [
+      "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/proof-env/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "--select",
+      "F,E9",
+      "tests/fake-desktop-engine.py"
+    ],
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/proof-env/bin/python: No module named ruff\n"
+  },
+  {
+    "command": [
+      "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/proof-env/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "tests/fake-desktop-engine.py",
+      "--analysis_kind",
+      "asserts",
+      "--per_condition_timeout",
+      "5",
+      "--per_path_timeout",
+      "1",
+      "--report_all"
+    ],
+    "returncode": 0,
+    "stdout": "{\"type\": \"ready\", \"model\": \"tests/fake-desktop-engine.py\", \"modules\": 1, \"resident_gb\": 0.01, \"context_limit\": 2048, \"model_context_limit\": 2048, \"dflash_supported\": false, \"mtp_supported\": false, \"mtp_auto_download_supported\": false, \"mtp_max_depth\": 3, \"mtp_tune_supported\": false, \"mtp_tuning_key\": \"fixture-runtime:tests/fake-desktop-engine.py\", \"bridge_protocol\": 1, \"runtime_commit\": \"fixture\", \"runtime_profile\": \"release\", \"mlx_version\": \"0.32.2\"}\n",
+    "stderr": "WARNING: Targets found, but contain no checkable functions.\nHINT: Ensure that your functions to analyze lead with assert statements.\n"
+  }
+]

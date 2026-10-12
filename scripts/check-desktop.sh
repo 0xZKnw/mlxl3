@@ -21,6 +21,10 @@ binary_dir="$(swift build "${swift_args[@]}" --show-bin-path)"
 sources=(apps/MLXL3Studio/Sources/MLXL3Studio/*.swift)
 sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
 swiftc_args+=(-I "${binary_dir}")
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    apps/MLXL3Studio/Sources/MLXL3Studio/ContextMemoryProfile.swift \
+    tests/context-memory-check.swift -o "${test_dir}/context-memory-check"
+"${test_dir}/context-memory-check"
 [[ -d "${binary_dir}/Modules" ]] && swiftc_args+=(-I "${binary_dir}/Modules")
 if [[ -f "${binary_dir}/SwiftMath.o" ]]; then
     math_objects=("${binary_dir}/SwiftMath.o")
@@ -28,16 +32,30 @@ else
     math_objects=("${binary_dir}/SwiftMath.build"/*.swift.o)
 fi
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/studio-hardening-check.swift > "${test_dir}/StudioHardeningCombined.swift"
+hardening_sources=("${(@)sources:#*/UpdateManager.swift}")
 swiftc "${swiftc_args[@]}" \
-    "${sources[@]}" "${math_objects[@]}" \
-    tests/studio-hardening-check.swift -o "${test_dir}/check"
+    "${hardening_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/StudioHardeningCombined.swift" -o "${test_dir}/check"
 "${test_dir}/check" "$PWD/tests/fake-desktop-engine.py"
+
+# Check the production idle deadline and lifecycle without waiting minutes or
+# loading a model. File concatenation gives the fixture private event access.
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/model-idle-unload-check.swift > "${test_dir}/ModelIdleUnloadCombined.swift"
+idle_sources=("${sources[@]}")
+idle_sources=("${(@)idle_sources:#*/StudioModel.swift}")
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
+"${test_dir}/idle-unload-check" "$PWD/tests/fake-desktop-engine.py"
 
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/updater-check.swift -o "${test_dir}/updater-check"
-"${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"}
+"${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"} ${MLXL3_TEST_ENGINE_VERSION:+"${MLXL3_TEST_ENGINE_VERSION}"}
 
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \

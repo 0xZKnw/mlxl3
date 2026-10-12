@@ -101,6 +101,10 @@ pub(crate) struct Projection {
 }
 
 impl Projection {
+    pub(crate) fn is_exl3(&self) -> bool {
+        matches!(self.weights, ProjectionWeights::Exl3(_))
+    }
+
     pub(crate) fn load(
         checkpoint: &Checkpoint,
         prefix: &str,

@@ -15,6 +15,20 @@ engine = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(engine)
 
 
+@pytest.mark.parametrize(
+    "version,minimum",
+    [
+        ("1.2.0", "1.2.0"),
+        ("1.3.9", "1.2.0"),
+        ("1.4.0", "1.4.0"),
+        ("1.4.10", "1.4.0"),
+        ("2.0.0", "1.4.0"),
+    ],
+)
+def test_mtp_target_selection_requires_compatible_desktop(runtime, version, minimum):
+    assert engine.manifest(runtime, version)["minimum_app_version"] == minimum
+
+
 @pytest.fixture
 def runtime(tmp_path):
     folder = tmp_path / "runtime"
@@ -31,8 +45,11 @@ def test_archive_reproducible_and_hashes_match(runtime, tmp_path):
     with tarfile.open(first) as archive:
         assert set(archive.getnames()) == {"engine.json", *engine.FILES}
         manifest = json.load(archive.extractfile("engine.json"))
+        assert archive.getmember("engine.json").size <= 64 * 1024
         assert manifest["bridge_protocol"] == 1
         assert manifest["architecture"] == "arm64"
+        assert "Powered by MTPLX" in manifest["notices"]["MTPLX"]
+        assert "Apache License" in manifest["notices"]["Apache-2.0"]
         for name in engine.FILES:
             member = archive.getmember(name)
             assert member.isfile() and member.mtime == 0 and member.uid == member.gid == 0

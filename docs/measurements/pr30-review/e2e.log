@@ -1,0 +1,113 @@
+..............................................................s.ss...... [ 24%]
+........................................................................ [ 48%]
+........................................................................ [ 72%]
+........................................................................ [ 96%]
+...........                                                              [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+296 passed, 4 skipped in 55.32s
+Building for debugging...
+[Planning deferred tasks]
+[23 / 38]
+[24 / 39] SwiftMath
+[36 / 150]
+[46 / 150]
+[49 / 150]
+[55 / 150]
+[58 / 150]
+[65 / 150]
+[70 / 150]
+[71 / 150]
+[81 / 150]
+[84 / 150]
+[86 / 150]
+[87 / 150]
+[94 / 150]
+[95 / 150]
+[101 / 150]
+[102 / 150]
+[104 / 150]
+[105 / 150]
+[107 / 150]
+[115 / 150]
+[119 / 150]
+[122 / 150]
+[123 / 150]
+[124 / 150]
+[135 / 150] SwiftMath
+[136 / 150] SwiftMath
+[144 / 151] SwiftMath
+[144 / 151] MLXL3Studio-product
+/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[154 / 269]
+/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[160 / 269]
+[169 / 269]
+[171 / 269]
+[178 / 269]
+[182 / 269]
+[187 / 269]
+[192 / 269]
+[193 / 269]
+[204 / 269]
+[207 / 269]
+[209 / 269]
+[212 / 269]
+[219 / 269]
+[221 / 269]
+[227 / 269]
+[228 / 269]
+[231 / 269]
+[233 / 269]
+[243 / 269]
+[247 / 269]
+[250 / 269]
+[251 / 269]
+[253 / 269]
+[264 / 269] MLXL3Studio-product
+[265 / 269] MLXL3Studio-product
+/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/pr30-review/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[267 / 269] MLXL3Studio-product
+Build complete! (38,39 secs)
+Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+Model idle unload checks passed: 114 assertions, real deadline, preferences and Studio/bridge lifecycle
+Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+MCP checks passed: default off, persisted on/off, request flag, isolated preview
+Bridge callback with 50 ms occupied IO: legacy 55.150 ms; independent UUID 0.030 ms
+Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+Markdown checks passed: fences, 300k code, long tables
+Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+Response UI checks passed: complete copy, native control/clipboard action, 56 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+CLI transport passed: large output, NDJSON, cancellation, error reporting
+Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport
+MLXL3 full E2E suite passed

@@ -1,0 +1,76 @@
+{
+  "base": "3ed683617e5090a179fb4888c3db03f8cb79b5fd",
+  "source_state": "final retained filtered lookup, async prototype removed; only GPU test budget knob differs from lookup-lines measured source",
+  "source_changes_since_lookup_measurement": [
+    "native/src/main.rs"
+  ],
+  "binary": {
+    "path": "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/lookup-final-candidate/mlxl3-rs",
+    "sha256": "36ab908f3d796fc4968b7ee72b88566c0b64a75df8c9447fab952419a17c090e"
+  },
+  "runtime_info": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "3ed683617e50-dirty",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.4.2"
+  },
+  "sources": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "54e890f20e9f4eb32b40c54af406ae838cc0810aebe597aea32ff8e1f53ac89c"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "7aba7a4ee4f12f8b9e99842f6d04cd00a8c03ae1d0e8935f262a06542091e9dd"
+    },
+    {
+      "path": "native/src/speculative.rs",
+      "sha256": "291a6b915a09b1ab02e3e0d968cb89062bedbcd822c7a8dfe0a50d785a585350"
+    },
+    {
+      "path": "native/src/mtp.rs",
+      "sha256": "ed7d26eb9b19a1399e034fa58588aa87943415a6758afb988c8383f4eac19f6f"
+    },
+    {
+      "path": "native/src/mtp_tune.rs",
+      "sha256": "27bfcabdacc81b07d98d78780bc3cb64c2c0a8311d509b06d7663d7e5b74e763"
+    },
+    {
+      "path": "native/src/main.rs",
+      "sha256": "5a06388d016829b1194db2372efda9fd0d8397c34e8c8594f42b39b2699cfd5e"
+    },
+    {
+      "path": "native/src/qwen35.rs",
+      "sha256": "9454c3992c7640039fe47fd89654055d60ff1f7047d01847fe34a172248139f2"
+    },
+    {
+      "path": "native/src/array.rs",
+      "sha256": "7863b0497acbcb4d07abcf8843c062b1fbf0ddfdc495105ed1d0de0ca5b3c545"
+    },
+    {
+      "path": "native/ffi/mlx_bridge.cpp",
+      "sha256": "6216f5ff7311ae5932b50f9b7711341457a4947b4a3e76e8df55a82a92760b63"
+    },
+    {
+      "path": "benchmarks/compare_native.py",
+      "sha256": "e38eeb9b5ac3f5af340ec6319420700efdf4cac963be3f0afcba9c1cc7750cad"
+    },
+    {
+      "path": "scripts/check-mtp-depths.py",
+      "sha256": "61b8d91bf5bbbf0d169d258e73c840e1678992a4b4dfd425234939e1395be6d6"
+    }
+  ],
+  "gpu_test_binaries": [
+    {
+      "path": "target/release/deps/mlxl3_native-fc9d620cb5f0fce3",
+      "sha256": "d7eb25bc78030e12bc46b1a34e8af0ef3c4333da1776dc55db4038e4ce844662"
+    },
+    {
+      "path": "target/release/deps/mlxl3_rs-008c4a24673ab593",
+      "sha256": "ff3fa60c150fa7461e7fce2418809422f98d52ab3f7271f39706850c9e6c635f"
+    }
+  ]
+}

@@ -1,0 +1,549 @@
+desktop-and-protocol	UNKNOWN STEP	﻿2026-10-05T21:50:29.6301370Z Current runner version: '2.337.0'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6331580Z ##[group]Runner Image Provisioner
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6332320Z Hosted Compute Agent
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6332890Z Version: 20260828.587
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6333570Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6334090Z Build Date: 2026-08-28T16:44:25Z
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6334680Z Worker ID: {a5eef44e-9203-4ec5-aae6-ca4f061f66a7}
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6335370Z Azure Region: westus
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6335770Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6337260Z ##[group]Operating System
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6339560Z macOS
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6340310Z 26.6.2
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6340690Z 25G83
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6341120Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6344120Z ##[group]Runner Image
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6344650Z Image: macos-26-arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6345080Z Version: 20260907.0351.1
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6346240Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20260907.0351/images/macos/macos-26-arm64-Readme.md
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6347450Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20260907.0351
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6348170Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6349020Z ##[group]GITHUB_TOKEN Permissions
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6351270Z Contents: read
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6352020Z Metadata: read
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6352620Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6359250Z Secret source: Actions
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6361300Z Cache mode: write
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6362730Z Prepare workflow directory
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6870280Z Prepare all required actions
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:29.6923860Z Getting action download info
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.1425400Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.4378870Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.6948800Z Complete job name: desktop-and-protocol
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7463110Z ##[group]Run actions/checkout@v4
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7465190Z with:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7466100Z   repository: 0xZKnw/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7470990Z   token: ***
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7471470Z   ssh-strict: true
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7471820Z   ssh-user: git
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7472240Z   persist-credentials: true
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7472640Z   clean: true
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7473050Z   sparse-checkout-cone-mode: true
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7473430Z   fetch-depth: 1
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7473760Z   fetch-tags: false
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7474090Z   show-progress: true
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7474430Z   lfs: false
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7474810Z   submodules: false
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7475160Z   set-safe-directory: true
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7475540Z   allow-unsafe-pr-checkout: false
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7476490Z env:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7476820Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:30.7477170Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3058910Z Syncing repository: 0xZKnw/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3062770Z ##[group]Getting Git version info
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3063530Z Working directory is '/Users/runner/work/mlxl3/mlxl3'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3064560Z [command]/opt/homebrew/bin/git version
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3717350Z git version 2.55.0
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3741870Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3752420Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/195626b6-436a-4af8-b892-2c6be9f63f1f/.gitconfig'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3769280Z Temporarily overriding HOME='/Users/runner/work/_temp/195626b6-436a-4af8-b892-2c6be9f63f1f' before making global git config changes
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3772710Z Adding repository directory to the temporary git global config as a safe directory
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3779190Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3974800Z Deleting the contents of '/Users/runner/work/mlxl3/mlxl3'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3978710Z ##[group]Initializing the repository
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.3984210Z [command]/opt/homebrew/bin/git init /Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4310120Z hint: Using 'master' as the name for the initial branch. This default branch name
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4312880Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4315040Z hint: to use in all of your new repositories, which will suppress this warning,
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4316820Z hint: call:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4318640Z hint:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4319570Z hint: 	git config --global init.defaultBranch <name>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4320190Z hint:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4320770Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4321590Z hint: 'development'. The just-created branch can be renamed via this command:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4322290Z hint:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4322810Z hint: 	git branch -m <name>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4323220Z hint:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4323880Z hint: Disable this message with "git config set advice.defaultBranchName false"
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4324810Z Initialized empty Git repository in /Users/runner/work/mlxl3/mlxl3/.git/
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4328850Z [command]/opt/homebrew/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4434140Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4435830Z ##[group]Disabling automatic garbage collection
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4438890Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4537120Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4537920Z ##[group]Setting up auth
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4544270Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.4689050Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.6333660Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.6453180Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.7726080Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.7801860Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.9334670Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.9477210Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.9480660Z ##[group]Fetching the repository
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:31.9485510Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +8eb3b8ec88e1e62865e3b883b5349c142d062c43:refs/remotes/pull/24/merge
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0419420Z From https://github.com/0xZKnw/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0422340Z  * [new ref]         8eb3b8ec88e1e62865e3b883b5349c142d062c43 -> pull/24/merge
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0426890Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0427970Z ##[group]Determining the checkout info
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0429040Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0429800Z [command]/opt/homebrew/bin/git sparse-checkout disable
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0525370Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0608000Z ##[group]Checking out the ref
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.0610740Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/24/merge
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.2876360Z HEAD is now at 8eb3b8e Merge 3515f5493013c2f84419b3fc06b6601d6bf0f37a into c73c2a8414f68acf2b70b1a7e8ccba4a334e8639
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.2896640Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3032460Z [command]/opt/homebrew/bin/git log -1 --format=%H
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3156220Z 8eb3b8ec88e1e62865e3b883b5349c142d062c43
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3712750Z ##[group]Run actions/setup-python@v5
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3713750Z with:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3715240Z   python-version: 3.12
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3716080Z   cache: pip
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3716760Z   check-latest: false
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3773800Z   token: ***
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3774590Z   update-environment: true
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3775450Z   allow-prereleases: false
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3776220Z   freethreaded: false
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3776930Z env:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3777530Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.3778370Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.5733700Z ##[group]Installed versions
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.5958860Z (node:1168) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.5962790Z (Use `node --trace-deprecation ...` to show where the warning was created)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.5964140Z Successfully set up CPython (3.12.10)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.5970610Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:33.7788290Z [command]/Users/runner/hostedtoolcache/Python/3.12.10/arm64/bin/pip cache dir
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:34.6492470Z /Users/runner/Library/Caches/pip
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:34.9666110Z Cache hit for: setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:34.9806220Z (node:1168) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:36.3031430Z Received 0 of 113932663 (0.0%), 0.0 MBs/sec
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:37.3045410Z Received 54525952 of 113932663 (47.9%), 25.8 MBs/sec
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:38.0512640Z Received 113932663 of 113932663 (100.0%), 39.5 MBs/sec
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:38.0525850Z Cache Size: ~109 MB (113932663 B)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:38.0548380Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/fbdd5594-6f75-44df-b634-7c074a744051/cache.tzst -P -C /Users/runner/work/mlxl3/mlxl3 --delay-directory-restore --use-compress-program unzstd
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:38.9925760Z Cache restored successfully
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:38.9971640Z Cache restored from key: setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0260170Z ##[group]Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0260950Z ^[[36;1mpython -m pip install -e '.[dev]' -c packaging/constraints-macos.txt^[[0m
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0351580Z shell: /bin/bash -e {0}
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0352370Z env:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0353180Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0354060Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0356050Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0357650Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0358320Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0358840Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:39.0359320Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:40.2806870Z Obtaining file:///Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:40.2831460Z   Installing build dependencies: started
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:41.1266310Z   Installing build dependencies: finished with status 'done'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:41.1276950Z   Checking if build backend supports build_editable: started
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:41.4356380Z   Checking if build backend supports build_editable: finished with status 'done'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:41.4370800Z   Getting requirements to build editable: started
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:41.8161840Z   Getting requirements to build editable: finished with status 'done'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:41.8243970Z   Preparing editable metadata (pyproject.toml): started
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.0284420Z   Preparing editable metadata (pyproject.toml): finished with status 'done'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.1052870Z Collecting mlx>=0.32.2 (from mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.1071030Z   Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl.metadata (5.9 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.1105120Z Collecting mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99 (from mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.1106250Z   Using cached mlx_lm-0.32.0-py3-none-any.whl
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.2729950Z Collecting numpy>=2.0 (from mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.2791870Z   Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl.metadata (6.6 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.3862920Z Collecting safetensors>=0.5 (from mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.3882480Z   Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl.metadata (4.2 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.3926870Z Requirement already satisfied: certifi>=2025.1.31 in /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages (from mlxl3==1.0.3) (2026.7.22)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.4053520Z Collecting jsonschema<5,>=4.23 (from mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.4067720Z   Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.4289430Z Collecting transformers>=5.7.0 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.4302650Z   Using cached transformers-5.16.1-py3-none-any.whl.metadata (32 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.4903560Z Collecting sentencepiece (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.4917130Z   Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl.metadata (33 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.5928950Z Collecting protobuf (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.5956880Z   Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl.metadata (595 bytes)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.6187610Z Collecting pyyaml (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.6206110Z   Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.4 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.6320880Z Collecting jinja2 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.6339040Z   Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.6529000Z Collecting pytest>=8.3 (from mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.6555800Z   Using cached pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.9557350Z Collecting ruff>=0.12 (from mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.9574830Z   Using cached ruff-0.16.10-py3-none-macosx_11_0_arm64.whl.metadata (20 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.9707180Z Collecting attrs>=22.2.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.9728470Z   Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.9845110Z Collecting jsonschema-specifications>=2023.03.6 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:42.9862300Z   Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.0009130Z Collecting referencing>=0.28.4 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.0023720Z   Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.2818890Z Collecting rpds-py>=0.25.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.2833780Z   Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (4.1 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3140030Z Collecting mlx-metal==0.32.2 (from mlx>=0.32.2->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3154610Z   Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl.metadata (5.1 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3624280Z Collecting iniconfig>=1.0.1 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3678450Z   Using cached iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3784450Z Collecting packaging>=22 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3813330Z   Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3935130Z Collecting pluggy<2,>=1.5 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.3967800Z   Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.4179280Z Collecting pygments>=2.7.2 (from pytest>=8.3->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.4198290Z   Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.4436190Z Collecting typing-extensions>=4.4.0 (from referencing>=0.28.4->jsonschema<5,>=4.23->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.4461760Z   Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.5142900Z Collecting huggingface-hub<2.0,>=1.5.0 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.5185510Z   Using cached huggingface_hub-1.29.0-py3-none-any.whl.metadata (16 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.8803300Z Collecting regex>=2025.10.22 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.8820170Z   Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl.metadata (40 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.9849030Z Collecting tokenizers<0.24.0,>=0.23.1 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:43.9867810Z   Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl.metadata (9.8 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.0036470Z Collecting typer (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.0056880Z   Using cached typer-0.27.2-py3-none-any.whl.metadata (16 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.0243650Z Collecting tqdm>=4.60 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.0262220Z   Using cached tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.0448060Z Collecting click<9.0.0,>=8.4.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.0469630Z   Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.0735820Z Collecting filelock>=3.10.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.1249230Z   Downloading filelock-4.0.12-py3-none-any.whl.metadata (2.0 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.1444590Z Collecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.1462520Z   Using cached fsspec-2026.9.0-py3-none-any.whl.metadata (10 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.1861430Z Collecting hf-xet<2.0.0,>=1.5.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.1881460Z   Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl.metadata (4.9 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2013610Z Collecting httpx<1,>=0.23.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2025680Z   Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2227620Z Collecting anyio (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2246080Z   Using cached anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2397580Z Collecting httpcore==1.* (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2429030Z   Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2561000Z Collecting idna (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2580100Z   Using cached idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2675260Z Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.2692570Z   Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.3482550Z Collecting MarkupSafe>=2.0 (from jinja2->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.3503870Z   Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.7 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.3620620Z Collecting shellingham>=1.3.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.3626830Z   Using cached shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.3990010Z Collecting rich>=13.8.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4015740Z   Using cached rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4149960Z Collecting annotated-doc>=0.0.2 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4166820Z   Using cached annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4327660Z Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4364600Z   Using cached markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4550430Z Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4580650Z   Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4643760Z Using cached jsonschema-4.26.0-py3-none-any.whl (90 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4664680Z Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4680850Z Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4694940Z Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl (619 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.4715080Z Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl (64.4 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5212150Z Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl (5.4 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5313630Z Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5410170Z Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5410880Z Using cached iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5411540Z Using cached packaging-26.3-py3-none-any.whl (129 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5413550Z Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5414050Z Using cached referencing-0.37.0-py3-none-any.whl (26 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5414600Z Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl (338 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5415070Z Using cached ruff-0.16.10-py3-none-macosx_11_0_arm64.whl (9.8 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5445250Z Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl (484 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5463840Z Using cached transformers-5.16.1-py3-none-any.whl (12.1 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5529520Z Using cached huggingface_hub-1.29.0-py3-none-any.whl (795 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5559630Z Using cached click-8.5.0-py3-none-any.whl (125 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5573340Z Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl (3.9 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5604910Z Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5620600Z Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5644660Z Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl (3.1 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5701570Z Downloading filelock-4.0.12-py3-none-any.whl (111 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5880350Z Using cached fsspec-2026.9.0-py3-none-any.whl (221 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5897710Z Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5910580Z Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl (173 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5924270Z Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl (293 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5936940Z Using cached tqdm-4.70.1-py3-none-any.whl (80 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5951380Z Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5964750Z Using cached anyio-4.15.1-py3-none-any.whl (132 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5977310Z Using cached idna-3.20-py3-none-any.whl (69 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.5990870Z Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6004350Z Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl (12 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6018270Z Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl (456 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6032510Z Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl (1.3 MB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6051740Z Using cached typer-0.27.2-py3-none-any.whl (123 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6068500Z Using cached annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6081160Z Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6094520Z Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6109840Z Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.6127450Z Using cached shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.7702140Z Building wheels for collected packages: mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.7762900Z   Building editable for mlxl3 (pyproject.toml): started
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.9946070Z   Building editable for mlxl3 (pyproject.toml): finished with status 'done'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.9954760Z   Created wheel for mlxl3: filename=mlxl3-1.0.3-0.editable-py3-none-any.whl size=10497 sha256=f0cfeaf9b5bb3044d03026a392c5205cfa1765dfd6dc3eeafacb622ab5002fce
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.9958280Z   Stored in directory: /private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pip-ephem-wheel-cache-0mwtmhu9/wheels/ed/b2/9a/5e76ae5229e8552789ab565f0c61e19ae174be3061de6f92d3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:44.9982870Z Successfully built mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:50:45.0736700Z Installing collected packages: typing-extensions, tqdm, shellingham, sentencepiece, safetensors, ruff, rpds-py, regex, pyyaml, pygments, protobuf, pluggy, packaging, numpy, mlx-metal, mdurl, MarkupSafe, iniconfig, idna, hf-xet, h11, fsspec, filelock, click, attrs, annotated-doc, referencing, pytest, mlx, markdown-it-py, jinja2, httpcore, anyio, rich, jsonschema-specifications, httpx, typer, jsonschema, huggingface-hub, tokenizers, transformers, mlx-lm, mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:00.6640160Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:00.6672980Z Successfully installed MarkupSafe-3.0.4 annotated-doc-0.0.5 anyio-4.15.1 attrs-26.1.0 click-8.5.0 filelock-4.0.12 fsspec-2026.9.0 h11-0.16.0 hf-xet-1.6.0 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-1.29.0 idna-3.20 iniconfig-2.3.0 jinja2-3.1.6 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 mlx-0.32.2 mlx-lm-0.32.0 mlx-metal-0.32.2 mlxl3-1.0.3 numpy-2.5.2 packaging-26.3 pluggy-1.6.0 protobuf-7.36.2 pygments-2.21.0 pytest-9.1.1 pyyaml-6.0.3 referencing-0.37.0 regex-2026.9.29 rich-15.0.0 rpds-py-2026.6.3 ruff-0.16.10 safetensors-0.8.0 sentencepiece-0.2.2 shellingham-1.5.4 tokenizers-0.23.1 tqdm-4.70.1 transformers-5.16.1 typer-0.27.2 typing-extensions-4.16.0
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0264330Z ##[group]Run scripts/check-e2e.sh
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0264750Z ^[[36;1mscripts/check-e2e.sh^[[0m
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0356030Z shell: /bin/bash -e {0}
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0356280Z env:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0356520Z   MLXL3_SKIP_METAL_CHECK: 1
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0356910Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0357490Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0358080Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0358490Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0358970Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:01.0359410Z ##[endgroup]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:32.5378850Z .........................s.ss........................................... [ 36%]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:51:37.9625110Z ........................................................................ [ 73%]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:02.7381470Z ...................................................                      [100%]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:02.7383480Z =========================== short test summary info ============================
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:02.7384140Z SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:02.7385120Z SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:02.7386030Z SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:02.7386680Z SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:02.7387270Z 192 passed, 4 skipped in 60.96s (0:01:00)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:18.7148010Z Building for debugging...
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:18.7266570Z [0/7] Write sources
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:18.7288990Z [2/7] Write MLXL3Studio-entitlement.plist
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:18.8998310Z [3/7] Write swift-version-7974D3F7F03D5E95.txt
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.0890580Z [5/23] Compiling SwiftMath MTFontMathTableV2.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.0993470Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1097450Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1199410Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1302120Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1413620Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1515230Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1617120Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1718490Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1820680Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.1923370Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2024770Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2125360Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2227350Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2339180Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2446350Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2546230Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2647770Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2749560Z [6/23] Compiling SwiftMath MTFontV2.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2850890Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.2952060Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3053600Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3155360Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3256540Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3357350Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3458860Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3559800Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3663800Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3784010Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3885760Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.3988680Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4093360Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4196460Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4297350Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4398010Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4500040Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4602650Z [7/23] Compiling SwiftMath MathFont.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4712640Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4805430Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4909710Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.4946980Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5049240Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5151440Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5253060Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5354130Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5457540Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5562240Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5664360Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5767610Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5872470Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.5975340Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6076540Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6177860Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6279610Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6381680Z [8/23] Compiling SwiftMath MathImage.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6485880Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6589710Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6691950Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6794320Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.6897390Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7000490Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7103520Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7204880Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7307000Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7409200Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7511490Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7616050Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7718940Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7820610Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.7922560Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8035910Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8137570Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8239060Z [9/23] Compiling SwiftMath MTBezierPath.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8343430Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8447170Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8548760Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8651840Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8757270Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8861360Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.8963190Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9066490Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9170020Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9278210Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9381200Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9483280Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9585590Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9688250Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9789690Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9890640Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:37.9996440Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0107870Z [10/23] Compiling SwiftMath MTColor.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0109100Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0211910Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0327370Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0430070Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0534280Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0637430Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0739660Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0841620Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.0944770Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1048440Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1150680Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1253760Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1357600Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1461210Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1564280Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1665820Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1769480Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1872100Z [11/23] Compiling SwiftMath MTConfig.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.1974750Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2078090Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2180900Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2284050Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2388440Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2491940Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2594320Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2698770Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2801280Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.2903760Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3010990Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3112840Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3216280Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3319200Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3420940Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3524380Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3627170Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3728740Z [12/23] Compiling SwiftMath MTFont.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3832350Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.3939140Z 112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4041670Z 113 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4143400Z 114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4246550Z     |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4371560Z 115 |             throw FontError.registerFailed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4503650Z 116 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4627610Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4731830Z /Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4836740Z 194 |         var errorRef: Unmanaged<CFError>? = nil
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.4939960Z 195 |         cgFonts.values.forEach { cgFont in
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5045940Z 196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5152760Z     |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5254960Z 197 |         }
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5358750Z 198 |         cgFonts.removeAll()
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5460400Z 
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5561710Z [#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5611150Z [13/23] Emitting module SwiftMath
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5680280Z [14/30] Compiling SwiftMath MTFontManager.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5782450Z [15/30] Compiling SwiftMath MTFontMathTable.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5891480Z [16/30] Compiling SwiftMath MTLabel.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.5999820Z [17/30] Compiling SwiftMath MTMathAtomFactory.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.6116330Z [18/30] Compiling SwiftMath MTMathImage.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.6173330Z [19/30] Compiling SwiftMath MTMathList.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:38.6276250Z [20/30] Compiling SwiftMath MTMathListBuilder.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:40.2463560Z [21/30] Compiling SwiftMath MTMathListDisplay.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:40.2527960Z [22/30] Compiling SwiftMath MTMathListIndex.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:40.2595370Z [23/30] Compiling SwiftMath MTMathUILabel.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:40.2667590Z [24/30] Compiling SwiftMath MTTypesetter.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:40.2769500Z [25/30] Compiling SwiftMath MTUnicode.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:40.2823180Z [26/30] Compiling SwiftMath RWLock.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:40.2853900Z [27/30] Compiling SwiftMath SwiftMathResources.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9476400Z [28/51] Compiling MLXL3Studio GenerationInspector.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9584090Z [29/51] Compiling MLXL3Studio Localization.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9645990Z [30/51] Compiling MLXL3Studio MCPConfiguration.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9723390Z [31/51] Compiling MLXL3Studio MCPPreferenceCheck.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9771280Z [32/51] Compiling MLXL3Studio MLXL3Bridge.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9778600Z [33/51] Compiling MLXL3Studio MLXL3StudioApp.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9779720Z [34/51] Compiling MLXL3Studio MTPTuning.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9780890Z [35/51] Compiling MLXL3Studio MTPTuningControls.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9781960Z [36/51] Compiling MLXL3Studio MarkdownResponseView.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9783570Z [37/51] Compiling MLXL3Studio MenuBarPanel.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9784570Z [38/61] Emitting module MLXL3Studio
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9785740Z [39/61] Compiling MLXL3Studio AppDelegate.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9786740Z [40/61] Compiling MLXL3Studio AppSettingsView.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9788020Z [41/61] Compiling MLXL3Studio CLICommand.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9789310Z [42/61] Compiling MLXL3Studio ChatAttachment.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9790400Z [43/61] Compiling MLXL3Studio ChatComponents.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9791510Z [44/61] Compiling MLXL3Studio ChatTimelineCheck.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9792510Z [45/61] Compiling MLXL3Studio ConversationStore.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9794290Z [46/61] Compiling MLXL3Studio Domain.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9795220Z [47/61] Compiling MLXL3Studio DownloadProgressCard.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:52:57.9797480Z [48/61] Compiling MLXL3Studio EngineRuntimeStore.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6615540Z [49/61] Compiling MLXL3Studio MessageCopyButton.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6616340Z [50/61] Compiling MLXL3Studio ModelDownloadProgress.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6616840Z [51/61] Compiling MLXL3Studio ModelLibrary.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6617450Z [52/61] Compiling MLXL3Studio ModelManager.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6617980Z [53/61] Compiling MLXL3Studio SidebarUpdateBadge.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6618420Z [54/61] Compiling MLXL3Studio StudioModel.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6618830Z [55/61] Compiling MLXL3Studio StudioView.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6619250Z [56/61] Compiling MLXL3Studio Theme.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6619560Z [57/61] Compiling MLXL3Studio UIPreview.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.6620010Z [58/61] Compiling MLXL3Studio UpdateManager.swift
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:07.7706680Z [58/61] Write Objects.LinkFileList
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:10.1089370Z [59/61] Linking MLXL3Studio
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:10.2150000Z [60/61] Applying MLXL3Studio
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:53:10.2195700Z Build complete! (51.55s)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:54:30.6810180Z Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:54:30.7069050Z Markdown checks passed: fences, 300k code, long tables
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:54:30.7179220Z Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:55:06.0176540Z Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:55:39.9974290Z CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:55:42.1051130Z File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:55:42.1487820Z Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:55:42.2325150Z MCP checks passed: default off, persisted on/off, request flag, isolated preview
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:56:59.8709570Z Bridge callback with 50 ms occupied IO: legacy 129.829 ms; independent UUID 0.044 ms
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:56:59.8711290Z Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:58:50.6921720Z Markdown checks passed: fences, 300k code, long tables
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:58:50.7030180Z Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:58:50.7036970Z Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:59:52.1184470Z Response UI checks passed: complete copy, native control/clipboard action, 56 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:59:58.0629110Z CLI transport passed: large output, NDJSON, cancellation, error reporting
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T21:59:58.9489730Z Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:02.3284790Z MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:04.6030290Z MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:04.6035510Z Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:04.6638970Z MLXL3 full E2E suite passed
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:04.6947300Z Post job cleanup.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.1867740Z Cache hit occurred on the primary key setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b, not saving cache.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.1871960Z (node:16882) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.1875460Z (Use `node --trace-deprecation ...` to show where the warning was created)
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.2055620Z Post job cleanup.
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.4797700Z [command]/opt/homebrew/bin/git version
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.5106690Z git version 2.55.0
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.5158990Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/c413f552-ccb5-46ee-917b-f69445b006cd/.gitconfig'
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.5178930Z Temporarily overriding HOME='/Users/runner/work/_temp/c413f552-ccb5-46ee-917b-f69445b006cd' before making global git config changes
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.5179870Z Adding repository directory to the temporary git global config as a safe directory
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.5186710Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.5752510Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.5967430Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.7173510Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.7253460Z http.https://github.com/.extraheader
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.7262260Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.7363860Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.8527280Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.8614610Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:05.9908100Z Cleaning up orphan processes
+desktop-and-protocol	UNKNOWN STEP	2026-10-05T22:00:08.9677010Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

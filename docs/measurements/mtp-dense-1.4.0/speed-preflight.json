@@ -1,0 +1,40 @@
+{
+  "source_head": "8629157af17eab8a626ce07a9f2f5780b36c883e",
+  "source_dirty": [
+    "opti.md"
+  ],
+  "prompts": {
+    "short": "Explique en fran\u00e7ais, en trois points concis, pourquoi le ciel est bleu.",
+    "document": "\u00c9cris une fonction Python qui fusionne deux listes tri\u00e9es sans modifier les entr\u00e9es, puis explique sa complexit\u00e9 et donne un exemple avec des doublons.\n"
+  },
+  "binaries": {
+    "build/mtp-dense-baseline/mlxl3-rs": {
+      "sha256": "9f0dfec8a6e2131656684f1fb61d0ef2fe6f480c7ffe41f48f1d05d8b52b3fa4"
+    },
+    "build/mtp-dense-candidate-synchronized/mlxl3-rs": {
+      "sha256": "81cb0ea87a62d6f401773883a7a5cca9c712b020dd2b859d8721b1b725958da8"
+    }
+  },
+  "conditions": {
+    "power": {
+      "returncode": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t76%; discharging; 8:37 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "returncode": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "returncode": 0,
+      "stdout": "vm.swapusage: total = 4096.00M  used = 3129.50M  free = 966.50M  (encrypted)\n",
+      "stderr": ""
+    },
+    "processes": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  }
+}

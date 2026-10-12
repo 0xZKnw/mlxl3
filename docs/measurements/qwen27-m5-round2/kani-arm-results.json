@@ -1,0 +1,26 @@
+{
+  "verifier": "Kani 0.68.0",
+  "target": "aarch64-apple-darwin",
+  "toolchain": "nightly-2026-08-21 rustc1.100.0-nightly",
+  "source_base": "2592d95a029a2912c8151f869d07b611a23ff319",
+  "source_unchanged_after_commit": true,
+  "scope": "Rust CPU contracts; not Metal/MLX/allocator/concurrent program or model intelligence",
+  "full_harnesses": 32,
+  "full_verified": 32,
+  "full_status_counts": {
+    "SUCCESS": 4473,
+    "UNREACHABLE": 70,
+    "SATISFIED": 74
+  },
+  "new_contract_status_counts": {
+    "SUCCESS": 7,
+    "SATISFIED": 3
+  },
+  "new_contract_input_domain": "all i32 input/output, usize K, two booleans; no assumptions or loops",
+  "new_contract_covers": [
+    "enabled K2",
+    "enabled K3",
+    "fallback input5120 K2"
+  ],
+  "new_contract_assumptions": 0
+}

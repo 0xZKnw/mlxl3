@@ -133,6 +133,11 @@ final class UpdateManager: ObservableObject {
     }
     var hasReadyUpdate: Bool { state.readyRelease != nil || engineState.readyRelease != nil }
     var isBusy: Bool { state.isBusy || engineState.isBusy }
+    var isInstalling: Bool {
+        if case .installing = state { return true }
+        if case .installing = engineState { return true }
+        return false
+    }
 
     func startAutomaticCheck() {
         guard !didRunAutomaticCheck else { return }

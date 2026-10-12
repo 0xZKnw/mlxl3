@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -27,8 +31,8 @@ jobs:
             --harness mtp_all_depths_commit_target_prefix_within_budgets
             --harness greedy_acceptance_is_the_maximal_matching_prefix
   kani:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Verify Rust safety contracts with Kani
@@ -36,7 +40,7 @@ jobs:
         with:
           kani-version: '0.68.0'
           command: cargo kani
-          args: --lib --no-default-features
+          args: --lib --no-default-features --jobs 1 --output-format terse
 
   native:
     strategy:
@@ -55,11 +59,52 @@ jobs:
       - run: cargo clippy --locked --all-targets --features chat -- -D warnings
       - run: cargo test --locked --features chat
       - run: cargo build --locked --features chat
+      - name: Check Metal cache key ordering and allocation regressions
+        run: |
+          mkdir -p build/ci
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
+          build/ci/kernel-cache-key
+          c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install pytest==8.4.2 numpy==2.2.6
-      - name: Check bridge benchmark mode validation
-        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
+      - run: python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
+      - name: Lint native verification scripts and regressions
+        run: |
+          ruff check --select F,E9 tests/fake-desktop-engine.py
+          python -m py_compile tests/fake-desktop-engine.py
+          ruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+          ruff check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+          python -m py_compile benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py
+          ruff format --check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
+          ruff check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
+          python -m py_compile scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py
+          ruff format --check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
+          ruff check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
+          python -m py_compile scripts/experimental-draft-head.py
+          ruff format --check scripts/check_dflash2.py tests/test_dflash2_check.py
+          ruff check scripts/check_dflash2.py tests/test_dflash2_check.py
+          python -m py_compile scripts/check_dflash2.py
+      - name: Check bridge and QMM validation tools
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
+      - name: Check idle-memory benchmark failure and parity gates
+        run: |
+          ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
+          ruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
+          python -m pytest -q tests/test_idle_memory_benchmark.py
+          ruff format --check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          ruff check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          python -m py_compile docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          ruff format --check docs/measurements/tune-feedback-20261010/diagnose-tune.py
+          ruff check docs/measurements/tune-feedback-20261010/diagnose-tune.py
+          python docs/measurements/tune-feedback-20261010/diagnose-tune.py --self-test
+      - name: Compile and lint the shipped MLX bridge
+        if: matrix.os == 'macos-26'
+        run: |
+          python -m pip install mlx==0.32.2
+          mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
+          cargo build --locked --release --features mlx,chat
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
-      # not enable the optional mlx feature, which needs a supplied libmlx.
+      # not run inference or numeric GPU checks; the macOS build uses pinned libmlx.

@@ -1,0 +1,33 @@
+{
+  "status": "verified_bounded_empty_history",
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--exact",
+    "--harness",
+    "speculative::verification::dflash_copy_len_0"
+  ],
+  "exit": 0,
+  "timeout": false,
+  "seconds": 128.39093612501165,
+  "source_sha256": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc",
+  "log": "copy-final-zero.log",
+  "properties": {
+    "successful_assertions": 161,
+    "unreachable_assertions": 12,
+    "satisfied_covers": 8,
+    "unreachable_covers": 1
+  },
+  "unreachable_scope": {
+    "application_assertions": {
+      "full1024_accepted_branch": 1,
+      "old_prompt_region_at_initial_len0": 3
+    },
+    "standard_library_assertions": 8,
+    "cover": "conditional old-prompt cover retained as unreachable for LEN0; expected, not a claim about positive initial lengths"
+  },
+  "bounds": "Initial history0; accepted0..7 fullu32, anchoru32/copy/enabled symbolic, every valid output index via0..31, unwind33, no assume/stub",
+  "limits": "Lengths1..20 and full1024 truncation remain unverified; no GPU/FFI/concurrency proof."
+}

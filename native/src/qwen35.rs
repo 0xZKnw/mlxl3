@@ -13,7 +13,50 @@ use half::f16;
 use serde::Deserialize;
 use std::{fs::File, path::Path};
 
-const DFLASH_CAPTURE_LAYERS: [usize; 8] = [1, 6, 11, 16, 22, 27, 32, 37];
+fn dense_mlp_batch_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = DENSE_MLP_BATCH_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED
+        .get_or_init(|| std::env::var("MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static DENSE_MLP_BATCH_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+fn with_dense_mlp_batch<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_MLP_BATCH_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_MLP_BATCH_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
+fn post_attention_norm(
+    x: &Array,
+    attention: &Array,
+    weight: &Array,
+    eps: f32,
+) -> Result<(Array, Array)> {
+    static FUSED_NORM: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let fused =
+        *FUSED_NORM.get_or_init(|| std::env::var("MLXL3_QWEN_FUSED_NORM").as_deref() == Ok("1"));
+    if fused && x.shape().last() == Some(&5120) {
+        x.add_rms_norm(attention, weight, eps)
+    } else {
+        let hidden = x.add(attention)?;
+        let normalized = hidden.rms_norm(weight, eps)?;
+        Ok((hidden, normalized))
+    }
+}
 
 pub(crate) enum ProjectionBundle {
     Grouped(Box<Exl3Group>),
@@ -233,6 +276,24 @@ impl Mlp {
             "invalid Qwen verification MLP input"
         );
         let Self::Moe(mlp) = self else {
+            if let Self::Dense(mlp) = self
+                && crate::contracts::dense_mlp_batch(
+                    values.len(),
+                    hidden,
+                    matches!(mlp.inputs, ProjectionBundle::Grouped(_)),
+                    mlp.down.is_exl3(),
+                    dense_mlp_batch_enabled() && crate::array::is_m5_gpu()?,
+                    dense_mlp_batch_enabled(),
+                )
+            {
+                let rows = i32::try_from(values.len())?;
+                let batch = Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?
+                    .reshape(&[rows, hidden])?;
+                let output = self.forward(&batch)?;
+                return (0..rows)
+                    .map(|row| output.slice(0, row, row + 1)?.reshape(&[1, 1, hidden]))
+                    .collect();
+            }
             return values
                 .iter()
                 .map(|value| {
@@ -668,12 +729,8 @@ impl AttentionLayer {
         let attention = self
             .attention
             .forward(&x.rms_norm(&self.input_norm, self.eps)?)?;
-        let hidden = x.add(&attention)?;
-        let mlp = self.mlp.forward(
-            &hidden
-                .rms_norm(&self.post_norm, self.eps)?
-                .reshape(&[time, self.hidden])?,
-        )?;
+        let (hidden, post) = post_attention_norm(x, &attention, &self.post_norm, self.eps)?;
+        let mlp = self.mlp.forward(&post.reshape(&[time, self.hidden])?)?;
         hidden.add(&mlp.reshape(&[1, time, self.hidden])?)
     }
 
@@ -703,8 +760,13 @@ impl AttentionLayer {
         let mut residuals = Vec::with_capacity(values.len());
         let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
-            let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
-            posts.push(hidden.rms_norm(&self.post_norm, self.eps)?);
+            let (hidden, post) = post_attention_norm(
+                value,
+                &attention.slice(1, time as i32, time as i32 + 1)?,
+                &self.post_norm,
+                self.eps,
+            )?;
+            posts.push(post);
             residuals.push(hidden);
         }
         let mlp = self.mlp.forward_verification(&posts, self.hidden)?;
@@ -799,6 +861,37 @@ pub struct QwenSnapshot {
 impl QwenSnapshot {
     /// Logical payload, excluding shared weights and MLX allocator capacity.
     pub fn byte_len(&self) -> Result<usize> {
+        self.payload_bytes(false)
+    }
+    /// Conservative sum of full backing allocations; aliases can count twice.
+    pub fn retained_bytes(&self) -> Result<usize> {
+        self.payload_bytes(true)
+    }
+    pub fn compact_for_cache(mut self) -> Result<Self> {
+        for layer in &mut self.layers {
+            let arrays = match layer {
+                LayerSnapshot::Linear { conv, recurrent } => [conv, recurrent],
+                LayerSnapshot::Attention { keys, values } => [keys, values],
+            };
+            for a in arrays {
+                *a = a.as_ref().map(Array::compact_for_cache).transpose()?;
+            }
+        }
+        self.last_hidden = self
+            .last_hidden
+            .as_ref()
+            .map(Array::compact_for_cache)
+            .transpose()?;
+        Ok(self)
+    }
+    fn payload_bytes(&self, retained: bool) -> Result<usize> {
+        let bytes = |a: &Array| {
+            if retained {
+                a.retained_bytes()
+            } else {
+                a.byte_len()
+            }
+        };
         self.layers
             .iter()
             .flat_map(|layer| match layer {
@@ -809,12 +902,12 @@ impl QwenSnapshot {
             .try_fold(
                 self.last_hidden
                     .as_ref()
-                    .map(Array::byte_len)
+                    .map(bytes)
                     .transpose()?
                     .unwrap_or(0),
-                |bytes, array| {
-                    bytes
-                        .checked_add(array.byte_len()?)
+                |total, a| {
+                    total
+                        .checked_add(bytes(a)?)
                         .context("snapshot size overflow")
                 },
             )
@@ -904,7 +997,7 @@ impl Layer {
 }
 
 pub struct Qwen35Moe {
-    embeddings: Array,
+    embeddings: crate::embedding::Embedding,
     norm: Array,
     head: Projection,
     layers: Vec<Layer>,
@@ -914,6 +1007,8 @@ pub struct Qwen35Moe {
     offset: i32,
     last_hidden: Option<Array>,
     mtp_layout: crate::mtp::Layout,
+    pipeline: bool,
+    mtp_pipeline: bool,
 }
 
 impl Qwen35Moe {
@@ -970,6 +1065,10 @@ impl Qwen35Moe {
             "model.language_model.embed_tokens.weight",
             Some(&[config.vocab_size, hidden]),
         )?;
+        let embeddings = crate::embedding::Embedding::new(
+            embeddings,
+            std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1"),
+        )?;
         let norm = sanitized_norm(checkpoint, "model.language_model.norm.weight", &[hidden])?;
         let head = Projection::load(checkpoint, "lm_head", hidden, config.vocab_size, false)?;
         let rope_dims = (config.head_dim as f32 * config.partial_rotary_factor) as i32;
@@ -1007,6 +1106,19 @@ impl Qwen35Moe {
                 other => anyhow::bail!("unsupported Qwen layer type {other}"),
             });
         }
+        let pipeline_override = std::env::var("MLXL3_QWEN_PIPELINE").ok();
+        let pipeline = pipeline_override.as_deref() == Some("1");
+        let mtp_pipeline = match pipeline_override.as_deref() {
+            Some("0") => false,
+            Some("1") => true,
+            _ => crate::contracts::mtp_pipeline_default(
+                hidden,
+                layers.len(),
+                config.num_experts,
+                config.num_experts_per_tok,
+                crate::array::is_m5_gpu()?,
+            ),
+        };
         Ok(Self {
             embeddings,
             norm,
@@ -1018,6 +1130,8 @@ impl Qwen35Moe {
             offset: 0,
             last_hidden: None,
             mtp_layout,
+            pipeline,
+            mtp_pipeline,
         })
     }
 
@@ -1149,13 +1263,13 @@ impl Qwen35Moe {
         tokens[0] = anchor as i32;
         self.embeddings
             .take(&Array::from_i32(&tokens, &[1, 8])?, 0)?
-            .reshape(&[8, 2048])?
+            .reshape(&[8, self.embeddings.shape()[1]])?
             .astype(Dtype::BFloat16)
     }
 
     pub fn dflash_logits(&self, hidden: &Array, positions: usize) -> Result<Array> {
         ensure!(
-            hidden.shape() == [8, 2048] && (1..=7).contains(&positions),
+            hidden.shape() == [8, self.embeddings.shape()[1]] && (1..=7).contains(&positions),
             "DFlash head expects eight hidden rows"
         );
         let end = i32::try_from(positions)? + 1;
@@ -1199,8 +1313,12 @@ impl Qwen35Moe {
         if trace {
             layers.push(hidden.to_f16_bits()?);
         }
-        for layer in &mut self.layers {
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&[&hidden])?;
+            }
             if trace {
                 layers.push(hidden.to_f16_bits()?);
             }
@@ -1228,19 +1346,25 @@ impl Qwen35Moe {
         let ids = tokens.iter().map(|&token| token as i32).collect::<Vec<_>>();
         let id = Array::from_i32(&ids, &[1, time])?;
         let mut hidden = self.embeddings.take(&id, 0)?;
-        let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let family = self.dflash_family().context("unsupported DFlash target")?;
+        let capture_layers = family.captures();
+        let mut captured = Vec::with_capacity(capture_layers.len());
+        let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             hidden = layer.forward(&hidden)?;
-            if DFLASH_CAPTURE_LAYERS.contains(&index) {
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&[&hidden])?;
+            }
+            if capture_layers.contains(&index) {
                 captured.push(hidden.try_clone()?);
             }
         }
         ensure!(
-            captured.len() == DFLASH_CAPTURE_LAYERS.len(),
+            captured.len() == capture_layers.len(),
             "Qwen model is missing DFlash capture layers"
         );
         let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
-            .reshape(&[time, 8 * 2048])?
+            .reshape(&[time, family.target_hidden() as i32])?
             .astype(Dtype::BFloat16)?;
         let normalized = hidden
             .slice(1, time - 1, time)?
@@ -1265,8 +1389,12 @@ impl Qwen35Moe {
                 self.embeddings.take(&id, 0)
             })
             .collect::<Result<Vec<_>>>()?;
-        for layer in &mut self.layers {
+        let layer_count = self.layers.len();
+        for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification(&mut hidden)?;
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
+            }
         }
         let normalized = hidden
             .into_iter()
@@ -1292,19 +1420,25 @@ impl Qwen35Moe {
                 self.embeddings.take(&id, 0)
             })
             .collect::<Result<Vec<_>>>()?;
-        let mut captured = Vec::with_capacity(DFLASH_CAPTURE_LAYERS.len());
+        let family = self.dflash_family().context("unsupported DFlash target")?;
+        let capture_layers = family.captures();
+        let mut captured = Vec::with_capacity(capture_layers.len());
+        let layer_count = self.layers.len();
         for (index, layer) in self.layers.iter_mut().enumerate() {
             layer.forward_verification_dflash(&mut hidden)?;
-            if DFLASH_CAPTURE_LAYERS.contains(&index) {
+            if crate::contracts::pipeline_layer(index, layer_count, self.pipeline) {
+                Array::async_eval_all(&hidden.iter().collect::<Vec<_>>())?;
+            }
+            if capture_layers.contains(&index) {
                 captured.push(Array::concatenate(&hidden.iter().collect::<Vec<_>>(), 1)?);
             }
         }
         ensure!(
-            captured.len() == DFLASH_CAPTURE_LAYERS.len(),
+            captured.len() == capture_layers.len(),
             "Qwen model is missing DFlash capture layers"
         );
         let capture = Array::concatenate(&captured.iter().collect::<Vec<_>>(), 2)?
-            .reshape(&[time, 8 * 2048])?
+            .reshape(&[time, family.target_hidden() as i32])?
             .astype(Dtype::BFloat16)?;
         let normalized = hidden
             .into_iter()
@@ -1318,6 +1452,56 @@ impl Qwen35Moe {
 
     pub fn context_limit(&self) -> i32 {
         self.context_limit
+    }
+
+    /// F16 upper bound: GDN is fixed, full-attention KV grows with tokens.
+    pub fn context_memory_profile(&self) -> Result<serde_json::Value> {
+        let tensor = |shape: &[i32], item| {
+            crate::contracts::array_bytes(shape, item).context("context profile size overflow")
+        };
+        let mut fixed = tensor(&[self.mtp_layout.hidden_size], 2)?;
+        let mut per_token = 0usize;
+        for layer in &self.layers {
+            match layer {
+                Layer::Linear(layer) => {
+                    let a = &layer.attention;
+                    let conv_dims = i32::try_from(
+                        tensor(&[a.key_heads, a.key_dim], 2)?
+                            .checked_add(tensor(&[a.value_heads, a.value_dim], 1)?)
+                            .context("conv dimensions overflow")?,
+                    )?;
+                    let recurrent = tensor(&[a.value_heads, a.value_dim, a.key_dim], 4)?;
+                    let conv = tensor(&[a.conv_length - 1, conv_dims], 2)?;
+                    fixed = fixed
+                        .checked_add(recurrent)
+                        .and_then(|n| n.checked_add(conv))
+                        .context("fixed cache size overflow")?;
+                }
+                Layer::Attention(layer) => {
+                    let a = &layer.attention;
+                    per_token = per_token
+                        .checked_add(tensor(&[a.kv_heads, a.head_dim], 4)?)
+                        .context("KV context size overflow")?;
+                }
+            }
+        }
+        let draft_per_token = self
+            .mtp_layout
+            .managed_head(self.layers.len())
+            .map(|_| {
+                tensor(
+                    &[
+                        self.mtp_layout.num_key_value_heads,
+                        self.mtp_layout.head_dim,
+                    ],
+                    4,
+                )
+            })
+            .transpose()?;
+        Ok(
+            serde_json::json!({"fixed_bytes":fixed,"draft_bytes_per_token":draft_per_token,
+                "layers":[{"bytes_per_token":per_token,"step":1,"max_tokens":null}]}),
+        )
     }
 
     pub fn mtp_layout(&self) -> &crate::mtp::Layout {
@@ -1385,8 +1569,12 @@ impl Qwen35Moe {
                 return Ok((output, raw));
             }
             let mut raw = self.mtp_embeddings(tokens)?;
-            for layer in &mut self.layers {
+            let layer_count = self.layers.len();
+            for (index, layer) in self.layers.iter_mut().enumerate() {
                 raw = layer.forward(&raw)?;
+                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                    Array::async_eval_all(&[&raw])?;
+                }
             }
             let last = raw.slice(1, time - 1, time)?;
             let logits = self.head.forward(&last.rms_norm(&self.norm, self.eps)?)?;
@@ -1416,8 +1604,12 @@ impl Qwen35Moe {
                 .iter()
                 .map(|&t| self.mtp_embeddings(&[t]))
                 .collect::<Result<Vec<_>>>()?;
-            for layer in &mut self.layers {
+            let layer_count = self.layers.len();
+            for (index, layer) in self.layers.iter_mut().enumerate() {
                 layer.forward_verification_dflash(&mut values)?;
+                if crate::contracts::pipeline_layer(index, layer_count, self.mtp_pipeline) {
+                    Array::async_eval_all(&values.iter().collect::<Vec<_>>())?;
+                }
             }
             let raw = Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?;
             let normalized = values
@@ -1442,16 +1634,19 @@ impl Qwen35Moe {
         self.offset
     }
 
-    /// The shipped DFlash2 draft expects this hidden/capture layout, not a
-    /// particular directory name. Target verification still decides every token.
-    pub fn supports_dflash(&self) -> bool {
-        self.embeddings.shape() == [248_320, 2048]
-            && self.layers.len() == 40
+    pub fn dflash_family(&self) -> Option<crate::dflash::Family> {
+        let family = crate::dflash::Family::from_target(&self.mtp_layout, self.layers.len())?;
+        (self.embeddings.shape() == [248_320, family.hidden() as i32]
             && self
                 .layers
                 .iter()
                 .enumerate()
-                .all(|(index, layer)| matches!(layer, Layer::Attention(_)) == (index % 4 == 3))
+                .all(|(index, layer)| matches!(layer, Layer::Attention(_)) == (index % 4 == 3)))
+        .then_some(family)
+    }
+
+    pub fn supports_dflash(&self) -> bool {
+        self.dflash_family().is_some()
     }
 
     pub fn commit_dflash_verification(&mut self, retained: usize, total: usize) -> Result<()> {
@@ -1612,8 +1807,13 @@ impl LinearLayer {
         let mut residuals = Vec::with_capacity(values.len());
         let mut posts = Vec::with_capacity(values.len());
         for (time, value) in values.iter_mut().enumerate() {
-            let hidden = value.add(&attention.slice(1, time as i32, time as i32 + 1)?)?;
-            posts.push(hidden.rms_norm(&self.post_norm, self.eps)?);
+            let (hidden, post) = post_attention_norm(
+                value,
+                &attention.slice(1, time as i32, time as i32 + 1)?,
+                &self.post_norm,
+                self.eps,
+            )?;
+            posts.push(post);
             residuals.push(hidden);
         }
         let mlp = self.mlp.forward_verification(&posts, self.hidden)?;
@@ -1646,8 +1846,7 @@ impl LinearLayer {
         } else {
             (self.attention.forward(&normalized)?, Vec::new())
         };
-        let hidden = x.add(&attention)?;
-        let post = hidden.rms_norm(&self.post_norm, self.eps)?;
+        let (hidden, post) = post_attention_norm(x, &attention, &self.post_norm, self.eps)?;
         let mlp = self.mlp.forward(&post.reshape(&[time, self.hidden])?)?;
         let mlp = mlp.reshape(&[1, time, self.hidden])?;
         let output = hidden.add(&mlp)?;
@@ -2046,7 +2245,7 @@ mod tests {
     use super::*;
     use std::time::Instant;
 
-    fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
+    pub(super) fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
         model
             .layers
             .iter()
@@ -2060,14 +2259,680 @@ mod tests {
                     layer.attention.values.as_ref(),
                 ],
             })
-            .map(|state| state.context("missing Qwen test state")?.to_bytes())
+            .map(|state| {
+                let state = state.context("missing Qwen test state")?;
+                let values = state.to_f32()?;
+                let count = state.shape().iter().try_fold(1usize, |count, &dimension| {
+                    count.checked_mul(usize::try_from(dimension).ok()?)
+                });
+                ensure!(
+                    count == Some(values.len())
+                        && !values.is_empty()
+                        && values.iter().all(|value| value.is_finite()),
+                    "empty, malformed or non-finite Qwen test state"
+                );
+                state.to_bytes()
+            })
             .collect()
+    }
+
+    #[test]
+    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone, no concurrent builds"]
+    fn checkpoint_grouped_mb3_verify_paired() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        ensure!(
+            model.layers.len() == 64 && model.vocab == 248320,
+            "requires Qwen27B fixture"
+        );
+        let prefix = (0..69).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+        model.forward_mtp(&prefix)?;
+        let snapshot = model.snapshot()?;
+        let mut execute = |enabled| -> Result<(f64, Vec<u16>, Vec<Vec<u8>>)> {
+            crate::linear::with_grouped_mb3_test(enabled, || {
+                model.restore(snapshot.clone())?;
+                let started = Instant::now();
+                let mut last = None;
+                for block in 0..8 {
+                    let tokens = [block * 53 + 1, block * 53 + 2, block * 53 + 3];
+                    let (logits, raw) = model.verify_mtp(&tokens)?;
+                    logits.eval()?;
+                    model.commit_dflash_verification(3, 3)?;
+                    model.set_mtp_hidden(raw.slice(1, 2, 3)?)?;
+                    last = Some(logits);
+                }
+                crate::array::synchronize()?;
+                let seconds = started.elapsed().as_secs_f64();
+                let logits = last.context("missing verify logits")?.to_f16_bits()?;
+                ensure!(
+                    logits.len() == 3 * 248320
+                        && logits.iter().all(|&v| f16::from_bits(v).is_finite()),
+                    "invalid verify logits"
+                );
+                let states = state_bytes(&model)?;
+                ensure!(
+                    states.len() == 128 && states.iter().all(|s| !s.is_empty()),
+                    "incomplete target states"
+                );
+                Ok((seconds, logits, states))
+            })
+        };
+        for enabled in [false, true, true, false] {
+            execute(enabled)?;
+        }
+        for pair in 0..8 {
+            let (a, b) = if pair % 2 == 0 {
+                (execute(false)?, execute(true)?)
+            } else {
+                let b = execute(true)?;
+                (execute(false)?, b)
+            };
+            ensure!(
+                a.1 == b.1 && a.2 == b.2,
+                "grouped MB3 verify differs at pair={pair}"
+            );
+            println!(
+                "{}",
+                serde_json::json!({"pair": pair, "tokens": 24, "A_seconds": a.0, "B_seconds": b.0, "bit_exact": true, "state_arrays": a.2.len(), "logits": a.1.len(), "boundary": "eight dependent verify_mtp M3 blocks, forced IDs, one model"})
+            );
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical GPU/model/head, writes MLXL3_DENSE_RESIDENT_REPORT; run alone"]
+    fn dense_resident_sessions_paired() -> Result<()> {
+        use crate::{
+            mtp::{Head, Session},
+            tokenizer::ChatTokenizer,
+        };
+        struct Sample {
+            seconds: f64,
+            tokens: Vec<u32>,
+            counts: (usize, usize, usize),
+            states: Vec<Vec<u8>>,
+            hidden: Vec<u16>,
+            cache: (Vec<u8>, Vec<u8>),
+        }
+        let output = std::path::PathBuf::from(std::env::var("MLXL3_DENSE_RESIDENT_REPORT")?);
+        ensure!(!output.exists(), "preserve previous resident reports");
+        let mut report = serde_json::json!({"status":"running","parity":false,"samples":[],"pairs":[],"boundary":"resident production Session::advance, excludes prefill/text IO, includes final GPU synchronize"});
+        let save = |report: &serde_json::Value| -> Result<()> {
+            std::fs::write(&output, serde_json::to_vec_pretty(report)?)?;
+            Ok(())
+        };
+        save(&report)?;
+        let result: Result<()> = (|| {
+            let path = std::env::var("MLXL3_MTP_TEST_MODEL")?;
+            let mut model = Qwen35Moe::load(Path::new(&path))?;
+            ensure!(
+                model.layers.len() == 64 && model.mtp_layout.hidden_size == 5120,
+                "requires dense Qwen27B"
+            );
+            model.pipeline = false;
+            model.mtp_pipeline = false;
+            let mut head = Head::load(Path::new(&std::env::var("MLXL3_MTP_TEST_HEAD")?), &model)?;
+            let tokenizer = ChatTokenizer::load(Path::new(&path))?;
+            let prompt = std::fs::read_to_string(std::env::var("MLXL3_DENSE_RESIDENT_PROMPT")?)?;
+            let rendered = tokenizer.render_values(
+                &serde_json::json!([{"role":"user","content":prompt}]),
+                Some(&[]),
+            )?;
+            let input = tokenizer.encode(&rendered)?;
+            ensure!(
+                input.len() > 1 && input.len() < 256 && input.len() + 128 <= 4096,
+                "unsupported resident prefill/budget"
+            );
+            report["input_tokens"] = input.len().into();
+            let mut sample = |enabled: bool, budget: usize| -> Result<Sample> {
+                with_dense_mlp_batch(enabled, || {
+                    crate::linear::with_grouped_mb3_test(enabled, || {
+                        model.reset();
+                        head.reset()?;
+                        let (logits, raw) = model.forward_mtp(&input)?;
+                        head.extend_cache(
+                            &model,
+                            &raw.slice(1, 0, input.len() as i32 - 1)?,
+                            &input[1..],
+                        )?;
+                        drop(raw);
+                        let mut next = logits.chat_greedy_ids()?[0];
+                        let mut session = Session::new(2)?;
+                        let mut tokens = Vec::with_capacity(budget);
+                        let started = Instant::now();
+                        while tokens.len() < budget {
+                            ensure!(
+                                !tokenizer.eos_ids().contains(&next),
+                                "resident sample ended before budget"
+                            );
+                            tokens.push(next);
+                            if tokens.len() < budget {
+                                next = session.advance(
+                                    &mut model,
+                                    &mut head,
+                                    next,
+                                    4096,
+                                    budget - tokens.len(),
+                                    |ids| {
+                                        tokenizer
+                                            .tokenizer()
+                                            .decode(ids, false)
+                                            .is_ok_and(|text| text.contains('\n'))
+                                    },
+                                )?;
+                            }
+                        }
+                        crate::array::synchronize()?;
+                        let seconds = started.elapsed().as_secs_f64();
+                        ensure!(
+                            seconds.is_finite() && seconds > 0.0 && tokens.len() == budget,
+                            "invalid sample timing/count"
+                        );
+                        ensure!(
+                            session.blocks > 0 && session.accepted <= session.proposed,
+                            "MTP inactive or invalid"
+                        );
+                        let states = state_bytes(&model)?;
+                        ensure!(states.len() == 128, "incomplete target states");
+                        let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                        ensure!(
+                            hidden.len() == 5120
+                                && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
+                            "invalid hidden"
+                        );
+                        let cache = head.cache_bytes()?;
+                        for bytes in [&cache.0, &cache.1] {
+                            ensure!(
+                                !bytes.is_empty() && bytes.len() % 2 == 0,
+                                "invalid F16 head cache bytes"
+                            );
+                            ensure!(
+                                bytes
+                                    .as_chunks::<2>()
+                                    .0
+                                    .iter()
+                                    .all(|b| f16::from_bits(u16::from_ne_bytes([b[0], b[1]]))
+                                        .is_finite()),
+                                "nonfinite head cache"
+                            );
+                        }
+                        let counts = (session.accepted, session.proposed, session.blocks);
+                        drop(session);
+                        drop(logits);
+                        model.reset();
+                        head.reset()?;
+                        crate::array::release_idle_cache()?;
+                        Ok(Sample {
+                            seconds,
+                            tokens,
+                            counts,
+                            states,
+                            hidden,
+                            cache,
+                        })
+                    })
+                })
+            };
+            let mut warm_reference: Option<Sample> = None;
+            for enabled in [false, true] {
+                let warm = sample(enabled, 128)?;
+                let row = serde_json::json!({"phase":"warmup","enabled":enabled,"seconds":warm.seconds,"tokens":warm.tokens,"counts":warm.counts});
+                report["samples"]
+                    .as_array_mut()
+                    .context("invalid samples")?
+                    .push(row);
+                if let Some(reference) = &warm_reference {
+                    ensure!(
+                        warm.tokens == reference.tokens
+                            && warm.counts == reference.counts
+                            && warm.states == reference.states
+                            && warm.hidden == reference.hidden
+                            && warm.cache == reference.cache,
+                        "warmup diverged"
+                    );
+                } else {
+                    warm_reference = Some(warm);
+                }
+                save(&report)?;
+            }
+            if std::env::var("MLXL3_DENSE_RESIDENT_STABILIZE").as_deref() == Ok("1") {
+                let mut seconds = Vec::new();
+                let mut reference: Option<Sample> = None;
+                let mut stable = false;
+                for probe in 0..12 {
+                    let current = sample(false, 32)?;
+                    if let Some(reference) = &reference {
+                        ensure!(
+                            current.tokens == reference.tokens
+                                && current.counts == reference.counts
+                                && current.states == reference.states
+                                && current.hidden == reference.hidden
+                                && current.cache == reference.cache,
+                            "stabilization probe diverged"
+                        );
+                    }
+                    seconds.push(current.seconds);
+                    let row = serde_json::json!({"phase":"stabilize","probe":probe,"enabled":false,"seconds":current.seconds,"tokens":current.tokens,"counts":current.counts});
+                    report["samples"]
+                        .as_array_mut()
+                        .context("invalid samples")?
+                        .push(row);
+                    save(&report)?;
+                    if reference.is_none() {
+                        reference = Some(current);
+                    }
+                    if seconds.len() >= 3 {
+                        let window = &seconds[seconds.len() - 3..];
+                        let min = window.iter().copied().fold(f64::INFINITY, f64::min);
+                        let max = window.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+                        if max / min <= 1.03 {
+                            stable = true;
+                            break;
+                        }
+                    }
+                }
+                ensure!(stable, "baseline did not stabilize within 12 probes");
+                report["stabilized"] = true.into();
+            }
+            let mut reference_tokens = None;
+            for pair in 0..8 {
+                let mut results = Vec::new();
+                for enabled in if pair % 2 == 0 {
+                    [false, true]
+                } else {
+                    [true, false]
+                } {
+                    let current = sample(enabled, 32)?;
+                    ensure!(
+                        reference_tokens
+                            .as_ref()
+                            .is_none_or(|tokens| current.tokens == *tokens),
+                        "resident token divergence"
+                    );
+                    if reference_tokens.is_none() {
+                        reference_tokens = Some(current.tokens.clone());
+                    }
+                    let row = serde_json::json!({"phase":"measure","pair":pair,"enabled":enabled,"seconds":current.seconds,"tokens":current.tokens,"counts":current.counts});
+                    report["samples"]
+                        .as_array_mut()
+                        .context("invalid samples")?
+                        .push(row.clone());
+                    save(&report)?;
+                    println!("{row}");
+                    results.push((enabled, current));
+                }
+                results.sort_by_key(|(enabled, _)| *enabled);
+                let (a, b) = (&results[0].1, &results[1].1);
+                ensure!(
+                    a.tokens == b.tokens
+                        && a.counts == b.counts
+                        && a.states == b.states
+                        && a.hidden == b.hidden
+                        && a.cache == b.cache,
+                    "resident states/counts/cache diverged at pair={pair}"
+                );
+                let row = serde_json::json!({"pair":pair,"A_seconds":a.seconds,"B_seconds":b.seconds,"tokens":32,"bit_exact":true,"counts":a.counts});
+                report["pairs"]
+                    .as_array_mut()
+                    .context("invalid pairs")?
+                    .push(row.clone());
+                save(&report)?;
+                println!("{row}");
+            }
+            ensure!(
+                report["pairs"]
+                    .as_array()
+                    .is_some_and(|pairs| pairs.len() == 8),
+                "incomplete resident campaign"
+            );
+            Ok(())
+        })();
+        if let Err(error) = &result {
+            report["status"] = "failed".into();
+            report["error"] = format!("{error:#}").into();
+        } else {
+            report["status"] = "complete".into();
+            report["parity"] = true.into();
+        }
+        save(&report)?;
+        result
+    }
+
+    #[test]
+    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone"]
+    fn dense_mlp_batch_matches_serial_layers() -> Result<()> {
+        let model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
+        ensure!(
+            model.layers.len() == 64 && model.mtp_layout.hidden_size == 5120,
+            "requires dense Qwen27B fixture"
+        );
+        let mut cases = 0;
+        for (index, layer) in model.layers.iter().enumerate() {
+            let mlp = match layer {
+                Layer::Linear(layer) => &layer.mlp,
+                Layer::Attention(layer) => &layer.mlp,
+            };
+            let Mlp::Dense(dense) = mlp else {
+                anyhow::bail!("fixture is not dense");
+            };
+            ensure!(
+                matches!(dense.inputs, ProjectionBundle::Grouped(_)) && dense.down.is_exl3(),
+                "requires EXL3 MLP fixture"
+            );
+            if index == 0 {
+                let value = Array::from_f16_bits(&vec![0; 5120], &[1, 1, 5120])?;
+                let too_many = (0..9)
+                    .map(|_| value.try_clone())
+                    .collect::<Result<Vec<_>>>()?;
+                ensure!(
+                    mlp.forward_verification(&too_many, 5120).is_err(),
+                    "oversized MLP accepted"
+                );
+                let wrong_rank = value.reshape(&[1, 5120])?;
+                ensure!(
+                    mlp.forward_verification(&[wrong_rank], 5120).is_err(),
+                    "malformed MLP accepted"
+                );
+                ensure!(
+                    mlp.forward_verification(&[value], 4096).is_err(),
+                    "wrong MLP width accepted"
+                );
+            }
+            for rows in [2, 3, 4] {
+                let inputs = (0..rows)
+                    .map(|row| {
+                        let bits = (0..5120)
+                            .map(|column| match column % 257 {
+                                0 => 0,
+                                1 => 0x8000,
+                                2 => 1,
+                                3 => 0x8001,
+                                _ => f16::from_f32(
+                                    ((index * 17 + row * 71 + column * 37) % 1021) as f32 / 512.0
+                                        - 1.0,
+                                )
+                                .to_bits(),
+                            })
+                            .collect::<Vec<_>>();
+                        Array::from_f16_bits(&bits, &[1, 1, 5120])
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let expected =
+                    with_dense_mlp_batch(false, || mlp.forward_verification(&inputs, 5120))?
+                        .iter()
+                        .map(Array::to_f16_bits)
+                        .collect::<Result<Vec<_>>>()?;
+                ensure!(
+                    expected.len() == rows
+                        && expected.iter().all(|row| row.len() == 5120
+                            && row.iter().all(|&v| f16::from_bits(v).is_finite())),
+                    "invalid serial MLP oracle"
+                );
+                for mb3 in [false, true] {
+                    let actual = crate::linear::with_grouped_mb3_test(mb3, || {
+                        with_dense_mlp_batch(true, || mlp.forward_verification(&inputs, 5120))
+                    })?;
+                    ensure!(
+                        actual.len() == rows
+                            && actual.iter().all(|row| row.shape() == [1, 1, 5120]),
+                        "invalid MLP batch shape"
+                    );
+                    let actual = actual
+                        .iter()
+                        .map(Array::to_f16_bits)
+                        .collect::<Result<Vec<_>>>()?;
+                    ensure!(
+                        actual == expected,
+                        "MLP differs layer={index} rows={rows} MB3={mb3}"
+                    );
+                    cases += 1;
+                }
+            }
+            ensure!(
+                mlp.forward_verification(&[], 5120).is_err(),
+                "empty MLP accepted"
+            );
+            println!("dense MLP exact: layer={index}, M2/3/4, MB3 OFF/ON");
+        }
+        ensure!(cases == 384, "missing MLP comparisons");
+        Ok(())
+    }
+
+    #[test]
+    fn dense_mlp_batch_override_restores_after_panic() {
+        assert_eq!(DENSE_MLP_BATCH_OVERRIDE.with(std::cell::Cell::get), None);
+        with_dense_mlp_batch(false, || {
+            assert!(!dense_mlp_batch_enabled());
+            with_dense_mlp_batch(true, || assert!(dense_mlp_batch_enabled()));
+            assert!(
+                std::panic::catch_unwind(|| with_dense_mlp_batch(true, || panic!("test failure")))
+                    .is_err()
+            );
+            assert!(!dense_mlp_batch_enabled());
+            std::thread::spawn(|| {
+                assert_eq!(DENSE_MLP_BATCH_OVERRIDE.with(std::cell::Cell::get), None)
+            })
+            .join()
+            .unwrap();
+        });
+        assert_eq!(DENSE_MLP_BATCH_OVERRIDE.with(std::cell::Cell::get), None);
+    }
+
+    #[test]
+    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone"]
+    fn dense_smallm_dispatch_matches_serial_prefixes() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
+        ensure!(
+            model.layers.len() == 64
+                && model.vocab == 248320
+                && model.mtp_layout.hidden_size == 5120,
+            "requires dense Qwen27B fixture"
+        );
+        model.pipeline = false;
+        model.mtp_pipeline = false;
+        for length in [24, 257] {
+            model.reset();
+            let prefix = (0..length).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+            model.forward_mtp(&prefix)?;
+            let base = model.snapshot()?;
+            for total in [2, 3, 4, 8] {
+                model.mtp_pipeline = false;
+                model.restore(base.clone())?;
+                let tokens = (0..total).map(|i| (i * 53 + 1) as u32).collect::<Vec<_>>();
+                let mut expected_logits = Vec::new();
+                let mut expected_prefixes = Vec::new();
+                crate::linear::with_grouped_mb3_test(false, || -> Result<()> {
+                    for &token in &tokens {
+                        let bits = model.forward(token)?.to_f16_bits()?;
+                        ensure!(
+                            bits.len() == 248320
+                                && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
+                            "invalid serial logits"
+                        );
+                        expected_logits.extend(bits);
+                        let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                        ensure!(
+                            hidden.len() == 5120
+                                && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
+                            "invalid serial hidden"
+                        );
+                        expected_prefixes.push((state_bytes(&model)?, hidden));
+                    }
+                    Ok(())
+                })?;
+                for (mb3, pipeline) in [(true, false), (false, true), (true, true)] {
+                    model.mtp_pipeline = pipeline;
+                    crate::linear::with_grouped_mb3_test(mb3, || -> Result<()> {
+                        for retained in 1..=total {
+                            model.restore(base.clone())?;
+                            let (logits, raw) = model.verify_mtp(&tokens)?;
+                            let bits = logits.to_f16_bits()?;
+                            ensure!(
+                                bits.len() == total * 248320
+                                    && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
+                                "invalid verify logits"
+                            );
+                            ensure!(
+                                bits == expected_logits,
+                                "logits differ prefix={length} M={total} MB3={mb3} pipeline={pipeline}"
+                            );
+                            ensure!(
+                                raw.shape() == [1, total as i32, 5120],
+                                "invalid verify hidden shape"
+                            );
+                            let hidden = raw.to_f16_bits()?;
+                            ensure!(
+                                hidden.len() == total * 5120
+                                    && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
+                                "invalid verify hidden"
+                            );
+                            for (row, (_, expected)) in expected_prefixes.iter().enumerate() {
+                                ensure!(
+                                    hidden[row * 5120..(row + 1) * 5120] == *expected,
+                                    "verify hidden differs"
+                                );
+                            }
+                            model.commit_dflash_verification(retained, total)?;
+                            model.set_mtp_hidden(raw.slice(
+                                1,
+                                retained as i32 - 1,
+                                retained as i32,
+                            )?)?;
+                            let actual = (state_bytes(&model)?, model.mtp_hidden()?.to_f16_bits()?);
+                            ensure!(
+                                actual == expected_prefixes[retained - 1],
+                                "rollback differs prefix={length} M={total} retained={retained} MB3={mb3} pipeline={pipeline}"
+                            );
+                        }
+                        Ok(())
+                    })?;
+                    println!(
+                        "dense dispatch exact: prefix={length} M={total} MB3={mb3} pipeline={pipeline}, {total} commits, 128 state arrays"
+                    );
+                }
+                crate::array::synchronize()?;
+                crate::array::clear_cache()?;
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone, no concurrent builds"]
+    fn checkpoint_dense_decode_tiles_paired() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let prefix = (0..69).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+        model.forward_tokens(&prefix)?;
+        let snapshot = model.snapshot()?;
+        let mut execute = |enabled| -> Result<(f64, Vec<u16>, Vec<Vec<u8>>)> {
+            crate::linear::with_dense_decode_nt4_test(enabled, || {
+                model.restore(snapshot.clone())?;
+                let started = Instant::now();
+                let mut last = None;
+                for i in 0..16 {
+                    last = Some(model.forward((i * 53 + 1) as u32)?);
+                }
+                let seconds = started.elapsed().as_secs_f64();
+                let logits = last
+                    .context("missing decode benchmark logits")?
+                    .to_f16_bits()?;
+                ensure!(
+                    logits.len() == 248320 && logits.iter().all(|&v| f16::from_bits(v).is_finite()),
+                    "invalid dense benchmark logits"
+                );
+                let states = state_bytes(&model)?;
+                ensure!(states.len() == 128, "invalid dense benchmark state count");
+                Ok((seconds, logits, states))
+            })
+        };
+        for enabled in [false, true, true, false] {
+            execute(enabled)?;
+        }
+        for pair in 0..8 {
+            let (a, b) = if pair % 2 == 0 {
+                (execute(false)?, execute(true)?)
+            } else {
+                let b = execute(true)?;
+                (execute(false)?, b)
+            };
+            ensure!(a.1 == b.1, "paired benchmark logits differ at pair={pair}");
+            for (index, (expected, actual)) in a.2.iter().zip(&b.2).enumerate() {
+                ensure!(
+                    expected == actual,
+                    "paired benchmark state differs at pair={pair}, array={index}"
+                );
+            }
+            println!(
+                "{}",
+                serde_json::json!({
+                    "pair": pair, "tokens": 16, "A_seconds": a.0, "B_seconds": b.0,
+                    "bit_exact": true, "state_arrays": a.2.len(), "logits": a.1.len(),
+                    "boundary": "eager model forward only, forced IDs, one checkpoint and snapshot"
+                })
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires MLXL3_QWEN_TEST_MODEL, reference directory and physical Apple GPU"]
+    fn checkpoint_optimization_matches_saved_logits_and_states() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let reference = std::path::PathBuf::from(std::env::var("MLXL3_QWEN_REFERENCE_DIR")?);
+        let write = std::env::var("MLXL3_QWEN_WRITE_REFERENCE").as_deref() == Ok("1");
+        if write {
+            std::fs::create_dir_all(&reference)?;
+        }
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        if std::env::var("MLXL3_QWEN_TEST_CLEAR_CACHE").as_deref() == Ok("1") {
+            crate::array::clear_cache()?;
+        }
+        for length in [23, 128, 256] {
+            model.reset();
+            let tokens = (0..length).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+            let mut logits = model.forward_tokens(&tokens)?;
+            for step in 0..=3 {
+                if step > 0 {
+                    logits = model.forward((step * 53) as u32)?;
+                }
+                let bits = logits.to_f16_bits()?;
+                assert_eq!(bits.len(), model.vocab as usize);
+                assert!(bits.iter().all(|&value| f16::from_bits(value).is_finite()));
+                let mut arrays = state_bytes(&model)?;
+                assert_eq!(arrays.len(), model.layers.len() * 2);
+                arrays.push(bits.iter().flat_map(|bits| bits.to_ne_bytes()).collect());
+                for (index, bytes) in arrays.iter().enumerate() {
+                    let file =
+                        reference.join(format!("prefill{length}-step{step}-array{index}.bin"));
+                    if write {
+                        std::fs::write(file, bytes)?;
+                    } else {
+                        ensure!(
+                            std::fs::read(&file)? == *bytes,
+                            "optimization parity differs at prefill={length} step={step} array={index}"
+                        );
+                    }
+                }
+                println!(
+                    "prefill={length} step={step}: {} state arrays and {} finite logits {}",
+                    arrays.len() - 1,
+                    bits.len(),
+                    if write { "saved" } else { "bit-identical" }
+                );
+            }
+        }
+        Ok(())
     }
 
     #[test]
     #[ignore = "requires local Qwen checkpoint and physical Apple GPU"]
     fn mtp_prefill_verification_and_rollback_match_target() -> Result<()> {
-        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let mut model = Qwen35Moe::load(Path::new(
+            &std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        ))?;
         for time in [1, 23, 24, 129, 256] {
             let prefix = (0..time).map(|i| 1 + i % 31).collect::<Vec<_>>();
             model.reset();
@@ -2084,7 +2949,7 @@ mod tests {
             assert_eq!(state_bytes(&model)?, state, "MTP prefill states {time}");
             assert_eq!(raw.shape(), [1, time as i32, model.mtp_layout.hidden_size]);
             let saved = model.snapshot()?;
-            for total in 2..=4 {
+            for total in 1..=8 {
                 let verification = (1..=total as u32).collect::<Vec<_>>();
                 for retained in 1..=total {
                     model.restore(saved.clone())?;
@@ -2130,38 +2995,279 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn layer_pipeline_matches_unscheduled_logits_and_states() -> Result<()> {
+        let path = std::env::var("MLXL3_MTP_TEST_MODEL")
+            .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into());
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        match std::env::var("MLXL3_QWEN_PIPELINE").as_deref() {
+            Ok("0") => assert!(!model.pipeline && !model.mtp_pipeline),
+            Ok("1") => assert!(model.pipeline && model.mtp_pipeline),
+            _ => {
+                assert!(!model.pipeline);
+                assert_eq!(
+                    model.mtp_pipeline,
+                    crate::array::is_m5_gpu()?
+                        && model.mtp_layout.hidden_size == 2048
+                        && model.layers.len() == 40
+                );
+            }
+        }
+        for length in [23, 24, 257] {
+            let tokens = (0..length)
+                .map(|index| (index * 37 + 1) as u32)
+                .collect::<Vec<_>>();
+            let mut expected = Vec::new();
+            for enabled in [false, true] {
+                model.pipeline = enabled;
+                model.mtp_pipeline = enabled;
+                model.reset();
+                let mut logits = model.forward_mtp(&tokens)?.0;
+                for step in 0..=16 {
+                    if step > 0 {
+                        logits = model.forward((step * 53) as u32)?;
+                    }
+                    let bits = logits.to_f16_bits()?;
+                    assert_eq!(bits.len(), model.vocab as usize);
+                    assert!(bits.iter().all(|&value| f16::from_bits(value).is_finite()));
+                    let state = state_bytes(&model)?;
+                    assert_eq!(state.len(), model.layers.len() * 2);
+                    assert_eq!(
+                        model.mtp_hidden()?.shape(),
+                        [1, 1, model.mtp_layout.hidden_size]
+                    );
+                    let hidden = model.mtp_hidden()?.to_f16_bits()?;
+                    assert_eq!(hidden.len(), model.mtp_layout.hidden_size as usize);
+                    assert!(
+                        hidden
+                            .iter()
+                            .all(|&value| f16::from_bits(value).is_finite())
+                    );
+                    let row = (bits, state, hidden);
+                    if enabled {
+                        assert!(
+                            row == expected[step],
+                            "pipeline parity length={length} step={step}"
+                        );
+                    } else {
+                        expected.push(row);
+                    }
+                }
+            }
+            println!(
+                "pipeline exact: prefill={length}, 17 finite logits/hidden/states, {} state arrays",
+                model.layers.len() * 2
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
+    fn mtp_lookup_accepts_rejects_and_repairs_exact_caches() -> Result<()> {
+        use crate::mtp::{Head, Session};
+        let mut model = Qwen35Moe::load(Path::new(
+            &std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        ))?;
+        let mut head = Head::load(
+            Path::new(
+                &std::env::var("MLXL3_MTP_TEST_HEAD")
+                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
+            ),
+            &model,
+        )?;
+        for depth in 1..=3 {
+            for accepted_count in (0..=depth).chain(std::iter::once(usize::MAX)) {
+                model.reset();
+                head.reset()?;
+                let prefix = vec![1; 24];
+                let (logits, raw) = model.forward_mtp(&prefix)?;
+                head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
+                let mut anchor = logits.chat_greedy_ids()?[0];
+                let initial = model.snapshot()?;
+                let mut next = anchor;
+                let mut oracle = Vec::new();
+                for _ in 0..depth {
+                    next = model.forward(next)?.chat_greedy_ids()?[0];
+                    oracle.push(next);
+                }
+                model.restore(initial)?;
+                let truncated = accepted_count == usize::MAX;
+                let proposals = if truncated {
+                    vec![anchor]
+                } else {
+                    let mut proposals = oracle.clone();
+                    if accepted_count < depth {
+                        proposals[accepted_count] =
+                            (proposals[accepted_count] + 1) % model.mtp_layout().vocab_size as u32;
+                    }
+                    proposals
+                };
+                // An adversarial proposer fixture, independent of model history:
+                // force each acceptance boundary, including a one-ID overlap.
+                let history = if truncated {
+                    vec![anchor; 9]
+                } else {
+                    let suffix = [101, 102, 103, 104, 105, 106, 107];
+                    let mut history = suffix.to_vec();
+                    history.push(anchor);
+                    history.extend(&proposals);
+                    history.push(123);
+                    history.extend(suffix);
+                    history
+                };
+                assert_eq!(
+                    crate::speculative::prompt_lookup(&history, anchor, depth, |_| true),
+                    Some(proposals.as_slice())
+                );
+                let expected_accepted = if truncated {
+                    usize::from(oracle[0] == anchor)
+                } else {
+                    accepted_count
+                };
+                let mut session = Session::new(depth)?;
+                session.enable_prompt_lookup(&history);
+                for block in 0..2 {
+                    let saved = model.snapshot()?;
+                    let head_saved = head.snapshot()?;
+                    let start = model.offset();
+                    let first =
+                        session.advance(&mut model, &mut head, anchor, 512, 64, |_| true)?;
+                    let retained = (model.offset() - start) as usize;
+                    assert!((1..=depth + 1).contains(&retained));
+                    let mut actual = vec![first];
+                    for _ in 1..retained {
+                        actual.push(session.advance(
+                            &mut model,
+                            &mut head,
+                            *actual.last().unwrap(),
+                            512,
+                            64,
+                            |_| true,
+                        )?);
+                    }
+                    if block == 0 {
+                        assert_eq!(session.lookup_blocks, 1);
+                        assert_eq!(session.proposed, proposals.len());
+                        assert_eq!(session.accepted, expected_accepted);
+                        assert_eq!(retained, 1 + expected_accepted);
+                    } else if expected_accepted == 0 {
+                        assert_eq!(
+                            session.lookup_blocks, 1,
+                            "lookup must stop after full rejection"
+                        );
+                    }
+                    let actual_states = state_bytes(&model)?;
+                    assert_eq!(actual_states.len(), model.layers.len() * 2);
+                    let actual_hidden = model.mtp_hidden()?.to_bytes()?;
+                    let actual_head = head.cache_bytes()?;
+                    model.restore(saved)?;
+                    head.restore(head_saved)?;
+                    let mut expected = Vec::new();
+                    for _ in 0..retained {
+                        head.extend_cache(&model, &model.mtp_hidden()?.try_clone()?, &[anchor])?;
+                        anchor = model.forward(anchor)?.chat_greedy_ids()?[0];
+                        expected.push(anchor);
+                    }
+                    assert_eq!(
+                        actual, expected,
+                        "lookup tokens D{depth}/accept{accepted_count}/block{block}"
+                    );
+                    assert_eq!(actual_states, state_bytes(&model)?);
+                    assert_eq!(actual_hidden, model.mtp_hidden()?.to_bytes()?);
+                    assert_eq!(actual_head, head.cache_bytes()?);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
     fn mtp_recursive_sessions_match_greedy_and_exact_caches() -> Result<()> {
         use crate::mtp::{Head, Session};
-        let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
-        let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &model)?;
-        for depth in 1..=3 {
+        let mut model = Qwen35Moe::load(Path::new(
+            &std::env::var("MLXL3_MTP_TEST_MODEL")
+                .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+        ))?;
+        let head_path = std::env::var("MLXL3_MTP_TEST_HEAD")
+            .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into());
+        let mut head = Head::load(Path::new(&head_path), &model)?;
+        for depth in 1..=4 {
             model.reset();
             head.reset()?;
-            let prefix = vec![1; 24];
+            let prefix_len = 24;
+            let prefix = vec![1; prefix_len as usize];
             let (logits, raw) = model.forward_mtp(&prefix)?;
-            head.extend_cache(&model, &raw.slice(1, 0, 23)?, &prefix[1..])?;
+            head.extend_cache(&model, &raw.slice(1, 0, prefix_len - 1)?, &prefix[1..])?;
             let mut anchor = logits.chat_greedy_ids()?[0];
-            let mut session = Session::new(depth)?;
+            let saved_head = head.snapshot()?;
+            let standalone = head.forward(
+                &model,
+                &raw.slice(1, prefix_len - 1, prefix_len)?,
+                &[anchor],
+            )?;
+            assert_eq!(standalone.shape(), &[1, 1, model.mtp_layout().vocab_size]);
+            let values = standalone.to_f32()?;
+            assert_eq!(values.len(), model.mtp_layout().vocab_size as usize);
+            assert!(values.iter().all(|v| v.is_finite()) && values.iter().any(|&v| v != 0.));
+            head.restore(saved_head)?;
+            let mut session = Session::new(depth.min(3))?;
+            type StoredKv = Vec<(Vec<i32>, Dtype, Vec<u8>)>;
+            let stored_kv = |model: &Qwen35Moe| -> Result<StoredKv> {
+                let mut buffers = Vec::new();
+                for layer in &model.layers {
+                    if let Layer::Attention(layer) = layer {
+                        for cache in [&layer.attention.keys, &layer.attention.values]
+                            .into_iter()
+                            .flatten()
+                        {
+                            buffers.push((
+                                cache.shape().to_vec(),
+                                cache.dtype(),
+                                cache.to_bytes()?,
+                            ));
+                        }
+                    }
+                }
+                ensure!(!buffers.is_empty(), "missing raw KV storage");
+                Ok(buffers)
+            };
             for block in 0..8 {
+                let effective_depth = if depth == 4 {
+                    [0, 3, 0, 1, 2, 0, 3, 1][block]
+                } else {
+                    depth
+                };
+                if depth == 4 {
+                    session.force_depth_for_check(effective_depth);
+                }
                 let saved = model.snapshot()?;
                 let head_saved = head.snapshot()?;
                 let start = model.offset();
-                let first = session.advance(&mut model, &mut head, anchor, 512, 64)?;
+                let first = session.advance(&mut model, &mut head, anchor, 512, 64, |_| true)?;
                 let retained = (model.offset() - start) as usize;
-                assert!((1..=depth + 1).contains(&retained));
+                assert!((1..=effective_depth + 1).contains(&retained));
                 let mut actual = vec![first];
                 assert!(
                     session
-                        .advance(&mut model, &mut head, first, 512, 0)
+                        .advance(&mut model, &mut head, first, 512, 0, |_| true)
                         .is_err()
                 );
                 for _ in 1..retained {
-                    let next =
-                        session.advance(&mut model, &mut head, *actual.last().unwrap(), 512, 64)?;
+                    let next = session.advance(
+                        &mut model,
+                        &mut head,
+                        *actual.last().unwrap(),
+                        512,
+                        64,
+                        |_| true,
+                    )?;
                     actual.push(next);
                 }
                 let actual_state = state_bytes(&model)?;
+                let actual_storage = stored_kv(&model)?;
                 let actual_hidden = model.mtp_hidden()?.to_bytes()?;
                 let actual_head = head.cache_bytes()?;
                 model.restore(saved)?;
@@ -2183,6 +3289,11 @@ mod tests {
                     "target states depth={depth} block={block}"
                 );
                 assert_eq!(actual_hidden, model.mtp_hidden()?.to_bytes()?);
+                assert_eq!(
+                    actual_storage,
+                    stored_kv(&model)?,
+                    "raw KV depth={depth} block={block}"
+                );
                 let expected_head = head.cache_bytes()?;
                 assert!(
                     actual_head == expected_head,
@@ -2206,6 +3317,101 @@ mod tests {
         }
         assert!(Session::new(0).is_err());
         assert!(Session::new(4).is_err());
+        // Exercise the actual optional artifact loader, including incomplete
+        // conversions, without rewriting either original checkpoint.
+        let temporary = tempfile::tempdir()?;
+        for file in ["config.json", "model.safetensors"] {
+            std::os::unix::fs::symlink(
+                Path::new(&head_path).join(file).canonicalize()?,
+                temporary.path().join(file),
+            )?;
+        }
+        let h = model.mtp_layout();
+        let metadata = serde_json::json!({"input":h.hidden_size,"output":h.vocab_size,
+                                         "bits":4,"group_size":64,"mode":"affine"});
+        let mut invalid = vec![serde_json::Value::Null, serde_json::json!({})];
+        for (key, value) in [
+            ("input", serde_json::json!(h.hidden_size + 64)),
+            ("output", serde_json::json!(h.vocab_size + 1)),
+            ("bits", serde_json::json!(8)),
+            ("group_size", serde_json::json!(32)),
+            ("mode", serde_json::json!("symmetric")),
+            ("unknown", serde_json::json!(true)),
+        ] {
+            let mut altered = metadata.clone();
+            altered[key] = value;
+            invalid.push(altered);
+        }
+        invalid.push(metadata.clone()); // valid metadata, missing weight payload
+        for ids in [
+            serde_json::json!([]),
+            serde_json::json!([0]),
+            serde_json::json!([1, 1]),
+            serde_json::json!([2, 1]),
+            serde_json::json!([0, h.vocab_size]),
+            serde_json::json!([-1, 0]),
+            serde_json::json!([0, 4294967296u64]),
+            serde_json::Value::Null,
+        ] {
+            let mut altered = metadata.clone();
+            altered["output"] = serde_json::json!(2);
+            altered["token_ids"] = ids;
+            invalid.push(altered);
+        }
+        let offset = model.offset();
+        for metadata in invalid {
+            std::fs::write(
+                temporary.path().join("draft_head_q4.json"),
+                serde_json::to_vec(&metadata)?,
+            )?;
+            assert!(Head::load(temporary.path(), &model).is_err());
+            assert_eq!(model.offset(), offset);
+        }
+        // Sparse disposable payloads exercise real header validation without
+        // reading or allocating an incompatible projection on the GPU.
+        std::fs::write(
+            temporary.path().join("draft_head_q4.json"),
+            serde_json::to_vec(&metadata)?,
+        )?;
+        for (weight_dtype, scales_dtype, biases_dtype) in [
+            ("F32", "F16", "F16"),
+            ("U32", "U16", "F16"),
+            ("U32", "F16", "U16"),
+        ] {
+            use std::io::Write;
+            let mut header = serde_json::Map::new();
+            let mut end = 0u64;
+            for (name, dtype, width, bytes) in [
+                ("weight", weight_dtype, h.hidden_size / 8, 4),
+                ("scales", scales_dtype, h.hidden_size / 64, 2),
+                ("biases", biases_dtype, h.hidden_size / 64, 2),
+            ] {
+                let start = end;
+                end += h.vocab_size as u64 * width as u64 * bytes;
+                header.insert(
+                    format!("lm_head.{name}"),
+                    serde_json::json!({
+                        "dtype":dtype, "shape":[h.vocab_size,width], "data_offsets":[start,end]
+                    }),
+                );
+            }
+            let encoded = serde_json::to_vec(&header)?;
+            let mut file =
+                std::fs::File::create(temporary.path().join("draft_head_q4.safetensors"))?;
+            file.write_all(&(encoded.len() as u64).to_le_bytes())?;
+            file.write_all(&encoded)?;
+            file.set_len(8 + encoded.len() as u64 + end)?;
+            let error = Head::load(temporary.path(), &model)
+                .err()
+                .expect("incompatible dtype must fail before GPU allocation");
+            assert!(
+                error
+                    .to_string()
+                    .contains("invalid draft Q4 tensor coverage, shapes or dtypes"),
+                "dtype fixture failed before the tensor validator: {error}"
+            );
+            assert_eq!(model.offset(), offset);
+        }
         Ok(())
     }
 
@@ -2454,6 +3660,21 @@ mod tests {
             .collect::<Result<Vec<_>>>()?;
         let expected_state = state_bytes(&model)?;
 
+        assert!(!expected_logits.is_empty());
+        for logits in &expected_logits {
+            assert!(!logits.is_empty());
+            assert!(
+                logits
+                    .iter()
+                    .all(|&bits| half::f16::from_bits(bits).is_finite())
+            );
+        }
+        assert!(!expected_state.is_empty());
+        assert!(expected_state.iter().all(|bytes| !bytes.is_empty()));
+        // The resident bridge releases final decode state at idle; the separate
+        // prefill snapshot must still restore exact logits and all layer state.
+        model.reset();
+        crate::array::release_idle_cache_with_policy(true)?;
         model.restore(snapshot)?;
         for (token, expected) in [4, 5].into_iter().zip(expected_logits) {
             assert_eq!(model.forward(token)?.to_f16_bits()?, expected);
@@ -2656,6 +3877,96 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "physical GPU and MLXL3_QWEN_TEST_MODEL; run alone"]
+    fn dflash_capture_verification_and_commits_match_serial_states() -> Result<()> {
+        let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let family = model
+            .dflash_family()
+            .context("unsupported DFlash test target")?;
+        let pipeline = model.pipeline;
+        for prefill in [23, 24, 256] {
+            let prefix = (1..=prefill).collect::<Vec<u32>>();
+            model.pipeline = false;
+            model.reset();
+            let expected_logits = model.forward_tokens(&prefix)?.to_f16_bits()?;
+            ensure!(
+                expected_logits.len() == model.vocab as usize
+                    && expected_logits
+                        .iter()
+                        .all(|&v| f16::from_bits(v).is_finite()),
+                "invalid prefill oracle logits"
+            );
+            let expected_state = state_bytes(&model)?;
+            model.pipeline = pipeline;
+            model.reset();
+            let (actual, captured) = model.forward_tokens_with_dflash_capture(&prefix)?;
+            ensure!(
+                actual.to_f16_bits()? == expected_logits && state_bytes(&model)? == expected_state,
+                "capture altered prefill"
+            );
+            let values = captured.to_f32()?;
+            ensure!(
+                captured.shape() == [prefill as i32, family.target_hidden() as i32]
+                    && captured.dtype() == Dtype::BFloat16
+                    && values.len() == prefill as usize * family.target_hidden() as usize
+                    && values.iter().all(|v| v.is_finite()),
+                "invalid capture"
+            );
+            let before = model.snapshot()?;
+            for width in 1..=8 {
+                let forced = (100..100 + width).collect::<Vec<u32>>();
+                model.pipeline = false;
+                model.restore(before.clone())?;
+                let expected = batched_head_token_major(&mut model, &forced)?.to_f16_bits()?;
+                ensure!(
+                    expected.len() == width as usize * model.vocab as usize
+                        && expected.iter().all(|&v| f16::from_bits(v).is_finite()),
+                    "invalid verification oracle logits"
+                );
+                let expected_states = state_bytes(&model)?;
+                model.pipeline = pipeline;
+                model.restore(before.clone())?;
+                let (actual, captured) = model.verify_tokens_exact_with_dflash_capture(&forced)?;
+                ensure!(
+                    actual.to_f16_bits()? == expected && state_bytes(&model)? == expected_states,
+                    "verify differs: prefill={prefill}, width={width}"
+                );
+                let values = captured.to_f32()?;
+                ensure!(
+                    captured.shape() == [width as i32, family.target_hidden() as i32]
+                        && captured.dtype() == Dtype::BFloat16
+                        && values.len() == width as usize * family.target_hidden() as usize
+                        && values.iter().all(|v| v.is_finite()),
+                    "invalid verify captures"
+                );
+                for retained in 1..=width {
+                    model.pipeline = false;
+                    model.restore(before.clone())?;
+                    for &token in &forced[..retained as usize] {
+                        model.forward(token)?;
+                    }
+                    let expected = state_bytes(&model)?;
+                    model.pipeline = pipeline;
+                    model.restore(before.clone())?;
+                    model.verify_tokens_exact_with_dflash_capture(&forced)?;
+                    model.commit_dflash_verification(retained as usize, width as usize)?;
+                    ensure!(
+                        state_bytes(&model)? == expected,
+                        "commit differs: width={width}, retained={retained}"
+                    );
+                }
+            }
+        }
+        eprintln!(
+            "{}: 24 captured verifies / 108 commits / {} finite state arrays bit exact",
+            family.name(),
+            model.layers.len() * 2
+        );
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "requires local Qwen checkpoint and Apple GPU"]
     fn verification_widths_match_token_major() -> Result<()> {
         let mut model = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
@@ -2775,6 +4086,146 @@ mod tests {
             "Qwen target M=8: token_major={token_major_ms:.3}ms layer_major={layer_major_ms:.3}ms speedup={:.2}x samples={token_major_samples:?}/{layer_major_samples:?}",
             token_major_ms / layer_major_ms
         );
+        Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "chat"))]
+mod memory_feature_tests {
+    use super::*;
+    use crate::{array, embedding::Embedding};
+
+    #[test]
+    #[ignore = "local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn compact_prefill_snapshot_preserves_logits_states_and_budget() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_MTP_TEST_MODEL")?))?;
+        let prefix = (0..256).map(|i| (i % 127 + 1) as u32).collect::<Vec<_>>();
+        let anchor = model.forward_tokens(&prefix)?.chat_greedy_ids()?[0];
+        let original = model.snapshot()?;
+        let before = original.retained_bytes()?;
+        let logical = original.byte_len()?;
+        let states = tests::state_bytes(&model)?;
+        let hidden = model.mtp_hidden()?.to_bytes()?;
+        let compact = original.clone().compact_for_cache()?;
+        let after = compact.retained_bytes()?;
+        assert_eq!(compact.byte_len()?, logical);
+        assert!(after < before && after <= crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES);
+        model.restore(compact)?;
+        assert_eq!(tests::state_bytes(&model)?, states);
+        assert_eq!(model.mtp_hidden()?.to_bytes()?, hidden);
+        let candidate = model.forward(anchor)?;
+        let bits = candidate.to_f16_bits()?;
+        let following_states = tests::state_bytes(&model)?;
+        let following_hidden = model.mtp_hidden()?.to_bytes()?;
+        model.restore(original)?;
+        let expected = model.forward(anchor)?;
+        assert_eq!(expected.to_f16_bits()?, bits);
+        assert_eq!(tests::state_bytes(&model)?, following_states);
+        assert_eq!(model.mtp_hidden()?.to_bytes()?, following_hidden);
+        assert_eq!(bits.len(), model.vocab as usize);
+        assert!(expected.to_f32()?.iter().all(|v| v.is_finite()));
+        let report = serde_json::json!({"status":"complete","prefix_tokens":256,"logits":bits.len(),"state_arrays":states.len(),"logical_bytes":logical,"retained_before":before,"retained_after":after,"budget_bytes":crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES,"speed":"not_measured"});
+        println!("{report}");
+        if let Ok(path) = std::env::var("MLXL3_COMPACT_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn packed_embedding_model_logits_states_and_memory_are_qualified() -> Result<()> {
+        let path = std::env::var("MLXL3_MTP_TEST_MODEL")?;
+        let mut model = Qwen35Moe::load(Path::new(&path))?;
+        let Embedding::Dense(weight) = &model.embeddings else {
+            anyhow::bail!("run baseline without packed env")
+        };
+        let mut alternative = Embedding::new(weight.try_clone()?, true)?;
+        ensure!(
+            matches!(alternative, Embedding::Packed { .. }),
+            "real table did not compress"
+        );
+        let dense_bytes = model.embeddings.retained_bytes()?;
+        let packed_bytes = alternative.retained_bytes()?;
+        let mut positions = 0;
+        for length in [24usize, 257] {
+            let prefix = (0..length)
+                .map(|i| (i % 127 + 1) as u32)
+                .collect::<Vec<_>>();
+            model.reset();
+            let baseline = model.forward_tokens(&prefix)?;
+            let baseline_logits = baseline.to_f16_bits()?;
+            ensure!(
+                baseline_logits.len() == model.vocab as usize
+                    && baseline.to_f32()?.iter().all(|x| x.is_finite()),
+                "invalid baseline logits"
+            );
+            let expected_states = tests::state_bytes(&model)?;
+            let expected_hidden = model.mtp_hidden()?.to_bytes()?;
+            let profile = model.context_memory_profile()?;
+            let expected_bytes =
+                expected_states.iter().map(Vec::len).sum::<usize>() + expected_hidden.len();
+            assert_eq!(
+                profile["fixed_bytes"].as_u64().unwrap()
+                    + profile["layers"][0]["bytes_per_token"].as_u64().unwrap() * length as u64,
+                expected_bytes as u64
+            );
+            std::mem::swap(&mut model.embeddings, &mut alternative);
+            model.reset();
+            let actual = model.forward_tokens(&prefix)?;
+            assert_eq!(actual.to_f16_bits()?, baseline_logits);
+            assert_eq!(tests::state_bytes(&model)?, expected_states);
+            assert_eq!(model.mtp_hidden()?.to_bytes()?, expected_hidden);
+            let mut anchor = actual.chat_greedy_ids()?[0];
+            positions += 1;
+            for _ in 0..3 {
+                let saved = model.snapshot()?;
+                std::mem::swap(&mut model.embeddings, &mut alternative);
+                let expected = model.forward(anchor)?;
+                let logits = expected.to_f16_bits()?;
+                let states = tests::state_bytes(&model)?;
+                let hidden = model.mtp_hidden()?.to_bytes()?;
+                model.restore(saved)?;
+                std::mem::swap(&mut model.embeddings, &mut alternative);
+                let actual = model.forward(anchor)?;
+                assert_eq!(actual.to_f16_bits()?, logits);
+                assert_eq!(tests::state_bytes(&model)?, states);
+                assert_eq!(model.mtp_hidden()?.to_bytes()?, hidden);
+                anchor = actual.chat_greedy_ids()?[0];
+                positions += 1;
+            }
+            std::mem::swap(&mut model.embeddings, &mut alternative);
+        }
+        model.reset();
+        // Drop before clearing: freed candidate must not inflate the baseline.
+        drop(alternative);
+        array::synchronize()?;
+        array::clear_cache()?;
+        let before = array::memory_stats(false)?;
+        let Embedding::Dense(weight) = &model.embeddings else {
+            unreachable!()
+        };
+        let packed = Embedding::new(weight.try_clone()?, true)?;
+        drop(std::mem::replace(&mut model.embeddings, packed));
+        array::synchronize()?;
+        array::clear_cache()?;
+        let after = array::memory_stats(false)?;
+        assert_eq!(
+            before.mlx_cache_bytes, 0,
+            "baseline contains free allocator cache"
+        );
+        assert_eq!(
+            after.mlx_cache_bytes, 0,
+            "candidate contains free allocator cache"
+        );
+        let report = serde_json::json!({"status":"complete", "bitexact_positions":positions,
+            "logits_per_position":model.vocab,"state_arrays":model.layers.len()*2,
+            "dense_embedding_bytes":dense_bytes,"packed_embedding_bytes":packed_bytes,
+            "before":before,"after":after,"speed":"not_measured"});
+        if let Ok(path) = std::env::var("MLXL3_EMBEDDINGS_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+        }
+        println!("{report}");
         Ok(())
     }
 }

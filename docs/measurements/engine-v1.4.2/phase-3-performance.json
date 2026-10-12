@@ -1,0 +1,614 @@
+{
+  "retained": "MTP-only default on measured M5 target",
+  "confirmed": [
+    "stock-code-abba/baab",
+    "compact-code/compact-code-baab"
+  ],
+  "non_conclusive": "long stock confirmation drifts9.23%, excluded; D0 unchanged no gain",
+  "binary_identity": "pipeline-delivered-identity.json",
+  "decisions": {
+    "stock-code-abba": {
+      "status": "complete",
+      "variant": "delivered MTP-only default",
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 57.34149997181715,
+            "B": 61.916912613381854,
+            "change_percent": 7.97923431339167
+          },
+          "prefill_tps": {
+            "A": 203.49882801690336,
+            "B": 210.6978561855212,
+            "change_percent": 3.5376263533173136
+          },
+          "ttft_seconds": {
+            "A": 0.13314772925,
+            "B": 0.12862262475,
+            "change_percent": -3.3985592735897296
+          },
+          "elapsed_seconds": {
+            "A": 2.3480018127499998,
+            "B": 2.17977284375,
+            "change_percent": -7.164771683160187
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 64.7458870379313,
+            "B": 69.79611917476666,
+            "change_percent": 7.800081777977175
+          },
+          "prefill_tps": {
+            "A": 226.81794170600216,
+            "B": 232.3147523540303,
+            "change_percent": 2.423446137763219
+          },
+          "ttft_seconds": {
+            "A": 0.194470437,
+            "B": 0.1898695005,
+            "change_percent": -2.3658796529572146
+          },
+          "elapsed_seconds": {
+            "A": 2.156015552,
+            "B": 2.0094802187500003,
+            "change_percent": -6.796580530881058
+          }
+        }
+      },
+      "drifts": {
+        "short": {
+          "A": -0.7814970995257631,
+          "B": -0.08511359587435319
+        },
+        "document": {
+          "A": -0.36751754034393125,
+          "B": -0.24203977016611367
+        }
+      },
+      "confirmed": false,
+      "source_identity": "pipeline-delivered-identity.json"
+    },
+    "stock-code-baab": {
+      "status": "confirmed_on_measured_stock_D2_cases",
+      "parity": true,
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 57.3096114145344,
+            "B": 61.386999199349006,
+            "change_percent": 7.114666605086306
+          },
+          "prefill_tps": {
+            "A": 201.09844596889334,
+            "B": 208.54056610776215,
+            "change_percent": 3.7007347834105087
+          },
+          "ttft_seconds": {
+            "A": 0.134719521,
+            "B": 0.1299243855,
+            "change_percent": -3.5593472010637672
+          },
+          "elapsed_seconds": {
+            "A": 2.35076567725,
+            "B": 2.1988719477500003,
+            "change_percent": -6.461457684616612
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 64.2395337954253,
+            "B": 68.83680852996119,
+            "change_percent": 7.156457189082643
+          },
+          "prefill_tps": {
+            "A": 224.96864800867917,
+            "B": 230.42317811816443,
+            "change_percent": 2.424573449574541
+          },
+          "ttft_seconds": {
+            "A": 0.19603152075,
+            "B": 0.19139907275,
+            "change_percent": -2.363113841221365
+          },
+          "elapsed_seconds": {
+            "A": 2.1730763125,
+            "B": 2.0367561355,
+            "change_percent": -6.27314265108212
+          }
+        }
+      },
+      "drifts": {
+        "short": {
+          "A": -0.15781201719980986,
+          "B": 0.6097675412667591
+        },
+        "document": {
+          "A": -0.9051267873417479,
+          "B": -2.570742683079663
+        }
+      },
+      "source_identity": "pipeline-delivered-identity.json"
+    },
+    "d0-code": {
+      "name": "pipeline-final-d0-code",
+      "command": [
+        ".venv/bin/python",
+        "benchmarks/compare_native.py",
+        "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "--baseline",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--candidate",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--output",
+        "docs/measurements/engine-v1.4.2/pipeline-final-d0-code",
+        "--prompt-file",
+        "build/engine-v1.4.2/prompts/code.txt",
+        "--tokens",
+        "128",
+        "--warmup-tokens",
+        "128",
+        "--mtp-depth",
+        "0",
+        "--mtp-head",
+        "models/Qwen3.6-35B-A3B-MTP-4bit",
+        "--repeats",
+        "2",
+        "--order",
+        "ABBA",
+        "--settle-seconds",
+        "2",
+        "--baseline-env",
+        "MLXL3_QWEN_PIPELINE=0",
+        "--baseline-env",
+        "MLXL3_MTP_LOOKUP=0",
+        "--candidate-env",
+        "MLXL3_MTP_LOOKUP=0"
+      ],
+      "status": "complete",
+      "parity": true,
+      "exit_code": 0,
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 50.729553271457334,
+            "B": 50.48076906283556,
+            "change_percent": -0.4904127723942442
+          },
+          "prefill_tps": {
+            "A": 206.43131397926112,
+            "B": 207.2824565445104,
+            "change_percent": 0.41231271983028783
+          },
+          "ttft_seconds": {
+            "A": 0.13114033375,
+            "B": 0.13060164624999998,
+            "change_percent": -0.4107717927780752
+          },
+          "elapsed_seconds": {
+            "A": 2.6346346772500002,
+            "B": 2.6464223645,
+            "change_percent": 0.4474125901319903
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 50.449789576473464,
+            "B": 50.59599014253612,
+            "change_percent": 0.2897942038807555
+          },
+          "prefill_tps": {
+            "A": 229.94132598553563,
+            "B": 231.8912282465502,
+            "change_percent": 0.8479999202654076
+          },
+          "ttft_seconds": {
+            "A": 0.19171256250000002,
+            "B": 0.19009861449999998,
+            "change_percent": -0.8418582376415906
+          },
+          "elapsed_seconds": {
+            "A": 2.70910958325,
+            "B": 2.7002082915,
+            "change_percent": -0.32856890710643016
+          }
+        }
+      },
+      "drifts": {
+        "short": {
+          "A": -0.28821987793398174,
+          "B": -0.07259869789340012
+        },
+        "document": {
+          "A": -0.5472799742466061,
+          "B": 0.13775864227192347
+        }
+      },
+      "within_drift_limit": true
+    },
+    "compact-code": {
+      "name": "pipeline-final-compact-code",
+      "command": [
+        ".venv/bin/python",
+        "benchmarks/compare_native.py",
+        "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "--baseline",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--candidate",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--output",
+        "docs/measurements/engine-v1.4.2/pipeline-final-compact-code",
+        "--prompt-file",
+        "build/engine-v1.4.2/prompts/code.txt",
+        "--tokens",
+        "128",
+        "--warmup-tokens",
+        "128",
+        "--mtp-depth",
+        "2",
+        "--mtp-head",
+        "build/engine-v1.4.2/frspec-head",
+        "--repeats",
+        "2",
+        "--order",
+        "ABBA",
+        "--settle-seconds",
+        "2",
+        "--baseline-env",
+        "MLXL3_QWEN_PIPELINE=0",
+        "--baseline-env",
+        "MLXL3_MTP_LOOKUP=0",
+        "--candidate-env",
+        "MLXL3_MTP_LOOKUP=0"
+      ],
+      "status": "complete",
+      "parity": true,
+      "exit_code": 0,
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 62.434895507231914,
+            "B": 68.44229971841929,
+            "change_percent": 9.621869568904028
+          },
+          "prefill_tps": {
+            "A": 202.90795687381365,
+            "B": 210.83589838122833,
+            "change_percent": 3.907161468460796
+          },
+          "ttft_seconds": {
+            "A": 0.13355958325,
+            "B": 0.12851832325,
+            "change_percent": -3.7745400796614037
+          },
+          "elapsed_seconds": {
+            "A": 2.16785622925,
+            "B": 1.9841383437500002,
+            "change_percent": -8.474634204112297
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 69.96060675589581,
+            "B": 75.22589443447416,
+            "change_percent": 7.526074919489778
+          },
+          "prefill_tps": {
+            "A": 225.88614655097894,
+            "B": 226.12258413998273,
+            "change_percent": 0.104671133052614
+          },
+          "ttft_seconds": {
+            "A": 0.19523338550000002,
+            "B": 0.19504519775,
+            "change_percent": -0.09639117280995091
+          },
+          "elapsed_seconds": {
+            "A": 2.0105664062499997,
+            "B": 1.88340174975,
+            "change_percent": -6.324817529264326
+          }
+        }
+      },
+      "drifts": {
+        "short": {
+          "A": 1.3149618827377862,
+          "B": -0.08361567043241314
+        },
+        "document": {
+          "A": -0.5043595326726935,
+          "B": 0.5149652529866877
+        }
+      },
+      "within_drift_limit": true
+    },
+    "compact-code-baab": {
+      "name": "pipeline-final-compact-code-baab",
+      "command": [
+        ".venv/bin/python",
+        "benchmarks/compare_native.py",
+        "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "--baseline",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--candidate",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--output",
+        "docs/measurements/engine-v1.4.2/pipeline-final-compact-code-baab",
+        "--prompt-file",
+        "build/engine-v1.4.2/prompts/code.txt",
+        "--tokens",
+        "128",
+        "--warmup-tokens",
+        "128",
+        "--mtp-depth",
+        "2",
+        "--mtp-head",
+        "build/engine-v1.4.2/frspec-head",
+        "--repeats",
+        "2",
+        "--order",
+        "BAAB",
+        "--settle-seconds",
+        "2",
+        "--baseline-env",
+        "MLXL3_QWEN_PIPELINE=0",
+        "--baseline-env",
+        "MLXL3_MTP_LOOKUP=0",
+        "--candidate-env",
+        "MLXL3_MTP_LOOKUP=0"
+      ],
+      "status": "complete",
+      "parity": true,
+      "exit_code": 0,
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 63.44173244890112,
+            "B": 69.40760841319039,
+            "change_percent": 9.403709094947011
+          },
+          "prefill_tps": {
+            "A": 205.0329440792003,
+            "B": 212.16804362050584,
+            "change_percent": 3.479977119457156
+          },
+          "ttft_seconds": {
+            "A": 0.132139906,
+            "B": 0.127751656,
+            "change_percent": -3.320912003675869
+          },
+          "elapsed_seconds": {
+            "A": 2.13400340625,
+            "B": 1.957544656,
+            "change_percent": -8.268906681835341
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 70.12458084300404,
+            "B": 76.99948034958899,
+            "change_percent": 9.803836862820736
+          },
+          "prefill_tps": {
+            "A": 229.82625820305543,
+            "B": 232.9954547054527,
+            "change_percent": 1.3789531827983037
+          },
+          "ttft_seconds": {
+            "A": 0.191896281,
+            "B": 0.1892883755,
+            "change_percent": -1.3590182604945933
+          },
+          "elapsed_seconds": {
+            "A": 2.00369490625,
+            "B": 1.8389375315,
+            "change_percent": -8.222677725839523
+          }
+        }
+      },
+      "drifts": {
+        "short": {
+          "A": 0.19392188887157324,
+          "B": -0.2230488095322114
+        },
+        "document": {
+          "A": -2.2544419758368295,
+          "B": -1.8952928950803805
+        }
+      },
+      "within_drift_limit": true
+    },
+    "stock-long": {
+      "name": "pipeline-final-stock-long",
+      "command": [
+        ".venv/bin/python",
+        "benchmarks/compare_native.py",
+        "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "--baseline",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--candidate",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--output",
+        "docs/measurements/engine-v1.4.2/pipeline-final-stock-long",
+        "--prompt-file",
+        "build/engine-v1.4.2/prompts/long.txt",
+        "--tokens",
+        "128",
+        "--warmup-tokens",
+        "128",
+        "--mtp-depth",
+        "2",
+        "--mtp-head",
+        "models/Qwen3.6-35B-A3B-MTP-4bit",
+        "--repeats",
+        "2",
+        "--order",
+        "ABBA",
+        "--settle-seconds",
+        "2",
+        "--baseline-env",
+        "MLXL3_QWEN_PIPELINE=0",
+        "--baseline-env",
+        "MLXL3_MTP_LOOKUP=0",
+        "--candidate-env",
+        "MLXL3_MTP_LOOKUP=0"
+      ],
+      "status": "complete",
+      "parity": true,
+      "exit_code": 0,
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 57.99453033801069,
+            "B": 60.981405871650395,
+            "change_percent": 5.1502710966555565
+          },
+          "prefill_tps": {
+            "A": 203.42391012320772,
+            "B": 209.13284514714775,
+            "change_percent": 2.806422814546372
+          },
+          "ttft_seconds": {
+            "A": 0.13317898949999998,
+            "B": 0.12956481200000003,
+            "change_percent": -2.71377453273135
+          },
+          "elapsed_seconds": {
+            "A": 2.32308558325,
+            "B": 2.21232640625,
+            "change_percent": -4.767761368698609
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 59.23566137828661,
+            "B": 63.344435516281735,
+            "change_percent": 6.936318498675931
+          },
+          "prefill_tps": {
+            "A": 499.6045444271774,
+            "B": 506.40497434136637,
+            "change_percent": 1.3611625414628792
+          },
+          "ttft_seconds": {
+            "A": 3.94054083275,
+            "B": 3.887767802,
+            "change_percent": -1.3392331913274713
+          },
+          "elapsed_seconds": {
+            "A": 6.084819479,
+            "B": 5.89275918775,
+            "change_percent": -3.156384374472254
+          }
+        }
+      },
+      "drifts": {
+        "short": {
+          "A": 0.5991705853972906,
+          "B": 0.9452376490070025
+        },
+        "document": {
+          "A": 1.1402530141715106,
+          "B": 0.7636862800249444
+        }
+      },
+      "within_drift_limit": true
+    },
+    "stock-long-baab": {
+      "name": "pipeline-final-stock-long-baab",
+      "command": [
+        ".venv/bin/python",
+        "benchmarks/compare_native.py",
+        "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "--baseline",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--candidate",
+        "build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs",
+        "--output",
+        "docs/measurements/engine-v1.4.2/pipeline-final-stock-long-baab",
+        "--prompt-file",
+        "build/engine-v1.4.2/prompts/long.txt",
+        "--tokens",
+        "128",
+        "--warmup-tokens",
+        "128",
+        "--mtp-depth",
+        "2",
+        "--mtp-head",
+        "models/Qwen3.6-35B-A3B-MTP-4bit",
+        "--repeats",
+        "2",
+        "--order",
+        "BAAB",
+        "--settle-seconds",
+        "2",
+        "--baseline-env",
+        "MLXL3_QWEN_PIPELINE=0",
+        "--baseline-env",
+        "MLXL3_MTP_LOOKUP=0",
+        "--candidate-env",
+        "MLXL3_MTP_LOOKUP=0"
+      ],
+      "status": "complete",
+      "parity": true,
+      "exit_code": 0,
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 55.17195774415333,
+            "B": 62.04983882619178,
+            "change_percent": 12.466262505914628
+          },
+          "prefill_tps": {
+            "A": 192.2893849990481,
+            "B": 210.63127922419454,
+            "change_percent": 9.538693061625448
+          },
+          "ttft_seconds": {
+            "A": 0.1419812295,
+            "B": 0.12864015574999998,
+            "change_percent": -9.396364432806958
+          },
+          "elapsed_seconds": {
+            "A": 2.45196907275,
+            "B": 2.175743802,
+            "change_percent": -11.265446771732734
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 55.25989577931098,
+            "B": 64.23161284038684,
+            "change_percent": 16.235493995330398
+          },
+          "prefill_tps": {
+            "A": 492.18949729165774,
+            "B": 512.3497478665677,
+            "change_percent": 4.09603428879417
+          },
+          "ttft_seconds": {
+            "A": 4.00479056225,
+            "B": 3.8425042187500003,
+            "change_percent": -4.052305382202636
+          },
+          "elapsed_seconds": {
+            "A": 6.31857878125,
+            "B": 5.819806604,
+            "change_percent": -7.893739945604173
+          }
+        }
+      },
+      "drifts": {
+        "short": {
+          "A": -9.233797632594543,
+          "B": -2.3058231598654277
+        },
+        "document": {
+          "A": 0.30681986897389546,
+          "B": -1.0413954113303037
+        }
+      },
+      "within_drift_limit": false
+    }
+  }
+}

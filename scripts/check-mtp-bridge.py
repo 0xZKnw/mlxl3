@@ -142,6 +142,26 @@ def run(
                 json.dumps({"runtime": ready, "head": head, "prompt": prompt, "context": context}),
                 flush=True,
             )
+            if ready.get("mtp_configure_supported") is True:
+                for enabled in (True, False):
+                    count += 1
+                    request_id = str(count)
+                    process.stdin.write(
+                        json.dumps(
+                            {
+                                "type": "set_mtp",
+                                "request_id": request_id,
+                                "enabled": enabled,
+                                "mtp_head_path": head if enabled else "",
+                            }
+                        )
+                        + "\n"
+                    )
+                    process.stdin.flush()
+                    status, _, _ = until("mtp_status", request_id)
+                    if status.get("mtp_active") is not enabled:
+                        raise RuntimeError("MTP configuration did not match request")
+                    print(json.dumps({"configured_mtp": enabled}), flush=True)
             # Compile both paths before collecting the comparison. These are
             # explicitly warmups and are retained in the evidence.
             for enabled in (False, True):

@@ -6,6 +6,59 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 
+fn grouped_mb3_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static GROUPED_MB3_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_grouped_mb3_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            GROUPED_MB3_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(GROUPED_MB3_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
+fn dense_decode_nt4_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("MLXL3_DENSE_DECODE_NT4").as_deref() != Ok("0"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static DENSE_DECODE_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test-only override: compare geometries with one model and the same GPU clock.
+#[cfg(test)]
+pub(crate) fn with_dense_decode_nt4_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
 fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
     Ok(match dtype {
         "F16" => Dtype::Float16,
@@ -36,6 +89,7 @@ pub fn checkpoint_array(checkpoint: &Checkpoint, name: &str) -> Result<Array> {
     }
     let (file, offset) = info.source()?;
     Array::from_file(file, offset, &shape, dtype)
+        .with_context(|| format!("cannot load checkpoint tensor {name}"))
 }
 
 pub fn checkpoint_arrays(
@@ -324,6 +378,16 @@ impl Exl3Linear {
             let splits = self.splits(input_tiles, output_tiles);
             let nt = if self.reference_accumulation {
                 1
+            } else if dense_decode_nt4_enabled()
+                && crate::contracts::dense_decode_nt4(
+                    self.rows,
+                    self.cols,
+                    self.k,
+                    self.cb == Codebook::Mul1,
+                    array::is_m5_gpu()?,
+                )
+            {
+                4
             } else if output_tiles >= 1024 {
                 if output_tiles % 2 == 0 { 2 } else { 1 }
             } else if output_tiles % 4 == 0 {
@@ -537,7 +601,6 @@ fn qmm_tensor(
     weight_tile_offset: i32,
 ) -> Result<Array> {
     ensure!(array::is_m5_gpu()?, "TensorOps QMM requires Apple M5");
-    let block_rows = 32;
     let block_columns = 32;
     let block_depth = 16;
     ensure!(
@@ -560,6 +623,15 @@ fn qmm_tensor(
     );
     let matrix_rows = i32::try_from(elements / i64::from(input_dims))?;
     ensure!(matrix_rows >= 24, "TensorOps QMM requires at least 24 rows");
+    static DENSE_PREFILL_M64: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let enabled = *DENSE_PREFILL_M64
+        .get_or_init(|| std::env::var("MLXL3_DENSE_PREFILL_M64").as_deref() != Ok("0"));
+    let block_rows = crate::contracts::dense_qmm_block_rows(
+        matrix_rows,
+        input_dims,
+        output_dims,
+        enabled && cb == Codebook::Mul1,
+    );
     let padded_rows = ((matrix_rows + block_rows - 1) / block_rows) * block_rows;
     let xhat = x
         .astype(Dtype::Float16)?
@@ -590,7 +662,7 @@ fn qmm_tensor(
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
     let raw = array::metal_kernel(
             &format!(
-                "mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}",
+                "mlxl3_rs_qmm_tensor_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_bm{block_rows}",
                 cb as u32
             ),
             &["xhat", "trellis"],
@@ -780,7 +852,16 @@ impl Exl3Group {
             .reshape(&[-1])?;
         let tiles = self.cols / 16;
         let splits = split_count(self.rows / 16, tiles);
-        let nt = if tiles >= 1024 {
+        let nt = if dense_decode_nt4_enabled()
+            && crate::contracts::dense_decode_nt4(
+                self.rows,
+                self.cols,
+                self.k,
+                self.cb == Codebook::Mul1,
+                array::is_m5_gpu()?,
+            ) {
+            4
+        } else if tiles >= 1024 {
             if tiles % 2 == 0 { 2 } else { 1 }
         } else if tiles % 4 == 0 {
             4
@@ -876,11 +957,21 @@ impl Exl3Group {
         } else {
             1
         };
-        let (mb, batch_groups) =
-            crate::contracts::qmv_batch_layout(matrix_rows, true, tiles >= 1024)
-                .context("invalid grouped batch QMV rows")?;
+        let (mb, batch_groups) = crate::contracts::qmv_grouped_batch_layout(
+            matrix_rows,
+            self.rows,
+            self.cols,
+            self.k,
+            self.cb == Codebook::Mul1,
+            array::is_m5_gpu()?,
+            grouped_mb3_enabled(),
+        )
+        .context("invalid grouped batch QMV rows")?;
         if mb == 2 {
             nt = nt.min(2);
+        }
+        if mb == 3 {
+            nt = 1;
         }
         let header = codebook_header(self.cb)
             + &format!(
@@ -1295,7 +1386,170 @@ mod tests {
         );
         Ok(())
     }
+    #[test]
+    #[ignore = "requires disposable draft Q4 projection and physical Apple GPU"]
+    fn q4_draft_matches_exl3_rotation_reference() -> anyhow::Result<()> {
+        use crate::{affine::AffineLinear, checkpoint::Checkpoint};
+        use std::path::Path;
+        let root = Path::new("build/mtp-followup/q4-head");
+        let reference: serde_json::Value =
+            serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
+        let original =
+            crate::checkpoint::inspect(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let exl3 = super::Exl3Linear::from_checkpoint(&original, "lm_head")?;
+        let checkpoint = Checkpoint {
+            path: root.to_owned(),
+            model_type: "draft_head_q4".into(),
+            bits: Some(4.),
+            size_bytes: 0,
+            modules: Vec::new(),
+            tensors: crate::checkpoint::read_header(&root.join("draft_head_q4.safetensors"))?,
+        };
+        let q4 = AffineLinear::load(&checkpoint, "lm_head", 2048, 248320, None)?;
+        let mut compact = None;
+        if let Some(path) = std::env::var_os("MLXL3_MTP_TEST_COMPACT_HEAD") {
+            let path = std::path::PathBuf::from(path);
+            let metadata: serde_json::Value =
+                serde_json::from_reader(std::fs::File::open(path.join("draft_head_q4.json"))?)?;
+            let ids = metadata["token_ids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| u32::try_from(id.as_u64().unwrap()).unwrap())
+                .collect::<Vec<_>>();
+            assert!(!ids.is_empty() && ids.len() < 248320);
+            assert!(
+                ids.iter().all(|&id| id < 248320) && ids.windows(2).all(|pair| pair[0] < pair[1])
+            );
+            let checkpoint = Checkpoint {
+                path: path.clone(),
+                model_type: "draft_head_q4".into(),
+                bits: Some(4.),
+                size_bytes: 0,
+                modules: Vec::new(),
+                tensors: crate::checkpoint::read_header(&path.join("draft_head_q4.safetensors"))?,
+            };
+            compact = Some((
+                AffineLinear::load(&checkpoint, "lm_head", 2048, ids.len() as i32, None)?,
+                ids,
+            ));
+        }
+        let inputs = reference["inputs"].as_array().unwrap();
+        let logits = reference["logits"].as_array().unwrap();
+        assert_eq!(inputs.len(), 3, "missing numerical fixtures");
+        assert_eq!(inputs.len(), logits.len());
+        for (input, logits) in inputs.iter().zip(logits) {
+            let input = input
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| half::f16::from_f32(v.as_f64().unwrap() as f32).to_bits())
+                .collect::<Vec<_>>();
+            let expected = logits
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(input.len(), 2048);
+            assert_eq!(expected.len(), 4096);
+            assert!(expected.iter().all(|v| v.is_finite()));
+            let input = crate::array::Array::from_f16_bits(&input, &[1, 2048])?;
+            let actual = exl3.forward(&input)?.to_f16_bits()?;
+            let quantized = q4.forward(&input)?.to_f16_bits()?;
+            assert_eq!(actual.len(), 248320);
+            assert_eq!(quantized.len(), actual.len());
+            assert!(
+                actual
+                    .iter()
+                    .chain(&quantized)
+                    .all(|&b| half::f16::from_bits(b).is_finite())
+            );
+            let energy = expected.iter().map(|v| v * v).sum::<f64>();
+            assert!(energy.is_finite() && energy > 0.);
+            let error = |values: &[u16]| {
+                values
+                    .iter()
+                    .zip(&expected)
+                    .map(|(&b, &v)| (half::f16::from_bits(b).to_f64() - v).powi(2))
+                    .sum::<f64>()
+                    / energy
+            };
+            let reconstruction = error(&actual).sqrt();
+            let quantization = error(&quantized).sqrt();
+            eprintln!(
+                "head relative output RMSE: reconstructed={reconstruction}, affine4={quantization}"
+            );
+            assert!(
+                reconstruction < 0.01,
+                "EXL3 rotations/scales reconstructed incorrectly"
+            );
+            assert!(quantization < 0.2, "poor draft quantization");
+            if let Some((head, ids)) = &compact {
+                let values = head.forward(&input)?.to_f16_bits()?;
+                let selected = ids
+                    .iter()
+                    .map(|&id| quantized[id as usize])
+                    .collect::<Vec<_>>();
+                assert_eq!(values.len(), ids.len());
+                assert_eq!(
+                    values, selected,
+                    "compact projection differs from full Q4 rows"
+                );
+                eprintln!(
+                    "compact projection: {} finite rows exactly match full Q4",
+                    ids.len()
+                );
+            }
+        }
+        Ok(())
+    }
     use super::*;
+
+    #[test]
+    fn grouped_mb3_override_restores_and_stays_thread_local() {
+        assert_eq!(GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+        with_grouped_mb3_test(false, || {
+            assert!(!grouped_mb3_enabled());
+            with_grouped_mb3_test(true, || assert!(grouped_mb3_enabled()));
+            assert!(!grouped_mb3_enabled());
+            std::thread::spawn(|| {
+                assert_eq!(GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+            })
+            .join()
+            .unwrap();
+            assert!(
+                std::panic::catch_unwind(|| {
+                    with_grouped_mb3_test(true, || panic!("temporary test failure"));
+                })
+                .is_err()
+            );
+            assert!(!grouped_mb3_enabled());
+        });
+        assert_eq!(GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+    }
+
+    #[test]
+    fn dense_decode_test_override_restores_and_stays_thread_local() {
+        assert_eq!(DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+        with_dense_decode_nt4_test(false, || {
+            assert!(!dense_decode_nt4_enabled());
+            with_dense_decode_nt4_test(true, || {
+                assert!(dense_decode_nt4_enabled());
+            });
+            assert!(!dense_decode_nt4_enabled());
+            let other = std::thread::spawn(|| {
+                assert_eq!(DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+            });
+            other.join().unwrap();
+            let panicked = std::panic::catch_unwind(|| {
+                with_dense_decode_nt4_test(true, || panic!("temporary benchmark failure"));
+            });
+            assert!(panicked.is_err());
+            assert!(!dense_decode_nt4_enabled());
+        });
+        assert_eq!(DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+    }
     use half::f16;
     use std::{path::Path, time::Instant};
 

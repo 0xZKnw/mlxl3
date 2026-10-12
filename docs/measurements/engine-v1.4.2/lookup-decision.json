@@ -1,0 +1,362 @@
+{
+  "status": "quality_validated_experimental_opt_in_speed_inconclusive",
+  "default": "off; MLXL3_MTP_LOOKUP=1 explicitly enables",
+  "binary_sha256": "36ab908f3d796fc4968b7ee72b88566c0b64a75df8c9447fab952419a17c090e",
+  "source": "phase-2-source.json",
+  "retained_behaviour": "Latest exact eight-token context suffix, newline-filtered by production tokenizer, history1024, width1..3, full target verifier, exact accepted-cache repair, one-strike fallback for full rejection",
+  "performance_decision": "Initial +6.41% copy decode is not a reproduced boost; both later confirmations violate drift limits. No speed recommendation or default activation. Do not add to compact projection gains.",
+  "campaigns": [
+    {
+      "campaign": "lookup-lines-stock-copy-abba",
+      "status": "complete",
+      "decision": "initial_signal",
+      "parity": true,
+      "protocol": {
+        "order": "ABBA",
+        "tokens": 128,
+        "repeats": 2,
+        "warmup_per_prompt": 1,
+        "warmup_tokens": 32,
+        "mtp_depth": 2,
+        "mtp_head": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit",
+        "settle_seconds": 2.0,
+        "load_timeout": 600.0,
+        "request_timeout": 600.0,
+        "context": 4096,
+        "cache": false
+      },
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 56.88076768679784,
+            "B": 56.81400918874391,
+            "change_percent": -0.11736567695695976
+          },
+          "prefill_tps": {
+            "A": 205.08325120310252,
+            "B": 202.57189125113234,
+            "change_percent": -1.2245563385783642
+          },
+          "ttft_seconds": {
+            "A": 0.13211930225000001,
+            "B": 0.1337687815,
+            "change_percent": 1.2484771126620053
+          },
+          "elapsed_seconds": {
+            "A": 2.3669136145,
+            "B": 2.369505375,
+            "change_percent": 0.1094995814009625
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 65.66726793413045,
+            "B": 69.87631851033424,
+            "change_percent": 6.4096630004857325
+          },
+          "prefill_tps": {
+            "A": 420.70953420730035,
+            "B": 413.484006347957,
+            "change_percent": -1.7174623515384901
+          },
+          "ttft_seconds": {
+            "A": 0.73269198925,
+            "B": 0.7461670417499999,
+            "change_percent": 1.839115576218231
+          },
+          "elapsed_seconds": {
+            "A": 2.66702265625,
+            "B": 2.56378827075,
+            "change_percent": -3.8707727232116573
+          }
+        }
+      },
+      "raw": "lookup-lines-stock-copy-abba/results.json"
+    },
+    {
+      "campaign": "lookup-lines-stock-code",
+      "status": "complete",
+      "decision": "ordinary_cost_control",
+      "parity": true,
+      "protocol": {
+        "order": "ABBA",
+        "tokens": 128,
+        "repeats": 2,
+        "warmup_per_prompt": 1,
+        "warmup_tokens": 32,
+        "mtp_depth": 2,
+        "mtp_head": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit",
+        "settle_seconds": 2.0,
+        "load_timeout": 600.0,
+        "request_timeout": 600.0,
+        "context": 4096,
+        "cache": false
+      },
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 56.97190134149709,
+            "B": 58.13655299515963,
+            "change_percent": 2.0442562495526895
+          },
+          "prefill_tps": {
+            "A": 205.74089094903553,
+            "B": 206.379283619843,
+            "change_percent": 0.3102896404612254
+          },
+          "ttft_seconds": {
+            "A": 0.13168043725,
+            "B": 0.131269917,
+            "change_percent": -0.3117549262238617
+          },
+          "elapsed_seconds": {
+            "A": 2.3612122600000003,
+            "B": 2.3158095207500002,
+            "change_percent": -1.9228571704095754
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 64.4701885000938,
+            "B": 64.46836760818258,
+            "change_percent": -0.002824393651679191
+          },
+          "prefill_tps": {
+            "A": 226.97391568065646,
+            "B": 228.5814758028944,
+            "change_percent": 0.7082576504076066
+          },
+          "ttft_seconds": {
+            "A": 0.194341594,
+            "B": 0.1929685835,
+            "change_percent": -0.7064933819571295
+          },
+          "elapsed_seconds": {
+            "A": 2.16488958325,
+            "B": 2.16355625,
+            "change_percent": -0.061588972496151584
+          }
+        }
+      },
+      "raw": "lookup-lines-stock-code/results.json"
+    },
+    {
+      "campaign": "lookup-lines-stock-long",
+      "status": "complete",
+      "decision": "no_long_gain_drift",
+      "parity": true,
+      "protocol": {
+        "order": "ABBA",
+        "tokens": 128,
+        "repeats": 2,
+        "warmup_per_prompt": 1,
+        "warmup_tokens": 32,
+        "mtp_depth": 2,
+        "mtp_head": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit",
+        "settle_seconds": 2.0,
+        "load_timeout": 600.0,
+        "request_timeout": 600.0,
+        "context": 4096,
+        "cache": false
+      },
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 57.03600560125624,
+            "B": 58.41482480996526,
+            "change_percent": 2.4174540172894776
+          },
+          "prefill_tps": {
+            "A": 201.58134536285627,
+            "B": 205.32771050970678,
+            "change_percent": 1.8584880163920348
+          },
+          "ttft_seconds": {
+            "A": 0.13457721849999998,
+            "B": 0.131946354,
+            "change_percent": -1.9549107414491562
+          },
+          "elapsed_seconds": {
+            "A": 2.361763875,
+            "B": 2.30606829175,
+            "change_percent": -2.358219796633987
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 59.839839374505864,
+            "B": 59.337376298514485,
+            "change_percent": -0.8396798541632555
+          },
+          "prefill_tps": {
+            "A": 510.94703812043383,
+            "B": 511.08184086069105,
+            "change_percent": 0.026382918424006085
+          },
+          "ttft_seconds": {
+            "A": 3.85309491625,
+            "B": 3.8529176455,
+            "change_percent": -0.004600736650750559
+          },
+          "elapsed_seconds": {
+            "A": 5.97559559375,
+            "B": 5.99483018725,
+            "change_percent": 0.32188579695917596
+          }
+        }
+      },
+      "raw": "lookup-lines-stock-long/results.json"
+    },
+    {
+      "campaign": "lookup-lines-stock-copy-baab",
+      "status": "complete",
+      "decision": "inconclusive_control_drift",
+      "parity": true,
+      "protocol": {
+        "order": "BAAB",
+        "tokens": 128,
+        "repeats": 2,
+        "warmup_per_prompt": 1,
+        "warmup_tokens": 32,
+        "mtp_depth": 2,
+        "mtp_head": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit",
+        "settle_seconds": 2.0,
+        "load_timeout": 600.0,
+        "request_timeout": 600.0,
+        "context": 4096,
+        "cache": false
+      },
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 56.74404097393984,
+            "B": 54.95224557051787,
+            "change_percent": -3.157680300288923
+          },
+          "prefill_tps": {
+            "A": 201.52479008670102,
+            "B": 193.84657159464834,
+            "change_percent": -3.8100615258049975
+          },
+          "ttft_seconds": {
+            "A": 0.13453511424999998,
+            "B": 0.14019737475,
+            "change_percent": 4.208760316268156
+          },
+          "elapsed_seconds": {
+            "A": 2.37390617725,
+            "B": 2.45660652075,
+            "change_percent": 3.4837241796894514
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 65.74224521815961,
+            "B": 68.71272486252334,
+            "change_percent": 4.518372675752813
+          },
+          "prefill_tps": {
+            "A": 420.6545872016236,
+            "B": 406.7788951800908,
+            "change_percent": -3.2985951998859453
+          },
+          "ttft_seconds": {
+            "A": 0.73282805225,
+            "B": 0.75832215675,
+            "change_percent": 3.478865802383724
+          },
+          "elapsed_seconds": {
+            "A": 2.66499559425,
+            "B": 2.6071238337500002,
+            "change_percent": -2.1715518263844102
+          }
+        }
+      },
+      "raw": "lookup-lines-stock-copy-baab/results.json"
+    },
+    {
+      "campaign": "lookup-lines-stock-copy-warm128-abba",
+      "status": "complete",
+      "decision": "inconclusive_drift_no_baab128",
+      "parity": true,
+      "protocol": {
+        "order": "ABBA",
+        "tokens": 128,
+        "repeats": 2,
+        "warmup_per_prompt": 1,
+        "warmup_tokens": 128,
+        "mtp_depth": 2,
+        "mtp_head": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit",
+        "settle_seconds": 2.0,
+        "load_timeout": 600.0,
+        "request_timeout": 600.0,
+        "context": 4096,
+        "cache": false
+      },
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 57.7334813687916,
+            "B": 56.986767791474,
+            "change_percent": -1.2933804780413616
+          },
+          "prefill_tps": {
+            "A": 205.1941671019332,
+            "B": 205.30932635316324,
+            "change_percent": 0.056122088096599576
+          },
+          "ttft_seconds": {
+            "A": 0.13202455175,
+            "B": 0.1319586765,
+            "change_percent": -0.04989621182333037
+          },
+          "elapsed_seconds": {
+            "A": 2.331950802,
+            "B": 2.361429781,
+            "change_percent": 1.2641338305558136
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 63.506636354866295,
+            "B": 71.01480912407881,
+            "change_percent": 11.82265854431006
+          },
+          "prefill_tps": {
+            "A": 415.31090398360357,
+            "B": 422.73039424735634,
+            "change_percent": 1.7864906007971637
+          },
+          "ttft_seconds": {
+            "A": 0.7427614687499999,
+            "B": 0.72923661475,
+            "change_percent": -1.8208879389989163
+          },
+          "elapsed_seconds": {
+            "A": 2.744170573,
+            "B": 2.517655302,
+            "change_percent": -8.254416588702329
+          }
+        }
+      },
+      "raw": "lookup-lines-stock-copy-warm128-abba/results.json"
+    }
+  ],
+  "quality": {
+    "stock_moe": "24blocks/80states +37completions/306lookupblocks exact",
+    "compact_moe": "24blocks/80states +37completions/306lookupblocks exact",
+    "dense": "24blocks/128states/rawhidden/KV exact; corrected1024 production test1pass/37completions/6lookupblocks/inline0/budgets/prefix exact. Initial256 coverage failure preserved.",
+    "production_cli": "43requests/35completions/5cancel/2expectederrors/1tune passed; actual lookup=1 key/bestD/rows and target IDs exact",
+    "model_switch": "36completions dense->MoE->dense passed, reuse/OFF allocations/foreign+missing errors/processes reaped"
+  },
+  "proof": "37/37Kani harnesses/5449passed assertions/90satisfiedcovers/72internal or pre-existingunreachable/0fail; lookup20symbolicIDs/fullscalar domains/unwind33/5covers. No SessionMLX/decoder/GPU proof.",
+  "omitted_runs": [
+    "No BAAB128warm: ABBA128 control drift failed confirmation precondition",
+    "Compact combined speed campaigns not launched: stock speed remains inconclusive; no default enabled. Compact cache/bridge compatibility checked and no combined speed claimed."
+  ],
+  "limits": [
+    "No full-program/MLX/Metal/concurrency proof",
+    "No dense or general-model speed measurements",
+    "Old unfiltered prototype full source snapshot not retained; source hashes and original binary remain local, raw logs preserved. It was replaced and is not delivered."
+  ]
+}

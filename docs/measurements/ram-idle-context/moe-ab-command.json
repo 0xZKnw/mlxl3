@@ -1,0 +1,35 @@
+{
+  "command": [
+    "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python",
+    "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3-post-smallm/benchmarks/benchmark_idle_memory.py",
+    "--baseline",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Engines/v1.4.2/mlxl3",
+    "--candidate",
+    "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-target/release/mlxl3-rs",
+    "--model",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.6-35B-A3B-exl3-2.49bpw-1bde3c20",
+    "--head",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.6-35B-A3B-MTP-4bit",
+    "--output",
+    "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3-post-smallm/docs/measurements/ram-idle-context/moe-ab.json",
+    "--order",
+    "AB"
+  ],
+  "env": {},
+  "timeout_seconds": 930,
+  "binary_sha256": "d0bdb61dc9787892f0e828d0d8efb612374276a537b4f5c9876b468d3ada8e76",
+  "status": "complete",
+  "before": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23724131)\t51%; discharging; 1:54 remaining present: true\n",
+    "swap": "vm.swapusage: total = 4096.00M  used = 2618.62M  free = 1477.38M  (encrypted)\n",
+    "therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+  },
+  "pid": 16577,
+  "exit_code": 0,
+  "seconds": 104.18366291700295,
+  "after": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23724131)\t50%; discharging; 1:34 remaining present: true\n",
+    "swap": "vm.swapusage: total = 5120.00M  used = 4103.44M  free = 1016.56M  (encrypted)\n",
+    "therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+  }
+}

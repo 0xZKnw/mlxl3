@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Isolated engine lifecycle fixture, never imports MLX or user configuration."""
 import json
+import os
 import signal
 import sys
 import time
@@ -75,11 +76,30 @@ if len(sys.argv) > 1 and sys.argv[1] == 'mcp-fixture':
     sys.exit(0)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
-    print(json.dumps({'type': 'installed', 'path': '/tmp/mlxl3-fixture-dflash'}), flush=True)
+    target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
+    draft = '/tmp/mlxl3-fixture-dflash-' + ('dense' if target.endswith('dflash-dense') else 'moe')
+    if '--inspect' in sys.argv and sys.argv[sys.argv.index('--inspect') + 1] != draft:
+        print('foreign DFlash draft', file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({'type': 'installed', 'path': draft}), flush=True)
     sys.exit(0)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
-    print(json.dumps({'type': 'installed', 'path': '/tmp/mlxl3-fixture-mtp'}), flush=True)
+    target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
+    if '/auto-' in target:
+        with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
+            log.write(json.dumps({'args': sys.argv[1:], 'pid': os.getpid()}) + '\n')
+        if target.endswith('auto-fail'):
+            print('fixture head download failed', file=sys.stderr)
+            sys.exit(1)
+        if target.endswith('auto-slow'):
+            print(json.dumps({'type': 'progress', 'completed': 1, 'total': 100}), flush=True)
+            time.sleep(1)
+    head = '/tmp/mlxl3-fixture-mtp-' + ('dense' if target.endswith(('auto-dense', 'auto-slow')) else 'moe') if '/auto-' in target else '/tmp/mlxl3-fixture-mtp'
+    if '--inspect' in sys.argv and sys.argv[sys.argv.index('--inspect') + 1] != head:
+        print('fixture head incompatible with target', file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({'type': 'installed', 'path': head}), flush=True)
     sys.exit(0)
 
 model = sys.argv[2]
@@ -90,41 +110,102 @@ def cancel(*_):
 signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
-mtp_capable = model in ('renamed', 'flash') or model.startswith('mtp-')
+mtp_capable = model in ('renamed', 'flash', 'flash-config') or model.startswith(('mtp-', 'auto-'))
+dflash_capable = model == 'renamed' or model.startswith('dflash-')
 tuning_key = 'fixture-runtime:' + model
-capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model == 'flash' else 3, 'mtp_tune_supported': mtp_capable and model != 'flash', 'mtp_tuning_key': tuning_key}
+capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model.startswith('flash') else 3, 'mtp_tune_supported': mtp_capable and not model.startswith('flash'), 'mtp_tuning_key': tuning_key}
+if model.startswith('auto-') or model == 'flash-config':
+    capabilities['mtp_configure_supported'] = True
+if dflash_capable:
+    capabilities.update(dflash_configure_supported=True, dflash_tune_supported=True,
+                        dflash_tuning_key=tuning_key+':dflash-v2', dflash_family='qwen38_dense' if model == 'dflash-dense' else 'qwen36_moe')
+if model in ('mtp-memory-saver', 'dflash-memory-saver'):
+    capabilities['context_memory'] = {'layers': [{'bytes_per_token': 32768, 'step': 1}], 'fixed_bytes': 4096}
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
-     dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable and model != 'flash',
-     **capabilities,
+     dflash_supported=dflash_capable, mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable and not model.startswith('flash'),
+     **capabilities, memory_saver_supported=model in ('mtp-memory-saver', 'dflash-memory-saver'),
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
     request = json.loads(line)
-    if request['type'] == 'tune_mtp':
+    if model in ('mtp-memory-saver', 'dflash-memory-saver'):
+        with open(os.path.join(os.environ['MLXL3_HOME'], 'memory-saver-requests.jsonl'), 'a') as log:
+            log.write(json.dumps(request) + '\n')
+    if request['type'] == 'set_dflash':
+        with open(os.path.join(os.environ['MLXL3_HOME'], 'dflash-operations.jsonl'), 'a') as log:
+            log.write(json.dumps({'model': model, 'request': request, 'pid': os.getpid()}) + '\n')
+        if not request['enabled']:
+            if model == 'dflash-off-silent':
+                continue
+            if model == 'dflash-off-malformed':
+                emit('dflash_status', request_id=request['request_id'], dflash_active='invalid')
+                continue
+            if model == 'dflash-off-missing':
+                emit('dflash_status', request_id=request['request_id'])
+                continue
+            if model == 'dflash-off-wrong':
+                emit('dflash_status', request_id=request['request_id'], dflash_active=True)
+                continue
+            if model == 'dflash-off-error':
+                emit('error', request_id=request['request_id'], message='draft release failed')
+                continue
+        expected = '/tmp/mlxl3-fixture-dflash-' + ('dense' if model == 'dflash-dense' else 'moe')
+        if request['enabled'] and request['dflash_draft_path'] != expected:
+            emit('error', request_id=request['request_id'], message='foreign DFlash draft reached bridge')
+        elif model == 'dflash-load-error' and request['enabled']:
+            emit('error', request_id=request['request_id'], message='draft load failed')
+        else:
+            emit('dflash_status', request_id=request['request_id'], dflash_active=request['enabled'])
+        continue
+    if request['type'] == 'set_mtp':
+        with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
+            log.write(json.dumps({'model': model, 'request': request, 'pid': os.getpid()}) + '\n')
+        if not request['enabled']:
+            if model == 'auto-idle-malformed':
+                emit('mtp_status', request_id=request['request_id'], mtp_active='invalid boolean')
+                continue
+            if model in ('auto-idle-error', 'auto-idle-empty-error'):
+                emit('error', request_id='' if model.endswith('empty-error') else request['request_id'],
+                     message='fixture MTP configuration failed')
+                continue
+            if model == 'auto-idle-silent':
+                continue
+        expected = '/tmp/mlxl3-fixture-mtp-' + ('dense' if model in ('auto-dense', 'auto-slow') else 'moe')
+        if model == 'flash-config':
+            expected = os.path.join(os.environ['MLXL3_HOME'], 'flash-model')
+        if request['enabled'] and request['mtp_head_path'] != expected:
+            emit('error', request_id=request['request_id'], message='foreign head reached bridge')
+        else:
+            emit('mtp_status', request_id=request['request_id'], mtp_active=request['enabled'])
+        continue
+    if request['type'] in ('tune_mtp', 'tune_dflash'):
+        prefix = 'dflash' if request['type'] == 'tune_dflash' else 'mtp'
         cancelled = False
         for step in range(12):
-            emit('mtp_tune_progress', request_id=request['request_id'], phase='warmup' if step < 4 else 'measure',
+            emit(prefix+'_tune_progress', request_id=request['request_id'], phase='warmup' if step < 4 else 'measure',
                  depth=step % 4, completed=step, total=12)
             time.sleep(0.04)
             if cancelled:
                 emit('cancelled', request_id=request['request_id'])
                 break
         else:
-            if model == 'mtp-error':
+            if model in ('mtp-error', 'dflash-error'):
                 emit('error', request_id=request['request_id'], message='fixture tuning failed')
                 continue
-            if model == 'mtp-malformed':
+            if model in ('mtp-malformed', 'dflash-malformed'):
                 emit('error', message='unreadable engine response')
                 continue
-            rates = [50, 60, 75, 70] if model != 'mtp-baseline' else [50, 49, 51, 50]
-            rows = [dict(depth=d, decode_tps=rate, decode_tokens=190, decode_seconds=190/rate,
-                         accepted_tokens=0 if d == 0 else 40, proposed_tokens=0 if d == 0 else 80,
-                         eligible=True, reason=None, token_hashes=['prompt-a', 'prompt-b']) for d, rate in enumerate(rates)]
+            rates = [50, 60, 75, 70] if model not in ('mtp-baseline', 'dflash-baseline') else [50, 49, 51, 50]
+            rows = [{"depth": d, "decode_tps": rate, "decode_tokens": 190, "decode_seconds": 190/rate,
+                     "accepted_tokens": 0 if d == 0 else 40, "proposed_tokens": 0 if d == 0 else 80,
+                     "eligible": True, "reason": None, "token_hashes": ['prompt-a', 'prompt-b']} for d, rate in enumerate(rates)]
             if model == 'mtp-collapse':
                 rows[3].update(decode_tps=100, decode_seconds=1.9, accepted_tokens=0, eligible=False, reason='zero_acceptance')
-            if model == 'mtp-invalid':
+            if model in ('mtp-invalid', 'dflash-invalid'):
                 rows[3]['depth'] = 2
-            emit('mtp_tune_complete', request_id=request['request_id'], tuning_key=tuning_key,
-                 best_depth=0 if model == 'mtp-baseline' else 2, rows=rows)
+            if model == 'dflash-mismatch':
+                rows[2]['token_hashes'] = ['different', 'tokens']
+            emit(prefix+'_tune_complete', request_id=request['request_id'], tuning_key=tuning_key+(':dflash-v2' if prefix == 'dflash' else ''),
+                 best_depth=0 if model in ('mtp-baseline', 'dflash-baseline') else 2, rows=rows)
         continue
     if request['type'] != 'generate':
         continue
@@ -145,9 +226,18 @@ for line in sys.stdin:
         emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
     else:
         answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else (
-            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path')}) if model.startswith('mtp-') or model == 'flash' else 'hello')
+            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path')}) if model.startswith('mtp-') or model.startswith('flash') else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)
-    time.sleep(0.2)
+    if model == 'auto-idle-silent':
+        for _ in range(2000):
+            if os.path.exists(os.path.join(os.environ['MLXL3_HOME'], 'release-idle-generation')):
+                break
+            time.sleep(0.02)
+        else:
+            emit('error', request_id=request['request_id'], message='fixture generation release timed out')
+            continue
+    else:
+        time.sleep(0.2)
     emit('complete', request_id=request['request_id'], assistant_context='done', cache_context='done')

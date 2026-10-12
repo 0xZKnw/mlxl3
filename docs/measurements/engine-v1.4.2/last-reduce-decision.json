@@ -1,0 +1,88 @@
+{
+  "status": "rejected_removed",
+  "reason": "No isolated signal reaching preregistered 3% threshold; no real generation timing launched, no ~10% gain claimed. Protocol is per-call native graph+sync, not GPU-only kernel timer.",
+  "variants": [
+    {
+      "rows": 1,
+      "order": "ABBA",
+      "A_us": 258.6088541666667,
+      "B_us": 259.3109364583333,
+      "speed_gain_pct": -0.27074920219550824,
+      "A_drift_pct": -1.3866792141887019,
+      "B_drift_pct": -0.8303450104228283
+    },
+    {
+      "rows": 1,
+      "order": "BAAB",
+      "A_us": 260.40651041666666,
+      "B_us": 260.01167604166665,
+      "speed_gain_pct": 0.1518525556278183,
+      "A_drift_pct": -0.004067275911656676,
+      "B_drift_pct": -0.2186011388773168
+    },
+    {
+      "rows": 2,
+      "order": "ABBA",
+      "A_us": 260.36788125000004,
+      "B_us": 259.87413125,
+      "speed_gain_pct": 0.1899958251423639,
+      "A_drift_pct": -0.022934466693569355,
+      "B_drift_pct": -0.3869248518029167
+    },
+    {
+      "rows": 2,
+      "order": "BAAB",
+      "A_us": 260.39974062500005,
+      "B_us": 260.38198750000004,
+      "speed_gain_pct": 0.00681810795379878,
+      "A_drift_pct": 0.003933933062505446,
+      "B_drift_pct": 0.017370221448698153
+    },
+    {
+      "rows": 3,
+      "order": "ABBA",
+      "A_us": 260.38329166666665,
+      "B_us": 260.34592083333337,
+      "speed_gain_pct": 0.01435429954643741,
+      "A_drift_pct": -0.02170122655932305,
+      "B_drift_pct": 0.04589019098568681
+    },
+    {
+      "rows": 3,
+      "order": "BAAB",
+      "A_us": 260.3684020833333,
+      "B_us": 260.3527354166667,
+      "speed_gain_pct": 0.0060174772665844145,
+      "A_drift_pct": 0.0017331362284433993,
+      "B_drift_pct": 0.016639068662849255
+    },
+    {
+      "rows": 4,
+      "order": "ABBA",
+      "A_us": 260.4086375,
+      "B_us": 260.39618125000004,
+      "speed_gain_pct": 0.004783576295253056,
+      "A_drift_pct": -0.00023360692972262953,
+      "B_drift_pct": -0.001867329458227207
+    },
+    {
+      "rows": 4,
+      "order": "BAAB",
+      "A_us": 260.4089416666667,
+      "B_us": 260.4053375,
+      "speed_gain_pct": 0.0013840602121728551,
+      "A_drift_pct": 0.0034001586649790028,
+      "B_drift_pct": 0.0019665048855088685
+    }
+  ],
+  "quality": "20480 finite MLX+CPU exact; 51 model positions/logits/hidden/80states exact; score-index mutation detected and restored",
+  "limitations": "Per-call sync floor ~260us may mask GPU-only effects; no causal production gain inferred. Power/thermal probes not collected during micro; subsequent power probe does not establish conditions during timing.",
+  "post_measurement_power_probe": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t97%; discharging; 17:13 remaining present: true\n",
+  "restored_sources": {
+    "native/src/moe.rs": "28c3190470047295870238667ccb2510ee852244f7faa8a2538825ad302b0b63",
+    "native/src/contracts.rs": "da1640deb0814f3266c4472c3287f43ec173c689bf03be4f58d1ce2b106796eb",
+    "native/src/qwen35.rs": "71d161355eafd25d16dfd0a64a911559b59c44af606bba73fe38c2ee83f3f198"
+  },
+  "verifier": "CPU126checks/5satisfiedcovers; MLX Kani ICE; native Metal CLI absent and CBMC cannot parse extension, GPU/FFI unproved",
+  "skipped": "No recursion/rollback/CLI repeats or stock timing: prototype fully removed after no micro signal."
+}

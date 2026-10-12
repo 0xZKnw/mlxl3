@@ -1,0 +1,101 @@
+{
+  "status": "complete",
+  "command": [
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/kernel-cache-key",
+    "--bench"
+  ],
+  "kind": "CPU key lookup only; no generation throughput evidence",
+  "binary_sha256": "c6a1ef26d4254537cdd4ed35e91931afa19d73f33c6d86fac40ea1d017cb95ee",
+  "identity": "key-view-identity.json",
+  "plan": "key-view-plan.json",
+  "before": {
+    "power": {
+      "exit": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t49%; discharging; 3:31 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    }
+  },
+  "conflicts": [],
+  "qualified_cpu_latency": true,
+  "general_generation_gain": false,
+  "log": "docs/measurements/dflash2-web-03/key-view-micro.log",
+  "exit": 0,
+  "timeout": false,
+  "seconds": 35.33588491601404,
+  "after": {
+    "power": {
+      "exit": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t49%; discharging; 3:31 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    }
+  },
+  "quality": {
+    "ordering_pairs": 65536,
+    "ordering_combinations": 4,
+    "cache_keys": 256,
+    "capacity": 128,
+    "old_allocations_128_hits": 768,
+    "candidate_allocations_128_hits": 0,
+    "checksum": 49024
+  },
+  "decisions": [
+    {
+      "order": "ABBA",
+      "pass_medians_seconds": {
+        "A": [
+          3.504709585e-06,
+          3.50053167e-06
+        ],
+        "B": [
+          2.6298829150000004e-06,
+          2.630970205e-06
+        ]
+      },
+      "medians_seconds_per_lookup": {
+        "A": 3.5026206275e-06,
+        "B": 2.63042656e-06
+      },
+      "drift_percent": {
+        "A": -0.11920859342757772,
+        "B": 0.04134366567416503
+      },
+      "latency_reduction_percent": 24.901185719406026,
+      "within_drift_limit": true,
+      "latency_reduction_at_least_5_percent": true
+    },
+    {
+      "order": "BAAB",
+      "pass_medians_seconds": {
+        "A": [
+          3.506731875e-06,
+          3.5019245850000004e-06
+        ],
+        "B": [
+          2.6304570849999997e-06,
+          2.6292710400000004e-06
+        ]
+      },
+      "medians_seconds_per_lookup": {
+        "A": 3.50432823e-06,
+        "B": 2.6298640625e-06
+      },
+      "drift_percent": {
+        "A": -0.13708746979691488,
+        "B": -0.04508893175876327
+      },
+      "latency_reduction_percent": 24.953831664906577,
+      "within_drift_limit": true,
+      "latency_reduction_at_least_5_percent": true
+    }
+  ]
+}

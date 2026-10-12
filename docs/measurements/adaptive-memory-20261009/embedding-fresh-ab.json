@@ -1,0 +1,139 @@
+{
+  "status": "failed",
+  "parity": false,
+  "runs": [
+    {
+      "arm": "A",
+      "records": [
+        {
+          "case": "short-normal",
+          "quality": {
+            "token_hash": "03270333646fbda3",
+            "text_sha256": "01484e02aca7bab2cb61ab6d944429b71cfc44ad95ce1972d1f835331f9be365",
+            "stats": {
+              "generated_tokens": 32,
+              "prompt_tokens": 687,
+              "cached_prompt_tokens": 0,
+              "evaluated_prompt_tokens": 687,
+              "context_used": 719,
+              "context_limit": 4096,
+              "mtp_proposed_tokens": null,
+              "mtp_accepted_tokens": null,
+              "mtp_blocks": null
+            }
+          },
+          "idle_bytes": 9410630576,
+          "idle_memory": {
+            "mlx_active_bytes": 9171871676,
+            "mlx_cache_bytes": 0,
+            "mlx_peak_bytes": 10173955558,
+            "process_footprint_bytes": 9417380784,
+            "process_lifetime_peak_bytes": 10390885272
+          },
+          "generation_memory": {
+            "mlx_active_bytes": 9373716412,
+            "mlx_cache_bytes": 0,
+            "mlx_peak_bytes": 10173955558,
+            "process_footprint_bytes": 9510753200,
+            "process_lifetime_peak_bytes": 10390885272
+          },
+          "timings": {
+            "decode_tps": 6.949869099069797,
+            "prefill_tps": 85.49571828389247,
+            "ttft_seconds": 8.042409791
+          }
+        },
+        {
+          "case": "short-mtp",
+          "quality": {
+            "token_hash": "03270333646fbda3",
+            "text_sha256": "01484e02aca7bab2cb61ab6d944429b71cfc44ad95ce1972d1f835331f9be365",
+            "stats": {
+              "generated_tokens": 32,
+              "prompt_tokens": 687,
+              "cached_prompt_tokens": 0,
+              "evaluated_prompt_tokens": 687,
+              "context_used": 719,
+              "context_limit": 4096,
+              "mtp_proposed_tokens": 23,
+              "mtp_accepted_tokens": 19,
+              "mtp_blocks": 12
+            }
+          },
+          "idle_bytes": 9649050688,
+          "idle_memory": {
+            "mlx_active_bytes": 9410802620,
+            "mlx_cache_bytes": 0,
+            "mlx_peak_bytes": 10417605094,
+            "process_footprint_bytes": 9658094656,
+            "process_lifetime_peak_bytes": 10560967744
+          },
+          "generation_memory": {
+            "mlx_active_bytes": 9615619004,
+            "mlx_cache_bytes": 0,
+            "mlx_peak_bytes": 10417605094,
+            "process_footprint_bytes": 9762853952,
+            "process_lifetime_peak_bytes": 10560967744
+          },
+          "timings": {
+            "decode_tps": 6.503170379052104,
+            "prefill_tps": 108.62545327549722,
+            "ttft_seconds": 6.396150542
+          }
+        },
+        {
+          "case": "cache-cold",
+          "quality": {
+            "token_hash": "03270333646fbda3",
+            "text_sha256": "01484e02aca7bab2cb61ab6d944429b71cfc44ad95ce1972d1f835331f9be365",
+            "stats": {
+              "generated_tokens": 32,
+              "prompt_tokens": 687,
+              "cached_prompt_tokens": 0,
+              "evaluated_prompt_tokens": 687,
+              "context_used": 719,
+              "context_limit": 4096,
+              "mtp_proposed_tokens": 23,
+              "mtp_accepted_tokens": 19,
+              "mtp_blocks": 12
+            }
+          },
+          "idle_bytes": 9652163648,
+          "idle_memory": {
+            "mlx_active_bytes": 9410802620,
+            "mlx_cache_bytes": 0,
+            "mlx_peak_bytes": 10417605094,
+            "process_footprint_bytes": 9661404224,
+            "process_lifetime_peak_bytes": 10572158016
+          },
+          "generation_memory": {
+            "mlx_active_bytes": 9615619004,
+            "mlx_cache_bytes": 0,
+            "mlx_peak_bytes": 10417605094,
+            "process_footprint_bytes": 9762821184,
+            "process_lifetime_peak_bytes": 10572158016
+          },
+          "timings": {
+            "decode_tps": 6.849159135869272,
+            "prefill_tps": 106.82513275831376,
+            "ttft_seconds": 6.432924459
+          }
+        }
+      ],
+      "status": "running",
+      "reaped": true,
+      "memory_saver": false,
+      "engine_sha256": "a636ba64b2e37b7ffd5d31eb7765ae3d3b3f2157365c985be84d4f6bfc7a1072",
+      "ready_bytes": 9337606944,
+      "stderr": ""
+    }
+  ],
+  "model": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+  "head": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+  "order": "AB",
+  "candidate_memory_saver": false,
+  "short_only": true,
+  "exchange_timeout": 180,
+  "campaign_timeout": 900,
+  "error": "ValueError('cache reuse was not exercised')"
+}

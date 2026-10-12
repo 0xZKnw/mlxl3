@@ -1,0 +1,40 @@
+{
+  "kani-packet-unwind65": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "dflash_round_packet_checks_every_id_and_length"
+    ],
+    "exit": 0,
+    "seconds": 19.528491500008386,
+    "log": "docs/measurements/dflash2-web-02/single-kani-packet-unwind65.log"
+  },
+  "kani-mlx": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "dflash_round_packet_checks_every_id_and_length"
+    ],
+    "exit": 0,
+    "seconds": 23.003719624946825,
+    "log": "docs/measurements/dflash2-web-02/single-kani-mlx.log"
+  },
+  "kani-full": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features"
+    ],
+    "exit": 0,
+    "seconds": 502.6026810409967,
+    "log": "docs/measurements/dflash2-web-02/single-kani-full.log"
+  }
+}

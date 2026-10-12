@@ -1,0 +1,51 @@
+{
+  "signature": {
+    "command": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "plist": {
+    "command": [
+      "plutil",
+      "-lint",
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Info.plist"
+    ],
+    "exit_code": 0,
+    "stdout": "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Info.plist: OK\n",
+    "stderr": ""
+  },
+  "runtime_info": {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+      "runtime-info"
+    ],
+    "exit_code": 0,
+    "stdout": "{\"architecture\":\"aarch64\",\"bridge_protocol\":1,\"chat_enabled\":true,\"commit\":\"9e5e14a98178\",\"mlx_enabled\":true,\"profile\":\"release\",\"version\":\"1.4.2\"}\n",
+    "stderr": ""
+  },
+  "timeline": {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+      "--check-chat-timeline"
+    ],
+    "exit_code": 0,
+    "stdout": "Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation\n",
+    "stderr": ""
+  },
+  "preferences": {
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+      "--check-mcp-preferences"
+    ],
+    "exit_code": 0,
+    "stdout": "MCP checks passed: default off, persisted on/off, request flag, isolated preview\n",
+    "stderr": ""
+  }
+}

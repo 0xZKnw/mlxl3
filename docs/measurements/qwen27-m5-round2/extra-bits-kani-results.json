@@ -1,0 +1,19 @@
+{
+  "verifier": "Kani0.68.0",
+  "target": "aarch64-apple-darwin",
+  "source_base": "20debe916f2f77cdbfe068a0e85e54a3ec6c43d5",
+  "local_changes": true,
+  "full_harnesses": 32,
+  "full_verified": 32,
+  "full_status_counts": {
+    "SUCCESS": 4473,
+    "UNREACHABLE": 70,
+    "SATISFIED": 77
+  },
+  "new_contract_status_counts": {
+    "SUCCESS": 7,
+    "SATISFIED": 6
+  },
+  "scope": "Rust CPU contracts only; no GPU/MLX/allocator/concurrency/intelligence proof",
+  "new_contract_input_domain": "all i32/i32/usize/three booleans; no assumptions or loops"
+}

@@ -1,0 +1,42 @@
+{
+  "status": "failed",
+  "parity": false,
+  "checks": [
+    {
+      "m": 2,
+      "values": 34816,
+      "finite": true,
+      "different_final_fp16_words": 598,
+      "different_inner_fp16_words": 100
+    }
+  ],
+  "timings": [],
+  "headers": [
+    {
+      "file": "model-00001-of-00002.safetensors",
+      "sha256": "1442bc04366ae9ec06132145e1ff19e1d274cfe7d4dc1533576839845c6fd6d1"
+    },
+    {
+      "file": "model-00002-of-00002.safetensors",
+      "sha256": "8d109f1b24080884b180b873c413956db0a1219b0e313ff1060f1260c2689665"
+    }
+  ],
+  "shape": {
+    "prefix": "model.language_model.layers.10.mlp.gate_proj",
+    "input": 5120,
+    "widths": [
+      17408
+    ],
+    "k": 2,
+    "cb": 2,
+    "dtype": "I16",
+    "prefixes": [
+      "model.language_model.layers.10.mlp.gate_proj"
+    ],
+    "count": 58
+  },
+  "error": {
+    "type": "AssertionError",
+    "message": "different bits: 604 bytes"
+  }
+}

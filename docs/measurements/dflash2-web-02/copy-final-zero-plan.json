@@ -1,0 +1,20 @@
+{
+  "status": "completed_bounded_verified",
+  "reason": "Earlier len0 log reports one unreachable cover for the empty old-prompt region. The retained harness now guards covers by LEN. Recheck the exact retained harness and its eight reachable covers after the cfg(test) stream additions; no production or proof domain changes and no GPU/benchmark.",
+  "source_sha256": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc",
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--exact",
+    "--harness",
+    "speculative::verification::dflash_copy_len_0"
+  ],
+  "timeout_seconds": 190,
+  "bounds": "Initial history exactly0, accepted prefix0..7 fullu32, anchoru32 and copied/enabled bool symbolic, output-index0..31 covers every valid index0..7, unwind33; no assume/stub. Other lengths1..20 and truncation1024 remain unverified.",
+  "prior_evidence": "copy-partition-zero.log / copy-partition-formal.json",
+  "production_unchanged": true,
+  "result": "copy-final-zero.json",
+  "observed_covers": "8/9 satisfied; one conditional old-prompt cover unreachable at LEN0 even though guarded. Diagnostic expected and retained."
+}

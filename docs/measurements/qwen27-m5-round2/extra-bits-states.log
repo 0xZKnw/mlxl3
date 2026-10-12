@@ -1,0 +1,22 @@
+    Finished `release` profile [optimized] target(s) in 0.05s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-4d66c57c7b61ba5b)
+
+running 1 test
+test qwen35::tests::checkpoint_optimization_matches_saved_logits_and_states ... prefill=23 step=0: 128 state arrays and 248320 finite logits bit-identical
+prefill=23 step=1: 128 state arrays and 248320 finite logits bit-identical
+prefill=23 step=2: 128 state arrays and 248320 finite logits bit-identical
+prefill=23 step=3: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=0: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=1: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=2: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=3: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=0: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=1: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=2: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=3: 128 state arrays and 248320 finite logits bit-identical
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 88 filtered out; finished in 11.93s
+

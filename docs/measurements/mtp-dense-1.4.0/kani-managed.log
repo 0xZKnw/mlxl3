@@ -1,0 +1,1013 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.3.1 (/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:133:17
+    |
+133 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.69s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.3.1 (/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+Checking harness mtp::managed_mtp_never_crosses_architectures...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/f6128a5c84a81e95/out/mlxl3_native-f6128a5c84a81e95__RNvNtCskf6tXET4RpD_12mlxl3_native3mtp39managed_mtp_never_crosses_architectures.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<i32>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<i32> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 128 column 15 function mtp::managed_mtp_never_crosses_architectures thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<i32>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<i32> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<mtp::ManagedHead>::is_some thread 0
+Runtime Symex: 0.0287058s
+size of program expression: 2528 steps
+slicing removed 1441 assignments
+Generated 267 VCC(s), 36 remaining after simplification
+Runtime Postprocess Equation: 0.000398959s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00238658s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.000164375s
+Solving with CaDiCaL 3.0.0
+2692 variables, 5849 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000384542s
+Runtime decision procedure: 0.00285625s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2693 variables, 5850 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 6.0875e-05s
+Runtime decision procedure: 0.000103s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2694 variables, 5851 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000104291s
+Runtime decision procedure: 0.000138417s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2695 variables, 5852 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.000514042s
+Runtime decision procedure: 0.000535875s
+
+RESULTS:
+Check 1: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 2: <std::option::Option<i32> as std::cmp::PartialEq>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 3: mtp::managed_mtp_never_crosses_architectures.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.vocab_size == 248_320 && layout.head_dim == 256"
+	 - Location: native/src/mtp.rs:125:9 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 4: mtp::managed_mtp_never_crosses_architectures.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.rms_norm_eps == 1e-6 && layout.partial_rotary_factor == 0.25"
+	 - Location: native/src/mtp.rs:126:9 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 5: mtp::managed_mtp_never_crosses_architectures.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.rope_parameters.rope_theta == 10_000_000."
+	 - Location: native/src/mtp.rs:127:9 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 6: mtp::managed_mtp_never_crosses_architectures.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/mtp.rs:128:15 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 7: mtp::managed_mtp_never_crosses_architectures.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.hidden_size == 2048 && layers == 40"
+	 - Location: native/src/mtp.rs:140:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 8: mtp::managed_mtp_never_crosses_architectures.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.num_attention_heads == 16 && layout.num_key_value_heads == 2"
+	 - Location: native/src/mtp.rs:141:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 9: mtp::managed_mtp_never_crosses_architectures.assertion.6
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.intermediate_size.is_none() && layout.num_experts == 256"
+	 - Location: native/src/mtp.rs:142:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 10: mtp::managed_mtp_never_crosses_architectures.assertion.7
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.num_experts_per_tok == 8 && layout.moe_intermediate_size == 512 &&
+layout.shared_expert_intermediate_size == 512"
+	 - Location: native/src/mtp.rs:143:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 11: mtp::managed_mtp_never_crosses_architectures.assertion.8
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.hidden_size == 5120 && layers == 64"
+	 - Location: native/src/mtp.rs:130:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 12: mtp::managed_mtp_never_crosses_architectures.assertion.9
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.num_attention_heads == 24 && layout.num_key_value_heads == 4"
+	 - Location: native/src/mtp.rs:131:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 13: mtp::managed_mtp_never_crosses_architectures.assertion.10
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.intermediate_size == Some(17_408) && layout.num_experts == 0"
+	 - Location: native/src/mtp.rs:132:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 14: mtp::managed_mtp_never_crosses_architectures.assertion.11
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.num_experts_per_tok == 0 && layout.moe_intermediate_size == 0 &&
+layout.shared_expert_intermediate_size == 0"
+	 - Location: native/src/mtp.rs:133:17 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 15: mtp::managed_mtp_never_crosses_architectures.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: result == Some(ManagedHead::Qwen38Dense)"
+	 - Location: native/src/mtp.rs:151:5 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 16: mtp::managed_mtp_never_crosses_architectures.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: result == Some(ManagedHead::Qwen36Moe)"
+	 - Location: native/src/mtp.rs:152:5 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 17: mtp::managed_mtp_never_crosses_architectures.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: result.is_none()"
+	 - Location: native/src/mtp.rs:153:5 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 18: std::option::Option::<mtp::ManagedHead>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<mtp::ManagedHead>::is_some
+
+Check 19: std::option::Option::<i32>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<i32>::is_some
+
+Check 20: std::option::Option::<mtp::ManagedHead>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<mtp::ManagedHead>::is_some
+
+Check 21: std::option::Option::<mtp::ManagedHead>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<mtp::ManagedHead>::is_some
+
+Check 22: std::option::Option::<mtp::ManagedHead>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<mtp::ManagedHead>::is_some
+
+Check 23: std::option::Option::<mtp::ManagedHead>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<mtp::ManagedHead>::is_some
+
+Check 24: std::option::Option::<mtp::ManagedHead>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<mtp::ManagedHead>::is_some
+
+Check 25: std::option::Option::<mtp::ManagedHead>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<mtp::ManagedHead>::is_some
+
+Check 26: std::option::Option::<i32>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 27: std::option::Option::<i32>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 28: std::option::Option::<i32>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 29: std::option::Option::<i32>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 30: std::option::Option::<i32>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 31: std::option::Option::<i32>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 32: mtp::Layout::managed_head.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:44:12 in function mtp::Layout::managed_head
+
+Check 33: mtp::Layout::managed_head.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:44:12 in function mtp::Layout::managed_head
+
+Check 34: mtp::Layout::managed_head.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:44:12 in function mtp::Layout::managed_head
+
+Check 35: mtp::Layout::managed_head.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:44:12 in function mtp::Layout::managed_head
+
+Check 36: mtp::Layout::managed_head.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:44:12 in function mtp::Layout::managed_head
+
+Check 37: mtp::Layout::managed_head.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:44:12 in function mtp::Layout::managed_head
+
+Check 38: mtp::Layout::managed_head.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:45:16 in function mtp::Layout::managed_head
+
+Check 39: mtp::Layout::managed_head.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:45:16 in function mtp::Layout::managed_head
+
+Check 40: mtp::Layout::managed_head.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:45:16 in function mtp::Layout::managed_head
+
+Check 41: mtp::Layout::managed_head.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:45:16 in function mtp::Layout::managed_head
+
+Check 42: mtp::Layout::managed_head.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:45:16 in function mtp::Layout::managed_head
+
+Check 43: mtp::Layout::managed_head.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:45:16 in function mtp::Layout::managed_head
+
+Check 44: mtp::Layout::managed_head.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:46:16 in function mtp::Layout::managed_head
+
+Check 45: mtp::Layout::managed_head.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:46:16 in function mtp::Layout::managed_head
+
+Check 46: mtp::Layout::managed_head.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:46:16 in function mtp::Layout::managed_head
+
+Check 47: mtp::Layout::managed_head.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:46:16 in function mtp::Layout::managed_head
+
+Check 48: mtp::Layout::managed_head.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:46:16 in function mtp::Layout::managed_head
+
+Check 49: mtp::Layout::managed_head.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:46:16 in function mtp::Layout::managed_head
+
+Check 50: mtp::Layout::managed_head.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:47:16 in function mtp::Layout::managed_head
+
+Check 51: mtp::Layout::managed_head.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:47:16 in function mtp::Layout::managed_head
+
+Check 52: mtp::Layout::managed_head.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:47:16 in function mtp::Layout::managed_head
+
+Check 53: mtp::Layout::managed_head.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:47:16 in function mtp::Layout::managed_head
+
+Check 54: mtp::Layout::managed_head.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:47:16 in function mtp::Layout::managed_head
+
+Check 55: mtp::Layout::managed_head.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:47:16 in function mtp::Layout::managed_head
+
+Check 56: mtp::Layout::managed_head.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:48:16 in function mtp::Layout::managed_head
+
+Check 57: mtp::Layout::managed_head.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:48:16 in function mtp::Layout::managed_head
+
+Check 58: mtp::Layout::managed_head.pointer_dereference.27
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:48:16 in function mtp::Layout::managed_head
+
+Check 59: mtp::Layout::managed_head.pointer_dereference.28
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:48:16 in function mtp::Layout::managed_head
+
+Check 60: mtp::Layout::managed_head.pointer_dereference.29
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:48:16 in function mtp::Layout::managed_head
+
+Check 61: mtp::Layout::managed_head.pointer_dereference.30
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:48:16 in function mtp::Layout::managed_head
+
+Check 62: mtp::Layout::managed_head.pointer_dereference.31
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:50:20 in function mtp::Layout::managed_head
+
+Check 63: mtp::Layout::managed_head.pointer_dereference.32
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:53:13 in function mtp::Layout::managed_head
+
+Check 64: mtp::Layout::managed_head.pointer_dereference.33
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:53:13 in function mtp::Layout::managed_head
+
+Check 65: mtp::Layout::managed_head.pointer_dereference.34
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:53:13 in function mtp::Layout::managed_head
+
+Check 66: mtp::Layout::managed_head.pointer_dereference.35
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:53:13 in function mtp::Layout::managed_head
+
+Check 67: mtp::Layout::managed_head.pointer_dereference.36
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:53:13 in function mtp::Layout::managed_head
+
+Check 68: mtp::Layout::managed_head.pointer_dereference.37
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:53:13 in function mtp::Layout::managed_head
+
+Check 69: mtp::Layout::managed_head.pointer_dereference.38
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:54:13 in function mtp::Layout::managed_head
+
+Check 70: mtp::Layout::managed_head.pointer_dereference.39
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:54:13 in function mtp::Layout::managed_head
+
+Check 71: mtp::Layout::managed_head.pointer_dereference.40
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:54:13 in function mtp::Layout::managed_head
+
+Check 72: mtp::Layout::managed_head.pointer_dereference.41
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:54:13 in function mtp::Layout::managed_head
+
+Check 73: mtp::Layout::managed_head.pointer_dereference.42
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:54:13 in function mtp::Layout::managed_head
+
+Check 74: mtp::Layout::managed_head.pointer_dereference.43
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:54:13 in function mtp::Layout::managed_head
+
+Check 75: mtp::Layout::managed_head.pointer_dereference.44
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:55:13 in function mtp::Layout::managed_head
+
+Check 76: mtp::Layout::managed_head.pointer_dereference.45
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:55:13 in function mtp::Layout::managed_head
+
+Check 77: mtp::Layout::managed_head.pointer_dereference.46
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:55:13 in function mtp::Layout::managed_head
+
+Check 78: mtp::Layout::managed_head.pointer_dereference.47
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:55:13 in function mtp::Layout::managed_head
+
+Check 79: mtp::Layout::managed_head.pointer_dereference.48
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:55:13 in function mtp::Layout::managed_head
+
+Check 80: mtp::Layout::managed_head.pointer_dereference.49
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:55:13 in function mtp::Layout::managed_head
+
+Check 81: mtp::Layout::managed_head.pointer_dereference.50
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:56:13 in function mtp::Layout::managed_head
+
+Check 82: mtp::Layout::managed_head.pointer_dereference.51
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:56:13 in function mtp::Layout::managed_head
+
+Check 83: mtp::Layout::managed_head.pointer_dereference.52
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:56:13 in function mtp::Layout::managed_head
+
+Check 84: mtp::Layout::managed_head.pointer_dereference.53
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:56:13 in function mtp::Layout::managed_head
+
+Check 85: mtp::Layout::managed_head.pointer_dereference.54
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:56:13 in function mtp::Layout::managed_head
+
+Check 86: mtp::Layout::managed_head.pointer_dereference.55
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:56:13 in function mtp::Layout::managed_head
+
+Check 87: mtp::Layout::managed_head.pointer_dereference.56
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:68:20 in function mtp::Layout::managed_head
+
+Check 88: mtp::Layout::managed_head.pointer_dereference.57
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:68:20 in function mtp::Layout::managed_head
+
+Check 89: mtp::Layout::managed_head.pointer_dereference.58
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:68:20 in function mtp::Layout::managed_head
+
+Check 90: mtp::Layout::managed_head.pointer_dereference.59
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:68:20 in function mtp::Layout::managed_head
+
+Check 91: mtp::Layout::managed_head.pointer_dereference.60
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:68:20 in function mtp::Layout::managed_head
+
+Check 92: mtp::Layout::managed_head.pointer_dereference.61
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:68:20 in function mtp::Layout::managed_head
+
+Check 93: mtp::Layout::managed_head.pointer_dereference.62
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:70:24 in function mtp::Layout::managed_head
+
+Check 94: mtp::Layout::managed_head.pointer_dereference.63
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:70:24 in function mtp::Layout::managed_head
+
+Check 95: mtp::Layout::managed_head.pointer_dereference.64
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:70:24 in function mtp::Layout::managed_head
+
+Check 96: mtp::Layout::managed_head.pointer_dereference.65
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:70:24 in function mtp::Layout::managed_head
+
+Check 97: mtp::Layout::managed_head.pointer_dereference.66
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:70:24 in function mtp::Layout::managed_head
+
+Check 98: mtp::Layout::managed_head.pointer_dereference.67
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:70:24 in function mtp::Layout::managed_head
+
+Check 99: mtp::Layout::managed_head.pointer_dereference.68
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:71:24 in function mtp::Layout::managed_head
+
+Check 100: mtp::Layout::managed_head.pointer_dereference.69
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:71:24 in function mtp::Layout::managed_head
+
+Check 101: mtp::Layout::managed_head.pointer_dereference.70
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:71:24 in function mtp::Layout::managed_head
+
+Check 102: mtp::Layout::managed_head.pointer_dereference.71
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:71:24 in function mtp::Layout::managed_head
+
+Check 103: mtp::Layout::managed_head.pointer_dereference.72
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:71:24 in function mtp::Layout::managed_head
+
+Check 104: mtp::Layout::managed_head.pointer_dereference.73
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:71:24 in function mtp::Layout::managed_head
+
+Check 105: mtp::Layout::managed_head.pointer_dereference.74
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:61:24 in function mtp::Layout::managed_head
+
+Check 106: mtp::Layout::managed_head.pointer_dereference.75
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:61:24 in function mtp::Layout::managed_head
+
+Check 107: mtp::Layout::managed_head.pointer_dereference.76
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:61:24 in function mtp::Layout::managed_head
+
+Check 108: mtp::Layout::managed_head.pointer_dereference.77
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:61:24 in function mtp::Layout::managed_head
+
+Check 109: mtp::Layout::managed_head.pointer_dereference.78
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:61:24 in function mtp::Layout::managed_head
+
+Check 110: mtp::Layout::managed_head.pointer_dereference.79
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:61:24 in function mtp::Layout::managed_head
+
+Check 111: mtp::Layout::managed_head.pointer_dereference.80
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:62:24 in function mtp::Layout::managed_head
+
+Check 112: mtp::Layout::managed_head.pointer_dereference.81
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:62:24 in function mtp::Layout::managed_head
+
+Check 113: mtp::Layout::managed_head.pointer_dereference.82
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:62:24 in function mtp::Layout::managed_head
+
+Check 114: mtp::Layout::managed_head.pointer_dereference.83
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:62:24 in function mtp::Layout::managed_head
+
+Check 115: mtp::Layout::managed_head.pointer_dereference.84
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:62:24 in function mtp::Layout::managed_head
+
+Check 116: mtp::Layout::managed_head.pointer_dereference.85
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:62:24 in function mtp::Layout::managed_head
+
+Check 117: mtp::Layout::managed_head.pointer_dereference.86
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:63:24 in function mtp::Layout::managed_head
+
+Check 118: mtp::Layout::managed_head.pointer_dereference.87
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:63:24 in function mtp::Layout::managed_head
+
+Check 119: mtp::Layout::managed_head.pointer_dereference.88
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:63:24 in function mtp::Layout::managed_head
+
+Check 120: mtp::Layout::managed_head.pointer_dereference.89
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:63:24 in function mtp::Layout::managed_head
+
+Check 121: mtp::Layout::managed_head.pointer_dereference.90
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:63:24 in function mtp::Layout::managed_head
+
+Check 122: mtp::Layout::managed_head.pointer_dereference.91
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:63:24 in function mtp::Layout::managed_head
+
+Check 123: mtp::Layout::managed_head.pointer_dereference.92
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:75:18 in function mtp::Layout::managed_head
+
+Check 124: mtp::managed_mtp_never_crosses_architectures.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:124:25 in function mtp::managed_mtp_never_crosses_architectures
+
+Check 125: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 126: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 127: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 128: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 129: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 130: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 131: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 132: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 133: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 134: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 135: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 136: <mtp::ManagedHead as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:34:30 in function <mtp::ManagedHead as std::cmp::PartialEq>::eq
+
+Check 137: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 138: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 139: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 140: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 141: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 142: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 143: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 144: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 145: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 146: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 147: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 148: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 149: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 150: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 151: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 152: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 153: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 154: <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<mtp::ManagedHead> as std::cmp::PartialEq>::eq
+
+Check 155: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 156: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 157: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 158: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 159: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 160: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 161: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 162: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 163: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 164: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 165: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 166: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 167: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 168: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 169: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 170: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 171: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 172: <std::option::Option<i32> as std::cmp::PartialEq>::eq.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<i32> as std::cmp::PartialEq>::eq
+
+Check 173: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 174: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 175: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 176: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 177: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 178: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 179: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 180: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 181: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 182: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 183: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+Check 184: std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for i32>::eq
+
+
+SUMMARY:
+ ** 0 of 181 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.15187638s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

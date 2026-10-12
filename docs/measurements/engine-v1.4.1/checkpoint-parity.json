@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "parity": true,
+  "command": [
+    "target/release/deps/mlxl3_native-fb2fec27ffba9a03",
+    "--exact",
+    "qwen35::tests::checkpoint_optimization_matches_saved_logits_and_states",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "timeout_seconds": 600,
+  "source": "71588ab9c758ad95bb6b0041bed6c061fb7a70c7",
+  "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+  "reference_dir": "/Users/justin/Documents/mix-stq1_0/build/qwen38-norm-reference",
+  "reference_write": false,
+  "binary_sha256": "14f3a98f95ac82bb8c64a73eda321916b1e664189f1be2be2afa7be9b13b3e16",
+  "performance_claim": null,
+  "cases": 12,
+  "logits_per_case": 248320,
+  "state_arrays_per_case": 128,
+  "equality": "bit exact",
+  "elapsed_seconds_incidental": 11.707255125045776
+}

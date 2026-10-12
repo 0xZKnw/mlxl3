@@ -1,0 +1,21 @@
+{
+  "command": [
+    "target/release/deps/mlxl3_native-005a77db66dfe685",
+    "qwen35::tests::dense_mlp_batch_matches_serial_layers",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "timeout_seconds": 600,
+  "status": "complete",
+  "environment": {
+    "MLXL3_QWEN_TEST_MODEL": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH": "1",
+    "MLXL3_EXPERIMENTAL_GROUPED_MB3": "0"
+  },
+  "timing_scope": "functional test only; CPU prover concurrently active",
+  "returncode": 0,
+  "seconds": 5.834529458
+}

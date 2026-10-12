@@ -1,0 +1,219 @@
+{
+  "id": "DFLASH2-2026-10-10-KEY-VIEW-TPS-ISOLATED",
+  "status": "closed_nonconclusive_speed_drift",
+  "reason": "Correct the demonstrably invalid isolation protocol, following user confirmation that MLXL3 was launched concurrently. Different machine conditions on AC now; this new campaign never combines with failed battery trial and is not a noise retry.",
+  "base_commit": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "local_modified": true,
+  "driver": {
+    "path": "benchmarks/compare_native.py",
+    "sha256": "4e0f2dd03edea7cecd8b30b555a75bddd89fb011f9bc083b2e205fc93715f1eb",
+    "regression_tests": "tests/test_compare_native.py unchanged, full Python360/4 passed WEB03"
+  },
+  "binaries": {
+    "A": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-key-view-tps-2026-10-09/baseline/mlxl3",
+      "sha256": "ad0bef499cd1850795d5ad9c8a54055d91299e9564fa55ebeb898e7ffde03c64"
+    },
+    "B": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+      "sha256": "23e0f3c16ec08a54be6b54ee83009f16e4a1e3be43253a609088181661c55e69"
+    }
+  },
+  "shared_libraries": {
+    "libmlx.dylib": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/libmlx.dylib",
+      "sha256": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2"
+    },
+    "libjaccl.dylib": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/libjaccl.dylib",
+      "sha256": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3"
+    },
+    "mlx.metallib": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlx.metallib",
+      "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed"
+    }
+  },
+  "prompt": {
+    "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-key-view-tps-isolated-2026-10-10/code-prompt.txt",
+    "sha256": "4f326ea4be23469fe7fe1c9cadbfc25caf611d155a671eccaefc5345074e2851",
+    "short": "Explique en fran\u00e7ais, en trois points concis, pourquoi le ciel est bleu."
+  },
+  "model": "Qwen3.6-35B-A3B EXL3 2.49bpw",
+  "draft": "packed Q4 DFlash2",
+  "hardware": "M5 Air24GiB/macOS27.2/MLX0.32.2",
+  "environment_same": {
+    "MLXL3_DFLASH_CONTEXT_COPY": "0",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "inherited_environment": {},
+  "conditions": {
+    "power": {
+      "exit": 0,
+      "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t25%; charging; 2:11 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit": 0,
+      "stdout": "vm.swapusage: total = 5120.00M  used = 3532.94M  free = 1587.06M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "command": [
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/.venv/bin/python",
+    "benchmarks/compare_native.py",
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "--baseline",
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-key-view-tps-2026-10-09/baseline/mlxl3",
+    "--candidate",
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+    "--output",
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-key-view-tps-isolated-2026-10-10/abba",
+    "--prompt-file",
+    "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-key-view-tps-isolated-2026-10-10/code-prompt.txt",
+    "--tokens",
+    "128",
+    "--warmup-tokens",
+    "256",
+    "--repeats",
+    "3",
+    "--order",
+    "ABBA",
+    "--settle-seconds",
+    "30",
+    "--dflash-mode",
+    "1",
+    "--dflash-draft",
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+    "--load-timeout",
+    "120",
+    "--request-timeout",
+    "90",
+    "--baseline-env",
+    "MLXL3_DFLASH_CONTEXT_COPY=0",
+    "--baseline-env",
+    "MLXL3_QWEN_PIPELINE=0",
+    "--baseline-env",
+    "MLXL3_MTP_LOOKUP=0",
+    "--baseline-env",
+    "MLXL3_APP_HOME=/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-key-view-tps-isolated-2026-10-10/baseline-app-home",
+    "--candidate-env",
+    "MLXL3_DFLASH_CONTEXT_COPY=0",
+    "--candidate-env",
+    "MLXL3_QWEN_PIPELINE=0",
+    "--candidate-env",
+    "MLXL3_MTP_LOOKUP=0",
+    "--candidate-env",
+    "MLXL3_APP_HOME=/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-key-view-tps-isolated-2026-10-10/candidate-app-home"
+  ],
+  "protocol": {
+    "order": "ABBA",
+    "warmup_per_prompt": 1,
+    "warmup_tokens": 256,
+    "measured_tokens": 128,
+    "repeats_per_prompt": 3,
+    "settle_before_pass_seconds": 30,
+    "context": 4096,
+    "cache_reuse": false,
+    "temperature": 0,
+    "mtp": false,
+    "dflash_mode": 1,
+    "single_gpu_model_at_a_time": true,
+    "no_concurrent_build_prover_inference": true
+  },
+  "criteria": {
+    "code_gain_min_percent": 3,
+    "short_regression_max_percent": 1,
+    "absolute_same_variant_drift_max_percent": 1,
+    "aggregation": "driver: median of two pass medians, equal to their mean; no pooling",
+    "quality": "All warmups and repeated runs must be nonempty finite; token/text/history/count parity on every prompt and run; no gain with mismatch"
+  },
+  "confirmation": "One BAAB with exactly same protocol only if ABBA all criteria pass; otherwise stop, no noise retries or protocol change",
+  "quality_before_speed": "WEB03 80 finite bitexact target states, 33 complete replies exact to old signed binary, 45/45 real bridge; no executable source changes. Inherited stock alignment alert remains open.",
+  "global_timeout_seconds": 600,
+  "no_27b_gpu": true,
+  "installed_app_changed": false,
+  "started_unix": 1791645534.5293078,
+  "date": "2026-10-10",
+  "historical_trial": "../dflash2-key-view-tps-2026-10-09/final.json",
+  "guard": {
+    "sample_interval_seconds": 2,
+    "excludes_only_driver_process_and_its_descendants": true,
+    "forbid_foreign_mlxl3_apps_and_engines": true,
+    "forbid_compilers_and_provers_including_cargo_kani": true,
+    "on_conflict": "Stop only owned campaign process group, join and mark failed/inconclusive. No automatic retry.",
+    "power": "AC required unchanged for this campaign"
+  },
+  "repeat_policy": "Unique ABBA; same BAAB condition as before. No further noise retry. User concurrency provides new explicit isolation correction reason.",
+  "source_identity": "docs/measurements/dflash2-web-03/key-view-identity.json",
+  "sources_before": [
+    {
+      "path": "native/ffi/kernel_cache_key.h",
+      "sha256": "05f1deaea931c29b9340a72a747f966fe732c999bb64a9fb4ee8e9fb5d27965f",
+      "matches": true
+    },
+    {
+      "path": "native/ffi/mlx_bridge.cpp",
+      "sha256": "ee65389e2797aeba04cc5c7272bbe7a6632d330236d47451625e0c8707c367e6",
+      "matches": true
+    },
+    {
+      "path": "native/tests/kernel_cache_key.cpp",
+      "sha256": "42c670afc77434674a3740b5b34318076e44b9f08ec76f474fdff0ffd844bf18",
+      "matches": true
+    },
+    {
+      "path": "native/tests/kernel_cache_key_proof.cpp",
+      "sha256": "5bf44541b29a6ba600e77d043dfc7cf8efbc5f8aab3164021270cc693376a80c",
+      "matches": true
+    },
+    {
+      "path": "native/src/array.rs",
+      "sha256": "25b0aa50bad824f5405ba69cbe22f4e23a6eb970ec6a1809631309ed1f1aeb58",
+      "matches": true
+    },
+    {
+      "path": "native/src/dflash.rs",
+      "sha256": "6efc6688bb64e44a29cd0a0ae2742d63b54cef81a2f969444e25ba825af1dec8",
+      "matches": true
+    },
+    {
+      "path": "native/src/qwen35.rs",
+      "sha256": "b2df6d002b84ec3dcb18dd6cbcf38ff1bb22203112078064c1709960e1d8faf0",
+      "matches": true
+    },
+    {
+      "path": "native/src/main.rs",
+      "sha256": "d92ede7f989069b61edc531935260293d516e7ef0d6cf094b8c4783ba4112c7d",
+      "matches": true
+    },
+    {
+      "path": "native/src/speculative.rs",
+      "sha256": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc",
+      "matches": true
+    },
+    {
+      "path": ".github/workflows/rust.yml",
+      "sha256": "c071c4d215c47261e6ae1283844414ec43cd4da2589788db7efb1425b99598e7",
+      "matches": true
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "8be1962d98cf99417a930f294de09c631bd960ddb5341aff814076444e01e486",
+      "matches": true
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "d6152886353571b01a83c86863dce1a53631f4c5a329fc55343b0ee9b37f128b",
+      "matches": true
+    }
+  ],
+  "controller_pid": 11352,
+  "outcome": "final.json",
+  "inspection_date": "2026-10-10"
+}

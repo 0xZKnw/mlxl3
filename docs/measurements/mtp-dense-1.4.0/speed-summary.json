@@ -1,0 +1,89 @@
+{
+  "status": "complete",
+  "parity_across_all_depths": true,
+  "measured_generations": 32,
+  "measured_tokens": 4096,
+  "warmup_generations": 32,
+  "warmup_tokens": 256,
+  "decision": "fusion remains opt-in; no established speedup on this M5",
+  "results": [
+    {
+      "depth": 0,
+      "prompt": "short",
+      "stock_decode_tps": 8.653334707135418,
+      "fused_decode_tps": 8.72110649572468,
+      "decode_change_percent": 0.7831869548901027,
+      "elapsed_change_percent": -0.7012780367750882,
+      "stock_drift_percent": -2.750733587455989
+    },
+    {
+      "depth": 0,
+      "prompt": "document",
+      "stock_decode_tps": 8.501963281941636,
+      "fused_decode_tps": 8.654752498624013,
+      "decode_change_percent": 1.7971051110853953,
+      "elapsed_change_percent": -1.7091464812396207,
+      "stock_drift_percent": -4.977995299802284
+    },
+    {
+      "depth": 1,
+      "prompt": "short",
+      "stock_decode_tps": 8.769389656143765,
+      "fused_decode_tps": 8.506111336515556,
+      "decode_change_percent": -3.0022422306637875,
+      "elapsed_change_percent": 2.989564542761869,
+      "stock_drift_percent": 1.5140047271853696,
+      "acceptance_percent": 84.05797101449275
+    },
+    {
+      "depth": 1,
+      "prompt": "document",
+      "stock_decode_tps": 8.336637908728184,
+      "fused_decode_tps": 8.084257050623203,
+      "decode_change_percent": -3.027369796650836,
+      "elapsed_change_percent": 2.780914079475183,
+      "stock_drift_percent": 7.700570093220138,
+      "acceptance_percent": 78.87323943661971
+    },
+    {
+      "depth": 2,
+      "prompt": "short",
+      "stock_decode_tps": 7.035898865714174,
+      "fused_decode_tps": 6.978988142168033,
+      "decode_change_percent": -0.8088621600783052,
+      "elapsed_change_percent": 0.8552690673075514,
+      "stock_drift_percent": -1.207046799464262,
+      "acceptance_percent": 68.86792452830188
+    },
+    {
+      "depth": 2,
+      "prompt": "document",
+      "stock_decode_tps": 6.912430036747205,
+      "fused_decode_tps": 6.833057939766398,
+      "decode_change_percent": -1.1482517227495492,
+      "elapsed_change_percent": 0.9967820133198524,
+      "stock_drift_percent": -1.03546632633027,
+      "acceptance_percent": 66.66666666666667
+    },
+    {
+      "depth": 3,
+      "prompt": "short",
+      "stock_decode_tps": 6.770097713108607,
+      "fused_decode_tps": 6.8376054122982515,
+      "decode_change_percent": 0.997145123310883,
+      "elapsed_change_percent": -0.9491518472421356,
+      "stock_drift_percent": -0.4919856094028563,
+      "acceptance_percent": 60.74074074074074
+    },
+    {
+      "depth": 3,
+      "prompt": "document",
+      "stock_decode_tps": 6.866046076867606,
+      "fused_decode_tps": 6.7520807793755235,
+      "decode_change_percent": -1.65983880993813,
+      "elapsed_change_percent": 1.416023441185943,
+      "stock_drift_percent": -0.8697661700672876,
+      "acceptance_percent": 62.121212121212125
+    }
+  ]
+}

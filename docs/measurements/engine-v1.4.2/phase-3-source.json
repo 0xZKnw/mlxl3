@@ -1,0 +1,81 @@
+{
+  "base": "79ec53586697e5f00092355415a8e10457da9a78",
+  "pr_base": "5de518e0fbe7d3367416b9bc5999c7bd1f92c74d",
+  "state": "final retained MTP-only pipeline; final routed-reduce prototype removed and sources restored bit for bit",
+  "binary": {
+    "sha256": "4e3af9f76516f253a9adc0d8de0e6ff4020983c864eceeb5d33a2653de8c56d0",
+    "runtime": {
+      "architecture": "aarch64",
+      "bridge_protocol": 1,
+      "chat_enabled": true,
+      "commit": "79ec53586697-dirty",
+      "mlx_enabled": true,
+      "profile": "release",
+      "version": "1.4.2"
+    },
+    "path": "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/pipeline-delivered-candidate/mlxl3-rs"
+  },
+  "sources": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "54e890f20e9f4eb32b40c54af406ae838cc0810aebe597aea32ff8e1f53ac89c"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "7aba7a4ee4f12f8b9e99842f6d04cd00a8c03ae1d0e8935f262a06542091e9dd"
+    },
+    {
+      "path": "build.rs",
+      "sha256": "0d008bfd3597d03d0cb193c3f18c6a6f063bf4922690fdcb5975282316c84ab6"
+    },
+    {
+      "path": "native/src/moe.rs",
+      "sha256": "28c3190470047295870238667ccb2510ee852244f7faa8a2538825ad302b0b63"
+    },
+    {
+      "path": "native/src/array.rs",
+      "sha256": "465c1d6995651818d805c8d868039245a03bfe248f2ff78b6ebe8969e7c57279"
+    },
+    {
+      "path": "native/src/qwen35.rs",
+      "sha256": "71d161355eafd25d16dfd0a64a911559b59c44af606bba73fe38c2ee83f3f198"
+    },
+    {
+      "path": "native/src/contracts.rs",
+      "sha256": "da1640deb0814f3266c4472c3287f43ec173c689bf03be4f58d1ce2b106796eb"
+    },
+    {
+      "path": "native/ffi/mlx_bridge.cpp",
+      "sha256": "71d91278f629421dd47fc3a5c2bd3dca71d718d8f4a953ab8fadd25e2f53197f"
+    },
+    {
+      "path": "native/src/main.rs",
+      "sha256": "5a06388d016829b1194db2372efda9fd0d8397c34e8c8594f42b39b2699cfd5e"
+    },
+    {
+      "path": "native/src/mtp.rs",
+      "sha256": "ed7d26eb9b19a1399e034fa58588aa87943415a6758afb988c8383f4eac19f6f"
+    },
+    {
+      "path": "native/src/mtp_tune.rs",
+      "sha256": "faa1897c352a78add4666e61119bdadacbbc80936593eda0981a447c062db08a"
+    },
+    {
+      "path": "native/src/speculative.rs",
+      "sha256": "291a6b915a09b1ab02e3e0d968cb89062bedbcd822c7a8dfe0a50d785a585350"
+    },
+    {
+      "path": "native/src/linear.rs",
+      "sha256": "e5e322f40c83ff6f851ca92ceaf3d8ba943d79720dc85f2b04eb4a8a451d9756"
+    },
+    {
+      "path": "benchmarks/compare_native.py",
+      "sha256": "e38eeb9b5ac3f5af340ec6319420700efdf4cac963be3f0afcba9c1cc7750cad"
+    },
+    {
+      "path": "scripts/benchmark-mtp-tune.py",
+      "sha256": "db8bb210556523b32630e88fd08dfb72ee341190b65f8883bdff2a981dc3a2f6"
+    }
+  ],
+  "scope": "Code checked equals measured pipeline candidate; postcommit rebuild will only change commit/dirty stamp if arithmetic sources remain identical."
+}

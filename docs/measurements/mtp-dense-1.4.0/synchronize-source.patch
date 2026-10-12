@@ -1,0 +1,168 @@
+diff --git a/native/ffi/mlx_bridge.cpp b/native/ffi/mlx_bridge.cpp
+index 61b55b0..be2e0a9 100644
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -116,6 +116,9 @@ std::vector<std::string> strings(const char* const* p, size_t n) {
+ 
+ extern "C" {
+ const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
++int mlxl3_synchronize() noexcept {
++  return protect([] { mx::synchronize(); });
++}
+ int mlxl3_clear_cache() noexcept {
+   return protect([] { mx::clear_cache(); });
+ }
+diff --git a/native/src/array.rs b/native/src/array.rs
+index 046dfdb..0ac51f3 100644
+--- a/native/src/array.rs
++++ b/native/src/array.rs
+@@ -71,6 +71,7 @@ unsafe extern "C" {
+     fn mlxl3_mlx_error() -> *const c_char;
+     fn mlxl3_mlx_init(metallib: *const c_char) -> i32;
+     fn mlxl3_memory_stats(out: *mut u64, reset_peak: bool) -> i32;
++    fn mlxl3_synchronize() -> i32;
+     fn mlxl3_clear_cache() -> i32;
+     fn mlxl3_array_free(p: *mut c_void);
+     fn mlxl3_array_clone(p: *mut c_void, out: *mut *mut c_void) -> i32;
+@@ -240,6 +241,12 @@ pub fn clear_cache() -> Result<()> {
+     checked(unsafe { mlxl3_clear_cache() })
+ }
+ 
++/// Finish submitted GPU work before reporting a settled load/unload state.
++pub fn synchronize() -> Result<()> {
++    initialize()?;
++    checked(unsafe { mlxl3_synchronize() })
++}
++
+ pub fn is_m5_gpu() -> Result<bool> {
+     initialize()?;
+     // Allow testing the portable path, never force TensorOps on an older GPU.
+diff --git a/native/src/main.rs b/native/src/main.rs
+index ce229ae..d9e9001 100644
+--- a/native/src/main.rs
++++ b/native/src/main.rs
+@@ -2514,6 +2514,7 @@ fn load_mtp_head(
+     *prompt_cache = None;
+     *head = None;
+     *revision = None;
++    mlxl3_native::array::synchronize()?;
+     mlxl3_native::array::clear_cache()?;
+     *head = Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+     *revision = Some(next_revision);
+@@ -2636,6 +2637,7 @@ fn native_bridge(
+                         mtp_head = None;
+                         mtp_head_revision = None;
+                     }
++                    mlxl3_native::array::synchronize()?;
+                     mlxl3_native::array::clear_cache()?;
+                     emit_event(json!({"type":"mtp_status", "request_id":request.request_id,
+                         "mtp_active":mtp_head.is_some(),
+@@ -2645,6 +2647,7 @@ fn native_bridge(
+                 if let Err(error) = result {
+                     mtp_head = None;
+                     mtp_head_revision = None;
++                    mlxl3_native::array::synchronize()?;
+                     mlxl3_native::array::clear_cache()?;
+                     emit_event(json!({"type":"error", "request_id":request.request_id,
+                         "message":error.to_string(), "mtp_active":false,
+diff --git a/opti.md b/opti.md
+index 559065e..a2b0e0b 100644
+--- a/opti.md
++++ b/opti.md
+@@ -24,6 +24,10 @@
+ 
+ ### MTP-2026-10-05-DENSE-AUTO — MTP27B et changement automatique de tête — vérification en cours
+ 
++- Reproduction diagnostic : dense ON = 9 411 084 668 octets MLX actifs, second ON = 9 411 084 156 (écart **512 octets**, tête/path inchangés), baseline OFF = 9 172 153 212 (`model-switch-diagnostic.json`, global failed). La mesure initiale peut retenir des temporaires d'une conversion GPU terminant après `array.eval()`. Correction de la frontière réelle : synchroniser MLX avant allocation d'une tête remplaçante et avant le statut load/unload/erreur, puis vider les buffers libres. La comparaison exacte reste intacte ; aucune tolérance ajoutée et pas de synchronisation au chemin chaud de génération. Build, tentative CBMC du C++ réel et reproduction affectée prévus avant validation. Script enrichi conserve aussi les événements partiels et marque le modèle interrompu failed.
++
++- Premier switch physique : dense complet **12 cas passés**, allocations libérées et hashes/histoires exacts D0..3 aux budgets 1/3/17 ; l'écart load/reuse intervient ensuite au chargement **MoE**, avant ses générations. Rapport global **failed/parity=false** et premier modèle réussi préservés (`model-switch-physical.json`). Diagnostic enrichi pour conserver tous les événements avant une assertion, état partiel explicite et compteurs réutilisés ; relance de reproduction prévue. Ni relâchement de la garde ni vitesse mesurée.
++
+ - Source GUI finale **Desktop E2E complet réussi** (`desktop-global-preference-final.log`), comprenant l'oracle des résultats Tune conservés sans écraser le ON global et le OFF de nettoyage livré au bridge après échec. Contrôle GPU cible renforcé réussi : comptes/finitude de tous les états et égalité en bits contre les 1 548 fichiers de référence préexistants (`target-fusion-finite-states.log`). Prefill MTP et rollback du dense réussis pour longueurs 1/23/24/129/256, vérification 2..4 et tous préfixes retenus, erreurs/contexte inclus (`dense-rollback.log`). Modèles/têtes/binaires et fichiers de référence entièrement empreintés dans `campaign-metadata.json` ; références brutes 1,8 Gio préservées dans le checkout principal. Suite Python finale 190 passés/4 skips ; aucune vitesse nouvelle mesurée.
+ 
+ - Nouvelle vérification adversariale de la priorité globale : le profil d'une ancienne mesure gagnée par D0 désactivait encore un ON explicite lors du retour au dense. Échec reproduit sur la version intermédiaire (`desktop-measured-baseline-regression.log`, sortie 133), puis correction minimale : le switch global possède ON/OFF, la restauration Tune ne restaure que la profondeur et les résultats. En cas d'échec de préparation, invalider aussi les callbacks tardifs et envoyer OFF au moteur, sans perdre la préférence ON pour le prochain modèle. Relance Desktop en cours. Kani complet **33/33**, 4 826 obligations/0 échec, 77/77 covers et 70 checks inatteignables inspectés ; Rust release MLX/chat **60 passés/54 ignorés**, Clippy strict réussi. Comparateurs Python affectés **117 passés** ; premier Ruff strict signalait un ancien `dict(...)` dans la fixture, corrigé, checks/format réussis. Aucun benchmark encore lancé.
+diff --git a/scripts/check-mtp-model-switch.py b/scripts/check-mtp-model-switch.py
+index 66d27f3..853376a 100644
+--- a/scripts/check-mtp-model-switch.py
++++ b/scripts/check-mtp-model-switch.py
+@@ -87,6 +87,15 @@ def run(engine, models, timeout, report):
+                             return event
+ 
+                 ready = exchange()
++                current = {
++                    "model": models[index],
++                    "pid": process.process.pid,
++                    "head": heads[index],
++                    "ready": ready,
++                    "status": "running",
++                    "cases": [],
++                }
++                report["models"].append(current)
+                 if not ready.get("mtp_auto_download_supported") or not ready.get(
+                     "mtp_configure_supported"
+                 ):
+@@ -109,8 +118,11 @@ def run(engine, models, timeout, report):
+                     )
+ 
+                 before = configure(False)
++                current["before"] = before
+                 loaded = configure(True)
++                current["loaded"] = loaded
+                 again = configure(True)
++                current["reused"] = again
+                 base = before["memory"]["mlx_active_bytes"]
+                 if (
+                     before.get("mtp_active") is not False
+@@ -120,8 +132,10 @@ def run(engine, models, timeout, report):
+                     or again["memory"]["mlx_active_bytes"] != loaded["memory"]["mlx_active_bytes"]
+                 ):
+                     raise RuntimeError("MTP load/reuse memory mismatch")
++                current["invalid_loads"] = []
+                 for invalid in (heads[1 - index], str(Path(directory) / "missing-head")):
+                     failure = configure(True, invalid, error=True)
++                    current["invalid_loads"].append(failure)
+                     if (
+                         failure.get("mtp_active") is not False
+                         or failure["memory"]["mlx_active_bytes"] != base
+@@ -129,12 +143,13 @@ def run(engine, models, timeout, report):
+                         raise RuntimeError("failed MTP load retained the previous head")
+                     configure(True)
+                 unloaded = configure(False)
++                current["unloaded"] = unloaded
+                 if (
+                     unloaded.get("mtp_active") is not False
+                     or unloaded["memory"]["mlx_active_bytes"] != base
+                 ):
+                     raise RuntimeError("MTP OFF retained head allocations")
+-                cases = []
++                cases = current["cases"]
+                 for budget in (1, 3, 17):
+                     baseline = None
+                     for depth in range(4):
+@@ -174,17 +189,7 @@ def run(engine, models, timeout, report):
+                                 "stats": result["stats"],
+                             }
+                         )
+-                report["models"].append(
+-                    {
+-                        "model": models[index],
+-                        "pid": process.process.pid,
+-                        "ready": ready,
+-                        "before": before,
+-                        "loaded": loaded,
+-                        "unloaded": unloaded,
+-                        "cases": cases,
+-                    }
+-                )
++                current["status"] = "passed"
+             if process.process.poll() is None:
+                 raise RuntimeError("previous model process was not reaped")
+             print(
+@@ -216,6 +221,8 @@ def main():
+         report.update(status="passed", parity=True)
+     except BaseException as error:
+         report.update(status="failed", parity=False, error=f"{type(error).__name__}: {error}")
++        if report["models"] and report["models"][-1]["status"] == "running":
++            report["models"][-1].update(status="failed", error=report["error"])
+         raise
+     finally:
+         args.output.write_text(json.dumps(report, indent=2) + "\n")

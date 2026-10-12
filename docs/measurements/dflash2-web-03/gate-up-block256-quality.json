@@ -1,0 +1,44 @@
+{
+  "status": "validated",
+  "checks": [
+    {
+      "name": "quality",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_gate_up_row_merge_is_exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.5576650830000034,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-quality.log",
+      "status": "passed"
+    },
+    {
+      "name": "validation",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_aligned_shared_sums_passes_apple_validation",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "MTL_DEBUG_LAYER": "1",
+        "MTL_SHADER_VALIDATION": "1",
+        "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+        "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1"
+      },
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.7505990829999973,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-validation.log",
+      "status": "passed"
+    }
+  ]
+}

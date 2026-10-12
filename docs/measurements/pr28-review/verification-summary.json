@@ -1,0 +1,138 @@
+{
+  "status": "review_complete_one_confirmed_P2",
+  "pr": "https://github.com/0xZKnw/mlxl3/pull/28",
+  "base": "8f63e6c89e656bb1e582d9a3dc92b1135b275de0",
+  "head": "3bfe281ced0f144601b1d2bc1a307f12c5bf95ce",
+  "reviewed_paths": [
+    ".gitattributes",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelIdleUnload.swift",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift",
+    "docs/measurements/model-idle-unload/build-initial-strict-vendor.log",
+    "docs/measurements/model-idle-unload/build.log",
+    "docs/measurements/model-idle-unload/desktop-suite.log",
+    "docs/measurements/model-idle-unload/final-focused-checks.log",
+    "docs/measurements/model-idle-unload/final-focused-compile.log",
+    "docs/measurements/model-idle-unload/focused-checks-initial.log",
+    "docs/measurements/model-idle-unload/focused-compile.log",
+    "docs/measurements/model-idle-unload/focused-initial-lint.log",
+    "docs/measurements/model-idle-unload/focused-path-diagnostics.log",
+    "docs/measurements/model-idle-unload/mutant-checks.log",
+    "docs/measurements/model-idle-unload/mutant-compile.log",
+    "docs/measurements/model-idle-unload/preview-signing.log",
+    "docs/measurements/model-idle-unload/python-fullsuite-unavailable.log",
+    "docs/measurements/model-idle-unload/python-native-tools.log",
+    "docs/measurements/model-idle-unload/tooling-and-cleanup.json",
+    "docs/measurements/model-idle-unload/verification-summary.json",
+    "docs/model-idle-unload.md",
+    "opti.md",
+    "scripts/check-desktop.sh",
+    "tests/model-idle-unload-check.swift"
+  ],
+  "identity": {
+    "local_head": "3bfe281ced0f144601b1d2bc1a307f12c5bf95ce",
+    "base": "8f63e6c89e656bb1e582d9a3dc92b1135b275de0",
+    "ci_checkout": "4c6c8925f27617102cf626620edb2419d4b01a07",
+    "ci_tree_identical_to_head": true,
+    "remaining_review_processes": []
+  },
+  "production_sources_modified": false,
+  "finding": {
+    "priority": "P2",
+    "file": "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift",
+    "start": 1140,
+    "end": 1142,
+    "title": "Recover the idle countdown after a malformed MTP reply",
+    "scenario": "Send MTP OFF on a ready model; engine returns mtp_status with mtp_active of the wrong type. The real Swift bridge produces error without request_id. Wait for that error, complete a new generation, then advance the injected continuous clock by the configured full 60-second interval.",
+    "expected": "The completed operation releases the pending guard or enters bounded recovery, permitting the full idle countdown to resume.",
+    "actual": "Generation returns hello, engine remains ready/running, mtpConfigurationPending stays true and no automatic unload occurs. OFF has no recovery timeout. Only cancellation/reconfiguration/model reload/manual eject clears the guard.",
+    "cause": "The added pending flag is cleared by handle only for errors/status events with matching mtpOperationID, or by cancelMTPPreparation. A requestless decoding error takes failActiveTurn, which does not clear it.",
+    "impact": "Automatic memory release remains disabled for this model session even after later successful use.",
+    "recommendation": "Handle requestless MTP failures and bound pending configuration recovery; preserve active-operation protection and add this regression to the production lifecycle harness.",
+    "evidence": "review-repros.json"
+  },
+  "local_checks": [
+    {
+      "command": "zsh -n scripts/check-desktop.sh; git diff --check 8f63e6c89e656bb1e582d9a3dc92b1135b275de0 HEAD",
+      "result": "passed"
+    },
+    {
+      "command": "MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk MLXL3_TEST_PYTHON=/Users/justin/Documents/mix-stq1_0/work/venv/bin/python MLXL3_SKIP_METAL_CHECK=1 scripts/check-desktop.sh",
+      "result": "build, existing hardening harness and all77 idle assertions passed; then exit127 due absent Python path",
+      "log": "desktop-suite.log"
+    },
+    {
+      "command": "MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk MLXL3_TEST_PYTHON=/Users/justin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 MLXL3_SKIP_METAL_CHECK=1 zsh docs/measurements/pr28-review/resume-desktop.zsh",
+      "result": "all remaining Desktop checks passed, exit0; exact downstream production script steps retained, upstream successful checks not repeated",
+      "log": "desktop-resume.log"
+    },
+    {
+      "command": "zsh docs/measurements/pr28-review/run-review-check.zsh",
+      "result": "strict Swift6 compilation passed;2 positive controls pass,1 expected counterexample fails,exit1",
+      "log": "review-repros.log"
+    },
+    {
+      "command": "python3 -m py_compile docs/measurements/pr28-review/fault-engine.py; zsh -n docs/measurements/pr28-review/run-review-check.zsh docs/measurements/pr28-review/resume-desktop.zsh; git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "Independent SHA256/size audit of verification-summary.json sources and artefacts",
+      "result": "20/20 match",
+      "log": "artifact-audit.json"
+    }
+  ],
+  "coverage": {
+    "new_pr_harness_assertions": 77,
+    "review_integration_controls_passed": 2,
+    "review_expected_failures": 1,
+    "deadline_boundaries": "59/60 seconds; changed/disabled delays; all8 persisted choices; invalid preferences; real40ms scheduling and80ms cancellation wait",
+    "journeys": "loading/idle expiry/reload/switch/manual eject, generation/completion/cancellation/crash, MTP head prep/ON/OFF/tuning/cancel, MCP configure, history/preferences",
+    "review_wait_bounds": "250 iterations x20ms per wait; disposable child/preferences/files cleaned",
+    "original_review_harness": "initial overlapping generation sequence retained separately; narrowed to wait for handled configuration response before generation"
+  },
+  "ci": {
+    "checks": "4/4 succeeded",
+    "checkout_tree_identical": true,
+    "runs": [
+      "https://github.com/0xZKnw/mlxl3/actions/runs/37653610770",
+      "https://github.com/0xZKnw/mlxl3/actions/runs/37653610908"
+    ],
+    "native_per_os": {
+      "rust_passed": 51,
+      "rust_ignored_linux": 2,
+      "rust_ignored_macos": 3,
+      "python_passed": 273,
+      "python_skipped": 0
+    },
+    "desktop_python": {
+      "passed": 275,
+      "skipped": 4
+    },
+    "native_checks": "cargo fmt --check; cargo clippy --locked --all-targets --features chat -- -D warnings; cargo test --locked --features chat; cargo build --locked --features chat; Ruff format/check,py_compile,pytest",
+    "kani": {
+      "command": "cargo kani --lib --no-default-features",
+      "version": "0.68.0",
+      "harnesses": 34,
+      "obligations_success": 4763,
+      "unreachable": 70,
+      "covers_satisfied": 80,
+      "failures": 0,
+      "scope": "pre-existing pure Rust CPU bounded safety contracts; no Rust source change in PR; existing harness input assumptions/unwind bounds unchanged. This is not a proof of Swift/MLX/Metal or the complete app."
+    },
+    "logs_summary": "ci-log-summary.json"
+  },
+  "unverified": [
+    "Source-level formal Swift proof: no usable verifier in existing toolchain; strict compilation and dynamic assertions only.",
+    "Real model/GPU load-unload and memory release; physical Metal check explicitly skipped locally/CI.",
+    "Physical system sleep/wake and full wall-clock minute/hour deadlines; injected clock and separate short real timer tested.",
+    "Settings UI accessibility preview not rerun in this review; existing historical evidence inspected."
+  ],
+  "new_performance_measurements": "none",
+  "publication": "no PR code change,GitHub review/comment,push,merge,release or installed app replacement",
+  "tool_diagnostics": [
+    "Absent initial Python path: downstream suite resumed successfully,initial log preserved.",
+    "gh raw CI-log download required --allow-escape-sequences; full logs subsequently fetched and inspected.",
+    "Vendored CoreText/SDK linker and Kani unstable-feature warnings remain pre-existing diagnostics; no failed or undetermined Kani status."
+  ],
+  "remaining_review_processes": []
+}

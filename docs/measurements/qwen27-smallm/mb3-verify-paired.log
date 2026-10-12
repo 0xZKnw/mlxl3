@@ -1,0 +1,18 @@
+    Finished `release` profile [optimized] target(s) in 0.16s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-7403dac709d8357e)
+
+running 1 test
+test qwen35::tests::checkpoint_grouped_mb3_verify_paired ... {"A_seconds":5.787581,"B_seconds":5.574862541,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":0,"state_arrays":128,"tokens":24}
+{"A_seconds":6.078505667,"B_seconds":6.317211833,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":1,"state_arrays":128,"tokens":24}
+{"A_seconds":4.98329525,"B_seconds":4.857881834,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":2,"state_arrays":128,"tokens":24}
+{"A_seconds":5.886359583,"B_seconds":4.818188459,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":3,"state_arrays":128,"tokens":24}
+{"A_seconds":6.799568208,"B_seconds":6.268217333,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":4,"state_arrays":128,"tokens":24}
+{"A_seconds":6.215175958,"B_seconds":7.249529,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":5,"state_arrays":128,"tokens":24}
+{"A_seconds":7.064625791,"B_seconds":5.845094292,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":6,"state_arrays":128,"tokens":24}
+{"A_seconds":5.866954959,"B_seconds":5.758233708,"bit_exact":true,"boundary":"eight dependent verify_mtp M3 blocks, forced IDs, one model","logits":744960,"pair":7,"state_arrays":128,"tokens":24}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 91 filtered out; finished in 128.47s
+

@@ -1,4 +1,4 @@
-//! Native Qwen3.5/3.6 NextN predictor. Architecture follows Qwen and the
+//! Native Qwen3.5/3.6/3.8 NextN predictor. Architecture follows Qwen and the
 //! MLX/MTPLX reference: pre-norm trunk hidden, [embedding, hidden] concat,
 //! one full-attention block, absolute norm gains, shared target lm_head.
 use crate::checkpoint::{Checkpoint, read_header};
@@ -31,6 +31,128 @@ pub struct Rope {
     pub rope_theta: f32,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ManagedHead {
+    Qwen38Dense,
+    Qwen36Moe,
+}
+
+impl Layout {
+    /// Choose by the actual architecture, including vocabulary and RoPE, so
+    /// renamed EXL3 folders work and unrelated Qwen sizes never download a head.
+    pub fn managed_head(&self, layers: usize) -> Option<ManagedHead> {
+        if self.vocab_size != 248_320
+            || self.head_dim != 256
+            || self.rms_norm_eps != 1e-6
+            || self.partial_rotary_factor != 0.25
+            || self.rope_parameters.rope_theta != 10_000_000.
+        {
+            return None;
+        }
+        match (
+            self.hidden_size,
+            self.num_attention_heads,
+            self.num_key_value_heads,
+            self.num_experts,
+            layers,
+        ) {
+            (5120, 24, 4, 0, 64)
+                if self.intermediate_size == Some(17_408)
+                    && self.num_experts_per_tok == 0
+                    && self.moe_intermediate_size == 0
+                    && self.shared_expert_intermediate_size == 0 =>
+            {
+                Some(ManagedHead::Qwen38Dense)
+            }
+            (2048, 16, 2, 256, 40)
+                if self.num_experts_per_tok == 8
+                    && self.intermediate_size.is_none()
+                    && self.moe_intermediate_size == 512
+                    && self.shared_expert_intermediate_size == 512 =>
+            {
+                Some(ManagedHead::Qwen36Moe)
+            }
+            _ => None,
+        }
+    }
+}
+
+pub fn target_layout(path: &Path) -> Result<(Layout, usize)> {
+    let config: serde_json::Value = serde_json::from_reader(File::open(path.join("config.json"))?)?;
+    ensure!(
+        matches!(
+            config["model_type"].as_str(),
+            Some("qwen3_5" | "qwen3_5_moe")
+        ),
+        "MTP requires a Qwen3.5/3.6/3.8 target"
+    );
+    let text = &config["text_config"];
+    ensure!(
+        text["mtp_use_dedicated_embeddings"].as_bool() != Some(true),
+        "MTP requires shared target embeddings"
+    );
+    let layers = usize::try_from(
+        text["num_hidden_layers"]
+            .as_u64()
+            .context("missing target layer count")?,
+    )?;
+    Ok((serde_json::from_value(text.clone())?, layers))
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn managed_mtp_never_crosses_architectures() {
+    let layout = Layout {
+        hidden_size: kani::any(),
+        num_attention_heads: kani::any(),
+        num_key_value_heads: kani::any(),
+        head_dim: kani::any(),
+        vocab_size: kani::any(),
+        num_experts: kani::any(),
+        num_experts_per_tok: kani::any(),
+        moe_intermediate_size: kani::any(),
+        shared_expert_intermediate_size: kani::any(),
+        intermediate_size: kani::any(),
+        rms_norm_eps: kani::any(),
+        partial_rotary_factor: kani::any(),
+        rope_parameters: Rope {
+            rope_theta: kani::any(),
+        },
+    };
+    let layers: usize = kani::any();
+    let result = layout.managed_head(layers);
+    if let Some(kind) = result {
+        assert!(layout.vocab_size == 248_320 && layout.head_dim == 256);
+        assert!(layout.rms_norm_eps == 1e-6 && layout.partial_rotary_factor == 0.25);
+        assert!(layout.rope_parameters.rope_theta == 10_000_000.);
+        match kind {
+            ManagedHead::Qwen38Dense => {
+                assert!(layout.hidden_size == 5120 && layers == 64);
+                assert!(layout.num_attention_heads == 24 && layout.num_key_value_heads == 4);
+                assert!(layout.intermediate_size == Some(17_408) && layout.num_experts == 0);
+                assert!(
+                    layout.num_experts_per_tok == 0
+                        && layout.moe_intermediate_size == 0
+                        && layout.shared_expert_intermediate_size == 0
+                );
+            }
+            ManagedHead::Qwen36Moe => {
+                assert!(layout.hidden_size == 2048 && layers == 40);
+                assert!(layout.num_attention_heads == 16 && layout.num_key_value_heads == 2);
+                assert!(layout.intermediate_size.is_none() && layout.num_experts == 256);
+                assert!(
+                    layout.num_experts_per_tok == 8
+                        && layout.moe_intermediate_size == 512
+                        && layout.shared_expert_intermediate_size == 512
+                );
+            }
+        }
+    }
+    kani::cover!(result == Some(ManagedHead::Qwen38Dense));
+    kani::cover!(result == Some(ManagedHead::Qwen36Moe));
+    kani::cover!(result.is_none());
+}
+
 #[derive(Deserialize)]
 struct Config {
     model_type: String,
@@ -42,6 +164,42 @@ struct Quantization {
     bits: i32,
     group_size: i32,
     mode: String,
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+fn valid_draft_projection(
+    input: i32,
+    output: i32,
+    hidden: i32,
+    vocab: i32,
+    bits: i32,
+    group: i32,
+    mode: &str,
+) -> bool {
+    input > 0
+        && input % 64 == 0
+        && output > 0
+        && input == hidden
+        && output <= vocab
+        && bits == 4
+        && group == 64
+        && mode == "affine"
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+fn valid_draft_rows(rows: i32, vocab: i32, ids: Option<&[u32]>) -> bool {
+    if rows <= 0 || vocab <= 0 {
+        return false;
+    }
+    match ids {
+        None => rows == vocab,
+        Some(ids) => {
+            rows < vocab
+                && ids.len() == rows as usize
+                && ids.iter().all(|&id| id < vocab as u32)
+                && ids.windows(2).all(|pair| pair[0] < pair[1])
+        }
+    }
 }
 
 pub fn inspect(path: &Path) -> Result<(Checkpoint, Layout)> {
@@ -223,11 +381,27 @@ mod native {
         post_norm: Array,
         attention: Attention,
         mlp: Mlp,
+        draft_head: Option<AffineLinear>,
+        draft_ids: Option<Array>,
     }
 
     pub struct Cache {
         keys: Array,
         values: Array,
+    }
+
+    impl Cache {
+        pub fn compact_for_cache(mut self) -> Result<Self> {
+            self.keys = self.keys.compact_for_cache()?;
+            self.values = self.values.compact_for_cache()?;
+            Ok(self)
+        }
+        pub fn retained_bytes(&self) -> Result<usize> {
+            self.keys
+                .retained_bytes()?
+                .checked_add(self.values.retained_bytes()?)
+                .context("MTP cache size overflow")
+        }
     }
 
     enum Mlp {
@@ -258,6 +432,73 @@ mod native {
                 "MTP head does not match the target model dimensions"
             );
             let h = layout.hidden_size;
+            // Optional, explicitly generated experiment. The target projection
+            // remains untouched and validates every proposed token.
+            let draft_metadata = path.join("draft_head_q4.json");
+            let mut draft_ids = None;
+            let draft_head = if draft_metadata.exists() {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct DraftMetadata {
+                    input: i32,
+                    output: i32,
+                    bits: i32,
+                    group_size: i32,
+                    mode: String,
+                    token_ids: Option<Vec<u32>>,
+                }
+                let metadata: DraftMetadata = serde_json::from_reader(File::open(draft_metadata)?)?;
+                ensure!(
+                    valid_draft_projection(
+                        metadata.input,
+                        metadata.output,
+                        h,
+                        layout.vocab_size,
+                        metadata.bits,
+                        metadata.group_size,
+                        &metadata.mode
+                    ) && valid_draft_rows(
+                        metadata.output,
+                        layout.vocab_size,
+                        metadata.token_ids.as_deref()
+                    ),
+                    "draft Q4 projection does not match MTP target"
+                );
+                let file = path.join("draft_head_q4.safetensors");
+                let tensors = read_header(&file)?;
+                ensure!(
+                    tensors.len() == 3
+                        && [
+                            ("lm_head.weight", "U32", vec![metadata.output as usize, h as usize / 8]),
+                            ("lm_head.scales", "F16", vec![metadata.output as usize, h as usize / 64]),
+                            ("lm_head.biases", "F16", vec![metadata.output as usize, h as usize / 64]),
+                        ]
+                            .iter()
+                            .all(|(name, dtype, shape)| tensors.get(*name)
+                                .is_some_and(|tensor| tensor.dtype == *dtype && tensor.shape == *shape)),
+                    "invalid draft Q4 tensor coverage, shapes or dtypes"
+                );
+                if let Some(ids) = &metadata.token_ids {
+                    draft_ids = Some(Array::from_u32(ids, &[metadata.output])?);
+                }
+                let checkpoint = Checkpoint {
+                    path: path.to_owned(),
+                    model_type: "draft_head_q4".into(),
+                    bits: Some(4.),
+                    size_bytes: file.metadata()?.len(),
+                    modules: Vec::new(),
+                    tensors,
+                };
+                Some(AffineLinear::load(
+                    &checkpoint,
+                    "lm_head",
+                    h,
+                    metadata.output,
+                    None,
+                )?)
+            } else {
+                None
+            };
             let norm = |name: &str, n| half_weight(&checkpoint, name, Some(&[n]));
             let linear = |name: &str, input: i32, output: i32, experts: Option<i32>| {
                 AffineLinear::load(&checkpoint, name, input, output, experts)
@@ -336,6 +577,8 @@ mod native {
                 )?,
                 layout,
                 mlp,
+                draft_head,
+                draft_ids,
             })
         }
 
@@ -356,8 +599,7 @@ mod native {
                 .set_state(Some(cache.keys), Some(cache.values))
         }
 
-        #[cfg(test)]
-        pub(crate) fn cache_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
+        pub fn cache_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
             let (k, v) = self.attention.states()?;
             Ok((k.to_bytes()?, v.to_bytes()?))
         }
@@ -429,10 +671,17 @@ mod native {
             let attention = self
                 .attention
                 .forward(&mixed.rms_norm(&self.input_norm, self.layout.rms_norm_eps)?)?;
-            let residual = mixed.add(&attention)?;
-            let input = residual
-                .rms_norm(&self.post_norm, self.layout.rms_norm_eps)?
-                .reshape(&[time, h])?;
+            static FUSED_NORM: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+            let fused = *FUSED_NORM
+                .get_or_init(|| std::env::var("MLXL3_MTP_FUSED_NORM").as_deref() == Ok("1"));
+            let (residual, normalized) = if fused {
+                mixed.add_rms_norm(&attention, &self.post_norm, self.layout.rms_norm_eps)?
+            } else {
+                let residual = mixed.add(&attention)?;
+                let normalized = residual.rms_norm(&self.post_norm, self.layout.rms_norm_eps)?;
+                (residual, normalized)
+            };
+            let input = normalized.reshape(&[time, h])?;
             let mlp = match &self.mlp {
                 Mlp::Dense(layer) => {
                     let Dense { gate, up, down } = &**layer;
@@ -495,11 +744,17 @@ mod native {
                 if index == 0 {
                     exact = Some(self.snapshot()?);
                 }
-                token = target
-                    .mtp_logits(&hidden.rms_norm(&self.norm, self.layout.rms_norm_eps)?)?
+                token = self
+                    .draft_logits(
+                        target,
+                        &hidden.rms_norm(&self.norm, self.layout.rms_norm_eps)?,
+                    )?
                     .log_probs()?
                     .argmax()?
                     .reshape(&[1, 1])?;
+                if let Some(ids) = &self.draft_ids {
+                    token = ids.take(&token, 0)?;
+                }
                 proposed.push(token.try_clone()?);
             }
             // One lazy device chain / one transfer, rather than D host argmaxes.
@@ -514,26 +769,47 @@ mod native {
             next: &[u32],
         ) -> Result<Array> {
             let hidden = self.hidden(target, hidden, next)?;
-            target.mtp_logits(&hidden)
+            // This standalone API retains full-vocabulary logits. Production
+            // recursive drafts use compact scores and map their selected IDs.
+            if self.draft_ids.is_some() {
+                return target.mtp_logits(&hidden);
+            }
+            self.draft_logits(target, &hidden)
+        }
+
+        fn draft_logits(&self, target: &Qwen35Moe, hidden: &Array) -> Result<Array> {
+            if let Some(head) = &self.draft_head {
+                head.forward(hidden)
+            } else {
+                target.mtp_logits(hidden)
+            }
         }
     }
 
     pub struct Session {
         depth: usize,
+        adaptive: Option<crate::memory_policy::AdaptiveMtp>,
         pending: VecDeque<u32>,
+        history: Vec<u32>,
         pub proposed: usize,
         pub accepted: usize,
         pub blocks: usize,
+        pub lookup_blocks: usize,
+        pub depth_blocks: [usize; 4],
     }
 
     impl Default for Session {
         fn default() -> Self {
             Self {
                 depth: 1,
+                adaptive: None,
                 pending: VecDeque::new(),
+                history: Vec::new(),
                 proposed: 0,
                 accepted: 0,
                 blocks: 0,
+                lookup_blocks: 0,
+                depth_blocks: [0; 4],
             }
         }
     }
@@ -547,6 +823,47 @@ mod native {
             })
         }
 
+        pub fn enable_adaptive(&mut self) {
+            self.adaptive = Some(crate::memory_policy::AdaptiveMtp::default());
+        }
+
+        #[cfg(test)]
+        pub(crate) fn force_depth_for_check(&mut self, depth: usize) {
+            assert!(depth <= 3);
+            self.depth = depth;
+            self.enable_adaptive();
+        }
+
+        fn observe_block(&mut self, started: std::time::Instant, committed: usize) {
+            self.depth_blocks[self.depth] = self.depth_blocks[self.depth].saturating_add(1);
+            if let Some(policy) = &mut self.adaptive {
+                policy.observe(
+                    self.depth,
+                    started.elapsed().as_nanos().min(u64::MAX as u128) as u64,
+                    committed,
+                );
+            }
+        }
+
+        /// Seed once after prefill. Only committed target inputs are remembered.
+        pub fn enable_prompt_lookup(&mut self, prompt: &[u32]) {
+            self.history = prompt[prompt
+                .len()
+                .saturating_sub(crate::speculative::LOOKUP_WINDOW)..]
+                .to_vec();
+        }
+
+        fn remember(&mut self, tokens: &[u32]) {
+            if !self.history.is_empty() {
+                self.history.extend_from_slice(tokens);
+                let excess = self
+                    .history
+                    .len()
+                    .saturating_sub(crate::speculative::LOOKUP_WINDOW);
+                self.history.drain(..excess);
+            }
+        }
+
         /// Every delivered token is selected by the target. Approximate draft
         /// KV is discarded; repair uses only accepted real trunk residuals.
         pub fn advance(
@@ -556,27 +873,56 @@ mod native {
             anchor: u32,
             context_limit: usize,
             output_remaining: usize,
+            allow_lookup: impl Fn(&[u32]) -> bool,
         ) -> Result<u32> {
             ensure!(output_remaining > 0, "MTP output budget exhausted");
             if let Some(next) = self.pending.pop_front() {
                 return Ok(next);
             }
+            if let Some(policy) = &mut self.adaptive {
+                self.depth = policy.next(self.depth);
+            }
+            let started = std::time::Instant::now();
             let remaining = context_limit
                 .checked_sub(usize::try_from(target.offset())?)
                 .context("MTP context exhausted")?;
-            let width = crate::speculative::mtp_width(self.depth, remaining, output_remaining)
-                .context("MTP depth or budget exhausted")?;
+            let width = if self.depth == 0 && self.adaptive.is_some() {
+                crate::speculative::bounded_proposals(remaining, output_remaining).map(|_| 0)
+            } else {
+                crate::speculative::mtp_width(self.depth, remaining, output_remaining)
+            }
+            .context("MTP depth or budget exhausted")?;
             let hidden = target.mtp_hidden()?.try_clone()?;
             if width == 0 {
+                // Pair the previous trunk hidden with this committed input.
+                // Required before resuming speculative decoding after D0.
+                if self.adaptive.is_some() {
+                    head.append_cache(target, &hidden, &[anchor])?;
+                }
                 let logits = target.forward(anchor)?;
-                return logits
+                self.remember(&[anchor]);
+                let next = logits
                     .chat_greedy_ids()?
                     .last()
                     .copied()
-                    .context("missing MTP fallback token");
+                    .context("missing MTP fallback token")?;
+                if self.adaptive.is_some() {
+                    head.eval_cache()?;
+                }
+                self.observe_block(started, 1);
+                return Ok(next);
             }
-            let (proposals, exact_first_cache) =
-                head.draft_chain(target, &hidden, anchor, width)?;
+            let lookup =
+                crate::speculative::prompt_lookup(&self.history, anchor, width, allow_lookup);
+            let is_lookup = lookup.is_some();
+            let (proposals, exact_first_cache) = if let Some(proposals) = lookup {
+                let proposals = proposals.to_vec();
+                head.append_cache(target, &hidden, &[anchor])?;
+                (proposals, head.snapshot()?)
+            } else {
+                head.draft_chain(target, &hidden, anchor, width)?
+            };
+            let width = proposals.len();
             let verification = std::iter::once(anchor)
                 .chain(proposals.iter().copied())
                 .collect::<Vec<_>>();
@@ -602,7 +948,14 @@ mod native {
                         &[token],
                     )?;
                 }
+            }
+            if accepted.accepted_draft_tokens > 0 || is_lookup {
                 head.eval_cache()?;
+            }
+            if is_lookup && accepted.accepted_draft_tokens == 0 {
+                self.history.clear();
+            } else {
+                self.remember(&verification[..retained]);
             }
             self.pending
                 .extend(proposals[..accepted.accepted_draft_tokens].iter().copied());
@@ -610,6 +963,8 @@ mod native {
             self.proposed += width;
             self.accepted += accepted.accepted_draft_tokens;
             self.blocks += 1;
+            self.lookup_blocks += usize::from(is_lookup);
+            self.observe_block(started, retained);
             self.pending.pop_front().context("missing MTP target token")
         }
     }
@@ -618,6 +973,24 @@ mod native {
     mod cache_tests {
         use super::*;
 
+        #[test]
+        fn lookup_history_is_bounded_and_disabled_until_seeded() -> Result<()> {
+            let mut session = Session::new(3)?;
+            session.remember(&[1, 2, 3]);
+            assert!(session.history.is_empty());
+            let prompt = (0..2048).collect::<Vec<_>>();
+            session.enable_prompt_lookup(&prompt);
+            assert_eq!(session.history, prompt[1024..]);
+            session.remember(&[2048, 2049, 2050]);
+            assert_eq!(session.history.len(), 1024);
+            assert_eq!(session.history[0], 1027);
+            assert_eq!(&session.history[1021..], &[2048, 2049, 2050]);
+            session.history.clear();
+            session.remember(&[77]);
+            assert!(session.history.is_empty());
+            Ok(())
+        }
+
         fn bytes(cache: &Cache) -> Result<(Vec<u8>, Vec<u8>)> {
             Ok((cache.keys.to_bytes()?, cache.values.to_bytes()?))
         }
@@ -625,8 +998,17 @@ mod native {
         #[test]
         #[ignore = "requires local Qwen/MTP checkpoints and physical Apple GPU"]
         fn cache_only_matches_full_head_and_next_prediction() -> Result<()> {
-            let target = Qwen35Moe::load(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
-            let mut head = Head::load(Path::new("models/Qwen3.6-35B-A3B-MTP-4bit"), &target)?;
+            let target = Qwen35Moe::load(Path::new(
+                &std::env::var("MLXL3_MTP_TEST_MODEL")
+                    .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into()),
+            ))?;
+            let mut head = Head::load(
+                Path::new(
+                    &std::env::var("MLXL3_MTP_TEST_HEAD")
+                        .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
+                ),
+                &target,
+            )?;
             let h = target.mtp_layout().hidden_size;
             let fixture = |time, seed| {
                 let bits = (0..time * h)
@@ -687,8 +1069,184 @@ mod native {
 pub use native::{Cache, Head, Session};
 
 #[cfg(test)]
+mod draft_projection_tests {
+    use super::*;
+
+    #[test]
+    fn optional_projection_must_match_target_and_affine_contract() {
+        assert!(valid_draft_projection(
+            2048, 248320, 2048, 248320, 4, 64, "affine"
+        ));
+        for (input, output, hidden, vocab, bits, group, mode) in [
+            (0, 1, 0, 1, 4, 64, "affine"),
+            (63, 1, 63, 1, 4, 64, "affine"),
+            (64, 0, 64, 0, 4, 64, "affine"),
+            (64, 1, 128, 1, 4, 64, "affine"),
+            (64, 1, 64, 2, 4, 64, "affine"),
+            (64, 1, 64, 1, 8, 64, "affine"),
+            (64, 1, 64, 1, 4, 32, "affine"),
+            (64, 1, 64, 1, 4, 64, "symmetric"),
+        ] {
+            assert!(
+                !(valid_draft_projection(input, output, hidden, vocab, bits, group, mode)
+                    && valid_draft_rows(output, vocab, None))
+            );
+        }
+    }
+
+    #[test]
+    fn compact_rows_are_nonempty_ordered_unique_and_in_target_vocab() {
+        assert!(valid_draft_rows(128, 128, None));
+        assert!(valid_draft_rows(3, 128, Some(&[0, 63, 127])));
+        for (rows, vocab, ids) in [
+            (0, 128, Some(&[][..])),
+            (1, 128, None),
+            (2, 128, Some(&[0][..])),
+            (2, 128, Some(&[1, 1][..])),
+            (2, 128, Some(&[2, 1][..])),
+            (2, 128, Some(&[0, 128][..])),
+            (1, 1, Some(&[0][..])),
+            (1, -1, Some(&[0][..])),
+        ] {
+            assert!(!valid_draft_rows(rows, vocab, ids));
+        }
+    }
+}
+
+#[cfg(kani)]
+mod draft_projection_verification {
+    use super::*;
+
+    #[kani::proof]
+    // The two mode representatives contain at most nine bytes. Keep the
+    // library string-comparison unwinding assertion enabled at that bound.
+    #[kani::unwind(10)]
+    fn optional_projection_guards_dimensions_and_quantization() {
+        let (input, output, hidden, vocab, bits, group): (i32, i32, i32, i32, i32, i32) =
+            kani::any();
+        let mode = if kani::any() { "affine" } else { "symmetric" };
+        let valid = valid_draft_projection(input, output, hidden, vocab, bits, group, mode);
+        assert!(
+            valid
+                == (input > 0
+                    && input % 64 == 0
+                    && output > 0
+                    && input == hidden
+                    && output <= vocab
+                    && bits == 4
+                    && group == 64
+                    && mode == "affine")
+        );
+        if valid {
+            assert!(input / 64 > 0 && input / 8 > 0);
+            assert!(input / 8 == (input / 64) * 8);
+            assert!(output <= vocab);
+        }
+        kani::cover!(valid);
+        kani::cover!(!valid && input > 0 && hidden == input && vocab != output);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(10)]
+    fn compact_draft_ids_stay_sorted_and_inside_target_vocabulary() {
+        let ids: [u32; 8] = kani::any();
+        let len: usize = kani::any();
+        // Bounded map-check domain: 0..8 entries, full scalar/ID domains.
+        if len > ids.len() {
+            return;
+        }
+        let rows: i32 = kani::any();
+        let vocab: i32 = kani::any();
+        let map = if kani::any() { Some(&ids[..len]) } else { None };
+        let valid = valid_draft_rows(rows, vocab, map);
+        if valid {
+            assert!(rows > 0 && rows <= vocab);
+            if map.is_some() {
+                assert!(rows < vocab && rows as usize == len);
+                for index in 0..len {
+                    assert!(ids[index] < vocab as u32);
+                    if index > 0 {
+                        assert!(ids[index - 1] < ids[index]);
+                    }
+                }
+            } else {
+                assert_eq!(rows, vocab);
+            }
+        }
+        kani::cover!(valid && map.is_some() && len == 8);
+        kani::cover!(valid && map.is_none());
+        kani::cover!(!valid && map.is_some() && len == 2 && ids[0] == ids[1]);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn managed_head_uses_target_geometry_and_rejects_unknown_variants() -> Result<()> {
+        let dense = serde_json::json!({"hidden_size":5120,"num_attention_heads":24,
+            "num_key_value_heads":4,"head_dim":256,"vocab_size":248320,"intermediate_size":17408,
+            "rms_norm_eps":1e-6,"partial_rotary_factor":0.25,"rope_parameters":{"rope_theta":10000000}});
+        let moe = serde_json::json!({"hidden_size":2048,"num_attention_heads":16,
+            "num_key_value_heads":2,"head_dim":256,"vocab_size":248320,"num_experts":256,
+            "num_experts_per_tok":8,"moe_intermediate_size":512,"shared_expert_intermediate_size":512,
+            "rms_norm_eps":1e-6,"partial_rotary_factor":0.25,"rope_parameters":{"rope_theta":10000000}});
+        for (text, layers, kind) in [
+            (dense, 64, ManagedHead::Qwen38Dense),
+            (moe, 40, ManagedHead::Qwen36Moe),
+        ] {
+            let layout: Layout = serde_json::from_value(text.clone())?;
+            assert_eq!(layout.managed_head(layers), Some(kind));
+            for count in [0, 1, layers - 1, layers + 1, usize::MAX] {
+                assert_eq!(layout.managed_head(count), None);
+            }
+            for field in [
+                "hidden_size",
+                "num_attention_heads",
+                "num_key_value_heads",
+                "head_dim",
+                "vocab_size",
+            ] {
+                for value in [i32::MIN, -1, 0, 1, i32::MAX] {
+                    let mut changed = text.clone();
+                    changed[field] = serde_json::json!(value);
+                    assert_eq!(
+                        serde_json::from_value::<Layout>(changed)?.managed_head(layers),
+                        None
+                    );
+                }
+            }
+            let directory = tempfile::tempdir()?;
+            let mut config = serde_json::json!({"model_type":if layers == 64 {"qwen3_5"} else {"qwen3_5_moe"},"text_config":text});
+            config["text_config"]["num_hidden_layers"] = serde_json::json!(layers);
+            std::fs::write(
+                directory.path().join("config.json"),
+                serde_json::to_vec(&config)?,
+            )?;
+            assert_eq!(target_layout(directory.path())?, (layout, layers));
+            for (pointer, value) in [
+                ("/model_type", serde_json::json!("qwen3")),
+                ("/text_config/num_hidden_layers", serde_json::json!(-1)),
+                (
+                    "/text_config/mtp_use_dedicated_embeddings",
+                    serde_json::json!(true),
+                ),
+            ] {
+                let mut changed = config.clone();
+                if pointer.ends_with("mtp_use_dedicated_embeddings") {
+                    changed["text_config"]["mtp_use_dedicated_embeddings"] = value;
+                } else {
+                    *changed.pointer_mut(pointer).unwrap() = value;
+                }
+                std::fs::write(
+                    directory.path().join("config.json"),
+                    serde_json::to_vec(&changed)?,
+                )?;
+                assert!(target_layout(directory.path()).is_err());
+            }
+        }
+        Ok(())
+    }
     use serde_json::{Value, json};
     use std::{collections::BTreeMap, io::Write};
 

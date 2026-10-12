@@ -1,0 +1,106 @@
+{
+  "source": "9f2a572e22a1560399ac8d77a3088573ed8e74cb",
+  "runtime_info": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "9f2a572e22a1",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.4.2"
+  },
+  "build_info": {
+    "version": "1.4.2",
+    "build": "24",
+    "commit": "9f2a572e22a1560399ac8d77a3088573ed8e74cb",
+    "tracked_changes": false,
+    "runtime": "Rust + MLX 0.32.2",
+    "signing": "ad-hoc; not notarized",
+    "swift_sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+  },
+  "status": "complete",
+  "parity": true,
+  "purpose": "Final signed release stock and compact bridge correctness; no throughput claim",
+  "variants": [
+    {
+      "label": "stock",
+      "status": "complete",
+      "parity": true,
+      "command": [
+        "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/bin/python3.12",
+        "scripts/check-mtp-depths.py",
+        "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit",
+        "--tune"
+      ],
+      "engine_sha256": "905931302d6a2929dc490e2d672e3e2e9c61fe4124c97e0e316bc2369ba32650",
+      "conditions": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t94%; discharging; 12:28 remaining present: true",
+      "environment": {
+        "MLXL3_MTP_LOOKUP": "0",
+        "MLXL3_QWEN_PIPELINE": null,
+        "MLXL3_GDN_PREP_RECURRENCE": null
+      },
+      "overall_timeout_seconds": 180,
+      "log": "build/release-v1.4.2/release-bridge-stock.log",
+      "returncode": 0,
+      "terminal_counts": {
+        "complete": 35,
+        "error": 2,
+        "cancelled": 5,
+        "mtp_tune_complete": 1
+      },
+      "unique_requests": 43,
+      "nonempty_finite_completions": 35,
+      "final_assertions": {
+        "all_depths_parity": true,
+        "prefix_parity": true,
+        "cancel_recovery": true,
+        "tuner_verified": true
+      },
+      "seconds": 46.82501279201824,
+      "log_sha256": "833d909cc4444032a1d3eb411488074f209f221442cb37e1b516c7a57fef4493"
+    },
+    {
+      "label": "compact",
+      "status": "complete",
+      "parity": true,
+      "command": [
+        "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/bin/python3.12",
+        "scripts/check-mtp-depths.py",
+        "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "build/engine-v1.4.2/frspec-head",
+        "--tune"
+      ],
+      "engine_sha256": "905931302d6a2929dc490e2d672e3e2e9c61fe4124c97e0e316bc2369ba32650",
+      "conditions": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t93%; discharging; 12:18 remaining present: true",
+      "environment": {
+        "MLXL3_MTP_LOOKUP": "0",
+        "MLXL3_QWEN_PIPELINE": null,
+        "MLXL3_GDN_PREP_RECURRENCE": null
+      },
+      "overall_timeout_seconds": 180,
+      "log": "build/release-v1.4.2/release-bridge-compact.log",
+      "returncode": 0,
+      "terminal_counts": {
+        "complete": 35,
+        "error": 2,
+        "cancelled": 5,
+        "mtp_tune_complete": 1
+      },
+      "unique_requests": 43,
+      "nonempty_finite_completions": 35,
+      "final_assertions": {
+        "all_depths_parity": true,
+        "prefix_parity": true,
+        "cancel_recovery": true,
+        "tuner_verified": true
+      },
+      "seconds": 45.19634045899147,
+      "log_sha256": "a7f6bebbd54fa5e45aba26a853c79854a546a7c91e111a49ead4d48ca0507214"
+    }
+  ],
+  "stock_compact_outputs_equal": true,
+  "total_requests": 86
+}

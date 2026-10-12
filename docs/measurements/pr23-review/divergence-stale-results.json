@@ -1,0 +1,96 @@
+{
+  "protocol": {
+    "order": "ABBA",
+    "tokens": 8,
+    "repeats": 1,
+    "warmup_per_prompt": 1,
+    "settle_seconds": 0.0,
+    "context": 4096,
+    "cache": false
+  },
+  "binaries": {
+    "A": {
+      "path": "/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-pr23-faults-56rh2_oc/bridge-fixture",
+      "sha256": "a8c083b4e4214d630f7b78ab64c9539e297b890b3f7039df30eead62bd62e783",
+      "environment": {}
+    },
+    "B": {
+      "path": "/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-pr23-faults-56rh2_oc/bridge-fixture",
+      "sha256": "a8c083b4e4214d630f7b78ab64c9539e297b890b3f7039df30eead62bd62e783",
+      "environment": {
+        "MLXL3_FIXTURE_TEXT": "divergent"
+      }
+    }
+  },
+  "passes": [
+    {
+      "label": "A",
+      "index": 0,
+      "conditions": {
+        "recorded_at_unix": 1791222873.630183,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t50%; discharging; 6:31 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 3072.00M  used = 1809.50M  free = 1262.50M  (encrypted)\n",
+          "stderr": ""
+        }
+      },
+      "prompts": {
+        "short": {
+          "warmup": {
+            "stats": {
+              "cached_prompt_tokens": 0,
+              "generated_tokens": 8,
+              "decode_tps": 1.0,
+              "decode_seconds": 2.0,
+              "prefill_tps": 3.0,
+              "prefill_seconds": 4.0,
+              "ttft_seconds": 5.0,
+              "elapsed_seconds": 6.0
+            },
+            "token_hash": "baseline",
+            "text_sha256": "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+          },
+          "runs": [
+            {
+              "stats": {
+                "cached_prompt_tokens": 0,
+                "generated_tokens": 8,
+                "decode_tps": 1.0,
+                "decode_seconds": 2.0,
+                "prefill_tps": 3.0,
+                "prefill_seconds": 4.0,
+                "ttft_seconds": 5.0,
+                "elapsed_seconds": 6.0
+              },
+              "token_hash": "baseline",
+              "text_sha256": "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+            }
+          ],
+          "medians": {
+            "decode_tps": 1.0,
+            "decode_seconds": 2.0,
+            "prefill_tps": 3.0,
+            "prefill_seconds": 4.0,
+            "ttft_seconds": 5.0,
+            "elapsed_seconds": 6.0
+          }
+        }
+      },
+      "ready": {
+        "type": "ready"
+      },
+      "ready_seconds": 0.15515683399280533
+    }
+  ],
+  "parity": true
+}

@@ -1,0 +1,70 @@
+{
+  "base": "3ed683617e5090a179fb4888c3db03f8cb79b5fd",
+  "source_state": "modified filtered lookup; after restored mutation and before GPU quality/benchmarks",
+  "binary": {
+    "path": "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/lookup-lines-candidate/mlxl3-rs",
+    "sha256": "36ab908f3d796fc4968b7ee72b88566c0b64a75df8c9447fab952419a17c090e"
+  },
+  "sources": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "54e890f20e9f4eb32b40c54af406ae838cc0810aebe597aea32ff8e1f53ac89c"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "7aba7a4ee4f12f8b9e99842f6d04cd00a8c03ae1d0e8935f262a06542091e9dd"
+    },
+    {
+      "path": "native/src/speculative.rs",
+      "sha256": "291a6b915a09b1ab02e3e0d968cb89062bedbcd822c7a8dfe0a50d785a585350"
+    },
+    {
+      "path": "native/src/mtp.rs",
+      "sha256": "ed7d26eb9b19a1399e034fa58588aa87943415a6758afb988c8383f4eac19f6f"
+    },
+    {
+      "path": "native/src/mtp_tune.rs",
+      "sha256": "27bfcabdacc81b07d98d78780bc3cb64c2c0a8311d509b06d7663d7e5b74e763"
+    },
+    {
+      "path": "native/src/main.rs",
+      "sha256": "90ae5eae21c39cb603d30d18272b5093b53afd262b89a306e7cc1f75e252a82d"
+    },
+    {
+      "path": "native/src/qwen35.rs",
+      "sha256": "9454c3992c7640039fe47fd89654055d60ff1f7047d01847fe34a172248139f2"
+    },
+    {
+      "path": "native/src/array.rs",
+      "sha256": "7863b0497acbcb4d07abcf8843c062b1fbf0ddfdc495105ed1d0de0ca5b3c545"
+    },
+    {
+      "path": "native/ffi/mlx_bridge.cpp",
+      "sha256": "6216f5ff7311ae5932b50f9b7711341457a4947b4a3e76e8df55a82a92760b63"
+    },
+    {
+      "path": "benchmarks/compare_native.py",
+      "sha256": "e38eeb9b5ac3f5af340ec6319420700efdf4cac963be3f0afcba9c1cc7750cad"
+    },
+    {
+      "path": "scripts/check-mtp-depths.py",
+      "sha256": "61b8d91bf5bbbf0d169d258e73c840e1678992a4b4dfd425234939e1395be6d6"
+    }
+  ],
+  "environment": {
+    "A": {
+      "MLXL3_MTP_LOOKUP": "0"
+    },
+    "B": {
+      "MLXL3_MTP_LOOKUP": "1"
+    }
+  },
+  "head_baselines": [
+    "models/Qwen3.6-35B-A3B-MTP-4bit",
+    "build/engine-v1.4.2/frspec-head"
+  ],
+  "shared_identity": "candidate-identity.json",
+  "compact_identity": "frspec-identity.json",
+  "supersedes": "lookup-identity.json: unfiltered copy boost retained as historical evidence, not final implementation",
+  "context_gate": "actual tokenizer.decode(last seven committed IDs, skip_special_tokens=false).contains(newline); decoder error disables this lookup"
+}

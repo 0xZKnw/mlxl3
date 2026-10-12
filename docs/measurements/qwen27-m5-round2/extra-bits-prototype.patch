@@ -1,0 +1,260 @@
+diff --git a/native/src/contracts.rs b/native/src/contracts.rs
+index 1158aee..5a691b4 100644
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -7,10 +7,19 @@ pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
+ 
+ /// Shapes measured on the M5 dense checkpoint, with unchanged per-output sums.
+ #[cfg(any(feature = "mlx", test, kani))]
+-pub(crate) fn dense_decode_nt4(input: i32, output: i32, k: usize, mul1: bool, m5: bool) -> bool {
++pub(crate) fn dense_decode_nt4(
++    input: i32,
++    output: i32,
++    k: usize,
++    mul1: bool,
++    m5: bool,
++    extra_bits: bool,
++) -> bool {
+     m5 && mul1
+         && input == 5120
+-        && ((k == 2 && matches!(output, 16384 | 34816)) || (k == 3 && output == 248320))
++        && ((output == 34816 && (k == 2 || (extra_bits && matches!(k, 1 | 3))))
++            || (k == 2 && output == 16384)
++            || (k == 3 && output == 248320))
+ }
+ 
+ #[cfg(kani)]
+@@ -21,32 +30,48 @@ fn dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries() {
+     let k: usize = kani::any();
+     let mul1: bool = kani::any();
+     let m5: bool = kani::any();
+-    let enabled = dense_decode_nt4(input, output, k, mul1, m5);
++    let extra_bits: bool = kani::any();
++    let enabled = dense_decode_nt4(input, output, k, mul1, m5, extra_bits);
+     if enabled {
+         assert!(input == 5120 && m5 && mul1);
+         assert!(output > 0 && output % 128 == 0);
+-        assert!((k == 2 && (output == 16384 || output == 34816)) || (k == 3 && output == 248320));
++        assert!(
++            (k == 2 && (output == 16384 || output == 34816))
++                || (k == 3 && output == 248320)
++                || (extra_bits && (k == 1 || k == 3) && output == 34816)
++        );
+     }
+     kani::cover!(enabled && k == 2);
+     kani::cover!(enabled && k == 3);
+     kani::cover!(!enabled && input == 5120 && k == 2);
++    kani::cover!(enabled && k == 1);
++    kani::cover!(enabled && k == 3 && output == 34816);
++    kani::cover!(!enabled && input == 5120 && output == 34816 && k == 1 && !extra_bits);
+ }
+ 
+ #[test]
+ fn dense_decode_nt4_keeps_other_shapes_on_existing_tiles() {
+-    for (input, output, k, mul1, m5, expected) in [
+-        (5120, 16384, 2, true, true, true),
+-        (5120, 34816, 2, true, true, true),
+-        (5120, 248320, 3, true, true, true),
+-        (5120, 248320, 2, true, true, false),
+-        (2048, 16384, 2, true, true, false),
+-        (5120, 34816, 4, true, true, false),
+-        (5120, 34816, 2, false, true, false),
+-        (5120, 34816, 2, true, false, false),
+-        (5120, 34815, 2, true, true, false),
+-        (17408, 5120, 2, true, true, false),
++    for (input, output, k, mul1, m5, extra_bits, expected) in [
++        (5120, 16384, 2, true, true, false, true),
++        (5120, 34816, 2, true, true, false, true),
++        (5120, 248320, 3, true, true, false, true),
++        (5120, 34816, 1, true, true, true, true),
++        (5120, 34816, 3, true, true, true, true),
++        (5120, 34816, 1, true, true, false, false),
++        (5120, 34816, 3, true, true, false, false),
++        (5120, 16384, 1, true, true, true, false),
++        (5120, 248320, 2, true, true, true, false),
++        (2048, 16384, 2, true, true, true, false),
++        (5120, 34816, 4, true, true, true, false),
++        (5120, 34816, 1, false, true, true, false),
++        (5120, 34816, 3, true, false, true, false),
++        (5120, 34815, 2, true, true, true, false),
++        (17408, 5120, 2, true, true, true, false),
+     ] {
+-        assert_eq!(dense_decode_nt4(input, output, k, mul1, m5), expected);
++        assert_eq!(
++            dense_decode_nt4(input, output, k, mul1, m5, extra_bits),
++            expected
++        );
+         if expected {
+             assert_eq!((output / 16) % 4, 0);
+         }
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 8dd8869..c8ae701 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -8,28 +8,49 @@ use anyhow::{Context, Result, ensure};
+ 
+ fn dense_decode_nt4_enabled() -> bool {
+     #[cfg(test)]
+-    if let Some(enabled) = DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get) {
++    if let Some((enabled, _)) = DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get) {
+         return enabled;
+     }
+     static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+     *ENABLED.get_or_init(|| std::env::var("MLXL3_DENSE_DECODE_NT4").as_deref() != Ok("0"))
+ }
+ 
++fn dense_decode_extra_bits_enabled() -> bool {
++    #[cfg(test)]
++    if let Some((_, enabled)) = DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get) {
++        return enabled;
++    }
++    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    *ENABLED
++        .get_or_init(|| std::env::var("MLXL3_DENSE_DECODE_NT4_EXTRA_BITS").as_deref() != Ok("0"))
++}
++
+ #[cfg(test)]
+ thread_local! {
+-    static DENSE_DECODE_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
++    static DENSE_DECODE_TEST_OVERRIDE: std::cell::Cell<Option<(bool, bool)>> = const { std::cell::Cell::new(None) };
+ }
+ 
+ /// Test-only override: compare geometries with one model and the same GPU clock.
+ #[cfg(test)]
+ pub(crate) fn with_dense_decode_nt4_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+-    struct Restore(Option<bool>);
++    with_dense_decode_flags_test(enabled, dense_decode_extra_bits_enabled(), run)
++}
++
++#[cfg(test)]
++pub(crate) fn with_dense_decode_extra_bits_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
++    with_dense_decode_flags_test(dense_decode_nt4_enabled(), enabled, run)
++}
++
++#[cfg(test)]
++fn with_dense_decode_flags_test<T>(enabled: bool, extra_bits: bool, run: impl FnOnce() -> T) -> T {
++    struct Restore(Option<(bool, bool)>);
+     impl Drop for Restore {
+         fn drop(&mut self) {
+             DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+         }
+     }
+-    let _restore = Restore(DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
++    let _restore =
++        Restore(DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.replace(Some((enabled, extra_bits)))));
+     run()
+ }
+ 
+@@ -318,6 +339,7 @@ impl Exl3Linear {
+                     self.k,
+                     self.cb == Codebook::Mul1,
+                     array::is_m5_gpu()?,
++                    dense_decode_extra_bits_enabled(),
+                 ) {
+                 4
+             } else if output_tiles >= 1024 {
+@@ -773,6 +795,7 @@ impl Exl3Group {
+                 self.k,
+                 self.cb == Codebook::Mul1,
+                 array::is_m5_gpu()?,
++                dense_decode_extra_bits_enabled(),
+             ) {
+             4
+         } else if tiles >= 1024 {
+@@ -1116,6 +1139,19 @@ mod tests {
+         assert_eq!(DENSE_DECODE_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+         with_dense_decode_nt4_test(false, || {
+             assert!(!dense_decode_nt4_enabled());
++            with_dense_decode_extra_bits_test(false, || {
++                assert!(!dense_decode_extra_bits_enabled());
++                with_dense_decode_extra_bits_test(true, || {
++                    assert!(dense_decode_extra_bits_enabled());
++                    assert!(!dense_decode_nt4_enabled());
++                });
++                assert!(!dense_decode_extra_bits_enabled());
++                let panicked = std::panic::catch_unwind(|| {
++                    with_dense_decode_extra_bits_test(true, || panic!("extra bits failure"));
++                });
++                assert!(panicked.is_err());
++                assert!(!dense_decode_extra_bits_enabled());
++            });
+             with_dense_decode_nt4_test(true, || {
+                 assert!(dense_decode_nt4_enabled());
+             });
+diff --git a/native/src/qwen35.rs b/native/src/qwen35.rs
+index ecf547c..ab42e01 100644
+--- a/native/src/qwen35.rs
++++ b/native/src/qwen35.rs
+@@ -2067,30 +2067,46 @@ mod tests {
+     #[test]
+     #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone, no concurrent builds"]
+     fn checkpoint_dense_decode_tiles_paired() -> Result<()> {
++        dense_decode_tiles_paired(false)
++    }
++
++    #[test]
++    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; isolate K1/K3 against existing NT4"]
++    fn checkpoint_dense_decode_extra_bits_paired() -> Result<()> {
++        dense_decode_tiles_paired(true)
++    }
++
++    fn dense_decode_tiles_paired(extra_bits_only: bool) -> Result<()> {
+         let path = std::env::var("MLXL3_QWEN_TEST_MODEL")?;
+         let mut model = Qwen35Moe::load(Path::new(&path))?;
+         let prefix = (0..69).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+         model.forward_tokens(&prefix)?;
+         let snapshot = model.snapshot()?;
+         let mut execute = |enabled| -> Result<(f64, Vec<u16>, Vec<Vec<u8>>)> {
+-            crate::linear::with_dense_decode_nt4_test(enabled, || {
+-                model.restore(snapshot.clone())?;
+-                let started = Instant::now();
+-                let mut last = None;
+-                for i in 0..16 {
+-                    last = Some(model.forward((i * 53 + 1) as u32)?);
+-                }
+-                let seconds = started.elapsed().as_secs_f64();
+-                let logits = last
+-                    .context("missing decode benchmark logits")?
+-                    .to_f16_bits()?;
+-                ensure!(
+-                    logits.len() == 248320 && logits.iter().all(|&v| f16::from_bits(v).is_finite()),
+-                    "invalid dense benchmark logits"
+-                );
+-                let states = state_bytes(&model)?;
+-                ensure!(states.len() == 128, "invalid dense benchmark state count");
+-                Ok((seconds, logits, states))
++            crate::linear::with_dense_decode_nt4_test(extra_bits_only || enabled, || {
++                crate::linear::with_dense_decode_extra_bits_test(
++                    !extra_bits_only || enabled,
++                    || {
++                        model.restore(snapshot.clone())?;
++                        let started = Instant::now();
++                        let mut last = None;
++                        for i in 0..16 {
++                            last = Some(model.forward((i * 53 + 1) as u32)?);
++                        }
++                        let seconds = started.elapsed().as_secs_f64();
++                        let logits = last
++                            .context("missing decode benchmark logits")?
++                            .to_f16_bits()?;
++                        ensure!(
++                            logits.len() == 248320
++                                && logits.iter().all(|&v| f16::from_bits(v).is_finite()),
++                            "invalid dense benchmark logits"
++                        );
++                        let states = state_bytes(&model)?;
++                        ensure!(states.len() == 128, "invalid dense benchmark state count");
++                        Ok((seconds, logits, states))
++                    },
++                )
+             })
+         };
+         for enabled in [false, true, true, false] {
+@@ -2114,6 +2130,7 @@ mod tests {
+                 "{}",
+                 serde_json::json!({
+                     "pair": pair, "tokens": 16, "A_seconds": a.0, "B_seconds": b.0,
++                    "extra_bits_only": extra_bits_only,
+                     "bit_exact": true, "state_arrays": a.2.len(), "logits": a.1.len(),
+                     "boundary": "eager model forward only, forced IDs, one checkpoint and snapshot"
+                 })

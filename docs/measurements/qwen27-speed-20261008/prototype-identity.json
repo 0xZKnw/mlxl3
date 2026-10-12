@@ -1,0 +1,122 @@
+{
+  "head": "88c2abd258bc1ee73e071d1034bc96a1da5a6612",
+  "branch": "feat/mtp-toolbar",
+  "local_changes": "RAM-04 plus MB3 prototype; not committed",
+  "sources": {
+    "Cargo.toml": "54e890f20e9f4eb32b40c54af406ae838cc0810aebe597aea32ff8e1f53ac89c",
+    "Cargo.lock": "7aba7a4ee4f12f8b9e99842f6d04cd00a8c03ae1d0e8935f262a06542091e9dd",
+    "native/src/affine.rs": "da45734149699d1fa5ec17823e830b79e2e6231a4432878d4f1c45180ffcbfb5",
+    "native/src/array.rs": "61ba5170db07991a47e22728a7c5b8271f530914a0a7a7293e909a53f9f4b714",
+    "native/src/checkpoint.rs": "eaf91960c6b00a600fe88a39435a335a140076ae1751f873c2f00d01743cf62e",
+    "native/src/codec.rs": "f985538e3e35a11c693fa413ed4dbf71d1cd0996386e65bb8d2a5fd4086242b1",
+    "native/src/contracts.rs": "62618666b6995a8c6ad79d7a47252fdfa9fa43be594587f4f12ec39f2274bac4",
+    "native/src/dflash.rs": "8684e15c79ce50f4406f399f042c19f67e26177de3d6d3a113fced0f93762bbc",
+    "native/src/gated_delta.rs": "f618e91cbc8d479598377d8207e5a72867bd3e639280bd837ed3cc3193ba4730",
+    "native/src/gemma4.rs": "c549e2d5c10553c60f1b32dfc9f0d23e6b3a4ed8a5b9189d3b9cc101e863aa28",
+    "native/src/gpu.rs": "43fcfdb0aff418934b7c4844a967d72fd28fb3e598f9f00d96261e93dbb56782",
+    "native/src/hub.rs": "0ffb6e31f9630a88cca21333fea2a391944038c8b38a71497bde36c0511e2dce",
+    "native/src/lfm2.rs": "75363cefbf674b349934dd490b35e16db72a8d59f0f129e56c2daeef05c7cbf7",
+    "native/src/lib.rs": "22406231c3bb0fbd88f5c306b94a4f45e8a8dd1f44d37316aeab01d1596f44cf",
+    "native/src/linear.rs": "8a4740aad6c74ec594b2bc576e5a337912c337f40fb686a06b4e88bdd6c87e24",
+    "native/src/ling.rs": "02c1632a61faffe4689ce2b61d662c00412945ff308196e739b9ebe9862b68df",
+    "native/src/main.rs": "df09acc15028cb9d5f558e5c6fa36f30a5bb1919f0e4ff01f00985edc982debd",
+    "native/src/mcp.rs": "ddb123eb216ee8e6da114735de348f965eaef30a53df4505b51be8be74640935",
+    "native/src/moe.rs": "28c3190470047295870238667ccb2510ee852244f7faa8a2538825ad302b0b63",
+    "native/src/mtp.rs": "ed7d26eb9b19a1399e034fa58588aa87943415a6758afb988c8383f4eac19f6f",
+    "native/src/mtp_tune.rs": "faa1897c352a78add4666e61119bdadacbbc80936593eda0981a447c062db08a",
+    "native/src/openai.rs": "6c6eb80f113062182e4603883feeb9a81c6f80956dcf0fb55630ca5f5ec3a3c3",
+    "native/src/qwen35.rs": "2093f0b16a856209f3677202c84f6ac1e6ba05a0e7334e19fe8d88b09cf0d584",
+    "native/src/registry.rs": "4733f2d5b636ceb4d7f0a6f0cf6621aa2734ef3d101fec0ef28afa507d3ba2df",
+    "native/src/router.rs": "95b275d93924a4312cb9a863f9c891a8b33f9537b55bfff58a02f029bd812da7",
+    "native/src/speculative.rs": "291a6b915a09b1ab02e3e0d968cb89062bedbcd822c7a8dfe0a50d785a585350",
+    "native/src/streaming.rs": "a7d4b1c80172ac2d5d4def4f9375b8c376961bebfabb6e2a7cf6840d694732a3",
+    "native/src/tokenizer.rs": "0efe59d31159f9cfbd73c4ec241aae3924c662c75a70a10b8d794241d72a5569",
+    "native/src/tool_call.rs": "4219778e4324174f4cd8abf778c4bd91501b35e243202b5b155563d10dc3d25d",
+    "native/tests/contracts.rs": "e2f5291b8029b4d77232343dd0bfc7e5d4c1d2eccddd94f2e547d33d9e12f864",
+    "native/tests/runtime_gpu.rs": "4dedc8479d86c428974527643f4c5d7ee38fc1a1c34a2c72db114308bb485926",
+    "native/shaders/_expert_qmm_tensor_kernel.metal": "73b2133c69cb90e309f3a4abbad52c21d2840206a742ff31932448eb4672761e",
+    "native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+    "native/shaders/_qmv_inner_kernel.metal": "32363169d5f378502afc09501963a1db13b6d779be9fc6cc0a4b3776e40b62bf",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "5a4e911376902e4e3e6f8209fce62f393a18f3a22f86afc203689b3ae69041a6",
+    "native/shaders/_qmv_tile_kernel.metal": "594c573571ef6be4e8276299f05c7ebc264eb39f95a6edb9a3fe30c0b998d2cd",
+    "native/shaders/dflash_conv.metal": "b1f3eb20449dab0bf7668eb433db2b81cb35e3688f8487ccb441541ff7126c14",
+    "native/shaders/dflash_q4.metal": "50a14c3d4f038123740042f8efea0e52497f5b421730f577abeea6e4dc8e4d7f",
+    "native/shaders/dflash_select.metal": "6cf00d4210878dd641d8668c57be4a3a8e889377f775fc879ead7cb3b3057c00",
+    "native/shaders/exl3.metal": "0ca420f8ec7c997421c9a01300e6cf2a72d99ceb44d658125a398f2cda6d0f31",
+    "native/shaders/gated_delta_packed.metal": "199e0dfe67e7b4821e124c8dd67d451b3d8523e9c46bb1076a34d9e426804894",
+    "native/shaders/gated_delta_prepare.metal": "44aa2c25f8f17b133b56879c815f505c4298383b64b50788a400f8abe19a2f23",
+    "native/shaders/gated_delta_replay.metal": "d9a617b14a15e7f7d9a36812b9cd5e88501d458e029b2794e527c09585a93bc7",
+    "native/shaders/mtp_add_rms.metal": "38dbfd1ea661cfd97ba929d09f4a5bf6d5ad9450fb11b55b9c947df8fce48fb7",
+    "benchmarks/compare_native.py": "e38eeb9b5ac3f5af340ec6319420700efdf4cac963be3f0afcba9c1cc7750cad",
+    "scripts/native_json_process.py": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c"
+  },
+  "binaries": {
+    "build/qwen27-speed-20261008/baseline-rs": "72569440864affcf637e85a961ca6fda970d061d0c3e7bb3cfbfaafeaefc097b",
+    "build/qwen27-speed-20261008/prototype-rs": "a75992ec741c0a97a928955fd383fb55baca31591833c17ef59c776fcccf5e6d"
+  },
+  "model": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+  "head_model": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+  "checkpoints": {
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/config.json": {
+      "bytes": 4647,
+      "mtime_ns": 1791214186981577794,
+      "sha256": "dd800226988cd64f99025617a04ea130562976886c89a23299ee264f0543fef4"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/generation_config.json": {
+      "bytes": 202,
+      "mtime_ns": 1791214187430932532,
+      "sha256": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/model-00001-of-00002.safetensors": {
+      "bytes": 8574469488,
+      "mtime_ns": 1791215488037610153
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/model-00002-of-00002.safetensors": {
+      "bytes": 1098317068,
+      "mtime_ns": 1791215583735560460
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/model.safetensors.index.json": {
+      "bytes": 295619,
+      "mtime_ns": 1791215584474206681,
+      "sha256": "fe4ad50a61850ee2f159cf113b37761807a2f5be9f84343ffa11d1375871ce69"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/preprocessor_config.json": {
+      "bytes": 390,
+      "mtime_ns": 1791215584916040854,
+      "sha256": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/quantization_config.json": {
+      "bytes": 628945,
+      "mtime_ns": 1791215585374848066,
+      "sha256": "bb8649aa7e85b03fbae9e29ec2fb6df63fe71c990c1aace65950d5ee5135706e"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/tokenizer.json": {
+      "bytes": 12809320,
+      "mtime_ns": 1791215587287240585,
+      "sha256": "0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/tokenizer_config.json": {
+      "bytes": 17928,
+      "mtime_ns": 1791215587654643464,
+      "sha256": "b11349aafa7cdc6a320767cf7ceb29ed82f7eda5d65e8e0819e76f0ce947bf27"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/vocab.json": {
+      "bytes": 6722759,
+      "mtime_ns": 1791215588825653469,
+      "sha256": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit/config.json": {
+      "bytes": 3804,
+      "mtime_ns": 1791313358820996855,
+      "sha256": "16094efa6177985ab3725a9d6d61d6ab248b71e4b42a114efddcdb2aaddc0a55"
+    },
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit/model.safetensors": {
+      "bytes": 238934137,
+      "mtime_ns": 1791313377387598416
+    }
+  },
+  "mlx": "0.32.2",
+  "hardware": "M5 Air, 24 GiB",
+  "macos": "27.2 26B5101f",
+  "reference_full_weight_manifest": "docs/measurements/qwen27-smallm/campaign-identity.json (historical full hashes; current size/mtime/config identity stored here)"
+}

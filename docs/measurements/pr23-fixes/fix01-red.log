@@ -1,0 +1,32 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________ test_cli_rejects_empty_codec_outputs _____________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-16/test_cli_rejects_empty_codec_o0')
+
+    def test_cli_rejects_empty_codec_outputs(tmp_path):
+        codec = tmp_path / "empty-codec"
+        codec.write_text(
+            f"#!{sys.executable}\n"
+            "import json, sys\n"
+            "for line in sys.stdin:\n"
+            "    request = json.loads(line)\n"
+            "    data = [] if request['op'] == 'mlx-linear' else [[], []]\n"
+            "    print(json.dumps({'data': data}), flush=True)\n"
+        )
+        codec.chmod(0o755)
+        output = tmp_path / "result.json"
+        run = subprocess.run(
+            [sys.executable, str(ROOT / "native/check_qmm_tiles.py"), str(codec), str(codec),
+             "--output", str(output)],
+            capture_output=True, text=True, timeout=60,
+        )
+>       assert run.returncode != 0, "empty codec outputs must not certify QMM parity"
+E       AssertionError: empty codec outputs must not certify QMM parity
+E       assert 0 != 0
+E        +  where 0 = CompletedProcess(args=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python', '/Users/justin/.codex/worktrees/pr23-rev...c_o0/result.json'], returncode=0, stdout='64 native QMM cases: all FP16 outputs finite and bit-identical\n', stderr='').returncode
+
+tests/test_qmm_tiles.py:36: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_qmm_tiles.py::test_cli_rejects_empty_codec_outputs - Assert...
+1 failed in 6.29s

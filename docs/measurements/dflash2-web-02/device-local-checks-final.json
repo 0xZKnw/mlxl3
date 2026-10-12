@@ -1,0 +1,55 @@
+[
+  {
+    "name": "fmt-safe-final",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.40193
+  },
+  {
+    "name": "clippy-safe-final",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 3.011022708
+  },
+  {
+    "name": "build-safe",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 31.875422833000002
+  },
+  {
+    "name": "rust-safe",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 32.557483917
+  }
+]

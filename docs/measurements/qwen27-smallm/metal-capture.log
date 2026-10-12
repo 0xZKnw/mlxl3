@@ -1,0 +1,26 @@
+{
+  "status": "complete",
+  "path": "/Users/henko/Documents/Codex/2026-10-05/chec/work/smallm-qkv-m3.gputrace",
+  "warmups": 3,
+  "m": 3,
+  "capture_enabled": true,
+  "gpu_counters": "not measured",
+  "shape": {
+    "prefix": "model.language_model.layers.0.linear_attn.in_proj_qkv",
+    "input": 5120,
+    "widths": [
+      10240,
+      6144
+    ],
+    "k": 2,
+    "cb": 2,
+    "dtype": "I16",
+    "prefixes": [
+      "model.language_model.layers.0.linear_attn.in_proj_qkv",
+      "model.language_model.layers.0.linear_attn.in_proj_z"
+    ],
+    "count": 47
+  },
+  "finite_bit_exact": true,
+  "artifact_bytes": 204309985
+}

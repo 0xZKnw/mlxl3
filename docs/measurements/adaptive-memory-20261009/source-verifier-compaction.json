@@ -1,0 +1,21 @@
+{
+  "command": [
+    "/Users/henko/.kani/kani-0.68.0/bin/cbmc",
+    "native/ffi/mlx_bridge.cpp",
+    "--function",
+    "mlxl3_array_compact_copy",
+    "-I",
+    "/Users/henko/.cache/uv/archive-v0/oJmJtSVZn8RVlMAW/mlx/include",
+    "-I",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1",
+    "-I",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include",
+    "--cpp11",
+    "--bounds-check",
+    "--pointer-check",
+    "--unwinding-assertions"
+  ],
+  "exit_code": 6,
+  "diagnostic": "CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos\nline 0: parse error before '( ( ) )'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/desugars_to.h line 59: parse error before '... > ; template'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/desugars_to.h line 62: parse error before '... > ; template'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/desugars_to.h line 65: parse error before '... > ; }'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/desugars_to.h line 67: parse error before '} } namespace __attribute__'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/integral_constant.h line 25: parse error before ') const noexcept {'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/integral_constant.h line 25: parse error before '} } ; typedef'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/integral_constant.h line 42: parse error before '} } namespace __attribute__'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/remove_cv.h line 23: parse error before '} ; template <'\nfile /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/usr/include/c++/v1/__type_traits/remove_cv.h line 38: parse error before '} } namespace __attribute__'\nPARSING ERROR\n",
+  "verified": false
+}

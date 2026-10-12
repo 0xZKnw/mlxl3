@@ -1,0 +1,84 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_production_verifier_reports_failures_and_reaps_processes[slow_success] __
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-34/test_production_verifier_repor0')
+case = 'success'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "success",
+            "download_error",
+            "same_heads",
+            "missing_caps",
+            "silent",
+            "stream",
+            "invalid_json",
+            "retained_failure",
+            "retained_off",
+            "reuse_growth",
+            "missing_memory",
+            "cancelled",
+            "empty",
+            "mismatch",
+            "slow_success",
+            "slow_reuse_growth",
+        ],
+    )
+    def test_production_verifier_reports_failures_and_reaps_processes(tmp_path, case):
+        fake = tmp_path / "engine"
+        fake.write_text(FAKE)
+        fake.chmod(0o755)
+        pids = tmp_path / "pids"
+        output = tmp_path / "report.json"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(fake),
+                "dense",
+                "moe",
+                "--timeout",
+                "0.4",
+                "--output",
+                str(output),
+            ],
+            env={**os.environ, "MTP_SWITCH_CASE": case, "MTP_SWITCH_PIDS": str(pids)},
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        report = json.loads(output.read_text())
+        case = case.removeprefix("slow_")
+>       assert (result.returncode == 0) == (case == "success"), result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/scripts/check-mtp-model-switch.py", line 239, in <module>
+E             main()
+E           File "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/scripts/check-mtp-model-switch.py", line 227, in main
+E             run(args.engine, [args.dense, args.moe], args.timeout, report)
+E           File "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/scripts/check-mtp-model-switch.py", line 46, in run
+E             installed = subprocess.run(
+E                         ^^^^^^^^^^^^^^^
+E           File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 550, in run
+E             stdout, stderr = process.communicate(input, timeout=timeout)
+E                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 1209, in communicate
+E             stdout, stderr = self._communicate(input, endtime, timeout)
+E                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 2116, in _communicate
+E             self._check_timeout(endtime, orig_timeout, stdout, stderr)
+E           File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 1253, in _check_timeout
+E             raise TimeoutExpired(
+E         subprocess.TimeoutExpired: Command '['/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-34/test_production_verifier_repor0/engine', 'mtp-head', '--target', 'dense']' timed out after 0.4 seconds
+E         
+E       assert (1 == 0) == ('success' == 'success'
+E        +  where 1 = CompletedProcess(args=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python', '/Users/justin/.codex/worktrees/pr23-rev...t-34/test_production_verifier_repor0/engine\', \'mtp-head\', \'--target\', \'dense\']\' timed out after 0.4 seconds\n').returncode
+E         
+E           success)
+
+tests/test_mtp_model_switch.py:107: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_mtp_model_switch.py::test_production_verifier_reports_failures_and_reaps_processes[slow_success]
+1 failed in 0.51s

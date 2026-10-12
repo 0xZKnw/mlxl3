@@ -1,0 +1,37 @@
+{
+  "status": "complete",
+  "parity": true,
+  "tests": [
+    {
+      "test": "single-target",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--exact",
+        "qwen35::tests::dflash_single_transfer_matches_host_and_serial_states",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 31.42337758297799
+    },
+    {
+      "test": "single-bridge",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/.venv/bin/python",
+        "scripts/check_dflash2.py",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/mlxl3-rs",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+        "--output",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-web-02/single-bridge.json",
+        "--timeout",
+        "300",
+        "--foreign-draft",
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-DFlash2"
+      ],
+      "exit": 0,
+      "seconds": 42.58710925001651
+    }
+  ]
+}

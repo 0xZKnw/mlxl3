@@ -1,0 +1,51 @@
+{
+  "status": "validated",
+  "checks": [
+    {
+      "name": "fmt-final",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.19524937501410022,
+      "log": "docs/measurements/dflash2-web-03/key-view-fmt-final.log"
+    },
+    {
+      "name": "clippy-final",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.9533183749881573,
+      "log": "docs/measurements/dflash2-web-03/key-view-clippy-final.log"
+    },
+    {
+      "name": "release-final",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 34.27489666600013,
+      "log": "docs/measurements/dflash2-web-03/key-view-release-final.log"
+    }
+  ]
+}

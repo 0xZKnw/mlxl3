@@ -1,0 +1,38 @@
+{
+  "status": "failed_or_interrupted",
+  "identity": "copy-identity.json",
+  "checks": [
+    {
+      "name": "copy-adversarial",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+        "--exact",
+        "tests::dflash_copy_accepts_rejects_and_preserves_draft_cache",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 101,
+      "timeout": false,
+      "seconds": 6.153081875003409
+    }
+  ],
+  "conditions": {
+    "power": {
+      "exit": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t79%; discharging; 7:11 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit": 0,
+      "stdout": "vm.swapusage: total = 6144.00M  used = 5185.38M  free = 958.62M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "parity": false
+}

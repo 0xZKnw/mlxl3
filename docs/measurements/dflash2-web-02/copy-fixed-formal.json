@@ -1,0 +1,18 @@
+{
+  "status": "failed",
+  "checks": [
+    {
+      "name": "copy-fixed-kani-transition",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "dflash_copy_records_committed_prefix_and_disables_on_refusal"
+      ],
+      "exit": 1,
+      "seconds": 178.55056329100626
+    }
+  ]
+}

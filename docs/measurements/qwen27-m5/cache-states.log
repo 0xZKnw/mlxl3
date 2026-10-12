@@ -1,0 +1,39 @@
+    Finished `release` profile [optimized] target(s) in 0.06s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-12ff64d81cca70c9)
+
+running 1 test
+prefill=23 step=0: 128 state arrays and 248320 finite logits bit-identical
+prefill=23 step=1: 128 state arrays and 248320 finite logits bit-identical
+prefill=23 step=2: 128 state arrays and 248320 finite logits bit-identical
+prefill=23 step=3: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=0: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=1: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=2: 128 state arrays and 248320 finite logits bit-identical
+prefill=128 step=3: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=0: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=1: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=2: 128 state arrays and 248320 finite logits bit-identical
+prefill=256 step=3: 128 state arrays and 248320 finite logits bit-identical
+test qwen35::tests::checkpoint_optimization_matches_saved_logits_and_states ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; finished in 9.75s
+
+     Running unittests native/src/main.rs (target/release/deps/mlxl3_rs-0e1ab3760cfd581c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running native/tests/contracts.rs (target/release/deps/contracts-112bdada246dbb09)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running native/tests/runtime_gpu.rs (target/release/deps/runtime_gpu-b3cd62fbeaf25e0b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s

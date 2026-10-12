@@ -1,0 +1,6686 @@
+{
+  "status": "complete",
+  "parity": true,
+  "checks": 41,
+  "events": [
+    {
+      "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+      "type": "loading"
+    },
+    {
+      "bridge_protocol": 1,
+      "context_limit": 4096,
+      "dflash_configure_supported": true,
+      "dflash_family": "qwen36_moe",
+      "dflash_supported": true,
+      "dflash_tune_supported": true,
+      "dflash_tuning_key": "f90cb83f932cfa8c:1.4.2:9f2a572e22a1-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0:dflash-v1",
+      "load_seconds": 4.533053708,
+      "mcp_errors": {},
+      "mcp_servers": 0,
+      "mcp_tools": 0,
+      "mlx_version": "0.32.2",
+      "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+      "model_context_limit": 262144,
+      "modules": 30971,
+      "mtp_auto_download_supported": true,
+      "mtp_configure_supported": true,
+      "mtp_max_depth": 3,
+      "mtp_supported": true,
+      "mtp_tune_supported": true,
+      "mtp_tuning_key": "f90cb83f932cfa8c:1.4.2:9f2a572e22a1-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0",
+      "resident_gb": 13.064371907,
+      "runtime_commit": "9f2a572e22a1-dirty",
+      "runtime_executable": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/mlxl3-rs",
+      "runtime_profile": "release",
+      "runtime_version": "1.4.2",
+      "type": "ready"
+    },
+    {
+      "dflash_active": true,
+      "memory": {
+        "mlx_active_bytes": 12557438400,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 12557438400,
+        "process_footprint_bytes": 12913020144,
+        "process_lifetime_peak_bytes": 13966102464
+      },
+      "request_id": "1",
+      "type": "dflash_status"
+    },
+    {
+      "dflash_active": false,
+      "dflash_draft_path": null,
+      "dflash_mode": 0,
+      "dflash_proposals": 0,
+      "dflash_requested": false,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "2",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "2",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "2",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "2",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here",
+      "cache_context": "Here",
+      "context_full": false,
+      "elapsed_seconds": 3.211405042,
+      "first_text_seconds": 3.211363583,
+      "request_id": "2",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 24,
+          "decode_seconds": 5.370800000026321e-05,
+          "decode_tokens": 0,
+          "decode_tps": 0.0,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 3.21121625,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 1,
+          "memory": {
+            "mlx_active_bytes": 12144161216,
+            "mlx_cache_bytes": 492951878,
+            "mlx_peak_bytes": 12157293628,
+            "process_footprint_bytes": 13013683536,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 3.205543375,
+          "prefill_tps": 7.17507059158106,
+          "prepare_seconds": 0.004150167,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 3.211162542
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 24,
+        "decode_seconds": 5.370800000026321e-05,
+        "decode_tokens": 0,
+        "decode_tps": 0.0,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 3.211398792,
+        "end_to_end_ttft_seconds": 3.211363583,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 1,
+        "memory": {
+          "mlx_active_bytes": 12144161216,
+          "mlx_cache_bytes": 492951878,
+          "mlx_peak_bytes": 12157293628,
+          "process_footprint_bytes": 13013683536,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 3.205543375,
+        "prefill_tps": 7.17507059158106,
+        "prepare_seconds": 0.004150167,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 3.2113277919999996
+      },
+      "token_hash": "3d4b16b4e74c17e0",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 1,
+      "dflash_proposals": 5,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "3",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "3",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "3",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "3",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here",
+      "cache_context": "Here",
+      "context_full": false,
+      "elapsed_seconds": 0.840565167,
+      "first_text_seconds": 0.840536375,
+      "request_id": "3",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 24,
+          "decode_seconds": 1.737499999998615e-05,
+          "decode_tokens": 0,
+          "decode_tps": 0.0,
+          "dflash_accepted_tokens": 0,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": 0,
+          "dflash_proposed_tokens": 0,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.779636666,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 1,
+          "memory": {
+            "mlx_active_bytes": 12624252358,
+            "mlx_cache_bytes": 16800076,
+            "mlx_peak_bytes": 12636954704,
+            "process_footprint_bytes": 13017943400,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.77882325,
+          "prefill_tps": 29.531732649224328,
+          "prepare_seconds": 0.000270541,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.779619291
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 24,
+        "decode_seconds": 1.737499999998615e-05,
+        "decode_tokens": 0,
+        "decode_tps": 0.0,
+        "dflash_accepted_tokens": 0,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": 0,
+        "dflash_proposed_tokens": 0,
+        "draft_load_seconds": 0.0608855,
+        "elapsed_seconds": 0.840558375,
+        "end_to_end_ttft_seconds": 0.840536375,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 1,
+        "memory": {
+          "mlx_active_bytes": 12624252358,
+          "mlx_cache_bytes": 16800076,
+          "mlx_peak_bytes": 12636954704,
+          "process_footprint_bytes": 13017943400,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.77882325,
+        "prefill_tps": 29.531732649224328,
+        "prepare_seconds": 0.000270541,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.840527083
+      },
+      "token_hash": "3d4b16b4e74c17e0",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "4",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "4",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "4",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "4",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here",
+      "cache_context": "Here",
+      "context_full": false,
+      "elapsed_seconds": 0.428898375,
+      "first_text_seconds": 0.428871916,
+      "request_id": "4",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 24,
+          "decode_seconds": 1.3499999999999623e-05,
+          "decode_tokens": 0,
+          "decode_tps": 0.0,
+          "dflash_accepted_tokens": 0,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": 0,
+          "dflash_proposed_tokens": 0,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.428742,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 1,
+          "memory": {
+            "mlx_active_bytes": 12623711680,
+            "mlx_cache_bytes": 17373524,
+            "mlx_peak_bytes": 12636889168,
+            "process_footprint_bytes": 13018008936,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.428357875,
+          "prefill_tps": 53.693421651230295,
+          "prepare_seconds": 0.000107833,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.4287285
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 24,
+        "decode_seconds": 1.3499999999999623e-05,
+        "decode_tokens": 0,
+        "decode_tps": 0.0,
+        "dflash_accepted_tokens": 0,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": 0,
+        "dflash_proposed_tokens": 0,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.428892208,
+        "end_to_end_ttft_seconds": 0.428871916,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 1,
+        "memory": {
+          "mlx_active_bytes": 12623711680,
+          "mlx_cache_bytes": 17373524,
+          "mlx_peak_bytes": 12636889168,
+          "process_footprint_bytes": 13018008936,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.428357875,
+        "prefill_tps": 53.693421651230295,
+        "prepare_seconds": 0.000107833,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.42886650000000004
+      },
+      "token_hash": "3d4b16b4e74c17e0",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "5",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "5",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "5",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "5",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here",
+      "cache_context": "Here",
+      "context_full": false,
+      "elapsed_seconds": 0.411669292,
+      "first_text_seconds": 0.411644126,
+      "request_id": "5",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 24,
+          "decode_seconds": 1.3166999999980611e-05,
+          "decode_tokens": 0,
+          "decode_tps": 0.0,
+          "dflash_accepted_tokens": 0,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": 0,
+          "dflash_proposed_tokens": 0,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.411516167,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 1,
+          "memory": {
+            "mlx_active_bytes": 12623711680,
+            "mlx_cache_bytes": 17373524,
+            "mlx_peak_bytes": 12636876836,
+            "process_footprint_bytes": 13018025320,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.411156125,
+          "prefill_tps": 55.93982091352768,
+          "prepare_seconds": 8.1042e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.411503
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 24,
+        "decode_seconds": 1.3166999999980611e-05,
+        "decode_tokens": 0,
+        "decode_tps": 0.0,
+        "dflash_accepted_tokens": 0,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": 0,
+        "dflash_proposed_tokens": 0,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.411662542,
+        "end_to_end_ttft_seconds": 0.411644126,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 1,
+        "memory": {
+          "mlx_active_bytes": 12623711680,
+          "mlx_cache_bytes": 17373524,
+          "mlx_peak_bytes": 12636876836,
+          "process_footprint_bytes": 13018025320,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.411156125,
+        "prefill_tps": 55.93982091352768,
+        "prepare_seconds": 8.1042e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.411638917
+      },
+      "token_hash": "3d4b16b4e74c17e0",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": false,
+      "dflash_draft_path": null,
+      "dflash_mode": 0,
+      "dflash_proposals": 0,
+      "dflash_requested": false,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "6",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "6",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "6",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "6",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "6",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's",
+      "cache_context": "Here's",
+      "context_full": false,
+      "elapsed_seconds": 0.418225917,
+      "first_text_seconds": 0.395974792,
+      "request_id": "6",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 25,
+          "decode_seconds": 0.022231999999999974,
+          "decode_tokens": 1,
+          "decode_tps": 44.98020870816846,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.418157083,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 2,
+          "memory": {
+            "mlx_active_bytes": 12144095680,
+            "mlx_cache_bytes": 496989524,
+            "mlx_peak_bytes": 12157654052,
+            "process_footprint_bytes": 13018041704,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.3955895,
+          "prefill_tps": 58.14107806198092,
+          "prepare_seconds": 9.8458e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.395925083
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 25,
+        "decode_seconds": 0.022231999999999974,
+        "decode_tokens": 1,
+        "decode_tps": 44.98020870816846,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.418211209,
+        "end_to_end_ttft_seconds": 0.395974792,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 2,
+        "memory": {
+          "mlx_active_bytes": 12144095680,
+          "mlx_cache_bytes": 496989524,
+          "mlx_peak_bytes": 12157654052,
+          "process_footprint_bytes": 13018041704,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.3955895,
+        "prefill_tps": 58.14107806198092,
+        "prepare_seconds": 9.8458e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.395969667
+      },
+      "token_hash": "131f601c940414a9",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 1,
+      "dflash_proposals": 5,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "7",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "7",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "7",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "7",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "7",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's",
+      "cache_context": "Here's",
+      "context_full": false,
+      "elapsed_seconds": 0.49204625,
+      "first_text_seconds": 0.46896554199999996,
+      "request_id": "7",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 25,
+          "decode_seconds": 0.023063166999999996,
+          "decode_tokens": 1,
+          "decode_tps": 43.35917959575978,
+          "dflash_accepted_tokens": 0,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": 0,
+          "dflash_proposed_tokens": 0,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.438335209,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 2,
+          "memory": {
+            "mlx_active_bytes": 12623764928,
+            "mlx_cache_bytes": 18188628,
+            "mlx_peak_bytes": 12637392976,
+            "process_footprint_bytes": 13018959232,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.414906792,
+          "prefill_tps": 55.434137120609,
+          "prepare_seconds": 9.7875e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.415272042
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 25,
+        "decode_seconds": 0.023063166999999996,
+        "decode_tokens": 1,
+        "decode_tps": 43.35917959575978,
+        "dflash_accepted_tokens": 0,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": 0,
+        "dflash_proposed_tokens": 0,
+        "draft_load_seconds": 0.053671542,
+        "elapsed_seconds": 0.492039417,
+        "end_to_end_ttft_seconds": 0.46896554199999996,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 2,
+        "memory": {
+          "mlx_active_bytes": 12623764928,
+          "mlx_cache_bytes": 18188628,
+          "mlx_peak_bytes": 12637392976,
+          "process_footprint_bytes": 13018959232,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.414906792,
+        "prefill_tps": 55.434137120609,
+        "prepare_seconds": 9.7875e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.468960167
+      },
+      "token_hash": "131f601c940414a9",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "8",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "8",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "8",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "8",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "8",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's",
+      "cache_context": "Here's",
+      "context_full": false,
+      "elapsed_seconds": 0.426348292,
+      "first_text_seconds": 0.405887751,
+      "request_id": "8",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 25,
+          "decode_seconds": 0.020445415999999994,
+          "decode_tokens": 1,
+          "decode_tps": 48.91071915582448,
+          "dflash_accepted_tokens": 0,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": 0,
+          "dflash_proposed_tokens": 0,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.426199,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 2,
+          "memory": {
+            "mlx_active_bytes": 12623764928,
+            "mlx_cache_bytes": 18188628,
+            "mlx_peak_bytes": 12637360208,
+            "process_footprint_bytes": 13018959232,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.405408167,
+          "prefill_tps": 56.73294687228144,
+          "prepare_seconds": 8.0334e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.405753584
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 25,
+        "decode_seconds": 0.020445415999999994,
+        "decode_tokens": 1,
+        "decode_tps": 48.91071915582448,
+        "dflash_accepted_tokens": 0,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": 0,
+        "dflash_proposed_tokens": 0,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.426341833,
+        "end_to_end_ttft_seconds": 0.405887751,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 2,
+        "memory": {
+          "mlx_active_bytes": 12623764928,
+          "mlx_cache_bytes": 18188628,
+          "mlx_peak_bytes": 12637360208,
+          "process_footprint_bytes": 13018959232,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.405408167,
+        "prefill_tps": 56.73294687228144,
+        "prepare_seconds": 8.0334e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.405882501
+      },
+      "token_hash": "131f601c940414a9",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "9",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "9",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "9",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "9",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "9",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's",
+      "cache_context": "Here's",
+      "context_full": false,
+      "elapsed_seconds": 0.424304625,
+      "first_text_seconds": 0.403322708,
+      "request_id": "9",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 25,
+          "decode_seconds": 0.020966041999999963,
+          "decode_tokens": 1,
+          "decode_tps": 47.6961746046298,
+          "dflash_accepted_tokens": 0,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": 0,
+          "dflash_proposed_tokens": 0,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.424157625,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 2,
+          "memory": {
+            "mlx_active_bytes": 12623764928,
+            "mlx_cache_bytes": 18188628,
+            "mlx_peak_bytes": 12637360208,
+            "process_footprint_bytes": 13018959232,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.402850834,
+          "prefill_tps": 57.09309267558821,
+          "prepare_seconds": 7.7458e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.403191583
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 25,
+        "decode_seconds": 0.020966041999999963,
+        "decode_tokens": 1,
+        "decode_tps": 47.6961746046298,
+        "dflash_accepted_tokens": 0,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": 0,
+        "dflash_proposed_tokens": 0,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.424297417,
+        "end_to_end_ttft_seconds": 0.403322708,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 2,
+        "memory": {
+          "mlx_active_bytes": 12623764928,
+          "mlx_cache_bytes": 18188628,
+          "mlx_peak_bytes": 12637360208,
+          "process_footprint_bytes": 13018959232,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.402850834,
+        "prefill_tps": 57.09309267558821,
+        "prepare_seconds": 7.7458e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.403317166
+      },
+      "token_hash": "131f601c940414a9",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": false,
+      "dflash_draft_path": null,
+      "dflash_mode": 0,
+      "dflash_proposals": 0,
+      "dflash_requested": false,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "10",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "10",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "10",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "10",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "10",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "10",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a",
+      "cache_context": "Here's a",
+      "context_full": false,
+      "elapsed_seconds": 0.444141833,
+      "first_text_seconds": 0.403376501,
+      "request_id": "10",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 26,
+          "decode_seconds": 0.04075179100000004,
+          "decode_tokens": 2,
+          "decode_tps": 49.07759759564919,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.444080375,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 3,
+          "memory": {
+            "mlx_active_bytes": 12144030144,
+            "mlx_cache_bytes": 497923412,
+            "mlx_peak_bytes": 12157572132,
+            "process_footprint_bytes": 13018942848,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.403,
+          "prefill_tps": 57.07196029776674,
+          "prepare_seconds": 8.0542e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.403328584
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 26,
+        "decode_seconds": 0.04075179100000004,
+        "decode_tokens": 2,
+        "decode_tps": 49.07759759564919,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.444134875,
+        "end_to_end_ttft_seconds": 0.403376501,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 3,
+        "memory": {
+          "mlx_active_bytes": 12144030144,
+          "mlx_cache_bytes": 497923412,
+          "mlx_peak_bytes": 12157572132,
+          "process_footprint_bytes": 13018942848,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.403,
+        "prefill_tps": 57.07196029776674,
+        "prepare_seconds": 8.0542e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.403371376
+      },
+      "token_hash": "d88bc6b12be2ec86",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 1,
+      "dflash_proposals": 5,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "11",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "11",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "11",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "11",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "11",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "11",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a",
+      "cache_context": "Here's a",
+      "context_full": false,
+      "elapsed_seconds": 2.032967625,
+      "first_text_seconds": 0.46753679200000003,
+      "request_id": "11",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 26,
+          "decode_seconds": 1.5654055,
+          "decode_tokens": 2,
+          "decode_tps": 1.2776242321877622,
+          "dflash_accepted_tokens": 1,
+          "dflash_block_seconds": 1.5653771669999998,
+          "dflash_blocks": 1,
+          "dflash_proposed_tokens": 1,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.983296583,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 3,
+          "memory": {
+            "mlx_active_bytes": 12623875546,
+            "mlx_cache_bytes": 80576574,
+            "mlx_peak_bytes": 12699146308,
+            "process_footprint_bytes": 13088984472,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.417548458,
+          "prefill_tps": 55.083426987533024,
+          "prepare_seconds": 0.000102541,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.417891083
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 26,
+        "decode_seconds": 1.5654055,
+        "decode_tokens": 2,
+        "decode_tps": 1.2776242321877622,
+        "dflash_accepted_tokens": 1,
+        "dflash_block_seconds": 1.5653771669999998,
+        "dflash_blocks": 1,
+        "dflash_proposed_tokens": 1,
+        "draft_load_seconds": 0.04962525,
+        "elapsed_seconds": 2.032959709,
+        "end_to_end_ttft_seconds": 0.46753679200000003,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 3,
+        "memory": {
+          "mlx_active_bytes": 12623875546,
+          "mlx_cache_bytes": 80576574,
+          "mlx_peak_bytes": 12699146308,
+          "process_footprint_bytes": 13088984472,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.417548458,
+        "prefill_tps": 55.083426987533024,
+        "prepare_seconds": 0.000102541,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.467532292
+      },
+      "token_hash": "d88bc6b12be2ec86",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "12",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "12",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "12",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "12",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "12",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "12",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a",
+      "cache_context": "Here's a",
+      "context_full": false,
+      "elapsed_seconds": 0.439544459,
+      "first_text_seconds": 0.40624058399999996,
+      "request_id": "12",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 26,
+          "decode_seconds": 0.033280209000000005,
+          "decode_tokens": 2,
+          "decode_tps": 60.095776441788566,
+          "dflash_accepted_tokens": 1,
+          "dflash_block_seconds": 0.033251958,
+          "dflash_blocks": 1,
+          "dflash_proposed_tokens": 1,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.439407125,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 3,
+          "memory": {
+            "mlx_active_bytes": 12623891930,
+            "mlx_cache_bytes": 80643138,
+            "mlx_peak_bytes": 12699633624,
+            "process_footprint_bytes": 13089230232,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.405771958,
+          "prefill_tps": 56.68208348690276,
+          "prepare_seconds": 7.7333e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.406126916
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 26,
+        "decode_seconds": 0.033280209000000005,
+        "decode_tokens": 2,
+        "decode_tps": 60.095776441788566,
+        "dflash_accepted_tokens": 1,
+        "dflash_block_seconds": 0.033251958,
+        "dflash_blocks": 1,
+        "dflash_proposed_tokens": 1,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.439537917,
+        "end_to_end_ttft_seconds": 0.40624058399999996,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 3,
+        "memory": {
+          "mlx_active_bytes": 12623891930,
+          "mlx_cache_bytes": 80643138,
+          "mlx_peak_bytes": 12699633624,
+          "process_footprint_bytes": 13089230232,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.405771958,
+        "prefill_tps": 56.68208348690276,
+        "prepare_seconds": 7.7333e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.40623475
+      },
+      "token_hash": "d88bc6b12be2ec86",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "13",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "13",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "13",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "13",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "13",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "13",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a",
+      "cache_context": "Here's a",
+      "context_full": false,
+      "elapsed_seconds": 0.434717583,
+      "first_text_seconds": 0.401520874,
+      "request_id": "13",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 26,
+          "decode_seconds": 0.03317087499999999,
+          "decode_tokens": 2,
+          "decode_tps": 60.293857186462546,
+          "dflash_accepted_tokens": 1,
+          "dflash_block_seconds": 0.033144875,
+          "dflash_blocks": 1,
+          "dflash_proposed_tokens": 1,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.434558083,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 3,
+          "memory": {
+            "mlx_active_bytes": 12623891930,
+            "mlx_cache_bytes": 80643138,
+            "mlx_peak_bytes": 12699633624,
+            "process_footprint_bytes": 13089443224,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.401048708,
+          "prefill_tps": 57.349642427971624,
+          "prepare_seconds": 7.6583e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.401387208
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 26,
+        "decode_seconds": 0.03317087499999999,
+        "decode_tokens": 2,
+        "decode_tps": 60.293857186462546,
+        "dflash_accepted_tokens": 1,
+        "dflash_block_seconds": 0.033144875,
+        "dflash_blocks": 1,
+        "dflash_proposed_tokens": 1,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.434711208,
+        "end_to_end_ttft_seconds": 0.401520874,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 3,
+        "memory": {
+          "mlx_active_bytes": 12623891930,
+          "mlx_cache_bytes": 80643138,
+          "mlx_peak_bytes": 12699633624,
+          "process_footprint_bytes": 13089443224,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.401048708,
+        "prefill_tps": 57.349642427971624,
+        "prepare_seconds": 7.6583e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.401515499
+      },
+      "token_hash": "d88bc6b12be2ec86",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": false,
+      "dflash_draft_path": null,
+      "dflash_mode": 0,
+      "dflash_proposals": 0,
+      "dflash_requested": false,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "14",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "14",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "14",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "14",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1",
+      "cache_context": "Here's a thinking process:\n\n1",
+      "context_full": false,
+      "elapsed_seconds": 0.534758375,
+      "first_text_seconds": 0.39276325,
+      "request_id": "14",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 31,
+          "decode_seconds": 0.14198270899999993,
+          "decode_tokens": 7,
+          "decode_tps": 49.301778007348794,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.534702375,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 8,
+          "memory": {
+            "mlx_active_bytes": 12144030144,
+            "mlx_cache_bytes": 560504924,
+            "mlx_peak_bytes": 12157572132,
+            "process_footprint_bytes": 13089443224,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.392419958,
+          "prefill_tps": 58.61067851192217,
+          "prepare_seconds": 7.5458e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.392719666
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 31,
+        "decode_seconds": 0.14198270899999993,
+        "decode_tokens": 7,
+        "decode_tps": 49.301778007348794,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.534750167,
+        "end_to_end_ttft_seconds": 0.39276325,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 8,
+        "memory": {
+          "mlx_active_bytes": 12144030144,
+          "mlx_cache_bytes": 560504924,
+          "mlx_peak_bytes": 12157572132,
+          "process_footprint_bytes": 13089443224,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.392419958,
+        "prefill_tps": 58.61067851192217,
+        "prepare_seconds": 7.5458e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.392757958
+      },
+      "token_hash": "f2ed8ddcf15eca45",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 1,
+      "dflash_proposals": 5,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "15",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "15",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "15",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "15",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1",
+      "cache_context": "Here's a thinking process:\n\n1",
+      "context_full": false,
+      "elapsed_seconds": 1.104670917,
+      "first_text_seconds": 0.492369709,
+      "request_id": "15",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 31,
+          "decode_seconds": 0.612264959,
+          "decode_tokens": 7,
+          "decode_tps": 11.432958716815934,
+          "dflash_accepted_tokens": 5,
+          "dflash_block_seconds": 0.591395208,
+          "dflash_blocks": 1,
+          "dflash_proposed_tokens": 5,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.031988875,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 8,
+          "memory": {
+            "mlx_active_bytes": 12623797722,
+            "mlx_cache_bytes": 111475102,
+            "mlx_peak_bytes": 12715863320,
+            "process_footprint_bytes": 13123178024,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.419392083,
+          "prefill_tps": 54.84128321039384,
+          "prepare_seconds": 9.8541e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.419723916
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 31,
+        "decode_seconds": 0.612264959,
+        "decode_tokens": 7,
+        "decode_tps": 11.432958716815934,
+        "dflash_accepted_tokens": 5,
+        "dflash_block_seconds": 0.591395208,
+        "dflash_blocks": 1,
+        "dflash_proposed_tokens": 5,
+        "draft_load_seconds": 0.072623208,
+        "elapsed_seconds": 1.104664417,
+        "end_to_end_ttft_seconds": 0.492369709,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 8,
+        "memory": {
+          "mlx_active_bytes": 12623797722,
+          "mlx_cache_bytes": 111475102,
+          "mlx_peak_bytes": 12715863320,
+          "process_footprint_bytes": 13123178024,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.419392083,
+        "prefill_tps": 54.84128321039384,
+        "prepare_seconds": 9.8541e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.49236375
+      },
+      "token_hash": "f2ed8ddcf15eca45",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "16",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "16",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "16",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "16",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1",
+      "cache_context": "Here's a thinking process:\n\n1",
+      "context_full": false,
+      "elapsed_seconds": 0.971566667,
+      "first_text_seconds": 0.407317667,
+      "request_id": "16",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 31,
+          "decode_seconds": 0.564210125,
+          "decode_tokens": 7,
+          "decode_tps": 12.406725242656714,
+          "dflash_accepted_tokens": 4,
+          "dflash_block_seconds": 0.5436613330000001,
+          "dflash_blocks": 2,
+          "dflash_proposed_tokens": 4,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.971417417,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 8,
+          "memory": {
+            "mlx_active_bytes": 12623879642,
+            "mlx_cache_bytes": 119775902,
+            "mlx_peak_bytes": 12705915492,
+            "process_footprint_bytes": 13133090344,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.406864542,
+          "prefill_tps": 56.52987081877487,
+          "prepare_seconds": 7.9167e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.407207292
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 31,
+        "decode_seconds": 0.564210125,
+        "decode_tokens": 7,
+        "decode_tps": 12.406725242656714,
+        "dflash_accepted_tokens": 4,
+        "dflash_block_seconds": 0.5436613330000001,
+        "dflash_blocks": 2,
+        "dflash_proposed_tokens": 4,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.971560375,
+        "end_to_end_ttft_seconds": 0.407317667,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 8,
+        "memory": {
+          "mlx_active_bytes": 12623879642,
+          "mlx_cache_bytes": 119775902,
+          "mlx_peak_bytes": 12705915492,
+          "process_footprint_bytes": 13133090344,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.406864542,
+        "prefill_tps": 56.52987081877487,
+        "prepare_seconds": 7.9167e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.407313042
+      },
+      "token_hash": "f2ed8ddcf15eca45",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "17",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "17",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "17",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "17",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1",
+      "cache_context": "Here's a thinking process:\n\n1",
+      "context_full": false,
+      "elapsed_seconds": 1.024903584,
+      "first_text_seconds": 0.40988875,
+      "request_id": "17",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 31,
+          "decode_seconds": 0.6149896669999999,
+          "decode_tokens": 7,
+          "decode_tps": 11.382305062371074,
+          "dflash_accepted_tokens": 6,
+          "dflash_block_seconds": 0.614949542,
+          "dflash_blocks": 1,
+          "dflash_proposed_tokens": 6,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.024775542,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 8,
+          "memory": {
+            "mlx_active_bytes": 12623859162,
+            "mlx_cache_bytes": 148693858,
+            "mlx_peak_bytes": 12718654576,
+            "process_footprint_bytes": 13163499048,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.409444083,
+          "prefill_tps": 56.17372665756657,
+          "prepare_seconds": 7.9667e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.409785875
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 31,
+        "decode_seconds": 0.6149896669999999,
+        "decode_tokens": 7,
+        "decode_tps": 11.382305062371074,
+        "dflash_accepted_tokens": 6,
+        "dflash_block_seconds": 0.614949542,
+        "dflash_blocks": 1,
+        "dflash_proposed_tokens": 6,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 1.024896375,
+        "end_to_end_ttft_seconds": 0.40988875,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 8,
+        "memory": {
+          "mlx_active_bytes": 12623859162,
+          "mlx_cache_bytes": 148693858,
+          "mlx_peak_bytes": 12718654576,
+          "process_footprint_bytes": 13163499048,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.409444083,
+        "prefill_tps": 56.17372665756657,
+        "prepare_seconds": 7.9667e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.40988412500000004
+      },
+      "token_hash": "f2ed8ddcf15eca45",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": false,
+      "dflash_draft_path": null,
+      "dflash_mode": 0,
+      "dflash_proposals": 0,
+      "dflash_requested": false,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "18",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "18",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "18",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "18",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n",
+      "context_full": false,
+      "elapsed_seconds": 0.725198334,
+      "first_text_seconds": 0.39849187599999997,
+      "request_id": "18",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 40,
+          "decode_seconds": 0.32669545899999997,
+          "decode_tokens": 16,
+          "decode_tps": 48.97527516597653,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.725137834,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12144357824,
+            "mlx_cache_bytes": 628195196,
+            "mlx_peak_bytes": 12157928484,
+            "process_footprint_bytes": 13163515432,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.398080708,
+          "prefill_tps": 57.77722843077339,
+          "prepare_seconds": 0.000136292,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.398442375
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 40,
+        "decode_seconds": 0.32669545899999997,
+        "decode_tokens": 16,
+        "decode_tps": 48.97527516597653,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.7251915,
+        "end_to_end_ttft_seconds": 0.39849187599999997,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12144357824,
+          "mlx_cache_bytes": 628195196,
+          "mlx_peak_bytes": 12157928484,
+          "process_footprint_bytes": 13163515432,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.398080708,
+        "prefill_tps": 57.77722843077339,
+        "prepare_seconds": 0.000136292,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.398487084
+      },
+      "token_hash": "6930133b52d9b9ee",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 1,
+      "dflash_proposals": 5,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "19",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "19",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "19",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "19",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n",
+      "context_full": false,
+      "elapsed_seconds": 1.133228875,
+      "first_text_seconds": 0.47324037500000005,
+      "request_id": "19",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 40,
+          "decode_seconds": 0.659962583,
+          "decode_tokens": 16,
+          "decode_tps": 24.24379868214438,
+          "dflash_accepted_tokens": 13,
+          "dflash_block_seconds": 0.6598659170000001,
+          "dflash_blocks": 3,
+          "dflash_proposed_tokens": 13,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.081732875,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12624874970,
+            "mlx_cache_bytes": 124658590,
+            "mlx_peak_bytes": 12717988936,
+            "process_footprint_bytes": 13141495216,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.421409375,
+          "prefill_tps": 54.57875729508866,
+          "prepare_seconds": 9.8292e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.421770292
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 40,
+        "decode_seconds": 0.659962583,
+        "decode_tokens": 16,
+        "decode_tps": 24.24379868214438,
+        "dflash_accepted_tokens": 13,
+        "dflash_block_seconds": 0.6598659170000001,
+        "dflash_blocks": 3,
+        "dflash_proposed_tokens": 13,
+        "draft_load_seconds": 0.051449542,
+        "elapsed_seconds": 1.133222375,
+        "end_to_end_ttft_seconds": 0.47324037500000005,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12624874970,
+          "mlx_cache_bytes": 124658590,
+          "mlx_peak_bytes": 12717988936,
+          "process_footprint_bytes": 13141495216,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.421409375,
+        "prefill_tps": 54.57875729508866,
+        "prepare_seconds": 9.8292e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.47323575
+      },
+      "token_hash": "6930133b52d9b9ee",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "20",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "20",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "20",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "20",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n",
+      "context_full": false,
+      "elapsed_seconds": 0.669852709,
+      "first_text_seconds": 0.40767975100000003,
+      "request_id": "20",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 40,
+          "decode_seconds": 0.262131666,
+          "decode_tokens": 16,
+          "decode_tps": 61.0380281182816,
+          "dflash_accepted_tokens": 10,
+          "dflash_block_seconds": 0.23343,
+          "dflash_blocks": 5,
+          "dflash_proposed_tokens": 10,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.669680458,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12624420314,
+            "mlx_cache_bytes": 128747204,
+            "mlx_peak_bytes": 12707102922,
+            "process_footprint_bytes": 13145247152,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.407149667,
+          "prefill_tps": 56.49028321568049,
+          "prepare_seconds": 0.000133917,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.407548792
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 40,
+        "decode_seconds": 0.262131666,
+        "decode_tokens": 16,
+        "decode_tps": 61.0380281182816,
+        "dflash_accepted_tokens": 10,
+        "dflash_block_seconds": 0.23343,
+        "dflash_blocks": 5,
+        "dflash_proposed_tokens": 10,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.66984575,
+        "end_to_end_ttft_seconds": 0.40767975100000003,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12624420314,
+          "mlx_cache_bytes": 128747204,
+          "mlx_peak_bytes": 12707102922,
+          "process_footprint_bytes": 13145247152,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.407149667,
+        "prefill_tps": 56.49028321568049,
+        "prepare_seconds": 0.000133917,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.407674876
+      },
+      "token_hash": "6930133b52d9b9ee",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "21",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "21",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "21",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "21",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n",
+      "context_full": false,
+      "elapsed_seconds": 1.101994083,
+      "first_text_seconds": 0.413485875,
+      "request_id": "21",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 40,
+          "decode_seconds": 0.6884825419999998,
+          "decode_tokens": 16,
+          "decode_tps": 23.239514474137536,
+          "dflash_accepted_tokens": 14,
+          "dflash_block_seconds": 0.688407458,
+          "dflash_blocks": 2,
+          "dflash_proposed_tokens": 14,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.1018587499999999,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12624465368,
+            "mlx_cache_bytes": 163574122,
+            "mlx_peak_bytes": 12724929430,
+            "process_footprint_bytes": 13181586864,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.413028959,
+          "prefill_tps": 55.686168000631646,
+          "prepare_seconds": 8.0583e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.413376208
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 40,
+        "decode_seconds": 0.6884825419999998,
+        "decode_tokens": 16,
+        "decode_tps": 23.239514474137536,
+        "dflash_accepted_tokens": 14,
+        "dflash_block_seconds": 0.688407458,
+        "dflash_blocks": 2,
+        "dflash_proposed_tokens": 14,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 1.101987458,
+        "end_to_end_ttft_seconds": 0.413485875,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12624465368,
+          "mlx_cache_bytes": 163574122,
+          "mlx_peak_bytes": 12724929430,
+          "process_footprint_bytes": 13181586864,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.413028959,
+        "prefill_tps": 55.686168000631646,
+        "prepare_seconds": 8.0583e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.41348104100000005
+      },
+      "token_hash": "6930133b52d9b9ee",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": false,
+      "dflash_draft_path": null,
+      "dflash_mode": 0,
+      "dflash_proposals": 0,
+      "dflash_requested": false,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "22",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "22",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "22",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "Task",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Write",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " complete",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " code",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " to",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " multiply",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " two",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " matrices",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "Requirements",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Include",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " comments",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " and",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " examples",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "Language",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "2",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "Key",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Concepts",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " for",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Matrix",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " Multip",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "lication",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "22",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "context_full": false,
+      "elapsed_seconds": 1.7178491660000001,
+      "first_text_seconds": 0.394825874,
+      "request_id": "22",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 87,
+          "decode_seconds": 1.323012834,
+          "decode_tokens": 63,
+          "decode_tps": 47.61858568637287,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.717795792,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 12145340864,
+            "mlx_cache_bytes": 642698626,
+            "mlx_peak_bytes": 12159009828,
+            "process_footprint_bytes": 13181537712,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.394434708,
+          "prefill_tps": 58.311298507736794,
+          "prepare_seconds": 7.3375e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.394782958
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 87,
+        "decode_seconds": 1.323012834,
+        "decode_tokens": 63,
+        "decode_tps": 47.61858568637287,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 1.717842458,
+        "end_to_end_ttft_seconds": 0.394825874,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 12145340864,
+          "mlx_cache_bytes": 642698626,
+          "mlx_peak_bytes": 12159009828,
+          "process_footprint_bytes": 13181537712,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.394434708,
+        "prefill_tps": 58.311298507736794,
+        "prepare_seconds": 7.3375e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.39482087400000004
+      },
+      "token_hash": "02b7c5c11721c8be",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 1,
+      "dflash_proposals": 5,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "23",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "23",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "23",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "Task",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Write",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " complete",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " code",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " to",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " multiply",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " two",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " matrices",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "Requirements",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Include",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " comments",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " and",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " examples",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "Language",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "2",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "Key",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Concepts",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " for",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Matrix",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " Multip",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "lication",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "23",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "context_full": false,
+      "elapsed_seconds": 1.375909458,
+      "first_text_seconds": 0.454317001,
+      "request_id": "23",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 87,
+          "decode_seconds": 0.9215525410000001,
+          "decode_tokens": 63,
+          "decode_tps": 68.36289543690813,
+          "dflash_accepted_tokens": 50,
+          "dflash_block_seconds": 0.9007624169999999,
+          "dflash_blocks": 12,
+          "dflash_proposed_tokens": 60,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.327258375,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 12626484698,
+            "mlx_cache_bytes": 132461050,
+            "mlx_peak_bytes": 12728390728,
+            "process_footprint_bytes": 13153013168,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.405347583,
+          "prefill_tps": 56.74142628352615,
+          "prepare_seconds": 9.7625e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.405705834
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 87,
+        "decode_seconds": 0.9215525410000001,
+        "decode_tokens": 63,
+        "decode_tps": 68.36289543690813,
+        "dflash_accepted_tokens": 50,
+        "dflash_block_seconds": 0.9007624169999999,
+        "dflash_blocks": 12,
+        "dflash_proposed_tokens": 60,
+        "draft_load_seconds": 0.048588708,
+        "elapsed_seconds": 1.375902333,
+        "end_to_end_ttft_seconds": 0.454317001,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 12626484698,
+          "mlx_cache_bytes": 132461050,
+          "mlx_peak_bytes": 12728390728,
+          "process_footprint_bytes": 13153013168,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.405347583,
+        "prefill_tps": 56.74142628352615,
+        "prepare_seconds": 9.7625e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.45431162599999997
+      },
+      "token_hash": "02b7c5c11721c8be",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "24",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "24",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "24",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "Task",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Write",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " complete",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " code",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " to",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " multiply",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " two",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " matrices",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "Requirements",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Include",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " comments",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " and",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " examples",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "Language",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "2",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "Key",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Concepts",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " for",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Matrix",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " Multip",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "lication",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "24",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "context_full": false,
+      "elapsed_seconds": 1.364623,
+      "first_text_seconds": 0.40930233400000005,
+      "request_id": "24",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 87,
+          "decode_seconds": 0.955295875,
+          "decode_tokens": 63,
+          "decode_tps": 65.94815454426619,
+          "dflash_accepted_tokens": 41,
+          "dflash_block_seconds": 0.9548815420000002,
+          "dflash_blocks": 22,
+          "dflash_proposed_tokens": 43,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.364468084,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 12626660826,
+            "mlx_cache_bytes": 144933466,
+            "mlx_peak_bytes": 12715003428,
+            "process_footprint_bytes": 13165727152,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.40882225,
+          "prefill_tps": 56.259168868622,
+          "prepare_seconds": 7.5625e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.409172209
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 87,
+        "decode_seconds": 0.955295875,
+        "decode_tokens": 63,
+        "decode_tps": 65.94815454426619,
+        "dflash_accepted_tokens": 41,
+        "dflash_block_seconds": 0.9548815420000002,
+        "dflash_blocks": 22,
+        "dflash_proposed_tokens": 43,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 1.364616375,
+        "end_to_end_ttft_seconds": 0.40930233400000005,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 12626660826,
+          "mlx_cache_bytes": 144933466,
+          "mlx_peak_bytes": 12715003428,
+          "process_footprint_bytes": 13165727152,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.40882225,
+        "prefill_tps": 56.259168868622,
+        "prepare_seconds": 7.5625e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.409297043
+      },
+      "token_hash": "02b7c5c11721c8be",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "25",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "25",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "25",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "Task",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Write",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " complete",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " code",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " to",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " multiply",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " two",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " matrices",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "Requirements",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Include",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " comments",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " and",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " examples",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "Language",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Python",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "2",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "Key",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Concepts",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " for",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Matrix",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " Multip",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "lication",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": "  ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "25",
+      "text": " -",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n   - **Task:** Write complete Python code to multiply two matrices.\n   - **Requirements:** Include comments and examples.\n   - **Language:** Python\n\n2.  **Key Concepts for Matrix Multiplication:**\n   -",
+      "context_full": false,
+      "elapsed_seconds": 1.313340542,
+      "first_text_seconds": 0.407688875,
+      "request_id": "25",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 87,
+          "decode_seconds": 0.905625709,
+          "decode_tokens": 63,
+          "decode_tps": 69.5651629297993,
+          "dflash_accepted_tokens": 53,
+          "dflash_block_seconds": 0.905341374,
+          "dflash_blocks": 10,
+          "dflash_proposed_tokens": 69,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.3131733749999999,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 12626496986,
+            "mlx_cache_bytes": 196155572,
+            "mlx_peak_bytes": 12734564540,
+            "process_footprint_bytes": 13216746928,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.407209042,
+          "prefill_tps": 56.48204638835107,
+          "prepare_seconds": 7.35e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.407547666
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 87,
+        "decode_seconds": 0.905625709,
+        "decode_tokens": 63,
+        "decode_tps": 69.5651629297993,
+        "dflash_accepted_tokens": 53,
+        "dflash_block_seconds": 0.905341374,
+        "dflash_blocks": 10,
+        "dflash_proposed_tokens": 69,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 1.313334458,
+        "end_to_end_ttft_seconds": 0.407688875,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 64,
+        "memory": {
+          "mlx_active_bytes": 12626496986,
+          "mlx_cache_bytes": 196155572,
+          "mlx_peak_bytes": 12734564540,
+          "process_footprint_bytes": 13216746928,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.407209042,
+        "prefill_tps": 56.48204638835107,
+        "prepare_seconds": 7.35e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.407683666
+      },
+      "token_hash": "02b7c5c11721c8be",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "message": "DFlash mode must be 1, 2 or 3",
+      "request_id": "26",
+      "type": "error"
+    },
+    {
+      "message": "DFlash mode must be 1, 2 or 3",
+      "request_id": "27",
+      "type": "error"
+    },
+    {
+      "message": "Choose either MTP or DFlash2",
+      "request_id": "28",
+      "type": "error"
+    },
+    {
+      "message": "DFlash2 requires greedy sampling and repetition penalty 1.0",
+      "request_id": "29",
+      "type": "error"
+    },
+    {
+      "dflash_active": false,
+      "message": "No such file or directory (os error 2)",
+      "request_id": "30",
+      "type": "error"
+    },
+    {
+      "dflash_active": false,
+      "message": "DFlash draft does not match this target",
+      "request_id": "31",
+      "type": "error"
+    },
+    {
+      "dflash_active": false,
+      "dflash_draft_path": null,
+      "dflash_mode": 0,
+      "dflash_proposals": 0,
+      "dflash_requested": false,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "32",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "32",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "32",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "32",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n",
+      "context_full": false,
+      "elapsed_seconds": 0.949182125,
+      "first_text_seconds": 0.44021537499999996,
+      "request_id": "32",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 40,
+          "decode_seconds": 0.5089555410000001,
+          "decode_tokens": 16,
+          "decode_tps": 31.436930558930683,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.94915475,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12144619968,
+            "mlx_cache_bytes": 16787796,
+            "mlx_peak_bytes": 12158260244,
+            "process_footprint_bytes": 12556078224,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.43985125,
+          "prefill_tps": 52.29040499487042,
+          "prepare_seconds": 0.000114167,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.440199209
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 40,
+        "decode_seconds": 0.5089555410000001,
+        "decode_tokens": 16,
+        "decode_tps": 31.436930558930683,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.949174458,
+        "end_to_end_ttft_seconds": 0.44021537499999996,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12144619968,
+          "mlx_cache_bytes": 16787796,
+          "mlx_peak_bytes": 12158260244,
+          "process_footprint_bytes": 12556078224,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.43985125,
+        "prefill_tps": 52.29040499487042,
+        "prepare_seconds": 0.000114167,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.44021004199999997
+      },
+      "token_hash": "6930133b52d9b9ee",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "33",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "33",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "33",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "request_id": "33",
+      "type": "cancelled"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "34",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "34",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "34",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "34",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n",
+      "context_full": false,
+      "elapsed_seconds": 0.70720225,
+      "first_text_seconds": 0.5033216660000001,
+      "request_id": "34",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 40,
+          "decode_seconds": 0.2038522909999999,
+          "decode_tokens": 16,
+          "decode_tps": 78.48820300969787,
+          "dflash_accepted_tokens": 14,
+          "dflash_block_seconds": 0.20375391599999998,
+          "dflash_blocks": 2,
+          "dflash_proposed_tokens": 14,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.707016166,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12624547288,
+            "mlx_cache_bytes": 124968456,
+            "mlx_peak_bytes": 12725195732,
+            "process_footprint_bytes": 13143952768,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.502803833,
+          "prefill_tps": 45.74348580990233,
+          "prepare_seconds": 9.2208e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.503163875
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 40,
+        "decode_seconds": 0.2038522909999999,
+        "decode_tokens": 16,
+        "decode_tps": 78.48820300969787,
+        "dflash_accepted_tokens": 14,
+        "dflash_block_seconds": 0.20375391599999998,
+        "dflash_blocks": 2,
+        "dflash_proposed_tokens": 14,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.707195041,
+        "end_to_end_ttft_seconds": 0.5033216660000001,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12624547288,
+          "mlx_cache_bytes": 124968456,
+          "mlx_peak_bytes": 12725195732,
+          "process_footprint_bytes": 13143952768,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.502803833,
+        "prefill_tps": 45.74348580990233,
+        "prepare_seconds": 9.2208e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.503317458
+      },
+      "token_hash": "6930133b52d9b9ee",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "35",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "35",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "35",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "35",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "request_id": "35",
+      "type": "cancelled"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "36",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "36",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "36",
+      "type": "context_usage",
+      "used_tokens": 23
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": "Under",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": "stand",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": " Request",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "36",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Understand User Request:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Understand User Request:**\n",
+      "context_full": false,
+      "elapsed_seconds": 0.672277458,
+      "first_text_seconds": 0.483776126,
+      "request_id": "36",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 40,
+          "decode_seconds": 0.18847516600000003,
+          "decode_tokens": 16,
+          "decode_tps": 84.89182070809264,
+          "dflash_accepted_tokens": 14,
+          "dflash_block_seconds": 0.18839650000000002,
+          "dflash_blocks": 2,
+          "dflash_proposed_tokens": 14,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.672136375,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12624629208,
+            "mlx_cache_bytes": 124984840,
+            "mlx_peak_bytes": 12725179348,
+            "process_footprint_bytes": 13144018304,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.483065208,
+          "prefill_tps": 47.61261961966841,
+          "prepare_seconds": 8.1625e-05,
+          "prompt_tokens": 23,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.483661209
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 40,
+        "decode_seconds": 0.18847516600000003,
+        "decode_tokens": 16,
+        "decode_tps": 84.89182070809264,
+        "dflash_accepted_tokens": 14,
+        "dflash_block_seconds": 0.18839650000000002,
+        "dflash_blocks": 2,
+        "dflash_proposed_tokens": 14,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.672270458,
+        "end_to_end_ttft_seconds": 0.483776126,
+        "evaluated_prompt_tokens": 23,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12624629208,
+          "mlx_cache_bytes": 124984840,
+          "mlx_peak_bytes": 12725179348,
+          "process_footprint_bytes": 13144018304,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.483065208,
+        "prefill_tps": 47.61261961966841,
+        "prepare_seconds": 8.1625e-05,
+        "prompt_tokens": 23,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.483770626
+      },
+      "token_hash": "6930133b52d9b9ee",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "37",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "37",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "37",
+      "type": "context_usage",
+      "used_tokens": 395
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": "An",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": "alyze",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": " Input",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "37",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n",
+      "context_full": false,
+      "elapsed_seconds": 8.734581541,
+      "first_text_seconds": 8.297624749999999,
+      "request_id": "37",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 412,
+          "decode_seconds": 0.4369169159999995,
+          "decode_tokens": 16,
+          "decode_tps": 36.6202346809571,
+          "dflash_accepted_tokens": 10,
+          "dflash_block_seconds": 0.41263374999999997,
+          "dflash_blocks": 5,
+          "dflash_proposed_tokens": 10,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 8.734395958,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 395,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12640984538,
+            "mlx_cache_bytes": 907655838,
+            "mlx_peak_bytes": 13065625956,
+            "process_footprint_bytes": 13951307232,
+            "process_lifetime_peak_bytes": 13966102464
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 8.296593125,
+          "prefill_tps": 47.609903733829306,
+          "prepare_seconds": 0.00060775,
+          "prompt_tokens": 395,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 8.297479042
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 412,
+        "decode_seconds": 0.4369169159999995,
+        "decode_tokens": 16,
+        "decode_tps": 36.6202346809571,
+        "dflash_accepted_tokens": 10,
+        "dflash_block_seconds": 0.41263374999999997,
+        "dflash_blocks": 5,
+        "dflash_proposed_tokens": 10,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 8.734569541,
+        "end_to_end_ttft_seconds": 8.297624749999999,
+        "evaluated_prompt_tokens": 395,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12640984538,
+          "mlx_cache_bytes": 907655838,
+          "mlx_peak_bytes": 13065625956,
+          "process_footprint_bytes": 13951307232,
+          "process_lifetime_peak_bytes": 13966102464
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 8.296593125,
+        "prefill_tps": 47.609903733829306,
+        "prepare_seconds": 0.00060775,
+        "prompt_tokens": 395,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 8.297597375
+      },
+      "token_hash": "2a2a24f90474d54e",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 2,
+      "dflash_proposals": 2,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "38",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "38",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "38",
+      "type": "context_usage",
+      "used_tokens": 395
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": "An",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": "alyze",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": " Input",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "38",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n",
+      "context_full": false,
+      "elapsed_seconds": 1.230848,
+      "first_text_seconds": 0.948138541,
+      "request_id": "38",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 412,
+          "decode_seconds": 0.282660833,
+          "decode_tokens": 16,
+          "decode_tps": 56.60494179609242,
+          "dflash_accepted_tokens": 10,
+          "dflash_block_seconds": 0.259321791,
+          "dflash_blocks": 5,
+          "dflash_proposed_tokens": 10,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.230619666,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 395,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12843245018,
+            "mlx_cache_bytes": 786102942,
+            "mlx_peak_bytes": 13121927666,
+            "process_footprint_bytes": 14032735712,
+            "process_lifetime_peak_bytes": 14032735712
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.947245834,
+          "prefill_tps": 416.9984029721265,
+          "prepare_seconds": 0.000452875,
+          "prompt_tokens": 395,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.947958833
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 412,
+        "decode_seconds": 0.282660833,
+        "decode_tokens": 16,
+        "decode_tps": 56.60494179609242,
+        "dflash_accepted_tokens": 10,
+        "dflash_block_seconds": 0.259321791,
+        "dflash_blocks": 5,
+        "dflash_proposed_tokens": 10,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 1.230840583,
+        "end_to_end_ttft_seconds": 0.948138541,
+        "evaluated_prompt_tokens": 395,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12843245018,
+          "mlx_cache_bytes": 786102942,
+          "mlx_peak_bytes": 13121927666,
+          "process_footprint_bytes": 14032735712,
+          "process_lifetime_peak_bytes": 14032735712
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.947245834,
+        "prefill_tps": 416.9984029721265,
+        "prepare_seconds": 0.000452875,
+        "prompt_tokens": 395,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.9481327079999999
+      },
+      "token_hash": "2a2a24f90474d54e",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "39",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "39",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "39",
+      "type": "context_usage",
+      "used_tokens": 395
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": "An",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": "alyze",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": " Input",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "39",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n",
+      "context_full": false,
+      "elapsed_seconds": 0.6407015,
+      "first_text_seconds": 0.42451862399999996,
+      "request_id": "39",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 256,
+          "context_limit": 4096,
+          "context_used": 412,
+          "decode_seconds": 0.216165583,
+          "decode_tokens": 16,
+          "decode_tps": 74.01733327733305,
+          "dflash_accepted_tokens": 14,
+          "dflash_block_seconds": 0.216066916,
+          "dflash_blocks": 2,
+          "dflash_proposed_tokens": 14,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 0.640525083,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 139,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12843503064,
+            "mlx_cache_bytes": 790694560,
+            "mlx_peak_bytes": 13121927666,
+            "process_footprint_bytes": 14037700064,
+            "process_lifetime_peak_bytes": 14037700064
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.42352925,
+          "prefill_tps": 328.19456979653705,
+          "prepare_seconds": 0.000370792,
+          "prompt_tokens": 395,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.4243595
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 256,
+        "context_limit": 4096,
+        "context_used": 412,
+        "decode_seconds": 0.216165583,
+        "decode_tokens": 16,
+        "decode_tps": 74.01733327733305,
+        "dflash_accepted_tokens": 14,
+        "dflash_block_seconds": 0.216066916,
+        "dflash_blocks": 2,
+        "dflash_proposed_tokens": 14,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 0.640694541,
+        "end_to_end_ttft_seconds": 0.42451862399999996,
+        "evaluated_prompt_tokens": 139,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12843503064,
+          "mlx_cache_bytes": 790694560,
+          "mlx_peak_bytes": 13121927666,
+          "process_footprint_bytes": 14037700064,
+          "process_lifetime_peak_bytes": 14037700064
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.42352925,
+        "prefill_tps": 328.19456979653705,
+        "prepare_seconds": 0.000370792,
+        "prompt_tokens": 395,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.424503916
+      },
+      "token_hash": "2a2a24f90474d54e",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": true,
+      "dflash_draft_path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+      "dflash_mode": 3,
+      "dflash_proposals": 7,
+      "dflash_requested": true,
+      "mtp_active": false,
+      "mtp_depth": 0,
+      "mtp_reason": null,
+      "mtp_requested": false,
+      "request_id": "40",
+      "type": "generation_mode"
+    },
+    {
+      "phase": "prefill",
+      "request_id": "40",
+      "text": "Preparing context",
+      "type": "generation_status"
+    },
+    {
+      "context_limit": 4096,
+      "request_id": "40",
+      "type": "context_usage",
+      "used_tokens": 395
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": "Here",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": "'s",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": " a",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": " thinking",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": " process",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": ":",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": "\n\n",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": "1",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": ".",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": " ",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": " **",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": "An",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": "alyze",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": " User",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": " Input",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": ":**",
+      "type": "delta"
+    },
+    {
+      "phase": "thinking",
+      "request_id": "40",
+      "text": "\n",
+      "type": "delta"
+    },
+    {
+      "assistant_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**",
+      "cache_context": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n",
+      "context_full": false,
+      "elapsed_seconds": 1.174372875,
+      "first_text_seconds": 0.984689417,
+      "request_id": "40",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 412,
+          "decode_seconds": 0.18965837500000005,
+          "decode_tokens": 16,
+          "decode_tps": 84.36221179265084,
+          "dflash_accepted_tokens": 14,
+          "dflash_block_seconds": 0.18958475,
+          "dflash_blocks": 2,
+          "dflash_proposed_tokens": 14,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 1.174078167,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 395,
+          "generated_tokens": 17,
+          "memory": {
+            "mlx_active_bytes": 12843503064,
+            "mlx_cache_bytes": 790694560,
+            "mlx_peak_bytes": 13121927666,
+            "process_footprint_bytes": 14037421536,
+            "process_lifetime_peak_bytes": 14037814752
+          },
+          "model_size_gb": 13.064371907,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 0.983707958,
+          "prefill_tps": 401.5419381206226,
+          "prepare_seconds": 0.000311334,
+          "prompt_tokens": 395,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 0.984419792
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 412,
+        "decode_seconds": 0.18965837500000005,
+        "decode_tokens": 16,
+        "decode_tps": 84.36221179265084,
+        "dflash_accepted_tokens": 14,
+        "dflash_block_seconds": 0.18958475,
+        "dflash_blocks": 2,
+        "dflash_proposed_tokens": 14,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 1.174366083,
+        "end_to_end_ttft_seconds": 0.984689417,
+        "evaluated_prompt_tokens": 395,
+        "generated_tokens": 17,
+        "memory": {
+          "mlx_active_bytes": 12843503064,
+          "mlx_cache_bytes": 790694560,
+          "mlx_peak_bytes": 13121927666,
+          "process_footprint_bytes": 14037421536,
+          "process_lifetime_peak_bytes": 14037814752
+        },
+        "model_size_gb": 13.064371907,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 0.983707958,
+        "prefill_tps": 401.5419381206226,
+        "prepare_seconds": 0.000311334,
+        "prompt_tokens": 395,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 0.9846840419999999
+      },
+      "token_hash": "2a2a24f90474d54e",
+      "tool_rounds": 0,
+      "turn_context": null,
+      "type": "complete"
+    },
+    {
+      "dflash_active": false,
+      "memory": {
+        "mlx_active_bytes": 12078473664,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 13121927666,
+        "process_footprint_bytes": 13849939376,
+        "process_lifetime_peak_bytes": 14037814752
+      },
+      "request_id": "41",
+      "type": "dflash_status"
+    }
+  ],
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "dflash_configure_supported": true,
+    "dflash_family": "qwen36_moe",
+    "dflash_supported": true,
+    "dflash_tune_supported": true,
+    "dflash_tuning_key": "f90cb83f932cfa8c:1.4.2:9f2a572e22a1-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0:dflash-v1",
+    "load_seconds": 4.533053708,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "model_context_limit": 262144,
+    "modules": 30971,
+    "mtp_auto_download_supported": true,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": true,
+    "mtp_tune_supported": true,
+    "mtp_tuning_key": "f90cb83f932cfa8c:1.4.2:9f2a572e22a1-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0",
+    "resident_gb": 13.064371907,
+    "runtime_commit": "9f2a572e22a1-dirty",
+    "runtime_executable": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.2",
+    "type": "ready"
+  }
+}

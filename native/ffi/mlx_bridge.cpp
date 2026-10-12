@@ -18,6 +18,7 @@
 #include <libproc.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
+#include "kernel_cache_key.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -89,7 +90,11 @@ void pread_exact(int fd, uint64_t offset, mx::array& output) {
     throw std::overflow_error("tensor file offset overflow");
   size_t done = 0;
   while (done < count) {
-    auto read = ::pread(fd, output.data<uint8_t>() + done, count - done,
+    // Darwin rejects nbyte > INT_MAX rather than returning a partial read.
+    // Keep large embeddings in the final MLX buffer without a CPU staging copy.
+    constexpr size_t read_chunk_bytes = 64 * 1024 * 1024;
+    auto read = ::pread(fd, output.data<uint8_t>() + done,
+                        std::min(count - done, read_chunk_bytes),
                         off_t(offset + done));
     if (read < 0 && errno == EINTR) continue;
     if (read < 0)
@@ -114,6 +119,24 @@ std::vector<std::string> strings(const char* const* p, size_t n) {
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_synchronize() noexcept {
+  return protect([] { mx::synchronize(); });
+}
+int mlxl3_clear_cache() noexcept {
+  return protect([] { mx::clear_cache(); });
+}
+int mlxl3_set_cache_limit(uint64_t bytes) noexcept {
+  return protect([&] { mx::set_cache_limit(bytes); });
+}
+int mlxl3_start_capture(const char* path) noexcept {
+  return protect([&] {
+    if (!path || !*path) throw std::invalid_argument("empty Metal capture path");
+    mx::metal::start_capture(path);
+  });
+}
+int mlxl3_stop_capture() noexcept {
+  return protect([] { mx::metal::stop_capture(); });
+}
 int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
   return protect([&] {
     if (!out) throw std::invalid_argument("null memory statistics output");
@@ -142,6 +165,69 @@ int mlxl3_mlx_init(const char* metallib) noexcept {
 void mlxl3_array_free(void* p) noexcept { delete static_cast<mx::array*>(p); }
 int mlxl3_array_clone(void* p, void** out) noexcept {
   return protect([&] { *out = new mx::array(arr(p)); });
+}
+int mlxl3_array_compact_copy(void* p, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null compact output");
+    auto source = mx::contiguous(arr(p));
+    mx::eval(source);
+    auto output = allocated_array(source.shape(), source.dtype());
+    if (output->nbytes()) std::memcpy(output->data<uint8_t>(), source.data<uint8_t>(), output->nbytes());
+    *out = output.release();
+  });
+}
+int mlxl3_array_retained_bytes(void* p, uint64_t* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null retained size output");
+    auto& a = arr(p);
+    mx::eval(a);
+    *out = a.size() ? a.buffer_size() : 0;
+  });
+}
+// Lossless F16 bit packing. No arithmetic/quantization on the stored values.
+int mlxl3_pack_embedding(void* p, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null packed embedding output");
+    auto& a = arr(p);
+    if (a.dtype() != mx::float16 || a.ndim() != 2 || a.shape(0) <= 0 ||
+        a.shape(1) <= 0 || a.shape(1) % 128 != 0)
+      throw std::invalid_argument("packed embedding requires F16 [vocab, width divisible by128]");
+    mx::eval(a);
+    if (!a.flags().row_contiguous) throw std::invalid_argument("embedding must be contiguous");
+    const size_t count = a.size(), blocks = count / 128;
+    if (count > size_t(INT32_MAX) * 32 / 13 || blocks > size_t(UINT32_MAX) / 12)
+      throw std::invalid_argument("packed embedding too large");
+    auto offsets = allocated_array({int32_t(blocks)}, mx::uint32);
+    auto* positions = offsets->data<uint32_t>();
+    const auto* input = a.data<uint16_t>();
+    size_t tail_words = 0;
+    for (size_t block = 0; block < blocks; ++block) {
+      bool has_low = false;
+      for (size_t i = 0; i < 128; ++i) has_low |= (input[block * 128 + i] & 7) != 0;
+      positions[block] = has_low ? uint32_t(tail_words) : UINT32_MAX;
+      if (has_low) tail_words += 12;
+    }
+    const size_t main_words = (count * 13 + 31) / 32;
+    auto main = allocated_array({int32_t(main_words)}, mx::uint32);
+    auto tail = allocated_array({int32_t(std::max(size_t(1), tail_words))}, mx::uint32);
+    auto* hi = main->data<uint32_t>();
+    auto* lo = tail->data<uint32_t>();
+    std::memset(hi, 0, main->nbytes()); std::memset(lo, 0, tail->nbytes());
+    for (size_t i = 0; i < count; ++i) {
+      const size_t bit = i * 13, word = bit / 32, shift = bit % 32;
+      const uint32_t value = input[i] >> 3;
+      hi[word] |= value << shift;
+      if (shift > 19) hi[word + 1] |= value >> (32 - shift);
+      const auto base = positions[i / 128];
+      if (base != UINT32_MAX) {
+        const size_t low_bit = (i % 128) * 3, low_word = base + low_bit / 32, low_shift = low_bit % 32;
+        const uint32_t low = input[i] & 7;
+        lo[low_word] |= low << low_shift;
+        if (low_shift > 29) lo[low_word + 1] |= low >> (32 - low_shift);
+      }
+    }
+    out[0] = main.release(); out[1] = offsets.release(); out[2] = tail.release();
+  });
 }
 int mlxl3_array_metadata(void* p, size_t* rank, const int32_t** dims, int* type) noexcept {
   return protect([&] {
@@ -257,6 +343,13 @@ int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) no
     *out = new mx::array(mx::zeros(s, dtype(type))); });
 }
 int mlxl3_array_eval(void* p) noexcept { return protect([&] { arr(p).eval(); }); }
+int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
+  return protect([&] {
+    if (!count) return;
+    if (!inputs) throw std::invalid_argument("null async array list");
+    mx::async_eval(arrays(inputs, count));
+  });
+}
 int mlxl3_array_copy_bytes(void* p, uint8_t* out, size_t count) noexcept {
   return protect([&] {
     auto a = mx::contiguous(arr(p));
@@ -434,15 +527,24 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
                       const size_t* output_ranks, const int32_t* output_types, size_t noutputs,
                       const int32_t* grid, const int32_t* threadgroup, void** outputs) noexcept {
   return protect([&] {
-    using Key = std::tuple<std::string, std::vector<std::string>, std::vector<std::string>, std::string, std::string>;
-    thread_local std::map<Key, mx::fast::CustomKernelFunction> cache;
-    Key key{name, strings(input_names, ninputs), strings(output_names, noutputs), header, source};
+    if (!name || !header || !source || (ninputs && !input_names) || (noutputs && !output_names))
+      throw std::invalid_argument("null Metal kernel metadata");
+    for (size_t i = 0; i < ninputs; ++i)
+      if (!input_names[i]) throw std::invalid_argument("null Metal input name");
+    for (size_t i = 0; i < noutputs; ++i)
+      if (!output_names[i]) throw std::invalid_argument("null Metal output name");
+    thread_local std::map<mlxl3::OwnedKernelKey, mx::fast::CustomKernelFunction,
+                          mlxl3::KernelKeyOrder> cache;
+    mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
     auto found = cache.find(key);
     if (found == cache.end()) {
       // ponytail: bounded key-ordered eviction; use LRU only if dynamic factories churn.
       if (cache.size() >= 128) cache.erase(cache.begin());
-      found = cache.emplace(key, mx::fast::metal_kernel(name, std::get<1>(key), std::get<2>(key),
-        source, header, true, false, mx::CompileOptions{})).first;
+      mlxl3::OwnedKernelKey owned{name, strings(input_names, ninputs),
+                                  strings(output_names, noutputs), header, source};
+      auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
+                                             source, header, true, false, mx::CompileOptions{});
+      found = cache.emplace(std::move(owned), std::move(function)).first;
     }
     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
     for (size_t i = 0; i < noutputs; ++i) {

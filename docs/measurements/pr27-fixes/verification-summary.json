@@ -1,0 +1,223 @@
+{
+  "status": "fixed_and_verified_locally_uncommitted_not_pushed",
+  "pull_request": "https://github.com/0xZKnw/mlxl3/pull/27",
+  "base": "fba63b840f9b9997bcb38fb4d5d5c96ef26a35d9",
+  "head_before_fix": "f574bc1d256c2349a4f2edac2ef0e3aa9198137d",
+  "branch": "codex/pr27-validator-fixes",
+  "tested_checkout": "/Users/justin/.codex/worktrees/pr27-review/mix-stq1_0",
+  "tested_state": "PR head plus the source hashes below; working tree changes, no fix commit",
+  "remote_writes": false,
+  "main_checkout_modified_by_fix": false,
+  "fixes": [
+    {
+      "file": "benchmarks/benchmark_smallm_inventory.py",
+      "property": "every one of eight complete scaled outputs is finite before tanh and before timing",
+      "change": "validate the existing chain outside paired measurement; independent serial initial-partial oracle retained",
+      "callers": [
+        "CLI main -> run -> Checkpoint inventory/load -> chain",
+        "run -> paired (unchanged hot path)"
+      ],
+      "failure_effect": "global failed/parity=false; prior validated rows preserved; invalid row never timed"
+    },
+    {
+      "file": "benchmarks/benchmark_smallm_bridge.py",
+      "property": "generated IDs/text/history/count and all three MTP counters remain equal between variants",
+      "change": "append accepted/proposed/blocks to the shared fingerprint; explicit MTP mismatch error",
+      "callers": [
+        "CLI main -> run -> generate -> fingerprint",
+        "generate -> until -> JsonProcess"
+      ],
+      "failure_effect": "global failed/parity=false; prior complete runs preserved; child joined and failing row not complete"
+    }
+  ],
+  "coverage": {
+    "regression_before_fix": {
+      "command": "python -m pytest -q tests/test_smallm_benchmark.py -k \"complete_nonempty or cli_checks_work or cli_validates_each_scaled_step\"",
+      "expected_failures": 11,
+      "passed": 5,
+      "deselected": 50,
+      "log": "regressions-before.log"
+    },
+    "focused_after_fix": {
+      "command": "python -m pytest -q tests/test_smallm_benchmark.py",
+      "passed": 66,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 5.17,
+      "log": "focused-after.log",
+      "subset_of_full_suite": true
+    },
+    "full_native_python": {
+      "command": "python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py",
+      "passed": 273,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 51.46,
+      "log": "native-python-suite.log"
+    },
+    "regression_cases": [
+      "stable successful comparison and zero-accepted boundary",
+      "each MTP counter changed independently",
+      "invalid JSON, EOF, silent child and partial evidence",
+      "finite, NaN, Inf and finite FP32 values overflowing FP16",
+      "late overflow and preserving five completed rows before a bad shape",
+      "all child PIDs reaped; test deadlines bounded, production deadlines unchanged"
+    ],
+    "cpu_inventory_adapter": "actual Checkpoint and CLI; NumPy adapter with identity Hadamard and constant QMV, only tests validation boundary, not Metal numerics",
+    "untimed_real_backend": {
+      "command": "python -m pytest -q docs/measurements/pr27-fixes/test_physical.py",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 4.03,
+      "log": "physical-checks.log",
+      "bridge_cases": 5,
+      "mlx_inventory_cases": 3,
+      "real_mlx_and_shaders": true,
+      "mocked": [
+        "paired replaced solely by untimed real evaluation",
+        "bridge engine disposable NDJSON child",
+        "bridge power condition command fixture"
+      ],
+      "shape_domain": "16 distinct input/output sizes in {128,256,384,512}, k=1, m in {2,3,4,6,8}, eight dependency steps, aligned safetensors",
+      "nan_inf_result": "failed/parity=false, zero rows and zero measured calls",
+      "finite_result": "complete/parity=true, 80 rows and 160 nonempty finite dependent outputs",
+      "all_bridge_child_pids_reaped": true
+    },
+    "format_lint_compile": {
+      "files": 8,
+      "all_passed": true,
+      "commands_and_outputs": "final-checks.json",
+      "type_checker": "none configured for these scripts; no type-check result claimed"
+    }
+  },
+  "source_level_verification": {
+    "skill": "/Users/justin/.codex/skills/formal-proof-skill/SKILL.md",
+    "reference": "references/python.md",
+    "tool": "CrossHair 0.0.101 / z3-solver 5.1.0.0",
+    "counter_identity": {
+      "command": "python -m crosshair check docs/measurements/pr27-fixes/crosshair_contract.py --per_condition_timeout 30 --per_path_timeout 5 --report_all",
+      "python_runtime": "/Users/justin/.codex/worktrees/engine-v1-4-2-boosts/mix-stq1_0/build/engine-v1.4.2/proof-env/bin/python",
+      "production_function_called": "benchmark_smallm_bridge.fingerprint",
+      "property": "signature preserves all three counter inputs and differs when proposed is incremented by one",
+      "domain": "symbolic Python integers, no magnitude bound, only 0<=accepted<=proposed and blocks>0; valid other fields fixed, budget256, loop over three counters",
+      "diagnostic": "Confirmed over all paths.",
+      "exit": 0,
+      "classification": "limited symbolic counterexample search; no deductive proof of the whole program",
+      "log": "crosshair-counters.log"
+    },
+    "inventory": {
+      "command": "python -m crosshair check benchmarks/benchmark_smallm_inventory.py --analysis_kind asserts --per_condition_timeout 30 --per_path_timeout 5 --report_all",
+      "exit": 0,
+      "diagnostic": "Targets found, but contain no checkable functions",
+      "property_status": "unverified source-level finitude for nested MLX/NumPy chain; no stubs or port used to claim proof",
+      "log": "crosshair-inventory.log"
+    },
+    "kani": "not rerun for Python-only fixes; no Rust/native changes; historical CPU proofs do not verify this patch or MLX"
+  },
+  "historical_evidence": {
+    "audit": {
+      "artifacts_checked": 78,
+      "artifact_errors": [],
+      "sources_changed_by_fix": [
+        "benchmarks/benchmark_smallm_bridge.py",
+        "benchmarks/benchmark_smallm_inventory.py",
+        "tests/test_smallm_benchmark.py"
+      ],
+      "historical_sources_unchanged": [
+        "benchmarks/benchmark_smallm.py",
+        "benchmarks/benchmark_smallm_gdn.py",
+        "benchmarks/benchmark_smallm_tensor.py",
+        ".github/workflows/rust.yml",
+        "native/src/contracts.rs",
+        "native/src/linear.rs",
+        "native/src/qwen35.rs",
+        "native/shaders/_qmv_mapped_tile_kernel.metal",
+        "native/shaders/_qmv_tile_kernel.metal",
+        "native/shaders/_qmm_tensor_kernel.metal",
+        "tests/test_qmm_tiles.py"
+      ],
+      "current_source_sha256": {
+        "benchmarks/benchmark_smallm.py": "f556d52ed5bb515eddb45b55a13d09fd66d77533a1116e175a45313428c52122",
+        "benchmarks/benchmark_smallm_bridge.py": "d1d003f4aad367d17d25f8463a2e6b53698008e1f5db784ec088529a7a77da3e",
+        "benchmarks/benchmark_smallm_gdn.py": "9bc4ec5f4f9ea2fb24fa93d7083c41257f1ea1bcf7a884d5982258132784eec3",
+        "benchmarks/benchmark_smallm_inventory.py": "75db4c4d1926dc643099d55aad83779fb615710d6e84f67870b1f89996b342d8",
+        "benchmarks/benchmark_smallm_tensor.py": "e402f994b52c83a86585135a6e7185c0a660e90403d9f07dcb2258b30f348d4f",
+        "tests/test_smallm_benchmark.py": "b723e47b0a69a244b2456c3c52d9cc122e972f8b9264fb244b7c9cfd68e999b4",
+        ".github/workflows/rust.yml": "dbf3eb4305abddc320fbbb8a07a079c9b63e8ac2d0057be5bbd560be540355d4",
+        "native/src/contracts.rs": "cf393ffbc77df40b922f1991fa1fef0fa10fae690a62fefa3e3a9b4012ac99f9",
+        "native/src/linear.rs": "9341d7972567d8dddca1823b8aefd9dcd831dcf066352e336cf5ffb8a7cdb894",
+        "native/src/qwen35.rs": "6e3be2619e19f680ecc2551d53cb5c02af9d852ff47aad5782cd3f21d0e1904f",
+        "native/shaders/_qmv_mapped_tile_kernel.metal": "5a4e911376902e4e3e6f8209fce62f393a18f3a22f86afc203689b3ae69041a6",
+        "native/shaders/_qmv_tile_kernel.metal": "594c573571ef6be4e8276299f05c7ebc264eb39f95a6edb9a3fe30c0b998d2cd",
+        "native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+        "tests/test_qmm_tiles.py": "45b06dc45a4a140dcb61d3e5035aa08637af635dd11fbbb8004ee0c12df4d140"
+      },
+      "bridge": {
+        "mb3-bridge-256.json": {
+          "historical_status_preserved": "failed",
+          "completed_runs": 4,
+          "legacy_fields_match": true,
+          "extended_work_identities_equal": true
+        },
+        "mb3-bridge-ac-256.json": {
+          "historical_status_preserved": "complete",
+          "completed_runs": 8,
+          "legacy_fields_match": true,
+          "extended_work_identities_equal": true
+        }
+      },
+      "historical_inventory_rows": 80,
+      "historical_inventory_not_rerun": true,
+      "no_performance_measurement": true
+    },
+    "old_review_counterexamples_preserved": true,
+    "legacy_fingerprint": "four-element historical tuples preserved; current seven-element tuple extends its first four fields"
+  },
+  "ci": {
+    "workflows_inspected": [
+      ".github/workflows/rust.yml",
+      ".github/workflows/check.yml"
+    ],
+    "new_regressions_already_in_pr_and_push_workflow": true,
+    "workflow_modified": false,
+    "setup": "Python3.12, pytest8.4.2, numpy2.5.2, ruff0.16.5, no production credentials",
+    "previous_pr_head_jobs_passed": 4,
+    "previous_runs": [
+      37638124738,
+      37638124835
+    ],
+    "current_unpushed_fix_ci": "not run; previous PR head success is not validation of these working-tree changes"
+  },
+  "environment": {
+    "versions": {
+      "python": "3.12.14",
+      "platform": "macOS-27.2-arm64-arm-64bit",
+      "numpy": "2.5.2",
+      "pytest": "9.1.1",
+      "ruff": "0.16.5",
+      "mlx": "0.32.2"
+    },
+    "post_validation_power_snapshot": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t100%; discharging; 11:14 remaining present: true",
+    "performance_measured": false,
+    "model_loaded_by_validation": false
+  },
+  "current_verified_source_sha256": {
+    "benchmarks/benchmark_smallm.py": "f556d52ed5bb515eddb45b55a13d09fd66d77533a1116e175a45313428c52122",
+    "benchmarks/benchmark_smallm_bridge.py": "d1d003f4aad367d17d25f8463a2e6b53698008e1f5db784ec088529a7a77da3e",
+    "benchmarks/benchmark_smallm_gdn.py": "9bc4ec5f4f9ea2fb24fa93d7083c41257f1ea1bcf7a884d5982258132784eec3",
+    "benchmarks/benchmark_smallm_inventory.py": "75db4c4d1926dc643099d55aad83779fb615710d6e84f67870b1f89996b342d8",
+    "benchmarks/benchmark_smallm_tensor.py": "e402f994b52c83a86585135a6e7185c0a660e90403d9f07dcb2258b30f348d4f",
+    "tests/test_smallm_benchmark.py": "b723e47b0a69a244b2456c3c52d9cc122e972f8b9264fb244b7c9cfd68e999b4",
+    "docs/measurements/pr27-fixes/crosshair_contract.py": "4443eb7ae9ef014a04e9109bffb669e0bde80950a659d7f6a5192b6fba06c1b0",
+    "docs/measurements/pr27-fixes/test_physical.py": "6092d8297916dfc54175b90f46a6193bcf05d153df18fb366fd05e24076b709b"
+  },
+  "limits": [
+    "no deductive proof of Python, MLX, Metal, FFI, allocator or concurrency",
+    "complete-model logits/states/KV or long generation not rerun",
+    "no speed/RAM/thermal/kernel-time measurement",
+    "no native build or Rust/Kani suite rerun because all native sources unchanged",
+    "new changes remain local/uncommitted; remote CI not executed for this fix"
+  ],
+  "outstanding_experiments_or_processes": 0
+}

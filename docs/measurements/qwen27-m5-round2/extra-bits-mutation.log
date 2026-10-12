@@ -1,0 +1,42 @@
+
+running 1 test
+test contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles ... FAILED
+
+failures:
+
+failures:
+    contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+   Compiling serde_core v1.0.229
+   Compiling syn v2.0.119
+   Compiling serde v1.0.229
+   Compiling mlxl3-native v1.3.1 (/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3)
+   Compiling tokio-macros v2.6.1
+   Compiling zerocopy-derive v0.8.57
+   Compiling tokio v1.50.0
+   Compiling zerocopy v0.8.57
+   Compiling serde_json v1.0.151
+   Compiling half v2.7.1
+   Compiling tokio-util v0.7.18
+   Compiling h2 v0.3.27
+   Compiling hyper v0.14.32
+warning: unused variable: `extra_bits`
+  --> native/src/contracts.rs:16:5
+   |
+16 |     extra_bits: bool,
+   |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extra_bits`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (lib test) generated 1 warning (run `cargo fix --lib -p mlxl3-native --tests` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 14.05s
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-d74706fbaafd6d52)
+
+thread 'contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles' (3631941) panicked at native/src/contracts.rs:71:9:
+assertion `left == right` failed
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--lib`

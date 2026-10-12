@@ -1,0 +1,37 @@
+   Compiling mlxl3-native v1.3.1 (/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3)
+    Finished `release` profile [optimized] target(s) in 21.89s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-4d66c57c7b61ba5b)
+
+running 1 test
+{"A_seconds":2.134896542,"B_seconds":2.014990292,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":0,"state_arrays":128,"tokens":16}
+{"A_seconds":2.071987833,"B_seconds":1.953715625,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":1,"state_arrays":128,"tokens":16}
+{"A_seconds":2.094622083,"B_seconds":2.034799958,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":2,"state_arrays":128,"tokens":16}
+{"A_seconds":2.225317833,"B_seconds":2.095945917,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":3,"state_arrays":128,"tokens":16}
+{"A_seconds":2.209256291,"B_seconds":2.140139875,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":4,"state_arrays":128,"tokens":16}
+{"A_seconds":2.243032416,"B_seconds":2.146295291,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":5,"state_arrays":128,"tokens":16}
+{"A_seconds":2.2403675,"B_seconds":2.124373666,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":6,"state_arrays":128,"tokens":16}
+{"A_seconds":2.198717375,"B_seconds":2.080748834,"bit_exact":true,"boundary":"eager model forward only, forced IDs, one checkpoint and snapshot","logits":248320,"pair":7,"state_arrays":128,"tokens":16}
+test qwen35::tests::checkpoint_dense_decode_tiles_paired ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 86 filtered out; finished in 49.09s
+
+     Running unittests native/src/main.rs (target/release/deps/mlxl3_rs-8d3cd8d445e85f99)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running native/tests/contracts.rs (target/release/deps/contracts-4fc0b13ca77528ae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running native/tests/runtime_gpu.rs (target/release/deps/runtime_gpu-9edad6f18b79ff98)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+

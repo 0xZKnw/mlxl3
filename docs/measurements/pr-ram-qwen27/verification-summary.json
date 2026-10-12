@@ -1,0 +1,103 @@
+{
+  "status": "local_integration_validated",
+  "base_sha": "3fd5d3828e3a642f76dcbc9f5f4172d15f8d05d9",
+  "tested_source_commit": "dff9b4335ea8fd6f15ab0ea582e525c816dddde9",
+  "rust": {
+    "passed": 76,
+    "ignored": 64,
+    "failed": 0
+  },
+  "python": {
+    "passed": 338,
+    "skipped": 4,
+    "failed": 0,
+    "seconds": 52.93,
+    "skip_reasons": [
+      "ponyexl3 conversion dependency unavailable (3)",
+      "local Ling model unavailable (1)"
+    ]
+  },
+  "desktop": "Full production-source fixture suite passed, including memory preference/wire, Tune inspector, lifecycle, imports, updater, rendering, bridge and CLI transport. No universal Swift formal proof claimed.",
+  "format_clippy_release_build": "passed",
+  "python_driver_format_lint_and_fixture_lint": "passed",
+  "kani": "Historical actual CPU guard/key proofs reused; their source bytes unchanged. No new solver run and no Metal/MLX/concurrency proof.",
+  "physical_model_validation": "Historical RAM-04 and SPEED-K1/K2/K3 proofs reused with identical engine source bytes; no model benchmark rerun.",
+  "speed": "inconclusive historical drift, both new options off by default; no speedup claimed",
+  "failures_preserved": [
+    "Initial whitespace check rejected untouched raw patch context spaces; scoped check excluding raw historical patch archives passed.",
+    "Initial Desktop bash invocation failed before build; correct zsh invocation passed."
+  ],
+  "diff_check_scope": "All files except byte-preserved historical docs/measurements/**/*.patch.",
+  "ci_exact_published_commit": "not run before publication; inspect GitHub after push/PR creation",
+  "app_installed": false,
+  "new_performance_measurement": false,
+  "commands": {
+    "environment": "source /Users/henko/Documents/Codex/2026-10-05/chec/work/build-env.sh; CARGO_TARGET_DIR=$PWD/target",
+    "rust": [
+      "cargo fmt --check",
+      "cargo clippy --locked --all-targets --features mlx,chat -- -D warnings",
+      "cargo build --locked --release --features mlx,chat",
+      "cargo test --locked --features mlx,chat"
+    ],
+    "desktop": "SDKROOT=MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk; MLXL3_SKIP_METAL_CHECK=1; MLXL3_TEST_PYTHON=/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python; zsh scripts/check-desktop.sh",
+    "python": "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python -m pytest -q",
+    "lint": [
+      "ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py",
+      "ruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py",
+      "ruff check --select F,E9 tests/fake-desktop-engine.py",
+      "python -m py_compile tests/fake-desktop-engine.py"
+    ]
+  },
+  "logs": {
+    "format.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/format.log.gz",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archive_sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837"
+    },
+    "clippy.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/clippy.log.gz",
+      "raw_sha256": "22a09c86768aff1c9699ca81a606d965e088cccd3d927881b1edd345072c7424",
+      "archive_sha256": "b1f784ef6352fc1bf1ecf94d0c86be7181ac60771469075255586e274fac56e1"
+    },
+    "build.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/build.log.gz",
+      "raw_sha256": "d6d9b4639fbefb210262b5b76dea0b935bf5aa85ee75b37570cabfc33c1d1c5b",
+      "archive_sha256": "80d7b4af1f775101673ca94228a7c8f53f162afbdc2dfba93ee0097c7e527285"
+    },
+    "rust.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/rust.log.gz",
+      "raw_sha256": "d362b8b7e84a998fa8c9dc01570c17176188bca8f3d6df2ef5c0e83e918d3c3b",
+      "archive_sha256": "6dec86749bc365b5a5bcbfe0f1a29d4b8cdd6d5e3a62b356609bfb65f5b4e693"
+    },
+    "desktop-bash-failure.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/desktop-bash-failure.log.gz",
+      "raw_sha256": "f3fc95e714fda0e4425d340eeeac11869fd5902eacad775b9bb03a3da94a01d3",
+      "archive_sha256": "468e6c1e08489b006fabc3a2bbb6dc46ef7a23626034cd460bc8acf05645ac39"
+    },
+    "desktop.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/desktop.log.gz",
+      "raw_sha256": "4eaa046f7dfa52c34f78df200e99ac229c691d15597226bb0aa80200c0047522",
+      "archive_sha256": "789a5752a6622b6d12eb6015484ba53b84ff2817660fd6b8035233a5eff23d04"
+    },
+    "python.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/python.log.gz",
+      "raw_sha256": "0bc77dd7499f91a93f6301f173d675495dc862c7104dcd0b0567fa0fd52a3f9c",
+      "archive_sha256": "48e78674371f6d6fd28fcf5d6351b6bc2f50b31a7bdf9cf5e6515c0ec9f8f82c"
+    },
+    "python-format.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/python-format.log.gz",
+      "raw_sha256": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd",
+      "archive_sha256": "cd56ee25a66ac2269ac62244a60aceb4b929ebdc8f0c7c81a7dab73ed24f789b"
+    },
+    "python-lint.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/python-lint.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "archive_sha256": "7162964741fdb747d7ab27df2d1a1b64fa0636c4b7fe50ea8493de14cb62cbd4"
+    },
+    "fixture-lint.log": {
+      "archive": "docs/measurements/pr-ram-qwen27/fixture-lint.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "archive_sha256": "7162964741fdb747d7ab27df2d1a1b64fa0636c4b7fe50ea8493de14cb62cbd4"
+    }
+  }
+}

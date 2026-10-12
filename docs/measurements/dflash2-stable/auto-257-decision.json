@@ -1,0 +1,63 @@
+{
+  "status": "rejected",
+  "reason": "Code throughput -2.614%; no >=3% qualifying signal; final production keeps Auto2/5",
+  "parity": true,
+  "control_drift_percent": {
+    "short_A": -0.4538790984798702,
+    "short_B": -0.3753648741186444,
+    "document_A": -0.18971471869020373,
+    "document_B": 0.04739818401777729
+  },
+  "summary": {
+    "short": {
+      "decode_tps": {
+        "A": 62.018138588603954,
+        "B": 61.565298593234694,
+        "change_percent": -0.7301734713019425
+      },
+      "prefill_tps": {
+        "A": 200.3231012772694,
+        "B": 200.01559091110303,
+        "change_percent": -0.15350719123539136
+      },
+      "ttft_seconds": {
+        "A": 0.13527022924999998,
+        "B": 0.1354758955,
+        "change_percent": 0.15204103012194103
+      },
+      "elapsed_seconds": {
+        "A": 2.18310070875,
+        "B": 2.1983764267500003,
+        "change_percent": 0.6997257588151617
+      }
+    },
+    "document": {
+      "decode_tps": {
+        "A": 70.57106319197845,
+        "B": 68.7266521634858,
+        "change_percent": -2.613551426135108
+      },
+      "prefill_tps": {
+        "A": 207.5528704499048,
+        "B": 207.26996851183495,
+        "change_percent": -0.13630355362304059
+      },
+      "ttft_seconds": {
+        "A": 0.16911999025000002,
+        "B": 0.16934564575,
+        "change_percent": 0.13342922954666658
+      },
+      "elapsed_seconds": {
+        "A": 1.968753073,
+        "B": 2.01726988525,
+        "change_percent": 2.4643421724833026
+      }
+    }
+  },
+  "followups": "No BAAB or long-context repetition under preregistration",
+  "retired_sources": [
+    "auto-257-ram-speculative.rs",
+    "auto-257-ram-main.rs"
+  ],
+  "evidence": "auto-257-moe-abba/results.json"
+}

@@ -1,5 +1,15 @@
 import AppKit
+import Combine
 import Foundation
+import SwiftUI
+
+// Combined with the production source by check-desktop.sh; no test setter ships.
+extension UpdateManager {
+    func setStatesForCheck(app: AppUpdateState, engine: AppUpdateState) {
+        state = app
+        engineState = engine
+    }
+}
 
 @main struct HardeningCheck {
     @MainActor static func main() async throws {
@@ -16,23 +26,255 @@ import Foundation
         try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: flashModel.appendingPathComponent("config.json"))
         func make(_ name: String, type: String = "audit") async throws -> StudioModel {
             let model = StudioModel(conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
-            model.models = [LocalModel(name: name, path: type == "qwen4_exp" ? flashModel.path : root.path, modelType: type, format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+            let path = type == "qwen4_exp" ? flashModel.path : name.hasPrefix("dflash-") ? root.appendingPathComponent(name).path : root.path
+            model.models = [LocalModel(name: name, path: path, modelType: type, format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
             model.selectModel(name)
-            for _ in 0..<200 where !model.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
+            for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading || model.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
         }
+        // shortcut: the fixture error is the only red content; use accessibility text if another red control is added.
+        func tuningErrorIsVisible(_ model: StudioModel) async throws -> Bool {
+            _ = NSApplication.shared
+            let host = NSHostingView(rootView: GenerationInspector().environmentObject(model).preferredColorScheme(.dark))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 286, height: 600),
+                styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            host.frame = NSRect(x: 0, y: 0, width: 286, height: 600)
+            defer { window.close() }
+            for _ in 0..<100 {
+                try await Task.sleep(for: .milliseconds(20))
+                host.layoutSubtreeIfNeeded()
+                guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                    preconditionFailure("Inspector bitmap unavailable")
+                }
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                var redPixels = 0
+                for y in stride(from: 0, to: bitmap.pixelsHigh, by: 4) {
+                    for x in stride(from: 0, to: bitmap.pixelsWide, by: 4) {
+                        if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                           color.redComponent > 0.6 && color.greenComponent < 0.45 && color.blueComponent < 0.45 {
+                            redPixels += 1
+                            if redPixels >= 5 { return true }
+                        }
+                    }
+                }
+            }
+            return false
+        }
+        func renderTuneToolbar(_ model: StudioModel, _ state: String, dflash: Bool = false) async throws {
+            _ = NSApplication.shared
+            let host = NSHostingView(rootView: MTPTuningToolbarControl(dflash: dflash).environmentObject(model)
+                .padding(12).background(StudioTheme.sidebar).preferredColorScheme(.dark))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 95),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            defer { window.orderOut(nil) }
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(20))
+            precondition(host.fittingSize.height > 0, "Tune toolbar must render in state \(state)")
+            guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                preconditionFailure("Tune toolbar failed native rendering")
+            }
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            if let output = ProcessInfo.processInfo.environment["MLXL3_TUNE_CHECK_IMAGE_DIR"],
+               let data = bitmap.representation(using: .png, properties: [:]) {
+                try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("toolbar-\(state).png"))
+            }
+        }
+        let updates = try await make("updates")
+        defer { updates.ejectModel() }
+        updates.draft = "send during background update"
+        updates.updateManager.setStatesForCheck(app: .checking, engine: .checking)
+        if !updates.canSend {
+            FileHandle.standardError.write(Data("Composer regression: ready=\(updates.engineState.isReady), updateBusy=\(updates.updateManager.isBusy), canSend=false\n".utf8))
+        }
+        precondition(updates.canSend, "A background update check must not disable Send")
+        let release = AppUpdateRelease(version: "9.0.0", tag: "v9.0.0", title: "fixture", notes: "",
+            pageURL: root, asset: AppUpdateAsset(name: "fixture", downloadURL: root, size: 1, digest: nil))
+        let states: [AppUpdateState] = [.idle, .checking, .upToDate(checkedAt: Date()),
+            .downloading(release), .ready(release: release, diskImage: root), .installing(release), .failed("fixture")]
+        var notifications = 0
+        let observation = updates.objectWillChange.sink { notifications += 1 }
+        for (appIndex, app) in states.enumerated() {
+            for (engineIndex, engine) in states.enumerated() {
+                let before = notifications
+                updates.updateManager.setStatesForCheck(app: app, engine: engine)
+                precondition(updates.canSend == (appIndex != 5 && engineIndex != 5), "Only installation blocks ready inference")
+                precondition(notifications > before, "Update transitions must refresh the composer")
+            }
+        }
+        observation.cancel()
+        updates.updateManager.setStatesForCheck(app: .downloading(release), engine: .downloading(release))
+        updates.draft = " \n "; precondition(!updates.canSend)
+        updates.draft = "send during background update"; updates.send()
+        precondition(updates.isGenerating && !updates.canSend && updates.draft.isEmpty)
+        for _ in 0..<200 where updates.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(updates.engineState.isReady && updates.conversations[0].messages.last?.role == .assistant
+            && updates.conversations[0].messages.last?.content.isEmpty == false, "Send must reach the bridge and complete")
+        updates.draft = "next message"; precondition(updates.canSend)
+        updates.ejectModel(); precondition(!updates.canSend)
+        precondition(!updates.memorySaverEnabled, "Memory saving must be opt-in")
+        updates.setMemorySaverEnabled(true)
+        precondition(prefs.bool(forKey: "studio.memorySaverEnabled"), "Memory preference not persisted")
+        let saver = try await make("mtp-memory-saver")
+        defer { saver.ejectModel() }
+        precondition(saver.memorySaverEnabled && saver.memorySaverSupported, "Memory preference/capability not restored")
+        let advised = saver.recommendedContextLength
+        precondition(advised == 2048, "Ready profile must reach the production context adviser")
+        precondition(saver.contextLengthDraft == 0, "Recommendation must preserve the user's setting")
+        saver.contextLengthDraft = advised!
+        precondition(saver.canSaveContext)
+        saver.saveContextAndReload()
+        for _ in 0..<200 where !saver.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(saver.engineState.isReady && !saver.canSaveContext)
+        precondition((prefs.dictionary(forKey: "studio.contextLengths")?["mtp-memory-saver"] as? Int) == advised)
+        saver.setMTPEnabled(true)
+        for _ in 0..<200 where saver.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(saver.canTuneMTP)
+        saver.draft = "memory fixture"; saver.send()
+        saver.setMemorySaverEnabled(false)
+        precondition(saver.memorySaverEnabled, "Memory policy changed during generation")
+        for _ in 0..<200 where saver.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isGenerating && saver.conversations[0].messages.count == 2)
+        saver.tuneMTP()
+        saver.setMemorySaverEnabled(false)
+        precondition(saver.memorySaverEnabled, "Memory policy changed during tuning")
+        for _ in 0..<200 where saver.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isTuningMTP && saver.mtpTuneRows.count == 4)
+        saver.setMemorySaverEnabled(false)
+        saver.draft = "normal fixture"; saver.send()
+        for _ in 0..<200 where saver.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!saver.isGenerating)
+        let wire = try String(contentsOf: root.appendingPathComponent("memory-saver-requests.jsonl"), encoding: .utf8)
+        let requests = try wire.split(separator: "\n").map {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }
+        let generations = requests.filter { $0["type"] as? String == "generate" }
+        let tunes = requests.filter { $0["type"] as? String == "tune_mtp" }
+        precondition(generations.count == 2 && tunes.count == 1, "Missing production requests")
+        precondition(generations[0]["memory_saver"] as? Bool == true && generations[1]["memory_saver"] as? Bool == false)
+        precondition(tunes[0]["memory_saver"] as? Bool == true, "Tune did not receive memory policy")
+        precondition(generations[0]["mtp"] as? Bool == true && saver.mtpEnabled, "Memory saving disabled MTP")
+        precondition(saver.conversations[0].messages.count == 4, "Memory saving lost history")
+        saver.ejectModel()
+        precondition(!saver.memorySaverSupported, "Old engine capability survived unload")
+        saver.setMemorySaverEnabled(true)
+        let legacySaver = try await make("mtp-old")
+        precondition(legacySaver.memorySaverEnabled && !legacySaver.memorySaverSupported, "Legacy capability assumed")
+        precondition(legacySaver.recommendedContextLength == nil, "Legacy engine must not fabricate a recommendation")
+        legacySaver.ejectModel(); legacySaver.setMemorySaverEnabled(false)
+        let flashSaver = try await make("dflash-memory-saver")
+        defer { flashSaver.ejectModel() }
+        flashSaver.setMemorySaverEnabled(true)
+        flashSaver.setDFlash2Enabled(true)
+        for _ in 0..<200 where flashSaver.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flashSaver.canTuneDFlash && flashSaver.memorySaverSupported)
+        for saverEnabled in [true, false] {
+            flashSaver.setMemorySaverEnabled(saverEnabled)
+            flashSaver.tuneDFlash()
+            for _ in 0..<200 where flashSaver.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(flashSaver.dflash2Enabled && flashSaver.dflashTuneRows.count == 4)
+        }
+        let flashWire = try String(contentsOf: root.appendingPathComponent("memory-saver-requests.jsonl"), encoding: .utf8)
+        let flashTunes = try flashWire.split(separator: "\n").map {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }.filter { $0["type"] as? String == "tune_dflash" }
+        precondition(flashTunes.count == 2 && flashTunes[0]["memory_saver"] as? Bool == true
+                     && flashTunes[1]["memory_saver"] as? Bool == false, "DFlash Tune did not receive the memory policy")
+        precondition(flashSaver.conversations[0].messages.isEmpty, "DFlash Tune changed history")
+        flashSaver.ejectModel()
+        print("Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability")
+        print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")
+        let flash = try await make("dflash-good")
+        flash.setDFlash2Enabled(true)
+        for _ in 0..<200 where flash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflash2Enabled && flash.dflashActive == true && flash.canTuneDFlash, "One click must install and activate the matching draft")
+        precondition(flash.temperature == 0 && flash.topK == 1 && flash.repetitionPenalty == 1)
+        let history = flash.conversations[0].messages.count
+        try await renderTuneToolbar(flash, "dflash-idle", dflash: true)
+        precondition(!flash.showInspector)
+        flash.tuneDFlash()
+        precondition(flash.isTuningDFlash && !flash.canSend)
+        precondition(!flash.showInspector, "DFlash Tune must preserve the conversation")
+        try await renderTuneToolbar(flash, "dflash-running", dflash: true)
+        for _ in 0..<200 where flash.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflash2Enabled && flash.dflashMode == 2 && flash.dflashTuneRows.count == 4)
+        precondition(flash.conversations[0].messages.count == history, "Tune DFlash entered chat history")
+        try await renderTuneToolbar(flash, "dflash-complete", dflash: true)
+        flash.draft = "use selected mode"; flash.send()
+        for _ in 0..<200 where flash.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.conversations[0].messages.last!.content.contains("\"dflash_mode\": 2"), "Selected DFlash policy must reach production request")
+        flash.tuneDFlash(); flash.cancelDFlashTuning()
+        for _ in 0..<200 where flash.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflashMode == 2 && flash.dflashDownloadError != nil, "Cancelled tuning changed setting")
+        try await renderTuneToolbar(flash, "dflash-cancelled", dflash: true)
+        flash.setDFlash2Enabled(false)
+        for _ in 0..<200 where flash.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflashActive == false, "OFF did not release the resident draft")
+        flash.ejectModel()
+        let flashAgain = try await make("dflash-good")
+        precondition(flashAgain.dflashMode == 2 && flashAgain.dflashTuneRows.count == 4, "DFlash tuning was not restored")
+        flashAgain.setDFlash2Enabled(true)
+        for _ in 0..<200 where flashAgain.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        flashAgain.ejectModel()
+        for name in ["dflash-error", "dflash-malformed", "dflash-invalid", "dflash-mismatch", "dflash-baseline", "dflash-load-error", "dflash-dense"] {
+            let candidate = try await make(name)
+            candidate.setDFlash2Enabled(true)
+            for _ in 0..<200 where candidate.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            if name == "dflash-load-error" {
+                precondition(!candidate.dflash2Enabled && candidate.dflashDownloadError != nil)
+            } else {
+                precondition(candidate.dflash2Enabled && candidate.dflashActive == true, "DFlash activation failed for \(name): \(candidate.dflashDownloadError ?? "no error")")
+                candidate.showInspector = name == "dflash-dense"
+                candidate.tuneDFlash()
+                for _ in 0..<200 where candidate.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+                if name == "dflash-baseline" { precondition(!candidate.dflash2Enabled && candidate.dflashTuneRows.count == 4) }
+                else if name == "dflash-dense" { precondition(candidate.dflashMode == 2 && candidate.dflashDraftPath.hasSuffix("dense")) }
+                else { precondition(candidate.dflashMode == 1 && candidate.dflashTuneRows.isEmpty && candidate.dflashDownloadError != nil) }
+                precondition(candidate.showInspector == (name == "dflash-dense"), "DFlash Tune changed inspector navigation")
+                try await renderTuneToolbar(candidate, name, dflash: true)
+            }
+            candidate.ejectModel()
+        }
+        for name in ["dflash-off-error", "dflash-off-malformed", "dflash-off-missing", "dflash-off-wrong", "dflash-off-silent"] {
+            let candidate = try await make(name)
+            candidate.setDFlash2Enabled(true)
+            for _ in 0..<200 where candidate.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(candidate.dflashActive == true)
+            candidate.setDFlash2Enabled(false)
+            candidate.draft = "next request"
+            precondition(!candidate.canSend, "OFF must wait for resident release")
+            for _ in 0..<1600 where !candidate.canSend { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(candidate.canSend && candidate.dflashDownloadError != nil, "Failed OFF left composer blocked: \(name)")
+            candidate.ejectModel()
+        }
+        print("DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures")
         let tuned = try await make("mtp-good")
         tuned.setMTPEnabled(true)
         for _ in 0..<200 where tuned.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.canTuneMTP && tuned.mtpMaxDepth == 3)
-        let before = tuned.conversations[0].messages.count
+        try await renderTuneToolbar(tuned, "idle")
+        tuned.updateManager.setStatesForCheck(app: .checking, engine: .downloading(release))
+        precondition(tuned.canTuneMTP, "Background updates must not disable MTP tuning")
+        tuned.updateManager.setStatesForCheck(app: .idle, engine: .installing(release))
+        precondition(!tuned.canTuneMTP)
         tuned.tuneMTP()
+        precondition(!tuned.showInspector && !tuned.isTuningMTP, "An ineligible tune must leave the inspector closed")
+        tuned.updateManager.setStatesForCheck(app: .idle, engine: .idle)
+        let before = tuned.conversations[0].messages.count
+        precondition(!tuned.showInspector)
+        tuned.tuneMTP()
+        precondition(!tuned.showInspector, "Header tuning must keep the conversation visible")
         precondition(tuned.isTuningMTP && tuned.isGenerating)
+        try await renderTuneToolbar(tuned, "running")
         tuned.draft = "should wait"; tuned.send()
         precondition(tuned.conversations[0].messages.count == before && !tuned.canSend)
         for _ in 0..<200 where tuned.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.mtpEnabled && tuned.mtpDepth == 2 && tuned.mtpTuneRows.count == 4 && tuned.mtpTuneProgress == 1)
+        precondition(!tuned.showInspector, "Finishing Tune must preserve the user's navigation")
+        try await renderTuneToolbar(tuned, "complete")
         precondition(tuned.conversations[0].messages.count == before, "Tuning must not enter chat history")
         tuned.send()
         for _ in 0..<200 where tuned.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
@@ -40,11 +282,15 @@ import Foundation
         tuned.ejectModel()
         let restoredTune = try await make("mtp-good")
         precondition(restoredTune.mtpEnabled && restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4)
+        restoredTune.showInspector = true
         restoredTune.tuneMTP()
+        precondition(restoredTune.showInspector, "Tune must preserve an already open inspector")
         for _ in 0..<200 where restoredTune.mtpTuneProgress == 0 { try await Task.sleep(for: .milliseconds(10)) }
         restoredTune.cancelMTPTuning()
+        try await renderTuneToolbar(restoredTune, "cancelled")
         for _ in 0..<200 where restoredTune.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4 && restoredTune.mtpError != nil)
+        precondition(restoredTune.showInspector, "Tuning cancellation must stay visible")
         restoredTune.setMTPDepth(3); restoredTune.ejectModel()
         let manual = try await make("mtp-good")
         precondition(manual.mtpDepth == 3, "Manual depth selection must persist")
@@ -53,6 +299,7 @@ import Foundation
             let candidate = try await make(name)
             candidate.setMTPEnabled(true)
             for _ in 0..<200 where candidate.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!candidate.showInspector)
             candidate.tuneMTP()
             for _ in 0..<200 where candidate.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
             if name == "mtp-baseline" {
@@ -62,15 +309,99 @@ import Foundation
             } else {
                 precondition(candidate.mtpDepth == 1 && candidate.mtpEnabled && candidate.mtpError != nil)
             }
+            precondition(!candidate.showInspector, "Baseline, invalid replies and errors must preserve the conversation")
+            try await renderTuneToolbar(candidate, name)
+            if name == "mtp-error" || name == "mtp-malformed" {
+                let visible = try await tuningErrorIsVisible(candidate)
+                precondition(visible, "Tuning error must be rendered inside the 600-point inspector viewport")
+            }
             candidate.ejectModel()
         }
+        print("MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start")
         let old = try await make("mtp-old")
         precondition(old.mtpAvailable && old.mtpMaxDepth == 1 && !old.canTuneMTP)
+        old.tuneMTP()
+        precondition(!old.showInspector && !old.isTuningMTP, "An unsupported engine must leave the inspector closed")
         old.setMTPDepth(3); precondition(old.mtpDepth == 1)
         old.ejectModel()
+        prefs.set(true, forKey: "studio.mtpEnabled")
         let baselineAgain = try await make("mtp-baseline")
-        precondition(!baselineAgain.mtpEnabled && baselineAgain.mtpTuneRows.count == 4, "Baseline winner must also persist")
+        precondition(baselineAgain.mtpEnabled && baselineAgain.mtpTuneRows.count == 4
+            && MTPTuning.winner(baselineAgain.mtpTuneRows) == 0,
+            "Saved baseline results must persist without overriding an explicit global ON")
+        let measuredBaselineRows = baselineAgain.mtpTuneRows
         baselineAgain.ejectModel()
+        // The real StudioModel/CLI pipe/bridge must select per-target heads,
+        // preserve the user's ON preference, and suppress cancelled callbacks.
+        let automatic = StudioModel(conversationFileURL: root.appendingPathComponent("automatic.json"), preferences: prefs)
+        automatic.models = ["auto-dense", "auto-moe", "auto-slow", "auto-fail", "plain"].map {
+            LocalModel(name: $0, path: root.appendingPathComponent($0).path, modelType: "qwen3_5",
+                format: "EXL3", bits: 2, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")
+        }
+        func waitAutomatic() async throws {
+            for _ in 0..<300 where !automatic.engineState.isReady || automatic.mtpDownloading {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            precondition(automatic.engineState.isReady && !automatic.mtpDownloading, "Automatic head load timed out")
+        }
+        prefs.set(true, forKey: "studio.mtpEnabled")
+        // Migrate an old, foreign head: inspection must reject it and install
+        // the managed head selected from the new target, never forward it.
+        prefs.set("/tmp/mlxl3-fixture-mtp-moe", forKey: "studio.mtpHead.\(root.appendingPathComponent("auto-dense").path)")
+        automatic.selectModel("auto-dense"); try await waitAutomatic()
+        precondition(automatic.mtpHeadPath == "/tmp/mlxl3-fixture-mtp-dense" && automatic.mtpEnabled && automatic.mtpActive == true,
+            "Dense head: \(automatic.mtpHeadPath), enabled=\(automatic.mtpEnabled), active=\(String(describing: automatic.mtpActive)), error=\(String(describing: automatic.mtpError))")
+        automatic.selectModel("auto-moe"); try await waitAutomatic()
+        precondition(automatic.mtpHeadPath == "/tmp/mlxl3-fixture-mtp-moe" && automatic.mtpEnabled && automatic.mtpActive == true)
+        MTPTuning.save(MTPSelection(key: MTPConfigurationKey(
+            modelPath: root.appendingPathComponent("auto-dense").path,
+            headPath: "/tmp/mlxl3-fixture-mtp-dense", runtime: "fixture-runtime:auto-dense"),
+            depth: 0, rows: measuredBaselineRows, tunedAt: Date()), preferences: prefs)
+        automatic.selectModel("auto-dense"); try await waitAutomatic()
+        precondition(automatic.mtpHeadPath == "/tmp/mlxl3-fixture-mtp-dense" && automatic.mtpActive == true,
+            "An explicit global ON must override an old measured baseline")
+        automatic.setMTPEnabled(false)
+        for _ in 0..<200 where automatic.mtpActive != false { try await Task.sleep(for: .milliseconds(10)) }
+        precondition(automatic.mtpActive == false && !prefs.bool(forKey: "studio.mtpEnabled"))
+        automatic.selectModel("auto-moe"); try await waitAutomatic()
+        precondition(!automatic.mtpEnabled && automatic.mtpActive == nil, "MTP OFF must stay off on model switch")
+        automatic.setMTPEnabled(true); try await waitAutomatic()
+        automatic.selectModel("auto-slow")
+        for _ in 0..<200 where automatic.mtpDownloadCompleted == 0 { try await Task.sleep(for: .milliseconds(10)) }
+        precondition(automatic.mtpDownloading)
+        automatic.selectModel("auto-moe"); try await waitAutomatic()
+        try await Task.sleep(for: .milliseconds(1100))
+        precondition(automatic.selectedModelName == "auto-moe" && automatic.mtpHeadPath.hasSuffix("-moe")
+            && automatic.mtpActive == true && !automatic.mtpDownloading && automatic.mtpError == nil)
+        automatic.selectModel("auto-fail"); try await waitAutomatic()
+        precondition(automatic.mtpError?.contains("fixture head download failed") == true && !automatic.mtpEnabled)
+        for _ in 0..<100 {
+            let log = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8)
+            if log.contains("\"model\": \"auto-fail\"") { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        automatic.selectModel("plain"); try await waitAutomatic()
+        precondition(!automatic.mtpAvailable && automatic.mtpHeadPath.isEmpty && !automatic.mtpDownloading)
+        automatic.selectModel("auto-dense"); try await waitAutomatic()
+        precondition(automatic.mtpActive == true && automatic.mtpError == nil, "Failure must not disable the saved ON preference")
+        automatic.ejectModel()
+        let operations = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8)
+            .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+        let configured = operations.compactMap { $0["request"] as? [String: Any] }
+        precondition(configured.contains { $0["enabled"] as? Bool == false }, "MTP OFF did not reach the engine")
+        precondition(operations.contains {
+            $0["model"] as? String == "auto-fail"
+                && ($0["request"] as? [String: Any])?["enabled"] as? Bool == false
+        }, "Failed preparation did not unload the engine head")
+        for _ in 0..<200 where operations.contains(where: {
+            ($0["pid"] as? Int32).map { kill($0, 0) == 0 } ?? false
+        }) { try await Task.sleep(for: .milliseconds(20)) }
+        for operation in operations {
+            if let pid = operation["pid"] as? Int32 {
+                precondition(kill(pid, 0) == -1 && errno == ESRCH, "Previous engine/download process still lives")
+            }
+        }
+        print("Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup")
         let key = MTPConfigurationKey(modelPath: root.path, headPath: "/tmp/mlxl3-fixture-mtp", runtime: "fixture-runtime:mtp-good")
         precondition(MTPTuning.load(key: key, preferences: prefs)?.depth == 3)
         precondition(MTPTuning.load(key: MTPConfigurationKey(modelPath: root.path, headPath: key.headPath, runtime: "new-engine"), preferences: prefs) == nil)
@@ -244,17 +575,6 @@ import Foundation
         message.fail("interrupted")
         precondition(ChatMessage(snapshot: message.snapshot)!.toolActivities[0].state == .failed)
         precondition(SemanticVersion("1.0") == SemanticVersion("1.0.0"))
-        let dflash = StudioModel(conversationFileURL: root.appendingPathComponent("dflash.json"), preferences: prefs)
-        dflash.models = [LocalModel(name: "qwen3.6-35b-a3b", path: root.path + "/Qwen3.6-35B-A3B",
-                                    modelType: "qwen3_5_moe", format: "EXL3", bits: 2.49,
-                                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
-        dflash.selectedModelName = "qwen3.6-35b-a3b"
-        dflash.setDFlash2Enabled(true)
-        for _ in 0..<200 where dflash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
-        precondition(dflash.dflash2Enabled && dflash.dflashDraftPath == "/tmp/mlxl3-fixture-dflash")
-        precondition(dflash.temperature == 0 && dflash.topK == 1 && dflash.repetitionPenalty == 1)
-        dflash.setDFlash2Enabled(false)
-        precondition(!dflash.dflash2Enabled)
         let renamed = try await make("renamed")
         precondition(renamed.mtpAvailable, "MTP capability must come from the engine")
         renamed.setMTPEnabled(true)
@@ -268,25 +588,26 @@ import Foundation
         precondition(!renamed.dflash2Available && renamed.runtimeIdentity == nil)
         prefs.set(true, forKey: "studio.mtpEnabled")
         let legacyHead = prefs.string(forKey: "studio.mtpHeadPath")!
-        let flash = try await make("flash", type: "qwen4_exp")
-        precondition(flash.mtpBuiltIn && flash.mtpAvailable && flash.mtpMaxDepth == 1 && !flash.canTuneMTP)
-        precondition(!flash.mtpEnabled && flash.mtpEffectiveHeadPath == flashModel.path, "Another model's MTP setting leaked to a new Flash model")
-        let flashReady = flash.engineState
-        flash.engineState = .loading("flash")
-        flash.setMTPEnabled(true)
-        precondition(!flash.mtpEnabled && !flash.mtpDownloading, "Built-in MTP activated before the runtime was ready")
-        flash.engineState = flashReady
-        flash.setMTPEnabled(true)
-        precondition(flash.mtpEnabled && !flash.mtpDownloading && flash.mtpHeadPath == legacyHead)
+        let flashNext = try await make("flash", type: "qwen4_exp")
+        precondition(flashNext.mtpBuiltIn && flashNext.mtpAvailable && flashNext.mtpMaxDepth == 1 && !flashNext.canTuneMTP)
+        precondition(!flashNext.mtpEnabled && flashNext.mtpEffectiveHeadPath == flashModel.path, "Another model's MTP setting leaked to a new Flash model")
+        let flashReady = flashNext.engineState
+        flashNext.engineState = .loading("flash")
+        flashNext.setMTPEnabled(true)
+        precondition(!flashNext.mtpEnabled && !flashNext.mtpDownloading, "Built-in MTP activated before the runtime was ready")
+        flashNext.engineState = flashReady
+        flashNext.setMTPEnabled(true)
+        precondition(flashNext.mtpEnabled && !flashNext.mtpDownloading && flashNext.mtpHeadPath.isEmpty)
         precondition(prefs.string(forKey: "studio.mtpHeadPath") == legacyHead, "Built-in MTP replaced the other model's head")
-        precondition(flash.temperature == 0 && flash.topK == 1 && flash.repetitionPenalty == 1)
-        flash.setMTPDepth(3); precondition(flash.mtpDepth == 1)
-        flash.draft = "salut"; flash.send()
-        for _ in 0..<200 where flash.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
-        let request = try JSONSerialization.jsonObject(with: Data(flash.conversations[0].messages.last!.content.utf8)) as! [String: Any]
+        precondition(prefs.string(forKey: "studio.mtpHead.\(root.path)") == legacyHead, "Built-in MTP replaced the saved per-model head")
+        precondition(flashNext.temperature == 0 && flashNext.topK == 1 && flashNext.repetitionPenalty == 1)
+        flashNext.setMTPDepth(3); precondition(flashNext.mtpDepth == 1)
+        flashNext.draft = "salut"; flashNext.send()
+        for _ in 0..<200 where flashNext.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        let request = try JSONSerialization.jsonObject(with: Data(flashNext.conversations[0].messages.last!.content.utf8)) as! [String: Any]
         precondition(request["mtp"] as? Bool == true && request["mtp_depth"] as? Int == 1)
         precondition(request["mtp_head_path"] as? String == flashModel.path, "Built-in head path did not reach the bridge")
-        flash.ejectModel()
+        flashNext.ejectModel()
         prefs.removeObject(forKey: "studio.mtpHeadPath")
         let flashRestored = try await make("flash", type: "qwen4_exp")
         precondition(flashRestored.mtpEnabled && flashRestored.mtpDepth == 1 && flashRestored.mtpHeadPath.isEmpty, "Built-in MTP required an external head after restart")
@@ -294,6 +615,27 @@ import Foundation
         let flashOff = try await make("flash", type: "qwen4_exp")
         precondition(!flashOff.mtpEnabled && flashOff.mtpDepth == 1, "Built-in MTP OFF selection did not persist")
         flashOff.ejectModel()
+        let flashConfigured = try await make("flash-config", type: "qwen4_exp")
+        flashConfigured.setMTPEnabled(true)
+        for _ in 0..<200 where flashConfigured.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flashConfigured.mtpEnabled && flashConfigured.mtpActive == true, "Built-in head was not configured")
+        flashConfigured.setMTPEnabled(false)
+        for _ in 0..<200 where flashConfigured.mtpActive != false { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!flashConfigured.mtpEnabled && flashConfigured.mtpActive == false, "Built-in head was not released")
+        let flashOperations = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8)
+            .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+            .filter { $0["model"] as? String == "flash-config" }
+        let flashOn = flashOperations.first { ($0["request"] as? [String: Any])?["enabled"] as? Bool == true }!
+        precondition((flashOn["request"] as! [String: Any])["mtp_head_path"] as? String == flashModel.path)
+        flashConfigured.ejectModel()
+        let flashCancelled = try await make("flash-config", type: "qwen4_exp")
+        let flashOperationCount = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8).split(separator: "\n").count
+        flashCancelled.setMTPEnabled(true)
+        flashCancelled.ejectModel()
+        try await Task.sleep(for: .milliseconds(100))
+        precondition(!flashCancelled.mtpDownloading && flashCancelled.engineState == .idle)
+        let flashAfterCancel = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8).split(separator: "\n").count
+        precondition(flashAfterCancel == flashOperationCount, "Cancelled built-in preparation reached the bridge")
         let complete = try JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"complete","stats":{"ttft_seconds":0.4,"prefill_tps":300,"decode_tps":16,"prompt_tokens":300,"generated_tokens":42,"model_size_gb":12.5,"elapsed_seconds":8,"end_to_end_ttft_seconds":0.5,"tool_rounds":1,"dflash_proposed_tokens":50,"dflash_accepted_tokens":28,"memory":{"mlx_active_bytes":12000000000,"mlx_cache_bytes":500000000,"mlx_peak_bytes":13000000000,"process_footprint_bytes":14000000000,"process_lifetime_peak_bytes":15000000000}}}"#.utf8))
         precondition(complete.stats?.peakMemoryGB == nil && complete.stats?.modelSizeGB == 12.5)
         precondition(complete.stats?.memory?.processFootprintBytes == 14_000_000_000)

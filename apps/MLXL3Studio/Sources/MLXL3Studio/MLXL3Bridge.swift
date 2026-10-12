@@ -235,9 +235,33 @@ final class MLXL3Bridge: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }
 
-    func tuneMTP(requestID: String, headPath: String) throws {
+    func setMTP(requestID: String, enabled: Bool, headPath: String) throws {
         guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
-        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath])
+        var data = try JSONSerialization.data(withJSONObject: ["type": "set_mtp", "request_id": requestID,
+            "enabled": enabled, "mtp_head_path": headPath])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
+    func tuneMTP(requestID: String, headPath: String, memorySaver: Bool = false) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_mtp", "request_id": requestID, "mtp_head_path": headPath, "memory_saver": memorySaver])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
+    func setDFlash(requestID: String, enabled: Bool, draftPath: String) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "set_dflash", "request_id": requestID,
+            "enabled": enabled, "dflash_draft_path": draftPath])
+        data.append(0x0A)
+        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+    }
+
+    func tuneDFlash(requestID: String, draftPath: String, memorySaver: Bool = false) throws {
+        guard let process, process.isRunning, let inputPipe else { throw MLXL3BridgeError.invalidResponse }
+        var data = try JSONSerialization.data(withJSONObject: ["type": "tune_dflash", "request_id": requestID,
+            "dflash_draft_path": draftPath, "memory_saver": memorySaver])
         data.append(0x0A)
         try inputPipe.fileHandleForWriting.write(contentsOf: data)
     }

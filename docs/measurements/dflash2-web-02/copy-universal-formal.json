@@ -1,0 +1,29 @@
+{
+  "status": "failed",
+  "checks": [
+    {
+      "name": "copy-universal-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.40243041596841067
+    },
+    {
+      "name": "copy-universal-kani-transition",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "dflash_copy_records_committed_prefix_and_disables_on_refusal"
+      ],
+      "exit": 1,
+      "seconds": 120.27423658303451
+    }
+  ]
+}

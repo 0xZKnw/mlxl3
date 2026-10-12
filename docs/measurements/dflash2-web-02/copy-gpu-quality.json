@@ -1,0 +1,116 @@
+{
+  "status": "validated_physical_quality",
+  "identity": "copy-identity.json",
+  "checks": [
+    {
+      "name": "copy-adversarial",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+        "--exact",
+        "tests::dflash_copy_accepts_rejects_and_preserves_draft_cache",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 15.008292666985653,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "copy-target",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--exact",
+        "qwen35::tests::dflash_capture_verification_and_commits_match_serial_states",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 30.335555500001647,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "copy-bridge-copies",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+        "--exact",
+        "tests::bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 51.40349774999777,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "copy-tune-copies",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+        "--exact",
+        "mtp_tune::tests::dflash_copy_tune_uses_the_chat_policy",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 24.491685332963243,
+      "nonempty_test_result": true
+    },
+    {
+      "name": "copy-bridge-checker",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/.venv/bin/python",
+        "scripts/check_dflash2.py",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2",
+        "--output",
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-web-02/copy-bridge.json",
+        "--timeout",
+        "300",
+        "--foreign-draft",
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-DFlash2"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 48.81262283399701
+    }
+  ],
+  "conditions": {
+    "power": {
+      "exit": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t78%; discharging; 6:31 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "exit": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "exit": 0,
+      "stdout": "vm.swapusage: total = 6144.00M  used = 4824.94M  free = 1319.06M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "parity": true,
+  "negative_evidence": "copy-gpu-quality-fixture-failure.json",
+  "coverage": {
+    "forced_copy_blocks": 9,
+    "target_verifies": 24,
+    "target_commits": 108,
+    "finite_bit_exact_target_states": 80,
+    "bridge_nonempty_completions": 35,
+    "bridge_verified_copy_blocks": 96,
+    "tune_samples": 4,
+    "real_signed_bridge_checks": 45,
+    "tune_key_shared_with_ready": true
+  },
+  "formal_scope": "Partial bounded CPU checks, full history contracts timed out; not a GPU/FFI/concurrency proof"
+}

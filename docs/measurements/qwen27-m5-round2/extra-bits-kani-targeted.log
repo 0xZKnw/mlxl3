@@ -1,0 +1,168 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.3.1 (/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:206:17
+    |
+206 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.06s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.3.1 (/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+Checking harness contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/460332a93d977e7e/out/mlxl3_native-460332a93d977e7e__RNvNtCskf6tXET4RpD_12mlxl3_native9contracts70dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Runtime Symex: 0.00826179s
+size of program expression: 1181 steps
+slicing removed 553 assignments
+Generated 24 VCC(s), 20 remaining after simplification
+Runtime Postprocess Equation: 0.000188583s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00130583s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.4959e-05s
+Solving with CaDiCaL 3.0.0
+1371 variables, 4677 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000110708s
+Runtime decision procedure: 0.00147546s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1372 variables, 4678 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 7.4e-05s
+Runtime decision procedure: 9.8791e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1373 variables, 4679 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 7.575e-05s
+Runtime decision procedure: 9.9792e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1374 variables, 4680 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 8.6541e-05s
+Runtime decision procedure: 0.00010775s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1375 variables, 4681 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 3.4209e-05s
+Runtime decision procedure: 5.4708e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1376 variables, 4682 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000713208s
+Runtime decision procedure: 0.000734459s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1377 variables, 4683 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.000549417s
+Runtime decision procedure: 0.00056275s
+
+RESULTS:
+Check 1: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: input == 5120 && m5 && mul1"
+	 - Location: native/src/contracts.rs:36:9 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 2: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:37:31 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 3: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/contracts.rs:37:31 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 4: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/contracts.rs:37:31 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 5: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:37:31 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 6: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: output > 0 && output % 128 == 0"
+	 - Location: native/src/contracts.rs:37:9 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 7: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (k == 2 && (output == 16384 || output == 34816)) ||
+(k == 3 && output == 248320) ||
+(extra_bits && (k == 1 || k == 3) && output == 34816)"
+	 - Location: native/src/contracts.rs:38:9 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 8: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: enabled && k == 2"
+	 - Location: native/src/contracts.rs:44:5 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 9: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: enabled && k == 3"
+	 - Location: native/src/contracts.rs:45:5 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 10: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: !enabled && input == 5120 && k == 2"
+	 - Location: native/src/contracts.rs:46:5 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 11: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: enabled && k == 1"
+	 - Location: native/src/contracts.rs:47:5 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 12: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.cover.5
+	 - Status: SATISFIED
+	 - Description: "cover condition: enabled && k == 3 && output == 34816"
+	 - Location: native/src/contracts.rs:48:5 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+Check 13: contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries.cover.6
+	 - Status: SATISFIED
+	 - Description: "cover condition: !enabled && input == 5120 && output == 34816 && k == 1 && !extra_bits"
+	 - Location: native/src/contracts.rs:49:5 in function contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries
+
+
+SUMMARY:
+ ** 0 of 7 failed
+
+ ** 6 of 6 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.06081233s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

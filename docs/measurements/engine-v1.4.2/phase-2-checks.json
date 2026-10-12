@@ -1,0 +1,86 @@
+[
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "log": "lookup-final-fmt.log",
+    "exit_code": 0,
+    "elapsed_s": 0.183102416
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--release",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "log": "lookup-final-clippy.log",
+    "exit_code": 0,
+    "elapsed_s": 3.321419875
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "log": "lookup-final-rust-full.log",
+    "exit_code": 0,
+    "elapsed_s": 41.602478708
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "log": "lookup-final-clippy-cpu.log",
+    "exit_code": 0,
+    "elapsed_s": 1.2764168339999955
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "log": "lookup-final-rust-cpu.log",
+    "exit_code": 0,
+    "elapsed_s": 2.6626300830000034
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "log": "lookup-final-build.log",
+    "exit_code": 0,
+    "elapsed_s": 0.12672391699999963
+  }
+]

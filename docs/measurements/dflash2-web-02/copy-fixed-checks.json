@@ -1,0 +1,77 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "copy-fixed-format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 0.23238583299098536
+    },
+    {
+      "name": "copy-fixed-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.18391433299984783
+    },
+    {
+      "name": "copy-fixed-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "seconds": 3.1009758750442415
+    },
+    {
+      "name": "copy-fixed-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2.5134694169973955
+    },
+    {
+      "name": "copy-fixed-full",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 39.601843459007796
+    },
+    {
+      "name": "copy-fixed-package",
+      "command": [
+        "/bin/zsh",
+        "scripts/build-macos-app.sh"
+      ],
+      "exit": 0,
+      "seconds": 8.10575579100987
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "status": "failed",
+  "parity": false,
+  "models": [
+    {
+      "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+      "pid": 46744,
+      "head": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+      "ready": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "dflash_supported": false,
+        "load_seconds": 2.394933958,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "mlx_version": "0.32.2",
+        "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "model_context_limit": 262144,
+        "modules": 401,
+        "mtp_auto_download_supported": true,
+        "mtp_configure_supported": true,
+        "mtp_max_depth": 3,
+        "mtp_supported": true,
+        "mtp_tune_supported": true,
+        "mtp_tuning_key": "0ecfe80cf1bcb3e2:1.4.0:c73c2a8414f6-dirty:release:0.32.2:Apple M5:4096",
+        "resident_gb": 9.696705133,
+        "runtime_commit": "c73c2a8414f6-dirty",
+        "runtime_executable": "/Users/justin/.codex/worktrees/pr23-review/mix-stq1_0/build/mtp-dense-candidate/mlxl3-rs",
+        "runtime_profile": "release",
+        "runtime_version": "1.4.0",
+        "type": "ready"
+      },
+      "status": "failed",
+      "cases": [],
+      "before": {
+        "memory": {
+          "mlx_active_bytes": 9172153212,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 9216777084,
+          "process_footprint_bytes": 9341326328,
+          "process_lifetime_peak_bytes": 11987639112
+        },
+        "mtp_active": false,
+        "mtp_head_path": null,
+        "request_id": "configure-1",
+        "type": "mtp_status"
+      },
+      "loaded": {
+        "memory": {
+          "mlx_active_bytes": 9411084668,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 9411085180,
+          "process_footprint_bytes": 9580516536,
+          "process_lifetime_peak_bytes": 11987639112
+        },
+        "mtp_active": true,
+        "mtp_head_path": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+        "request_id": "configure-2",
+        "type": "mtp_status"
+      },
+      "reused": {
+        "memory": {
+          "mlx_active_bytes": 9411084156,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 9411085180,
+          "process_footprint_bytes": 9580516536,
+          "process_lifetime_peak_bytes": 11987639112
+        },
+        "mtp_active": true,
+        "mtp_head_path": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+        "request_id": "configure-3",
+        "type": "mtp_status"
+      },
+      "error": "RuntimeError: MTP load/reuse memory mismatch"
+    }
+  ],
+  "error": "RuntimeError: MTP load/reuse memory mismatch"
+}

@@ -1,0 +1,48 @@
+Traceback (most recent call last):
+  File "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_gdn_norm_gate.py", line 115, in <module>
+    result = run(args.iterations)
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/henko/Documents/Codex/2026-10-05/chec/mlxl3/benchmarks/benchmark_gdn_norm_gate.py", line 84, in run
+    mx.eval(a, b)
+RuntimeError: [metal::Device] Unable to build metal library from source
+mlx/backend/metal/kernels/utils.h:478:2: error: unexpected type name 'uint': expected expression
++uint lane = thread_index_in_simdgroup;
+ ^
+mlx/backend/metal/kernels/utils.h:478:6: error: expected ';' after expression
++uint lane = thread_index_in_simdgroup;
+     ^
+     ;
+mlx/backend/metal/kernels/utils.h:478:7: error: use of undeclared identifier 'lane'
++uint lane = thread_index_in_simdgroup;
+      ^
+mlx/backend/metal/kernels/utils.h:480:26: error: use of undeclared identifier 'lane'
+uint base = row * 128u + lane * 4u;
+                         ^
+mlx/backend/metal/kernels/utils.h:490:6: error: use of undeclared identifier 'lane'
+sums[lane] = lane == 0u ? acc : 0.0f;
+     ^
+mlx/backend/metal/kernels/utils.h:490:14: error: use of undeclared identifier 'lane'
+sums[lane] = lane == 0u ? acc : 0.0f;
+             ^
+mlx/backend/metal/kernels/utils.h:492:21: error: use of undeclared identifier 'lane'; did you mean 'base'?
+acc = simd_sum(sums[lane]);
+                    ^~~~
+                    base
+mlx/backend/metal/kernels/utils.h:480:6: note: 'base' declared here
+uint base = row * 128u + lane * 4u;
+     ^
+mlx/backend/metal/kernels/utils.h:493:5: error: use of undeclared identifier 'lane'
+if (lane == 0u) inv[0] = metal::precise::rsqrt(acc / 128.0f + eps[0]);
+    ^
+mlx/backend/metal/kernels/utils.h:493:66: error: subscripted value is not an array, pointer, or vector
+if (lane == 0u) inv[0] = metal::precise::rsqrt(acc / 128.0f + eps[0]);
+                                                              ~~~^~
+mlx/backend/metal/kernels/utils.h:497:26: error: use of undeclared identifier 'lane'; did you mean 'base'?
+    half normed = weight[lane * 4u + i] * scaled;
+                         ^~~~
+                         base
+mlx/backend/metal/kernels/utils.h:480:6: note: 'base' declared here
+uint base = row * 128u + lane * 4u;
+     ^
+
+

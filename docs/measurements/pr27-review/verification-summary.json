@@ -1,0 +1,250 @@
+{
+  "status": "review_complete_with_findings",
+  "base": "fba63b840f9b9997bcb38fb4d5d5c96ef26a35d9",
+  "head": "f574bc1d256c2349a4f2edac2ef0e3aa9198137d",
+  "production_sources_changed": false,
+  "remote_writes": false,
+  "findings": [
+    {
+      "priority": "P2",
+      "file": "benchmarks/benchmark_smallm_inventory.py",
+      "lines": [
+        87,
+        88
+      ],
+      "property": "non-finite dependent output must fail before timing and invalidate parity",
+      "result": "counterexample reproduced with actual MLX/shaders and 16 synthetic shapes, 80 rows, 160 non-finite eight-step outputs; paired replaced solely with untimed evaluation",
+      "evidence": [
+        "nonfinite-inventory-repro.log",
+        "nonfinite-inventory-aligned-repro.log",
+        "nonfinite-inventory-result.json"
+      ]
+    },
+    {
+      "priority": "P2",
+      "file": "benchmarks/benchmark_smallm_bridge.py",
+      "lines": [
+        67,
+        72
+      ],
+      "property": "MTP accepted/proposed/block counts must be equal between variants for attribution of timings to the exact kernel change",
+      "result": "real NDJSON child processes with identical fingerprints but (128,256,128)/(127,258,129) counters accepted as complete/parity=true",
+      "evidence": [
+        "bridge-repros.log",
+        "counter-change-result.json"
+      ]
+    }
+  ],
+  "checks": {
+    "format_lint_py_compile": {
+      "files": 7,
+      "all_passed": true,
+      "commands": [
+        "ruff format --check benchmarks/benchmark_smallm*.py tests/test_smallm_benchmark.py tests/test_qmm_tiles.py",
+        "ruff check benchmarks/benchmark_smallm*.py tests/test_smallm_benchmark.py tests/test_qmm_tiles.py",
+        "python -m py_compile benchmarks/benchmark_smallm*.py tests/test_smallm_benchmark.py tests/test_qmm_tiles.py"
+      ]
+    },
+    "focused": {
+      "command": "python -m pytest -q tests/test_smallm_benchmark.py tests/test_qmm_tiles.py",
+      "passed": 95,
+      "skipped": 0,
+      "log": "focused-tests.log"
+    },
+    "full_native_python": {
+      "command": "python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py",
+      "passed": 258,
+      "skipped": 0,
+      "log": "native-python-suite.log"
+    },
+    "independent_bridge_integration": {
+      "command": "python -m pytest -q docs/measurements/pr27-review/test_review.py -k bridge",
+      "passed": 4,
+      "expected_regression_failures": 1,
+      "deselected": 1,
+      "coverage": [
+        "invalid JSON",
+        "EOF",
+        "silent child (2s deadline)",
+        "text divergence",
+        "MTP counter divergence",
+        "all child PIDs reaped"
+      ]
+    },
+    "independent_inventory": {
+      "command": "python -m pytest -q docs/measurements/pr27-review/test_review.py::test_inventory_rejects_nonfinite_dependent_outputs",
+      "expected_regression_failures": 1,
+      "timings_measured": false,
+      "fixture_header_aligned_to": 8
+    },
+    "crosshair": {
+      "version": "0.0.101",
+      "command": "crosshair check benchmarks/benchmark_smallm.py --per_condition_timeout 30 --per_path_timeout 5 --report_all",
+      "property": "layout returned mb*groups covers rows; valid rows2..8, positive128-aligned dimensions, symbolic grouped/k",
+      "result": "Not confirmed; no counterexample found; unverified",
+      "classification": "limited symbolic counterexample search",
+      "log": "crosshair.log"
+    },
+    "artifact_audit": {
+      "base": "fba63b840f9b9997bcb38fb4d5d5c96ef26a35d9",
+      "head": "f574bc1d256c2349a4f2edac2ef0e3aa9198137d",
+      "artifacts_checked": 78,
+      "artifact_errors": [],
+      "sources_checked": 14,
+      "source_errors": [],
+      "json_files": 16,
+      "bridge": {
+        "mb3-bridge-256.json": {
+          "status": "failed",
+          "parity": false,
+          "runs": 5,
+          "complete": 4,
+          "fingerprints": 1,
+          "counter_sets": 1,
+          "text_hash_valid": true
+        },
+        "mb3-bridge-ac-256.json": {
+          "status": "complete",
+          "parity": true,
+          "runs": 8,
+          "complete": 8,
+          "fingerprints": 1,
+          "counter_sets": 1,
+          "text_hash_valid": true
+        }
+      },
+      "verify_paired_gain_recomputed": 4.70276958599114,
+      "verify_reported_gain": 4.70276958599114,
+      "native_diff": "",
+      "prototype_patch_sha_matches": true
+    },
+    "ci": {
+      "runs": [
+        37638124738,
+        37638124835
+      ],
+      "jobs_passed": 4,
+      "python_tools_per_os": 258,
+      "rust_per_os": 51,
+      "rust_ignored_linux": 2,
+      "rust_ignored_macos": 3,
+      "desktop_python_passed": 260,
+      "desktop_python_skipped": 4,
+      "desktop_e2e": "passed",
+      "kani": {
+        "harnesses": 34,
+        "successful_harnesses": 34,
+        "obligation_statuses": {
+          "SUCCESS": 4763,
+          "UNREACHABLE": 70,
+          "SATISFIED": 80
+        },
+        "failed_or_unknown": {},
+        "harness_names": [
+          "codec::verification::exl3_permutation_and_inverse_are_bijections",
+          "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+          "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+          "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+          "contracts::verification::qmv_shape_matches_wide_arithmetic",
+          "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+          "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+          "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+          "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+          "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+          "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+          "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+          "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+          "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+          "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+          "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+          "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+          "contracts::mtp_add_norm_launch_bounds",
+          "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+          "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+          "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+          "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+          "hub::verification::repository_names_have_one_nonempty_safe_separator",
+          "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+          "mtp::managed_mtp_never_crosses_architectures",
+          "registry::verification::model_name_validation_matches_the_registry_contract",
+          "speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix",
+          "speculative::verification::adaptive_work_never_exceeds_the_existing_budget",
+          "speculative::verification::speculative_work_reserves_target_within_both_budgets",
+          "speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets",
+          "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+          "speculative::verification::mtp_all_depths_commit_target_prefix_within_budgets",
+          "speculative::verification::tuning_requires_parity_and_nonzero_acceptance",
+          "tool_call::verification::marker_suffix_is_the_longest_possible_prefix"
+        ]
+      },
+      "checkout": {
+        "ci_checked_sha": "1d6e01d4c2da5118c54bc20d264e76832aa6ce09",
+        "pr_head": "f574bc1d256c2349a4f2edac2ef0e3aa9198137d",
+        "different_files": [
+          "README.md"
+        ]
+      },
+      "kani_scope": "pre-existing bounded Rust CPU contracts, original bounds unchanged; not Python/Metal/MLX/FFI/concurrency proof"
+    },
+    "final_review_file_checks": [
+      {
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "ruff",
+          "format",
+          "--check",
+          "/Users/justin/.codex/worktrees/pr27-review/mix-stq1_0/docs/measurements/pr27-review/test_review.py"
+        ],
+        "exit": 0,
+        "output": "1 file already formatted\n"
+      },
+      {
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "ruff",
+          "check",
+          "/Users/justin/.codex/worktrees/pr27-review/mix-stq1_0/docs/measurements/pr27-review/test_review.py"
+        ],
+        "exit": 0,
+        "output": "All checks passed!\n"
+      },
+      {
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "py_compile",
+          "/Users/justin/.codex/worktrees/pr27-review/mix-stq1_0/docs/measurements/pr27-review/test_review.py"
+        ],
+        "exit": 0,
+        "output": ""
+      },
+      {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit": 0,
+        "output": ""
+      }
+    ]
+  },
+  "versions": {
+    "python": "3.12.14",
+    "numpy": "2.5.2",
+    "pytest_local": "9.1.1",
+    "pytest_ci": "8.4.2",
+    "ruff": "0.16.5",
+    "mlx_for_untimed_synthetic_test": "0.32.2"
+  },
+  "limits": [
+    "full checkpoint numerical/MTP state/KV parity not independently rerun",
+    "no new speed, RAM, power or thermal measurement",
+    "historical prototype binary and gputrace outside Git not executed",
+    "no deductive Python proof; CrossHair did not confirm layout",
+    "two expected regression-test failures retained for this review, production source unchanged"
+  ],
+  "outstanding_review_processes": 0
+}

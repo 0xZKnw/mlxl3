@@ -1,0 +1,67 @@
+{
+  "status": "rejected_and_withdrawn",
+  "reason": "No >=3% gain in D2 screen; copy confirmation gate not met. Code median regressed, with drift, not a proven stable regression. No BAAB/D3/compact perf rerun.",
+  "summary": {
+    "short": {
+      "decode_tps": {
+        "A": 57.01113611802301,
+        "B": 57.15813366308491,
+        "change_percent": 0.2578400555947269
+      },
+      "prefill_tps": {
+        "A": 201.51382340988604,
+        "B": 201.22202584882126,
+        "change_percent": -0.1448027515567829
+      },
+      "ttft_seconds": {
+        "A": 0.13487956275000001,
+        "B": 0.13486234375,
+        "change_percent": -0.012766203899938766
+      },
+      "elapsed_seconds": {
+        "A": 2.36316937525,
+        "B": 2.3574965105,
+        "change_percent": -0.24005324414801965
+      }
+    },
+    "document": {
+      "decode_tps": {
+        "A": 63.201349025913075,
+        "B": 60.70833565700343,
+        "change_percent": -3.9445572085613057
+      },
+      "prefill_tps": {
+        "A": 220.83379903609324,
+        "B": 218.82438797683534,
+        "change_percent": -0.9099200702196275
+      },
+      "ttft_seconds": {
+        "A": 0.19971045850000002,
+        "B": 0.2029152085,
+        "change_percent": 1.6046981335231303
+      },
+      "elapsed_seconds": {
+        "A": 2.2096216249999996,
+        "B": 2.304944615,
+        "change_percent": 4.313996067086845
+      }
+    }
+  },
+  "parity": true,
+  "source_identity": "async-identity.json",
+  "raw": "async-stock-code-abba/results.json",
+  "formal": "Array/CABI not verified: Kani ICE/CBMC parse failure",
+  "prototype": "async-prototype.patch plus archived complete source snapshot",
+  "remaining": "Target layer pipelining is a distinct candidate not prototyped; no unsupported speed claim.",
+  "per_label_drift_percent": {
+    "A": {
+      "short": -2.2252570861193255,
+      "document": 3.000382817893721
+    },
+    "B": {
+      "short": -3.3248872447547706,
+      "document": 14.614000728706689
+    }
+  },
+  "draft_counts_unchanged": "All eight measured repetitions per prompt preserve same proposed/accepted/blocks across env0/1: FR106/74/53, code94/80/47"
+}

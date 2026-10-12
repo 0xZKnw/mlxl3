@@ -1,0 +1,72 @@
+{
+  "ci-native-linux": {
+    "status_counts": {},
+    "summary": [
+      "2026-10-07T16:39:11.8063227Z test result: ok. 37 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+      "2026-10-07T16:39:11.8081809Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-07T16:39:11.9076212Z test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+      "2026-10-07T16:39:11.9101296Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-07T16:39:12.0658512Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-07T16:40:03.1041242Z 273 passed in 44.33s"
+    ],
+    "checkout_shas": [
+      "4c6c8925f27617102cf626620edb2419d4b01a07"
+    ],
+    "warning_count": 0,
+    "warning_examples": []
+  },
+  "ci-native-macos": {
+    "status_counts": {},
+    "summary": [
+      "2026-10-07T16:40:36.8586460Z test result: ok. 37 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+      "2026-10-07T16:40:36.8650590Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-07T16:40:37.1619790Z test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s",
+      "2026-10-07T16:40:37.1738660Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-07T16:40:37.7277580Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-07T16:42:11.0334810Z 273 passed in 77.58s (0:01:17)"
+    ],
+    "checkout_shas": [
+      "4c6c8925f27617102cf626620edb2419d4b01a07"
+    ],
+    "warning_count": 3,
+    "warning_examples": [
+      "warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6"
+    ]
+  },
+  "ci-desktop": {
+    "status_counts": {},
+    "summary": [
+      "2026-10-07T16:40:11.7023440Z 275 passed, 4 skipped in 69.97s (0:01:09)"
+    ],
+    "checkout_shas": [
+      "4c6c8925f27617102cf626620edb2419d4b01a07"
+    ],
+    "warning_count": 32,
+    "warning_examples": [
+      "/Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]",
+      "    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]",
+      "/Users/runner/work/mlxl3/mlxl3/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]",
+      "    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]"
+    ]
+  },
+  "ci-kani": {
+    "status_counts": {
+      "SUCCESS": 4763,
+      "UNREACHABLE": 70,
+      "SATISFIED": 80
+    },
+    "summary": [
+      "2026-10-07T16:47:50.5810170Z Complete - 34 successfully verified harnesses, 0 failures, 34 total."
+    ],
+    "checkout_shas": [
+      "4c6c8925f27617102cf626620edb2419d4b01a07"
+    ],
+    "warning_count": 71,
+    "warning_examples": [
+      "warning: use of an unstable feature",
+      "warning: trailing semicolon in macro used in expression position",
+      "    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!",
+      "warning: Found the following unsupported constructs:"
+    ]
+  }
+}

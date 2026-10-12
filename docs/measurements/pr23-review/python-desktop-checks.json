@@ -1,0 +1,44 @@
+[
+  {
+    "check": "python-tests",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    "returncode": 0,
+    "seconds": 1.601
+  },
+  {
+    "check": "ruff",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "check",
+      "benchmarks/compare_native.py",
+      "native/check_qmm_tiles.py"
+    ],
+    "returncode": 0,
+    "seconds": 0.036
+  },
+  {
+    "check": "ruff-format",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "format",
+      "--check",
+      "benchmarks/compare_native.py",
+      "native/check_qmm_tiles.py"
+    ],
+    "returncode": 0,
+    "seconds": 0.01
+  },
+  {
+    "check": "desktop",
+    "command": [
+      "scripts/check-desktop.sh"
+    ],
+    "returncode": 0,
+    "seconds": 208.252
+  }
+]

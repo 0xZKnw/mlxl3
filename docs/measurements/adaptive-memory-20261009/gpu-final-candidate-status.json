@@ -1,0 +1,117 @@
+[
+  {
+    "label": "embedding-all-bits-final",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "embedding::tests::packed_embeddings_preserve_all_f16_patterns_and_permutations",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {},
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed": 0.39943981170654297
+  },
+  {
+    "label": "allocator-limit-0",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "array::tests::allocator_cache_limit_preserves_live_arrays",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "0"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed": 0.040554046630859375
+  },
+  {
+    "label": "allocator-limit-1",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "array::tests::allocator_cache_limit_preserves_live_arrays",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "1"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed": 0.03976106643676758
+  },
+  {
+    "label": "capture-guard",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "array::tests::capture_guard_closes_success_and_drop_without_overwriting",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MTL_CAPTURE_ENABLED": "1"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed": 0.6193549633026123
+  },
+  {
+    "label": "kv8-f32-component",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "kv_cache::tests::kv8_attention_matches_independent_oracle_and_retained_prefixes",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {},
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed": 0.23881006240844727
+  },
+  {
+    "label": "kv8-f32-model",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "qwen35::memory_feature_tests::kv8_model_quality_against_f16_teacher_forcing",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_KV8_REPORT": "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/adaptive-memory-20261009/kv8-model-f32.json"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed": 28.77592897415161
+  },
+  {
+    "label": "mtp-packed-transitions",
+    "command": [
+      "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+      "--exact",
+      "qwen35::tests::mtp_recursive_sessions_match_greedy_and_exact_caches",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "options": {
+      "MLXL3_EMBEDDINGS_PACKED": "1"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed": 29.243860960006714
+  }
+]

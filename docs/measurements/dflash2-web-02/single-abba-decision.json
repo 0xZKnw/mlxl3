@@ -1,0 +1,56 @@
+{
+  "status": "nonconclusive_drift",
+  "parity": true,
+  "gains": {
+    "short": {
+      "A": 59.38624799922299,
+      "B": 66.69726351210939,
+      "change_percent": 12.310957097309894
+    },
+    "document": {
+      "A": 66.66090629637675,
+      "B": 75.7353550866282,
+      "change_percent": 13.61284941117682
+    }
+  },
+  "drifts": {
+    "short": {
+      "A": {
+        "tps": [
+          61.43717449684628,
+          57.3353215015997
+        ],
+        "percent": -6.6765000650496065
+      },
+      "B": {
+        "tps": [
+          66.76552212477853,
+          66.62900489944025
+        ],
+        "percent": -0.2044726394607399
+      }
+    },
+    "document": {
+      "A": {
+        "tps": [
+          70.12997433125057,
+          63.19183826150294
+        ],
+        "percent": -9.89325339971775
+      },
+      "B": {
+        "tps": [
+          75.8141148537412,
+          75.65659531951522
+        ],
+        "percent": -0.2077707225493164
+      }
+    }
+  },
+  "continue_baab": false,
+  "binary_sha256": "5aed77c5c1734dde874f8080586983d8ba21fc745c07a98e452c246e939eecac",
+  "source": "single-abba/results.json",
+  "aggregation": "Mean of per-pass medians as in compare_native.py",
+  "limits": "No cause of drift measured; no altered cooldown/warmup retry allowed. Retire candidate according to preregistration.",
+  "diagnostic_error": "First aggregation script used nonexistent key median; failed before writing any result. Corrected to actual medians field; no run repeated."
+}
