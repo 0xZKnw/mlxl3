@@ -8,9 +8,9 @@ pub mod codec;
 mod contracts;
 pub use contracts::{reusable_prefix_len, smallm_kernel_key};
 pub mod dflash;
-pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
+pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(feature = "mlx")]
