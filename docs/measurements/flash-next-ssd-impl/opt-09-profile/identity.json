@@ -1,0 +1,39 @@
+{
+  "status": "validated_diagnostic",
+  "binary": "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+  "binary_sha256": "4e05d919dad32ea7aa979f6913bffa3d1b141a190891042ecce1e81f30c3af1e",
+  "base_commit": "3266be14e46f7105f8a5c07893d01beadc8ce9ba",
+  "source_sha256": {
+    "native/src/qwen4.rs": "d3f5228d6b1370c55ab70bd767fac802f8d7be9f6286e51af60ffed741f2c79c",
+    "native/src/ssd_moe.rs": "e9b771dbe8175a12a5ca118ba75ea28b0a67ff44526c6707e7a9373f1b5ff318"
+  },
+  "test": "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states",
+  "environment": {
+    "MLXL3_SSD_CACHE_GIB": "8",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+  },
+  "steps_per_prompt": 32,
+  "prompts": [
+    "MAIN",
+    "HOLD"
+  ],
+  "kind": "intrusive diagnostic; not release throughput",
+  "verifier": "physical MLX Kani ICE; unchanged CPU six harnesses passed",
+  "binary_sha256_after": "4e05d919dad32ea7aa979f6913bffa3d1b141a190891042ecce1e81f30c3af1e",
+  "evidence_sha256": {
+    "summary.json": "364a9ab43222f6e627fee497970ed03332de0cfe212a00b9ab7a8921b586cef8",
+    "conditions-before.log": "18db90e43b76186c94cae16f3973eea7183daf11dcd3286b003cc7510f8b8279",
+    "formal-attempts.json": "416cd36df7ad9195982fccdee9a6fb3b1dbaaa6ee0ec571c1602e030ae5db7cc",
+    "clippy-final.log": "b4b134ab3de62cc46463f2307bb60260e2040c31efe4d6f3a8cd73cdffaea4aa",
+    "kani-cpu.log": "81b2facbee6ae820867096668079719c30508682d7dde37df3652dd5c354e0f5",
+    "kani-physical.log": "09c3a16826920152dfd6ba9695b38c6a8ce7d1f79766d502da75953416c3459f",
+    "clippy.log": "1b47beb98071d69808efb7e61d947f2cd3b6e13371fc316a3a25695f7dd92394",
+    "run-01.log": "16e9602010e7ab70e8ec869f8c663b7a287e0f4401c031866d00a063e683aae4",
+    "rust-full.log": "3a444432ade79dc624d16f1d0cd0092d323fb9df44155427ba89bcb8f09015a8",
+    "release-test-build.log": "780216fe6fa321a62e7a0d1a658331b9e9c56110b8f1039a8495df018e0ab85b",
+    "conditions-after.log": "df098efa0ae01d71a988b26defcc876357559ee9114d393cc5b521c5ddf52c39",
+    "release-test-build.jsonl": "17b5c4a4bdd5619559657e8247330901995be0c6fa447daeb759f274c6a1e9d1",
+    "execution.json": "a6df6abd584c544c7f73e777755dc119d83bc85948f4fdbf9a03311b0f420fec"
+  }
+}

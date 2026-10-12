@@ -1349,6 +1349,8 @@ pub struct FlashMtpSession {
     pub proposed: usize,
     pub accepted: usize,
     pub blocks: usize,
+    #[cfg(test)]
+    profile_seconds: [f64; 4],
 }
 impl FlashMtpSession {
     pub fn advance(
@@ -1371,11 +1373,17 @@ impl FlashMtpSession {
             .context("Flash MTP context exhausted")?;
         let width = crate::speculative::mtp_width(1, remaining, output_remaining)
             .context("Flash MTP context or output exhausted")?;
+        #[cfg(test)]
+        let step_start = std::time::Instant::now();
         let result = self.step(target, head, anchor, width);
         if result.is_err() {
             self.pending.clear();
             target.reset();
             head.reset();
+        }
+        #[cfg(test)]
+        {
+            self.profile_seconds[3] += step_start.elapsed().as_secs_f64();
         }
         result
     }
@@ -1404,20 +1412,38 @@ impl FlashMtpSession {
                 .copied()
                 .context("missing Flash fallback token");
         }
+        #[cfg(test)]
+        let head_start = std::time::Instant::now();
         let proposal = head
             .forward(target, &hidden, anchor)?
             .chat_greedy_ids()?
             .first()
             .copied()
             .context("missing Flash MTP proposal")?;
+        #[cfg(test)]
+        {
+            self.profile_seconds[0] += head_start.elapsed().as_secs_f64();
+        }
+        #[cfg(test)]
+        let verify_start = std::time::Instant::now();
         let (logits, hidden) = target.verify_pair([anchor, proposal])?;
         let tokens = logits.chat_greedy_ids()?;
+        #[cfg(test)]
+        {
+            self.profile_seconds[1] += verify_start.elapsed().as_secs_f64();
+        }
+        #[cfg(test)]
+        let repair_start = std::time::Instant::now();
         let acceptance = crate::speculative::greedy_accept(&[proposal], &tokens)
             .context("invalid Flash MTP verification")?;
         let accepted = acceptance.accepted_draft_tokens;
         target.commit_pair(1 + accepted as i32)?;
         if accepted > 0 {
             head.extend_cache(target, &hidden.slice(0, 0, 1)?, proposal)?;
+        }
+        #[cfg(test)]
+        {
+            self.profile_seconds[2] += repair_start.elapsed().as_secs_f64();
         }
         if accepted > 0 {
             self.pending.push_back(proposal);
@@ -1504,6 +1530,217 @@ mod tests {
             bytes.push(item);
         }
         Ok(bytes)
+    }
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical Apple GPU; intrusive diagnostic, not a throughput benchmark"]
+    fn flash_decode_cost_profile_preserves_tokens_logits_and_states() -> Result<()> {
+        use std::time::Instant;
+        const STEPS: usize = 32;
+        fn prefill(
+            target: &mut FlashNext,
+            mut head: Option<&mut FlashMtpHead>,
+            tokens: &[u32],
+        ) -> Result<u32> {
+            target.reset();
+            if let Some(head) = &mut head {
+                head.reset();
+            }
+            let mut logits = None;
+            for &token in tokens {
+                if let (Some(head), Some(hidden)) = (&mut head, &target.last_hidden) {
+                    head.extend_cache(target, hidden, token)?;
+                }
+                logits = Some(target.forward(token)?);
+            }
+            Ok(logits.context("empty profile prompt")?.chat_greedy_ids()?[0])
+        }
+        fn clear_clocks(target: &mut FlashNext) {
+            for layer in &mut target.layers {
+                layer.moe.profile_seconds = [0.0; 2];
+            }
+        }
+        fn counters(target: &FlashNext, before: (u64, u64, u64)) -> Result<Value> {
+            let (hits, misses, bytes) = target.io_stats();
+            let clocks = target.layers.iter().fold([0.0; 2], |mut sum, layer| {
+                for (total, value) in sum.iter_mut().zip(layer.moe.profile_seconds) {
+                    *total += value;
+                }
+                sum
+            });
+            ensure!(clocks.iter().all(|v| v.is_finite() && *v >= 0.0));
+            Ok(serde_json::json!({
+                "hits": hits.checked_sub(before.0).context("hit counter reversed")?,
+                "misses": misses.checked_sub(before.1).context("miss counter reversed")?,
+                "logical_read_bytes": bytes.checked_sub(before.2).context("byte counter reversed")?,
+                "route_frontier_seconds": clocks[0], "fill_seconds": clocks[1]
+            }))
+        }
+        let path = std::env::var("MLXL3_FLASH_MODEL")?;
+        let checkpoint = crate::checkpoint::inspect(Path::new(&path))?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(Path::new(&path))?;
+        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+        let mut head = FlashMtpHead::load(&checkpoint, &target)?;
+        for (label, prompt) in [
+            (
+                "MAIN",
+                "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.",
+            ),
+            (
+                "HOLD",
+                "Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.",
+            ),
+        ] {
+            let rendered = tokenizer.render(&[crate::tokenizer::Message {
+                role: "user".into(),
+                content: prompt.into(),
+            }])?;
+            let tokens = tokenizer.encode(&rendered)?;
+            ensure!(!tokens.is_empty() && tokens.len() + STEPS <= target.context_limit() as usize);
+            let mut anchor = prefill(&mut target, None, &tokens)?;
+            for _ in 0..STEPS {
+                anchor = target.forward(anchor)?.chat_greedy_ids()?[0];
+            }
+            let mut anchor = prefill(&mut target, None, &tokens)?;
+            clear_clocks(&mut target);
+            let before = target.io_stats();
+            let mut golden = Vec::new();
+            let mut golden_logits = Vec::new();
+            let mut native_seconds = 0.0;
+            for _ in 0..STEPS {
+                let start = Instant::now();
+                let logits = target.forward(anchor)?;
+                anchor = logits.chat_greedy_ids()?[0];
+                native_seconds += start.elapsed().as_secs_f64();
+                golden.push(anchor);
+                golden_logits.push(logits.to_bytes()?);
+            }
+            let expected_state = state_bytes(&target)?;
+            let native = counters(&target, before)?;
+            let mut anchor = prefill(&mut target, None, &tokens)?;
+            clear_clocks(&mut target);
+            let before = target.io_stats();
+            let mut layers = vec![[0.0; 3]; target.layers.len()];
+            let mut final_seconds = 0.0;
+            for step in 0..STEPS {
+                let mut streams = target.streams(anchor)?;
+                streams.eval()?;
+                for (layer, times) in target.layers.iter_mut().zip(&mut layers) {
+                    let start = Instant::now();
+                    let (residual, mixed, gate) = layer.prepare(&streams, anchor)?;
+                    mixed.eval()?;
+                    residual.eval()?;
+                    gate.eval()?;
+                    match &layer.attention {
+                        Attention::Gdn(g) => {
+                            if let Some(state) = &g.state {
+                                state.eval()?;
+                            }
+                        }
+                        Attention::Qsa(q) => {
+                            if let Some(blocks) = &q.blocks {
+                                blocks.eval()?;
+                            }
+                        }
+                    }
+                    times[0] += start.elapsed().as_secs_f64();
+                    let start = Instant::now();
+                    let moe = layer.moe.forward(&mixed)?;
+                    moe.eval()?;
+                    times[1] += start.elapsed().as_secs_f64();
+                    let start = Instant::now();
+                    streams = Hc::write(&residual, &moe, &gate)?;
+                    streams.eval()?;
+                    times[2] += start.elapsed().as_secs_f64();
+                }
+                let start = Instant::now();
+                let logits = target.logits(&streams)?;
+                target.drain()?;
+                target.last_hidden = Some(streams);
+                target.offset += 1;
+                anchor = logits.chat_greedy_ids()?[0];
+                final_seconds += start.elapsed().as_secs_f64();
+                ensure!(
+                    anchor == golden[step],
+                    "profile token differs {label}/{step}"
+                );
+                ensure!(
+                    logits.to_bytes()? == golden_logits[step],
+                    "profile logits differ {label}/{step}"
+                );
+            }
+            ensure!(
+                state_bytes(&target)? == expected_state,
+                "profile states differ {label}"
+            );
+            let intrusive = counters(&target, before)?;
+            let mut anchor = prefill(&mut target, Some(&mut head), &tokens)?;
+            let mut session = FlashMtpSession::default();
+            for step in 0..STEPS {
+                anchor = session.advance(
+                    &mut target,
+                    &mut head,
+                    anchor,
+                    tokens.len() + STEPS,
+                    STEPS - step,
+                )?;
+            }
+            let mut anchor = prefill(&mut target, Some(&mut head), &tokens)?;
+            let mut session = FlashMtpSession::default();
+            clear_clocks(&mut target);
+            let before = target.io_stats();
+            let start = Instant::now();
+            for (step, &expected) in golden.iter().enumerate() {
+                anchor = session.advance(
+                    &mut target,
+                    &mut head,
+                    anchor,
+                    tokens.len() + STEPS,
+                    STEPS - step,
+                )?;
+                ensure!(
+                    anchor == expected,
+                    "profile MTP token differs {label}/{step}"
+                );
+                ensure!(
+                    head.offset() == target.offset() - 1,
+                    "profile head alignment differs"
+                );
+            }
+            let mtp_seconds = start.elapsed().as_secs_f64();
+            ensure!(session.pending.is_empty() && target.offset() as usize == tokens.len() + STEPS);
+            ensure!(
+                state_bytes(&target)? == expected_state,
+                "profile MTP target states differ {label}"
+            );
+            ensure!(
+                layers
+                    .iter()
+                    .flatten()
+                    .chain(&session.profile_seconds)
+                    .all(|v| v.is_finite() && *v >= 0.0)
+            );
+            println!(
+                "FLASH_COST_PROFILE {}",
+                serde_json::json!({
+                    "status":"validated_diagnostic", "prompt":label, "steps":STEPS,
+                    "prompt_tokens":tokens.len(), "native_seconds":native_seconds,
+                    "native":native, "intrusive":intrusive, "intrusive_layer_seconds":layers,
+                    "intrusive_final_seconds":final_seconds, "mtp_seconds":mtp_seconds,
+                    "mtp":counters(&target, before)?, "mtp_head_verify_repair_total_seconds":session.profile_seconds,
+                    "mtp_proposed":session.proposed, "mtp_accepted":session.accepted,
+                    "mtp_blocks":session.blocks, "tokens":golden,
+                    "parity":"all32 full logits + all target states, MTP tokens/target states",
+                    "limits":"test-only clocks, intrusive evals, one32-step diagnostic, head resident in every phase; not release throughput or exclusive GPU time"
+                })
+            );
+        }
+        Ok(())
+    }
+    #[cfg(all(kani, feature = "chat"))]
+    #[kani::proof]
+    fn physical_profile_preserves_real_path() {
+        flash_decode_cost_profile_preserves_tokens_logits_and_states().unwrap();
     }
     #[test]
     #[ignore = "physical Apple GPU and full Flash checkpoint; greedy session and cache boundaries"]

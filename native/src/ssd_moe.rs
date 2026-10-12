@@ -30,6 +30,8 @@ pub struct SsdMoe {
     overlap: bool,
     #[cfg(test)]
     pub(crate) route_ids: Vec<u32>,
+    #[cfg(test)]
+    pub(crate) profile_seconds: [f64; 2],
 }
 
 impl SsdMoe {
@@ -117,6 +119,8 @@ impl SsdMoe {
             overlap,
             #[cfg(test)]
             route_ids: Vec::new(),
+            #[cfg(test)]
+            profile_seconds: [0.0; 2],
         })
     }
 
@@ -236,12 +240,18 @@ impl SsdMoe {
             let b = self.forward(&x.slice(0, 1, 2)?)?;
             return Array::concatenate(&[&a, &b], 0);
         }
+        #[cfg(test)]
+        let route_start = std::time::Instant::now();
         let pairs = (0..rows)
             .map(|row| self.route(&x.slice(0, row, row + 1)?))
             .collect::<Result<Vec<_>>>()?;
         let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
         let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
         let ids = selected.to_u32()?;
+        #[cfg(test)]
+        {
+            self.profile_seconds[0] += route_start.elapsed().as_secs_f64();
+        }
         #[cfg(test)]
         {
             self.route_ids.clone_from(&ids);
@@ -285,6 +295,8 @@ impl SsdMoe {
             None
         };
         let mut filled = BTreeSet::new();
+        #[cfg(test)]
+        let read_start = std::time::Instant::now();
         for &(i, slot) in &cold {
             if filled.insert(slot)
                 && let Err(error) = self.fill(ids[i], slot as usize)
@@ -295,6 +307,10 @@ impl SsdMoe {
                 }
                 return Err(error.context("loading cold EXL3 expert"));
             }
+        }
+        #[cfg(test)]
+        {
+            self.profile_seconds[1] += read_start.elapsed().as_secs_f64();
         }
         let values = if let Some(hot_output) = hot_output {
             let cold_output = self.calculate(
