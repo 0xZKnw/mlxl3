@@ -32,6 +32,15 @@ pub fn automatic_cache_slots(available_bytes: u64) -> Option<usize> {
 }
 
 #[cfg(target_os = "macos")]
+fn available_memory_response_complete(count: libc::mach_msg_type_number_t) -> bool {
+    // Older kernels return shorter revisions; only require fields we read.
+    let required = (std::mem::offset_of!(libc::vm_statistics64, external_page_count)
+        + std::mem::size_of::<libc::natural_t>())
+        / std::mem::size_of::<libc::integer_t>();
+    (required..=libc::HOST_VM_INFO64_COUNT as usize).contains(&(count as usize))
+}
+
+#[cfg(target_os = "macos")]
 #[allow(deprecated)] // libc already provides the Mach ABI; no extra dependency.
 pub fn available_memory_bytes() -> Result<u64> {
     unsafe extern "C" {
@@ -53,8 +62,8 @@ pub fn available_memory_bytes() -> Result<u64> {
     };
     let released = unsafe { mach_port_deallocate(libc::mach_task_self(), host) };
     anyhow::ensure!(
-        status == 0 && count == libc::HOST_VM_INFO64_COUNT && released == 0,
-        "cannot query available system memory ({status}/{released})"
+        status == 0 && available_memory_response_complete(count) && released == 0,
+        "cannot query available system memory ({status}/{released}, {count} words)"
     );
     let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
     anyhow::ensure!(page_size > 0, "invalid system page size");
@@ -237,6 +246,41 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
+    fn available_memory_accepts_older_complete_revisions() {
+        // Apple's HOST_VM_INFO64_REV1_COUNT includes all fields we read.
+        let rev1 = std::mem::offset_of!(libc::vm_statistics64, swapped_count)
+            / std::mem::size_of::<libc::integer_t>();
+        assert!(rev1 < libc::HOST_VM_INFO64_COUNT as usize);
+        assert!(available_memory_response_complete(rev1 as u32));
+        assert!(available_memory_response_complete(
+            libc::HOST_VM_INFO64_COUNT
+        ));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn available_memory_rejects_truncated_and_oversized_snapshots() {
+        let mut info: libc::vm_statistics64 = unsafe { std::mem::zeroed() };
+        let base = (&mut info as *mut libc::vm_statistics64) as usize;
+        let field_end = (&info.external_page_count as *const libc::natural_t) as usize
+            + std::mem::size_of_val(&info.external_page_count);
+        let minimum_words = (field_end - base) / std::mem::size_of::<libc::integer_t>();
+        assert_eq!(
+            (field_end - base) % std::mem::size_of::<libc::integer_t>(),
+            0
+        );
+        for count in 0..=libc::HOST_VM_INFO64_COUNT + 1 {
+            assert_eq!(
+                available_memory_response_complete(count),
+                (minimum_words..=libc::HOST_VM_INFO64_COUNT as usize).contains(&(count as usize)),
+                "count={count}"
+            );
+        }
+        assert!(!available_memory_response_complete(u32::MAX));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
     fn available_memory_query_returns_a_positive_snapshot() {
         assert!(available_memory_bytes().unwrap() > 0);
     }
@@ -405,6 +449,31 @@ mod verification {
         kani::cover!(
             a < b && automatic_cache_slots(a) == Some(10) && automatic_cache_slots(b) == Some(107)
         );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[kani::proof]
+    fn available_memory_count_covers_fields_within_buffer() {
+        let count: u32 = kani::any();
+        let bytes = u64::from(count) * std::mem::size_of::<libc::integer_t>() as u64;
+        let external_end = std::mem::offset_of!(libc::vm_statistics64, external_page_count)
+            + std::mem::size_of::<libc::natural_t>();
+        let valid = available_memory_response_complete(count);
+        assert_eq!(
+            valid,
+            bytes >= external_end as u64
+                && bytes <= std::mem::size_of::<libc::vm_statistics64>() as u64
+        );
+        if valid {
+            assert!(bytes >= std::mem::offset_of!(libc::vm_statistics64, free_count) as u64 + 4);
+            assert!(
+                bytes >= std::mem::offset_of!(libc::vm_statistics64, speculative_count) as u64 + 4
+            );
+        }
+        kani::cover!(valid && count < libc::HOST_VM_INFO64_COUNT);
+        kani::cover!(valid && count == libc::HOST_VM_INFO64_COUNT);
+        kani::cover!(!valid && bytes < external_end as u64);
+        kani::cover!(!valid && count > libc::HOST_VM_INFO64_COUNT);
     }
 
     #[cfg(target_os = "macos")]

@@ -585,8 +585,7 @@ The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
 `2.05bpw_h4_ng4` checkpoint with a bounded expert cache, direct SSD reads and
 GPU/I/O overlap. The automatic expert cache is capped at 6 GiB and reduced
 when system memory is limited. Flash also sets the MLX buffer cache target to 512 MiB.
-Explicit cache environment
-settings remain available; the measurements below used the previous 8 GiB budget.
+Explicit cache environment settings remain available.
 On the 24 GiB M5 with other applications open, the automatic budget reduced
 measured process peaks from 12.98 GiB to 9.31–10.60 GiB across two runs.
 Outputs remained exact; system swap writes were zero in those runs, but this
@@ -597,7 +596,9 @@ The corrected path matches the independent inference reference bit for bit on
 M5 baseline measured about 7 tokens/s before this correction. The built-in
 MTP head now supports depth-one greedy decoding through Desktop and the bridge,
 with exact target verification and rollback. Numerical and bridge checks pass.
-On the corrected PR binary integrated with 1.4.3 (`2162c5f6`), median decode is
-7.60/7.57 tok/s without MTP and 7.54/7.31 tok/s with MTP1 on the two fixed prompts
+With an effective automatic cache of 5.24 GiB, median decode was
+6.93/6.96 tok/s without MTP and 6.96/6.76 tok/s with MTP1 on two fixed prompts
 (three runs of 64 tokens each, 63 decode tokens, alternating modes on one binary).
-MTP is slower in all six measured pairs; it stays OFF by default.
+These are separate throughput measurements of RAM-stage binary `938e2aa7`;
+prior measurements at 8 GiB remain in the linked report. No consistent MTP
+speedup is established, so MTP stays OFF by default.

@@ -1,0 +1,48 @@
+{
+  "status": "validated",
+  "parity": true,
+  "runs": [
+    {
+      "name": "original",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-H/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 4.05836875,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-original.log"
+    },
+    {
+      "name": "held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-H/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 4.904706249999999,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-held.log"
+    },
+    {
+      "name": "bridge",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-c",
+        "import runpy; from pathlib import Path; m=runpy.run_path('scripts/benchmark-flash-bridge.py'); m['run'](Path('/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-H/mlxl3-rs'),Path('/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531'),Path('docs/measurements/flash-next-ssd-impl/opt-12-memory/H-bridge'),tokens=16,repeats=1,timeout=60,compare=True,auto_cache=True)"
+      ],
+      "exit": 0,
+      "seconds": 132.218621708,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-bridge.log"
+    }
+  ],
+  "scope": "16 oracle positions bit-identical; eight bridge OFF/MTP generations, prefixes match G; functional only",
+  "oracle_fixtures": {
+    "original": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+    "held": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08"
+  }
+}

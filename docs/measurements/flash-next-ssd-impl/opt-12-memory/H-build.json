@@ -1,0 +1,80 @@
+{
+  "status": "passed",
+  "runs": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.29434316699999996,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-fmt.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.320634916,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-clippy.log"
+    },
+    {
+      "name": "cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "seconds": 4.793392417000001,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-cpu.log"
+    },
+    {
+      "name": "release-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 42.828254542,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-release-tests.log"
+    },
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 0.1213739579999995,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-build.log"
+    }
+  ],
+  "binaries": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-H/mlxl3-rs": "5e423506d0e39b8d71c0e31048951c3a73c018eb5a9b66b7a6b3da1109fe71a2",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-H/mlxl3_native-28585053ede733ec": "d05ac51ae4c9337cb5f93c60c5d261adc43fb1d726b0445f67f2db4e9fd0d9f5"
+  }
+}

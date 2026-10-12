@@ -23,6 +23,21 @@ Kani vérifie les deux nouveaux contrats du budget sur le domaineu64 complet san
 
 La comparaison [Sushi/Strata](flash-ssd-upstream-2026-10-12.md) retient les lectures manquantes parallèles comme piste suivante. NT2 et le regroupement MTP restent différés ; aucun gain n'est annoncé pour ces prototypes. L'objectif15tok/s reste non atteint.
 
+La CI macOS26 a détecté un refus incorrect des révisions plus courtes de `host_statistics64` (commit7fcea298). La correctionH accepte une réponse couvrant les champs lus et rejette toute taille hors capacité ; le calcul du budget reste identique. La régression échoue avant correction puis passe, avec le vrai snapshot système et les frontières. Kani du prédicat réel couvre tous les comptesu32 sans hypothèse :66obligations/4couvertures, aucune inatteignable. La tentative de l'appelOS réel reste bloquée par l'ICE du vérificateur.
+
+Le rebuildH `5e423506d0e39b8d71c0e31048951c3a73c018eb5a9b66b7a6b3da1109fe71a2` passe fmt/Clippy,86testsCPU (2ignorés),106testsrelease (94ignorés) et les neuf contrats CPU ciblés (1090obligations/31couvertures/3inatteignables). Les deux contrôles physiques affectés refont les16positions exactes ; huit générations bridge OFF/MTP de16tokens passent avec mêmes textes/hashes et préfixes identiques au binaireG. Aucun timing de ce contrôle fonctionnel n'est utilisé comme débit. Les mesures RAM et vitesse restent rattachées au binaireG, dont H ne modifie que la garde de format au chargement et le diagnostic d'erreur. [Sources](measurements/flash-next-ssd-impl/opt-12-memory/H-identity.json), [build](measurements/flash-next-ssd-impl/opt-12-memory/H-build.json), [qualité](measurements/flash-next-ssd-impl/opt-12-memory/H-quality.json), [vérificateurs](measurements/flash-next-ssd-impl/opt-12-memory/H-checks.json).
+
+## Débit du cache automatique, 12 octobre
+
+Le même binaireG a été mesuré séparément du diagnostic mémoire, avec le benchmark `--compare --auto-cache` : cache effectif5,24Gio/94slots par couche, contexte4096, greedy, overlap1, quatre warmups puis trois répétitions par prompt/mode,64tokens/63decode. Aucun échantillonnage VM pendant le décodage, aucun autre modèle/compilateur/proveur. Les12mesures conservent les hashes et textes historiques exacts.
+
+| Prompt | Sans MTP, médiane (étendue) | MTP1, médiane (étendue) |
+|---|---:|---:|
+| MAIN | 6,927tok/s (6,794–6,947) | 6,956tok/s (6,767–6,970) |
+| HOLD | 6,965tok/s (6,790–6,980) | 6,764tok/s (6,579–6,779) |
+
+Secteur100%, aucun avertissementpmset. Compteurs système relevés avant/après seulement : aucune nouvelle écriture swap, compresseur+622,08Mio ; les autres applications restent ouvertes. Ces mesures décrivent le compromis du nouveau défaut automatique, sans gain causal revendiqué face à la campagne historique à8Gio. MTP reste OFF par défaut et15tok/s ne sont pas atteints. [Mesures brutes](measurements/flash-next-ssd-impl/opt-12-memory/S-speed/report.json), [conditions et contrôle des sources](measurements/flash-next-ssd-impl/opt-12-memory/S-execution.json).
+
 ## Débit historique à cache8Gio, base 1.4.3
 
 Source `2162c5f64a16558e1443758b4dbf22ba09566a78`, release `mlx,chat` SHA256 `cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa`, M5/24Gio/MLX0.32.2. La composition avec 1.4.3 est requalifiée avant mesure. Même protocole OFF/MTP1 que ci-dessous : contexte4096, cache8Gio/overlap1, greedy, quatre warmups puis trois répétitions de64tokens/63decode par couple, modes alternés dans un seul bridge. Aucun compilateur, prouveur ou autre modèle pendant cette campagne. [Rapport brut](measurements/flash-next-ssd-impl/mtp-speed-143/report.json), [résumé et conditions](measurements/flash-next-ssd-impl/mtp-speed-143/summary.json), [empreintes avant/après](measurements/flash-next-ssd-impl/mtp-speed-143/identity.json).
