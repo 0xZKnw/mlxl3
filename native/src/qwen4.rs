@@ -105,14 +105,21 @@ impl Hc {
     }
     fn read(&self, streams: &Array) -> Result<(Array, Option<Array>)> {
         let normalized = self.norm.forward(&streams.reshape(&[1, 1, WIDTH])?)?;
-        let weights = self
-            .up
-            .forward(&self.down.forward(&normalized)?.qwen4_hc_activate()?)?;
+        let weights = self.up.forward_flash_hc(
+            &self
+                .down
+                .forward_flash_hc(&normalized)?
+                .qwen4_hc_activate()?,
+        )?;
         let mixed = weights.qwen4_hc_mix(&normalized)?.reshape(&[1, H])?;
         let injection = self
             .inject
             .as_ref()
-            .map(|p| p.forward(&normalized)?.qwen4_hc_gate()?.reshape(&[1, HC]))
+            .map(|p| {
+                p.forward_flash_hc(&normalized)?
+                    .qwen4_hc_gate()?
+                    .reshape(&[1, HC])
+            })
             .transpose()?;
         Ok((mixed, injection))
     }

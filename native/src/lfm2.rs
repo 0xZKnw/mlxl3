@@ -207,6 +207,45 @@ impl Projection {
         }
     }
 
+    pub(crate) fn forward_flash_hc(&self, x: &Array) -> Result<Array> {
+        let ProjectionWeights::Dense(weight) = &self.weights else {
+            return self.forward(x);
+        };
+        let (bm, bn) = match (self.logical_input, self.logical_output) {
+            (10240, 320 | 4) => (1, 8),
+            (320, 10240) => (8, 1),
+            _ => return self.forward(x),
+        };
+        if self.bias.is_some()
+            || x.dtype() != Dtype::Float32
+            || !matches!(x.shape(), [1, k] | [1, 1, k] if *k == self.logical_input)
+        {
+            return self.forward(x);
+        }
+        // Read half weights directly while retaining MLX 0.32.2's FP32 GEMV order.
+        let mut shape = x.shape().to_vec();
+        *shape.last_mut().expect("validated HC rank") = self.logical_output;
+        Ok(array::metal_kernel(
+            &format!(
+                "mlxl3_flash_hc_gemv_{}_{}",
+                self.logical_input, self.logical_output
+            ),
+            &["x", "weight"],
+            &["out"],
+            &format!(
+                "#define K {}\n#define N {}\n#define BM {bm}\n#define BN {bn}\n",
+                self.logical_input, self.logical_output
+            ),
+            include_str!("../shaders/flash_hc_gemv.metal"),
+            &[x, weight],
+            &[shape],
+            &[Dtype::Float32],
+            [(self.logical_output / (bm * 4)) * (bm * bn * 32), 1, 1],
+            [bm * bn * 32, 1, 1],
+        )?
+        .remove(0))
+    }
+
     pub(crate) fn forward_dense_rows_exact(&self, x: &Array) -> Result<Array> {
         let ProjectionWeights::Dense(weight) = &self.weights else {
             anyhow::bail!("exact dense rows require dense projection weights");
@@ -963,5 +1002,208 @@ impl Lfm2 {
                 Operator::Conv(conv) => conv.state = None,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod flash_hc_tests {
+    use super::*;
+
+    fn projection(weight: Array) -> Projection {
+        Projection {
+            logical_input: weight.shape()[1],
+            logical_output: weight.shape()[0],
+            weights: ProjectionWeights::Dense(weight),
+            bias: None,
+        }
+    }
+
+    fn check(p: &Projection, x: &Array) -> Result<Vec<f32>> {
+        let expected = p.forward(x)?;
+        let actual = p.forward_flash_hc(x)?;
+        let values = actual.astype(Dtype::Float32)?.to_f32()?;
+        ensure!(
+            actual.shape() == expected.shape()
+                && actual.dtype() == expected.dtype()
+                && !values.is_empty()
+                && values.iter().all(|v| v.is_finite()),
+            "invalid mixed GEMV output"
+        );
+        ensure!(
+            actual.to_bytes()? == expected.to_bytes()?,
+            "mixed GEMV differs: {}→{}, input {:?}/{:?}",
+            p.logical_input,
+            p.logical_output,
+            x.shape(),
+            x.dtype()
+        );
+        Ok(values)
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; exact mixed HC GEMV and fallback contracts"]
+    fn mixed_gemv_matches_mlx_cpu_and_fallbacks() -> Result<()> {
+        let mut checked = 0;
+        for (k, n) in [(10240, 320), (320, 10240), (10240, 4)] {
+            let weights: Vec<f32> = (0..k * n)
+                .map(|i| ((i * 7 % 15) - 7) as f32 / 16.)
+                .collect();
+            let p = projection(Array::from_f32(&weights, &[n, k])?.astype(Dtype::Float16)?);
+            let values: Vec<f32> = (0..k).map(|i| ((i * 11 % 31) - 15) as f32 / 32.).collect();
+            let input = Array::from_f32(&values, &[1, 1, k])?;
+            let out = check(&p, &input)?;
+            for (row, &actual) in out.iter().enumerate() {
+                // These dyadic products and sums are exactly representable in FP32.
+                let reference: f64 = weights[row * k as usize..(row + 1) * k as usize]
+                    .iter()
+                    .zip(&values)
+                    .map(|(&w, &x)| f64::from(w) * f64::from(x))
+                    .sum();
+                ensure!(
+                    actual == reference as f32,
+                    "CPU dyadic oracle differs at {row}"
+                );
+            }
+            checked += out.len();
+            check(&p, &input.astype(Dtype::Float16)?)?;
+            check(&p, &Array::zeros(&[1, k])?)?;
+            check(&p, &input.reshape(&[1, k])?.broadcast_to(&[2, k])?)?;
+            ensure!(
+                p.forward_flash_hc(&Array::zeros(&[1, k - 1])?).is_err(),
+                "wrong width accepted"
+            );
+
+            let arbitrary: Vec<f32> = (0..2 * k)
+                .map(|i| {
+                    let bits = (i as u32).wrapping_mul(747796405).wrapping_add(2891336453);
+                    (bits as i32 as f32 / i32::MAX as f32) * 7.31
+                })
+                .collect();
+            let strided = Array::from_f32(&arbitrary, &[k, 2])?
+                .transpose(&[1, 0])?
+                .slice(0, 0, 1)?;
+            checked += check(&p, &strided)?.len();
+            let mut biased = p;
+            biased.bias =
+                Some(Array::from_f32(&vec![0.25; n as usize], &[n])?.astype(Dtype::Float16)?);
+            check(&biased, &input)?;
+        }
+        let p = projection(Array::from_f32(&vec![0.25; 96 * 8], &[8, 96])?.astype(Dtype::Float16)?);
+        check(&p, &Array::from_f32(&vec![0.5; 96], &[1, 96])?)?;
+        ensure!(checked == 21128, "coverage changed");
+        println!(
+            "mixed HC GEMV: {checked} FP32 values plus half/batch/bias/shape fallbacks and CPU oracle"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU and Flash checkpoint; all real HC weights"]
+    fn mixed_gemv_matches_every_flash_hc_weight() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut matrices = 0;
+        let mut values = 0;
+        for (name, tensor) in &c.tensors {
+            if ![
+                "input_mix_weight_down.weight",
+                "input_mix_weight_up.weight",
+                "block_inject_weight.weight",
+            ]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
+            {
+                continue;
+            }
+            let k = tensor.shape[1] as i32;
+            let n = tensor.shape[0] as i32;
+            let p = Projection::load(
+                &c,
+                name.strip_suffix(".weight").expect("weight suffix"),
+                k,
+                n,
+                false,
+            )?;
+            let input: Vec<f32> = (0..k)
+                .map(|i| {
+                    ((i as u32).wrapping_mul(1664525).wrapping_add(1013904223) as i32) as f32
+                        / 1073741824.
+                })
+                .collect();
+            values += check(&p, &Array::from_f32(&input, &[1, 1, k])?)?.len();
+            matrices += 1;
+        }
+        ensure!(
+            matrices == 298 && values > 1_000_000,
+            "incomplete HC census: {matrices}/{values}"
+        );
+        println!("mixed HC GEMV: {matrices} real matrices, {values} bit-exact finite values");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU and Flash checkpoint; microbenchmark, not model throughput"]
+    fn mixed_gemv_micro() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        for (name, k, n) in [
+            ("input_mix_weight_down", 10240, 320),
+            ("input_mix_weight_up", 320, 10240),
+            ("block_inject_weight", 10240, 4),
+        ] {
+            let p = Projection::load(
+                &c,
+                &format!("model.language_model.layers.0.attn_hyper_connection.{name}"),
+                k,
+                n,
+                false,
+            )?;
+            let x = Array::from_f32(
+                &(0..k).map(|i| (i as f32 * 0.173).sin()).collect::<Vec<_>>(),
+                &[1, 1, k],
+            )?;
+            check(&p, &x)?;
+            for _ in 0..8 {
+                p.forward(&x)?.eval()?;
+                p.forward_flash_hc(&x)?.eval()?;
+            }
+            for repeat in 0..5 {
+                let mut seconds = [0.; 2];
+                for arm in if repeat % 2 == 0 { [0, 1] } else { [1, 0] } {
+                    let start = std::time::Instant::now();
+                    for _ in 0..32 {
+                        if arm == 0 {
+                            p.forward(&x)?.eval()?;
+                        } else {
+                            p.forward_flash_hc(&x)?.eval()?;
+                        }
+                    }
+                    seconds[arm] = start.elapsed().as_secs_f64();
+                }
+                println!(
+                    "HC_GEMV_MICRO {}",
+                    serde_json::json!({"shape":[k,n],"repeat":repeat,"iterations":32,"seconds":seconds})
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_mixed_hc_path_matches_mlx() {
+        let x = f32::from(kani::any::<i8>());
+        let w = f32::from(kani::any::<i8>());
+        let weight = Array::from_f32(&[w], &[1, 1])
+            .unwrap()
+            .astype(Dtype::Float16)
+            .unwrap()
+            .broadcast_to(&[320, 10240])
+            .unwrap();
+        let input = Array::from_f32(&[x], &[1, 1])
+            .unwrap()
+            .broadcast_to(&[1, 10240])
+            .unwrap();
+        check(&projection(weight), &input).unwrap();
     }
 }

@@ -1,0 +1,53 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: items after a test module
+   --> native/src/lfm2.rs:320:1
+    |
+320 | mod flash_hc_tests {
+    | ^^^^^^^^^^^^^^^^^^
+...
+522 | enum Qkv {
+    | ^^^^^^^^
+...
+527 | impl Qkv {
+    | ^^^^^^^^
+...
+558 | struct Attention {
+    | ^^^^^^^^^^^^^^^^
+...
+572 | impl Attention {
+    | ^^^^^^^^^^^^^^
+...
+665 | struct ShortConv {
+    | ^^^^^^^^^^^^^^^^
+...
+675 | impl ShortConv {
+    | ^^^^^^^^^^^^^^
+...
+750 | enum Operator {
+    | ^^^^^^^^^^^^^
+...
+755 | struct Layer {
+    | ^^^^^^^^^^^^
+...
+763 | enum FeedForward {
+    | ^^^^^^^^^^^^^^^^
+...
+781 | impl FeedForward {
+    | ^^^^^^^^^^^^^^^^
+...
+820 | impl Layer {
+    | ^^^^^^^^^^
+...
+936 | pub struct Lfm2 {
+    | ^^^^^^^^^^^^^^^
+...
+947 | impl Lfm2 {
+    | ^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#items_after_test_module
+    = note: `-D clippy::items-after-test-module` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::items_after_test_module)]`
+    = help: move the items to before the test module was defined
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

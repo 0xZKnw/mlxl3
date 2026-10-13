@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "checks": 5,
+  "guard_source": "def require_ac(power: str):\n if not power.splitlines() or power.splitlines()[0] != \"Now drawing from 'AC Power'\":\n  raise ValueError('AC power required before and after every arm')\n",
+  "supervisor_sha256": "269ffb1e27a111ce0b7ef8760a017390f89fea3fa8c32ebe6fe5217b338d3bbf",
+  "source_level_proof": false,
+  "crosshair_available": false,
+  "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t75%; charging; 0:56 remaining present: true\n",
+  "time": 1791826622.9951859,
+  "proof_attempt": {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "--version"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python: No module named crosshair\n",
+    "status": "unverified_tool_unavailable"
+  }
+}

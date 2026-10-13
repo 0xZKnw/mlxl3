@@ -1,5 +1,40 @@
 # MLXL3 — journal des optimisations
 
+### FLASHSSD-2026-10-12-20C — confirmation HC sur secteur vérifié — validé, terminé
+
+- Raison externe nouvelle : l'utilisateur a rebranché le Mac et pmset confirme AC Power (batterie75%, en charge).20 et21 étaient sur batterie ;20B est clos/interrompu après5bras complets,1interrompu,10non démarrés. Aucun de leurs gains n'est qualifié stable, aucune donnée supprimée. Aucun modèle de la campagne précédente ne reste actif. La nouvelle condition secteur autorise cette série indépendante ; pas de relance ultérieure pour bruit.
+- Reprendre strictement le protocole128 de20B : mêmes moteurs immuables bd89a7d6/7a9a2120, sources20 inchangées, modèle65c89531 EXL3 2,05bpw, M5/24Gio/MLX0.32.2. MAIN/HOLD×OFF/MTP, deux tours H-C puis C-H,16bras. Une chauffe128 et trois générations128 (127décodés) par processus, médiane3 ;ctx4096/cache5Gio89slots/allocator512Mio/readers4/overlap1. Applications conservées, zéro compilation/proveur/autre modèle concurrent. Les oracles complets qualité20 restent acquis ; toutes réponses128 et préfixes64 vérifiés avant les timings candidats par le callback déjà contrôlé.
+- Critères inchangés : chaque paire≥1%, étendue≤3points par cellule, picC≤H+256Mio, swapouts système≤256Mio/bras. Gardes supplémentaires contre la perturbation connue : refuser de démarrer ou arrêter si premier relevé pmset n'est pas exactement AC Power avant/après un bras ; arrêter si max/min des trois mesures dépasse1,25. Contrôles AC ponctuels, pas une preuve d'alimentation continue. Borne360s par bras, nettoyage et jonction sur tout échec/interruption, aucun résultat partiel validé globalement.
+- Préserver tout sous opt-20-hc-gemv/confirmation-ac, commandes/source du superviseur avec gardes archivées. Inspecter tous résultats ; si validé pousser20 dansPR34 immédiatement avant22.22 demeure préparé mais non exécuté jusqu'à cette décision.
+
+### FLASHSSD-2026-10-12-22 — HC deux lignes dans le GEMV mixte — préparation isolée, non exécuté
+
+- Raison nouvelle21/20 : préparation intrusive HC/attention≈57ms/pas après suppression des promotions, vérification≈94% du temps MTP. L'essai15/15B conservait deux GEMV denses HC indépendants (`project_rows`) ; ce nouvel essai partage réellement chaque chargement FP16 entre deux accumulations FP32 dans le kernel20. Aucun NT2/EXL3 groupé/GDN groupé/shared groupé du prototype15 réintroduit. Cible : coût des HC de la vérification, sans duplication de poids ni nouveau budget cache.
+- Préparer un patch hors checkout sous build/flash-opt-22-stage pendant20B, sans compiler/lancerGPU/proveur ni toucher les sources/binaires mesurés. Après clôture20B seulement : si20 validé, pousser20 d'abord, puis appliquer22 ; sinon laisser22 explicitement différé. Baseline22 = source20 exacte7a9a2120 et nouvel enregistrement du commit publié. Une préparation ne vaut ni test ni intégration.
+- Portée minimale envisagée : kernelHC ROWS1/2, même partition/FMA/réductions indépendantes, `Projection::forward_flash_hc`, `Hc::read/write` et `Layer::forward_pair` ; grouper seulement HC, garder attention/PLE causales et snapshots après premier token, experts routés existants inchangés. HC final peut grouper ses deux lignes, la tête EXL3 garde ses appels T1 de référence. OFF garde ROWS1 ; tête MTP FP16 uniligne garde son fallback. Pas de nouvelle option/quantification.
+- Avant vitesse22 : oracles GEMV/HC deux lignes contre deux T1 indépendants, valeurs/strides/formes/finitude et tous octets, refus des formes non prises en charge ; test muté d'alias de ligne ou d'ordre pour détecter une faute. Puis oracles16positions/composants/états, transactions commits1/2 et sessions, MoE/bridge1/2/3/17/refus/annulations, fmt/Clippy/build/suites pertinentes et tentative Kani réelle/CBMC Metal sans stub. Micro distinct cinq paires HC T1×2/T2 après chauffe, aucune promesse de gain réel. Le protocole macro22 sera fixé avant toute exécution sur le résultat20B et les coûts21, avec OFF contrôle, MTP, bornes RAM/swap inchangées. Aucun test22 lancé.
+
+### FLASHSSD-2026-10-12-20B — confirmation plus longue du GEMV HC, sans nouveau code — interrompu/non concluant
+
+- Essai20 court non concluant pour la stabilité :9paires complètes toutes favorables (+33,42 à43,20%), mais étendues déjà5,01points MAINOFF/4,80HOLDOFF/7,65HOLDMTP, au-delà du plafond3.18bras exacts terminés,1interrompu,5non lancés ; ne pas les effacer ni les annoncer validés. Nouvelle raison de répétition : chaque génération mesurée ne dure que6–9s, trop sensible aux variations observées avec les applications ouvertes. Augmenter la durée et répéter dans le même processus pour obtenir une médiane ; aucune modification du kernel, du cache, de la tolérance ni du plafond de stabilité.
+- Binaires identiques20, bd89a7d6 vs7a9a2120 et sources natives identifiées. Mêmes MAIN/HOLD, OFF puisMTP, ctx4096/cache5Gio89slots/allocator512Mio/readers4/overlap1. **128tokens (127décodés), une chauffe puis3mesures par bras**, deux tours appariés H-C puis C-H (16bras prévus). Le pilote existant expose déjà ces paramètres via son API `run`. Réponses complètes/hashes identiques entre variantes et modes ; valider chaque chauffe contre la référence128 du premier témoin **avant** les répétitions chronométrées du candidat. Le préfixe texte64 doit aussi correspondre à l'oracle20. Capturer tous timings, pas sélectionner le meilleur.
+- Rétention : chaque gain apparié des médianes3mesures≥1%, étendue des deux gains≤3points par prompt/mode ; picC≤H+256Mio et swapouts système≤256Mio par bras. Premier tour défavorable arrête la confirmation ; échec de qualité/mémoire arrête immédiatement. Borne360s/bras, nettoyage/rejoindre tout groupe sur erreur/annulation. Un modèleGPU à la fois sans compilation/proveur ; secteurs/VM/thermique relevés, applications conservées. Ne pas combiner les débits128 avec ceux64. Si échec, pas de nouvelle relance pour bruit ; archiver20/20B et qualifier explicitement la limite. Preuves `opt-20-hc-gemv/confirmation-128/`.
+- État : aucun bras20B exécuté. Le profil21 peut précéder cette confirmation sur le prototype20 exact, et reste diagnostique. Pas de gain publié avant inspection20B.
+
+### FLASHSSD-2026-10-12-21 — profil de la cible après GEMV HC mixte — diagnostic validé, clos
+
+- Raison nouvelle par rapport16 :20 remplace les promotions HC répétées par des lectures FP16 directes. Son premier tour est favorable mais reste en confirmation ; reprofiler uniquement après clôture20 pour identifier le coût restant de la vérification cible, sans mélanger microbenchmark et débit réel.
+- Réutiliser le harnais physique existant `qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states --exact --ignored --test-threads=1 --nocapture`, MAIN/HOLD32pas avec chauffes T1/MTP, cache5Gio89slots/allocator512Mio/readers4/overlap1/ctx4096 et tête résidente. Un processus, borne480s, aucun build/proveur/autre modèle, applications conservées. Capturer VM/secteur/thermique avant/après, sources et SHA avant/après. Comparer la structure des coûts à16, sans attribuer un gain causal aux chronos instrumentés.
+- Exiger64logits complets et tous états cible exacts entre passes natives/intrusives, tokens/états MTP exacts et compteurs non vides/finis ; horloges natif/fills/frontière routes/préparation/MoE/injection/tête/verify/repair. La frontière routes inclut le calcul amont ; les durées intrusives ne s'additionnent pas au natif. RAM processus non instrumentée par ce test ; ne pas la déduire des allocations ou des autres campagnes. Preuves `opt-21-profile/`. Si20 non retenu, qualifier explicitement la source prototype testée ; ce profil ne peut pas rendre une vitesse20 non concluante « validée ».
+
+### FLASHSSD-2026-10-12-20 — GEMV HC mixte sans promotion des poids — retenu après20C ; campagne courte non concluante
+
+- Nouvelle demande : attaquer la vérification MTP et les kernels en gardant le budget RAM/swap. Relus09/10/15/15B/16/17/18/19 et leurs rapports ; aucune reprise du T2 groupé, NT2, HCwrite ou cache factories rejetés. La piste09 de poids HC FP32 persistants n'a pas été essayée et coûterait de la RAM. Ici mécanisme distinct : lire les mêmes poids FP16 directement dans un GEMV à accumulation FP32, sans conversion globale ni copie résidente. Préparation HC/attention92–99ms/pas au diagnostic16 ; cette durée intrusive ne prédit pas un gain.
+- Portée : `Hc::read` → méthode spécialisée de `Projection` → kernel Metal, seulement les trois formes HC denses10240→320,320→10240,10240→4, une ligne FP32. Entrées FP16 de tête MTP, autres formes/projections/modèles suivent le chemin existant. Garder exactement les partitions MLX0.32.2 (BM1/BN8 pour down/inject, BM8/BN1 pour up), FMA/ordre des réductions et sorties FP32. Poids et budgets inchangés, zéro promotion persistante. Sources primaires : `mlx/backend/metal/matmul.cpp` et `kernels/gemv.h` v0.32.2 ; le kernel dense multirow existant ne couvre pas BN8 ni les sorties FP32.
+- Baseline native2e83f157, HEAD36bae3ad, moteur immuablebd89a7d6/tests b564c6dd. M5/24Gio, MLX0.32.2, checkpoint65c89531 EXL3 2,05bpw. Avant vitesse : oracle MLX matmul original et CPU indépendant sur cas déterministes/cancellation/zéros/strides et poids réels ; sorties non vides, finies, formes et tous octets exacts. Muter l'ordre d'accumulation pour attester la sensibilité. Tests erreurs/fallback FP16 et formes ; oracles modèle16positions/logits/états/HC/têteMTP/commits/sessions et bridge1/2/3/17/config/annulation. Fmt/Clippy strict/build livré/suitesCPU et release ; tentative Kani sur vrai appel symbolique et CBMC MSL, sans confondre limites outils et preuveGPU. CI existante inspectée, adapter seulement les contrôles touchés.
+- Après qualité : micro5paires alternées×32évaluations après8chauffes sur chacune des trois formes, rapporté séparément. Comparaison réelle MAIN/HOLD×OFF/MTP, OFF d'abord, chaque processus chauffe64 puis mesure64/63tokens, ctx4096/cache5Gio89slots/allocator512Mio/lecteurs4/overlap1, applications conservées/secteur, un seul modèle et aucun build/proveur concurrent. Crible H-C puis, seulement si chaque cellule gagne≥1%, confirmations C-H/H-C ; rétention chaque paire≥1%, étendue≤3points par cellule, picC≤H+256Mio, swapouts système≤256Mio par bras, toutes réponses exactes. Arrêter sur qualité/mémoire ; conserver tous résultats et bras non lancés. Ne pas additionner gains incompatibles. Pousser si gain confirmé dansPR34, aucune installation/release.
+- État initial : aucun prototype ni timing20 lancé. Preuves prévues `docs/measurements/flash-next-ssd-impl/opt-20-hc-gemv/` ; priorité au crible numérique avant coût de validation complète. Rapport maintenu : [GEMV HC mixte](docs/flash-hc-gemv-2026-10-12.md).
+
 ### FLASHSSD-2026-10-12-19 — diagnostic des factories Metal — terminé, piste rejetée
 
 - Raison nouvelle :18 passe les oracles mais son micro HC favorable ne se traduit pas en débit ; crible8bras rejeté (−7,90/−1,40% OFF,−0,84/+0,43% MTP). Chercher si le cache de128factories évince/reconstruit fréquemment des kernels pendant le vrai parcours. Historique HENK0O-QWEN27-10 relu :59clés/0éviction sur27Bdense, pas de levier ; ici Flash512experts avec cohortes variables/T2 et HC18 ajoute une spécialisation. KEY-VIEW2026-10-08 déjà intégré : ne pas répéter le cache par nom rejetéPERF06/33 ni réintroduire les copies de clés.
@@ -9691,3 +9726,145 @@ Revue à entreprendre sur checkoutisoléPR32/tête0f53d2ca/base8c08c4c, préserv
 - Release moteur publiée : https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.3, tagengine-v1.4.3/sourceef8/--latest=false, archive+manifest+validation attachés ; Desktop v1.4.3 enupload. Métadonnées distantes conservées engine-remote-release.json, vérification finale tailles/digests/latest/tag en cours. CI nonattendue sur instruction explicite utilisateur.
 
 - **PUBLICATION-2026-10-10 clôturée : publié/artefacts validés**, Desktop https://github.com/0xZKnw/mlxl3/releases/tag/v1.4.3 (latest/build25), moteur engine-v1.4.3 (latest=false). API distante : tous5assets (validationjointeauxdeuxreleases) tailles/SHA256 identiquesauxlocaux, tagseff8 exacts, endpointlatest sélectionneDMG1.4.3. publication-final.json conserveidentités. Tests logiciels94Rust/77ignorés,380Python/4sauts, Desktopcomplet+archive,8GPU35B et47/43DFlash/MTP/smoke/33anciennescompletions exacts. CI nonattendue surinstructionutilisateur ; KaniCOPY nonvérifié àpublication (locale180stimeout, jobGitHubencours), aucunCIvertglobal annoncé. AnomalieQ4héritée etlimitesformellesconservées, aucun27BGPU/TPSnouveau, appinstalléepersonnelle intacte. Journauxetpreuves depublicationàarchiver/pushdocumentaire ; tousessaislocaux lancésclos, aucunmodèle ni prouveurlocalrestant.
+
+- 20 prototype GEMV écrit ; premier contrôle clippy : **failed**, commandes/logs `opt-20-hc-gemv/build-initial.json`. Aucun débit20 exécuté.
+
+- 20 premier Clippy refuse le placement du module de test avant des items de production ; aucun test/kernel exécuté. Module déplacé en fin de fichier sans changer le calcul, relance des mêmes contrôles sous noms distincts ; échec conservé.
+
+- 20 mixed_gemv_matches_mlx_cpu_and_fallbacks: **passed** ; `opt-20-hc-gemv/primitives.json` et log nommé. Aucun débit20 lancé.
+
+- 20 mixed_gemv_matches_every_flash_hc_weight: **passed** ; `opt-20-hc-gemv/primitives.json` et log nommé. Aucun débit20 lancé.
+
+- 20 mutation effective de la réduction inter-SIMDgroup archivée ; résultats `opt-20-hc-gemv/mutation.json`, source originale restaurée et reconstruite. Qualifier les résultats avant vitesse.
+
+- 20 vérifications build/proveurs exécutées, commandes et résultats `opt-20-hc-gemv/checks.json`, sources/binaires immuables `identity.json`. Mutant réduction détecté, restauration testSHA19a12f37 exacte ; tous les298poids/1056392valeurs et21128valeurs synthétiques passent. Diagnostics formels à inspecter avant conclusion ; aucun débit20.
+
+- 20 qualité qwen : **passed**, 35.14s ; `opt-20-hc-gemv/quality.json` et log. Débit modèle20 non mesuré.
+
+- 20 qualité held : **passed**, 4.42s ; `opt-20-hc-gemv/quality.json` et log. Débit modèle20 non mesuré.
+
+- 20 qualité ssd : **passed**, 1.47s ; `opt-20-hc-gemv/quality.json` et log. Débit modèle20 non mesuré.
+
+- 20 inspection formelle : Kani réel (2i8 symboliques sans assume, vrais tableaux/FFI) échoue avant obligations par ICEintrinsics.rs243 ; CBMC6.11 ne reconnaît pas MSL. **GPU non prouvé**, pas de contre-exemple. Fmt/Clippy/build,87testsCPU/2ignorés et107release/98ignorés passent ; oracles physiques11Qwen+1held+3SSD passés. `opt-20-hc-gemv/proof-inspection.json`.
+
+- 20 qualité bridge : **passed**, 183.63s ; `opt-20-hc-gemv/quality.json` et log. Débit modèle20 non mesuré.
+
+- 20 qualité micro : **passed**, 1.31s ; `opt-20-hc-gemv/quality.json` et log. Débit modèle20 non mesuré.
+
+- 20 qualification physique et bridge complète : 11Qwen+1held+3SSD, bridge1/2/3/17/5refus/2annulations-reprises exacts (183,63s), micro15paires terminé. Sommaire micro `micro-summary.json`, séparé du débit réel. Sources immuables moteur7a9a2120/tests19a12f37 ; lancer maintenant le protocole20 MAIN/HOLD OFF puisMTP sans changer budgets/critères.
+
+- 20 lancement macro : Python système3.9 refuse les unions de types du pilote ; une seconde orchestration JS est refusée au parsing avant action. **0 modèle/0 bras lancé** ; erreurs conservées dans `launcher-errors.json`. Relance du même protocole avec le Python3.12 existant.
+
+- 20 1-MAIN-baseline-H : **validated**, débit7.015828651117032tok/s, pic9324731904octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 1-MAIN-baseline-C : **validated**, débit9.966174395961536tok/s, pic9275940328octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 1-HOLD-baseline-H : **validated**, débit7.200775283197844tok/s, pic9319783888octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 1-HOLD-baseline-C : **validated**, débit10.09409317100349tok/s, pic9264602552octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 1-MAIN-mtp-H : **validated**, débit7.391754682445598tok/s, pic10151780464octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 1-MAIN-mtp-C : **validated**, débit10.584843844328207tok/s, pic10045808680octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 1-HOLD-mtp-H : **validated**, débit7.2225268201259345tok/s, pic10147487784octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 1-HOLD-mtp-C : **validated**, débit9.636326749255723tok/s, pic10045530176octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-HOLD-baseline-C : **validated**, débit9.772973628697159tok/s, pic9275481552octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-HOLD-baseline-H : **validated**, débit7.218819634388506tok/s, pic9323388416octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-MAIN-baseline-C : **validated**, débit9.919098728647075tok/s, pic9274416544octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-MAIN-baseline-H : **validated**, débit7.238179639756088tok/s, pic9322290664octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-HOLD-mtp-C : **validated**, débit10.138432110524702tok/s, pic10199127416octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-HOLD-mtp-H : **validated**, débit7.18680506040576tok/s, pic10151370888octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-MAIN-mtp-C : **validated**, débit10.33907255113887tok/s, pic10041892880octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 2-MAIN-mtp-H : **validated**, débit7.330455935451265tok/s, pic10146259104octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 3-MAIN-baseline-H : **validated**, débit7.050576856358387tok/s, pic9316736488octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 3-MAIN-baseline-C : **validated**, débit9.956837636715278tok/s, pic9276218808octets, swapouts+0octets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- 20 arrêt anticipé : les étendues de gains dépassent déjà3points après deux tours, le dernier ne peut plus qualifier20. Deux gardes de l’orchestration d’arrêt refusent avant signal (bras terminé/pid non encore persisté) ; processus réel identifié par sa commande unique, SIGINT au superviseur puis nettoyage des enfants. Preuve speed/early-stop.json ; conserver tous bras, critères/sources inchangés, gain non publié.
+
+- 20 3-HOLD-baseline-H : **interrupted**, débitnon mesurétok/s, picnon mesuréoctets, swapouts+non mesuréoctets ; opt-20-hc-gemv/speed/execution.json et rapport du bras.
+
+- **20 campagne réelle terminée : interrupted**, 18/24bras ; KeyboardInterrupt(). Résultat opt-20-hc-gemv/speed/result.json, tous échecs et bras non lancés conservés. Décision d’intégration après inspection.
+
+- 21 profil exécuté : **validated_diagnostic**, 125.53s, détails opt-21-profile/execution.json et run.log. Contrôles/compteurs à inspecter ; aucun gain débit déduit.
+
+- 21 diagnostic clos/validé :64logits complets et tous états exacts, MTP tokens/états exacts ; MAIN/HOLD natif101,21/101,63ms/pas, verify83,69/86,05ms par token émis du préfixe32 (16/16acceptations). Ce sont des diagnostics instrumentés, pas les débits release ; swapouts système+0octets, RAMprocessus non mesurée. Source prototype20 identique avant/après ; opt-21-profile/summary.json. Aucun essai21 en cours.
+
+- 20B lanceur prêt : callback réel de parité128 vérifié sur8cas (succès, hash/texte/préfixe divergents, vide, compte tronqué, NaN), données jetables ;31régressions du pilote existant passent. Scripts exacts en confirmation-driver.txt/supervisor.txt, controles en confirmation-driver-check.json/benchmark-regressions.json. Source moteur inchangée7a9a2120 ; début de la matrice préenregistrée16bras.
+
+- 20B 1-MAIN-baseline-H : **validated**, débit7.237872452288652tok/s, pic9341574656octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-128/execution.json et rapport du bras.
+
+- 20B 1-MAIN-baseline-C : **validated**, débit9.85152602920279tok/s, pic9292012960octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-128/execution.json et rapport du bras.
+
+- 20B 1-HOLD-baseline-H : **validated**, débit7.215425192928167tok/s, pic9341378000octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-128/execution.json et rapport du bras.
+
+- 22 patch isolé préparé (kernelROWS1/2, HC groupé, attention/PLE séquentielles avec snapshot du premier token, tests pair/strides/refus et harnais réel3i8). Fichiers et empreintes sous build/flash-opt-22-stage/status.json ; aucune compilation/exécution22. Les3sources20 mesurées restent byteexactes à leur manifeste.
+
+- 20B 1-HOLD-baseline-C : **validated**, débit7.777425811835609tok/s, pic9290718672octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-128/execution.json et rapport du bras.
+
+- Rapport21 : [profil après HC](docs/flash-profile-after-hc-2026-10-12.md), tous processus joints ; aucun débit release inféré du diagnostic.
+
+- 20B 1-MAIN-mtp-H : **validated**, débit6.3287830055935546tok/s, pic10185695368octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-128/execution.json et rapport du bras.
+
+- 20/21/20B correction des conditions : **tous les relevés de ces trois essais sont sur batterie**, contrairement au secteur repris par erreur du protocole historique ; sources/bruts inchangés et hypothèse secteur corrigée.20 reste non concluant.20B présente une dérive importante surHOLD C (4,0185/7,7774/7,7956tok/s), arrêt borné et résultats conservés dans confirmation-128/early-stop.json. Utilisateur répond « Je le rebranche sur secteur » ; une confirmation distincte20C pourra qualifier le même code avec cette condition nouvelle vérifiée, pas une relance silencieuse pour bruit.
+
+- 20B 1-MAIN-mtp-C : **interrupted**, débitnon mesurétok/s, picnon mesuréoctets, swapouts+non mesuréoctets ; opt-20-hc-gemv/confirmation-128/execution.json et rapport du bras.
+
+- **20B confirmation128 terminée : interrupted**, 5/16bras ; KeyboardInterrupt(). Résultat opt-20-hc-gemv/confirmation-128/result.json, tous échecs et bras non lancés conservés. Décision d’intégration après inspection.
+
+- 20C avant lancement :5cas de garde secteur passent, callback128 inchangé8cas et31régressions déjà contrôlés ; sources20 byteexactes. Tentative CrossHair du runtimePython3.12 : module absent, garde non vérifiée symboliquement ; confirmation-ac-guard-check.json. Pas de preuve GPU nouvelle.
+
+- 22 revue du patch hors checkout : corrigé le reshape gate [rows,HC] oublié, avant toute compilation/exécution. Stage/status.json et candidate.patch actualisés, source20 mesurée inchangée.
+
+- 20C 1-MAIN-baseline-H : **validated**, débit7.055779642021145tok/s, pic9342230040octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 1-MAIN-baseline-C : **validated**, débit9.762569379892993tok/s, pic9297649080octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 1-HOLD-baseline-H : **validated**, débit7.026766292097188tok/s, pic9345244672octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 1-HOLD-baseline-C : **validated**, débit9.6290012172536tok/s, pic9286213048octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 22 portée relue statiquement pendant20C : constructeur Dense impose FP16/formes, FFI Metal impose row-contiguous ; EXL3 Flash conserve son accumulation T1 par ligne. Sauvegarde PLE du premier token distincte du snapshot attention. Ces constats ne remplacent aucun test22 ; stage toujours non exécuté.
+
+- 20C 1-MAIN-mtp-H : **validated**, débit6.959564410179518tok/s, pic10352579936octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 1-MAIN-mtp-C : **validated**, débit10.029754510603212tok/s, pic10089977208octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 1-HOLD-mtp-H : **validated**, débit6.3496455443717394tok/s, pic10181468296octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 1-HOLD-mtp-C : **validated**, débit9.208086829232746tok/s, pic10096137544octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 2-HOLD-baseline-C : **validated**, débit9.63798416096309tok/s, pic9291128272octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 2-HOLD-baseline-H : **validated**, débit7.090943582355057tok/s, pic9342049768octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 2-MAIN-baseline-C : **validated**, débit9.93392547868469tok/s, pic9291701688octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 2-MAIN-baseline-H : **validated**, débit7.173047989484312tok/s, pic9342148072octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 22 protocole de vitesse fixé avant toute exécution22, conditionnel à20C validé/poussé : micro du futur binaire22 T1×2 contre T2, cinq paires alternées×32évaluations après8chauffes, distinct de la comparaison moteur. Puis comparaison moteur20 immuable7a9a2120 contre22 identifié, même128tokens/127décodés, chauffe1+3mesures par processus, médiane3, MAIN/HOLD×OFF/MTP, deux tours H-C/C-H (16bras). Le chemin OFF demeure un contrôle : chaque paire≥−2% et étendue≤3points ; MTP doit gagner≥1% à chaque paire, étendue≤3points par prompt. Finir le premier tour puis arrêter si une cellule échoue ; aucune confirmation supplémentaire pour bruit. Toutes réponses128 et préfixes64 exacts, conditions/cache/lecteurs inchangés ; picC≤H+256Mio, swapouts≤256Mio/bras, AC avant/après, ratio max/min intra-bras≤1,25, borne360s et nettoyage. Un seul modèle sans compilation/proveur pendant la vitesse. Si gain absent/non concluant, archiver et retirer22 pour conserver20 validé. Aucun timing22 exécuté à ce stade.
+
+- 20C 2-HOLD-mtp-C : **validated**, débit9.307744048545088tok/s, pic10355266912octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 2-HOLD-mtp-H : **validated**, débit6.4972571662604235tok/s, pic10180993112octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 2-MAIN-mtp-C : **validated**, débit10.197760778498665tok/s, pic10091205912octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- 20C 2-MAIN-mtp-H : **validated**, débit7.077867714458807tok/s, pic10189152296octets, swapouts+0octets ; opt-20-hc-gemv/confirmation-ac/execution.json et rapport du bras.
+
+- **20C confirmation128 terminée : validated**, 16/16bras ; all preregistered criteria passed. Résultat opt-20-hc-gemv/confirmation-ac/result.json, tous échecs et bras non lancés conservés. Décision d’intégration après inspection.
+
+- **20C inspection finale validée** :16bras/64réponses exactes, huit paires gains OFF+35,92à38,49% etMTP+43,26à45,02%, étendues0,035à1,761point. PicC OFF8,659Gio/MTP9,644Gio, plus grand surplus166,2Mio≤256, tous swapouts+0octet, AC avant/après, tous enfants joints. CompteursMTP identiques ; sources/binaires SHA inchangés. confirmation-ac/assessment.json et rapportHC mis à jour. Kernel20 retenu, commit/pushPR34 suivant ; application non installée.20 court/20B restent non concluants/interrompus ;21 diagnostic clos,22 encore préparé/non exécuté.
+
+- 2026-10-13 reprise20 : tentative de commit précédente arrêtée par diff-check sur trois marqueurs de contexte blancs du patch archivé, aucun commit/push effectué. Préserver le patch byteexact ; attribut whitespace déjà utilisé pour les archives étendu aux patches Flash uniquement, contrôles du code conservés (commit-unblock.json). Utilisateur autorise désormais les prochains benchmarks **sur batterie avec nouvelle baseline** ; aucun mélange avec20C secteur. Aucun ancien processus modèle actif.

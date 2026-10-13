@@ -174,7 +174,9 @@ The packed Gated DeltaNet Metal kernel in
 behavior during the native Rust migration. MLX LM is licensed under the MIT
 License. The dense verification gate in `native/src/lfm2.rs` reproduces MLX's
 GEMV reduction geometry so multi-row verification remains bit-exact; MLX is
-also licensed under the MIT License.
+also licensed under the MIT License. The mixed HC GEMV in
+`native/shaders/flash_hc_gemv.metal` adapts the same MLX 0.32.2 GEMV
+geometry and accumulation order, with FP16 weight loads and FP32 outputs.
 
 Copyright © 2023 Apple Inc.
 
