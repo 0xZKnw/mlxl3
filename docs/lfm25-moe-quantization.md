@@ -242,6 +242,16 @@ benchmark. Ils ont été corrigés avant les résultats finaux ; les logs initia
 ne deviennent pas des contrôles réussis. La conversion complète24B, ses
 logits/PPL/KL et son pic mémoire restent non vérifiés.
 
+La [PR#35](https://github.com/0xZKnw/mlxl3/pull/35) est ouverte. La nouvelle
+[CI EXL3](https://github.com/0xZKnw/mlxl3/actions/runs/38451515370) du premier
+SHA `42801101048057190101127ec6b84a63c1bf37c4` a réussi : LinuxCBMC53obligations
+et6couvertures, macOS31tests CPU/34sauts GPU et sanitizers hôte. Les workflows
+Rust/régression sont en cours dans [ce snapshot](measurements/quant-lfm25-20261013/ci-first-head.json) ;
+les runs push annulés par le déclenchement PR sont identifiés séparément.
+Ce succès partiel ne déclare pas la CI globale verte. Les checks de la tête
+finale de la PR suivent sur GitHub ; ce commit de rapport ne change aucune
+source numérique testée ou mesurée.
+
 Sources : [PonyExl3 épinglé](https://github.com/beamivalice/PonyExl3/tree/8e7fa6b1556f59fc669e25087903b279b9b0346f),
 [format EXL3 upstream](https://github.com/turboderp-org/exllamav3),
 [kernels Metal MLX](https://ml-explore.github.io/mlx/build/html/dev/custom_metal_kernels.html).
