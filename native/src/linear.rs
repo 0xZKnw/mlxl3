@@ -147,6 +147,8 @@ pub struct Exl3Linear {
     rows: i32,
     cols: i32,
     simdgroups: i32,
+    reference_accumulation: bool,
+    mtp_hidden_batch: bool,
 }
 
 impl Exl3Linear {
@@ -181,14 +183,27 @@ impl Exl3Linear {
             .last()
             .context("trellis must have dimensions")? as usize
             / 16;
-        Self::new(
+        let mut linear = Self::new(
             trellis,
             scale("suh", "su")?,
             scale("svh", "sv")?,
             bias,
             k,
             cb,
-        )
+        )?;
+        if checkpoint.model_type == "qwen4_exp" {
+            linear.simdgroups = 4;
+            linear.reference_accumulation = true;
+            linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
+            if linear.mtp_hidden_batch {
+                ensure!(
+                    linear.rows == 2560 && linear.cols == 2560,
+                    "unsupported MTP hidden projection"
+                );
+                linear.simdgroups = 2;
+            }
+        }
+        Ok(linear)
     }
 
     pub fn new(
@@ -243,6 +258,8 @@ impl Exl3Linear {
             rows,
             cols,
             simdgroups,
+            reference_accumulation: false,
+            mtp_hidden_batch: false,
         })
     }
 
@@ -251,6 +268,14 @@ impl Exl3Linear {
     }
     pub fn output_dims(&self) -> i32 {
         self.cols
+    }
+
+    fn splits(&self, input_tiles: i32, output_tiles: i32) -> i32 {
+        if self.reference_accumulation {
+            crate::flash_support::reference_splits(input_tiles as u32, output_tiles as u32) as i32
+        } else {
+            split_count(input_tiles, output_tiles)
+        }
     }
 
     pub fn forward(&self, x: &Array) -> Result<Array> {
@@ -268,6 +293,19 @@ impl Exl3Linear {
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "EXL3 linear input cannot be empty");
+        ensure!(
+            !self.mtp_hidden_batch || matrix_rows == 4,
+            "MTP hidden projection requires four streams"
+        );
+        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 1 {
+            let matrix = x.reshape(&[matrix_rows, self.rows])?;
+            let rows = (0..matrix_rows)
+                .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let mut shape = x.shape().to_vec();
+            *shape.last_mut().context("empty EXL3 input shape")? = self.cols;
+            return Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
+        }
         if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
             return self.forward_qmm_tensor(x);
         }
@@ -306,7 +344,8 @@ impl Exl3Linear {
             .reshape(&[self.rows])?;
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
-        let mut header = codebook_header(self.cb);
+        let mut header =
+            codebook_header(self.cb) + &reference_reduction_header(self.reference_accumulation);
         let output = if self.k == 7 {
             let inverse = codec::permutation_inverse()
                 .map(|v| v.to_string())
@@ -336,15 +375,18 @@ impl Exl3Linear {
             )?
             .remove(0)
         } else {
-            let splits = split_count(input_tiles, output_tiles);
-            let nt = if dense_decode_nt4_enabled()
+            let splits = self.splits(input_tiles, output_tiles);
+            let nt = if self.reference_accumulation {
+                1
+            } else if dense_decode_nt4_enabled()
                 && crate::contracts::dense_decode_nt4(
                     self.rows,
                     self.cols,
                     self.k,
                     self.cb == Codebook::Mul1,
                     array::is_m5_gpu()?,
-                ) {
+                )
+            {
                 4
             } else if output_tiles >= 1024 {
                 if output_tiles % 2 == 0 { 2 } else { 1 }
@@ -423,7 +465,12 @@ impl Exl3Linear {
             .reshape(&[matrix_rows, self.rows])?;
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
-        let splits = split_count(input_tiles, output_tiles);
+        // The released MTP FC uses Pony's four-row GEMM: two groups and two splits.
+        let splits = if self.mtp_hidden_batch {
+            2
+        } else {
+            split_count(input_tiles, output_tiles)
+        };
         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
         let mut nt = if use_nt4 {
             4
@@ -436,9 +483,17 @@ impl Exl3Linear {
         } else {
             1
         };
-        let (mb, batch_groups) =
+        let (mb, batch_groups) = if self.mtp_hidden_batch {
+            ensure!(
+                matrix_rows == 4,
+                "MTP hidden projection requires four streams"
+            );
+            nt = 1;
+            (4, 1)
+        } else {
             crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
-                .context("invalid batch QMV rows")?;
+                .context("invalid batch QMV rows")?
+        };
         if mb == 2 {
             nt = nt.min(2);
         }
@@ -446,6 +501,11 @@ impl Exl3Linear {
             nt = 1;
         }
         let header = codebook_header(self.cb)
+            + &reference_reduction_header(self.mtp_hidden_batch)
+            + &format!(
+                "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
+                u8::from(self.mtp_hidden_batch)
+            )
             + &format!(
                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_MATRIX_ROWS {matrix_rows}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {output}\n",
                 self.simdgroups,
@@ -990,18 +1050,99 @@ pub fn expert_mapped(
     input_pretransformed: bool,
     return_raw: bool,
 ) -> Result<Array> {
+    expert_mapped_layout(
+        x,
+        trellis,
+        suh,
+        svh,
+        selected,
+        output_dims,
+        projections_per_route,
+        projection_stride_tiles,
+        k,
+        cb,
+        input_pretransformed,
+        return_raw,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn expert_slots(
+    x: &Array,
+    trellis: &Array,
+    suh: &Array,
+    svh: &Array,
+    selected: &Array,
+    output_dims: i32,
+    projections_per_route: i32,
+    k: usize,
+    cb: Codebook,
+) -> Result<Array> {
+    ensure!(
+        trellis.shape().len() == 5
+            && selected.dtype() == Dtype::UInt32
+            && selected
+                .to_u32()?
+                .iter()
+                .all(|&slot| slot < trellis.shape()[0] as u32),
+        "expert slot outside bank"
+    );
+    expert_mapped_layout(
+        x,
+        trellis,
+        Some(suh),
+        Some(svh),
+        selected,
+        output_dims,
+        projections_per_route,
+        0,
+        k,
+        cb,
+        false,
+        false,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn expert_mapped_layout(
+    x: &Array,
+    trellis: &Array,
+    suh: Option<&Array>,
+    svh: Option<&Array>,
+    selected: &Array,
+    output_dims: i32,
+    projections_per_route: i32,
+    projection_stride_tiles: i32,
+    k: usize,
+    cb: Codebook,
+    input_pretransformed: bool,
+    return_raw: bool,
+    slot_major: bool,
+) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
     let [rows, input_dims]: [i32; 2] = x
         .shape()
         .try_into()
         .map_err(|_| anyhow::anyhow!("expert QMV input must have rank 2"))?;
-    ensure!(
-        trellis.shape().len() == 3
-            && trellis.shape()[0] * 16 == input_dims
-            && trellis.shape()[2] == (16 * k) as i32,
-        "invalid expert trellis"
-    );
+    let shape = trellis.shape();
+    let valid_trellis = if slot_major {
+        shape.len() == 5
+            && shape[0] > 0
+            && shape[1] == projections_per_route
+            && shape[2].checked_mul(16) == Some(input_dims)
+            && shape[3].checked_mul(16) == Some(output_dims)
+            && shape[4] == (16 * k) as i32
+    } else {
+        shape.len() == 3
+            && shape[0].checked_mul(16) == Some(input_dims)
+            && shape[2] == (16 * k) as i32
+    };
+    ensure!(valid_trellis, "invalid expert trellis");
+    let tiles_k = shape[if slot_major { 2 } else { 0 }];
+    let tiles_n = shape[if slot_major { 3 } else { 1 }];
     ensure!(
         output_dims > 0 && output_dims % 128 == 0,
         "expert output width must be 128-aligned"
@@ -1042,10 +1183,16 @@ pub fn expert_mapped(
     let local_tiles = rows
         .checked_mul(output_tiles)
         .context("expert tile count overflow")?;
-    let splits = split_count(trellis.shape()[0], local_tiles);
+    let splits = if slot_major {
+        crate::flash_support::reference_splits(tiles_k as u32, output_tiles as u32) as i32
+    } else {
+        split_count(tiles_k, local_tiles)
+    };
     let m5 = array::is_m5_gpu()?;
     let use_nt4 = m5 && rows >= 64 && output_tiles % 4 == 0;
-    let mut nt = if use_nt4 {
+    let mut nt = if slot_major {
+        1
+    } else if use_nt4 {
         4
     } else if local_tiles >= 1024 {
         if local_tiles % 2 == 0 { 2 } else { 1 }
@@ -1059,7 +1206,7 @@ pub fn expert_mapped(
     if output_tiles % nt != 0 {
         nt = 1;
     }
-    let simdgroups = if m5 && k == 2 {
+    let simdgroups = if slot_major || (m5 && k == 2) {
         4
     } else if m5 {
         8
@@ -1067,20 +1214,29 @@ pub fn expert_mapped(
         4
     };
     let header = codebook_header(cb)
+        + &reference_reduction_header(slot_major)
         + &format!(
-            "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n",
+            "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n#define MLXL3_SLOT_MAJOR {}\n",
             u8::from(k == 3),
             cb as u32,
             k * 8,
-            trellis.shape()[0],
-            trellis.shape()[1],
+            tiles_k,
+            tiles_n,
             local_tiles * 16,
+            u8::from(slot_major),
         );
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
     let partials = array::metal_kernel(
         &format!(
-            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}",
-            input_dims, output_dims, k, cb as u32, nt, simdgroups, splits
+            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}",
+            input_dims,
+            output_dims,
+            k,
+            cb as u32,
+            nt,
+            simdgroups,
+            splits,
+            u8::from(slot_major)
         ),
         &["xhat", "trellis", "tile_map", "tile_sub"],
         &["yhat"],
@@ -1128,6 +1284,16 @@ fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {
     splits
 }
 
+fn reference_reduction_header(enabled: bool) -> String {
+    if !enabled {
+        return String::new();
+    }
+    let positions = codec::permutation().map(|p| p.to_string()).join(",");
+    format!(
+        "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
+    )
+}
+
 pub(crate) fn codebook_header(cb: Codebook) -> String {
     let body = match cb {
         Codebook::Default => {
@@ -1145,6 +1311,81 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore = "physical Apple GPU; exact SSD slot layout versus resident EXL3"]
+    fn streamed_slots_match_resident_exl3_and_reject_invalid_routes() -> anyhow::Result<()> {
+        use super::*;
+        let (slots, projections, width, k) = (3usize, 2usize, 128usize, 2usize);
+        let packed = (0..slots * projections * 8 * 8 * 32)
+            .map(|i| (i as u16).wrapping_mul(1777))
+            .collect::<Vec<_>>();
+        let bank = Array::from_u16(&packed, &[3, 2, 8, 8, 32])?;
+        let input = (0..width)
+            .map(|i| half::f16::from_f32((i as f32 - 61.) / 79.).to_bits())
+            .collect::<Vec<_>>();
+        for routes in [vec![2u32], vec![0, 2], vec![2, 0, 1, 2, 1, 0, 2, 2, 0, 1]] {
+            let rows = (routes.len() * projections) as i32;
+            let x = Array::from_f16_bits(&input.repeat(rows as usize), &[rows, 128])?;
+            let scales = vec![half::f16::from_f32(0.5).to_bits(); rows as usize * width];
+            let suh = Array::from_f16_bits(&scales, &[rows, 128])?;
+            let svh = Array::from_f16_bits(&scales, &[rows, 128])?;
+            let actual = expert_slots(
+                &x,
+                &bank,
+                &suh,
+                &svh,
+                &Array::from_u32(&routes, &[routes.len() as i32])?,
+                128,
+                2,
+                k,
+                Codebook::Mul1,
+            )?
+            .to_f16_bits()?;
+            assert_eq!(actual.len(), rows as usize * width);
+            for (route, &slot) in routes.iter().enumerate() {
+                for projection in 0..projections {
+                    let index = slot as usize * projections + projection;
+                    let mut reference = Exl3Linear::new(
+                        Array::from_u16(&packed[index * 2048..(index + 1) * 2048], &[8, 8, 32])?,
+                        Array::from_f16_bits(&scales[..width], &[128])?,
+                        Array::from_f16_bits(&scales[..width], &[128])?,
+                        None,
+                        k,
+                        Codebook::Mul1,
+                    )?;
+                    // Match the Flash checkpoint policy; new() retains the legacy policy.
+                    reference.simdgroups = 4;
+                    reference.reference_accumulation = true;
+                    let expected = reference
+                        .forward(&Array::from_f16_bits(&input, &[1, 128])?)?
+                        .to_f16_bits()?;
+                    let start = (route * 2 + projection) * width;
+                    assert_eq!(
+                        &actual[start..start + width],
+                        expected,
+                        "slot={slot}, projection={projection}"
+                    );
+                }
+            }
+        }
+        let x = Array::from_f16_bits(&input.repeat(2), &[2, 128])?;
+        let scales = Array::from_f16_bits(&vec![half::f16::ONE.to_bits(); 256], &[2, 128])?;
+        assert!(
+            expert_slots(
+                &x,
+                &bank,
+                &scales,
+                &scales,
+                &Array::from_u32(&[3], &[1])?,
+                128,
+                2,
+                k,
+                Codebook::Mul1
+            )
+            .is_err()
+        );
+        Ok(())
+    }
     #[test]
     #[ignore = "requires disposable draft Q4 projection and physical Apple GPU"]
     fn q4_draft_matches_exl3_rotation_reference() -> anyhow::Result<()> {

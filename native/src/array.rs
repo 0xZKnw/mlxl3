@@ -115,6 +115,19 @@ unsafe extern "C" {
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
+    fn mlxl3_array_async_eval(p: *mut c_void) -> i32;
+    fn mlxl3_arrays_preadv(
+        fds: *const i32,
+        offsets: *const u64,
+        records: usize,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        segments: usize,
+        workers: usize,
+    ) -> i32;
     fn mlxl3_arrays_async_eval(inputs: *const *mut c_void, count: usize) -> i32;
     fn mlxl3_array_copy_bytes(p: *mut c_void, out: *mut u8, count: usize) -> i32;
     fn mlxl3_array_unary(
@@ -260,6 +273,15 @@ pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
 pub fn clear_cache() -> Result<()> {
     initialize()?;
     checked(unsafe { mlxl3_clear_cache() })
+}
+
+/// Select a model's default without overriding the explicit allocator setting.
+pub fn set_default_cache_limit(bytes: u64) -> Result<()> {
+    initialize()?;
+    if std::env::var_os("MLXL3_ALLOCATOR_CACHE_MIB").is_none() {
+        checked(unsafe { mlxl3_set_cache_limit(bytes) })?;
+    }
+    Ok(())
 }
 
 /// Finish submitted GPU work before reporting a settled load/unload state.
@@ -600,6 +622,94 @@ impl Array {
     pub fn eval(&self) -> Result<()> {
         checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
     }
+    pub fn async_eval(&self) -> Result<()> {
+        checked(unsafe { mlxl3_array_async_eval(self.handle.as_ptr()) })
+    }
+
+    /// Fill persistent storage after the caller has evaluated every GPU consumer
+    /// of the replaced slots. Aliasing views must not escape that ownership.
+    #[cfg(test)]
+    pub(crate) fn read_record(
+        file: &File,
+        offset: u64,
+        buffers: &mut [Self],
+        destinations: &[(usize, usize, usize)],
+    ) -> Result<()> {
+        Self::read_records(&[(file, offset)], buffers, &[destinations], 1)
+    }
+
+    /// As above, with disjoint destinations and all readers joined before return.
+    pub(crate) fn read_records(
+        sources: &[(&File, u64)],
+        buffers: &mut [Self],
+        destinations: &[&[(usize, usize, usize)]],
+        workers: usize,
+    ) -> Result<()> {
+        ensure!(
+            (1..=512).contains(&sources.len())
+                && sources.len() == destinations.len()
+                && (1..=4).contains(&workers),
+            "invalid disk reader batch"
+        );
+        let segments = destinations[0].len();
+        ensure!((1..=64).contains(&segments), "invalid disk record");
+        for (&(file, offset), ranges) in sources.iter().zip(destinations) {
+            ensure!(
+                ranges.len() == segments,
+                "inconsistent disk record segments"
+            );
+            let mut total = 0u64;
+            for &(index, start, length) in *ranges {
+                let buffer = buffers.get(index).context("invalid disk buffer index")?;
+                ensure!(
+                    crate::flash_support::disk_destination_fits(start, length, buffer.byte_len()?),
+                    "invalid disk destination range"
+                );
+                total = total
+                    .checked_add(u64::try_from(length)?)
+                    .context("disk record size overflow")?;
+            }
+            let file_len = file.metadata()?.len();
+            ensure!(
+                offset
+                    .checked_add(total)
+                    .is_some_and(|end| end <= i64::MAX as u64 && end <= file_len),
+                "invalid disk source range"
+            );
+        }
+        let ptrs = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let fds = sources.iter().map(|s| s.0.as_raw_fd()).collect::<Vec<_>>();
+        let offsets = sources.iter().map(|s| s.1).collect::<Vec<_>>();
+        let indices = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.0))
+            .collect::<Vec<_>>();
+        let starts = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.1))
+            .collect::<Vec<_>>();
+        let lengths = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.2))
+            .collect::<Vec<_>>();
+        checked(unsafe {
+            mlxl3_arrays_preadv(
+                fds.as_ptr(),
+                offsets.as_ptr(),
+                sources.len(),
+                ptrs.as_ptr(),
+                buffers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                segments,
+                workers,
+            )
+        })
+    }
     /// Submit graphs together; reading an output still waits for completion.
     pub fn async_eval_all(inputs: &[&Self]) -> Result<()> {
         let pointers: Vec<_> = inputs.iter().map(|value| value.handle.as_ptr()).collect();
@@ -741,6 +851,9 @@ impl Array {
     pub fn exp(&self) -> Result<Self> {
         self.unary(12, &[], 0., 0)
     }
+    pub fn rsqrt(&self) -> Result<Self> {
+        self.unary(22, &[], 0., 0)
+    }
     pub fn rms_norm_without_weight(&self, eps: f32) -> Result<Self> {
         self.unary(13, &[], eps, 0)
     }
@@ -801,6 +914,24 @@ impl Array {
     }
     pub fn rms_norm(&self, weight: &Self, eps: f32) -> Result<Self> {
         self.binary(weight, 4, 0, eps)
+    }
+    pub(crate) fn qwen4_rms_norm(&self, raw_weight: &Self, eps: f32) -> Result<Self> {
+        self.binary(raw_weight, 11, 0, eps)
+    }
+    pub(crate) fn qwen4_hc_activate(&self) -> Result<Self> {
+        self.unary(23, &[], 0., 0)
+    }
+    pub(crate) fn qwen4_hc_gate(&self) -> Result<Self> {
+        self.unary(24, &[], 0., 0)
+    }
+    pub(crate) fn qwen4_hc_mix(&self, normalized: &Self) -> Result<Self> {
+        self.binary(normalized, 12, 0, 0.)
+    }
+    pub(crate) fn qwen4_ple_gate(&self) -> Result<Self> {
+        self.unary(25, &[], 0., 0)
+    }
+    pub(crate) fn compiled_silu(&self) -> Result<Self> {
+        self.unary(26, &[], 0., 0)
     }
     pub fn conv1d(&self, weight: &Self, groups: i32) -> Result<Self> {
         self.binary(weight, 5, groups, 0.)
@@ -866,6 +997,9 @@ impl Array {
     }
     pub fn div(&self, other: &Self) -> Result<Self> {
         self.binary(other, 9, 0, 0.)
+    }
+    pub(crate) fn pow(&self, exponent: &Self) -> Result<Self> {
+        self.binary(exponent, 13, 0, 0.)
     }
     pub fn geglu(&self, up: &Self) -> Result<Self> {
         self.binary(up, 10, 0, 0.)
@@ -1075,6 +1209,7 @@ mod tests {
     fn allocator_cache_limit_preserves_live_arrays() -> Result<()> {
         let limit = std::env::var("MLXL3_ALLOCATOR_CACHE_MIB")?.parse::<usize>()?;
         ensure!(limit <= 1, "run this check with cache limit0 or1");
+        set_default_cache_limit(512 << 20)?;
         let input = Array::from_f16_bits(&vec![0x3c00; 512 * 512], &[512, 512])?;
         let live = input.try_clone()?;
         for _ in 0..3 {
@@ -1083,6 +1218,29 @@ mod tests {
         synchronize()?;
         assert!(memory_stats(false)?.mlx_cache_bytes <= (limit * 1_048_576) as u64);
         assert!(live.to_f16_bits()?.iter().all(|&word| word == 0x3c00));
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; run alone without MLXL3_ALLOCATOR_CACHE_MIB"]
+    fn model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays() -> Result<()> {
+        ensure!(
+            std::env::var_os("MLXL3_ALLOCATOR_CACHE_MIB").is_none(),
+            "run without allocator override"
+        );
+        set_default_cache_limit(1 << 20)?;
+        let live = Array::from_f32(&[1.25, -3.5, 0.0], &[3])?;
+        live.eval()?;
+        {
+            let temporary = Array::from_f32(&vec![3.25; 8 * 1024 * 1024], &[8 * 1024 * 1024])?;
+            temporary.eval()?;
+        }
+        // MLX reclaims excess cached buffers on the next allocation, not free().
+        let next = live.add(&live)?;
+        next.eval()?;
+        synchronize()?;
+        assert!(memory_stats(false)?.mlx_cache_bytes <= 1 << 20);
+        assert_eq!(next.to_f32()?, [2.5, -7.0, 0.0]);
+        assert_eq!(live.to_f32()?, [1.25, -3.5, 0.0]);
         Ok(())
     }
     #[test]
@@ -1525,6 +1683,16 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    fn disk_batch_reads_real_owned_storage() {
+        use std::io::Write;
+        let value: u8 = kani::any();
+        let mut file = tempfile::tempfile().unwrap();
+        file.write_all(&[value]).unwrap();
+        let mut banks = [Array::zeros_dtype(&[1], Dtype::UInt8).unwrap()];
+        Array::read_records(&[(&file, 0)], &mut banks, &[&[(0, 0, 1)]], 1).unwrap();
+        assert_eq!(banks[0].to_bytes().unwrap(), [value]);
+    }
     #[kani::proof]
     fn async_group_preserves_values() {
         let values: [u32; 2] = kani::any();

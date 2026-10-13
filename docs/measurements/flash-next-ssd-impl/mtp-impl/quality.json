@@ -1,0 +1,383 @@
+{
+  "status": "validated_local",
+  "base_commit": "7f3aabd3c10d5a9f66daee653c4d258cb0ec40db",
+  "source_state": "isolated worktree with MTP changes; root preexisting changes excluded",
+  "source_sha256": {
+    ".github/workflows/rust.yml": "6fafce125c4545a063a010800553ed766bc76d5f9028254f555e02ef62c90d6f",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift": "a9f3d725efa6b30fe02ed6b3fc2cda8191b7e50fba3f8574ccb1c464d095b234",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift": "9f83b5dd46d8c47158ce4f13b5d9de6edaddb2cefd2e7982d0f2ca5f3ebf708c",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "1fd48593bf59ed64d9567cfb740f3d59f440a94158bf4326425f7e554243f707",
+    "native/ffi/mlx_bridge.cpp": "92b9eb002727b43dab9e3c9800754de3d55bd59ce53989dd19127f271895c1f2",
+    "native/shaders/_qmv_tile_kernel.metal": "fe5260810eb286082dafd5a52464f83994fca7e68ebc57125965e0e46e9ae8e2",
+    "native/src/checkpoint.rs": "c884a976729c3d698c0189f5e9de85c0a3f2b527cc4cfd5e12edf9c7093780a1",
+    "native/src/contracts.rs": "3d8d4450f098fb36806fdeaf53bd4a34f4350fd2ee8239cc5522345c380e2cac",
+    "native/src/flash_support.rs": "c9fae50b483ce6466cadfa602eb23d095c5e615d9c0808e644a0e33699d043b1",
+    "native/src/lfm2.rs": "5b290ab707cc3ab5e1ae32a73f8ba0a9c858a86e4703923fcd8c2792646330f1",
+    "native/src/linear.rs": "69f5274b2fcc5af4b3e87b4c43807477e8b46d521bf5f9781ebc43632398889b",
+    "native/src/main.rs": "696505ff7151223fd7fb648d7b277002f20283b78447515d9f0e5e7bc762e4a7",
+    "native/src/qwen4.rs": "50644d6bc66feeeb6f646f807364b768a3964e54fc3e3e4acb85eaeb23632535",
+    "native/src/ssd_moe.rs": "7cf75a4e23146999d262853f8d4e93c3dffaa177e7339c9b891d897b3ae0dabd",
+    "native/tests/contracts.rs": "6a5ad9be42d37635a34d2e74bff40591d1d04a4b45c16882378bf8dbaf586512",
+    "scripts/benchmark-flash-bridge.py": "d6f15ecebde93357ca43251fc8e79e58072210314f1dc04537e8f2e12523aec0",
+    "scripts/check-flash-reference.py": "d838f32f323686dc80cf0a5f4cdd21df491d36ed9f748bd38baf7f907672d341",
+    "scripts/check-mtp-bridge.py": "69c02e826ca221c3366dee73e45f9ba51f0adb67e1ca0d3fade43973f41f2c82",
+    "tests/fake-desktop-engine.py": "eb242d6ff86b3e17751a5eeff1f199f6e4c376611195b71a8ef9f3994d475468",
+    "tests/studio-hardening-check.swift": "40f7c08a317d59875109921e5ac255f881fd534f578b6f37051c00896ff7f39f",
+    "tests/test_flash_benchmark.py": "dc4ab620f05465bcc5d78a02e8300caf6e53b36554812aaf1068a465f46fcb2f",
+    "tests/test_flash_reference.py": "d9c7a5f86fbcea4879ab9ba63c5b7793fbb6a204053c53b8399f9bf1ad75695c",
+    "tests/test_mtp_bridge.py": "e43db146833ce8387d099dfa13c2a5121936768d300099aecbf753834862034f"
+  },
+  "release": {
+    "path": "/Users/justin/Documents/mix-stq1_0/target/release/mlxl3-rs",
+    "sha256": "fedde704647bd7dbc47604d4b8ecece4b5f95bdba3570a2bb6c5654d4c4afe95",
+    "embedded_commit": "7f3aabd3c10d-dirty",
+    "profile": "release",
+    "features": [
+      "mlx",
+      "chat"
+    ]
+  },
+  "test_binary": {
+    "path": "/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227",
+    "sha256": "10a55b2629a716613fdb8bbf0b38cde7162bc888a697bd9cfd876596f8dc46f5"
+  },
+  "checkpoint_revision": "65c895314393431c09050b2e04e250836b3a6eb4",
+  "checkpoint_hash_manifest_sha256": "b1a3dab9c7d0f6f1fd4ea7733e9fcf22ece74990c2b2e82a10339fa187771ba1",
+  "dependencies": {
+    "MLX": "0.32.2",
+    "MLX-VLM": "0.7.3, installed sources RECORD-verified",
+    "PonyExl3": "8e7fa6b1556f59fc669e25087903b279b9b0346f",
+    "Rust": "1.98.1",
+    "Swift": "6.4",
+    "Kani": "0.68.0",
+    "CBMC": "6.11.0",
+    "CrossHair": "0.0.110",
+    "Python": "3.12.14",
+    "SDK": "MacOSX26.5.sdk"
+  },
+  "hardware": {
+    "chip": "Apple M5",
+    "memory_gib": 24,
+    "macOS": "27.2 (26B5091g)"
+  },
+  "mtp_oracle": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+    "reference_sha256": "b2a7ddfdb903aa3396949a5fff95ada3dfd67a7712572bbb346b5ecc94154b92",
+    "mode": "eval",
+    "positions": 10,
+    "numeric_files": 138,
+    "numeric_bytes": 11906880,
+    "numeric_census_sha256": "83cbc590ddecc21049c82810f44278bb1bb40287accb82859955af8ab64be20d",
+    "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline"
+  },
+  "target_oracles": {
+    "original": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "reference_sha256": "37e05327f9fddf059ec08ad7dacb00be1bc6cc789b3f5ac67e88092739858c20",
+      "numeric_files": 2655,
+      "numeric_bytes": 80668160,
+      "numeric_census_sha256": "c3c187f484e3dae621bcae7d0b1ccce4f9e344cb66fb1ebccb50c39795f11750",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": "eval",
+      "tokens": [
+        248044,
+        1,
+        42,
+        248044,
+        7
+      ]
+    },
+    "held": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "reference_sha256": "8276927ac53f89009e64bef2e9900228d515f43f45ef73533ffc9ac8bb394491",
+      "numeric_files": 5841,
+      "numeric_bytes": 177469952,
+      "numeric_census_sha256": "ec94bcf56a9d81b7de19bc23b3bc8a25a1cef87517e46be5b45b0cfff051edd8",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": "eval",
+      "tokens": [
+        248044,
+        78768,
+        11,
+        220,
+        96748,
+        729,
+        687,
+        281,
+        2007,
+        248044,
+        248319
+      ]
+    },
+    "norm_hc": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "reference_sha256": "726e7e2a4c677d838a34a5faf655350b591be1f2e8154b3da964a19b65af789e",
+      "numeric_files": 104,
+      "numeric_bytes": 3887200,
+      "numeric_census_sha256": "8cc74cb6f415bb2f9fde5fd04eebc81ee1b6893ff2c7a4356cf813b0e4364247",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": null,
+      "tokens": null
+    },
+    "projections": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "reference_sha256": "2ec20a82189f4b5cdb301cccbc39e5604912f4a2e0bcd9f3fb26bd18f216e078",
+      "numeric_files": 40,
+      "numeric_bytes": 2486016,
+      "numeric_census_sha256": "a00cd6fb015f5fb33d5b53301bd898937e1d863de1df17bde8e1708f632dbc38",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": null,
+      "tokens": [
+        248044,
+        1,
+        42,
+        248044,
+        7
+      ]
+    },
+    "attention": {
+      "directory": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "reference_sha256": "40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec",
+      "numeric_files": 240,
+      "numeric_bytes": 4519840,
+      "numeric_census_sha256": "2f90c1187a841ea152e40e2f8172a03a427e4b881bfbbc7960eb13e13932ad6f",
+      "census_algorithm": "SHA256 of sorted filename + NUL + file SHA256 + newline",
+      "mode": "eval",
+      "tokens": [
+        248044,
+        1,
+        42,
+        248044,
+        7
+      ]
+    }
+  },
+  "numerical_checks": {
+    "head_positions": 10,
+    "head_logit_values": 2483200,
+    "head_contract": "finite/nonempty/shapes checked; FP32 byte equality incl signed zero for fusion, six components, layer, mixer, logits, keys, values, tail; argmax exact",
+    "cache_only": "full native QSA state byte equality against full head; upstream QSA eager/lazy block representation differs",
+    "target_pair": "prefixes0..4, commit1/2, EOS/compression4; two logits rows, all GDN/QSA/PLE/HC states and next token exact; invalid/stale/context/pending reject",
+    "session": "budgets1/2/3/17 greedy IDs + complete target and independently rebuilt head states exact; accepted5/proposed12 at17; errors/reset covered",
+    "SSD": "30 pairs, caches10/20/143 x overlap0/1 x 5 order/repetition cases, independent oracle; invalid shapes/dtypes, failed read invalidation and exact retry",
+    "target_revalidation": {
+      "positions": 16,
+      "full_logits_values": 3973120,
+      "gdn_states": 32,
+      "values_per_state": 786432,
+      "full_logits_and_gdn_states_comparison": "FP32 bytes including signed zeros; finite, nonempty, counts checked",
+      "sorted_route_cohorts": 768,
+      "argmax": 16,
+      "component_outputs": 4608,
+      "component_contract": "HC mixed and attention byte equality; HC gate and MoE relative RMSE < 0.005",
+      "norms": 40,
+      "projections": 20,
+      "hc_writes": 6,
+      "isolated_attention_stages": 200
+    }
+  },
+  "checks": {
+    "rust_portable_chat": {
+      "library_pass": 40,
+      "contracts_pass": 16,
+      "ignored": 3
+    },
+    "rust_mlx_chat": {
+      "library_pass": 43,
+      "main_pass": 7,
+      "contracts_pass": 16,
+      "ignored": 65
+    },
+    "python": {
+      "passed": 68,
+      "skipped": 4,
+      "skip_reasons": [
+        "Pony convert modules absent x3",
+        "local Ling checkpoint absent"
+      ]
+    },
+    "swift": "full Desktop E2E + final app-wide Swift6 warnings-as-errors typecheck/hardening passed",
+    "fmt": "passed",
+    "Ruff": "passed",
+    "Clippy": "strict mlx,chat and chat passed",
+    "release_build": "passed",
+    "CI_workflow_YAML": "parsed; PR/push triggers and no production credentials inspected",
+    "bridges": {
+      "Flash": {
+        "path": "bridge-flash-01.jsonl",
+        "ABBA_generations": 16,
+        "budgets": [
+          1,
+          2,
+          3,
+          17
+        ],
+        "rejected_requests": 5,
+        "cancel_recoveries": 2
+      },
+      "Qwen3.6": {
+        "path": "bridge-qwen-legacy-01.jsonl",
+        "ABBA_generations": 12,
+        "budgets": [
+          1,
+          2,
+          3
+        ],
+        "rejected_requests": 4,
+        "cancel_recoveries": 2
+      },
+      "penalty_1_1_fallback": "passed both"
+    }
+  },
+  "verification": {
+    "Kani": {
+      "classification": "bounded model checking on production CPU helpers",
+      "harnesses": 6,
+      "obligations": 837,
+      "failed": 0,
+      "covers": 21,
+      "unreachable": 3,
+      "domains": [
+        "tensor interval: all u64 payload/start/end, no assumptions",
+        "pair commit: all i32 base/current/retained, no assumptions",
+        "EXL3 partitions: all u32 inputs/outputs, unwind26",
+        "greedy maximal prefix: arrays of7/8 u32, width0..7, unwind9; assume length<=7 matches fixed arrays",
+        "MTP depth1: symbolic usize budgets and u32 tokens, unwind4",
+        "MTP widths0..3 and greedy commits: symbolic usize budgets, draft3/target4 u32, unwind6"
+      ]
+    },
+    "CBMC": "actual preprocessed C++ FFI cannot parse libc++; unverified",
+    "CrossHair": "parser2 contracts unconfirmed8s; I/O checkers have no analyzable functions",
+    "cache": "cache reservation harness introduced with Flash streaming; local exploration interrupted5min, CI cancelled30min; unproved",
+    "Swift_Metal_MLX_concurrency": "unproved"
+  },
+  "limits": [
+    "QSA sparse branch beyond2048 tokens not physically checked",
+    "multimodal not implemented in this text port",
+    "65 ignored Rust tests not executed by full mlx suite; separately selected Flash tests recorded",
+    "app not installed; no merge or release",
+    "Full CI Kani cancelled at30min; CPU cache proof remains unverified"
+  ],
+  "failures_retained": [
+    "head-reference-01..05",
+    "ssd-cohorts.log panic then fixed",
+    "rust-validation-01.log ignored Result then fixed",
+    "swift-strict.log preexisting vendor CoreText deprecation",
+    "swift-harness-02.log bad object layout",
+    "swift-strict-03.log mutable model fixture invalidated fingerprint",
+    "bridge-checker-id-before.log duplicate request IDs then fixed",
+    "cbmc-ffi.log absent PATH then cbmc-ffi-02.log incompatible parse"
+  ],
+  "commands": [
+    "cargo fmt --all -- --check",
+    "cargo clippy --locked --all-targets --features mlx,chat -- -D warnings",
+    "cargo clippy --locked --all-targets --features chat -- -D warnings",
+    "cargo test --locked --features chat",
+    "cargo test --locked --features mlx,chat -- --test-threads=1",
+    "cargo build --release --locked --features mlx,chat",
+    "cargo test --locked --features mlx,chat --lib <exact physical test> -- --ignored --exact --nocapture",
+    "python -m pytest -q",
+    "python -m ruff format --check <affected Python>",
+    "python -m ruff check <affected Python>",
+    "cargo kani --lib --no-default-features --harness <six named contracts>",
+    "scripts/check-desktop.sh",
+    "swiftc -swift-version 6 -warnings-as-errors -typecheck <all app sources>",
+    "swiftc -swift-version 6 -warnings-as-errors <app sources excluding main> tests/studio-hardening-check.swift + vendor objects",
+    "cargo test --locked --features mlx,chat --lib qwen4::tests::flash_mtp_head_matches_reference_and_cache_only -- --ignored --exact --nocapture",
+    "cargo test --locked --features mlx,chat --lib qwen4::tests::flash_pair_verification_preserves_serial_logits_and_all_states -- --ignored --exact --nocapture",
+    "cargo test --locked --features mlx,chat --lib qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states -- --ignored --exact --nocapture",
+    "cargo test --locked --features mlx,chat --lib ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads -- --ignored --exact --nocapture",
+    "python scripts/check-mtp-bridge.py <release> <Flash model> <same model head> --tokens 1,2,3,17",
+    "python scripts/check-mtp-bridge.py <release> <Qwen3.6 2.49bpw> <MTP4bit> --tokens 1,2,3"
+  ],
+  "physical_tests_selected": 14,
+  "environment": {
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+    "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target",
+    "MLXL3_SSD_CACHE_GIB": "8",
+    "MLXL3_SSD_OVERLAP": "1",
+    "context": 4096,
+    "prompt_cache_reuse": false,
+    "power_and_swap_files": [
+      "bridge-conditions-before.txt",
+      "bridge-conditions-after.txt"
+    ],
+    "temperature": "not measured",
+    "physical_SSD_bytes": "not measured"
+  },
+  "evidence_sha256": {
+    "bridge-checker-id-before.log": "dc6c8f832629183c600007e4bac5b3b0683a12fcec4cae8d3a7535d5fbd40031",
+    "bridge-conditions-after.txt": "36eaa9caa4678298f840ddbde85b8b6063818b07c665b7cf306f8098c6155b46",
+    "bridge-conditions-before.txt": "2264c8449927d0839757df534fbf1c9a30e8cf10e7bc7cab6d019abc80f6be98",
+    "bridge-flash-01.jsonl": "36697446eee611c6c815668c3c4487b2f6fa3cd7925af873053b5b0a7614f60c",
+    "bridge-flash-01.stderr": "5ad9757364bc416b455e902860ebac09a652361482f5ca86d5f86b19b8a77558",
+    "bridge-qwen-legacy-01.jsonl": "7ca3053cb860a3850bfff9e7a2c36869ae16a719d448be6ff39ac1ef73396a07",
+    "bridge-qwen-legacy-01.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "cbmc-ffi-02.log": "b42183ecb94c5c666df3bb99038f563843dc5ef03474c9e6ec817944bba76e2c",
+    "cbmc-ffi.log": "f61dbea4846280e6bf0bb173f6d509f3be728607b562cb2129bfa4d6a4d0e608",
+    "clippy-before-gpu.log": "a1eef60d7cb2c774b3d52795ecb6ec3fa12f2840bb522d55a4a64e10ef0ceda8",
+    "cpu-final.log": "57a847defadc9846d4f3eb59958c4ebbc41610e1c5d1a9e19490854c30265683",
+    "crosshair-bridge.log": "fe1e43d923a3ee57ab2c87f764073ae29856b47a1c8ec31a7a152d13e6eaabee",
+    "crosshair-reference.log": "361b4ffc335fd106441f70ea2ae05683aebbaf782d127c9809eac24b5c7f04bc",
+    "desktop-full.log": "54d96b89cb7e0ab30fe6d53a9f481dcc47bb135e0847d187740082e9d0ff7bf7",
+    "flash-mtp-check-02.log": "0eb79e7855c4a0e51db74e7241335d5e000da5d8efcf69fe60be60244ca21ec5",
+    "flash-mtp-check.log": "d4e7022dd94439dc4b7b02f838d3ec50c12801d6693f859389fab77e8bad5f61",
+    "flash-mtp-clippy-02.log": "3531e42e7b286606437f7db2d0ee435d201bc8d36069fe3cb652c45340022c02",
+    "flash-mtp-clippy.log": "8bb3c60cfd09c12479a64217e5d5d0d1a6d68cfc3bf31c7bb0ecbfea7fd8839e",
+    "head-reference-01.log": "4edc9c98316de28b8401a5c1182722c8d078f7e22b4b60157c7989f05e02a37e",
+    "head-reference-02.log": "dc5fdd37042082166653d4db6ae6435b80510686e8eb3adfd97a3bcb913d981c",
+    "head-reference-03.log": "1f6b0796f374aff88afc389e74d65bcce3468841f8dcfe0fc2b992ae88ccee93",
+    "head-reference-04.log": "3cec6fc534b6f97371835e6ecc53ba3cf5d8cce511a9ffc3986b88f98e103ba6",
+    "head-reference-05.log": "d3cf9931927e1a7fb78d4cc30ce25fa45851cedd1902afaa0d4368b2ee54d973",
+    "head-reference-06.log": "c4d6138e176a90fbedd34c846334f6207b388d72db5805e07cacf14ac7616c40",
+    "head-reference-07.log": "6339bdc7b7a0ce628a26fd7482f908912dbb516e997c011882fcd02401c0789d",
+    "kani-final.log": "9b8fd9fe91cc76178ed43e2755209927e47d4dca36514f500a3f03e75d6a4a53",
+    "kani-pair.log": "41b27b3ca02eb3a513418fdbe75c0731e4f83917e6b58641297668e03c6dd02f",
+    "kani-width.log": "1a70480cc859696d3ca8360d808770637470f5932311424ec6645bf2c34d561c",
+    "mlx-test-build-final.log": "2ece28b8545ae9a40d4510074f30ce2690bbe4e8e93d1bf27bc75d638c079fd2",
+    "mlx-test-build.log": "8c7ec48fd0e1a8a6a722e42b750b636ed436308a7ac1702624e059f88cd70397",
+    "mtp-oracle-held-02.log": "adbd5983c2dc91f7e28419ca53bcb5dc4fe9cb3669e8cff6b8535e6dd06a998e",
+    "mtp-oracle-held.log": "adbd5983c2dc91f7e28419ca53bcb5dc4fe9cb3669e8cff6b8535e6dd06a998e",
+    "pair-states.log": "0691987e304a491372eff268dab4f6c6bc737365a495f202e98479aff25fe8f8",
+    "python-final.log": "f0253793f2a8faa2b61ad02e6c4919aaabf93251e7d6880adf942855dc719c1b",
+    "python-full.log": "d4faaeaabf9048ea39791ff7164888acdfed59a151539210a11014776573bd4c",
+    "rust-mlx-full.log": "0c2a459871bb3592f5b36f08f8bf5b824e095b1e66dc03ed5a436bee3d9e85d2",
+    "rust-validation-01.log": "d5b9c199d1f8bd92c9bef493d1d2ce5e954e351e0e6447b3267015a2ce20f3bd",
+    "rust-validation-02.log": "b35288a115c67e4bb6266e09197fa907153b96d7d6e31eb780748d38b2156186",
+    "session-states.log": "063b888cdbbe56c3dbde2cec989f2b85621c39707ccbf9b47953fe9afbd9b30d",
+    "ssd-cohorts-02.log": "4423751b17263fd2eddbd4e0be7f957cc6fa6235b9a4f8342cc4790cbfdbe779",
+    "ssd-cohorts-03.log": "723074e7cffad99e64dfaba15ed1404b9dfc27e4f10911cd8d87b73764eda05e",
+    "ssd-cohorts.log": "0b7c399f154dae988f15c27708011e2622b1aeca4308ac39012abec2e5c8a6b8",
+    "swift-harness-02.log": "668bd095c9dd4d492c5ba62721627791c00fb47e4ecb3ad30f5839ba62c320eb",
+    "swift-strict-02.log": "008a26074770e40d8d0528b78b9853c09a442145104847a57ed800b29da66667",
+    "swift-strict-03.log": "ac53c19e34eb078ad93f56f11a1d31ea54c9b3185f652f04befbc677af80bead",
+    "swift-strict-04.log": "47255d093d45b28f12290e3907b260ddcb14cdde2bdb2f257039542019daa8bd",
+    "swift-strict.log": "6ba4b657564a8d35279695058af1afa7e502d5a3234e3b8aad5b2f36bf48cad5",
+    "target-held.log": "43e2b526f7a8ae84184e172c5a031a4a6cfb1307009d57af7164d46fb7519ed7",
+    "target-original.log": "2b68da75d2ab27b86cce29573a368edcba20a4d8c6576c186d7ac5b986333fe3",
+    "ci-d506-desktop.json": "6a9f6aa21ff5f73ac2300f7d6063cb3f2e322fcd34cb1fa48a2f536366e1fc1d",
+    "ci-d506-desktop.log": "2870b8e4128e657735304ad55db10940a4520cca968967f45b0d319a9b51e3bb",
+    "ci-d506-kani-flash.log": "c188340bcc7a2159dd5b2fbb3d0595c190c2504e1781482631b0b39f790b5cd4",
+    "ci-d506-kani-full.log": "aa8fd208ad7694079ba6e7218852132b091496c647d01bcc56fdd12cf5d6e275",
+    "ci-d506-linux.log": "72a9e629e1ee1c04714545b543724001b5f608b71a5889215af2e316dfc272af",
+    "ci-d506-macos.log": "409d5dd80f5a44a145da70f04cfedbb8ed4ee417385cdcf07167ddf47c042d9a",
+    "ci-d506-native.json": "aeac8bd96c6fe80056db7aba8e85886aae3b42bad055ccbb38b8029447bfb60c"
+  },
+  "CI": {
+    "source_commit": "d506cc78243e680668aaf73961c56824852b4798",
+    "Desktop": {
+      "status": "success",
+      "run": 38166474586,
+      "log": "ci-d506-desktop.log"
+    },
+    "Rust": {
+      "run": 38166474556,
+      "status": "cancelled",
+      "Linux": "success",
+      "macOS": "success",
+      "kani_flash_contracts": "success",
+      "kani_full": "cancelled at30min in cache harness introduced with Flash streaming, before MTP; not a proof"
+    },
+    "logs_inspected": true
+  }
+}

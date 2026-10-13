@@ -17,7 +17,9 @@
 #include <unistd.h>
 #include <libproc.h>
 #include <sys/resource.h>
+#include <sys/uio.h>
 #include "kernel_cache_key.h"
+#include "disk_reader.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -252,6 +254,44 @@ int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
     *out = output.release();
   });
 }
+int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
+                        void* const* buffers, size_t buffer_count,
+                        const size_t* indices, const size_t* starts,
+                        const size_t* lengths, size_t segments, size_t workers) noexcept {
+  return protect([&] {
+    if (!fds || !offsets || !buffers || !indices || !starts || !lengths ||
+        !records || records > 512 || !segments || segments > 64 || !workers || workers > 4)
+      throw std::invalid_argument("invalid disk reader metadata");
+    std::vector<uint8_t*> pointers;
+    std::vector<size_t> capacities;
+    for (size_t i = 0; i < buffer_count; ++i) {
+      auto& a = arr(buffers[i]);
+      a.eval();
+      if (!a.flags().row_contiguous) throw std::invalid_argument("noncontiguous disk buffer");
+      pointers.push_back(a.data<uint8_t>());
+      capacities.push_back(a.nbytes());
+    }
+    std::vector<mlxl3::DiskRead> reads;
+    reads.reserve(records);
+    for (size_t r = 0; r < records; ++r) {
+      mlxl3::DiskRead read{fds[r], offsets[r], {}};
+      read.destinations.reserve(segments);
+      for (size_t s = 0; s < segments; ++s) {
+        auto i = r * segments + s;
+        auto bank = indices[i];
+        if (bank >= buffer_count || starts[i] > capacities[bank] ||
+            lengths[i] > capacities[bank] - starts[i])
+          throw std::invalid_argument("invalid disk destination range");
+        read.destinations.push_back({pointers[bank] + starts[i], lengths[i]});
+      }
+      reads.push_back(std::move(read));
+    }
+    mlxl3::read_disk_records(reads, workers);
+  });
+}
+int mlxl3_array_async_eval(void* p) noexcept {
+  return protect([&] { mx::async_eval({arr(p)}); });
+}
 int mlxl3_arrays_from_files(const int* fds, const uint64_t* offsets,
                             const int32_t* dims, const size_t* ranks,
                             const int* types, size_t count, size_t workers,
@@ -351,6 +391,30 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         case 19: return mx::argmax(a, -1, false);
         case 20: return mx::broadcast_to(a, shape(args, nargs));
         case 21: return mx::argsort(a, -1);
+        case 22: return mx::rsqrt(a);
+        case 23: {
+          thread_local auto activate = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::divide(x[0], mx::array(4.0f, x[0].dtype()));
+            return std::vector<mx::array>{mx::multiply(y, mx::sigmoid(y))};
+          }, false);
+          return activate({a})[0];
+        }
+        case 24: {
+          thread_local auto gate = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(mx::array(2.0f, x[0].dtype()), mx::sigmoid(mx::divide(x[0], mx::array(4.0f, x[0].dtype()))))};
+          }, false);
+          return gate({a})[0];
+        }
+        case 25: {
+          auto magnitude = mx::sqrt(mx::maximum(mx::abs(a), mx::array(1e-6f)));
+          return mx::sigmoid(mx::multiply(mx::sign(a), magnitude));
+        }
+        case 26: {
+          thread_local auto silu = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(x[0], mx::sigmoid(x[0]))};
+          }, true);
+          return silu({a})[0];
+        }
       }
       throw std::invalid_argument("invalid unary operation");
     };
@@ -398,6 +462,25 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           }, true);
           return geglu({a, b})[0];
         }
+        case 11: {
+          thread_local auto normalize = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::astype(x[0], mx::float32);
+            y = mx::multiply(y, mx::rsqrt(mx::add(mx::mean(mx::square(y), -1, true), x[2])));
+            y = mx::multiply(y, mx::add(mx::array(1.0f), mx::astype(x[1], mx::float32)));
+            return std::vector<mx::array>{mx::astype(y, x[0].dtype())};
+          }, false);
+          return normalize({a, b, mx::array(scalar, mx::float32)})[0];
+        }
+        case 12: {
+          thread_local auto mix = mx::compile([](const std::vector<mx::array>& x) {
+            auto dims = x[0].shape();
+            dims.back() /= 4;
+            dims.insert(dims.end() - 1, 4);
+            return std::vector<mx::array>{mx::mean(mx::multiply(mx::reshape(mx::sigmoid(x[0]), dims), mx::reshape(x[1], dims)), -2, false)};
+          }, false);
+          return mix({a, b})[0];
+        }
+        case 13: return mx::power(a, b);
       }
       throw std::invalid_argument("invalid binary operation");
     };

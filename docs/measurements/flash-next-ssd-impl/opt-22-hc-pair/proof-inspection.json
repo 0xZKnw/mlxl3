@@ -1,0 +1,27 @@
+{
+  "regression": {
+    "cpu": {
+      "passed": 87,
+      "ignored": 2
+    },
+    "release-suite": {
+      "passed": 107,
+      "ignored": 100
+    }
+  },
+  "kani": {
+    "status": "unverified_compiler_ICE_before_obligations",
+    "domain": "three independent symbolic i8, no assumptions; two F32 rows broadcast to [2,10240], real F16 weights [320,10240]; production forward_flash_hc vs two independent original MLX matmuls",
+    "diagnostic": "Kani0.68 intrinsics.rs:243; no obligations/coverage available"
+  },
+  "metal": {
+    "status": "unverified_unsupported_MSL",
+    "diagnostic": "CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos\nInvalid User Input\nOption: native/shaders/flash_hc_gemv.metal\nReason: Failed to figure out type of file"
+  },
+  "gpu_sampled": {
+    "real_matrices": 298,
+    "paired_f32_values": 4225568,
+    "oracle": "bit-exact against two original MLX T1 matmuls, contiguous and strided; additional T1 CPU/MLX checks and HC gate/mix/write boundaries"
+  },
+  "mutation": "row2 input aliases row1: real shader test rejects; restored test SHA963f01b2 exact and pair test passes"
+}

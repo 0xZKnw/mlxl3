@@ -1,0 +1,130 @@
+{
+  "status": "non_conclusive",
+  "retained": false,
+  "cells": [
+    {
+      "mode": "baseline",
+      "prompt": "MAIN",
+      "control_tps": [
+        6.92565048109661,
+        6.903191811013721,
+        6.919885791129398
+      ],
+      "candidate_tps": [
+        6.921442714928266,
+        6.8762398753451395,
+        6.925728804423935
+      ],
+      "control_median": 6.919885791129398,
+      "candidate_median": 6.921442714928266,
+      "paired_gain_percent": [
+        -0.06075625935541007,
+        -0.39042715900753366,
+        0.08443800188187023
+      ],
+      "candidate_min_over_control_max": 0.9928655646301622,
+      "peak_extra_bytes": [
+        10469424,
+        -1064912,
+        1474608
+      ],
+      "performance_pass": true,
+      "memory_pass": true
+    },
+    {
+      "mode": "baseline",
+      "prompt": "HOLD",
+      "control_tps": [
+        6.814846028492302,
+        6.886680814969806,
+        6.887406496111615
+      ],
+      "candidate_tps": [
+        6.89505034296514,
+        6.947449747168062,
+        6.883728817334094
+      ],
+      "control_median": 6.886680814969806,
+      "candidate_median": 6.89505034296514,
+      "paired_gain_percent": [
+        1.1769057457426069,
+        0.8824124978489056,
+        -0.053397149995393356
+      ],
+      "candidate_min_over_control_max": 0.9994660285000461,
+      "peak_extra_bytes": [
+        10207256,
+        -2342912,
+        5439512
+      ],
+      "performance_pass": true,
+      "memory_pass": true
+    },
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "control_tps": [
+        6.946758243297397,
+        6.975491963959664,
+        6.9375058870725175
+      ],
+      "candidate_tps": [
+        7.28802964548441,
+        7.309479080401397,
+        7.273765227479576
+      ],
+      "control_median": 6.946758243297397,
+      "candidate_median": 7.28802964548441,
+      "paired_gain_percent": [
+        4.912671353091769,
+        4.78800804541597,
+        4.8469773702628505
+      ],
+      "candidate_min_over_control_max": 1.0427601759217848,
+      "peak_extra_bytes": [
+        7372848,
+        7897064,
+        -46412992
+      ],
+      "performance_pass": true,
+      "memory_pass": true
+    },
+    {
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "control_tps": [
+        6.783025491025822,
+        6.820800641704562,
+        7.245867063096105
+      ],
+      "candidate_tps": [
+        7.145598685468988,
+        7.161064982785808,
+        7.666624616853209
+      ],
+      "control_median": 6.820800641704562,
+      "candidate_median": 7.161064982785808,
+      "paired_gain_percent": [
+        5.345301958880477,
+        4.9886275666929825,
+        5.806862727306483
+      ],
+      "candidate_min_over_control_max": 0.9861619904486251,
+      "peak_extra_bytes": [
+        11927600,
+        8634368,
+        3424256
+      ],
+      "performance_pass": false,
+      "memory_pass": true
+    }
+  ],
+  "all_outputs_exact": true,
+  "identities_unchanged": true,
+  "max_system_swapout_bytes": 0,
+  "max_candidate_process_peak_bytes": {
+    "baseline": 9330515504,
+    "mtp": 10159235208
+  },
+  "reason": "HOLD MTP candidate minimum is below control maximum; paired gains pass but absolute envelope criterion fails. All 24 records retained."
+}

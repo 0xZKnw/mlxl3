@@ -1,0 +1,61 @@
+{
+  "status": "failed",
+  "parity": false,
+  "started": "2026-10-12T10:46:39.783127+00:00",
+  "schedule": [
+    "A",
+    "B",
+    "B",
+    "A",
+    "A",
+    "B"
+  ],
+  "binary_sha256": {
+    "A": "cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa",
+    "B": "cfcfd0385c8ddcda521d3057a3c00e920d544fd46c01372b9cac839038d576d5"
+  },
+  "source_identity": "../quality-identity.json",
+  "runs": [
+    {
+      "arm": "A",
+      "index": 1,
+      "status": "validated",
+      "started": "2026-10-12T10:46:39.825720+00:00",
+      "seconds": 182.0624287080136,
+      "finished": "2026-10-12T10:49:41.888478+00:00"
+    },
+    {
+      "arm": "B",
+      "index": 2,
+      "status": "validated",
+      "started": "2026-10-12T10:49:41.920058+00:00",
+      "seconds": 169.84329845797038,
+      "finished": "2026-10-12T10:52:31.763868+00:00"
+    },
+    {
+      "arm": "B",
+      "index": 3,
+      "status": "validated",
+      "started": "2026-10-12T10:52:31.796038+00:00",
+      "seconds": 179.31408704200294,
+      "finished": "2026-10-12T10:55:31.110739+00:00"
+    },
+    {
+      "arm": "A",
+      "index": 4,
+      "status": "validated",
+      "started": "2026-10-12T10:55:31.143246+00:00",
+      "seconds": 183.6584173750016,
+      "finished": "2026-10-12T10:58:34.802295+00:00"
+    },
+    {
+      "arm": "A",
+      "index": 5,
+      "status": "in_progress",
+      "started": "2026-10-12T10:58:34.833872+00:00"
+    }
+  ],
+  "protocol": "6 sequential processes, 4 warmups + 4 measured generations each, 64 tokens/63 decode; three observations per binary/mode/prompt",
+  "error": "KeyboardInterrupt()",
+  "finished": "2026-10-12T11:00:21.125269+00:00"
+}

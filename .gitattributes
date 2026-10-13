@@ -2,6 +2,12 @@
 # release; its historical style intentionally contains trailing whitespace.
 apps/MLXL3Studio/Vendor/SwiftMath/** -whitespace
 
+# Preserve raw Flash evidence and collapse it in reviews; reports stay visible.
+docs/measurements/flash-next-ssd-impl/**/*.log linguist-generated=true -whitespace
+docs/measurements/flash-next-ssd-impl/**/*.jsonl linguist-generated=true
+# Unified diffs use a mandatory space prefix on blank context lines.
+docs/measurements/flash-next-ssd-impl/**/*.patch -whitespace
+
 # Preserve raw benchmark evidence byte-for-byte and collapse machine output
 # in GitHub reviews. Reports, protocol, source snapshots and prototype patches
 # remain visible; expanding a generated result still shows all its contents.

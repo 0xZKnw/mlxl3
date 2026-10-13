@@ -1,0 +1,121 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.57s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-e6d055582b363ce4)
+
+running 73 tests
+test contracts::idle_cache_policy_boundaries ... ok
+test contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles ... ok
+test contracts::grouped_mb3_requires_opt_in_and_measured_shape ... ok
+test contracts::dense_qmm_large_tile_preserves_ragged_and_small_fallbacks ... ok
+test contracts::gdn_tape_requires_a_valid_commit ... ok
+test contracts::gdn_history_capacity_covers_partial_commits ... ok
+test contracts::mtp_cache_append_checks_empty_negative_and_overflowing_positions ... ok
+test contracts::dense_mlp_batch_requires_supported_weights_and_rows ... ok
+test codec::tests::permutation_is_bijective ... ok
+test contracts::mtp_pipeline_default_requires_measured_geometry ... ok
+test contracts::older_gpus_never_select_tensor_ops ... ok
+test contracts::qmv_pair_layout_covers_rows_and_bounds_padding ... ok
+test contracts::smallm_kernel_key_distinguishes_all_options ... ok
+test dflash::tests::draft_capture_window_keeps_the_checkpoint_and_prompt_suffix ... ok
+test dflash::tests::dense_layout_and_convolution_boundaries ... ok
+test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+test dflash::tests::plans_match_the_published_splash_layout ... ok
+test contracts::pipeline_layer_stays_inside_model ... ok
+test flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded ... ok
+test flash_support::tests::available_memory_accepts_older_complete_revisions ... ok
+test flash_support::tests::available_memory_query_returns_a_positive_snapshot ... ok
+test flash_support::tests::available_memory_rejects_truncated_and_oversized_snapshots ... ok
+test flash_support::tests::disk_offsets_reject_boundaries_and_overflow ... ok
+test flash_support::tests::disk_ranges_reject_empty_overflow_and_out_of_bounds ... ok
+test flash_support::tests::hashes_use_signed_remainder_and_eos_segments ... ok
+test flash_support::tests::pair_commits_reject_stale_invalid_and_overflowing_positions ... ok
+test flash_support::tests::complete_cohorts_protect_hits_and_have_unique_slots ... ok
+test codec::tests::pack_tail_biting_all_bitrates ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test hub::tests::both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata ... ok
+test flash_support::tests::reference_partition_covers_real_shapes_and_extremes ... ok
+test memory_policy::tests::adaptive_excludes_two_cold_samples_and_rejects_invalid_samples ... ok
+test memory_policy::tests::adaptive_uses_costs_hysteresis_and_reprobes ... ok
+test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+test memory_policy::tests::budget_includes_draft_logits_history_and_backing_without_overflow ... ok
+test memory_policy::tests::capture_selects_only_the_named_request_once ... ok
+test memory_policy::tests::compact_view_requires_material_waste_without_overflow ... ok
+test memory_policy::tests::mib_limits_reject_invalid_and_overflowing_values ... ok
+test mtp::draft_projection_tests::compact_rows_are_nonempty_ordered_unique_and_in_target_vocab ... ok
+test mtp::draft_projection_tests::optional_projection_must_match_target_and_affine_contract ... ok
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test mcp::tests::parses_json_and_sse_responses ... ok
+test dflash::tests::inspects_published_dense_geometry_without_target_weights ... ok
+test speculative::tests::adapts_only_after_sustained_low_acceptance ... ok
+test speculative::tests::dflash_copy_remembers_only_commits_and_stops_after_total_refusal ... ok
+test speculative::tests::dflash_copy_bounds_prompt_and_committed_history ... ok
+test speculative::tests::dflash_modes_bound_every_small_budget_and_reject_unknown_modes ... ok
+test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+test speculative::tests::lookup_uses_latest_known_continuation_and_respects_limits ... ok
+test speculative::tests::mtp_depths_budgets_and_invalid_depths ... ok
+test speculative::tests::speculative_work_stays_inside_both_budgets ... ok
+test speculative::tests::tuning_excludes_collapsed_acceptance_divergence_and_invalid_rates ... ok
+test memory_policy::tests::allocator_tuning_keys_distinguish_default_and_all_valid_limits ... ok
+test speculative::tests::tuning_requires_valid_baseline_and_selects_eligible_gain ... ok
+test streaming::tests::markers_split_at_every_character ... ok
+test streaming::tests::prefilled_and_incomplete_markers ... ok
+test streaming::tests::unfinished_cr_is_preserved ... ok
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+test mtp::tests::managed_head_uses_target_geometry_and_rejects_unknown_variants ... ok
+test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+test mtp::tests::canonical_dense_and_moe_checkpoints_are_inspected_without_gpu ... ok
+test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+test codec::tests::codebooks_are_finite_exhaustively ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test mtp::tests::incompatible_or_incomplete_heads_fail_before_gpu_loading ... ok
+test speculative::tests::dflash_copy_transitions_match_bounded_stream_over_long_sequences ... ok
+test flash_support::tests::seeded_cache_cohorts_survive_evictions_aging_and_read_failures ... ok
+
+test result: ok. 71 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running unittests native/src/main.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_rs-8d3f7d972606ac5d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running native/tests/contracts.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/contracts-f68acc6c724765f0)
+
+running 16 tests
+test checkpoint_round_trip_and_lazy_payload_read ... ok
+test checkpoint_supports_legacy_scales_and_validates_shard_map ... ok
+test checkpoint_validates_trellis_and_scale_layouts ... ok
+test inspected_tensor_source_rejects_hostile_offsets_and_truncation ... ok
+test flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail ... ok
+test safetensors_accepts_scalars_and_zero_sized_tensors ... ok
+test registry_rejects_invalid_names_and_preserves_corrupt_registry ... ok
+test checkpoint_rejects_missing_or_inconsistent_files ... ok
+test safetensors_rejects_invalid_headers_and_ranges ... ok
+test registry_replacement_and_remove_protect_model_files ... ok
+test cli_codec_recovers_after_invalid_request ... ok
+test cli_default_registry_respects_explicit_app_home ... ok
+test cli_empty_app_home_uses_user_config_directory ... ok
+test cli_relative_registry_mutations_succeed ... ok
+test concurrent_registry_writers_do_not_lose_entries ... ok
+test cli_register_list_inspect_remove_uses_isolated_registry ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running native/tests/runtime_gpu.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/runtime_gpu-2203f34068080867)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mlxl3_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

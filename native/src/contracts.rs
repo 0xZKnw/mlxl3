@@ -562,6 +562,35 @@ pub(crate) fn valid_data_range(start: u64, end: u64, payload: u64, bytes: u64) -
     end >= start && end <= payload && end - start == bytes
 }
 
+pub(crate) fn absolute_data_range(payload: u64, [start, end]: [u64; 2]) -> Option<[u64; 2]> {
+    if start > end {
+        return None;
+    }
+    Some([payload.checked_add(start)?, payload.checked_add(end)?])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn tensor_source_interval_is_ordered_and_cannot_wrap() {
+    let payload: u64 = kani::any();
+    let start: u64 = kani::any();
+    let end: u64 = kani::any();
+    let result = absolute_data_range(payload, [start, end]);
+    assert_eq!(
+        result.is_some(),
+        start <= end && u128::from(payload) + u128::from(end) <= u128::from(u64::MAX)
+    );
+    if let Some([first, last]) = result {
+        assert!(first <= last && first >= payload);
+        assert_eq!(u128::from(first), u128::from(payload) + u128::from(start));
+        assert_eq!(u128::from(last), u128::from(payload) + u128::from(end));
+        kani::cover!(first == u64::MAX && last == u64::MAX);
+        kani::cover!(first == last && first == 0);
+    }
+    kani::cover!(start > end && result.is_none());
+    kani::cover!(payload == u64::MAX && end == 1 && result.is_none());
+}
+
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), kani))]
 pub(crate) fn packed_words(states: usize, k: usize) -> Option<usize> {
     ((1..=8).contains(&k) && states.is_multiple_of(256))

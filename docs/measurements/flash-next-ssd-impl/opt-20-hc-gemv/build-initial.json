@@ -1,0 +1,30 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 0.24132729100000003
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "failed",
+    "exit": 101,
+    "seconds": 3.216350167
+  }
+]

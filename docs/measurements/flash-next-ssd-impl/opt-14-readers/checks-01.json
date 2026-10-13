@@ -1,0 +1,100 @@
+{
+  "status": "passed",
+  "runs": [
+    {
+      "name": "cpp-build",
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-O1",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I",
+        "native/ffi",
+        "native/tests/disk_reader.cpp",
+        "-o",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/disk-reader"
+      ],
+      "exit": 0,
+      "seconds": 0.9928271670000001,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/cpp-build.log"
+    },
+    {
+      "name": "cpp-asan",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/disk-reader"
+      ],
+      "exit": 0,
+      "seconds": 0.44797295800000003,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/cpp-asan.log"
+    },
+    {
+      "name": "tsan-build",
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-O1",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsanitize=thread",
+        "-I",
+        "native/ffi",
+        "native/tests/disk_reader.cpp",
+        "-o",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/disk-reader-tsan"
+      ],
+      "exit": 0,
+      "seconds": 0.44974483399999987,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/tsan-build.log"
+    },
+    {
+      "name": "cpp-tsan",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/disk-reader-tsan"
+      ],
+      "exit": 0,
+      "seconds": 2.8182157090000004,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/cpp-tsan.log"
+    },
+    {
+      "name": "proof-syntax",
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-I",
+        "native/ffi",
+        "-fsyntax-only",
+        "native/tests/disk_reader_proof.cpp"
+      ],
+      "exit": 0,
+      "seconds": 0.24069954099999968,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/proof-syntax.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.652998375,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/clippy.log"
+    }
+  ]
+}

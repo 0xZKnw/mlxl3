@@ -155,7 +155,9 @@ struct MTPTuningControls: View {
                         .font(.system(size: 9.5)).foregroundStyle(StudioTheme.quiet)
                 }
             }
-            Text(supported
+            Text(!dflash && studio.mtpBuiltIn
+                 ? L("Flash Next utilise MTP1. Chaque proposition est vérifiée par le modèle cible.", "Flash Next uses MTP1. The target verifies every proposal.")
+                 : supported
                  ? artifact.isEmpty
                     ? L("Active le mode une fois pour préparer le draft, puis lance Tune.", "Enable the mode once to prepare the draft, then run Tune.")
                     : L("Deux prompts locaux, sans outils. Le meilleur mode est enregistré pour ce modèle et ce Mac. Baseline si le gain ne dépasse pas 3 %.", "Two local prompts, without tools. The best mode is saved for this model and Mac. Baseline if the gain is within 3%.")

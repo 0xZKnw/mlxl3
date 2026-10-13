@@ -1,0 +1,53 @@
+[
+  {
+    "name": "primitives",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "lfm2::flash_hc_tests::",
+      "--skip",
+      "lfm2::flash_hc_tests::mixed_gemv_micro",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "expected_tests": 3,
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_SSD_CACHE_GIB": "5",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1"
+    },
+    "test_sha256": "963f01b2039ae950f4dabff6b0854a81c340f168ee459150ea658b09cee1712b",
+    "status": "passed",
+    "exit_code": 0,
+    "observed_tests": 3,
+    "seconds": 3.2825821670121513,
+    "reaped": true
+  },
+  {
+    "name": "hc-pair",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "qwen4::tests::flash_hc_pair_preserves_serial_rounding_and_rejects_invalid_shapes",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "expected_tests": 1,
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_SSD_CACHE_GIB": "5",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1"
+    },
+    "test_sha256": "963f01b2039ae950f4dabff6b0854a81c340f168ee459150ea658b09cee1712b",
+    "status": "passed",
+    "exit_code": 0,
+    "observed_tests": 1,
+    "seconds": 0.839477583009284,
+    "reaped": true
+  }
+]

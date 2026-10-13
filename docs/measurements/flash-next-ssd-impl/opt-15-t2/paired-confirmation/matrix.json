@@ -1,0 +1,167 @@
+{
+  "trial": "15B",
+  "registered_at": "2026-10-12T15:04:05.825884+00:00",
+  "schedule": [
+    {
+      "name": "1-MAIN-mtp-H",
+      "pair": "1-MAIN-mtp",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "1-MAIN-mtp-C",
+      "pair": "1-MAIN-mtp",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "1-HOLD-mtp-H",
+      "pair": "1-HOLD-mtp",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "1-HOLD-mtp-C",
+      "pair": "1-HOLD-mtp",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "2-HOLD-mtp-C",
+      "pair": "2-HOLD-mtp",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "2-HOLD-mtp-H",
+      "pair": "2-HOLD-mtp",
+      "repeat": 2,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "2-MAIN-mtp-C",
+      "pair": "2-MAIN-mtp",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "2-MAIN-mtp-H",
+      "pair": "2-MAIN-mtp",
+      "repeat": 2,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "3-MAIN-mtp-H",
+      "pair": "3-MAIN-mtp",
+      "repeat": 3,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "3-MAIN-mtp-C",
+      "pair": "3-MAIN-mtp",
+      "repeat": 3,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "3-HOLD-mtp-H",
+      "pair": "3-HOLD-mtp",
+      "repeat": 3,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "3-HOLD-mtp-C",
+      "pair": "3-HOLD-mtp",
+      "repeat": 3,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "4-HOLD-mtp-C",
+      "pair": "4-HOLD-mtp",
+      "repeat": 4,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "4-HOLD-mtp-H",
+      "pair": "4-HOLD-mtp",
+      "repeat": 4,
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "engine": "H"
+    },
+    {
+      "name": "4-MAIN-mtp-C",
+      "pair": "4-MAIN-mtp",
+      "repeat": 4,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "C"
+    },
+    {
+      "name": "4-MAIN-mtp-H",
+      "pair": "4-MAIN-mtp",
+      "repeat": 4,
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "engine": "H"
+    }
+  ],
+  "baseline": {
+    "engine": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3-rs",
+    "sha256": "bd89a7d6fa49bec7587df603d62f9e767cac70525fffa0d2cb8c34fd8d57686e"
+  },
+  "candidate": {
+    "engine": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/t2-current/mlxl3-rs",
+    "sha256": "4fc51f1e05cd7751d98c8481566546fd4f533be37864fb6584134855df43bafb"
+  },
+  "protocol": {
+    "expert_cache_gib": 5,
+    "slots_per_layer": 89,
+    "allocator_cache_mib": 512,
+    "ssd_readers": 4,
+    "context": 4096,
+    "tokens": 64,
+    "decode_tokens": 63,
+    "warmups_per_process": 1,
+    "measurements_per_process": 1,
+    "apps": "user applications remain open; Discord and Telegram closed by user",
+    "power": "measure before and after each process",
+    "one_gpu_model_at_a_time": true
+  },
+  "criteria": {
+    "all_paired_gains_percent_at_least": 3,
+    "max_paired_gain_range_percentage_points_per_prompt": 2,
+    "max_candidate_peak_extra_bytes": 268435456,
+    "max_system_swapout_bytes_per_arm": 268435456,
+    "all_warmups_and_measurements_exact": true,
+    "all_identities_unchanged": true,
+    "off_control": "six pairs already passed in trial15; same native code and pilot, no new OFF speed claim"
+  },
+  "status": "preregistered",
+  "earlier_campaign": "15 non-conclusive absolute-envelope criterion remains; this independent confirmation uses only fresh MTP pairs"
+}

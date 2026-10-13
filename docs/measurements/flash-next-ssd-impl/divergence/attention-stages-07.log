@@ -1,0 +1,80 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: function `step_reference` is never used
+   --> native/src/gated_delta.rs:144:15
+    |
+144 | pub(crate) fn step_reference(
+    |               ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.95s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 1 test
+test qwen4::tests::flash_attention_stages_match_upstream ... GDN/0/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 94 filtered out; finished in 6.14s
+

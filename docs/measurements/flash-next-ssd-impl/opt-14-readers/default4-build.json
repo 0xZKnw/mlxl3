@@ -1,0 +1,66 @@
+{
+  "status": "passed",
+  "runs": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.36564854199999997,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/default4-fmt.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.8071667500000004,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/default4-clippy.log"
+    },
+    {
+      "name": "tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 38.971875292,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/default4-tests.log"
+    },
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 0.08976750000000067,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/default4-build.log"
+    }
+  ],
+  "binaries": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3-rs": "bd89a7d6fa49bec7587df603d62f9e767cac70525fffa0d2cb8c34fd8d57686e",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3_native-28585053ede733ec": "b564c6dd57064db5acb6d7c086844ba669792d5d0870cc345fc715e02c0a427e"
+  }
+}

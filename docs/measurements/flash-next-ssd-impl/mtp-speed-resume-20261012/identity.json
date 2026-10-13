@@ -1,0 +1,59 @@
+{
+  "source_commit": "d506cc78243e680668aaf73961c56824852b4798",
+  "state": "only journal/measurement artifacts changed after clean release build",
+  "binary_sha256": "e89da70ad32906743e332702575053ead81922a42d85d3f33a65e277bf434dfb",
+  "benchmark_source_sha256": "d6f15ecebde93357ca43251fc8e79e58072210314f1dc04537e8f2e12523aec0",
+  "quality_source_sha256": {
+    ".github/workflows/rust.yml": "6fafce125c4545a063a010800553ed766bc76d5f9028254f555e02ef62c90d6f",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift": "a9f3d725efa6b30fe02ed6b3fc2cda8191b7e50fba3f8574ccb1c464d095b234",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift": "9f83b5dd46d8c47158ce4f13b5d9de6edaddb2cefd2e7982d0f2ca5f3ebf708c",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "1fd48593bf59ed64d9567cfb740f3d59f440a94158bf4326425f7e554243f707",
+    "native/ffi/mlx_bridge.cpp": "92b9eb002727b43dab9e3c9800754de3d55bd59ce53989dd19127f271895c1f2",
+    "native/shaders/_qmv_tile_kernel.metal": "fe5260810eb286082dafd5a52464f83994fca7e68ebc57125965e0e46e9ae8e2",
+    "native/src/checkpoint.rs": "c884a976729c3d698c0189f5e9de85c0a3f2b527cc4cfd5e12edf9c7093780a1",
+    "native/src/contracts.rs": "3d8d4450f098fb36806fdeaf53bd4a34f4350fd2ee8239cc5522345c380e2cac",
+    "native/src/flash_support.rs": "c9fae50b483ce6466cadfa602eb23d095c5e615d9c0808e644a0e33699d043b1",
+    "native/src/lfm2.rs": "5b290ab707cc3ab5e1ae32a73f8ba0a9c858a86e4703923fcd8c2792646330f1",
+    "native/src/linear.rs": "69f5274b2fcc5af4b3e87b4c43807477e8b46d521bf5f9781ebc43632398889b",
+    "native/src/main.rs": "696505ff7151223fd7fb648d7b277002f20283b78447515d9f0e5e7bc762e4a7",
+    "native/src/qwen4.rs": "50644d6bc66feeeb6f646f807364b768a3964e54fc3e3e4acb85eaeb23632535",
+    "native/src/ssd_moe.rs": "7cf75a4e23146999d262853f8d4e93c3dffaa177e7339c9b891d897b3ae0dabd",
+    "native/tests/contracts.rs": "6a5ad9be42d37635a34d2e74bff40591d1d04a4b45c16882378bf8dbaf586512",
+    "scripts/benchmark-flash-bridge.py": "d6f15ecebde93357ca43251fc8e79e58072210314f1dc04537e8f2e12523aec0",
+    "scripts/check-flash-reference.py": "d838f32f323686dc80cf0a5f4cdd21df491d36ed9f748bd38baf7f907672d341",
+    "scripts/check-mtp-bridge.py": "69c02e826ca221c3366dee73e45f9ba51f0adb67e1ca0d3fade43973f41f2c82",
+    "tests/fake-desktop-engine.py": "eb242d6ff86b3e17751a5eeff1f199f6e4c376611195b71a8ef9f3994d475468",
+    "tests/studio-hardening-check.swift": "40f7c08a317d59875109921e5ac255f881fd534f578b6f37051c00896ff7f39f",
+    "tests/test_flash_benchmark.py": "dc4ab620f05465bcc5d78a02e8300caf6e53b36554812aaf1068a465f46fcb2f",
+    "tests/test_flash_reference.py": "d9c7a5f86fbcea4879ab9ba63c5b7793fbb6a204053c53b8399f9bf1ad75695c",
+    "tests/test_mtp_bridge.py": "e43db146833ce8387d099dfa13c2a5121936768d300099aecbf753834862034f"
+  },
+  "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+  "status": "validated",
+  "runtime_info": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "d506cc78243e",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.3.0"
+  },
+  "unmeasured": [
+    "physical SSD bytes",
+    "temperatures"
+  ],
+  "command": "python scripts/benchmark-flash-bridge.py /Users/justin/Documents/mix-stq1_0/target/release/mlxl3-rs /Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531 docs/measurements/flash-next-ssd-impl/mtp-speed-resume-20261012 --compare",
+  "previous_campaign": "mtp-speed, interrupted11/12",
+  "client_date": "2026-10-12",
+  "binary_sha256_after": "e89da70ad32906743e332702575053ead81922a42d85d3f33a65e277bf434dfb",
+  "evidence_sha256": {
+    "campaign.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "conditions-after.txt": "b1c23ba5188375ca11596557130bf6288ab72cc514ddacc0850562bc3bdf1ed0",
+    "conditions-before.txt": "c14cbbe08ab3b931264a624ce18481617b848bb5243af81737df2807710f993f",
+    "console.jsonl": "5263909854d2a2797b6c5e6c31cb36c4c5765dc417a9b4fa4dda0430ddbd13a6",
+    "report.json": "9831187ddbf45ce7e0f03ae034bf83a2890331c626695d3198e0e91b155fe6bd",
+    "stderr.log": "5ad9757364bc416b455e902860ebac09a652361482f5ca86d5f86b19b8a77558",
+    "summary.json": "6af922cd243901c3e3f7f8a7f2b0adb6c2a2c56955d1322f17e06aecb83c8154"
+  }
+}

@@ -1,0 +1,82 @@
+All checks passed!
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+.................................s.ss................................... [ 49%]
+........................................................................ [ 66%]
+........................................................................ [ 83%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+430 passed, 4 skipped in 77.80s (0:01:17)
+Building for debugging...
+[Planning deferred tasks]
+[5 / 16] SwiftMath
+[16 / 27] SwiftMath
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[20 / 27] SwiftMath
+[20 / 27] MLXL3Studio-product
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[23 / 80] SwiftMath
+[23 / 80]
+[30 / 80]
+[32 / 80]
+[38 / 80]
+[39 / 80]
+[41 / 80]
+[43 / 80]
+[44 / 80]
+[53 / 80]
+[54 / 80]
+[58 / 80]
+[61 / 80]
+[62 / 80]
+[64 / 80]
+[75 / 80] MLXL3Studio-product
+[76 / 80] MLXL3Studio-product
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[78 / 80] MLXL3Studio-product
+Build complete! (19,62 secs)
+Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-check.wurTZvxLjV/StudioHardeningCombined.swift:1315:13: error: invalid redeclaration of 'flash'
+ 912 |         print("Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability")
+ 913 |         print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")
+ 914 |         let flash = try await make("dflash-good")
+     |             `- note: 'flash' previously declared here
+ 915 |         flash.setDFlash2Enabled(true)
+ 916 |         for _ in 0..<200 where flash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+     :
+1313 |         prefs.set(true, forKey: "studio.mtpEnabled")
+1314 |         let legacyHead = prefs.string(forKey: "studio.mtpHeadPath")!
+1315 |         let flash = try await make("flash", type: "qwen4_exp")
+     |             `- error: invalid redeclaration of 'flash'
+1316 |         precondition(flash.mtpBuiltIn && flash.mtpAvailable && flash.mtpMaxDepth == 1 && !flash.canTuneMTP)
+1317 |         precondition(!flash.mtpEnabled && flash.mtpEffectiveHeadPath == flashModel.path, "Another model's MTP setting leaked to a new Flash model")
+
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-check.wurTZvxLjV/StudioHardeningCombined.swift:1319:30: error: cannot infer contextual base in reference to member 'loading'
+1317 |         precondition(!flash.mtpEnabled && flash.mtpEffectiveHeadPath == flashModel.path, "Another model's MTP setting leaked to a new Flash model")
+1318 |         let flashReady = flash.engineState
+1319 |         flash.engineState = .loading("flash")
+     |                              `- error: cannot infer contextual base in reference to member 'loading'
+1320 |         flash.setMTPEnabled(true)
+1321 |         precondition(!flash.mtpEnabled && !flash.mtpDownloading, "Built-in MTP activated before the runtime was ready")

@@ -1,0 +1,11 @@
+$ date -u
+Mon Oct 12 09:47:08 UTC 2026
+$ pmset -g batt
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=23461987)	100%; charged; 0:00 remaining present: true
+$ pmset -g therm
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+$ sysctl vm.swapusage
+vm.swapusage: total = 5120.00M  used = 4113.12M  free = 1006.88M  (encrypted)

@@ -1035,6 +1035,7 @@ fn run(cli: Cli) -> Result<()> {
             }
             for token in tokens {
                 let (logits, arrays) = match (&mut model, states) {
+                    (NativeChatModel::Flash(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Lfm2(model), true) => {
                         let logits = model.forward(&[token])?;
@@ -1390,6 +1391,7 @@ enum NativeChatModel {
     Lfm2(mlxl3_native::lfm2::Lfm2),
     Ling(mlxl3_native::ling::Ling),
     Qwen(mlxl3_native::qwen35::Qwen35Moe),
+    Flash(Box<mlxl3_native::qwen4::FlashNext>),
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1401,6 +1403,9 @@ impl NativeChatModel {
 
     fn from_checkpoint(checkpoint: &checkpoint::Checkpoint) -> Result<Self> {
         match checkpoint.model_type.as_str() {
+            "qwen4_exp" => Ok(Self::Flash(Box::new(
+                mlxl3_native::qwen4::FlashNext::from_checkpoint(checkpoint)?,
+            ))),
             "gemma4" => Ok(Self::Gemma4(mlxl3_native::gemma4::Gemma4::from_checkpoint(
                 checkpoint,
             )?)),
@@ -1423,6 +1428,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.forward(&[token]),
             Self::Ling(model) => model.forward(token),
             Self::Qwen(model) => model.forward(token),
+            Self::Flash(model) => model.forward(token),
         }
     }
 
@@ -1436,6 +1442,7 @@ impl NativeChatModel {
                 Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
                 Self::Ling(_) => self.forward_many_serial(tokens),
                 Self::Qwen(model) => model.forward_tokens(tokens),
+                Self::Flash(model) => model.forward_tokens(tokens),
                 Self::Gemma4(_) | Self::Lfm2(_) => self.forward_many_serial(tokens),
             };
         }
@@ -1445,6 +1452,7 @@ impl NativeChatModel {
     fn forward_many_serial(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         match self {
             Self::Qwen(model) => return model.prefill_serial(tokens),
+            Self::Flash(model) => return model.forward_tokens(tokens),
             Self::Ling(model) => return model.prefill_serial(tokens),
             _ => {}
         }
@@ -1460,6 +1468,7 @@ impl NativeChatModel {
             Self::Gemma4(_) => 256,
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
             Self::Qwen(_) => 256,
+            Self::Flash(_) => 8,
             Self::Ling(_) => 128,
             Self::Lfm2(_) => 1,
         }
@@ -1471,6 +1480,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.context_limit(),
             Self::Ling(model) => model.context_limit(),
             Self::Qwen(model) => model.context_limit(),
+            Self::Flash(model) => model.context_limit(),
         }
     }
 
@@ -1480,6 +1490,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.reset(),
             Self::Ling(model) => model.reset(),
             Self::Qwen(model) => model.reset(),
+            Self::Flash(model) => model.reset(),
         }
     }
 
@@ -1490,7 +1501,7 @@ impl NativeChatModel {
                     state.eval()?;
                 }
             }
-            Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) => {}
+            Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) | Self::Flash(_) => {}
         }
         Ok(())
     }
@@ -1501,6 +1512,7 @@ impl NativeChatModel {
             Self::Lfm2(_) => "LFM2",
             Self::Ling(_) => "Ling 3",
             Self::Qwen(_) => "Qwen3.5",
+            Self::Flash(_) => "Qwen3.8 Flash Next",
         }
     }
 }
@@ -1549,6 +1561,122 @@ struct BridgeRequest {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn default_mtp_depth() -> usize {
     1
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+enum ChatMtpHead {
+    Qwen(Box<mlxl3_native::mtp::Head>),
+    Flash(Box<mlxl3_native::qwen4::FlashMtpHead>),
+}
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl ChatMtpHead {
+    fn load(path: &std::path::Path, model: &NativeChatModel) -> Result<Self> {
+        match model {
+            NativeChatModel::Qwen(target) => Ok(Self::Qwen(Box::new(
+                mlxl3_native::mtp::Head::load(path, target)?,
+            ))),
+            NativeChatModel::Flash(target) => Ok(Self::Flash(Box::new(
+                mlxl3_native::qwen4::FlashMtpHead::load(&checkpoint::inspect(path)?, target)?,
+            ))),
+            _ => bail!("MTP requires a supported Qwen target"),
+        }
+    }
+    fn reset(&mut self) -> Result<()> {
+        match self {
+            Self::Qwen(head) => head.reset(),
+            Self::Flash(head) => {
+                head.reset();
+                Ok(())
+            }
+        }
+    }
+}
+#[cfg(all(feature = "mlx", feature = "chat"))]
+enum ChatMtpSession {
+    Qwen(mlxl3_native::mtp::Session),
+    Flash(mlxl3_native::qwen4::FlashMtpSession),
+}
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl ChatMtpSession {
+    fn new(head: &ChatMtpHead, depth: usize) -> Result<Self> {
+        match head {
+            ChatMtpHead::Qwen(_) => Ok(Self::Qwen(mlxl3_native::mtp::Session::new(depth)?)),
+            ChatMtpHead::Flash(_) => {
+                anyhow::ensure!(depth == 1, "Flash MTP supports depth 1");
+                Ok(Self::Flash(Default::default()))
+            }
+        }
+    }
+    fn advance(
+        &mut self,
+        model: &mut NativeChatModel,
+        head: &mut ChatMtpHead,
+        anchor: u32,
+        context: usize,
+        remaining: usize,
+        allow_lookup: impl Fn(&[u32]) -> bool,
+    ) -> Result<u32> {
+        match (self, model, head) {
+            (Self::Qwen(session), NativeChatModel::Qwen(target), ChatMtpHead::Qwen(head)) => {
+                session.advance(target, head, anchor, context, remaining, allow_lookup)
+            }
+            (Self::Flash(session), NativeChatModel::Flash(target), ChatMtpHead::Flash(head)) => {
+                session.advance(target, head, anchor, context, remaining)
+            }
+            _ => bail!("MTP head and target do not match"),
+        }
+    }
+    fn enable_adaptive(&mut self) {
+        if let Self::Qwen(session) = self {
+            session.enable_adaptive();
+        }
+    }
+    fn enable_prompt_lookup(&mut self, tokens: &[u32]) {
+        if let Self::Qwen(session) = self {
+            session.enable_prompt_lookup(tokens);
+        }
+    }
+    fn stats(&self) -> (usize, usize, usize, usize, [usize; 4]) {
+        match self {
+            Self::Qwen(s) => (
+                s.proposed,
+                s.accepted,
+                s.blocks,
+                s.lookup_blocks,
+                s.depth_blocks,
+            ),
+            Self::Flash(s) => (s.proposed, s.accepted, s.blocks, 0, [0, s.blocks, 0, 0]),
+        }
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn prefill_flash_mtp(
+    model: &mut NativeChatModel,
+    head: &mut mlxl3_native::qwen4::FlashMtpHead,
+    tokens: &[u32],
+    cache: &mut Option<PromptCache>,
+    cancelled: &AtomicBool,
+) -> Result<(mlxl3_native::array::Array, Option<DFlashChat>, usize)> {
+    let NativeChatModel::Flash(target) = model else {
+        bail!("Flash MTP requires Flash Next");
+    };
+    *cache = None;
+    target.reset();
+    head.reset();
+    let mut logits = None;
+    for &token in tokens {
+        if cancelled.load(Ordering::Relaxed) {
+            target.reset();
+            head.reset();
+            bail!("generation cancelled");
+        }
+        if let Some(hidden) = &target.last_hidden {
+            head.extend_cache(target, hidden, token)?;
+        }
+        logits = Some(target.forward(token)?);
+    }
+    Ok((logits.context("empty Flash MTP prefill")?, None, 0))
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -2235,7 +2363,7 @@ fn bridge_generate_round(
     cancelled: &AtomicBool,
     random: &mut u64,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
-    mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    mut mtp: Option<&mut ChatMtpHead>,
     mtp_depth: usize,
     dflash_mode: usize,
     cache: &mut Option<PromptCache>,
@@ -2263,7 +2391,12 @@ fn bridge_generate_round(
     let prepare_seconds = started.elapsed().as_secs_f64();
     let prefill_started = Instant::now();
     let (mut logits, mut dflash, cached) = if let Some(head) = mtp.as_deref_mut() {
-        prefill_mtp(model, head, &tokens, cache, conversation, reuse, cancelled)?
+        match head {
+            ChatMtpHead::Qwen(head) => {
+                prefill_mtp(model, head, &tokens, cache, conversation, reuse, cancelled)?
+            }
+            ChatMtpHead::Flash(head) => prefill_flash_mtp(model, head, &tokens, cache, cancelled)?,
+        }
     } else {
         prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
     };
@@ -2272,7 +2405,7 @@ fn bridge_generate_round(
     }
     let mut mtp_session = mtp
         .as_ref()
-        .map(|_| mlxl3_native::mtp::Session::new(mtp_depth))
+        .map(|head| ChatMtpSession::new(head, mtp_depth))
         .transpose()?;
     if std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")
         && let Some(session) = &mut mtp_session
@@ -2349,11 +2482,8 @@ fn bridge_generate_round(
         }
         if generated.len() < budget {
             if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
-                let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("MTP requires Qwen3.5/3.6");
-                };
                 dflash_next = Some(session.advance(
-                    target,
+                    model,
                     head,
                     next,
                     context_limit,
@@ -2443,11 +2573,11 @@ fn bridge_generate_round(
         dflash_blocks: dflash.as_ref().map(|session| session.blocks),
         dflash_lookup_blocks: dflash.as_ref().map(|session| session.lookup_blocks),
         dflash_block_seconds: dflash.as_ref().map_or(0., |session| session.block_seconds),
-        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.proposed),
-        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
-        mtp_blocks: mtp_session.as_ref().map(|s| s.blocks),
-        mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.lookup_blocks),
-        mtp_depth_blocks: mtp_session.as_ref().map(|s| s.depth_blocks),
+        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.stats().0),
+        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.stats().1),
+        mtp_blocks: mtp_session.as_ref().map(|s| s.stats().2),
+        mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.stats().3),
+        mtp_depth_blocks: mtp_session.as_ref().map(|s| s.stats().4),
         ..Default::default()
     };
     Ok(RoundOutput {
@@ -2519,7 +2649,7 @@ fn bridge_generate(
     random: &mut u64,
     mcp: &mut mlxl3_native::mcp::Manager,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
-    mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    mut mtp: Option<&mut ChatMtpHead>,
     mtp_depth: usize,
     dflash_mode: usize,
     started: Instant,
@@ -2693,11 +2823,11 @@ fn load_dflash_weights(
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn load_mtp_head(
-    head: &mut Option<(PathBuf, mlxl3_native::mtp::Head)>,
+    head: &mut Option<(PathBuf, ChatMtpHead)>,
     revision: &mut Option<String>,
     prompt_cache: &mut Option<PromptCache>,
     requested: &str,
-    target: &mlxl3_native::qwen35::Qwen35Moe,
+    model: &NativeChatModel,
 ) -> Result<bool> {
     anyhow::ensure!(
         !requested.trim().is_empty(),
@@ -2714,7 +2844,7 @@ fn load_mtp_head(
     *revision = None;
     mlxl3_native::array::synchronize()?;
     mlxl3_native::array::clear_cache()?;
-    *head = Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+    *head = Some((path.clone(), ChatMtpHead::load(&path, model)?));
     *revision = Some(next_revision);
     Ok(true)
 }
@@ -2722,13 +2852,13 @@ fn load_mtp_head(
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn release_bridge_idle_state(
     model: &mut NativeChatModel,
-    head: Option<&mut mlxl3_native::mtp::Head>,
+    head: Option<&mut ChatMtpHead>,
     memory_saver: bool,
 ) -> Result<()> {
     // Both prefill paths reset or restore their separate PromptCache on the next
     // request. The final decode state is not a continuation checkpoint.
     model.reset();
-    let reset = head.map_or(Ok(()), mlxl3_native::mtp::Head::reset);
+    let reset = head.map_or(Ok(()), ChatMtpHead::reset);
     let released = mlxl3_native::array::release_idle_cache_with_policy(memory_saver);
     reset?;
     released
@@ -2792,10 +2922,10 @@ fn native_bridge(
         "dflash_supported":dflash_supported, "dflash_family":dflash_family,
         "dflash_tune_supported":dflash_supported, "dflash_configure_supported":true,
         "dflash_tuning_key":dflash_tuning_key,
-        "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "mtp_supported":matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
-        "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "mtp_max_depth":if matches!(&model, NativeChatModel::Flash(_)) { 1 } else { 3 }, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
         "memory_saver_supported":true,
         "context_memory":match &model { NativeChatModel::Qwen(target) => Some(target.context_memory_profile()?), _ => None },
         "mtp_tuning_key":tuning_key,
@@ -2812,7 +2942,7 @@ fn native_bridge(
         | 1;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
     let mut dflash_weights: Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)> = None;
-    let mut mtp_head: Option<(PathBuf, mlxl3_native::mtp::Head)> = None;
+    let mut mtp_head: Option<(PathBuf, ChatMtpHead)> = None;
     let mut mtp_head_revision = None;
     let mut prompt_cache: Option<PromptCache> = None;
     for line in io::stdin().lock().lines() {
@@ -2845,16 +2975,17 @@ fn native_bridge(
                 model.reset();
                 let result = (|| -> Result<()> {
                     if request.enabled {
-                        let NativeChatModel::Qwen(target) = &model else {
-                            bail!("MTP requires a Qwen target");
-                        };
+                        anyhow::ensure!(
+                            matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
+                            "MTP requires a supported Qwen target"
+                        );
                         dflash_weights = None;
                         load_mtp_head(
                             &mut mtp_head,
                             &mut mtp_head_revision,
                             &mut prompt_cache,
                             &request.mtp_head_path,
-                            target,
+                            &model,
                         )?;
                     } else {
                         mtp_head = None;
@@ -2941,7 +3072,7 @@ fn native_bridge(
                 prompt_cache = None;
                 dflash_weights = None;
                 let result = (|| -> Result<()> {
-                    let NativeChatModel::Qwen(target) = &model else {
+                    let NativeChatModel::Qwen(_) = &model else {
                         bail!("Tune MTP supports Qwen3.5/3.6/3.8 targets");
                     };
                     emit_event(
@@ -2953,11 +3084,16 @@ fn native_bridge(
                         &mut mtp_head_revision,
                         &mut prompt_cache,
                         &request.mtp_head_path,
-                        target,
+                        &model,
                     )?;
+                    let ChatMtpHead::Qwen(head) =
+                        &mut mtp_head.as_mut().context("missing MTP head")?.1
+                    else {
+                        bail!("Tune MTP requires a Qwen target");
+                    };
                     mtp_tune::run(
                         &mut model,
-                        &mut mtp_head.as_mut().context("missing MTP head")?.1,
+                        head,
                         &tokenizer,
                         &request.request_id,
                         &tuning_key,
@@ -3005,16 +3141,21 @@ fn native_bridge(
                             (1..=3).contains(&request.mtp_depth),
                             "MTP depth must be 1, 2 or 3"
                         );
-                        let NativeChatModel::Qwen(target) = &model else {
-                            bail!("MTP supports Qwen3.5/3.6/3.8 targets");
-                        };
+                        anyhow::ensure!(
+                            matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
+                            "MTP requires a supported Qwen target"
+                        );
+                        anyhow::ensure!(
+                            !matches!(&model, NativeChatModel::Flash(_)) || request.mtp_depth == 1,
+                            "Flash MTP supports depth 1"
+                        );
                         let started = Instant::now();
                         if load_mtp_head(
                             &mut mtp_head,
                             &mut mtp_head_revision,
                             &mut prompt_cache,
                             &request.mtp_head_path,
-                            target,
+                            &model,
                         )? {
                             prompt_cache = None;
                             draft_load_seconds += started.elapsed().as_secs_f64();
@@ -3100,6 +3241,10 @@ fn native_bridge(
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
                 if let Err(error) = result {
+                    model.reset();
+                    prompt_cache = None;
+                    mtp_head = None;
+                    mtp_head_revision = None;
                     if cancelled.swap(false, Ordering::Relaxed) {
                         emit_event(json!({"type":"cancelled", "request_id":request_id}))?;
                     } else {
@@ -3415,13 +3560,13 @@ mod tests {
         let NativeChatModel::Qwen(target) = &model else {
             bail!("requires Qwen target")
         };
-        let mut head = Head::load(
+        let mut head = ChatMtpHead::Qwen(Box::new(Head::load(
             std::path::Path::new(
                 &std::env::var("MLXL3_MTP_TEST_HEAD")
                     .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
             ),
             target,
-        )?;
+        )?));
         let code = "def normalize_name(value):\n    return value.strip().casefold()\n\ndef average(values):\n    return sum(values) / len(values) if values else 0\n\n";
         let messages = vec![json!({"role":"user", "content":format!(
             "Recopie exactement le code suivant, sans commentaire ni changement :\n```python\n{}```", code.repeat(8))})];

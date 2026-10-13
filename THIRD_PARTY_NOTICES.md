@@ -1,5 +1,27 @@
 # Third-party notices
 
+## Flash Next architecture and SSD integration
+
+`native/src/qwen4.rs` and its independent verification script follow Qwen's
+released Flash Next configuration and the MIT-licensed MLX-VLM 0.7.3 text
+architecture, including HyperConnections, sparse attention and PLE.
+`native/shaders/flash_rope.metal` adapts the text half-split MRoPE body from
+MLX-VLM `models/rope_utils.py` under the same MIT license:
+<https://github.com/Blaizzy/mlx-vlm/tree/main/mlx_vlm/models/qwen4_exp>.
+Copyright © 2025 Prince Canuma. The MIT license is provided in
+`LICENSES/MLX-VLM-MIT.txt`. Existing EXL3 kernels retain their PonyExl3
+attribution and Apache-2.0 license.
+
+The SSD design was compared with the user's `localqwen3.8flash` project and
+Sushi <https://github.com/beamivalice/sushi> at
+`eaaca12c5508e6a24a01671384a9a41089370058` (HC, QSA, EXL3 and n-gram kernels).
+Sushi kernel source has not been copied; its compiled bank/n-gram format and
+optional approximate expert selection are not used by this implementation.
+
+MLXL3 is an independent implementation that adapts algorithms and kernel
+structures from the following projects.
+
+
 MLXL3 is an independent implementation that adapts algorithms and kernel
 structures from the following projects.
 
@@ -152,7 +174,9 @@ The packed Gated DeltaNet Metal kernel in
 behavior during the native Rust migration. MLX LM is licensed under the MIT
 License. The dense verification gate in `native/src/lfm2.rs` reproduces MLX's
 GEMV reduction geometry so multi-row verification remains bit-exact; MLX is
-also licensed under the MIT License.
+also licensed under the MIT License. The mixed HC GEMV in
+`native/shaders/flash_hc_gemv.metal` adapts the same MLX 0.32.2 GEMV
+geometry and accumulation order, with FP16 weight loads and FP32 outputs.
 
 Copyright © 2023 Apple Inc.
 

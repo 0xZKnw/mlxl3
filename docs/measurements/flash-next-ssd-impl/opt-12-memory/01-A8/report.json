@@ -1,0 +1,1056 @@
+{
+  "status": "validated",
+  "parity": true,
+  "reaped": true,
+  "engine": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/baseline/mlxl3-rs",
+  "engine_sha256": "cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa",
+  "cache_gib": 8.0,
+  "tokens": 64,
+  "runs": [
+    {
+      "prompt": "MAIN",
+      "mtp": false,
+      "event": {
+        "assistant_context": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'",
+        "cache_context": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'",
+        "context_full": false,
+        "elapsed_seconds": 23.045004334,
+        "first_text_seconds": 14.260112708,
+        "request_id": "MAIN-False",
+        "round_stats": [
+          {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 151,
+            "decode_seconds": 8.784706209,
+            "decode_tokens": 63,
+            "decode_tps": 7.1715545746374545,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 23.044195792,
+            "end_to_end_ttft_seconds": null,
+            "evaluated_prompt_tokens": 87,
+            "generated_tokens": 64,
+            "memory": {
+              "mlx_active_bytes": 11968908544,
+              "mlx_cache_bytes": 112588426,
+              "mlx_peak_bytes": 12064578104,
+              "process_footprint_bytes": 12591425256,
+              "process_lifetime_peak_bytes": 12591425256
+            },
+            "model_size_gb": 62.815131785,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "prefill_seconds": 14.252720584,
+            "prefill_tps": 6.104097774684895,
+            "prepare_seconds": 0.005528792,
+            "prompt_tokens": 87,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 14.259489583
+          }
+        ],
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 151,
+          "decode_seconds": 8.784706209,
+          "decode_tokens": 63,
+          "decode_tps": 7.1715545746374545,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 23.044979792,
+          "end_to_end_ttft_seconds": 14.260112708,
+          "evaluated_prompt_tokens": 87,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 11968908544,
+            "mlx_cache_bytes": 112588426,
+            "mlx_peak_bytes": 12064578104,
+            "process_footprint_bytes": 12591425256,
+            "process_lifetime_peak_bytes": 12591425256
+          },
+          "model_size_gb": 62.815131785,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 14.252720584,
+          "prefill_tps": 6.104097774684895,
+          "prepare_seconds": 0.005528792,
+          "prompt_tokens": 87,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 14.259935708
+        },
+        "token_hash": "d7c2f53d11d70633",
+        "tool_rounds": 0,
+        "turn_context": null,
+        "type": "complete"
+      },
+      "idle": {
+        "memory": {
+          "mlx_active_bytes": 11847445760,
+          "mlx_cache_bytes": 234051210,
+          "mlx_peak_bytes": 12064578104,
+          "process_footprint_bytes": 12591441640,
+          "process_lifetime_peak_bytes": 12591441640
+        },
+        "request_id": "idle-MAIN-False",
+        "type": "pong"
+      }
+    },
+    {
+      "prompt": "MAIN",
+      "mtp": true,
+      "event": {
+        "assistant_context": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'",
+        "cache_context": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'",
+        "context_full": false,
+        "elapsed_seconds": 24.458239709,
+        "first_text_seconds": 15.614184167000001,
+        "request_id": "MAIN-True",
+        "round_stats": [
+          {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 151,
+            "decode_seconds": 8.84405225,
+            "decode_tokens": 63,
+            "decode_tps": 7.123431456434464,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 23.350993917,
+            "end_to_end_ttft_seconds": null,
+            "evaluated_prompt_tokens": 87,
+            "generated_tokens": 64,
+            "memory": {
+              "mlx_active_bytes": 12683351776,
+              "mlx_cache_bytes": 271161100,
+              "mlx_peak_bytes": 12929715556,
+              "process_footprint_bytes": 13388605808,
+              "process_lifetime_peak_bytes": 13610477864
+            },
+            "model_size_gb": 62.815131785,
+            "mtp_accepted_tokens": 28,
+            "mtp_blocks": 34,
+            "mtp_depth_blocks": [
+              0,
+              34,
+              0,
+              0
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 34,
+            "prefill_seconds": 14.506098917,
+            "prefill_tps": 5.997477371262296,
+            "prepare_seconds": 0.000526208,
+            "prompt_tokens": 87,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 14.506941667
+          }
+        ],
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 151,
+          "decode_seconds": 8.84405225,
+          "decode_tokens": 63,
+          "decode_tps": 7.123431456434464,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 1.107191125,
+          "elapsed_seconds": 24.458226334,
+          "end_to_end_ttft_seconds": 15.614184167000001,
+          "evaluated_prompt_tokens": 87,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 12683351776,
+            "mlx_cache_bytes": 271161100,
+            "mlx_peak_bytes": 12929715556,
+            "process_footprint_bytes": 13388605808,
+            "process_lifetime_peak_bytes": 13610477864
+          },
+          "model_size_gb": 62.815131785,
+          "mtp_accepted_tokens": 28,
+          "mtp_blocks": 34,
+          "mtp_depth_blocks": [
+            0,
+            34,
+            0,
+            0
+          ],
+          "mtp_lookup_blocks": 0,
+          "mtp_proposed_tokens": 34,
+          "prefill_seconds": 14.506098917,
+          "prefill_tps": 5.997477371262296,
+          "prepare_seconds": 0.000526208,
+          "prompt_tokens": 87,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 15.614153709
+        },
+        "token_hash": "d7c2f53d11d70633",
+        "tool_rounds": 0,
+        "turn_context": null,
+        "type": "complete"
+      },
+      "idle": {
+        "memory": {
+          "mlx_active_bytes": 12561549792,
+          "mlx_cache_bytes": 392963084,
+          "mlx_peak_bytes": 12929715556,
+          "process_footprint_bytes": 13388605808,
+          "process_lifetime_peak_bytes": 13610477864
+        },
+        "request_id": "idle-MAIN-True",
+        "type": "pong"
+      }
+    },
+    {
+      "prompt": "HOLD",
+      "mtp": false,
+      "event": {
+        "assistant_context": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as",
+        "cache_context": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as",
+        "context_full": false,
+        "elapsed_seconds": 20.952013375,
+        "first_text_seconds": 12.324478625000001,
+        "request_id": "HOLD-False",
+        "round_stats": [
+          {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 146,
+            "decode_seconds": 8.627527916,
+            "decode_tokens": 63,
+            "decode_tps": 7.302207609570834,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 20.951883916,
+            "end_to_end_ttft_seconds": null,
+            "evaluated_prompt_tokens": 82,
+            "generated_tokens": 64,
+            "memory": {
+              "mlx_active_bytes": 11968785696,
+              "mlx_cache_bytes": 985729740,
+              "mlx_peak_bytes": 12033635784,
+              "process_footprint_bytes": 13387950448,
+              "process_lifetime_peak_bytes": 13610477864
+            },
+            "model_size_gb": 62.815131785,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "prefill_seconds": 12.323039333,
+            "prefill_tps": 6.654202570011386,
+            "prepare_seconds": 0.001106166,
+            "prompt_tokens": 82,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 12.324356
+          }
+        ],
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 146,
+          "decode_seconds": 8.627527916,
+          "decode_tokens": 63,
+          "decode_tps": 7.302207609570834,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 20.952004917,
+          "end_to_end_ttft_seconds": 12.324478625000001,
+          "evaluated_prompt_tokens": 82,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 11968785696,
+            "mlx_cache_bytes": 985729740,
+            "mlx_peak_bytes": 12033635784,
+            "process_footprint_bytes": 13387950448,
+            "process_lifetime_peak_bytes": 13610477864
+          },
+          "model_size_gb": 62.815131785,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 12.323039333,
+          "prefill_tps": 6.654202570011386,
+          "prepare_seconds": 0.001106166,
+          "prompt_tokens": 82,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 12.324463417
+        },
+        "token_hash": "c2d954f130ed2a98",
+        "tool_rounds": 0,
+        "turn_context": null,
+        "type": "complete"
+      },
+      "idle": {
+        "memory": {
+          "mlx_active_bytes": 11847445792,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 12033635784,
+          "process_footprint_bytes": 12280506280,
+          "process_lifetime_peak_bytes": 13610477864
+        },
+        "request_id": "idle-HOLD-False",
+        "type": "pong"
+      }
+    },
+    {
+      "prompt": "HOLD",
+      "mtp": true,
+      "event": {
+        "assistant_context": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as",
+        "cache_context": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as",
+        "context_full": false,
+        "elapsed_seconds": 23.046078083,
+        "first_text_seconds": 13.788725667,
+        "request_id": "HOLD-True",
+        "round_stats": [
+          {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 146,
+            "decode_seconds": 9.257345375000002,
+            "decode_tokens": 63,
+            "decode_tps": 6.805406674156844,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 22.062759834,
+            "end_to_end_ttft_seconds": null,
+            "evaluated_prompt_tokens": 82,
+            "generated_tokens": 64,
+            "memory": {
+              "mlx_active_bytes": 12683211232,
+              "mlx_cache_bytes": 268984392,
+              "mlx_peak_bytes": 12929392484,
+              "process_footprint_bytes": 13936912752,
+              "process_lifetime_peak_bytes": 13936912752
+            },
+            "model_size_gb": 62.815131785,
+            "mtp_accepted_tokens": 27,
+            "mtp_blocks": 35,
+            "mtp_depth_blocks": [
+              0,
+              35,
+              0,
+              0
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 35,
+            "prefill_seconds": 12.804658583,
+            "prefill_tps": 6.403919282070248,
+            "prepare_seconds": 0.000553125,
+            "prompt_tokens": 82,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 12.805414459
+          }
+        ],
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 146,
+          "decode_seconds": 9.257345375000002,
+          "decode_tokens": 63,
+          "decode_tps": 6.805406674156844,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.983271291,
+          "elapsed_seconds": 23.046065708,
+          "end_to_end_ttft_seconds": 13.788725667,
+          "evaluated_prompt_tokens": 82,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 12683211232,
+            "mlx_cache_bytes": 268984392,
+            "mlx_peak_bytes": 12929392484,
+            "process_footprint_bytes": 13936912752,
+            "process_lifetime_peak_bytes": 13936912752
+          },
+          "model_size_gb": 62.815131785,
+          "mtp_accepted_tokens": 27,
+          "mtp_blocks": 35,
+          "mtp_depth_blocks": [
+            0,
+            35,
+            0,
+            0
+          ],
+          "mtp_lookup_blocks": 0,
+          "mtp_proposed_tokens": 35,
+          "prefill_seconds": 12.804658583,
+          "prefill_tps": 6.403919282070248,
+          "prepare_seconds": 0.000553125,
+          "prompt_tokens": 82,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 13.788701876
+        },
+        "token_hash": "c2d954f130ed2a98",
+        "tool_rounds": 0,
+        "turn_context": null,
+        "type": "complete"
+      },
+      "idle": {
+        "memory": {
+          "mlx_active_bytes": 12561549792,
+          "mlx_cache_bytes": 390645832,
+          "mlx_peak_bytes": 12929392484,
+          "process_footprint_bytes": 13936912752,
+          "process_lifetime_peak_bytes": 13936912752
+        },
+        "request_id": "idle-HOLD-True",
+        "type": "pong"
+      }
+    }
+  ],
+  "samples": [
+    {
+      "label": "before",
+      "time": 1791805407.55198,
+      "bytes": {
+        "Pages free": 12648185856,
+        "File-backed pages": 2413395968,
+        "Pages occupied by compressor": 1995522048,
+        "Swapins": 611196157952,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   771984.\nPages active:                                 213269.\nPages inactive:                               197489.\nPages speculative:                             15085.\nPages throttled:                                   0.\nPages wired down:                             199079.\nPages purgeable:                                4525.\n\"Translation faults\":                     3495536477.\nPages copy-on-write:                        98203655.\nPages zero filled:                        5720726817.\nPages reactivated:                         347980639.\nPages purged:                               36767075.\nFile-backed pages:                            147302.\nAnonymous pages:                              278541.\nPages stored in compressor:                   257709.\nPages occupied by compressor:                 121797.\nDecompressions:                            830197746.\nCompressions:                             1007145941.\nPageins:                                   450298133.\nPageouts:                                     237433.\nSwapins:                                    37304453.\nSwapouts:                                   51524106.\nPages tagged:                                 115866.\nPages tagged resident:                         91019.\nPages tagged compressed:                       24847.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6540.\nPages tag-storage free:                         4041.\nPages tag-storage non-tag pageable:            38386.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    3874496.\nTagged compressions:                        15222762.\nTagged decompressions:                      14447415.\n"
+    },
+    {
+      "label": "loading:loading",
+      "time": 1791805408.320436,
+      "bytes": {
+        "Pages free": 11860148224,
+        "File-backed pages": 2544680960,
+        "Pages occupied by compressor": 1994457088,
+        "Swapins": 611196157952,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   723886.\nPages active:                                 236799.\nPages inactive:                               220679.\nPages speculative:                             15108.\nPages throttled:                                   0.\nPages wired down:                             200227.\nPages purgeable:                                4012.\n\"Translation faults\":                     3495582406.\nPages copy-on-write:                        98204101.\nPages zero filled:                        5720774114.\nPages reactivated:                         347980639.\nPages purged:                               36767395.\nFile-backed pages:                            155315.\nAnonymous pages:                              317271.\nPages stored in compressor:                   257618.\nPages occupied by compressor:                 121732.\nDecompressions:                            830197840.\nCompressions:                             1007145941.\nPageins:                                   450306337.\nPageouts:                                     237433.\nSwapins:                                    37304453.\nSwapouts:                                   51524106.\nPages tagged:                                 115798.\nPages tagged resident:                         90951.\nPages tagged compressed:                       24847.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6540.\nPages tag-storage free:                         3664.\nPages tag-storage non-tag pageable:            38763.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    3874496.\nTagged compressions:                        15222762.\nTagged decompressions:                      14447415.\n"
+    },
+    {
+      "label": "loading:ready",
+      "time": 1791805409.799664,
+      "bytes": {
+        "Pages free": 108740608,
+        "File-backed pages": 3020767232,
+        "Pages occupied by compressor": 4898013184,
+        "Swapins": 611196157952,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     6637.\nPages active:                                 248713.\nPages inactive:                               237034.\nPages speculative:                             11476.\nPages throttled:                                   0.\nPages wired down:                             715888.\nPages purgeable:                                   0.\n\"Translation faults\":                     3495823853.\nPages copy-on-write:                        98206640.\nPages zero filled:                        5721529417.\nPages reactivated:                         348074811.\nPages purged:                               36771461.\nFile-backed pages:                            184373.\nAnonymous pages:                              312850.\nPages stored in compressor:                   457337.\nPages occupied by compressor:                 298951.\nDecompressions:                            830199214.\nCompressions:                             1007354413.\nPageins:                                   450492368.\nPageouts:                                     237576.\nSwapins:                                    37304453.\nSwapouts:                                   51524106.\nPages tagged:                                 115022.\nPages tagged resident:                         87939.\nPages tagged compressed:                       27083.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6535.\nPages tag-storage free:                           91.\nPages tag-storage non-tag pageable:            42336.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    4316416.\nTagged compressions:                        15225013.\nTagged decompressions:                      14447430.\n"
+    },
+    {
+      "label": "MAIN-False:generation_mode",
+      "time": 1791805409.802876,
+      "bytes": {
+        "Pages free": 127696896,
+        "File-backed pages": 3019243520,
+        "Pages occupied by compressor": 4924096512,
+        "Swapins": 611196157952,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7794.\nPages active:                                 307095.\nPages inactive:                               241595.\nPages speculative:                             11490.\nPages throttled:                                   0.\nPages wired down:                             650182.\nPages purgeable:                                   0.\n\"Translation faults\":                     3495824428.\nPages copy-on-write:                        98206775.\nPages zero filled:                        5721529475.\nPages reactivated:                         348074813.\nPages purged:                               36771463.\nFile-backed pages:                            184280.\nAnonymous pages:                              375900.\nPages stored in compressor:                   458927.\nPages occupied by compressor:                 300543.\nDecompressions:                            830199218.\nCompressions:                             1007357029.\nPageins:                                   450492417.\nPageouts:                                     237576.\nSwapins:                                    37304453.\nSwapouts:                                   51524106.\nPages tagged:                                 115022.\nPages tagged resident:                         87939.\nPages tagged compressed:                       27083.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6535.\nPages tag-storage free:                           92.\nPages tag-storage non-tag pageable:            42335.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    4316416.\nTagged compressions:                        15225013.\nTagged decompressions:                      14447430.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805424.065203,
+      "bytes": {
+        "Pages free": 138199040,
+        "File-backed pages": 4052926464,
+        "Pages occupied by compressor": 3132407808,
+        "Swapins": 611197206528,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8435.\nPages active:                                 190816.\nPages inactive:                               189694.\nPages speculative:                               488.\nPages throttled:                                   0.\nPages wired down:                             938023.\nPages purgeable:                                 286.\n\"Translation faults\":                     3496534651.\nPages copy-on-write:                        98208923.\nPages zero filled:                        5721707265.\nPages reactivated:                         348142778.\nPages purged:                               36775079.\nFile-backed pages:                            247371.\nAnonymous pages:                              133627.\nPages stored in compressor:                   403834.\nPages occupied by compressor:                 191187.\nDecompressions:                            830497654.\nCompressions:                             1007608392.\nPageins:                                   451067323.\nPageouts:                                     237638.\nSwapins:                                    37304517.\nSwapouts:                                   51524106.\nPages tagged:                                 114115.\nPages tagged resident:                         80988.\nPages tagged compressed:                       33127.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6422.\nPages tag-storage free:                          217.\nPages tag-storage non-tag pageable:            42298.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5534656.\nTagged compressions:                        15237025.\nTagged decompressions:                      14453395.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805425.217323,
+      "bytes": {
+        "Pages free": 127959040,
+        "File-backed pages": 4049190912,
+        "Pages occupied by compressor": 3131539456,
+        "Swapins": 611197206528,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7810.\nPages active:                                 190461.\nPages inactive:                               189187.\nPages speculative:                               394.\nPages throttled:                                   0.\nPages wired down:                             939717.\nPages purgeable:                                 320.\n\"Translation faults\":                     3496544607.\nPages copy-on-write:                        98209174.\nPages zero filled:                        5721721016.\nPages reactivated:                         348143522.\nPages purged:                               36775079.\nFile-backed pages:                            247143.\nAnonymous pages:                              132899.\nPages stored in compressor:                   403521.\nPages occupied by compressor:                 191134.\nDecompressions:                            830502036.\nCompressions:                             1007612008.\nPageins:                                   451101220.\nPageouts:                                     237638.\nSwapins:                                    37304517.\nSwapouts:                                   51524106.\nPages tagged:                                 114170.\nPages tagged resident:                         80859.\nPages tagged compressed:                       33311.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6422.\nPages tag-storage free:                          121.\nPages tag-storage non-tag pageable:            42394.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5579008.\nTagged compressions:                        15237375.\nTagged decompressions:                      14453560.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805426.31891,
+      "bytes": {
+        "Pages free": 131661824,
+        "File-backed pages": 4049534976,
+        "Pages occupied by compressor": 3145596928,
+        "Swapins": 611197403136,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8036.\nPages active:                                 191056.\nPages inactive:                               189392.\nPages speculative:                               405.\nPages throttled:                                   0.\nPages wired down:                             937727.\nPages purgeable:                                1955.\n\"Translation faults\":                     3496553881.\nPages copy-on-write:                        98209390.\nPages zero filled:                        5721735582.\nPages reactivated:                         348145061.\nPages purged:                               36775083.\nFile-backed pages:                            247164.\nAnonymous pages:                              133689.\nPages stored in compressor:                   405370.\nPages occupied by compressor:                 191992.\nDecompressions:                            830506929.\nCompressions:                             1007618191.\nPageins:                                   451130019.\nPageouts:                                     237638.\nSwapins:                                    37304529.\nSwapouts:                                   51524106.\nPages tagged:                                 114103.\nPages tagged resident:                         80451.\nPages tagged compressed:                       33652.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6422.\nPages tag-storage free:                          243.\nPages tag-storage non-tag pageable:            42269.\nPages tag-storage non-tag wired:                 102.\nBytes of compressed tags:                    5660416.\nTagged compressions:                        15237879.\nTagged decompressions:                      14453723.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805427.4156501,
+      "bytes": {
+        "Pages free": 145850368,
+        "File-backed pages": 4080779264,
+        "Pages occupied by compressor": 3145613312,
+        "Swapins": 611197403136,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8902.\nPages active:                                 193484.\nPages inactive:                               192107.\nPages speculative:                               381.\nPages throttled:                                   0.\nPages wired down:                             931822.\nPages purgeable:                                1431.\n\"Translation faults\":                     3496561469.\nPages copy-on-write:                        98209683.\nPages zero filled:                        5721752134.\nPages reactivated:                         348145419.\nPages purged:                               36775213.\nFile-backed pages:                            249071.\nAnonymous pages:                              136886.\nPages stored in compressor:                   405077.\nPages occupied by compressor:                 191993.\nDecompressions:                            830509586.\nCompressions:                             1007621392.\nPageins:                                   451155509.\nPageouts:                                     237638.\nSwapins:                                    37304529.\nSwapouts:                                   51524106.\nPages tagged:                                 114024.\nPages tagged resident:                         80387.\nPages tagged compressed:                       33637.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6418.\nPages tag-storage free:                          138.\nPages tag-storage non-tag pageable:            42376.\nPages tag-storage non-tag wired:                 100.\nBytes of compressed tags:                    5651520.\nTagged compressions:                        15237967.\nTagged decompressions:                      14453826.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805428.531329,
+      "bytes": {
+        "Pages free": 127025152,
+        "File-backed pages": 4062461952,
+        "Pages occupied by compressor": 3145383936,
+        "Swapins": 611197403136,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7753.\nPages active:                                 191307.\nPages inactive:                               190014.\nPages speculative:                               378.\nPages throttled:                                   0.\nPages wired down:                             937272.\nPages purgeable:                                1174.\n\"Translation faults\":                     3496568913.\nPages copy-on-write:                        98209997.\nPages zero filled:                        5721765901.\nPages reactivated:                         348145847.\nPages purged:                               36775215.\nFile-backed pages:                            247953.\nAnonymous pages:                              133746.\nPages stored in compressor:                   404749.\nPages occupied by compressor:                 191979.\nDecompressions:                            830513918.\nCompressions:                             1007625386.\nPageins:                                   451182239.\nPageouts:                                     237638.\nSwapins:                                    37304529.\nSwapouts:                                   51524106.\nPages tagged:                                 113973.\nPages tagged resident:                         80362.\nPages tagged compressed:                       33611.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6416.\nPages tag-storage free:                           40.\nPages tag-storage non-tag pageable:            42472.\nPages tag-storage non-tag wired:                 102.\nBytes of compressed tags:                    5648448.\nTagged compressions:                        15238100.\nTagged decompressions:                      14453985.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805429.596844,
+      "bytes": {
+        "Pages free": 127352832,
+        "File-backed pages": 4094803968,
+        "Pages occupied by compressor": 3162800128,
+        "Swapins": 611197403136,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7773.\nPages active:                                 192406.\nPages inactive:                               190734.\nPages speculative:                               544.\nPages throttled:                                   0.\nPages wired down:                             934116.\nPages purgeable:                                3129.\n\"Translation faults\":                     3496575442.\nPages copy-on-write:                        98210205.\nPages zero filled:                        5721779524.\nPages reactivated:                         348146486.\nPages purged:                               36775219.\nFile-backed pages:                            249927.\nAnonymous pages:                              133757.\nPages stored in compressor:                   407246.\nPages occupied by compressor:                 193042.\nDecompressions:                            830516256.\nCompressions:                             1007630860.\nPageins:                                   451206414.\nPageouts:                                     237639.\nSwapins:                                    37304529.\nSwapouts:                                   51524106.\nPages tagged:                                 113951.\nPages tagged resident:                         80641.\nPages tagged compressed:                       33310.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6415.\nPages tag-storage free:                          108.\nPages tag-storage non-tag pageable:            42407.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5568448.\nTagged compressions:                        15238224.\nTagged decompressions:                      14454410.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805430.712893,
+      "bytes": {
+        "Pages free": 133824512,
+        "File-backed pages": 4081500160,
+        "Pages occupied by compressor": 3161473024,
+        "Swapins": 611197403136,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8168.\nPages active:                                 191548.\nPages inactive:                               190922.\nPages speculative:                               506.\nPages throttled:                                   0.\nPages wired down:                             934597.\nPages purgeable:                                2534.\n\"Translation faults\":                     3496583408.\nPages copy-on-write:                        98210433.\nPages zero filled:                        5721802135.\nPages reactivated:                         348146900.\nPages purged:                               36775254.\nFile-backed pages:                            249115.\nAnonymous pages:                              133861.\nPages stored in compressor:                   406872.\nPages occupied by compressor:                 192961.\nDecompressions:                            830520686.\nCompressions:                             1007634795.\nPageins:                                   451237227.\nPageouts:                                     237640.\nSwapins:                                    37304529.\nSwapouts:                                   51524106.\nPages tagged:                                 113815.\nPages tagged resident:                         80556.\nPages tagged compressed:                       33259.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6415.\nPages tag-storage free:                           58.\nPages tag-storage non-tag pageable:            42457.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5558912.\nTagged compressions:                        15238268.\nTagged decompressions:                      14454505.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805431.775342,
+      "bytes": {
+        "Pages free": 141393920,
+        "File-backed pages": 4028334080,
+        "Pages occupied by compressor": 3120742400,
+        "Swapins": 611198713856,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8630.\nPages active:                                 191147.\nPages inactive:                               189585.\nPages speculative:                               543.\nPages throttled:                                   0.\nPages wired down:                             938258.\nPages purgeable:                                1331.\n\"Translation faults\":                     3496599714.\nPages copy-on-write:                        98210657.\nPages zero filled:                        5721820504.\nPages reactivated:                         348148715.\nPages purged:                               36775256.\nFile-backed pages:                            245870.\nAnonymous pages:                              135405.\nPages stored in compressor:                   402944.\nPages occupied by compressor:                 190475.\nDecompressions:                            830531211.\nCompressions:                             1007641686.\nPageins:                                   451256537.\nPageouts:                                     237643.\nSwapins:                                    37304609.\nSwapouts:                                   51524106.\nPages tagged:                                 113759.\nPages tagged resident:                         80104.\nPages tagged compressed:                       33655.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6415.\nPages tag-storage free:                          110.\nPages tag-storage non-tag pageable:            42405.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5658048.\nTagged compressions:                        15238799.\nTagged decompressions:                      14454639.\n"
+    },
+    {
+      "label": "MAIN-False:delta",
+      "time": 1791805432.847761,
+      "bytes": {
+        "Pages free": 141213696,
+        "File-backed pages": 3984965632,
+        "Pages occupied by compressor": 3035922432,
+        "Swapins": 611200614400,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8619.\nPages active:                                 192622.\nPages inactive:                               190492.\nPages speculative:                              1018.\nPages throttled:                                   0.\nPages wired down:                             940654.\nPages purgeable:                                1034.\n\"Translation faults\":                     3496653062.\nPages copy-on-write:                        98211051.\nPages zero filled:                        5721835679.\nPages reactivated:                         348172740.\nPages purged:                               36775446.\nFile-backed pages:                            243223.\nAnonymous pages:                              140909.\nPages stored in compressor:                   395817.\nPages occupied by compressor:                 185298.\nDecompressions:                            830561477.\nCompressions:                             1007666375.\nPageins:                                   451277614.\nPageouts:                                     237643.\nSwapins:                                    37304725.\nSwapouts:                                   51524106.\nPages tagged:                                 113563.\nPages tagged resident:                         79681.\nPages tagged compressed:                       33882.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6413.\nPages tag-storage free:                          240.\nPages tag-storage non-tag pageable:            42275.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5706240.\nTagged compressions:                        15239426.\nTagged decompressions:                      14455039.\n"
+    },
+    {
+      "label": "idle-MAIN-False:pong",
+      "time": 1791805432.84993,
+      "bytes": {
+        "Pages free": 140771328,
+        "File-backed pages": 3984982016,
+        "Pages occupied by compressor": 3035906048,
+        "Swapins": 611200614400,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8592.\nPages active:                                 192610.\nPages inactive:                               190528.\nPages speculative:                              1018.\nPages throttled:                                   0.\nPages wired down:                             940658.\nPages purgeable:                                1034.\n\"Translation faults\":                     3496653611.\nPages copy-on-write:                        98211181.\nPages zero filled:                        5721835736.\nPages reactivated:                         348172740.\nPages purged:                               36775446.\nFile-backed pages:                            243224.\nAnonymous pages:                              140932.\nPages stored in compressor:                   395797.\nPages occupied by compressor:                 185297.\nDecompressions:                            830561500.\nCompressions:                             1007666375.\nPageins:                                   451277616.\nPageouts:                                     237643.\nSwapins:                                    37304725.\nSwapouts:                                   51524106.\nPages tagged:                                 113563.\nPages tagged resident:                         79681.\nPages tagged compressed:                       33882.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6413.\nPages tag-storage free:                          240.\nPages tag-storage non-tag pageable:            42275.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5706240.\nTagged compressions:                        15239426.\nTagged decompressions:                      14455039.\n"
+    },
+    {
+      "label": "MAIN-True:generation_mode",
+      "time": 1791805433.9626172,
+      "bytes": {
+        "Pages free": 132366336,
+        "File-backed pages": 3421945856,
+        "Pages occupied by compressor": 3208888320,
+        "Swapins": 611200614400,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8079.\nPages active:                                 878730.\nPages inactive:                               192149.\nPages speculative:                              1359.\nPages throttled:                                   0.\nPages wired down:                             242132.\nPages purgeable:                                   2.\n\"Translation faults\":                     3496810332.\nPages copy-on-write:                        98211660.\nPages zero filled:                        5721924862.\nPages reactivated:                         348211409.\nPages purged:                               36776480.\nFile-backed pages:                            208859.\nAnonymous pages:                              863379.\nPages stored in compressor:                   418461.\nPages occupied by compressor:                 195855.\nDecompressions:                            830604263.\nCompressions:                             1007746189.\nPageins:                                   451328933.\nPageouts:                                     237650.\nSwapins:                                    37304725.\nSwapouts:                                   51524106.\nPages tagged:                                 113486.\nPages tagged resident:                         78466.\nPages tagged compressed:                       35020.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6358.\nPages tag-storage free:                           72.\nPages tag-storage non-tag pageable:            42479.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    5956032.\nTagged compressions:                        15240988.\nTagged decompressions:                      14455461.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805448.486794,
+      "bytes": {
+        "Pages free": 129908736,
+        "File-backed pages": 3583819776,
+        "Pages occupied by compressor": 3762700288,
+        "Swapins": 611200942080,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7929.\nPages active:                                 171964.\nPages inactive:                               170466.\nPages speculative:                               535.\nPages throttled:                                   0.\nPages wired down:                             938128.\nPages purgeable:                                3157.\n\"Translation faults\":                     3497175815.\nPages copy-on-write:                        98214339.\nPages zero filled:                        5722060802.\nPages reactivated:                         348317561.\nPages purged:                               36777943.\nFile-backed pages:                            218739.\nAnonymous pages:                              124226.\nPages stored in compressor:                   474747.\nPages occupied by compressor:                 229657.\nDecompressions:                            831045884.\nCompressions:                             1008242979.\nPageins:                                   451745347.\nPageouts:                                     237732.\nSwapins:                                    37304745.\nSwapouts:                                   51524106.\nPages tagged:                                 112485.\nPages tagged resident:                         76901.\nPages tagged compressed:                       35584.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6286.\nPages tag-storage free:                          505.\nPages tag-storage non-tag pageable:            42136.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6080512.\nTagged compressions:                        15245449.\nTagged decompressions:                      14459356.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805449.643221,
+      "bytes": {
+        "Pages free": 138379264,
+        "File-backed pages": 3359195136,
+        "Pages occupied by compressor": 3317334016,
+        "Swapins": 611200942080,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8446.\nPages active:                                 157421.\nPages inactive:                               156020.\nPages speculative:                               470.\nPages throttled:                                   0.\nPages wired down:                             993872.\nPages purgeable:                                1458.\n\"Translation faults\":                     3497190416.\nPages copy-on-write:                        98214738.\nPages zero filled:                        5722081188.\nPages reactivated:                         348319429.\nPages purged:                               36777943.\nFile-backed pages:                            205029.\nAnonymous pages:                              108882.\nPages stored in compressor:                   448480.\nPages occupied by compressor:                 202474.\nDecompressions:                            831090748.\nCompressions:                             1008261366.\nPageins:                                   451778218.\nPageouts:                                     237779.\nSwapins:                                    37304745.\nSwapouts:                                   51524106.\nPages tagged:                                 112640.\nPages tagged resident:                         77050.\nPages tagged compressed:                       35590.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6286.\nPages tag-storage free:                          223.\nPages tag-storage non-tag pageable:            42415.\nPages tag-storage non-tag wired:                 100.\nBytes of compressed tags:                    6065152.\nTagged compressions:                        15245920.\nTagged decompressions:                      14459821.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805450.893325,
+      "bytes": {
+        "Pages free": 142229504,
+        "File-backed pages": 3409444864,
+        "Pages occupied by compressor": 3398385664,
+        "Swapins": 611200942080,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8681.\nPages active:                                 159016.\nPages inactive:                               158392.\nPages speculative:                               634.\nPages throttled:                                   0.\nPages wired down:                             984559.\nPages purgeable:                                3717.\n\"Translation faults\":                     3497205684.\nPages copy-on-write:                        98215029.\nPages zero filled:                        5722092792.\nPages reactivated:                         348320550.\nPages purged:                               36777947.\nFile-backed pages:                            208096.\nAnonymous pages:                              109946.\nPages stored in compressor:                   456378.\nPages occupied by compressor:                 207421.\nDecompressions:                            831098738.\nCompressions:                             1008276451.\nPageins:                                   451814015.\nPageouts:                                     237779.\nSwapins:                                    37304745.\nSwapouts:                                   51524106.\nPages tagged:                                 112476.\nPages tagged resident:                         76952.\nPages tagged compressed:                       35524.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6285.\nPages tag-storage free:                           76.\nPages tag-storage non-tag pageable:            42564.\nPages tag-storage non-tag wired:                  98.\nBytes of compressed tags:                    6070592.\nTagged compressions:                        15246623.\nTagged decompressions:                      14460590.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805452.140655,
+      "bytes": {
+        "Pages free": 170180608,
+        "File-backed pages": 3453894656,
+        "Pages occupied by compressor": 3468525568,
+        "Swapins": 611200942080,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    10387.\nPages active:                                 155742.\nPages inactive:                               157561.\nPages speculative:                              1644.\nPages throttled:                                   0.\nPages wired down:                             981667.\nPages purgeable:                                3256.\n\"Translation faults\":                     3497255285.\nPages copy-on-write:                        98219114.\nPages zero filled:                        5722113705.\nPages reactivated:                         348328507.\nPages purged:                               36777969.\nFile-backed pages:                            210809.\nAnonymous pages:                              104138.\nPages stored in compressor:                   465015.\nPages occupied by compressor:                 211702.\nDecompressions:                            831110409.\nCompressions:                             1008300120.\nPageins:                                   451846878.\nPageouts:                                     237779.\nSwapins:                                    37304745.\nSwapouts:                                   51524106.\nPages tagged:                                 112379.\nPages tagged resident:                         76858.\nPages tagged compressed:                       35521.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6284.\nPages tag-storage free:                          182.\nPages tag-storage non-tag pageable:            42459.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6080832.\nTagged compressions:                        15247329.\nTagged decompressions:                      14461299.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805453.1879559,
+      "bytes": {
+        "Pages free": 136904704,
+        "File-backed pages": 3473752064,
+        "Pages occupied by compressor": 3456761856,
+        "Swapins": 611200942080,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8356.\nPages active:                                 156752.\nPages inactive:                               157977.\nPages speculative:                              1630.\nPages throttled:                                   0.\nPages wired down:                             983004.\nPages purgeable:                                1423.\n\"Translation faults\":                     3497264133.\nPages copy-on-write:                        98219432.\nPages zero filled:                        5722121925.\nPages reactivated:                         348328515.\nPages purged:                               36779147.\nFile-backed pages:                            212021.\nAnonymous pages:                              104338.\nPages stored in compressor:                   462783.\nPages occupied by compressor:                 210984.\nDecompressions:                            831114129.\nCompressions:                             1008300120.\nPageins:                                   451879009.\nPageouts:                                     237779.\nSwapins:                                    37304745.\nSwapouts:                                   51524106.\nPages tagged:                                 112251.\nPages tagged resident:                         76792.\nPages tagged compressed:                       35459.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6283.\nPages tag-storage free:                          124.\nPages tag-storage non-tag pageable:            42517.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6064576.\nTagged compressions:                        15247329.\nTagged decompressions:                      14461361.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805454.421193,
+      "bytes": {
+        "Pages free": 143933440,
+        "File-backed pages": 3322085376,
+        "Pages occupied by compressor": 3459956736,
+        "Swapins": 611200942080,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8785.\nPages active:                                 152054.\nPages inactive:                               149781.\nPages speculative:                              1654.\nPages throttled:                                   0.\nPages wired down:                             995250.\nPages purgeable:                                1460.\n\"Translation faults\":                     3497286891.\nPages copy-on-write:                        98219801.\nPages zero filled:                        5722138421.\nPages reactivated:                         348334097.\nPages purged:                               36780574.\nFile-backed pages:                            202764.\nAnonymous pages:                              100725.\nPages stored in compressor:                   457983.\nPages occupied by compressor:                 211179.\nDecompressions:                            831130250.\nCompressions:                             1008312768.\nPageins:                                   451907320.\nPageouts:                                     237779.\nSwapins:                                    37304745.\nSwapouts:                                   51524106.\nPages tagged:                                 112109.\nPages tagged resident:                         76455.\nPages tagged compressed:                       35654.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6280.\nPages tag-storage free:                          304.\nPages tag-storage non-tag pageable:            42370.\nPages tag-storage non-tag wired:                  98.\nBytes of compressed tags:                    6111104.\nTagged compressions:                        15247949.\nTagged decompressions:                      14461785.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805455.455392,
+      "bytes": {
+        "Pages free": 134807552,
+        "File-backed pages": 3337273344,
+        "Pages occupied by compressor": 3459842048,
+        "Swapins": 611200942080,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8228.\nPages active:                                 153230.\nPages inactive:                               150700.\nPages speculative:                              1456.\nPages throttled:                                   0.\nPages wired down:                             993917.\nPages purgeable:                                1463.\n\"Translation faults\":                     3497293279.\nPages copy-on-write:                        98220140.\nPages zero filled:                        5722148505.\nPages reactivated:                         348334175.\nPages purged:                               36780576.\nFile-backed pages:                            203691.\nAnonymous pages:                              101695.\nPages stored in compressor:                   457597.\nPages occupied by compressor:                 211172.\nDecompressions:                            831132073.\nCompressions:                             1008313930.\nPageins:                                   451938370.\nPageouts:                                     237779.\nSwapins:                                    37304745.\nSwapouts:                                   51524106.\nPages tagged:                                 111838.\nPages tagged resident:                         76169.\nPages tagged compressed:                       35669.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6280.\nPages tag-storage free:                           97.\nPages tag-storage non-tag pageable:            42577.\nPages tag-storage non-tag wired:                  98.\nBytes of compressed tags:                    6110144.\nTagged compressions:                        15248041.\nTagged decompressions:                      14461862.\n"
+    },
+    {
+      "label": "MAIN-True:delta",
+      "time": 1791805456.6724439,
+      "bytes": {
+        "Pages free": 141115392,
+        "File-backed pages": 3400073216,
+        "Pages occupied by compressor": 3436724224,
+        "Swapins": 611201073152,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8613.\nPages active:                                 158402.\nPages inactive:                               156593.\nPages speculative:                               530.\nPages throttled:                                   0.\nPages wired down:                             984804.\nPages purgeable:                                3791.\n\"Translation faults\":                     3497311489.\nPages copy-on-write:                        98220439.\nPages zero filled:                        5722158198.\nPages reactivated:                         348335298.\nPages purged:                               36780581.\nFile-backed pages:                            207524.\nAnonymous pages:                              108001.\nPages stored in compressor:                   456042.\nPages occupied by compressor:                 209761.\nDecompressions:                            831144479.\nCompressions:                             1008325561.\nPageins:                                   451963475.\nPageouts:                                     237779.\nSwapins:                                    37304753.\nSwapouts:                                   51524106.\nPages tagged:                                 111941.\nPages tagged resident:                         76342.\nPages tagged compressed:                       35599.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6279.\nPages tag-storage free:                          147.\nPages tag-storage non-tag pageable:            42528.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6092096.\nTagged compressions:                        15248187.\nTagged decompressions:                      14462078.\n"
+    },
+    {
+      "label": "idle-MAIN-True:pong",
+      "time": 1791805457.313079,
+      "bytes": {
+        "Pages free": 133611520,
+        "File-backed pages": 3398975488,
+        "Pages occupied by compressor": 3379101696,
+        "Swapins": 611203629056,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8155.\nPages active:                                 161435.\nPages inactive:                               159559.\nPages speculative:                               444.\nPages throttled:                                   0.\nPages wired down:                             982866.\nPages purgeable:                                1666.\n\"Translation faults\":                     3497337958.\nPages copy-on-write:                        98220680.\nPages zero filled:                        5722161353.\nPages reactivated:                         348341547.\nPages purged:                               36781989.\nFile-backed pages:                            207457.\nAnonymous pages:                              113981.\nPages stored in compressor:                   450166.\nPages occupied by compressor:                 206244.\nDecompressions:                            831163243.\nCompressions:                             1008338464.\nPageins:                                   451975366.\nPageouts:                                     237779.\nSwapins:                                    37304909.\nSwapouts:                                   51524106.\nPages tagged:                                 111880.\nPages tagged resident:                         76110.\nPages tagged compressed:                       35770.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6279.\nPages tag-storage free:                          140.\nPages tag-storage non-tag pageable:            42535.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6129984.\nTagged compressions:                        15248371.\nTagged decompressions:                      14462091.\n"
+    },
+    {
+      "label": "HOLD-False:generation_mode",
+      "time": 1791805457.318112,
+      "bytes": {
+        "Pages free": 134660096,
+        "File-backed pages": 3394912256,
+        "Pages occupied by compressor": 3374055424,
+        "Swapins": 611203629056,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8219.\nPages active:                                 161503.\nPages inactive:                               159734.\nPages speculative:                               444.\nPages throttled:                                   0.\nPages wired down:                             982866.\nPages purgeable:                                1664.\n\"Translation faults\":                     3497339693.\nPages copy-on-write:                        98220809.\nPages zero filled:                        5722161436.\nPages reactivated:                         348341564.\nPages purged:                               36781991.\nFile-backed pages:                            207209.\nAnonymous pages:                              114472.\nPages stored in compressor:                   449649.\nPages occupied by compressor:                 205936.\nDecompressions:                            831164188.\nCompressions:                             1008338947.\nPageins:                                   451975374.\nPageouts:                                     237779.\nSwapins:                                    37304909.\nSwapouts:                                   51524106.\nPages tagged:                                 111880.\nPages tagged resident:                         76108.\nPages tagged compressed:                       35772.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6279.\nPages tag-storage free:                           49.\nPages tag-storage non-tag pageable:            42626.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6130304.\nTagged compressions:                        15248373.\nTagged decompressions:                      14462091.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805469.642959,
+      "bytes": {
+        "Pages free": 136986624,
+        "File-backed pages": 3586883584,
+        "Pages occupied by compressor": 3835559936,
+        "Swapins": 611204218880,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8361.\nPages active:                                 170481.\nPages inactive:                               169420.\nPages speculative:                               624.\nPages throttled:                                   0.\nPages wired down:                             935712.\nPages purgeable:                                4906.\n\"Translation faults\":                     3497576049.\nPages copy-on-write:                        98223999.\nPages zero filled:                        5722302361.\nPages reactivated:                         348387070.\nPages purged:                               36784918.\nFile-backed pages:                            218926.\nAnonymous pages:                              121599.\nPages stored in compressor:                   457404.\nPages occupied by compressor:                 234104.\nDecompressions:                            831294546.\nCompressions:                             1008493214.\nPageins:                                   452377351.\nPageouts:                                     237866.\nSwapins:                                    37304945.\nSwapouts:                                   51524106.\nPages tagged:                                 110675.\nPages tagged resident:                         76138.\nPages tagged compressed:                       34537.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6287.\nPages tag-storage free:                          383.\nPages tag-storage non-tag pageable:            42282.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5837184.\nTagged compressions:                        15252776.\nTagged decompressions:                      14467726.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805470.651137,
+      "bytes": {
+        "Pages free": 126631936,
+        "File-backed pages": 3604348928,
+        "Pages occupied by compressor": 3823435776,
+        "Swapins": 611204218880,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7729.\nPages active:                                 172425.\nPages inactive:                               170319.\nPages speculative:                               505.\nPages throttled:                                   0.\nPages wired down:                             934360.\nPages purgeable:                                4148.\n\"Translation faults\":                     3497584107.\nPages copy-on-write:                        98224261.\nPages zero filled:                        5722310513.\nPages reactivated:                         348387196.\nPages purged:                               36784920.\nFile-backed pages:                            219992.\nAnonymous pages:                              123257.\nPages stored in compressor:                   456067.\nPages occupied by compressor:                 233364.\nDecompressions:                            831298715.\nCompressions:                             1008495555.\nPageins:                                   452408921.\nPageouts:                                     237867.\nSwapins:                                    37304945.\nSwapouts:                                   51524106.\nPages tagged:                                 110475.\nPages tagged resident:                         75692.\nPages tagged compressed:                       34783.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6285.\nPages tag-storage free:                          152.\nPages tag-storage non-tag pageable:            42513.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5910016.\nTagged compressions:                        15253056.\nTagged decompressions:                      14467760.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805471.742893,
+      "bytes": {
+        "Pages free": 134430720,
+        "File-backed pages": 3611426816,
+        "Pages occupied by compressor": 3819503616,
+        "Swapins": 611204218880,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8205.\nPages active:                                 172612.\nPages inactive:                               171000.\nPages speculative:                               610.\nPages throttled:                                   0.\nPages wired down:                             933152.\nPages purgeable:                                3557.\n\"Translation faults\":                     3497591708.\nPages copy-on-write:                        98224534.\nPages zero filled:                        5722321821.\nPages reactivated:                         348387273.\nPages purged:                               36784924.\nFile-backed pages:                            220424.\nAnonymous pages:                              123798.\nPages stored in compressor:                   456264.\nPages occupied by compressor:                 233124.\nDecompressions:                            831300770.\nCompressions:                             1008497754.\nPageins:                                   452436430.\nPageouts:                                     237867.\nSwapins:                                    37304945.\nSwapouts:                                   51524106.\nPages tagged:                                 110463.\nPages tagged resident:                         76270.\nPages tagged compressed:                       34193.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6286.\nPages tag-storage free:                          137.\nPages tag-storage non-tag pageable:            42528.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5780544.\nTagged compressions:                        15253080.\nTagged decompressions:                      14468374.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805472.853906,
+      "bytes": {
+        "Pages free": 131465216,
+        "File-backed pages": 3617062912,
+        "Pages occupied by compressor": 3811901440,
+        "Swapins": 611204218880,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8024.\nPages active:                                 171829.\nPages inactive:                               171232.\nPages speculative:                               526.\nPages throttled:                                   0.\nPages wired down:                             934356.\nPages purgeable:                                2100.\n\"Translation faults\":                     3497601285.\nPages copy-on-write:                        98224821.\nPages zero filled:                        5722329415.\nPages reactivated:                         348387636.\nPages purged:                               36784924.\nFile-backed pages:                            220768.\nAnonymous pages:                              122819.\nPages stored in compressor:                   456123.\nPages occupied by compressor:                 232660.\nDecompressions:                            831303246.\nCompressions:                             1008500167.\nPageins:                                   452466108.\nPageouts:                                     237868.\nSwapins:                                    37304945.\nSwapouts:                                   51524106.\nPages tagged:                                 110384.\nPages tagged resident:                         76434.\nPages tagged compressed:                       33950.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6293.\nPages tag-storage free:                          119.\nPages tag-storage non-tag pageable:            42546.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5738112.\nTagged compressions:                        15253119.\nTagged decompressions:                      14468656.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805473.994582,
+      "bytes": {
+        "Pages free": 138280960,
+        "File-backed pages": 3548692480,
+        "Pages occupied by compressor": 3818242048,
+        "Swapins": 611204284416,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8440.\nPages active:                                 167839.\nPages inactive:                               165727.\nPages speculative:                               850.\nPages throttled:                                   0.\nPages wired down:                             942800.\nPages purgeable:                                1463.\n\"Translation faults\":                     3497617207.\nPages copy-on-write:                        98225256.\nPages zero filled:                        5722345506.\nPages reactivated:                         348390836.\nPages purged:                               36785826.\nFile-backed pages:                            216595.\nAnonymous pages:                              117821.\nPages stored in compressor:                   454330.\nPages occupied by compressor:                 233047.\nDecompressions:                            831314049.\nCompressions:                             1008510695.\nPageins:                                   452495012.\nPageouts:                                     237868.\nSwapins:                                    37304949.\nSwapouts:                                   51524106.\nPages tagged:                                 110482.\nPages tagged resident:                         76099.\nPages tagged compressed:                       34383.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6290.\nPages tag-storage free:                          113.\nPages tag-storage non-tag pageable:            42552.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5812864.\nTagged compressions:                        15254175.\nTagged decompressions:                      14469279.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805475.024435,
+      "bytes": {
+        "Pages free": 131661824,
+        "File-backed pages": 3572482048,
+        "Pages occupied by compressor": 3813261312,
+        "Swapins": 611204284416,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8036.\nPages active:                                 168240.\nPages inactive:                               167934.\nPages speculative:                              1087.\nPages throttled:                                   0.\nPages wired down:                             940586.\nPages purgeable:                                2106.\n\"Translation faults\":                     3497624145.\nPages copy-on-write:                        98225458.\nPages zero filled:                        5722354786.\nPages reactivated:                         348392101.\nPages purged:                               36785830.\nFile-backed pages:                            218047.\nAnonymous pages:                              119214.\nPages stored in compressor:                   453474.\nPages occupied by compressor:                 232743.\nDecompressions:                            831317243.\nCompressions:                             1008513027.\nPageins:                                   452517811.\nPageouts:                                     237872.\nSwapins:                                    37304949.\nSwapouts:                                   51524106.\nPages tagged:                                 110241.\nPages tagged resident:                         75871.\nPages tagged compressed:                       34370.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6290.\nPages tag-storage free:                          111.\nPages tag-storage non-tag pageable:            42554.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5813952.\nTagged compressions:                        15254210.\nTagged decompressions:                      14469327.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805476.1054888,
+      "bytes": {
+        "Pages free": 132497408,
+        "File-backed pages": 3519578112,
+        "Pages occupied by compressor": 3813867520,
+        "Swapins": 611204284416,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8087.\nPages active:                                 170768.\nPages inactive:                               168849.\nPages speculative:                              1120.\nPages throttled:                                   0.\nPages wired down:                             937022.\nPages purgeable:                                6925.\n\"Translation faults\":                     3497631803.\nPages copy-on-write:                        98225693.\nPages zero filled:                        5722370363.\nPages reactivated:                         348393683.\nPages purged:                               36785830.\nFile-backed pages:                            214818.\nAnonymous pages:                              125919.\nPages stored in compressor:                   452489.\nPages occupied by compressor:                 232780.\nDecompressions:                            831323271.\nCompressions:                             1008517801.\nPageins:                                   452544615.\nPageouts:                                     237882.\nSwapins:                                    37304949.\nSwapouts:                                   51524106.\nPages tagged:                                 109992.\nPages tagged resident:                         75365.\nPages tagged compressed:                       34627.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6286.\nPages tag-storage free:                          302.\nPages tag-storage non-tag pageable:            42364.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    5878976.\nTagged compressions:                        15254504.\nTagged decompressions:                      14469364.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805477.226551,
+      "bytes": {
+        "Pages free": 131497984,
+        "File-backed pages": 3402792960,
+        "Pages occupied by compressor": 3795288064,
+        "Swapins": 611204284416,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8026.\nPages active:                                 166298.\nPages inactive:                               163824.\nPages speculative:                              1274.\nPages throttled:                                   0.\nPages wired down:                             947606.\nPages purgeable:                                4159.\n\"Translation faults\":                     3497643374.\nPages copy-on-write:                        98226044.\nPages zero filled:                        5722380752.\nPages reactivated:                         348394102.\nPages purged:                               36785836.\nFile-backed pages:                            207690.\nAnonymous pages:                              123706.\nPages stored in compressor:                   449866.\nPages occupied by compressor:                 231646.\nDecompressions:                            831329994.\nCompressions:                             1008520285.\nPageins:                                   452572733.\nPageouts:                                     237890.\nSwapins:                                    37304949.\nSwapouts:                                   51524106.\nPages tagged:                                 109704.\nPages tagged resident:                         75336.\nPages tagged compressed:                       34368.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6285.\nPages tag-storage free:                          122.\nPages tag-storage non-tag pageable:            42544.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    5827456.\nTagged compressions:                        15254665.\nTagged decompressions:                      14469783.\n"
+    },
+    {
+      "label": "HOLD-False:delta",
+      "time": 1791805478.26871,
+      "bytes": {
+        "Pages free": 147537920,
+        "File-backed pages": 3490840576,
+        "Pages occupied by compressor": 3799351296,
+        "Swapins": 611204284416,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     9005.\nPages active:                                 171862.\nPages inactive:                               169055.\nPages speculative:                              1677.\nPages throttled:                                   0.\nPages wired down:                             935202.\nPages purgeable:                                6289.\n\"Translation faults\":                     3497656500.\nPages copy-on-write:                        98226337.\nPages zero filled:                        5722391597.\nPages reactivated:                         348394786.\nPages purged:                               36785838.\nFile-backed pages:                            213064.\nAnonymous pages:                              129530.\nPages stored in compressor:                   450853.\nPages occupied by compressor:                 231894.\nDecompressions:                            831336019.\nCompressions:                             1008529231.\nPageins:                                   452592732.\nPageouts:                                     237891.\nSwapins:                                    37304949.\nSwapouts:                                   51524106.\nPages tagged:                                 109519.\nPages tagged resident:                         75899.\nPages tagged compressed:                       33620.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6290.\nPages tag-storage free:                          152.\nPages tag-storage non-tag pageable:            42514.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    5662912.\nTagged compressions:                        15254976.\nTagged decompressions:                      14470842.\n"
+    },
+    {
+      "label": "idle-HOLD-False:pong",
+      "time": 1791805478.309763,
+      "bytes": {
+        "Pages free": 1229012992,
+        "File-backed pages": 3499704320,
+        "Pages occupied by compressor": 3092332544,
+        "Swapins": 611204284416,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    75013.\nPages active:                                 172880.\nPages inactive:                               169396.\nPages speculative:                              2105.\nPages throttled:                                   0.\nPages wired down:                             910562.\nPages purgeable:                                6298.\n\"Translation faults\":                     3497657687.\nPages copy-on-write:                        98226472.\nPages zero filled:                        5722393709.\nPages reactivated:                         348394786.\nPages purged:                               36785838.\nFile-backed pages:                            213605.\nAnonymous pages:                              130776.\nPages stored in compressor:                   407557.\nPages occupied by compressor:                 188741.\nDecompressions:                            831336245.\nCompressions:                             1008529231.\nPageins:                                   452593096.\nPageouts:                                     237891.\nSwapins:                                    37304949.\nSwapouts:                                   51524106.\nPages tagged:                                 109617.\nPages tagged resident:                         75998.\nPages tagged compressed:                       33619.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6290.\nPages tag-storage free:                          228.\nPages tag-storage non-tag pageable:            42438.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    5662784.\nTagged compressions:                        15254976.\nTagged decompressions:                      14470843.\n"
+    },
+    {
+      "label": "HOLD-True:generation_mode",
+      "time": 1791805479.297821,
+      "bytes": {
+        "Pages free": 139575296,
+        "File-backed pages": 3677274112,
+        "Pages occupied by compressor": 3161899008,
+        "Swapins": 611204284416,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8519.\nPages active:                                 186977.\nPages inactive:                               183584.\nPages speculative:                              2332.\nPages throttled:                                   0.\nPages wired down:                             944304.\nPages purgeable:                                6931.\n\"Translation faults\":                     3497759683.\nPages copy-on-write:                        98226677.\nPages zero filled:                        5722484361.\nPages reactivated:                         348413453.\nPages purged:                               36785843.\nFile-backed pages:                            224443.\nAnonymous pages:                              148450.\nPages stored in compressor:                   429279.\nPages occupied by compressor:                 192987.\nDecompressions:                            831352048.\nCompressions:                             1008568197.\nPageins:                                   452644846.\nPageouts:                                     237891.\nSwapins:                                    37304949.\nSwapouts:                                   51524106.\nPages tagged:                                 109476.\nPages tagged resident:                         75282.\nPages tagged compressed:                       34194.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6287.\nPages tag-storage free:                           85.\nPages tag-storage non-tag pageable:            42581.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    5778816.\nTagged compressions:                        15255829.\nTagged decompressions:                      14471121.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805492.1034582,
+      "bytes": {
+        "Pages free": 137166848,
+        "File-backed pages": 3597729792,
+        "Pages occupied by compressor": 3676471296,
+        "Swapins": 611207299072,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8372.\nPages active:                                 181456.\nPages inactive:                               179745.\nPages speculative:                               561.\nPages throttled:                                   0.\nPages wired down:                             924159.\nPages purgeable:                                   5.\n\"Translation faults\":                     3498059653.\nPages copy-on-write:                        98228973.\nPages zero filled:                        5722690032.\nPages reactivated:                         348496493.\nPages purged:                               36795515.\nFile-backed pages:                            219588.\nAnonymous pages:                              142174.\nPages stored in compressor:                   464538.\nPages occupied by compressor:                 224394.\nDecompressions:                            831705360.\nCompressions:                             1008960403.\nPageins:                                   453037692.\nPageouts:                                     237920.\nSwapins:                                    37305133.\nSwapouts:                                   51524106.\nPages tagged:                                 108599.\nPages tagged resident:                         74436.\nPages tagged compressed:                       34163.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6263.\nPages tag-storage free:                           78.\nPages tag-storage non-tag pageable:            42588.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    5781376.\nTagged compressions:                        15258848.\nTagged decompressions:                      14474170.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805493.1861372,
+      "bytes": {
+        "Pages free": 130711552,
+        "File-backed pages": 3313909760,
+        "Pages occupied by compressor": 2811133952,
+        "Swapins": 611216719872,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7978.\nPages active:                                 181788.\nPages inactive:                               179600.\nPages speculative:                              1219.\nPages throttled:                                   0.\nPages wired down:                             976529.\nPages purgeable:                                  33.\n\"Translation faults\":                     3498169767.\nPages copy-on-write:                        98229469.\nPages zero filled:                        5722723836.\nPages reactivated:                         348546506.\nPages purged:                               36795572.\nFile-backed pages:                            202265.\nAnonymous pages:                              160342.\nPages stored in compressor:                   408399.\nPages occupied by compressor:                 171578.\nDecompressions:                            831808064.\nCompressions:                             1009008420.\nPageins:                                   453063988.\nPageouts:                                     237921.\nSwapins:                                    37305708.\nSwapouts:                                   51524106.\nPages tagged:                                 108601.\nPages tagged resident:                         74258.\nPages tagged compressed:                       34343.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6251.\nPages tag-storage free:                           70.\nPages tag-storage non-tag pageable:            42596.\nPages tag-storage non-tag wired:                  96.\nBytes of compressed tags:                    5832704.\nTagged compressions:                        15260426.\nTagged decompressions:                      14475568.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805494.249407,
+      "bytes": {
+        "Pages free": 126730240,
+        "File-backed pages": 3532455936,
+        "Pages occupied by compressor": 3018047488,
+        "Swapins": 611216719872,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7735.\nPages active:                                 176535.\nPages inactive:                               174267.\nPages speculative:                              1317.\nPages throttled:                                   0.\nPages wired down:                             974642.\nPages purgeable:                                1676.\n\"Translation faults\":                     3498190919.\nPages copy-on-write:                        98229932.\nPages zero filled:                        5722734215.\nPages reactivated:                         348557393.\nPages purged:                               36795576.\nFile-backed pages:                            215604.\nAnonymous pages:                              136515.\nPages stored in compressor:                   429488.\nPages occupied by compressor:                 184207.\nDecompressions:                            831818310.\nCompressions:                             1009042866.\nPageins:                                   453095815.\nPageouts:                                     237921.\nSwapins:                                    37305708.\nSwapouts:                                   51524106.\nPages tagged:                                 108678.\nPages tagged resident:                         74159.\nPages tagged compressed:                       34519.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6250.\nPages tag-storage free:                          142.\nPages tag-storage non-tag pageable:            42562.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5855488.\nTagged compressions:                        15261016.\nTagged decompressions:                      14475982.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805495.271574,
+      "bytes": {
+        "Pages free": 130088960,
+        "File-backed pages": 3521691648,
+        "Pages occupied by compressor": 3023945728,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7940.\nPages active:                                 177345.\nPages inactive:                               174161.\nPages speculative:                              1568.\nPages throttled:                                   0.\nPages wired down:                             973122.\nPages purgeable:                                 227.\n\"Translation faults\":                     3498210813.\nPages copy-on-write:                        98230203.\nPages zero filled:                        5722751065.\nPages reactivated:                         348561853.\nPages purged:                               36795578.\nFile-backed pages:                            214947.\nAnonymous pages:                              138127.\nPages stored in compressor:                   429730.\nPages occupied by compressor:                 184567.\nDecompressions:                            831824382.\nCompressions:                             1009049538.\nPageins:                                   453125176.\nPageouts:                                     237921.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108800.\nPages tagged resident:                         73920.\nPages tagged compressed:                       34880.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6242.\nPages tag-storage free:                          103.\nPages tag-storage non-tag pageable:            42601.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5935872.\nTagged compressions:                        15261707.\nTagged decompressions:                      14476308.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805496.5123441,
+      "bytes": {
+        "Pages free": 127893504,
+        "File-backed pages": 3524706304,
+        "Pages occupied by compressor": 3054796800,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7806.\nPages active:                                 173977.\nPages inactive:                               171659.\nPages speculative:                              1696.\nPages throttled:                                   0.\nPages wired down:                             977115.\nPages purgeable:                                 101.\n\"Translation faults\":                     3498223152.\nPages copy-on-write:                        98230500.\nPages zero filled:                        5722762089.\nPages reactivated:                         348568676.\nPages purged:                               36795581.\nFile-backed pages:                            215131.\nAnonymous pages:                              132201.\nPages stored in compressor:                   433263.\nPages occupied by compressor:                 186450.\nDecompressions:                            831831332.\nCompressions:                             1009059772.\nPageins:                                   453156779.\nPageouts:                                     237921.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108902.\nPages tagged resident:                         74181.\nPages tagged compressed:                       34721.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6240.\nPages tag-storage free:                          288.\nPages tag-storage non-tag pageable:            42416.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5881152.\nTagged compressions:                        15262352.\nTagged decompressions:                      14477111.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805497.775729,
+      "bytes": {
+        "Pages free": 128008192,
+        "File-backed pages": 3594027008,
+        "Pages occupied by compressor": 3044818944,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7813.\nPages active:                                 174645.\nPages inactive:                               172278.\nPages speculative:                              1376.\nPages throttled:                                   0.\nPages wired down:                             976750.\nPages purgeable:                                   2.\n\"Translation faults\":                     3498244976.\nPages copy-on-write:                        98230895.\nPages zero filled:                        5722773340.\nPages reactivated:                         348573607.\nPages purged:                               36795617.\nFile-backed pages:                            219362.\nAnonymous pages:                              128937.\nPages stored in compressor:                   437271.\nPages occupied by compressor:                 185841.\nDecompressions:                            831843637.\nCompressions:                             1009075274.\nPageins:                                   453189526.\nPageouts:                                     237981.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108510.\nPages tagged resident:                         73428.\nPages tagged compressed:                       35082.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6238.\nPages tag-storage free:                           64.\nPages tag-storage non-tag pageable:            42640.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5977024.\nTagged compressions:                        15263330.\nTagged decompressions:                      14477728.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805499.0307388,
+      "bytes": {
+        "Pages free": 136282112,
+        "File-backed pages": 3601022976,
+        "Pages occupied by compressor": 3053486080,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8318.\nPages active:                                 174275.\nPages inactive:                               171976.\nPages speculative:                              1028.\nPages throttled:                                   0.\nPages wired down:                             976736.\nPages purgeable:                                 302.\n\"Translation faults\":                     3498256746.\nPages copy-on-write:                        98231226.\nPages zero filled:                        5722782363.\nPages reactivated:                         348578013.\nPages purged:                               36795621.\nFile-backed pages:                            219789.\nAnonymous pages:                              127490.\nPages stored in compressor:                   439017.\nPages occupied by compressor:                 186370.\nDecompressions:                            831850239.\nCompressions:                             1009084448.\nPageins:                                   453217886.\nPageouts:                                     238001.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108688.\nPages tagged resident:                         73642.\nPages tagged compressed:                       35046.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6236.\nPages tag-storage free:                          270.\nPages tag-storage non-tag pageable:            42434.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    5953792.\nTagged compressions:                        15263831.\nTagged decompressions:                      14478265.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805500.273396,
+      "bytes": {
+        "Pages free": 136478720,
+        "File-backed pages": 3685072896,
+        "Pages occupied by compressor": 3061088256,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     8330.\nPages active:                                 175526.\nPages inactive:                               173994.\nPages speculative:                               829.\nPages throttled:                                   0.\nPages wired down:                             973190.\nPages purgeable:                                   2.\n\"Translation faults\":                     3498267766.\nPages copy-on-write:                        98231517.\nPages zero filled:                        5722788853.\nPages reactivated:                         348582835.\nPages purged:                               36795621.\nFile-backed pages:                            224919.\nAnonymous pages:                              125430.\nPages stored in compressor:                   442670.\nPages occupied by compressor:                 186834.\nDecompressions:                            831855536.\nCompressions:                             1009094353.\nPageins:                                   453250807.\nPageouts:                                     238001.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108735.\nPages tagged resident:                         73321.\nPages tagged compressed:                       35414.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6236.\nPages tag-storage free:                          121.\nPages tag-storage non-tag pageable:            42583.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6040000.\nTagged compressions:                        15264276.\nTagged decompressions:                      14478342.\n"
+    },
+    {
+      "label": "HOLD-True:delta",
+      "time": 1791805501.359273,
+      "bytes": {
+        "Pages free": 128942080,
+        "File-backed pages": 3674701824,
+        "Pages occupied by compressor": 3058057216,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7870.\nPages active:                                 175082.\nPages inactive:                               173275.\nPages speculative:                               716.\nPages throttled:                                   0.\nPages wired down:                             975111.\nPages purgeable:                                   5.\n\"Translation faults\":                     3498278266.\nPages copy-on-write:                        98231782.\nPages zero filled:                        5722797183.\nPages reactivated:                         348584336.\nPages purged:                               36795623.\nFile-backed pages:                            224286.\nAnonymous pages:                              124787.\nPages stored in compressor:                   441478.\nPages occupied by compressor:                 186649.\nDecompressions:                            831862597.\nCompressions:                             1009100188.\nPageins:                                   453271675.\nPageouts:                                     238002.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108426.\nPages tagged resident:                         73188.\nPages tagged compressed:                       35238.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6236.\nPages tag-storage free:                          102.\nPages tag-storage non-tag pageable:            42602.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6005312.\nTagged compressions:                        15264370.\nTagged decompressions:                      14478612.\n"
+    },
+    {
+      "label": "idle-HOLD-True:pong",
+      "time": 1791805501.3611462,
+      "bytes": {
+        "Pages free": 128663552,
+        "File-backed pages": 3674701824,
+        "Pages occupied by compressor": 3057909760,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                     7853.\nPages active:                                 175107.\nPages inactive:                               173275.\nPages speculative:                               716.\nPages throttled:                                   0.\nPages wired down:                             975112.\nPages purgeable:                                   5.\n\"Translation faults\":                     3498278817.\nPages copy-on-write:                        98231905.\nPages zero filled:                        5722797238.\nPages reactivated:                         348584336.\nPages purged:                               36795623.\nFile-backed pages:                            224286.\nAnonymous pages:                              124812.\nPages stored in compressor:                   441453.\nPages occupied by compressor:                 186640.\nDecompressions:                            831862625.\nCompressions:                             1009100188.\nPageins:                                   453271676.\nPageouts:                                     238002.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108426.\nPages tagged resident:                         73188.\nPages tagged compressed:                       35238.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6236.\nPages tag-storage free:                          102.\nPages tag-storage non-tag pageable:            42602.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6005312.\nTagged compressions:                        15264370.\nTagged decompressions:                      14478612.\n"
+    },
+    {
+      "label": "after",
+      "time": 1791805501.55025,
+      "bytes": {
+        "Pages free": 13436911616,
+        "File-backed pages": 3637903360,
+        "Pages occupied by compressor": 2862153728,
+        "Swapins": 611216785408,
+        "Swapouts": 844170952704
+      },
+      "raw": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   820124.\nPages active:                                 170846.\nPages inactive:                               169233.\nPages speculative:                               768.\nPages throttled:                                   0.\nPages wired down:                             183040.\nPages purgeable:                                   7.\n\"Translation faults\":                     3498304285.\nPages copy-on-write:                        98232076.\nPages zero filled:                        5722800663.\nPages reactivated:                         348585736.\nPages purged:                               36795625.\nFile-backed pages:                            222040.\nAnonymous pages:                              118807.\nPages stored in compressor:                   389769.\nPages occupied by compressor:                 174692.\nDecompressions:                            831876659.\nCompressions:                             1009103409.\nPageins:                                   453271741.\nPageouts:                                     238002.\nSwapins:                                    37305712.\nSwapouts:                                   51524106.\nPages tagged:                                 108353.\nPages tagged resident:                         73128.\nPages tagged compressed:                       35225.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6236.\nPages tag-storage free:                         1973.\nPages tag-storage non-tag pageable:            40731.\nPages tag-storage non-tag wired:                  97.\nBytes of compressed tags:                    6002496.\nTagged compressions:                        15264436.\nTagged decompressions:                      14478691.\n"
+    }
+  ],
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": null,
+    "dflash_configure_supported": true,
+    "dflash_family": null,
+    "dflash_supported": false,
+    "dflash_tune_supported": false,
+    "dflash_tuning_key": "61902be23c3e0c23:1.4.3:2162c5f64a16:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+    "load_seconds": 1.475635375,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "model_context_limit": 262144,
+    "modules": 74041,
+    "mtp_auto_download_supported": false,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 1,
+    "mtp_supported": true,
+    "mtp_tune_supported": false,
+    "mtp_tuning_key": "61902be23c3e0c23:1.4.3:2162c5f64a16:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0",
+    "resident_gb": 62.815131785,
+    "runtime_commit": "2162c5f64a16",
+    "runtime_executable": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/baseline/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.3",
+    "type": "ready"
+  }
+}

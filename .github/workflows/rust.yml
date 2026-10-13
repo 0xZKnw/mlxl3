@@ -12,6 +12,27 @@ permissions:
   contents: read
 
 jobs:
+  kani-flash-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Flash offsets, partition and greedy commits independently
+        uses: model-checking/kani-github-action@v1
+        with:
+          kani-version: '0.68.0'
+          command: cargo kani
+          args: >-
+            --lib --no-default-features
+            --harness pair_commit_preserves_exact_valid_prefix_without_overflow
+            --harness tensor_source_interval_is_ordered_and_cannot_wrap
+            --harness disk_destinations_cannot_wrap_or_exceed_owned_storage
+            --harness reference_partition
+            --harness automatic_cache_cannot_spend_reserved_memory
+            --harness automatic_cache_is_monotone
+            --harness mtp_depth_one_commits_only_target_tokens_inside_budgets
+            --harness mtp_all_depths_commit_target_prefix_within_budgets
+            --harness greedy_acceptance_is_the_maximal_matching_prefix
   kani:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -47,6 +68,14 @@ jobs:
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
           build/ci/kernel-cache-key
           c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
+      - name: Check synchronous SSD readers and failure draining
+        if: matrix.os == 'macos-26'
+        run: |
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader
+          build/ci/disk-reader
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader-tsan
+          build/ci/disk-reader-tsan
+          c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/disk_reader_proof.cpp
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -68,9 +97,14 @@ jobs:
           ruff check scripts/check_dflash2.py tests/test_dflash2_check.py
           python -m py_compile scripts/check_dflash2.py
       - name: Check bridge and QMM validation tools
-        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
       - name: Check idle-memory benchmark failure and parity gates
         run: |
+          ruff format --check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
+          ruff check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
+          ruff format --check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+          ruff check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+          python -m pytest -q tests/test_flash_memory.py
           ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
           ruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
           python -m pytest -q tests/test_idle_memory_benchmark.py
