@@ -1,0 +1,60 @@
+name: EXL3 conversion contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantization-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  packing-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CBMC 6.11.0 from the checked release asset
+        run: |
+          curl --fail --location --max-time 120 https://github.com/diffblue/cbmc/releases/download/cbmc-6.11.0/ubuntu-24.04-cbmc-6.11.0-Linux.deb --output /tmp/cbmc.deb
+          echo 'b3721aa541038384d7801ea3aeabbcddc3e8845ac8f1cbff637cf8dec7481ac8  /tmp/cbmc.deb' | sha256sum --check
+          sudo apt-get update
+          sudo apt-get install --yes /tmp/cbmc.deb
+      - name: Verify the shared source under the host address-space model
+        run: |
+          timeout 180 cbmc -D__CPROVER tests/quantize_packing_proof.cpp --function proof --unwind 17 --unwindset 'proof().0:513' --unwinding-assertions --bounds-check --pointer-check --signed-overflow-check --unsigned-overflow-check
+          timeout 180 cbmc -D__CPROVER -DMLXL3_COVER tests/quantize_packing_proof.cpp --function proof --unwind 17 --unwindset 'proof().0:513' --cover assertion --property 'proof().coverage.2' --property 'proof().coverage.3' --property 'proof().coverage.4' --property 'proof().coverage.5' --property 'proof().coverage.6' --property 'proof().coverage.7'
+  conversion:
+    runs-on: macos-26
+    timeout-minutes: 20
+    env:
+      MLXL3_SKIP_METAL_CHECK: '1'
+      PYTHONPATH: src:references/PonyExl3:scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5
+      - name: Apply the pinned optional converter patch
+        run: |
+          git clone https://github.com/beamivalice/PonyExl3.git references/PonyExl3
+          git -C references/PonyExl3 checkout 8e7fa6b1556f59fc669e25087903b279b9b0346f
+          git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-mlxl3-conversion.patch
+      - name: Check host contracts and benchmark failure gates
+        run: |
+          ruff format --check src/mlxl3_quantizer/packing.py scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/quantize_conversion_contracts.py
+          ruff check src/mlxl3_quantizer/packing.py scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/quantize_conversion_contracts.py
+          python -m compileall -q src/mlxl3_quantizer scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py
+          python -m pytest -q tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/test_lfm_conversion_adapter.py
+      - name: Check the shared packing source with host sanitizers
+        run: |
+          mkdir -p build/proofs
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/quantize_packing_proof.cpp -o build/proofs/quantize-packing
+          build/proofs/quantize-packing
+      # These checks deliberately skip physical Metal tests; local logs record those separately.

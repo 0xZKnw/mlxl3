@@ -1,0 +1,18 @@
+{
+  "command": [
+    "build/proofs/cbmc/6.11.0/bin/cbmc",
+    "tests/quantize_packing_proof.cpp",
+    "--function",
+    "proof",
+    "--unwind",
+    "513",
+    "--unwinding-assertions",
+    "--bounds-check",
+    "--pointer-check",
+    "--signed-overflow-check",
+    "--unsigned-overflow-check",
+    "--trace"
+  ],
+  "returncode": 6,
+  "timeout_s": 120
+}

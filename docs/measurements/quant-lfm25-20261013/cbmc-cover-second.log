@@ -1,0 +1,49 @@
+--cover is incompatible with --unwinding-assertions, so unwinding-assertions will be defaulted to false
+**** WARNING: Use --unwinding-assertions to obtain sound verification results
+**** WARNING: Use --unwinding-assertions to obtain sound verification results
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_packing_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Rewriting existing assertions as assumptions
+Ignoring block 18 location 95 proof() (missing source location)
+Ignoring block 1 location 0 #cpp_dynamic_initialization#quantize_packing_proof (missing source location)
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+
+** coverage results:
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.1] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 4 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) division by zero in word / (16u * k): FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.2] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 5 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) division by zero in word % (16u * k): FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.3] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 5 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) division by zero in (word % (16u * k)) / k: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.4] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 6 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) division by zero in word % k: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.5] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 8 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) division by zero in begin / k: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.6] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 8 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) division by zero in (begin + 15u) / k: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.7] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 9 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) dereference failure: pointer NULL in encoded[(signed long int)(tile * 256u + span * 16u + i)]: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.8] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 9 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) dereference failure: pointer invalid in encoded[(signed long int)(tile * 256u + span * 16u + i)]: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.9] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 9 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) dereference failure: deallocated dynamic object in encoded[(signed long int)(tile * 256u + span * 16u + i)]: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.10] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 9 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) dereference failure: dead object in encoded[(signed long int)(tile * 256u + span * 16u + i)]: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.11] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 9 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) dereference failure: pointer outside object bounds in encoded[(signed long int)(tile * 256u + span * 16u + i)]: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.12] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 9 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) dereference failure: invalid integer address in encoded[(signed long int)(tile * 256u + span * 16u + i)]: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.13] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 9 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) shift distance too large in 1u << k: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.14] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 11 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) shift distance too large in value << (begin + 16u) - end: FAILED
+[mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int).coverage.15] file tests/../src/mlxl3_quantizer/pack_trellis.metal line 12 function mlxl3_pack_word(ptr_const_unsigned_short_int,unsigned_int,unsigned_int) shift distance too large in value >> (end - begin) - 16u: FAILED
+[proof().coverage.1] file tests/quantize_packing_proof.cpp line 36 function proof() array 'encoded' upper bound in encoded[(signed long int)i]: SATISFIED
+[proof().coverage.2] file tests/quantize_packing_proof.cpp line 41 function proof() false: SATISFIED
+[proof().coverage.3] file tests/quantize_packing_proof.cpp line 42 function proof() false: SATISFIED
+[proof().coverage.4] file tests/quantize_packing_proof.cpp line 43 function proof() false: SATISFIED
+[proof().coverage.5] file tests/quantize_packing_proof.cpp line 44 function proof() false: SATISFIED
+[proof().coverage.6] file tests/quantize_packing_proof.cpp line 45 function proof() false: SATISFIED
+[proof().coverage.7] file tests/quantize_packing_proof.cpp line 46 function proof() false: SATISFIED
+
+** 7 of 22 covered (31.8%)

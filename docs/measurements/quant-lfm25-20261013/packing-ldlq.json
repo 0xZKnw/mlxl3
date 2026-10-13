@@ -1,0 +1,80 @@
+{
+  "status": "complete",
+  "parity": true,
+  "shape": [
+    1536,
+    2048
+  ],
+  "k": 4,
+  "codebook": "MCG",
+  "seed": 93,
+  "warmup_pairs": 1,
+  "pairs": 3,
+  "scope": "LDLQ recurrence only, synthetic weight/Hessian, excludes model calibration/scales/export",
+  "runs": [
+    {
+      "pair": 0,
+      "name": "reference",
+      "seconds": 1.1367590419831686,
+      "hashes": [
+        "c442459b5d6bb141c09ce79c89b1b4f6af14b912cd048f2ed87c58f0f3b3da0f",
+        "18f0bf8ccd627c44e261b1afca42060251cb12734851561429d4d66f080e69b3"
+      ],
+      "peak_mlx_bytes": 333399064
+    },
+    {
+      "pair": 0,
+      "name": "candidate",
+      "seconds": 1.1356650840025395,
+      "hashes": [
+        "c442459b5d6bb141c09ce79c89b1b4f6af14b912cd048f2ed87c58f0f3b3da0f",
+        "18f0bf8ccd627c44e261b1afca42060251cb12734851561429d4d66f080e69b3"
+      ],
+      "peak_mlx_bytes": 333399044
+    },
+    {
+      "pair": 1,
+      "name": "candidate",
+      "seconds": 1.1309322079760022,
+      "hashes": [
+        "c442459b5d6bb141c09ce79c89b1b4f6af14b912cd048f2ed87c58f0f3b3da0f",
+        "18f0bf8ccd627c44e261b1afca42060251cb12734851561429d4d66f080e69b3"
+      ],
+      "peak_mlx_bytes": 333400072
+    },
+    {
+      "pair": 1,
+      "name": "reference",
+      "seconds": 1.1393184579792432,
+      "hashes": [
+        "c442459b5d6bb141c09ce79c89b1b4f6af14b912cd048f2ed87c58f0f3b3da0f",
+        "18f0bf8ccd627c44e261b1afca42060251cb12734851561429d4d66f080e69b3"
+      ],
+      "peak_mlx_bytes": 333399044
+    },
+    {
+      "pair": 2,
+      "name": "reference",
+      "seconds": 1.135902125039138,
+      "hashes": [
+        "c442459b5d6bb141c09ce79c89b1b4f6af14b912cd048f2ed87c58f0f3b3da0f",
+        "18f0bf8ccd627c44e261b1afca42060251cb12734851561429d4d66f080e69b3"
+      ],
+      "peak_mlx_bytes": 333399042
+    },
+    {
+      "pair": 2,
+      "name": "candidate",
+      "seconds": 1.1302329169702716,
+      "hashes": [
+        "c442459b5d6bb141c09ce79c89b1b4f6af14b912cd048f2ed87c58f0f3b3da0f",
+        "18f0bf8ccd627c44e261b1afca42060251cb12734851561429d4d66f080e69b3"
+      ],
+      "peak_mlx_bytes": 333399044
+    }
+  ],
+  "medians_s": {
+    "reference": 1.1367590419831686,
+    "candidate": 1.1309322079760022
+  }
+}
