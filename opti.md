@@ -7,7 +7,7 @@
 - Critères inchangés : chaque paire≥1%, étendue≤3points par cellule, picC≤H+256Mio, swapouts système≤256Mio/bras. Gardes supplémentaires contre la perturbation connue : refuser de démarrer ou arrêter si premier relevé pmset n'est pas exactement AC Power avant/après un bras ; arrêter si max/min des trois mesures dépasse1,25. Contrôles AC ponctuels, pas une preuve d'alimentation continue. Borne360s par bras, nettoyage et jonction sur tout échec/interruption, aucun résultat partiel validé globalement.
 - Préserver tout sous opt-20-hc-gemv/confirmation-ac, commandes/source du superviseur avec gardes archivées. Inspecter tous résultats ; si validé pousser20 dansPR34 immédiatement avant22.22 demeure préparé mais non exécuté jusqu'à cette décision.
 
-### FLASHSSD-2026-10-12-22 — HC deux lignes dans le GEMV mixte — préparation isolée, non exécuté
+### FLASHSSD-2026-10-12-22 — HC deux lignes dans le GEMV mixte — rejeté le13octobre, prototype retiré
 
 - Raison nouvelle21/20 : préparation intrusive HC/attention≈57ms/pas après suppression des promotions, vérification≈94% du temps MTP. L'essai15/15B conservait deux GEMV denses HC indépendants (`project_rows`) ; ce nouvel essai partage réellement chaque chargement FP16 entre deux accumulations FP32 dans le kernel20. Aucun NT2/EXL3 groupé/GDN groupé/shared groupé du prototype15 réintroduit. Cible : coût des HC de la vérification, sans duplication de poids ni nouveau budget cache.
 - Préparer un patch hors checkout sous build/flash-opt-22-stage pendant20B, sans compiler/lancerGPU/proveur ni toucher les sources/binaires mesurés. Après clôture20B seulement : si20 validé, pousser20 d'abord, puis appliquer22 ; sinon laisser22 explicitement différé. Baseline22 = source20 exacte7a9a2120 et nouvel enregistrement du commit publié. Une préparation ne vaut ni test ni intégration.
@@ -9868,3 +9868,263 @@ Revue à entreprendre sur checkoutisoléPR32/tête0f53d2ca/base8c08c4c, préserv
 - **20C inspection finale validée** :16bras/64réponses exactes, huit paires gains OFF+35,92à38,49% etMTP+43,26à45,02%, étendues0,035à1,761point. PicC OFF8,659Gio/MTP9,644Gio, plus grand surplus166,2Mio≤256, tous swapouts+0octet, AC avant/après, tous enfants joints. CompteursMTP identiques ; sources/binaires SHA inchangés. confirmation-ac/assessment.json et rapportHC mis à jour. Kernel20 retenu, commit/pushPR34 suivant ; application non installée.20 court/20B restent non concluants/interrompus ;21 diagnostic clos,22 encore préparé/non exécuté.
 
 - 2026-10-13 reprise20 : tentative de commit précédente arrêtée par diff-check sur trois marqueurs de contexte blancs du patch archivé, aucun commit/push effectué. Préserver le patch byteexact ; attribut whitespace déjà utilisé pour les archives étendu aux patches Flash uniquement, contrôles du code conservés (commit-unblock.json). Utilisateur autorise désormais les prochains benchmarks **sur batterie avec nouvelle baseline** ; aucun mélange avec20C secteur. Aucun ancien processus modèle actif.
+
+- **22 démarrage2026-10-13, avant prototype/mesure** :20 validé et poussé23292112 dansPR34 ; mêmes sources20/binaire7a9a2120. Appliquer maintenant le patch préparé hors checkout. L'utilisateur demande explicitement « Continue sur batterie avec une nouvelle baseline » : remplacer la condition secteur du protocole22 par Battery Power vérifié avant/après chaque bras. Refaire tous les témoins20 sur batterie, aucun chiffre20C secteur utilisé comme témoin.128tokens/3mesures/16bras, seuilsOFF−2%/MTP+1%, stabilité3points, mémoire256Mio/swap256Mio et arrêt sur dérive1,25 restent inchangés. Qualité avant tout timing ; pas de compilation/proveur concurrent avec modèle. Sources préparées/portée déjà relues, skillformal-proof et référencesRust/C/Python chargés.
+
+- 22 fmt : **passed**, commandes/résultats dans opt-22-hc-pair/build-initial.json et fmt.log. Aucun timing modèle22 lancé.
+
+- 22 clippy : **passed**, commandes/résultats dans opt-22-hc-pair/build-initial.json et clippy.log. Aucun timing modèle22 lancé.
+
+- 22 compile-tests : **passed**, commandes/résultats dans opt-22-hc-pair/build-initial.json et compile-tests.log. Aucun timing modèle22 lancé.
+
+- 22 qualité primitives : **passed**, 3tests, opt-22-hc-pair/primitives.json et log. Aucun débit22 mesuré.
+
+- 22 qualité hc-pair : **passed**, 1tests, opt-22-hc-pair/primitives.json et log. Aucun débit22 mesuré.
+
+- 22 mutation réelle alias ligne2→ligne1 : détectée ; shader restauré byteexact. opt-22-hc-pair/mutation.json ; rebuild et recontrôle requis avant vitesse.
+
+- 22 mutation clôturée : test pair restauré réussi, binairetests revenu au SHA963f01b2 exact. Aucun timing sur mutant.
+
+- 22 fmt-check : **passed**, opt-22-hc-pair/checks.json et fmt-check.log ; diagnostics preuve à inspecter, aucun débit réel22 mesuré.
+
+- 22 cpu : **passed**, opt-22-hc-pair/checks.json et cpu.log ; diagnostics preuve à inspecter, aucun débit réel22 mesuré.
+
+- 22 release-suite : **passed**, opt-22-hc-pair/checks.json et release-suite.log ; diagnostics preuve à inspecter, aucun débit réel22 mesuré.
+
+- 22 build : **passed**, opt-22-hc-pair/checks.json et build.log ; diagnostics preuve à inspecter, aucun débit réel22 mesuré.
+
+- 22 kani-actual : **failed**, opt-22-hc-pair/checks.json et kani-actual.log ; diagnostics preuve à inspecter, aucun débit réel22 mesuré.
+
+- 22 cbmc-metal : **failed**, opt-22-hc-pair/checks.json et cbmc-metal.log ; diagnostics preuve à inspecter, aucun débit réel22 mesuré.
+
+- 22 qualité qwen : **passed**, exit0, 38.28s ; opt-22-hc-pair/quality.json et qwen.log. Le micro est distinct du débit réel, aucun gain moteur22 revendiqué.
+
+- 22 qualité held : **passed**, exit0, 4.66s ; opt-22-hc-pair/quality.json et held.log. Le micro est distinct du débit réel, aucun gain moteur22 revendiqué.
+
+- 22 qualité ssd : **passed**, exit0, 1.55s ; opt-22-hc-pair/quality.json et ssd.log. Le micro est distinct du débit réel, aucun gain moteur22 revendiqué.
+
+- 22 qualité bridge : **passed**, exit0, 189.92s ; opt-22-hc-pair/quality.json et bridge.log. Le micro est distinct du débit réel, aucun gain moteur22 revendiqué.
+
+- 22 qualité micro : **passed**, exit0, 1.27s ; opt-22-hc-pair/quality.json et micro.log. Le micro est distinct du débit réel, aucun gain moteur22 revendiqué.
+
+- 22 qualité inspectée : 12Qwen+1held+3SSD passent, bridge complet budgets1/2/3/17 et annulations/reprises. Micro T1×2/T2 : [{"shape": [10240, 320], "T1_twice_median_ms": 0.31258725, "T2_median_ms": 0.27128515625, "time_reduction_percent": 13.21298093572274, "pairs": 5}, {"shape": [320, 10240], "T1_twice_median_ms": 0.41995053125, "T2_median_ms": 0.32258203125, "time_reduction_percent": 23.185707066539152, "pairs": 5}, {"shape": [10240, 4], "T1_twice_median_ms": 0.29618228125, "T2_median_ms": 0.26165887499999996, "time_reduction_percent": 11.656134899190585, "pairs": 5}]. Valeurs micro uniquement, aucun gain moteur établi. Attention : suite physique Qwen (plusieurs modèles dans certains oracles) a produit1 168 244 736octets de swap système ; held/SSD/bridge/micro+0. Le bridge réel ne reproduit pas cette poussée ; RAM/swap moteur22 restent à mesurer. Garde batterie/seuils :13cas passent ; tentative CrossHair module absent, non vérifiée symboliquement. Voir quality-inspection.json, speed-guards.json, crosshair-guards.json.
+
+- 22 1-MAIN-baseline-H : **validated**, débit9.79418648144973tok/s, pic9292062160octets, swapouts+0octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+- 22 rapport de qualification créé : [HC pair sur batterie](docs/flash-hc-pair-2026-10-13.md). Vitesse en cours, intégration non décidée. Correction de formulation : le surcroît de swap de la suite Qwen n’est pas attribuable à une génération isolée ; causalité précise non profilée.
+
+- 22 1-MAIN-baseline-C : **validated**, débit9.92523371614854tok/s, pic9289948624octets, swapouts+0octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+### FLASHSSD-2026-10-13-23 — leviers après HC mixte, recherche complémentaire — terminée
+
+Avant recherche : relu journal13–22 et rapport amont13. Hypothèse : une fois les promotions HC FP32 retirées par20, les dispatchs HC/route et la lecture des poids restant dans la vérification limitent encore le débit. Comparer les kernels et ordonnancements actuels Sushi/MLX aux chemins locaux, sans recopier les tentatives déjà rejetées15/18/19 ni modifier le protocole22 en cours. Nouvelle raison : code20 validé et profil21 différent du profil09 utilisé par13. Recherche statique seulement pendant22, aucun modèle/compilateur/proveur supplémentaire. Consigner commits, fichiers et limites ; choisir ensuite un essai séparé avec oracle avant vitesse. Baseline candidate de travail :20 poussé23292112, ou22 seulement s’il est qualifié. Gain, RAM, swap : non mesurés pour23.
+
+- 22 1-HOLD-baseline-H : **validated**, débit9.36474080961424tok/s, pic9296960976octets, swapouts+0octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+- 22 1-HOLD-baseline-C : **validated**, débit9.677061503888316tok/s, pic9293815224octets, swapouts+0octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+- 22 1-MAIN-mtp-H : **validated**, débit10.224388804201675tok/s, pic10340668720octets, swapouts+0octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+- 23 recherche statique : Sushi a avancé à2c602b9e ; sourcesHC/forward/perf etMLX388f227f épinglées dans opt-23-upstream/heads.json et sources.json. HC amont en trois kernels N/D/U, D fusionne activation et U mélange les quatre flux. Ses matrices affines8bits et réductions diffèrent du checkpoint FP16 local : aucun copier/coller validé. MLX0.32.2 utilise sigmoid(x)=1/(1+exp(abs(x))), puis1−y pourx≥0 ; la formule simple de Sushi changerait des bits. Nouvelle piste retenue pour essai24 : épilogues activation/porte directement après la réduction GEMV locale inchangée. Diffère de18 qui ne fusionnait que l’écriture résiduelle et de22 qui partage les poids entre lignes. Aucun gain encore mesuré. Recherche23 terminée ; regroupement norm/injection et projectionup/mix réservés à des essais séparés après ces preuves.
+
+### FLASHSSD-2026-10-13-24 — épilogues HC intégrés au GEMV — rejeté, prototype retiré
+
+Hypothèse : appliquer SiLU(x/4) au down et2sigmoid(x/4) à l’injection dans le kernel20/22 supprime deux dispatchs par lectureHC, sans nouvelle RAM persistante. Conserver formuleMLX, FP32/FMA/réductions exacts, poidsFP16 ; têteMTP FP16 et formes non prises en charge gardent le graphe historique. Portée : Projection::forward_flash_hc/helper, shaderHC, Hc::read et tests ; aucun changementEXL3, SSD, cache, MTPacceptation.
+
+Préparer hors checkout pendant22 sans compilation/GPU/proveur ; appliquer seulement après décision22 sur baseline retenue20ou22 identifiée. Qualité avant timing : toutes matrices down/injection réelles, entrées finies variées/stridées/1ou2lignes, saturation/zéros/signaux alternés, formes/biais/FP16/fallbacks ; oracleMLX indépendant et test mutation de formule. Oracles complets/logits/états/transactions, bridge1/2/3/17/refus/annulations ; suites/fmt/Clippy/build et tentativeKani/CBMC réelle sansstubs.
+
+Vitesse seulement si exacte : même batterie/M5/modèle65c89531/MLX0.32.2, cache5Gio89slots/allocator512Mio/readers4/overlap1/ctx4096. Baseline immuable retenue, nouvelles mesuresH/C128tokens/127decode, chauffe1+3mesures par processus, deux toursH-C/C-H MAIN/HOLD OFF puisMTP (16bras). Chaque paire≥1%, étendue≤3points, surplusRAM≤256Mio, swapouts≤256Mio, ratiointra≤1,25 ; arrêt au premier tour si gaininsuffisant. Tous résultats128/préfixes64 exacts ; un modèle seul sans compilation/proveur. Conserver essaisnégatifs ; pas de relance pourbruit. Source/fichiers/bruts dans opt-24-hc-epilogues ; aucune vitesse24 encore exécutée.
+
+- 22 1-MAIN-mtp-C : **validated**, débit10.186822208479592tok/s, pic10124612960octets, swapouts+25362432octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+- 22 1-HOLD-mtp-H : **validated**, débit8.906274409043197tok/s, pic10135573856octets, swapouts+0octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+- 24 deux préparations archivées hors checkout : sur22 puis variante sur20, après premier résultatMTP22 sous seuil. Stage/candidate-on-22.patch etcandidate.patch ; aucune compilation/exécution24, source22 mesurée inchangée. Décision22 attendue après8bras conformément au protocole.
+
+- 22 1-HOLD-mtp-C : **validated**, débit9.292459539048338tok/s, pic10179220856octets, swapouts+0octets ; opt-22-hc-pair/speed/execution.json et rapport du bras.
+
+- **22 confirmation128 terminée : rejected**, 8/16bras ; first-round speed criterion failed. Résultat opt-22-hc-pair/speed/result.json, tous échecs et bras non lancés conservés. Décision d’intégration après inspection.
+
+- **22 clos/rejeté** :8bras/32réponses exactes ; MAINOFF9,794→9,925, HOLDOFF9,365→9,677 ; MAINMTP10,224→10,187(−0,37%), HOLDMTP8,906→9,292(+4,34%). SeuilMTP+1% échoué, huit bras de confirmation non lancés. Swapouts cumulés25 362 432octets (seulMAINMTP C), surpluspicmax43 647 000octets ; tous sous bornes. Source/binaire22 archivé, restaurer20. Aucun gain22 publié. assessment.json etrapportHCpair complétés.
+
+- 24 appliqué sur20 retenu23292112, après archivage/retrait22. SeulT1optimisé, T2restefallbackMLX ; têteMTPFP16 gardechaîneMLX. Qualité/suites/proofavantvitesse ; aucuneexécution24àcestade.
+
+- 24 fmt : **passed**, opt-24-hc-epilogues/build-initial.json etlog ; aucun débitmesuré.
+
+- 24 clippy : **passed**, opt-24-hc-epilogues/build-initial.json etlog ; aucun débitmesuré.
+
+- 24 compile-tests : **passed**, opt-24-hc-epilogues/build-initial.json etlog ; aucun débitmesuré.
+
+- 24 primitives : **passed**, primitives.json/log etprototype-initial.patch conservés ; aucunevitessemoteurmesurée.
+
+- 24 mutation échelleHC1/4→1/2 détectée paroracle ; shaderrestauré byteexact, testrepasse, binairetests SHAidentique. mutation.json ; aucunmutantchronométré.
+
+- 24 fmt-check : **passed**, checks.json/log ; inspecter les diagnostics formels, aucune vitesse24.
+
+- 24 cpu : **passed**, checks.json/log ; inspecter les diagnostics formels, aucune vitesse24.
+
+- 24 release-suite : **passed**, checks.json/log ; inspecter les diagnostics formels, aucune vitesse24.
+
+- 24 build : **passed**, checks.json/log ; inspecter les diagnostics formels, aucune vitesse24.
+
+- 24 kani-actual : **failed**, checks.json/log ; inspecter les diagnostics formels, aucune vitesse24.
+
+- 24 cbmc-metal : **failed**, checks.json/log ; inspecter les diagnostics formels, aucune vitesse24.
+
+- 24 avantqualitémodèle : isoler les11testsQwen dans11processus séquentiels pour libérer les cachesMLX entre tests, suite22 avait+1,09Gio de swap. Mêmesoracles/assertions ; pasunbenchmarkdevitesse. Vérifierlecompte1partest, snapshotsVM/alimentationavant/après etarrêtsbornés. KaniICEavantobligations/CBMCMSLunsupported/CrossHairabsent ; propriétésnonvérifiées.
+
+- 24 qualité flash_attention_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_components_match_reference_on_identical_inputs : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_hc_write_matches_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_matches_independent_reference_states_and_logits : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_mtp_head_matches_reference_and_cache_only : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_mtp_session_preserves_greedy_sequence_target_and_head_states : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_norms_match_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_pair_verification_preserves_serial_logits_and_all_states : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_ple_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_projections_match_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité flash_qsa_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité held : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité ssd : **passed**, swapouts+0octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité bridge : **passed**, swapouts+95354880octets ; quality.json/log. Aucun gainmoteur24 revendiqué.
+
+- 24 qualité complète inspectée :11Qwen isolés+1held+3SSD passent ; bridge1/2/3/17/refus/annulations validé201,31s. Swapoutsbridge+95 354 880octets, autrescontrôlesmodèle+0, sousborne256Mio ; tousenfantsjoints. Sources/binairesbyteexacts. Débutcomparaisonrelease surbatterie avecnouveauxH20, commande speed-supervisor.txt ; pasdecompilation/proveur concurrent.
+
+- 24 1-MAIN-baseline-H : **validated**, débit9.43066047657083tok/s, pic9298632192octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+- 24 1-MAIN-baseline-C : **validated**, débit9.395250329986363tok/s, pic9272057320octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+### FLASHSSD-2026-10-13-25 — préparation GDN Flash fusionnée — rejeté, prototype retiré
+
+Relus23, profil21 etPERF109 (préparation GDN de Qwen3.5) : `gated_delta::prepare_qkv` existe mais n’est pas applicable directement à Flash. Flash normalise Q/K par somme des carrés FP16 avec epsilonFP16 ; l’ancien kernel calcule une RMSFP32. La convolution Flash et ses états restent séquentiels dansOFF etMTP. Hypothèse nouvelle pour ce port : fusionner concat/history, convolutionFP32→FP16, SiLUFP16 et normalisationsL2FP16 de Flash, en préservant ces arrondis. Ne pas reprendre la fusion complète préparation/récurrenceRapidMLX rejetée sur35B, niPERF34convseule. Inspiration de structure : kernel localPERF109 et Sushi2c602b9e qwen4-perf/GDN ; aucune performance amont attribuée auM5local.
+
+Préparer horscheckout pendant24, sansbuild/GPU/proveur. Baseline aprèsdécision24 :20ou24 seulementsiqualifié. Portée `Gdn::forward` deFlash, helperprivé de préparation et shader spécialisé1×10240,4taps,16/48heads128. Garder projections, récurrenceFP32, étatsQSA/PLE, experts etbudgetsSSD inchangés. Restituerconv/Q/K/V/historique pour desoracles complets ; aucunétatpersista nt supplémentaire.
+
+Qualité avant vitesse : chaîneMLX originale indépendante surpoidsréels/entréesdéterministes, toutesvaleurs/formes/finitude/octets des5sorties, historiqueinitial/nonvide/strides/invalides/valeurslimites ; mutantderéduction/arrondi détectable. Puis11testsQwen isolés,16positionsindépendantes, commits1/2/sessions/têteMTP,3SSD, bridge1/2/3/17/refus/annulations ; fmt/Clippy/build/suites etKani/CBMCsurcheminréel. Au premierécart numérique, diagnostiquer sans vitesse ; nejamais assouplirla tolérance. Protocole réel àfiger avant exécution surbaseline retenue ; aucunevitesse25 encoremesurée.
+
+- 24 1-HOLD-baseline-H : **validated**, débit9.223453037875625tok/s, pic9296977408octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+- 24 1-HOLD-baseline-C : **validated**, débit9.017486557487052tok/s, pic9294421456octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+- 25 préparé horscheckout (build/flash-opt-25-stage) : kernelFlashspécifique1ligneconv4+L2half, cinqsorties etcontrôles358400valeurs/strides/zéros/faibles/grandesactivations/refus ; Kani3i8sansassume survraichemin. MétadonnéesSHA conservées ; aucunecompilation/exécution25. Source24 mesurée inchangée.
+
+- 24 1-MAIN-mtp-H : **validated**, débit9.798763236876606tok/s, pic10340947296octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+- 25 rapport de préparation : [GDN Flash](docs/flash-gdn-prepare-2026-10-13.md), aucuneexécution25. La préparation resteisolée pendantlesmesures24.
+
+- 24 1-MAIN-mtp-C : **validated**, débit10.220660026081195tok/s, pic10160395640octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+- 24 1-HOLD-mtp-H : **validated**, débit9.398262260538404tok/s, pic10087650704octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+- 24 1-HOLD-mtp-C : **validated**, débit9.391059543473457tok/s, pic10096022856octets, swapouts+0octets ; opt-24-hc-epilogues/speed/execution.json et rapport du bras.
+
+- **24 confirmation128 terminée : rejected**, 8/16bras ; first-round speed criterion failed. Résultat opt-24-hc-epilogues/speed/result.json, tous échecs et bras non lancés conservés. Décision d’intégration après inspection.
+
+- 25 préparation renforcée avantexécution :8cas/409600valeurs attendues, casnormeFP16débordante versinf (sortiesfinieszéro), refusdtype des3entrées etbatch2 ; source/stageSHAactualisés. Fixer maintenantmacro25 :mêmeprotocole24 sur20retenu (tousdeuxOFF24sousseuil), nouveauxH/C128/3mesures/deuxtours16bras, OFFpuisMTP,chaquepaire≥1%/étendue≤3points, RAMextra256Mio/swap256Mio/ratio1,25, batterieavant/après,ctx4096/cache5Gio/readers4/allocator512Mio/overlap1. Arrêtaprès8brassiseuiléchoué, aucune relancepourbruit. Seulequalitéprécèdera lavitesse ; aucun25exécuté.
+
+- **24 clos/rejeté** :8bras/32réponsesexactes, huitbras nonlancés. ÉcartsOFF−0,38%/−2,23%, MTP+4,31%/−0,08% ; critèreséchoués, aucungainintégré. Swapouts+0surles8bras, surpluspicmax8 372 152octets. assessment.json etrapportfusioncomplétés ; sources24archivées puisrestaurées20.
+
+- 25 appliqué aprèsretrait24, baseline20retenue23292112/7a9a2120. Seulsqwen4.rs etnouveaushaderFlashGDN modifiés ; aucunépilogue24 niHCpair22 conservé. Contrôlesavantvitesse, sourcesinitialesarchivées ; aucuneexécution25àcestade.
+
+- 25 fmt : **passed**, build-initial.json/log ; aucun débit25mesuré.
+
+- 25 clippy : **passed**, build-initial.json/log ; aucun débit25mesuré.
+
+- 25 compile-tests : **passed**, build-initial.json/log ; aucun débit25mesuré.
+
+- 25 primitivesinitiales : **failed**, primitives.json/log/sourcearchivée ; aucuntiming25.
+
+- 25 premieroracle échoue surQ (sortie1), convolutionexacte ; aucunevitesse. Avantcorrection, ajouterdiagnostic des8premièresdifférences etdu premierheadconv, puis examiner réduction/arrondisL2MLX. Toléranceinchangée ; échecinitialpréservé.
+
+- 25 diagnostic : premièresdifférencesQ auhead15, convexacte. SourcesMLX0.32.2 reduce.metal/ops.h : sommeF16 utiliseaccumulateurF16 etsimd_sumhalf, pasaccumulationfloat puiscastfinal. Correctionprécise : accumulerchaquelanesommeetsimd enhalf ; garderconvFP32 etnormalisationinchangées. SourcesURL/SHA dansmlx-reduction-sources.json, diagnosticinitialconservé. Recontrôle8cas avantmodèle, aucuntiming.
+
+- 25 correctionaccumhalfencore enéchec (Qhead10), logsrepaired-primitives/half-accum.metal conservés. Nouvellecorrectionavantretest : forcerlesarrondisF16 du carréavantaddition etduproduitnormaliséavantscale parvolatilehalf, commelesbuffers séparésMLX ; éviterFMA/réassociationducompilateur. Pasderelâchementnumérique ni vitesse.
+
+- 25 arrondiscorrigés : **8cas/409600valeurs passentbitexactes**, rounding-primitives.log, dontdébordementnormehalf etstrides. Échecsprécédents conservés. Avantqualitéglobale, mutationhistoiret+1→t pourvérifierlesoctetsd’état ; retirerleseuldumpverbeux128valeursdu diagnostic, conserverpremièresdifférences. Aucun débit25.
+
+- 25 mutationhistorique détectée sursortie4, shaderrestaurébyteexact etoracle8casrepasse ; mutation.json. Aucunmutantchronométré.
+
+- 25 clippy-final : **passed**, checks.json/log ; diagnosticsformelsàinspecter, aucunevitesse25.
+
+- 25 fmt-check : **passed**, checks.json/log ; diagnosticsformelsàinspecter, aucunevitesse25.
+
+- 25 cpu : **passed**, checks.json/log ; diagnosticsformelsàinspecter, aucunevitesse25.
+
+- 25 release-suite : **passed**, checks.json/log ; diagnosticsformelsàinspecter, aucunevitesse25.
+
+- 25 build : **passed**, checks.json/log ; diagnosticsformelsàinspecter, aucunevitesse25.
+
+- 25 kani-actual : **failed**, checks.json/log ; diagnosticsformelsàinspecter, aucunevitesse25.
+
+- 25 cbmc-metal : **failed**, checks.json/log ; diagnosticsformelsàinspecter, aucunevitesse25.
+
+- 25 qualité flash_attention_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_components_match_reference_on_identical_inputs : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_fused_gdn_prepare_matches_chain_and_boundaries : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_hc_write_matches_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_matches_independent_reference_states_and_logits : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_mtp_head_matches_reference_and_cache_only : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_mtp_session_preserves_greedy_sequence_target_and_head_states : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_norms_match_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_pair_verification_preserves_serial_logits_and_all_states : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_ple_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_projections_match_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité flash_qsa_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité held : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualité ssd : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- CI20publié23292112 inspectée : NativeLinux/macOS etKaniFlashciblé réussis ; Regressionchecks réussis. SuiteKanicomplète annuléeparlimite1heure, annotationGitHubconfirmée(commebase36bae3ad), pasCIintégraleverte. opt-25-gdn-prepare/ci-23292112.json etci-kani-annotations.json.
+
+- 25 qualité bridge : **passed**, swapouts+0octets ; quality.json/log, aucun gain25 revendiqué.
+
+- 25 qualitécomplèteinspectée :12Qwen+1held+3SSD etbridge1/2/3/17/refus/annulations passent, swapouts+0pourtouscontrôles. Sources/binairesSHAinchangés. Débutvitesse surbatterie, nouveauxH20 ; speed-supervisor.txt réutilisegardes24(ASTbyteidentique/14cas), aucuncompilateur/proveur/autremodèle.
+
+- 25 1-MAIN-baseline-H : **validated**, débit9.998060645473892tok/s, pic9297321424octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- 25 1-MAIN-baseline-C : **validated**, débit10.122709255056575tok/s, pic9297255912octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- 25 1-HOLD-baseline-H : **validated**, débit9.747831997004658tok/s, pic9295060408octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- 25 1-HOLD-baseline-C : **validated**, débit9.783586018034558tok/s, pic9271860688octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- 25 1-MAIN-mtp-H : **validated**, débit10.323326554355127tok/s, pic10266137928octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- 25 1-MAIN-mtp-C : **validated**, débit10.42068282876955tok/s, pic10071446904octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- 25 1-HOLD-mtp-H : **validated**, débit8.889384610126902tok/s, pic10207368568octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- 25 1-HOLD-mtp-C : **validated**, débit9.02466140620693tok/s, pic10107835744octets, swapouts+0octets ; opt-25-gdn-prepare/speed/execution.json et rapport du bras.
+
+- **25 confirmation128 terminée : rejected**, 8/16bras ; first-round speed criterion failed. Résultat opt-25-gdn-prepare/speed/result.json, tous échecs et bras non lancés conservés. Décision d’intégration après inspection.
+
+- **25 clos/rejeté** : inspection indépendante des8bras/32réponses exactes, compteursMTP identiques, toutes empreintes inchangées et enfants joints. OFF +1,247%/+0,367%, MTP +0,943%/+1,522% : seuil≥1% échoué dans deux cellules, huitbras suivants nonlancés. Tousswapouts+0octet, aucun surpluspic candidat. Sources/shader25archivés puis retirés ; code20/23292112 restauré exactement. assessment.json et rapportGDN consignent la décision ; objectif15tok/s nonatteint.
+
+- Clôture22–25 : retour exact aux sources20 publiées. Répétition de contrôle limitée, sans benchmark : reconstruire le releaseMLX/chat pour retirer le binaire25 du target partagé, vérifier son empreinte contre20 et le diff natif nul. Les oracles et suites20 ne sont pas relancés si sources/binaire identiques. Consigner la commande et le résultat dans opt-25-gdn-prepare/retained-build.json/log. Aucun nouvel essai de vitesse.
+
+- Clôture : build releaseMLX/chat réussi32,48s, diff natif nul. SHA4d4f9780 différent de7a9a2120 car identité de compilation36bae3adc7be-dirty→23292112fc16-dirty ; otool vérifie __text et données identiques, seules deux chaînes de révision changent dans les constantes inspectées. retained-build.json et retained-binary-inspection.json conservés. Les chiffres de débit restent ceux du binaire20 archivé ; aucune nouvelle vitesse attribuée au binaire reconstruit.

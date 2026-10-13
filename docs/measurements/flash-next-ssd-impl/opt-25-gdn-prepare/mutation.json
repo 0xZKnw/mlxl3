@@ -1,0 +1,68 @@
+{
+  "status": "detected_and_restored",
+  "shader_sha256": "8a278a6d6cecfd68bbf8792f92a32201f9d877ad71ee4d1fc49d7281d3aad7e4",
+  "records": [
+    {
+      "name": "mutant-build",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--no-run"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "seconds": 37.89862012502272,
+      "reaped": true
+    },
+    {
+      "name": "mutant-test",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_fused_gdn_prepare_matches_chain_and_boundaries",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "expected_exit": 101,
+      "exit_code": 101,
+      "seconds": 1.221328290994279,
+      "reaped": true
+    },
+    {
+      "name": "restored-build",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--no-run"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "seconds": 38.28595175000373,
+      "reaped": true
+    },
+    {
+      "name": "restored-test",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_fused_gdn_prepare_matches_chain_and_boundaries",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "seconds": 1.2096267499728128,
+      "reaped": true
+    }
+  ]
+}
