@@ -1,0 +1,155 @@
+{
+  "scope": "synthetic expert groups; not an end-to-end 24B duration",
+  "groups_per_shape": 608,
+  "experiments": {
+    "profile-baseline": {
+      "raw_sha256": "77068748c1dc4fd57f3d0c82c73bdd26a24a513473f68551737979c1ef77e8cf",
+      "shapes": {
+        "gate_up": {
+          "candidate": {
+            "median_seconds": 13.226199291995727,
+            "drift_percent": 0.8632184357599382,
+            "peak_mlx_bytes": 2152857616,
+            "median_stages_seconds": {
+              "batched_prep_s": 3.9099072919925675,
+              "batched_g_scale_s": 1.25030055642128e-07,
+              "batched_state_s": 0.006650583993177861,
+              "batched_ldlq_s": 9.257690750004258
+            }
+          }
+        },
+        "down": {
+          "candidate": {
+            "median_seconds": 6.63732533401344,
+            "drift_percent": 0.3319475097252944,
+            "peak_mlx_bytes": 2152857616,
+            "median_stages_seconds": {
+              "batched_prep_s": 1.9523486249963753,
+              "batched_g_scale_s": 1.66997779160738e-07,
+              "batched_state_s": 0.00403375003952533,
+              "batched_ldlq_s": 4.656805917038582
+            }
+          }
+        }
+      },
+      "decision": "profile only"
+    },
+    "k4-compare-abba": {
+      "raw_sha256": "cd176c47d0cb35bc14d632a92d08ff142a18f2c58ba7215ebaa3ef26ca3a4c79",
+      "shapes": {
+        "gate_up": {
+          "reference": {
+            "median_seconds": 13.404437625024002,
+            "drift_percent": 1.4122807714519237,
+            "peak_mlx_bytes": 2153250832,
+            "median_stages_seconds": {
+              "batched_prep_s": 3.9655807920498773,
+              "batched_g_scale_s": 8.399365469813347e-08,
+              "batched_state_s": 0.006182709010317922,
+              "batched_ldlq_s": 9.372638458036818
+            }
+          },
+          "candidate": {
+            "median_seconds": 18.189840957988054,
+            "drift_percent": -6.242120694198727,
+            "peak_mlx_bytes": 1616904208,
+            "median_stages_seconds": {
+              "batched_prep_s": 5.801945624989457,
+              "batched_g_scale_s": 2.0797597244381905e-07,
+              "batched_state_s": 0.006555291009135544,
+              "batched_ldlq_s": 12.321561082964763
+            }
+          },
+          "change_percent": 35.70014249632112
+        },
+        "down": {
+          "reference": {
+            "median_seconds": 6.638937167008407,
+            "drift_percent": 2.672921535347328,
+            "peak_mlx_bytes": 2153054224,
+            "median_stages_seconds": {
+              "batched_prep_s": 1.969642708019819,
+              "batched_g_scale_s": 8.300412446260452e-08,
+              "batched_state_s": 0.004022458044346422,
+              "batched_ldlq_s": 4.684993208036758
+            }
+          },
+          "candidate": {
+            "median_seconds": 7.967387292010244,
+            "drift_percent": -1.9510901347448595,
+            "peak_mlx_bytes": 1616904208,
+            "median_stages_seconds": {
+              "batched_prep_s": 2.888823416957166,
+              "batched_g_scale_s": 1.25030055642128e-07,
+              "batched_state_s": 0.0034902080078609288,
+              "batched_ldlq_s": 5.054029333987273
+            }
+          },
+          "change_percent": 20.009981892936835
+        }
+      },
+      "decision": "rejected; no confirmation, candidate drift exceeds 3 percent"
+    },
+    "k4-b-compare-abba": {
+      "raw_sha256": "2ca9be2d9bf3f40562ecd0ac49701a600eb21ca95576f00846891563f7eafd56",
+      "shapes": {
+        "gate_up": {
+          "reference": {
+            "median_seconds": 13.355164583015721,
+            "drift_percent": 1.2822076995456344,
+            "peak_mlx_bytes": 2153054224,
+            "median_stages_seconds": {
+              "batched_prep_s": 3.9228130420087837,
+              "batched_g_scale_s": 2.0797597244381905e-07,
+              "batched_state_s": 0.006671292008832097,
+              "batched_ldlq_s": 9.352480582951102
+            }
+          },
+          "candidate": {
+            "median_seconds": 18.90685641701566,
+            "drift_percent": -3.6528499501951806,
+            "peak_mlx_bytes": 1624376520,
+            "median_stages_seconds": {
+              "batched_prep_s": 5.9303132919594646,
+              "batched_g_scale_s": 1.66997779160738e-07,
+              "batched_state_s": 0.006706207990646362,
+              "batched_ldlq_s": 12.706189666001592
+            }
+          },
+          "change_percent": 41.56962499032202
+        },
+        "down": {
+          "reference": {
+            "median_seconds": 6.647861292003654,
+            "drift_percent": -0.6708485788931129,
+            "peak_mlx_bytes": 2153250832,
+            "median_stages_seconds": {
+              "batched_prep_s": 1.9711824999540113,
+              "batched_g_scale_s": 4.196772351861e-08,
+              "batched_state_s": 0.003999500011559576,
+              "batched_ldlq_s": 4.645278499985579
+            }
+          },
+          "candidate": {
+            "median_seconds": 7.826419333985541,
+            "drift_percent": 5.20672386762524,
+            "peak_mlx_bytes": 1616904208,
+            "median_stages_seconds": {
+              "batched_prep_s": 2.7154411670053378,
+              "batched_g_scale_s": 8.300412446260452e-08,
+              "batched_state_s": 0.0035237499978393316,
+              "batched_ldlq_s": 5.066085959027987
+            }
+          },
+          "change_percent": 17.72837895097945
+        }
+      },
+      "decision": "rejected; no confirmation, candidate drift exceeds 3 percent"
+    }
+  },
+  "expert_only_hours": 3.3547286035037702,
+  "ldlq_only_hours": 2.350003881545013,
+  "ldlq_share_percent": 70.05049168778079,
+  "other_work_allowance_for_four_hours_minutes": 38.71628378977377,
+  "expert_reduction_for_two_hours_with_zero_other_work_percent": 40.38265873694983
+}

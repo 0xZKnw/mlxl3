@@ -1,0 +1,83 @@
+{
+  "status": "complete",
+  "tokens": 2048,
+  "window": 256,
+  "windows": [
+    {
+      "tokens": 256,
+      "nll": 3.1143686565841557,
+      "bf16_nll": 3.04380543101352,
+      "kl": 0.16866836057448412,
+      "greedy_matches": 205
+    },
+    {
+      "tokens": 256,
+      "nll": 3.9158416617484146,
+      "bf16_nll": 3.7523207096557716,
+      "kl": 0.3075926690366108,
+      "greedy_matches": 183
+    },
+    {
+      "tokens": 256,
+      "nll": 4.070160898309782,
+      "bf16_nll": 4.041973874547708,
+      "kl": 0.3114700794804332,
+      "greedy_matches": 174
+    },
+    {
+      "tokens": 256,
+      "nll": 4.039234241553285,
+      "bf16_nll": 4.088837326626722,
+      "kl": 0.30362259855911494,
+      "greedy_matches": 178
+    },
+    {
+      "tokens": 256,
+      "nll": 4.856164462108806,
+      "bf16_nll": 3.9724644080095355,
+      "kl": 1.373038259635841,
+      "greedy_matches": 120
+    },
+    {
+      "tokens": 256,
+      "nll": 4.047029835724445,
+      "bf16_nll": 4.116811941222081,
+      "kl": 0.3711167235504676,
+      "greedy_matches": 169
+    },
+    {
+      "tokens": 256,
+      "nll": 4.895366813113307,
+      "bf16_nll": 4.77696121070075,
+      "kl": 0.3506226780131641,
+      "greedy_matches": 171
+    },
+    {
+      "tokens": 256,
+      "nll": 3.041348426605013,
+      "bf16_nll": 3.1632152785598797,
+      "kl": 0.2373637912625022,
+      "greedy_matches": 195
+    }
+  ],
+  "execution": "layerwise BF16 teacher; native single-token forward, reset each window",
+  "source": "/Users/justin/Documents/mix-stq1_0/models/source/LFM2.5-24B-A2B",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw",
+  "native_sha256": "99830cc531f23b4f4d46cc069640076373798a13b7704b1ff0960236c19be5e8",
+  "dataset_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+  "token_sha256": "3aa63b368d5e904b8fae9b451df92ca05a091119d092c5c7fc59e9561ffadb0a",
+  "stage": "done",
+  "teacher_mlx_active_bytes_after_clear": 8,
+  "native": {
+    "mean_nll": 3.9974393744684003,
+    "perplexity": 54.45852345816963
+  },
+  "bf16": {
+    "mean_nll": 3.8695487725419957,
+    "perplexity": 47.9207580397673
+  },
+  "mean_kl_bf16_to_native": 0.42793689501407733,
+  "greedy_match_fraction": 0.68115234375,
+  "ppl_change_percent": 13.642867278887639,
+  "elapsed_seconds": 100.39666970801773
+}

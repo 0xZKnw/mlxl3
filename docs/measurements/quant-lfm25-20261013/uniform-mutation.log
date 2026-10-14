@@ -1,0 +1,116 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+______ test_uniform_plan_ignores_absent_head_but_preserves_real_heads[2] _______
+
+k = 2
+
+    @pytest.mark.parametrize("k", range(2, 9))
+    def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
+        from ponyexl3.cli.convert import _fixed_uniform_bits
+    
+        for head_bits in range(1, 9):
+>           assert _fixed_uniform_bits(float(k), head_bits, [k], {}, [0.0]) == k
+E           assert None == 2
+E            +  where None = <function _fixed_uniform_bits at 0x109885bc0>(2.0, 1, [2], {}, [0.0])
+E            +    where 2.0 = float(2)
+
+tests/test_lfm25_moe_conversion.py:82: AssertionError
+______ test_uniform_plan_ignores_absent_head_but_preserves_real_heads[3] _______
+
+k = 3
+
+    @pytest.mark.parametrize("k", range(2, 9))
+    def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
+        from ponyexl3.cli.convert import _fixed_uniform_bits
+    
+        for head_bits in range(1, 9):
+>           assert _fixed_uniform_bits(float(k), head_bits, [k], {}, [0.0]) == k
+E           assert None == 3
+E            +  where None = <function _fixed_uniform_bits at 0x109885bc0>(3.0, 1, [3], {}, [0.0])
+E            +    where 3.0 = float(3)
+
+tests/test_lfm25_moe_conversion.py:82: AssertionError
+______ test_uniform_plan_ignores_absent_head_but_preserves_real_heads[4] _______
+
+k = 4
+
+    @pytest.mark.parametrize("k", range(2, 9))
+    def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
+        from ponyexl3.cli.convert import _fixed_uniform_bits
+    
+        for head_bits in range(1, 9):
+>           assert _fixed_uniform_bits(float(k), head_bits, [k], {}, [0.0]) == k
+E           assert None == 4
+E            +  where None = <function _fixed_uniform_bits at 0x109885bc0>(4.0, 1, [4], {}, [0.0])
+E            +    where 4.0 = float(4)
+
+tests/test_lfm25_moe_conversion.py:82: AssertionError
+______ test_uniform_plan_ignores_absent_head_but_preserves_real_heads[5] _______
+
+k = 5
+
+    @pytest.mark.parametrize("k", range(2, 9))
+    def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
+        from ponyexl3.cli.convert import _fixed_uniform_bits
+    
+        for head_bits in range(1, 9):
+>           assert _fixed_uniform_bits(float(k), head_bits, [k], {}, [0.0]) == k
+E           assert None == 5
+E            +  where None = <function _fixed_uniform_bits at 0x109885bc0>(5.0, 1, [5], {}, [0.0])
+E            +    where 5.0 = float(5)
+
+tests/test_lfm25_moe_conversion.py:82: AssertionError
+______ test_uniform_plan_ignores_absent_head_but_preserves_real_heads[6] _______
+
+k = 6
+
+    @pytest.mark.parametrize("k", range(2, 9))
+    def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
+        from ponyexl3.cli.convert import _fixed_uniform_bits
+    
+        for head_bits in range(1, 9):
+>           assert _fixed_uniform_bits(float(k), head_bits, [k], {}, [0.0]) == k
+E           assert None == 6
+E            +  where None = <function _fixed_uniform_bits at 0x109885bc0>(6.0, 1, [6], {}, [0.0])
+E            +    where 6.0 = float(6)
+
+tests/test_lfm25_moe_conversion.py:82: AssertionError
+______ test_uniform_plan_ignores_absent_head_but_preserves_real_heads[7] _______
+
+k = 7
+
+    @pytest.mark.parametrize("k", range(2, 9))
+    def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
+        from ponyexl3.cli.convert import _fixed_uniform_bits
+    
+        for head_bits in range(1, 9):
+>           assert _fixed_uniform_bits(float(k), head_bits, [k], {}, [0.0]) == k
+E           assert None == 7
+E            +  where None = <function _fixed_uniform_bits at 0x109885bc0>(7.0, 1, [7], {}, [0.0])
+E            +    where 7.0 = float(7)
+
+tests/test_lfm25_moe_conversion.py:82: AssertionError
+______ test_uniform_plan_ignores_absent_head_but_preserves_real_heads[8] _______
+
+k = 8
+
+    @pytest.mark.parametrize("k", range(2, 9))
+    def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
+        from ponyexl3.cli.convert import _fixed_uniform_bits
+    
+        for head_bits in range(1, 9):
+>           assert _fixed_uniform_bits(float(k), head_bits, [k], {}, [0.0]) == k
+E           assert None == 8
+E            +  where None = <function _fixed_uniform_bits at 0x109885bc0>(8.0, 1, [8], {}, [0.0])
+E            +    where 8.0 = float(8)
+
+tests/test_lfm25_moe_conversion.py:82: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_moe_conversion.py::test_uniform_plan_ignores_absent_head_but_preserves_real_heads[2]
+FAILED tests/test_lfm25_moe_conversion.py::test_uniform_plan_ignores_absent_head_but_preserves_real_heads[3]
+FAILED tests/test_lfm25_moe_conversion.py::test_uniform_plan_ignores_absent_head_but_preserves_real_heads[4]
+FAILED tests/test_lfm25_moe_conversion.py::test_uniform_plan_ignores_absent_head_but_preserves_real_heads[5]
+FAILED tests/test_lfm25_moe_conversion.py::test_uniform_plan_ignores_absent_head_but_preserves_real_heads[6]
+FAILED tests/test_lfm25_moe_conversion.py::test_uniform_plan_ignores_absent_head_but_preserves_real_heads[7]
+FAILED tests/test_lfm25_moe_conversion.py::test_uniform_plan_ignores_absent_head_but_preserves_real_heads[8]
+7 failed, 17 deselected in 0.11s

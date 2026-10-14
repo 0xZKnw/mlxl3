@@ -69,6 +69,12 @@ jobs:
           python -m py_compile scripts/check_dflash2.py
       - name: Check bridge and QMM validation tools
         run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py
+      - name: Check LFM2.5 quality evaluator and subprocess failures
+        run: |
+          ruff format --check benchmarks/eval_lfm25_quality.py tests/test_lfm25_quality.py
+          ruff check benchmarks/eval_lfm25_quality.py tests/test_lfm25_quality.py
+          python -m py_compile benchmarks/eval_lfm25_quality.py
+          python -m pytest -q tests/test_lfm25_quality.py
       - name: Check idle-memory benchmark failure and parity gates
         run: |
           ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py

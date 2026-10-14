@@ -1,0 +1,25 @@
+--cover is incompatible with --unwinding-assertions, so unwinding-assertions will be defaulted to false
+**** WARNING: Use --unwinding-assertions to obtain sound verification results
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_warmup_origin_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Rewriting existing assertions as assumptions
+Ignoring block 11 location 55 proof() (missing source location)
+Ignoring block 1 location 0 #cpp_dynamic_initialization#quantize_warmup_origin_proof (missing source location)
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+
+** coverage results:
+[proof().coverage.3] file tests/quantize_warmup_origin_proof.cpp line 30 function proof() actual == (ri ? ancestor : parent): SATISFIED
+[proof().coverage.4] file tests/quantize_warmup_origin_proof.cpp line 32 function proof() false: SATISFIED
+[proof().coverage.5] file tests/quantize_warmup_origin_proof.cpp line 33 function proof() false: SATISFIED
+
+** 3 of 3 covered (100.0%)

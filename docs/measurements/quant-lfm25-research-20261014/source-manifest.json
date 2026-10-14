@@ -1,0 +1,53 @@
+{
+  "base": "b4dfd3915e262b2d33581102ae3320042acee5c9",
+  "baseline_commit": "be143a9b33ff2204c2d266c681ec7c51e9ff3eaa",
+  "status": "experiments09 inconclusive;10/11/12 rejected and withdrawn;13 profiler validated locally",
+  "production_numerical": "unchanged byte exact be143a; optional Pony pin8e7fa6b1556f59fc669e25087903b279b9b0346f with consolidated patch",
+  "final_files": {
+    "src/mlxl3_quantizer/metal.py": "346aedbe61e1ff7542947840fb5dc1f46b77b092d9f219624d85886804394b50",
+    "src/mlxl3_quantizer/packing.py": "a32f86c1ab769b24d2d92123df03296fee80754a1eedc811192efa37c49afa0c",
+    "scripts/quantize_lfm25_moe.py": "9762f2e2a11db0b1fe1ce10cfd8ab492422003f22374b6adef636ae67f2ed87b",
+    "scripts/patches/ponyexl3-mlxl3-conversion.patch": "dd15eac59cef61563f3016b356029eadd3cad19c5fa6cce1835f848d3d84faba",
+    "references/PonyExl3/ponyexl3/convert/hessian.py": "60838fa50342266d04ca318232e888c0ac4e7a7342f258d11e5556a09a4cc822",
+    "docs/measurements/quant-lfm25-research-20261013/profile-baseline.py": "54ea5262c37c39115b370dbe92f8d2cfaf5d50f94745f4caf482896eed787023",
+    "tests/test_lfm25_group_profile.py": "6975f543bf8b52e20e5543c9eeeb11899716b0c41cf36176d1b0c85ded06a818",
+    "tests/test_quantize_k4_boundaries.py": "92c6442691346e9fcac1d1d0afa13560c7be3771477d2f7617dd427ff376ac11",
+    "tests/lfm25_profile_contracts.py": "2dcfae094a6c0f3b9d6cef1b7b3c2738f6c1408b07434cba6728a93cdd316b20",
+    ".github/workflows/quantization.yml": "fdd5eae5ecfeed2358774804398bf398c367bec9cc7a1911d43cb11b07196a6a",
+    "target/release/mlxl3-rs": "a253210c5f67404edf507f169c3fd11cdd67806853ddff6c18401f270c75b81e"
+  },
+  "software": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.32.0",
+    "numpy": "2.5.2",
+    "pytest": "9.1.1",
+    "ruff": "0.16.5"
+  },
+  "python": "3.12.14 (main, Aug 12 2026, 13:57:54) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "macos": "27.2",
+  "verifiers": {
+    "CBMC": "6.11.0 arm64 macos, host address-space abstraction",
+    "CrossHair": "0.0.101",
+    "z3-solver": "5.1.0.0"
+  },
+  "measured_driver": "warmup-origin-k4/profile-measured.py (same fingerprint in plans09..12)",
+  "commands": {
+    "full_tests": "PYTHONPATH=src:references/PonyExl3:scripts MLXL3_QUANT_TEST_ENGINE=<worktree>/target/release/mlxl3-rs <venv>/python -m pytest -q",
+    "cpu_workflow": "MLXL3_SKIP_METAL_CHECK=1 PYTHONPATH=src:references/PonyExl3:scripts <venv>/python -m pytest -q tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/test_lfm_conversion_adapter.py tests/test_quantize_k4_boundaries.py tests/test_lfm25_group_profile.py",
+    "guards": "crosshair check tests/lfm25_profile_contracts.py --report_all --per_condition_timeout=20",
+    "final_cli": "PYTHONPATH=src:references/PonyExl3:scripts <venv>/python docs/measurements/quant-lfm25-research-20261013/profile-baseline.py --output docs/measurements/quant-lfm25-research-20261014/profile-cli-final-validation.json --repeats 1",
+    "cbmc_origin": "cbmc --cpp11 -D__CPROVER -I <archived-helper-directory> <archived-harness.cpp> --function proof --unwind 5 --unwinding-assertions --bounds-check --pointer-check --signed-overflow-check --unsigned-overflow-check",
+    "cbmc_recurrence": "same --function recurrence -DMLXL3_RECURRENCE, 4states x4rows, unwind5",
+    "host_origin": "c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I <archived-helper-directory> <archived-harness.cpp>; execute resulting host oracle"
+  },
+  "proof_limits": [
+    "Metal scheduling/address spaces and floating cost recurrence unproved",
+    "Symbolic Python guards are not a deductive proof",
+    "No real 24B checkpoint/quality/full conversion time or process peak RAM measured",
+    "No GPU hardware counters; xctrace unavailable",
+    "actionlint unavailable; YAML parsed and triggers checked",
+    "CI jobs of the published commit must be checked separately"
+  ],
+  "prototype_sources": "patches reconstruct the exact measured files from baseline be143a / pinned Pony + consolidated patch; independently byte checked, redundant full copies omitted",
+  "prototype_reconstruction_log": "prototype-source-reconstruction.log"
+}

@@ -1,0 +1,74 @@
+......FF.                                                                [100%]
+=================================== FAILURES ===================================
+_ test_compact_k4_preserves_launch_partition_and_explicit_budget[268435456-0] __
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106fbb3e0>, cb = 0
+budget = 268435456
+
+    @pytest.mark.parametrize("cb", [0, 1, 2])
+    @pytest.mark.parametrize("budget", [1024 * 1024, 64 * 1024 * 1024, 256 * 1024 * 1024])
+    def test_compact_k4_preserves_launch_partition_and_explicit_budget(monkeypatch, cb, budget):
+        mx = pytest.importorskip("mlx.core")
+        pytest.importorskip("ponyexl3.convert.metal_search")
+        from mlxl3_quantizer import metal
+    
+        counts = []
+    
+        def kernel(**options):
+            count = options["inputs"][0].shape[0]
+            counts.append(count)
+            scratch_bytes = options["output_shapes"][2][1] * count * options["output_dtypes"][2].size
+            # One tile is the documented minimum when the requested budget is smaller.
+            assert scratch_bytes <= max(budget, scratch_bytes // count)
+            return [mx.array(np.asarray(options["inputs"][0])), mx.zeros((count, 256), mx.uint16)]
+    
+        monkeypatch.setattr(metal, "_paired_kernel", lambda k, mode: (kernel, ()))
+        values = np.random.default_rng(13).normal(size=(257, 256)).astype(np.float32)
+        quantized, indices = metal.quantize_tiles_mlx(values, 4, cb, max_scratch_bytes=budget)
+        expected_batch = min(128, max(1, budget // ((2 if cb == 2 else 1) * 1024 * 1024)))
+>       assert counts == [min(expected_batch, 257 - start) for start in range(0, 257, expected_batch)]
+E       assert [256, 1] == [128, 128, 1]
+E         
+E         At index 0 diff: 256 != 128
+E         Right contains one more item: 1
+E         Use -v to get more diff
+
+tests/test_quantize_k4_batch_policy.py:26: AssertionError
+_ test_compact_k4_preserves_launch_partition_and_explicit_budget[268435456-1] __
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106fba4b0>, cb = 1
+budget = 268435456
+
+    @pytest.mark.parametrize("cb", [0, 1, 2])
+    @pytest.mark.parametrize("budget", [1024 * 1024, 64 * 1024 * 1024, 256 * 1024 * 1024])
+    def test_compact_k4_preserves_launch_partition_and_explicit_budget(monkeypatch, cb, budget):
+        mx = pytest.importorskip("mlx.core")
+        pytest.importorskip("ponyexl3.convert.metal_search")
+        from mlxl3_quantizer import metal
+    
+        counts = []
+    
+        def kernel(**options):
+            count = options["inputs"][0].shape[0]
+            counts.append(count)
+            scratch_bytes = options["output_shapes"][2][1] * count * options["output_dtypes"][2].size
+            # One tile is the documented minimum when the requested budget is smaller.
+            assert scratch_bytes <= max(budget, scratch_bytes // count)
+            return [mx.array(np.asarray(options["inputs"][0])), mx.zeros((count, 256), mx.uint16)]
+    
+        monkeypatch.setattr(metal, "_paired_kernel", lambda k, mode: (kernel, ()))
+        values = np.random.default_rng(13).normal(size=(257, 256)).astype(np.float32)
+        quantized, indices = metal.quantize_tiles_mlx(values, 4, cb, max_scratch_bytes=budget)
+        expected_batch = min(128, max(1, budget // ((2 if cb == 2 else 1) * 1024 * 1024)))
+>       assert counts == [min(expected_batch, 257 - start) for start in range(0, 257, expected_batch)]
+E       assert [256, 1] == [128, 128, 1]
+E         
+E         At index 0 diff: 256 != 128
+E         Right contains one more item: 1
+E         Use -v to get more diff
+
+tests/test_quantize_k4_batch_policy.py:26: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_quantize_k4_batch_policy.py::test_compact_k4_preserves_launch_partition_and_explicit_budget[268435456-0]
+FAILED tests/test_quantize_k4_batch_policy.py::test_compact_k4_preserves_launch_partition_and_explicit_budget[268435456-1]
+2 failed, 7 passed in 0.31s

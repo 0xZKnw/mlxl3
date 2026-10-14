@@ -1,0 +1,207 @@
+........................................................................ [ 16%]
+........................................................................ [ 32%]
+........................F....s.......................................... [ 48%]
+........................................................................ [ 64%]
+........................................................................ [ 80%]
+..................F..................................................... [ 97%]
+.............                                                            [100%]
+=================================== FAILURES ===================================
+__ test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights __
+
+source = (PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-141/test_cli_converts_com...fm2_moe', 'tie_word_embeddings': True, 'layer_types': ['conv', 'full_attention', 'conv'], 'num_hidden_layers': 3, ...})
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-141/test_cli_converts_complete_che0')
+
+    @PHYSICAL
+    def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(source, tmp_path):
+        from safetensors import safe_open
+    
+        from mlxl3_quantizer import list_exl3_modules, validate_checkpoint_files
+    
+        root, corpus, model, cfg = source
+        output, work = tmp_path / "output", tmp_path / "work"
+        command = [
+            sys.executable,
+            str(ROOT / "scripts/quantize_lfm25_moe.py"),
+            "--in-dir",
+            str(root),
+            "--out-dir",
+            str(output),
+            "--work-dir",
+            str(work),
+            "--bits",
+            "4",
+            "--calibration-text",
+            str(corpus),
+            "--calibration-rows",
+            "16",
+            "--calibration-seq-len",
+            "16",
+            "--max-workers",
+            "1",
+            "--search-backend",
+            "metal",
+        ]
+        env = {
+            **os.environ,
+            "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'references/PonyExl3'}:{ROOT / 'scripts'}",
+            "PONYEXL3_FIXED_EXPERT_SCALE": "0.908",
+        }
+        result = subprocess.run(
+            command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        validate_checkpoint_files(output)
+        assert set(list_exl3_modules(output)) == expected_projections(cfg)
+        measurements = json.loads((work / "measurements.json").read_text())
+        assert measurements["mode"] == "fixed_uniform" and measurements["candidate_count"] == 0
+        contents = {}
+        for shard in output.glob("model*.safetensors"):
+            with safe_open(shard, framework="numpy") as handle:
+                contents.update({key: handle.get_tensor(key) for key in handle.keys()})  # noqa: SIM118
+        for key in expected_projections(cfg):
+            assert key + ".mcg" in contents
+            assert contents[key + ".trellis"].size > 0
+            assert (
+                np.isfinite(contents[key + ".suh"]).all() and np.isfinite(contents[key + ".svh"]).all()
+            )
+        for layer in (1, 2):
+            bias = contents[f"model.layers.{layer}.feed_forward.expert_bias"]
+            assert bias.dtype == np.float32
+            np.testing.assert_array_equal(bias, np.array([0.10001, -0.050003], dtype=np.float32))
+        reference = tmp_path / "measured"
+        reference_command = [
+            sys.executable,
+            "-c",
+            (
+                "import runpy,sys; from ponyexl3.cli import convert; "
+                "convert._fixed_uniform_bits=lambda *a,**kw: None; "
+                "sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name='__main__')"
+            ),
+            *command[1:],
+        ]
+        reference_command[reference_command.index(str(output))] = str(reference)
+        reference_command[reference_command.index(str(work))] = str(tmp_path / "measured-work")
+        result = subprocess.run(
+            reference_command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        reference_contents = {}
+        for shard in reference.glob("model*.safetensors"):
+            with safe_open(shard, framework="numpy") as handle:
+                reference_contents.update({key: handle.get_tensor(key) for key in handle.keys()})  # noqa: SIM118
+        assert set(reference_contents) == set(contents)
+        for key, value in contents.items():
+            np.testing.assert_array_equal(reference_contents[key], value, err_msg=key)
+        hashes = {
+            p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in output.glob("model*.safetensors")
+        }
+        result = subprocess.run(
+            command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert hashes == {
+            p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in output.glob("model*.safetensors")
+        }
+        engine = os.environ.get("MLXL3_QUANT_TEST_ENGINE")
+        if engine:
+            import mlx.core as mx
+            from native_json_process import JsonProcess
+    
+            model.model = None
+            mx.clear_cache()
+            deadline = time.monotonic() + 60
+            with (
+                (tmp_path / "bridge.stderr").open("w") as stderr,
+                JsonProcess(
+                    [engine, "bridge", str(output), "--context-length", "1024"], stderr=stderr
+                ) as bridge,
+            ):
+>               while (event := bridge.receive(deadline))["type"] != "ready":
+                                ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_lfm25_moe_conversion.py:361: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <native_json_process.JsonProcess object at 0x116bd9e20>
+deadline = 471148.746248625
+
+    def receive(self, deadline):
+        descriptor = self.process.stdout.fileno()
+        with selectors.DefaultSelector() as selector:
+            selector.register(descriptor, selectors.EVENT_READ)
+            while True:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("native process timed out waiting for JSON")
+                end = self.buffer.find(b"\n")
+                if end > MAX_JSON_LINE or (end < 0 and len(self.buffer) > MAX_JSON_LINE):
+                    raise RuntimeError("native JSON response exceeds the line size limit")
+                if end >= 0:
+                    line = bytes(self.buffer[:end])
+                    del self.buffer[: end + 1]
+                    try:
+                        value = json.loads(line)
+                    except (ValueError, UnicodeDecodeError) as error:
+                        raise RuntimeError("native process returned invalid JSON") from error
+                    if not isinstance(value, dict):
+                        raise RuntimeError("native JSON response must be an object")
+                    return value
+                wait_for_pipe(selector, deadline, "waiting for JSON")
+                try:
+                    chunk = os.read(descriptor, 65536)
+                except BlockingIOError:
+                    continue
+                if not chunk:
+>                   raise RuntimeError(
+                        f"native process exited before a complete JSON response ({self.process.poll()})"
+                    )
+E                   RuntimeError: native process exited before a complete JSON response (2)
+
+scripts/native_json_process.py:104: RuntimeError
+_________ test_failure_or_interrupt_never_leaves_a_valid_report[True] __________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-141/test_failure_or_interrupt_neve1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1176ff5c0>
+interrupted = True
+
+    @pytest.mark.skipif(os.environ.get("MLXL3_SKIP_METAL_CHECK") == "1", reason="physical Apple GPU")
+    @pytest.mark.parametrize("interrupted", [False, True])
+    def test_failure_or_interrupt_never_leaves_a_valid_report(tmp_path, monkeypatch, interrupted):
+        mx = pytest.importorskip("mlx.core")
+        import mlxl3_quantizer
+    
+        def fail(*args):
+            if interrupted:
+                raise KeyboardInterrupt("injected cancellation")
+            return mx.zeros((0, 32), dtype=mx.uint16)
+    
+        monkeypatch.setattr(mlxl3_quantizer, "pack_trellis_mlx", fail)
+        output = tmp_path / "report.json"
+        with pytest.raises(KeyboardInterrupt if interrupted else ValueError):
+>           benchmark.run(output, repeats=1, iterations=1, tiles=(1,), bits=(2,))
+
+tests/test_quantize_packing_benchmark.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+benchmarks/bench_quantize_packing.py:59: in run
+    expected = pack_trellis(values, k)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+encoded = array([[ 5337, 39635, 32473, 24957, 30642, 50896, 49835, 23408, 44644,
+        58632, 34131, 48995, 46614, 40099, 4865...     42677, 16675,  1930, 13289, 63068, 50971, 41391, 47200, 64327,
+        14664, 51972, 45806,   144]], dtype=uint16)
+k = 2
+
+    def pack_trellis(encoded: np.ndarray, k: int) -> np.ndarray:
+        """Pack a trellis tensor of shape (tiles_k, tiles_n, 256)."""
+        if encoded.ndim != 3 or encoded.shape[-1] != 256:
+>           raise ValueError(f"expected shape (tiles_k, tiles_n, 256), got {encoded.shape}")
+E           ValueError: expected shape (tiles_k, tiles_n, 256), got (1, 256)
+
+references/PonyExl3/ponyexl3/ref/trellis.py:147: ValueError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+FAILED tests/test_lfm25_moe_conversion.py::test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights
+FAILED tests/test_quantize_packing_benchmark.py::test_failure_or_interrupt_never_leaves_a_valid_report[True]
+2 failed, 442 passed, 1 skipped in 73.56s (0:01:13)

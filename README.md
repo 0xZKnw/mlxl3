@@ -540,6 +540,7 @@ These kernels accelerate conversion without changing the calibration recipe or
 float32 error metric.
 
 - [LFM local conversion guide](docs/lfm26-local-quantization.md)
+- [LFM2.5-24B-A2B MoE conversion, kernels and validation](docs/lfm25-moe-quantization.md)
 - [Ling local conversion guide](docs/ling-local-quantization.md)
 - [Metal quantization measurements](docs/metal-quantization-optimization.md)
 - [CUDA-to-Metal kernel inventory](docs/kernel-port.md)
