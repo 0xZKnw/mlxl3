@@ -1,0 +1,846 @@
+{
+  "status": "passed",
+  "kernel_parity": true,
+  "export_parity": true,
+  "cases": [
+    {
+      "key": "model.layers.0.conv.in_proj",
+      "source_weight_shape": [
+        6144,
+        2048
+      ],
+      "source_weight_float32_sha256": "4de59b6f82ff0c4a9b66beea0fdee2a01de82fed8eb82f8196320c8328d951bc",
+      "activation_sha256": "335b2597859dfb7acfd14b6780b167410a013fca02e0ee7d7e670a3cd538eff1",
+      "tensors": {
+        "model.layers.0.conv.in_proj.trellis": {
+          "shape": [
+            128,
+            384,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 3145728,
+          "hashes": {
+            "pony_reference": "72d0d8796a0cd9487538786fa3fda94d481a8025a132b9cbcb7bf356df6041f0",
+            "mlxl3": "72d0d8796a0cd9487538786fa3fda94d481a8025a132b9cbcb7bf356df6041f0",
+            "exported_v1": "72d0d8796a0cd9487538786fa3fda94d481a8025a132b9cbcb7bf356df6041f0"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.0.conv.in_proj.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "76033bcbdf6c52838640fa4e6ac91fe30ece3b0fb4df5cee3adc87dd5c0efe7b",
+            "mlxl3": "76033bcbdf6c52838640fa4e6ac91fe30ece3b0fb4df5cee3adc87dd5c0efe7b",
+            "exported_v1": "76033bcbdf6c52838640fa4e6ac91fe30ece3b0fb4df5cee3adc87dd5c0efe7b"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.0.conv.in_proj.svh": {
+          "shape": [
+            6144
+          ],
+          "dtype": "float16",
+          "values": 6144,
+          "hashes": {
+            "pony_reference": "ab05393b4cb332d96493b31b15dac52cb310ff521b3864d4fbef414eadde9ba3",
+            "mlxl3": "ab05393b4cb332d96493b31b15dac52cb310ff521b3864d4fbef414eadde9ba3",
+            "exported_v1": "ab05393b4cb332d96493b31b15dac52cb310ff521b3864d4fbef414eadde9ba3"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.0.conv.in_proj.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.0.feed_forward.w1",
+      "source_weight_shape": [
+        11776,
+        2048
+      ],
+      "source_weight_float32_sha256": "f4339c47082be3224fd8f7edf3bd0338c65daf600d0f95227f1b643f1f93d989",
+      "activation_sha256": "899b7a71a7a5ea1bc3eb09deed85adbc883d418f4f5b8dc89cf061281ca82232",
+      "tensors": {
+        "model.layers.0.feed_forward.w1.trellis": {
+          "shape": [
+            128,
+            736,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 6029312,
+          "hashes": {
+            "pony_reference": "f9c7b48863e2e6db805d6f784e3c83bc67b32eb32d67efa3763cc10425b15abe",
+            "mlxl3": "f9c7b48863e2e6db805d6f784e3c83bc67b32eb32d67efa3763cc10425b15abe",
+            "exported_v1": "f9c7b48863e2e6db805d6f784e3c83bc67b32eb32d67efa3763cc10425b15abe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.0.feed_forward.w1.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "fa732af233b3424de03237c642f7945a0c41aae8698e87dfa30d9646fc00fd6b",
+            "mlxl3": "fa732af233b3424de03237c642f7945a0c41aae8698e87dfa30d9646fc00fd6b",
+            "exported_v1": "fa732af233b3424de03237c642f7945a0c41aae8698e87dfa30d9646fc00fd6b"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.0.feed_forward.w1.svh": {
+          "shape": [
+            11776
+          ],
+          "dtype": "float16",
+          "values": 11776,
+          "hashes": {
+            "pony_reference": "eb51f763ec22f0dd471a57af37fcd21379776c953ee33ea8339e658d82f4fa39",
+            "mlxl3": "eb51f763ec22f0dd471a57af37fcd21379776c953ee33ea8339e658d82f4fa39",
+            "exported_v1": "eb51f763ec22f0dd471a57af37fcd21379776c953ee33ea8339e658d82f4fa39"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.0.feed_forward.w1.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.2.self_attn.q_proj",
+      "source_weight_shape": [
+        2048,
+        2048
+      ],
+      "source_weight_float32_sha256": "73701a0d21c98c0325aff39236c5646acf43e5b3bb71a84340f95cdac736c5c3",
+      "activation_sha256": "4d900814c6cc309c2c847405e32fc56aa5b307462727607520b2171bb94120ac",
+      "tensors": {
+        "model.layers.2.self_attn.q_proj.trellis": {
+          "shape": [
+            128,
+            128,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 1048576,
+          "hashes": {
+            "pony_reference": "cda5f0ebde85fcf75cc50ff2b22f264f65c16fa9c3f3325dad86012814cf607b",
+            "mlxl3": "cda5f0ebde85fcf75cc50ff2b22f264f65c16fa9c3f3325dad86012814cf607b",
+            "exported_v1": "cda5f0ebde85fcf75cc50ff2b22f264f65c16fa9c3f3325dad86012814cf607b"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.self_attn.q_proj.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "73e15d84f129e63f33acaebebf57890d50dcd59546f05016f9adfdcf3960cde4",
+            "mlxl3": "73e15d84f129e63f33acaebebf57890d50dcd59546f05016f9adfdcf3960cde4",
+            "exported_v1": "73e15d84f129e63f33acaebebf57890d50dcd59546f05016f9adfdcf3960cde4"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.self_attn.q_proj.svh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "72fb29f3f41693373f8e5c966ea3a255830a616814844e2f049f6a17b73378b7",
+            "mlxl3": "72fb29f3f41693373f8e5c966ea3a255830a616814844e2f049f6a17b73378b7",
+            "exported_v1": "72fb29f3f41693373f8e5c966ea3a255830a616814844e2f049f6a17b73378b7"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.self_attn.q_proj.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.2.feed_forward.experts.0.w1",
+      "source_weight_shape": [
+        1536,
+        2048
+      ],
+      "source_weight_float32_sha256": "76758d82ec9e7581c860cb336d1b010b3e2c036eba7f68a82f47432a5bbbb9b4",
+      "activation_sha256": "206f7bcc841c41d805a04981c455f7d634b141d48118c44e35b79d8f74e8227f",
+      "tensors": {
+        "model.layers.2.feed_forward.experts.0.w1.trellis": {
+          "shape": [
+            128,
+            96,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "360324070c5cc7ad9714f25f831d8d5f9493b604c9bb488cea1c3c0b268a6adb",
+            "mlxl3": "360324070c5cc7ad9714f25f831d8d5f9493b604c9bb488cea1c3c0b268a6adb",
+            "exported_v1": "360324070c5cc7ad9714f25f831d8d5f9493b604c9bb488cea1c3c0b268a6adb"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w1.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "7c2721c757939b7fd375f539a04c98c2762d2f3829a4292826aa37b2ff880182",
+            "mlxl3": "7c2721c757939b7fd375f539a04c98c2762d2f3829a4292826aa37b2ff880182",
+            "exported_v1": "7c2721c757939b7fd375f539a04c98c2762d2f3829a4292826aa37b2ff880182"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w1.svh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "96b577445b7cef73728142c7667780ac6629c6188f4d87a2071bc8e364f870f1",
+            "mlxl3": "96b577445b7cef73728142c7667780ac6629c6188f4d87a2071bc8e364f870f1",
+            "exported_v1": "96b577445b7cef73728142c7667780ac6629c6188f4d87a2071bc8e364f870f1"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w1.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.2.feed_forward.experts.0.w2",
+      "source_weight_shape": [
+        2048,
+        1536
+      ],
+      "source_weight_float32_sha256": "f0b14fce32520a281b1d09ca8bdba8af642626d378c2b5bac0f26f04517edbab",
+      "activation_sha256": "ee331883254a9195c4b1f6395b49de593e288027f1b071957d413572341cda48",
+      "tensors": {
+        "model.layers.2.feed_forward.experts.0.w2.trellis": {
+          "shape": [
+            96,
+            128,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "e45ac6e6b56ff32abfd1ea92341b35ff8653bfb463939525a5d12af40704d0d0",
+            "mlxl3": "e45ac6e6b56ff32abfd1ea92341b35ff8653bfb463939525a5d12af40704d0d0",
+            "exported_v1": "e45ac6e6b56ff32abfd1ea92341b35ff8653bfb463939525a5d12af40704d0d0"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w2.suh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "db3fb927ef83374d0f477d25226dd693438dd80fc397bd7cd0057d4b29d1743d",
+            "mlxl3": "db3fb927ef83374d0f477d25226dd693438dd80fc397bd7cd0057d4b29d1743d",
+            "exported_v1": "db3fb927ef83374d0f477d25226dd693438dd80fc397bd7cd0057d4b29d1743d"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w2.svh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "5e92f081c3196a6715c9e58a7f806b09a2136a1f9aec2a576e37a80b33ced2ec",
+            "mlxl3": "5e92f081c3196a6715c9e58a7f806b09a2136a1f9aec2a576e37a80b33ced2ec",
+            "exported_v1": "5e92f081c3196a6715c9e58a7f806b09a2136a1f9aec2a576e37a80b33ced2ec"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w2.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.2.feed_forward.experts.0.w3",
+      "source_weight_shape": [
+        1536,
+        2048
+      ],
+      "source_weight_float32_sha256": "ce42191980390e43f84be2ba5e31a86d725571ade4117055f1e74d9bb15d5a36",
+      "activation_sha256": "206f7bcc841c41d805a04981c455f7d634b141d48118c44e35b79d8f74e8227f",
+      "tensors": {
+        "model.layers.2.feed_forward.experts.0.w3.trellis": {
+          "shape": [
+            128,
+            96,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "11deb09f5eb0c140ee9a79f7a51d03867e068117677d8c22132ea979bae36bf5",
+            "mlxl3": "11deb09f5eb0c140ee9a79f7a51d03867e068117677d8c22132ea979bae36bf5",
+            "exported_v1": "11deb09f5eb0c140ee9a79f7a51d03867e068117677d8c22132ea979bae36bf5"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w3.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "37561521f33be0c0b6f7796c8004682046a1d929402b00fae633c896655f2a15",
+            "mlxl3": "37561521f33be0c0b6f7796c8004682046a1d929402b00fae633c896655f2a15",
+            "exported_v1": "37561521f33be0c0b6f7796c8004682046a1d929402b00fae633c896655f2a15"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w3.svh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "fa36775c2db69ab630cfdac8281860fbe77a86b77a3f891eb9cf9a559d0e4bda",
+            "mlxl3": "fa36775c2db69ab630cfdac8281860fbe77a86b77a3f891eb9cf9a559d0e4bda",
+            "exported_v1": "fa36775c2db69ab630cfdac8281860fbe77a86b77a3f891eb9cf9a559d0e4bda"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.2.feed_forward.experts.0.w3.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.20.feed_forward.experts.31.w1",
+      "source_weight_shape": [
+        1536,
+        2048
+      ],
+      "source_weight_float32_sha256": "ce3db4af82f29dc94b6784099fcece56c2d68092f563fc43b4f953e98f88aa4a",
+      "activation_sha256": "822905230bf3d79aa1aca29913fa295d38229d1d167c30dd85099298994a1a89",
+      "tensors": {
+        "model.layers.20.feed_forward.experts.31.w1.trellis": {
+          "shape": [
+            128,
+            96,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "1129ca8ad3dd9f030f62141c19098e58f526ed44f612ab41084a49463c81f13a",
+            "mlxl3": "1129ca8ad3dd9f030f62141c19098e58f526ed44f612ab41084a49463c81f13a",
+            "exported_v1": "1129ca8ad3dd9f030f62141c19098e58f526ed44f612ab41084a49463c81f13a"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w1.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "f92809a2d0bd18791122fbc5b5f3afa2170cf99a43e403b845e5908308ed308c",
+            "mlxl3": "f92809a2d0bd18791122fbc5b5f3afa2170cf99a43e403b845e5908308ed308c",
+            "exported_v1": "f92809a2d0bd18791122fbc5b5f3afa2170cf99a43e403b845e5908308ed308c"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w1.svh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "59bea6b1aec83bbf5e34603cf09b3261b8868ff0576e23fe486bd61e1a6e52c1",
+            "mlxl3": "59bea6b1aec83bbf5e34603cf09b3261b8868ff0576e23fe486bd61e1a6e52c1",
+            "exported_v1": "59bea6b1aec83bbf5e34603cf09b3261b8868ff0576e23fe486bd61e1a6e52c1"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w1.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.20.feed_forward.experts.31.w2",
+      "source_weight_shape": [
+        2048,
+        1536
+      ],
+      "source_weight_float32_sha256": "ca43e5189a265835dba1a2b1cffa46e4a28dd40162714aee6da2354a01099a8e",
+      "activation_sha256": "7fda0677429bfb81c2689c9b84800033528f0c352afee5984653b6cd355d39d1",
+      "tensors": {
+        "model.layers.20.feed_forward.experts.31.w2.trellis": {
+          "shape": [
+            96,
+            128,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "db03d3b126397875e97d6f724fa266180654ab4b8354fea31ddce8badeaf36c6",
+            "mlxl3": "db03d3b126397875e97d6f724fa266180654ab4b8354fea31ddce8badeaf36c6",
+            "exported_v1": "db03d3b126397875e97d6f724fa266180654ab4b8354fea31ddce8badeaf36c6"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w2.suh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "37b6d623abecd972aee96cd0f08c676654d62312fbce488ef05db30623cceffb",
+            "mlxl3": "37b6d623abecd972aee96cd0f08c676654d62312fbce488ef05db30623cceffb",
+            "exported_v1": "37b6d623abecd972aee96cd0f08c676654d62312fbce488ef05db30623cceffb"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w2.svh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "3300e481c0d666a64fec5518fe14b6d3012d6d046874b22d09b3078791104d5b",
+            "mlxl3": "3300e481c0d666a64fec5518fe14b6d3012d6d046874b22d09b3078791104d5b",
+            "exported_v1": "3300e481c0d666a64fec5518fe14b6d3012d6d046874b22d09b3078791104d5b"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w2.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.20.feed_forward.experts.31.w3",
+      "source_weight_shape": [
+        1536,
+        2048
+      ],
+      "source_weight_float32_sha256": "3861035b2d05ac0f3092b77b1af217cfdb70fae680ffce6ee1d413267f399606",
+      "activation_sha256": "822905230bf3d79aa1aca29913fa295d38229d1d167c30dd85099298994a1a89",
+      "tensors": {
+        "model.layers.20.feed_forward.experts.31.w3.trellis": {
+          "shape": [
+            128,
+            96,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "f751f10c0b8399d5bc0ee292c1f44b3d4d3e0047389ebccbdaed0197398084a3",
+            "mlxl3": "f751f10c0b8399d5bc0ee292c1f44b3d4d3e0047389ebccbdaed0197398084a3",
+            "exported_v1": "f751f10c0b8399d5bc0ee292c1f44b3d4d3e0047389ebccbdaed0197398084a3"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w3.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "976937d8c5f974e5e72213c0745ac2988bafc3e6ada841b7a9b1b03ea2d52291",
+            "mlxl3": "976937d8c5f974e5e72213c0745ac2988bafc3e6ada841b7a9b1b03ea2d52291",
+            "exported_v1": "976937d8c5f974e5e72213c0745ac2988bafc3e6ada841b7a9b1b03ea2d52291"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w3.svh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "dbcacb967c9d8c81237578d18a223989bdb06ea0d4c76e06a48ff44fb78640d7",
+            "mlxl3": "dbcacb967c9d8c81237578d18a223989bdb06ea0d4c76e06a48ff44fb78640d7",
+            "exported_v1": "dbcacb967c9d8c81237578d18a223989bdb06ea0d4c76e06a48ff44fb78640d7"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.20.feed_forward.experts.31.w3.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.39.feed_forward.experts.63.w1",
+      "source_weight_shape": [
+        1536,
+        2048
+      ],
+      "source_weight_float32_sha256": "be89ca9a38e6dcd752aec322f50724b2bdb04514255e92d4aa0de735905e02a5",
+      "activation_sha256": "4805b0aed221f8c55cff3fcc8d513c0d9ab3a1a1be2e3633aee1687837b5d7b2",
+      "tensors": {
+        "model.layers.39.feed_forward.experts.63.w1.trellis": {
+          "shape": [
+            128,
+            96,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "575310a0da5648013cb54e2d7f50055c50f390025ae13cfd94f7bc87efa00e14",
+            "mlxl3": "575310a0da5648013cb54e2d7f50055c50f390025ae13cfd94f7bc87efa00e14",
+            "exported_v1": "575310a0da5648013cb54e2d7f50055c50f390025ae13cfd94f7bc87efa00e14"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w1.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "e1a818eb950f2b05cf146e6c5bc44f671013a4f91312c84d0ec51d0175868084",
+            "mlxl3": "e1a818eb950f2b05cf146e6c5bc44f671013a4f91312c84d0ec51d0175868084",
+            "exported_v1": "e1a818eb950f2b05cf146e6c5bc44f671013a4f91312c84d0ec51d0175868084"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w1.svh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "62f915040011086eec96c6c3bfe19f7f25a5c77c49d9289b7436a666335658a5",
+            "mlxl3": "62f915040011086eec96c6c3bfe19f7f25a5c77c49d9289b7436a666335658a5",
+            "exported_v1": "62f915040011086eec96c6c3bfe19f7f25a5c77c49d9289b7436a666335658a5"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w1.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.39.feed_forward.experts.63.w2",
+      "source_weight_shape": [
+        2048,
+        1536
+      ],
+      "source_weight_float32_sha256": "d70c25347dde162d16eda292c106fcf28db52a9160c371315c4c3fa3459de5ad",
+      "activation_sha256": "e78718e25e6f118d7bc1429dc99065b895b15d41133740ee8c60e911037f4536",
+      "tensors": {
+        "model.layers.39.feed_forward.experts.63.w2.trellis": {
+          "shape": [
+            96,
+            128,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "1ba40406279c89250d3503abe8be532e88d9f0e35cf433cf2ecfb4763d261f97",
+            "mlxl3": "1ba40406279c89250d3503abe8be532e88d9f0e35cf433cf2ecfb4763d261f97",
+            "exported_v1": "1ba40406279c89250d3503abe8be532e88d9f0e35cf433cf2ecfb4763d261f97"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w2.suh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "fd0124b444462810aedc75086ee32de7d6ec4b841e137c43e47a9ab457cd667b",
+            "mlxl3": "fd0124b444462810aedc75086ee32de7d6ec4b841e137c43e47a9ab457cd667b",
+            "exported_v1": "fd0124b444462810aedc75086ee32de7d6ec4b841e137c43e47a9ab457cd667b"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w2.svh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "92a1e75cf07854618e7826f5c47cd021835641fad63247881ad0fe5cef73e9e1",
+            "mlxl3": "92a1e75cf07854618e7826f5c47cd021835641fad63247881ad0fe5cef73e9e1",
+            "exported_v1": "92a1e75cf07854618e7826f5c47cd021835641fad63247881ad0fe5cef73e9e1"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w2.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "key": "model.layers.39.feed_forward.experts.63.w3",
+      "source_weight_shape": [
+        1536,
+        2048
+      ],
+      "source_weight_float32_sha256": "06cc827d93cd7a8c3cc645885d1ec1cb95092f462bdc33336db61a33552285a7",
+      "activation_sha256": "4805b0aed221f8c55cff3fcc8d513c0d9ab3a1a1be2e3633aee1687837b5d7b2",
+      "tensors": {
+        "model.layers.39.feed_forward.experts.63.w3.trellis": {
+          "shape": [
+            128,
+            96,
+            64
+          ],
+          "dtype": "uint16",
+          "values": 786432,
+          "hashes": {
+            "pony_reference": "04639184a4b6e7a40c3e06eb9b3d380870c3186c0db02a4ca1ebcb3242e68ee2",
+            "mlxl3": "04639184a4b6e7a40c3e06eb9b3d380870c3186c0db02a4ca1ebcb3242e68ee2",
+            "exported_v1": "04639184a4b6e7a40c3e06eb9b3d380870c3186c0db02a4ca1ebcb3242e68ee2"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w3.suh": {
+          "shape": [
+            2048
+          ],
+          "dtype": "float16",
+          "values": 2048,
+          "hashes": {
+            "pony_reference": "ec9b5db224ddd1fb1462d4f66ae38c9a460a331745ed58d91a1d4d0de6372236",
+            "mlxl3": "ec9b5db224ddd1fb1462d4f66ae38c9a460a331745ed58d91a1d4d0de6372236",
+            "exported_v1": "ec9b5db224ddd1fb1462d4f66ae38c9a460a331745ed58d91a1d4d0de6372236"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w3.svh": {
+          "shape": [
+            1536
+          ],
+          "dtype": "float16",
+          "values": 1536,
+          "hashes": {
+            "pony_reference": "c3d8d8b996ee6004e5f9984c33c002a4d3887aa592ce0275f46bc17466fdb030",
+            "mlxl3": "c3d8d8b996ee6004e5f9984c33c002a4d3887aa592ce0275f46bc17466fdb030",
+            "exported_v1": "c3d8d8b996ee6004e5f9984c33c002a4d3887aa592ce0275f46bc17466fdb030"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        },
+        "model.layers.39.feed_forward.experts.63.w3.mcg": {
+          "shape": [],
+          "dtype": "int32",
+          "values": 1,
+          "hashes": {
+            "pony_reference": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "mlxl3": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe",
+            "exported_v1": "ade4fb124dda0f3537386cdd4a3cdcea3a223d386e506a4be89394bb33ee13fe"
+          },
+          "kernel_bitexact": true,
+          "export_bitexact": true
+        }
+      },
+      "status": "passed"
+    }
+  ],
+  "plan": "real-projections-plan.json",
+  "parameters": {
+    "k": 4,
+    "codebook": "mcg",
+    "sigma_reg": 0.025,
+    "hessian_shrinkage": 0,
+    "buf_size_rows": 128,
+    "feedback_rows": 16,
+    "regularization_seed": 0,
+    "scale_mode": "computed",
+    "fast_metrics": true
+  },
+  "source_hashes": {
+    "src/mlxl3_quantizer/metal.py": "346aedbe61e1ff7542947840fb5dc1f46b77b092d9f219624d85886804394b50",
+    "src/mlxl3_quantizer/packing.py": "a32f86c1ab769b24d2d92123df03296fee80754a1eedc811192efa37c49afa0c",
+    "src/mlxl3_quantizer/pack_trellis.metal": "290d2ca09af83e8332412b51136df7bbad6c01be25681639ef255365b6091fa2",
+    "references/PonyExl3/ponyexl3/convert/hessian.py": "60838fa50342266d04ca318232e888c0ac4e7a7342f258d11e5556a09a4cc822",
+    "references/PonyExl3/ponyexl3/convert/metal_search.py": "a7df2b1e2438c0b9cd4525cec26bcffc08824d40f095f84d17eda48bf791f4a2",
+    "references/PonyExl3/ponyexl3/convert/mlx_trellis.py": "274464fa0e5de3f68cfceb26267ba3e8402323083631a9768320a7ff53df923a"
+  },
+  "scope": "12 real projections, individual LDLQ; not a complete model proof or a throughput measurement",
+  "completed_projections": 12,
+  "peak_mlx_bytes": 2959818752
+}

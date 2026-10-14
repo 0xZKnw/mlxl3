@@ -1,0 +1,17 @@
+{
+  "status": "failed",
+  "cases": [],
+  "scope": "Local linear error ablation on independent heldout source activations, no whole-model PPL or quality proof",
+  "source_revision": "1769516ac588c4c558089c94f27d96b0dc67b183",
+  "calibration": "existing 2048-token WikiText train captures",
+  "heldout": "first 2048 WikiText test tokens, two 1024-token contexts",
+  "module_keys": [
+    "model.layers.2.feed_forward.experts.0.w1",
+    "model.layers.2.feed_forward.experts.0.w2",
+    "model.layers.20.feed_forward.experts.31.w1",
+    "model.layers.20.feed_forward.experts.31.w2",
+    "model.layers.39.feed_forward.experts.63.w1",
+    "model.layers.39.feed_forward.experts.63.w2"
+  ],
+  "error": "FileNotFoundError: [Errno 2] No such file or directory: 'benchmarks/data/wikitext-2-raw/wiki.test.raw'"
+}

@@ -1,0 +1,123 @@
+{
+  "status": "local_validation_passed",
+  "source_commit": "8386fbfc557f1e740e46a5a6ab250102b047a665",
+  "merge_commit": "408663fbf2b77ecdbc26b6a2f92f8f4e9ba618e2",
+  "engine_version": "1.4.4",
+  "runtime_identity": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "8386fbfc557f",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.4.4"
+  },
+  "archive_files_verified": true,
+  "ad_hoc_signatures_verified": true,
+  "bundled_mlx_libraries_loaded": true,
+  "tests": {
+    "rust": {
+      "passed": 95,
+      "ignored": 79
+    },
+    "physical_router": {
+      "passed": 2,
+      "finite_fixtures": 105,
+      "invalid_input_fixtures": 10
+    },
+    "python_packaging_and_quality": {
+      "passed": 45
+    },
+    "packaged_bridge": {
+      "passed": 2,
+      "answers": [
+        "391",
+        "{\"ok\":true,\"n\":3}"
+      ],
+      "child_reaped": true
+    }
+  },
+  "source_verification": {
+    "kani_router": {
+      "obligations_passed": 59,
+      "covers": 6,
+      "domain": "full symbolic i32 rows/experts and usize top_k, no assumptions"
+    },
+    "full_kani": "Previous PR head CI interrupted after 54 successful harnesses by runner shutdown; current source CI status recorded below. Not a complete proof.",
+    "metal": "Not formally verified. Existing physical oracle and packing bounded checks do not prove full model or concurrency."
+  },
+  "artifacts": {
+    "MLXL3-Engine-v1.4.4-arm64.tar.gz": {
+      "bytes": 66910243,
+      "sha256": "4751177272122fa5cb04bf2b38711336f1bc56182043b5d81a7367218175f97e"
+    },
+    "MLXL3-Engine-v1.4.4-arm64.json": {
+      "bytes": 13587,
+      "sha256": "490bbcaaf4bb47f16b18073d23abc96e6295e19c5d8ac4d40c7ba5c3691c35b7"
+    }
+  },
+  "ci_at_publication": {
+    "native": {
+      "status": "in_progress",
+      "conclusion": "",
+      "jobs": [
+        {
+          "name": "native (ubuntu-latest)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38629180297/job/116076341875"
+        },
+        {
+          "name": "kani",
+          "status": "in_progress",
+          "conclusion": "",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38629180297/job/116076342264"
+        },
+        {
+          "name": "native (macos-26)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38629180297/job/116076342289"
+        }
+      ]
+    },
+    "conversion": {
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "packing-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38629180282/job/116076073996"
+        },
+        {
+          "name": "conversion",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38629180282/job/116076074457"
+        }
+      ]
+    },
+    "regression": {
+      "status": "in_progress",
+      "conclusion": "",
+      "jobs": [
+        {
+          "name": "desktop-and-protocol",
+          "status": "in_progress",
+          "conclusion": "",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38629180309/job/116076366273"
+        }
+      ]
+    }
+  },
+  "model": {
+    "repo": "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw",
+    "revision": "v1",
+    "commit": "07c024ce62c2f60c6b697569bfd08981838b6589",
+    "weight_bytes": 12443937520,
+    "weight_hashes_unchanged": true
+  },
+  "scope": "Engine only; Desktop 1.4.3 remains latest; no new conversion-quality change or throughput speedup measured."
+}
