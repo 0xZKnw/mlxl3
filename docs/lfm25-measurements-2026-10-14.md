@@ -168,3 +168,14 @@ localement. Pour la tête précédente d97c9aeb, cinq jobs réussissent et Kani 
 sur un shutdown du runner/exit143, sans contre-exemple identifié. La CI de la
 nouvelle tête est à inspecter après push ; aucun vert global n'est annoncé ici.
 Aucune release, fusion, publication de poids ou remplacement de l'app installée.
+
+Code et résultats publiés dans la [PR35](https://github.com/0xZKnw/mlxl3/pull/35),
+commit `d22458513e7d178ad4de8c35ddc78795ce937abe`, base `b4dfd391`.
+À la première inspection de cette tête, les deux jobs
+[EXL3 contracts](https://github.com/0xZKnw/mlxl3/actions/runs/38623436874) passent ;
+[Native Rust/Kani](https://github.com/0xZKnw/mlxl3/actions/runs/38623436807) et
+[Regression](https://github.com/0xZKnw/mlxl3/actions/runs/38623436838) sont en cours.
+Les jobs push supplantés par les runs PR sont annulés, distincts d'un échec de
+propriété. [Snapshot exact](measurements/quant-lfm25-eval-20261014/ci-d224-first-inspection.json).
+La révision suivante ajoute uniquement cette trace de publication ; ses checks
+restent consultables dans la PR, aucun exécutable n'est changé par ce suivi.
