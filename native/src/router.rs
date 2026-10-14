@@ -215,12 +215,8 @@ pub fn topk_biased(values: &Array, bias: &Array, top_k: usize) -> Result<(Array,
         .try_into()
         .map_err(|_| anyhow::anyhow!("router values must have rank 2"))?;
     ensure!(
-        rows == 1 && experts > 0 && experts <= 32,
-        "biased router accepts one row and at most 32 experts"
-    );
-    ensure!(
-        top_k > 0 && top_k <= experts as usize,
-        "invalid router top-k"
+        crate::contracts::biased_router_domain(rows, experts, top_k),
+        "biased router requires one row, 1..=64 experts and a valid top-k"
     );
     ensure!(
         values.dtype() == Dtype::Float16
@@ -237,13 +233,19 @@ pub fn topk_biased(values: &Array, bias: &Array, top_k: usize) -> Result<(Array,
             float candidate = lane < EXPERTS
                 ? float(probability) + float(bias[lane])
                 : -INFINITY;
+            uint second_expert = lane + 32u;
+            float second = second_expert < EXPERTS
+                ? float(probabilities[second_expert]) + float(bias[second_expert])
+                : -INFINITY;
             uint chosen[TOP_K];
             for (uint rank = 0u; rank < TOP_K; ++rank) {{
-                float best = simd_max(candidate);
-                uint possible = candidate == best ? lane : 0xffffffffu;
+                float best = simd_max(max(candidate, second));
+                uint possible = min(candidate == best ? lane : 0xffffffffu,
+                    second == best ? second_expert : 0xffffffffu);
                 uint winner = simd_min(possible);
                 if (lane == 0u) chosen[rank] = winner;
                 if (lane == winner) candidate = -INFINITY;
+                if (second_expert == winner) second = -INFINITY;
             }}
             if (lane == 0u) {{
                 for (uint slot = 0u; slot < TOP_K; ++slot) {{
@@ -255,7 +257,7 @@ pub fn topk_biased(values: &Array, bias: &Array, top_k: usize) -> Result<(Array,
         "#
     );
     let mut outputs = array::metal_kernel(
-        &format!("mlxl3_rs_topk_biased_e{experts}_k{top_k}_v1"),
+        &format!("mlxl3_rs_topk_biased_e{experts}_k{top_k}_v2"),
         &["probabilities", "bias"],
         &["indices", "scores"],
         "",
@@ -266,6 +268,10 @@ pub fn topk_biased(values: &Array, bias: &Array, top_k: usize) -> Result<(Array,
         [32, 1, 1],
         [32, 1, 1],
     )?;
+    ensure!(
+        outputs.len() == 2,
+        "biased router returned wrong output count"
+    );
     let scores = outputs.pop().expect("checked output count");
     let indices = outputs.pop().expect("checked output count");
     Ok((indices, scores))
@@ -444,6 +450,96 @@ pub fn grouped_topk_biased(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical Apple GPU; LFM2.5 biased 64-expert regression"]
+    fn biased_router_matches_independent_sort_through_64_experts() -> Result<()> {
+        use half::f16;
+        for experts in [1, 2, 31, 32, 33, 63, 64] {
+            for fixture in 0..5 {
+                let probabilities = (0..experts)
+                    .map(|i| {
+                        f16::from_f32(match fixture {
+                            0 => ((i * 37 % 101) + 1) as f32 / 128.,
+                            1 | 2 => 0.5,
+                            3 => (i + 1) as f32 / 128.,
+                            _ => {
+                                if i % 2 == 0 {
+                                    0.
+                                } else {
+                                    -0.
+                                }
+                            }
+                        })
+                        .to_bits()
+                    })
+                    .collect::<Vec<_>>();
+                let biases = (0..experts)
+                    .map(|i| {
+                        f16::from_f32(match fixture {
+                            0 => ((i * 13 % 29) - 14) as f32 / 64.,
+                            2 if i == experts - 1 => 1.,
+                            _ => 0.,
+                        })
+                        .to_bits()
+                    })
+                    .collect::<Vec<_>>();
+                let values = Array::from_f16_bits(&probabilities, &[1, experts])?;
+                let bias = Array::from_f16_bits(&biases, &[experts])?;
+                let selection = probabilities
+                    .iter()
+                    .zip(&biases)
+                    .map(|(p, b)| f16::from_bits(*p).to_f32() + f16::from_bits(*b).to_f32())
+                    .collect::<Vec<_>>();
+                for top_k in [1, 4.min(experts as usize), experts as usize] {
+                    let mut order = (0..experts as u32).collect::<Vec<_>>();
+                    order.sort_by(|a, b| {
+                        selection[*b as usize]
+                            .partial_cmp(&selection[*a as usize])
+                            .expect("finite routing fixture")
+                            .then(a.cmp(b))
+                    });
+                    order.truncate(top_k);
+                    order.reverse();
+                    let expected_scores = order
+                        .iter()
+                        .map(|&index| probabilities[index as usize])
+                        .collect::<Vec<_>>();
+                    let (indices, scores) = topk_biased(&values, &bias, top_k)?;
+                    assert_eq!(indices.shape(), [1, top_k as i32]);
+                    assert_eq!(
+                        indices.to_u32()?,
+                        order,
+                        "E={experts}, K={top_k}, fixture={fixture}"
+                    );
+                    assert_eq!(scores.to_f16_bits()?, expected_scores);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; biased router boundary validation"]
+    fn biased_router_rejects_invalid_inputs_before_dispatch() -> Result<()> {
+        let values = Array::from_f16_bits(&[0x3800; 64], &[1, 64])?;
+        let bias = Array::from_f16_bits(&[0; 64], &[64])?;
+        for top_k in [0, 65, usize::MAX] {
+            assert!(topk_biased(&values, &bias, top_k).is_err());
+        }
+        let rows = Array::from_f16_bits(&[0x3800; 128], &[2, 64])?;
+        assert!(topk_biased(&rows, &bias, 4).is_err());
+        let rank = values.reshape(&[64])?;
+        assert!(topk_biased(&rank, &bias, 4).is_err());
+        let experts = Array::from_f16_bits(&[0x3800; 65], &[1, 65])?;
+        let extra_bias = Array::from_f16_bits(&[0; 65], &[65])?;
+        assert!(topk_biased(&experts, &extra_bias, 4).is_err());
+        assert!(topk_biased(&values.astype(Dtype::Float32)?, &bias, 4).is_err());
+        assert!(topk_biased(&values, &bias.astype(Dtype::Float32)?, 4).is_err());
+        assert!(topk_biased(&values, &bias.reshape(&[1, 64])?, 4).is_err());
+        assert!(topk_biased(&values, &bias.slice(0, 0, 63)?, 4).is_err());
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Apple GPU, preregistered MTP-05 router trial"]

@@ -9,15 +9,40 @@ Les deux premières couches sont denses ; les 38 suivantes comportent 64 experts
 Le source occupe 47 943 180 288 octets. Les métadonnées, leur empreinte et la
 configuration sont conservées dans [source.json](measurements/quant-lfm25-20261013/source.json).
 
-**La conversion complète et la qualité du 24B n'ont pas été mesurées.** La PR
-valide le parcours sur un checkpoint miniature jetable et le packing sur GPU
-physique. Aucun poids du 24B n'a été téléchargé ou publié pendant cette tâche.
+**Conversion complète mesurée le 14 octobre 2026 : 3 h 58 min 39 s**, calibration
+et export compris, téléchargement de 9 min 27 s séparé. Les 7 402 projections
+sont présentes, sans saut : trois shards, **12,44 Go / 11,59 Gio**, environ
+4,15 bits par paramètre effectifs. La cible 2–4 h est atteinte pour cet exemplaire
+Apple M5 / 24 Gio ; aucune comparaison de durée avec une conversion amont
+complète n'a été faite. Les 19 fichiers source ont leurs checksums épinglés.
+
+Sur WikiText-2 test, 8 192 tokens en fenêtres de 1 024 donnent une perplexité
+BF16 de 28,1536 contre 29,4795 pour le moteur EXL3 natif, **+4,71 %**. Le premier
+test, 2 048 tokens en fenêtres de 256, donnait +13,64 % : ce résultat reste
+conservé, avec son autre protocole. Il ne s'agit pas d'une amélioration des poids.
+Le moteur de référence Pony reproduit la forte perte de la fenêtre problématique.
+Ces mesures ne certifient pas une qualité identique au BF16 ni un score général.
+
+Le smoke initial refusait le routeur à 64 experts. La PR corrige cette limite,
+valide les réponses finales FR/calcul/JSON/Python et mesure environ **58,3 tok/s**
+en génération sur ce M5, avec prompts de 256 tokens et sorties de 128 tokens.
+Le modèle, le code de conversion et l'app installée n'ont pas été remplacés
+pendant ces contrôles. [Rapport complet, protocoles et limites](lfm25-measurements-2026-10-14.md).
+Une comparaison alignée avec le GGUF UD-Q4_K_XL fourni par l'utilisateur donne
+PPL18,3656 pour EXL3 contre18,3467 pour GGUF, 4 088 labels identiques : environ
+0,10 % d'écart entre les cibles, avec un fichier EXL3 16,35 % plus petit. Ce
+test ne certifie pas un vainqueur général de qualité ; protocole, backends et
+provenance partiellement vérifiée du GGUF sont précisés dans le rapport.
+Le [snapshot de lancement](measurements/quant-lfm25-run-20261014/launch-observation.json)
+reste une preuve de lancement, distincte des résultats finaux. Aucun poids publié.
 
 La [recherche complémentaire pour viser 2–4 heures](lfm25-quantization-research.md)
 profile les vrais groupes sur des données synthétiques : environ3h21 pour les
 experts seuls en extrapolation. Cinq prototypes K4 ont été rejetés et un essai
 de cache reste non concluant ; ils sont retirés. Les rapports de profil sont
-durcis pour refuser une fausse parité. Le temps total reste à mesurer.
+durcis pour refuser une fausse parité. Le temps complet mesuré ci-dessus inclut
+les coûts exclus de cette extrapolation ; aucun gain supplémentaire n'est
+attribué aux prototypes retirés.
 
 ## Ce qui accélère la conversion
 
@@ -225,7 +250,8 @@ git -C references/PonyExl3 apply --reverse --check \
   ../../scripts/patches/ponyexl3-mlxl3-conversion.patch
 ```
 
-Le build natif est réussi avec `mlx,chat`, sans modification Rust ; son warning
+Pour la première version du 13 octobre, le build natif est réussi avec
+`mlx,chat`, sans modification Rust ; son warning
 `block v0.1.6` de compatibilité future est préexistant. Le wheel contient la
 source `.metal`. Aucun outil de typage Python supplémentaire n'est configuré
 dans ce dépôt ; les imports et compilations sont contrôlés par les suites.
@@ -246,7 +272,8 @@ libc++ du premier harnais CBMC, intrinsic de couverture C++ incorrect,
 itération `safe_open`, fixture sans EOS et reshape du premier oracle de
 benchmark. Ils ont été corrigés avant les résultats finaux ; les logs initiaux
 ne deviennent pas des contrôles réussis. La conversion complète24B, ses
-logits/PPL/KL et son pic mémoire restent non vérifiés.
+logits/PPL/KL et son pic mémoire n'étaient pas vérifiés au 13 octobre ; les
+résultats et limitations du 14 octobre sont consignés dans le rapport lié en tête.
 
 La [PR#35](https://github.com/0xZKnw/mlxl3/pull/35) est ouverte. La nouvelle
 [CI EXL3](https://github.com/0xZKnw/mlxl3/actions/runs/38451515370) du premier

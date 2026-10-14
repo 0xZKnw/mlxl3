@@ -7,6 +7,15 @@ Cinq variantes K4 exactes ont été retirées parce qu'elles ralentissaient les
 groupes d'experts ; un changement de purge du cache reste non concluant et a
 aussi été retiré. La durée totale et la qualité du 24B restent non mesurées.
 
+**Révision après conversion et mesures, 14 octobre au soir :** la conversion
+complète avec le code conservé prend 3 h 58 min 39 s, sans comparaison de durée
+complète amont. Sur 8 192 tokens WikiText-2 en fenêtres de 1 024, PPL+4,71 %
+contre le teacher BF16 ; un protocole commun avec le GGUF UD-Q4_K_XL fourni
+donne PPL18,3656/18,3467, pour 12,44/14,88 Go de poids. La proximité observée
+ne certifie pas une égalité générale de qualité. Ces résultats sont postérieurs
+aux recherches ci-dessous et n'attribuent aucun gain aux prototypes retirés.
+[Rapport et limites](lfm25-measurements-2026-10-14.md).
+
 ## Ce que le profil permet de conclure
 
 Le profil exerce `hessian.ldlq_quantize_group` avec les vrais groupes du

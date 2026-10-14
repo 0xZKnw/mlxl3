@@ -1,5 +1,53 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
+    rows == 1 && (1..=64).contains(&experts) && top_k > 0 && top_k <= experts as usize
+}
+
+#[test]
+fn biased_router_domain_covers_both_simd_halves() {
+    for rows in -1..=2 {
+        for experts in -1..=65 {
+            for top_k in 0..=65 {
+                assert_eq!(
+                    biased_router_domain(rows, experts, top_k),
+                    rows == 1
+                        && experts > 0
+                        && experts <= 64
+                        && top_k > 0
+                        && top_k <= experts as usize
+                );
+            }
+        }
+    }
+    assert!(!biased_router_domain(1, i32::MAX, usize::MAX));
+    assert!(!biased_router_domain(i32::MIN, i32::MIN, 1));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn biased_router_domain_bounds_dispatch() {
+    let rows: i32 = kani::any();
+    let experts: i32 = kani::any();
+    let top_k: usize = kani::any();
+    let valid = biased_router_domain(rows, experts, top_k);
+    assert_eq!(
+        valid,
+        rows == 1 && experts >= 1 && experts <= 64 && top_k >= 1 && top_k <= experts as usize
+    );
+    if valid {
+        assert!((1..=64).contains(&(top_k as i32)));
+        assert!(experts <= 2 * 32);
+    }
+    kani::cover!(valid && experts == 32 && top_k == 4);
+    kani::cover!(valid && experts == 33 && top_k == 33);
+    kani::cover!(valid && experts == 64 && top_k == 64);
+    kani::cover!(!valid && rows == 2);
+    kani::cover!(!valid && experts == 65);
+    kani::cover!(!valid && top_k == usize::MAX);
+}
+
 /// Distinguishes every opt-in kernel combination in persisted MTP calibrations.
 pub fn smallm_kernel_key(dense_batch: bool, grouped_mb3: bool) -> u8 {
     u8::from(dense_batch) | (u8::from(grouped_mb3) << 1)
