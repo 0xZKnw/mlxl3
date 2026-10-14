@@ -1,0 +1,19 @@
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_k4_parent_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is UNSATISFIABLE
+
+** Results:
+tests/quantize_k4_parent_proof.cpp function proof
+[proof.assertion.1] line 25 parent < 4096u: SUCCESS
+[proof.assertion.2] line 26 parent == (fresh == 128u ? 0u : ((fresh << 12u) | edge) >> 4u): SUCCESS
+
+** 0 of 2 failed (1 iterations)
+VERIFICATION SUCCESSFUL

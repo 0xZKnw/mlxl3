@@ -1,0 +1,82 @@
+--- a/src/mlxl3_quantizer/metal.py
++++ b/src/mlxl3_quantizer/metal.py
+@@ -5,6 +5,7 @@
+ """
+ 
+ from functools import lru_cache
++from pathlib import Path
+ 
+ 
+ @lru_cache(maxsize=3)
+@@ -139,13 +140,16 @@
+             "Unsupported PonyExl3 search source; use --reference-metal-search"
+         ) from exc
+     width = {2: 4, 3: 8, 4: 16, 5: 4, 6: 4}[k]
+-    compact = k != 4
++    compact = True
++    fresh_tracking = k == 4
++    parent_type = "uchar2" if fresh_tracking else "ushort2"
++    parent_initial = 128 if fresh_tracking else 0
+     cost_space = "device" if k == 2 else "threadgroup"
+     body = f"for (uint e = tid * {width}u; e < EDGES; e += {256 * width}u) {{\n"
+     for lane in range(width // 2):
+         body += f"""
+             float2 best{lane} = H_INF_F;
+-            ushort2 pred{lane} = 0u;
++            {parent_type} pred{lane} = {parent_initial}u;
+         """
+     body += """
+         float target = in_tile[ri];
+@@ -168,7 +172,7 @@
+                 float2 dq = float2({lookup});
+                 float2 dh = dq - target;
+                 float2 err = min(fma(dh, dh, float2(previous)), float2(H_INF_F));
+-                pred{lane} = select(pred{lane}, ushort2(pred), err < best{lane});
++                pred{lane} = select(pred{lane}, {parent_type}({"fresh" if fresh_tracking else "pred"}), err < best{lane});
+                 best{lane} = min(best{lane}, err);
+             }}
+         """
+@@ -176,7 +180,9 @@
+     for lane in range(width // 2):
+         edge_type = "uchar2" if compact else "ushort2"
+         edge_value = (
+-            f"select(uchar2(pred{lane} >> {16 - 2 * k}u), uchar2(128), pred{lane} == ushort2(0))"
++            f"pred{lane}"
++            if fresh_tracking
++            else f"select(uchar2(pred{lane} >> {16 - 2 * k}u), uchar2(128), pred{lane} == ushort2(0))"
+             if compact
+             else f"pred{lane}"
+         )
+@@ -199,7 +205,11 @@
+         source = source.replace(
+             "uint prev = uint(edge_ptr[ulong(ri) * EDGES + edge]);",
+             "uint fresh = uint(edge_ptr[ulong(ri) * EDGES + edge]);\n"
+-            f"uint prev = fresh == 128u ? 0u : (fresh << {16 - 2 * k}u) | (edge >> K_BITS);",
++            + (
++                "uint prev = mlxl3_k4_parent(edge, fresh);"
++                if fresh_tracking
++                else f"uint prev = fresh == 128u ? 0u : (fresh << {16 - 2 * k}u) | (edge >> K_BITS);"
++            ),
+         )
+     # Each codebook already rounds its decoded value to half. Exhaustively
+     # checked: this lookup adds no rounding; error arithmetic stays float32.
+@@ -209,6 +219,9 @@
+         name=f"mlxl3_quantize_group{width}_k{k}_cb{int(cb)}",
+         input_names=["tiles", "codebook"],
+         output_names=["q_tiles", "indices", "temp_edges", "temp_costs"],
++        header=(
++            Path(__file__).with_name("traceback_parent.metal").read_text() if fresh_tracking else ""
++        ),
+         source=source,
+     )
+     return kernel, tables
+@@ -267,7 +280,8 @@
+         raise ValueError("expected at least one tile and a positive scratch budget")
+     edges = 1 << (16 - k)
+     device_costs = k == 2
+-    edge_dtype = mx.uint8 if k in (2, 3, 5, 6) else mx.uint16
++    compact = k in (2, 3, 5, 6) or (k == 4 and cb != CodebookMode.MUL1)
++    edge_dtype = mx.uint8 if compact else mx.uint16
+     scratch = 256 * edges * edge_dtype.size + (4 * edges if device_costs else 0)
+     batch = max(1, max_scratch_bytes // scratch)
+     tables = ()

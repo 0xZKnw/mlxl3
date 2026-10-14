@@ -13,6 +13,11 @@ configuration sont conservées dans [source.json](measurements/quant-lfm25-20261
 valide le parcours sur un checkpoint miniature jetable et le packing sur GPU
 physique. Aucun poids du 24B n'a été téléchargé ou publié pendant cette tâche.
 
+La [recherche complémentaire pour viser 2–4 heures](lfm25-quantization-research.md)
+profile les vrais groupes sur des données synthétiques : environ3h21 pour les
+experts seuls en extrapolation. Deux nouveaux prototypes K4 ont été rejetés
+et retirés ; ils n'ajoutent aucun gain à la PR. Le temps total reste à mesurer.
+
 ## Ce qui accélère la conversion
 
 - Le search Metal MLXL3 existant conserve les deux passes tail-biting, les

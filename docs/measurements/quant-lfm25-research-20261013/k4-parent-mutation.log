@@ -1,0 +1,75 @@
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_k4_parent_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Building error trace
+Running propositional reduction
+SAT checker: instance is UNSATISFIABLE
+
+** Results:
+tests/quantize_k4_parent_proof.cpp function proof
+[proof.assertion.1] line 25 parent < 4096u: SUCCESS
+[proof.assertion.2] line 26 parent == (fresh == 128u ? 0u : ((fresh << 12u) | edge) >> 4u): FAILURE
+
+Trace for proof.assertion.2:
+
+State 16 file tests/quantize_k4_parent_proof.cpp function proof() line 16 thread 0
+----------------------------------------------------
+  return_value_nondet_uint=16u (00000000 00000000 00000000 00010000)
+
+State 17 file tests/quantize_k4_parent_proof.cpp function proof() line 16 thread 0
+----------------------------------------------------
+  edge=16u (00000000 00000000 00000000 00010000)
+
+State 20 file tests/quantize_k4_parent_proof.cpp function proof() line 16 thread 0
+----------------------------------------------------
+  return_value_nondet_uint$0=0u (00000000 00000000 00000000 00000000)
+
+State 21 file tests/quantize_k4_parent_proof.cpp function proof() line 16 thread 0
+----------------------------------------------------
+  fresh=0u (00000000 00000000 00000000 00000000)
+
+Assumption:
+  file tests/quantize_k4_parent_proof.cpp line 17 function proof
+  edge < 4096u
+
+Assumption:
+  file tests/quantize_k4_parent_proof.cpp line 18 function proof
+  fresh < 16u || fresh == 128u
+
+State 28 file tests/quantize_k4_parent_proof.cpp function proof() line 24 thread 0
+----------------------------------------------------
+  edge=16u (00000000 00000000 00000000 00010000)
+
+State 29 file tests/quantize_k4_parent_proof.cpp function proof() line 24 thread 0
+----------------------------------------------------
+  fresh=0u (00000000 00000000 00000000 00000000)
+
+State 30 file tests/../src/mlxl3_quantizer/traceback_parent.metal function mlxl3_k4_parent(uint, uint) line 3 thread 0
+----------------------------------------------------
+  goto_symex$$return_value$$mlxl3_k4_parent(unsigned_int,unsigned_int)=0u (00000000 00000000 00000000 00000000)
+
+State 32 file tests/quantize_k4_parent_proof.cpp function proof() line 24 thread 0
+----------------------------------------------------
+  return_value_mlxl3_k4_parent=0u (00000000 00000000 00000000 00000000)
+
+State 33 file tests/quantize_k4_parent_proof.cpp function proof() line 24 thread 0
+----------------------------------------------------
+  parent=0u (00000000 00000000 00000000 00000000)
+
+Violated property:
+  file tests/quantize_k4_parent_proof.cpp function proof() line 26 thread 0
+  parent == (fresh == 128u ? 0u : ((fresh << 12u) | edge) >> 4u)
+  parent == (fresh == 128u ? 0u : (fresh << 12u | edge) >> 4u)
+
+
+
+** 1 of 2 failed (2 iterations)
+VERIFICATION FAILED
