@@ -3,8 +3,9 @@
 Recherche et contrôles des 13–14 octobre 2026, Apple M5 / 24 Gio. La
 [PR #35](https://github.com/0xZKnw/mlxl3/pull/35) contient le convertisseur
 et le packing Metal ; cette campagne n'ajoute **aucun gain de vitesse validé**.
-Deux variantes numériques exactes ont été retirées parce qu'elles ralentissaient
-les groupes d'experts. La durée totale et la qualité du 24B restent non mesurées.
+Cinq variantes K4 exactes ont été retirées parce qu'elles ralentissaient les
+groupes d'experts ; un changement de purge du cache reste non concluant et a
+aussi été retiré. La durée totale et la qualité du 24B restent non mesurées.
 
 ## Ce que le profil permet de conclure
 
@@ -127,6 +128,86 @@ Les [patches et helper rejetés](measurements/quant-lfm25-research-20261013/reje
 restent archivés. **Le search de production est restauré byte exact au commit
 80c557 ; le helper expérimental est absent du package.**
 
+## Seconde recherche : Viterbi et allocation MLX
+
+La recherche supplémentaire du 14 octobre conserve la recette et tous les
+candidats. Les sources ci-dessous distinguent une optimisation transposable
+d'un changement d'algorithme ou de quantification.
+
+| Source primaire | Application examinée | Décision |
+|---|---|---|
+| [FLASH-Viterbi v2](https://arxiv.org/html/2510.19301v2), [code des auteurs](https://github.com/Dzh-16/FLASH-Viterbi) | Propager un ancêtre au lieu de conserver toute la traceback ; la branche full-state garde les candidats | Transposition locale limitée au pin de la première passe, essais11/12 exacts mais plus lents. La variante beam change les chemins ; elle est exclue |
+| [Viterbi GPU, convolutional codes](https://arxiv.org/html/2011.09337v1) | Frames parallèles avec chevauchement/traceback et compromis BER | Le découpage approximatif ne satisfait pas l'égalité des treillis EXL3. Aucun prototype |
+| [Allocateur MLX 0.32.2](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/allocator.cpp), [limite du cache](https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.set_cache_limit.html) | Réutiliser les buffers libres, éviction native contre purge complète | Essai09 du seuil de purge ; moins de purges mais aucune accélération stable. L'allocateur natif avait déjà été essayé dans l'historique, aucune répétition ici |
+| [Apple, shader performance](https://developer.apple.com/videos/play/tech-talks/111373/), [guide Metal 2026](https://developer.apple.com/download/files/Metal-Performance-Primitives-Programming-Guide.pdf) | Coalescence, ressources partagées/registres, occupation et latence | Les essais11/12 testent deux empreintes partagées. `xctrace` absent : la cause matérielle de leur régression reste une hypothèse |
+| [BCJR-QAT](https://arxiv.org/abs/2605.10655) | Kernel Triton d'une relaxation différentiable du trellis et distillation | Le chiffre du papier concerne BCJR/QAT ; ce n'est pas un remplacement exact de notre conversion EXL3. Aucun changement de recette |
+| [XOR-Trellis, septembre 2026](https://arxiv.org/abs/2610.00432) | Mapping de déquantification structuré et objectif dans les coordonnées d'origine | Autre mapping/recette ; pas de substitution compatible validée sur LFM2.5. Aucun prototype |
+
+Les prototypes historiques ont aussi été recherchés dans
+`build/quantization-research/` du checkout personnel, sans les modifier. Ils
+contiennent déjà argmin SIMD, lookups préchargés, vec4, swizzles, pruning,
+pipeline, convergence et lots équilibrés. La propagation d'ancêtre testée ici
+ne fait aucun arrêt anticipé et n'utilise aucun beam. Elle conserve les 256
+étapes des deux passes et la même arithmétique des coûts.
+
+Chaque essai suivant comprend seize groupes complets : un warmup par
+forme/variante puis trois paires R/C, C/R, R/C. Mêmes BF16 seed139, 2 048
+activations, K4/MCG et sigma0,025 ; correction avant vitesse. Les hashes de
+treillis et scales sont identiques dans les **64 passages** des quatre essais.
+Sources numériques de référence : be143a/80c557, Hessienne/cache512 identiques.
+
+| Essai | Gate/up ×8, référence → candidat | Down ×4, référence → candidat | Décision |
+|---|---|---|---|
+| 09, seuil purge512→1024 Mio | 15,657205→15,808092 s (+0,96 %) | 8,107580→7,708394 s (−4,92 %) | Non concluant : toutes les dérives premier→dernier dépassent3 % |
+| 10, parents octets de07B, lot128 identique | 13,560475→15,614997 s (+15,15 %) | 6,860568→7,708429 s (+12,36 %) | Rejeté ; dérives≤3 %, toutes les paires plus lentes |
+| 11, ancêtres partagés sur deux rangées,32 Kio | 13,923169→20,361610 s (+46,24 %) | 6,902473→9,963916 s (+44,35 %) | Rejeté ; dérives≤3 %, toutes les paires plus lentes |
+| 12, une rangée et barrière avant écriture,24 Kio | 13,903491→18,417505 s (+32,47 %) | 6,951936→8,957061 s (+28,84 %) | Rejeté ; dérives≤3 %, toutes les paires plus lentes |
+
+Le seuil512 Mio est un **point de purge complète**, pas un plafond instantané
+du cache de l'allocateur. Avec1024, les purges passent de16 à3–4 par gate/up et
+de12 à2 par down ; des libérations ultérieures peuvent encore dépasser1 Gio.
+Ce changement n'est pas retenu : dérives R/C gate+11,74/+8,55 %, down+4,49/+13,79 %.
+Le RSS est un relevé après chaque groupe, distinct du pic actif MLX et du
+cache libre ; aucun pic de RAM processus ni gain de RAM n'est revendiqué.
+
+L'essai10 découple enfin lot et représentation des parents, confondus dans07.
+Conserver128 tiles au lieu de256 ne suffit pas à rentabiliser le compactage.
+11/12 éliminent les écritures de parents de la première passe, mais ajoutent
+des gathers et de la mémoire partagée ;12 réutilise les registres parents et
+une barrière uniforme. Sans compteurs matériels, attribuer les ralentissements
+à l'occupation serait une **inférence**, pas une mesure. Les écarts de campagnes
+différentes ne sont pas additionnés.
+
+Conditions avant09/10/11/12 : batterie62/50/45/40 % en décharge, pmset sans
+avertissement, température non mesurée, dépendances identiques au profil06.
+Aucun autre GPU/build/proveur lancé par cette tâche pendant les mesures.
+Tous les enfants sont terminés et rejoints. [Plans, bruts, patches et décisions](measurements/quant-lfm25-research-20261014/)
+conservent les échecs, sources/hashes et budgets. Le driver mesuré est archivé
+verbatim dans `warmup-origin-k4/profile-measured.py` ; les plans09..12 en
+identifient la même empreinte.
+
+Les copies complètes redondantes de Metal/Hessienne ne sont pas conservées :
+les patches appliqués au baselinebe143a/Ponyépinglé+patchconsolidé reconstruisent
+byte exactement les sources mesurées, vérifiées avant leur retrait.
+[Contrôle de reconstruction](measurements/quant-lfm25-research-20261014/prototype-source-reconstruction.log).
+Les helpers, harnais, driver mesuré, hashes et diagnostics restent archivés.
+
+Les helpers rejetés ont des contrôles de source utiles, limités à leur modèle
+host :2 obligations/3 couvertures pour le parent de10 ;9 pour le helper
+ancêtre4096states/ri0..127/NULLri0 ; récurrence bornée4states×4étapes/unwind5,
+22 obligations pour11 et21 pour12. Mutationri0→ri1 détectée ;4 cartes de128
+étapes×4096états, tous16 384états finaux comparés à une traceback indépendante
+sous ASan/UBSan. **Ce ne sont pas des preuves de Metal, de concurrence ou de
+coûts flottants.** Les refus du frontend CBMC et le mauvais modèle initial du
+cast tableau→pointeur sont conservés ; les preuves finales utilisent une
+adresse explicite, les assertions de sécurité et les mêmes domaines.
+
+Après archivage, `metal.py` et la Hessienne de production sont restaurés byte
+exacts àbe143a ; les helpers expérimentaux sont absents du package. Seules les
+frontières127/128/129 supplémentaires et le durcissement du profiler restent
+intégrés. La calibration, les scales et les poids de la recette n'ont pas été
+modifiés pour annoncer une durée plus courte.
+
 ## Pistes restantes, avec leur condition de validation
 
 1. **Mesurer une couche MoE réelle et la calibration complète.** Le pilote doit
@@ -219,3 +300,43 @@ pendant `dflash_copy_len_9` ; ce n'est pas une suite Kani complète ni une CI
 globale verte. [État inspecté](measurements/quant-lfm25-research-20261013/ci-previous-head-native.json),
 [diagnostic](measurements/quant-lfm25-research-20261013/ci-previous-head-kani-tail.log).
 Les contrôles du nouveau SHA suivent dans la PR ; aucune source Rust n'a changé.
+
+## Vérification du 14 octobre après la seconde recherche
+
+Le superviseur vérifie maintenant chaque identité de passe et les douze clés,
+les hashes SHA256 et leur égalité, les quatre phases et les compteurs mémoire.
+Un bon nombre de lignes ne suffit plus à déclarer `parity=true`. Deux
+contre-exemples reproduisent les défauts précédents : huit dictionnaires vides
+acceptés, puis JSON NaN empêchant l'écriture de `failed` et laissant le résultat
+complet de l'enfant. Les deux échecs sont conservés. Le lecteur JSON refuse
+également `Infinity`, `-Infinity` et `1e999`, même dans un champ ignoré, avant
+la récupération du rapport d'erreur.
+
+| Contrôle du code conservé | Résultat |
+|---|---|
+| Suite dépôt, bridge natif activé | **505 réussis /1 sauté**, modèle Ling absent,99,54s ; [log](measurements/quant-lfm25-research-20261014/python-full-final.log) |
+| Driver et superviseur | **42 réussis** : contenu/compte, répétitions extrêmes, hashes divergents, NaN/Inf, neuf enfants en erreur/silencieux/incomplets/interrompus, trois réponses CLI positives ; temp et PID nettoyés ; [log](measurements/quant-lfm25-research-20261014/profile-validation-final-gates.log) |
+| Sélection CPU du workflow | **73 réussis /46 sauts GPU explicites**,2,47s ; [log](measurements/quant-lfm25-research-20261014/ci-host-final.log) |
+| CrossHair sur la source réelle | Trois gardes signalées «Confirmed» : résultats vides, répétitions≤0, faux rapport complet. Recherche symbolique, **pas une preuve déductive** ; [log](measurements/quant-lfm25-research-20261014/profile-crosshair-final.log) |
+| Point d'entrée CLI physique final | **4 passages /12 projections**, hashes identiques06, enfant240s rejoint et fichiers supprimés ; [contrôle](measurements/quant-lfm25-research-20261014/profile-cli-final-validation-check.log) |
+| Rapports09..12 avec le validateur final | **64 passages distincts**, hashes cohérents et champs valides ; [log](measurements/quant-lfm25-research-20261014/reports-final-validation.log) |
+
+La répétition CLI est un contrôle de06 après modification du superviseur, avec
+un seul passage mesuré par forme. Ses chronos ne qualifient aucun gain. Elle
+commence cette fois sur secteur, batterie31 % en charge, pmset sans avertissement ;
+température non mesurée. [Conditions et empreintes](measurements/quant-lfm25-research-20261014/final-cli-validation-conditions.json).
+Les comptes sont inspectés, les sources numériques et le patch Pony restent
+byte identiques àbe143a. Format/lint/compileall passent ; les trois YAML et
+déclencheurs PR/pushmain sont contrôlés. `actionlint` absent ; la première
+vérification YAML supposait à tort que tous les triggers push portaient une
+listebranches, puis la validation est corrigée pour les pushes non filtrés.
+
+Le workflow ajoute CrossHair0.0.101/Z35.1.0.0 épinglés, vérifie les trois
+résultats présents et refuse une exploration incomplète. Les jobs du SHA
+publié doivent être inspectés séparément des contrôles locaux. La CI Native
+du précédent be143a a ses deux jobs natifs réussis mais Kani annulé ; ce
+n'est pas une CI globale verte. Le packing conservé garde sa preuve53/6 déjà
+décrite dans le guide ; aucun Rust n'a changé dans cette seconde recherche.
+
+Le modèle24B, ses logits/PPL/KL, le pic de RAM complet et la durée2–4h restent
+**non vérifiés**. Aucun checkpoint, app installée ou release n'a été remplacé.

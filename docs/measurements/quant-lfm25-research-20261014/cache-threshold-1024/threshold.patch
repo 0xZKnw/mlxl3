@@ -1,0 +1,38 @@
+--- a/ponyexl3/convert/hessian.py
++++ b/ponyexl3/convert/hessian.py
+@@ -11,6 +11,8 @@
+ from typing import Any
+ 
+ import numpy as np
++
++from mlxl3_quantizer.memory import should_trim_conversion_cache
+ 
+ from ponyexl3.convert.direct import (
+     DirectLayerResult,
+@@ -632,7 +634,7 @@
+         mx.eval(reconstructed, prod_cache)
+         # Keep a bounded pool for the next buffer instead of reallocating its
+         # identical trellis scratch. Still release excess cache for huge layers.
+-        if mx.get_cache_memory() > 512 * 1024 * 1024:
++        if should_trim_conversion_cache(mx.get_cache_memory()):
+             mx.clear_cache()
+         j = i
+ 
+@@ -1358,7 +1360,7 @@
+                     axes=(0, 1, 2),
+                 )
+             mx.eval(reconstructed, prod_cache, packed)
+-            if mx.get_cache_memory() > 512 * 1024 * 1024:
++            if should_trim_conversion_cache(mx.get_cache_memory()):
+                 mx.clear_cache()
+             j = i
+ 
+@@ -1440,7 +1442,7 @@
+                 *[state.reconstructed for state in states],
+                 *[state.prod_cache for state in states],
+             )
+-            if mx.get_cache_memory() > 512 * 1024 * 1024:
++            if should_trim_conversion_cache(mx.get_cache_memory()):
+                 mx.clear_cache()
+             j = i
+ 

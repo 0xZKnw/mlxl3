@@ -1,0 +1,73 @@
+{
+  "decision": "non_conclusive",
+  "reason": "all per-shape per-variant drift exceeds 3 percent; no qualified speed gain",
+  "identities": {
+    "src/mlxl3_quantizer/memory.py": "3bda7abf34f619622163f0a677dd6a6d3ae783bb63ad3c726f45262775032ef4",
+    "tests/test_quantize_memory.py": "3aaff1f2d8af80390958c65d6631278371f3ea4edf94c1f6fa29829f1c8d9c5d",
+    "tests/quantize_memory_contracts.py": "f1304bb3543d695eb300cf08ea1575e896411631280888f8866ff0562ac5fc88",
+    "references/PonyExl3/ponyexl3/convert/hessian.py": "d57ad9bed05f2be5fb59874deaca9879e01e6505808de7986531f8b0626f996e"
+  },
+  "statistics": {
+    "gate_up": {
+      "reference": {
+        "seconds": [
+          15.352614832983818,
+          15.657204625022132,
+          17.154414292017464
+        ],
+        "median_s": 15.657204625022132,
+        "first_last_drift_percent": 11.736108009188296
+      },
+      "candidate": {
+        "seconds": [
+          14.889030167018063,
+          15.808091832965147,
+          16.16173366602743
+        ],
+        "median_s": 15.808091832965147,
+        "first_last_drift_percent": 8.547927465609128
+      },
+      "median_change_percent": 0.963691869376726
+    },
+    "down": {
+      "reference": {
+        "seconds": [
+          8.107580124982633,
+          7.70283029100392,
+          8.471922416996676
+        ],
+        "median_s": 8.107580124982633,
+        "first_last_drift_percent": 4.493847564840747
+      },
+      "candidate": {
+        "seconds": [
+          7.708394499961287,
+          7.498820582986809,
+          8.771295042010024
+        ],
+        "median_s": 7.708394499961287,
+        "first_last_drift_percent": 13.788870588474357
+      },
+      "median_change_percent": -4.923609990498878
+    }
+  },
+  "memory": {
+    "cache_mlx_bytes": {
+      "min": 356778196,
+      "max": 1724385558
+    },
+    "active_mlx_bytes": {
+      "min": 393216,
+      "max": 393216
+    },
+    "peak_mlx_bytes": {
+      "min": 2152464400,
+      "max": 2421096466
+    },
+    "process_rss_bytes": {
+      "min": 773423104,
+      "max": 1683652608
+    },
+    "rss_scope": "snapshot after each group, not process peak"
+  }
+}

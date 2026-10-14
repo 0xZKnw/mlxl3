@@ -1,0 +1,48 @@
+{
+  "decision": "rejected",
+  "reason": "all measured pairs regress; first-last drifts inside 3 percent",
+  "statistics": {
+    "gate_up": {
+      "reference": {
+        "seconds": [
+          13.598089416977018,
+          14.03647270903457,
+          13.923169416026212
+        ],
+        "median_s": 13.923169416026212,
+        "first_last_drift_percent": 2.390629956024082
+      },
+      "candidate": {
+        "seconds": [
+          20.355091791017912,
+          20.361609790998045,
+          20.416236750024837
+        ],
+        "median_s": 20.361609790998045,
+        "first_last_drift_percent": 0.3003914678189057
+      },
+      "median_change_percent": 46.242634723390566
+    },
+    "down": {
+      "reference": {
+        "seconds": [
+          6.846064082987141,
+          6.918621083023027,
+          6.902472916000988
+        ],
+        "median_s": 6.902472916000988,
+        "first_last_drift_percent": 0.8239600496002808
+      },
+      "candidate": {
+        "seconds": [
+          10.072898874990642,
+          9.963915832981002,
+          9.958759416011162
+        ],
+        "median_s": 9.963915832981002,
+        "first_last_drift_percent": -1.1331341691801278
+      },
+      "median_change_percent": 44.352842151442864
+    }
+  }
+}

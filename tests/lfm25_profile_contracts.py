@@ -34,3 +34,15 @@ def rejects_nonpositive_repeats(repeats: int) -> bool:
     except ValueError:
         return True
     return False
+
+
+def rejects_false_complete_report(repeats: int) -> bool:
+    """
+    pre: repeats >= 1
+    post: _
+    """
+    try:
+        profile.validate_report({"status": "complete", "parity": True, "runs": [{}] * 8}, repeats)
+    except ValueError:
+        return True
+    return False

@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - run: python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5
+      - run: python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5 crosshair-tool==0.0.101 z3-solver==5.1.0.0
       - name: Apply the pinned optional converter patch
         run: |
           git clone https://github.com/beamivalice/PonyExl3.git references/PonyExl3
@@ -52,6 +52,12 @@ jobs:
           ruff check src/mlxl3_quantizer/packing.py scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/quantize_conversion_contracts.py tests/test_quantize_k4_boundaries.py tests/test_lfm25_group_profile.py tests/lfm25_profile_contracts.py docs/measurements/quant-lfm25-research-20261013/profile-baseline.py
           python -m compileall -q src/mlxl3_quantizer scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py docs/measurements/quant-lfm25-research-20261013/profile-baseline.py
           python -m pytest -q tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/test_lfm_conversion_adapter.py tests/test_quantize_k4_boundaries.py tests/test_lfm25_group_profile.py
+      - name: Search for counterexamples to the three profile failure guards
+        run: |
+          mkdir -p build/proofs
+          crosshair check tests/lfm25_profile_contracts.py --report_all --per_condition_timeout=20 > build/proofs/profile-crosshair.log 2>&1
+          cat build/proofs/profile-crosshair.log
+          python -c "from pathlib import Path; text = Path('build/proofs/profile-crosshair.log').read_text(); assert text.count('info: Confirmed over all paths.') == 3, text"
       - name: Check the shared packing source with host sanitizers
         run: |
           mkdir -p build/proofs

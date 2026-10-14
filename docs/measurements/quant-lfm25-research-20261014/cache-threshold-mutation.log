@@ -1,0 +1,26 @@
+...F..                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_conversion_cache_threshold_keeps_hot_pool_and_releases_excess[1073741824-False] _
+
+cached = 1073741824, expected = False
+
+    @pytest.mark.parametrize(
+        "cached,expected",
+        [
+            (0, False),
+            (512 << 20, False),
+            ((1024 << 20) - 1, False),
+            (1024 << 20, False),
+            ((1024 << 20) + 1, True),
+            ((1 << 64) - 1, True),
+        ],
+    )
+    def test_conversion_cache_threshold_keeps_hot_pool_and_releases_excess(cached, expected):
+>       assert should_trim_conversion_cache(cached) is expected
+E       assert True is False
+E        +  where True = should_trim_conversion_cache(1073741824)
+
+tests/test_quantize_memory.py:18: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_quantize_memory.py::test_conversion_cache_threshold_keeps_hot_pool_and_releases_excess[1073741824-False]
+1 failed, 5 passed in 0.12s

@@ -1,0 +1,59 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_cli_supervisor_refuses_incomplete_or_interrupted_child[full_nan] _____
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-168/test_cli_supervisor_refuses_in0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1075affe0>
+failure = 'full_nan'
+
+    @pytest.mark.parametrize(
+        "failure", ["silent", "partial", "full_invalid", "full_nan", "invalid", "error", "timeout", "cancel"]
+    )
+    def test_cli_supervisor_refuses_incomplete_or_interrupted_child(tmp_path, monkeypatch, failure):
+        output, pid_file = tmp_path / "profile.json", tmp_path / "pid"
+        real_run = subprocess.run
+        scratch_dirs = []
+        programs = {
+            "silent": "pass",
+            "partial": f'from pathlib import Path; Path({str(output)!r}).write_text(\'{{"status":"complete","parity":true,"runs":[]}}\')',
+            "full_invalid": f"import json; from pathlib import Path; Path({str(output)!r}).write_text(json.dumps(dict(status='complete',parity=True,runs=[{{}}]*8)))",
+            "full_nan": f"import json; from pathlib import Path; Path({str(output)!r}).write_text(json.dumps(dict(status='complete',parity=True,runs=[dict(seconds=float('nan'))]*8)))",
+            "invalid": f"from pathlib import Path; Path({str(output)!r}).write_text('invalid JSON')",
+            "error": "raise RuntimeError('child failed')",
+            "timeout": f"import os,time; from pathlib import Path; Path({str(pid_file)!r}).write_text(str(os.getpid())); time.sleep(60)",
+        }
+    
+        def child(command, *, timeout, check):
+            assert timeout == 240 and check is True
+            assert command[-2] == "--scratch-dir"
+            scratch = Path(command[-1])
+            scratch_dirs.append(scratch)
+            (scratch / "discardable-weights").write_bytes(b"test data")
+            if failure == "cancel":
+                raise KeyboardInterrupt("injected cancellation")
+            return real_run(
+                [sys.executable, "-c", programs[failure]],
+                timeout=1,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+    
+        monkeypatch.setattr(profile.subprocess, "run", child)
+        # A previous successful report must not survive a failed new run.
+        output.write_text('{"status":"complete","parity":true,"runs":[]}')
+        with pytest.raises(
+            (ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired, KeyboardInterrupt)
+        ):
+            profile.main(["--output", str(output)])
+        report = json.loads(output.read_text())
+>       assert report["status"] == "failed" and report["parity"] is False
+E       AssertionError: assert ('complete' == 'failed'
+E         
+E         - failed
+E         + complete)
+
+tests/test_lfm25_group_profile.py:214: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_group_profile.py::test_cli_supervisor_refuses_incomplete_or_interrupted_child[full_nan]
+1 failed, 32 deselected in 0.08s

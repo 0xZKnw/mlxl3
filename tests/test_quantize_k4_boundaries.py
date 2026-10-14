@@ -31,7 +31,7 @@ def test_k4_special_inputs_match_reference(cb, special):
     np.testing.assert_array_equal(np.asarray(actual_indices), np.asarray(expected_indices))
 
 
-@pytest.mark.parametrize("count", [255, 256, 257])
+@pytest.mark.parametrize("count", [127, 128, 129, 255, 256, 257])
 def test_k4_chunk_boundaries_keep_states_and_reconstruction(count):
     reference = pytest.importorskip("ponyexl3.convert.metal_search").quantize_tiles_mlx
 

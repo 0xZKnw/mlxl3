@@ -15,8 +15,9 @@ physique. Aucun poids du 24B n'a été téléchargé ou publié pendant cette t�
 
 La [recherche complémentaire pour viser 2–4 heures](lfm25-quantization-research.md)
 profile les vrais groupes sur des données synthétiques : environ3h21 pour les
-experts seuls en extrapolation. Deux nouveaux prototypes K4 ont été rejetés
-et retirés ; ils n'ajoutent aucun gain à la PR. Le temps total reste à mesurer.
+experts seuls en extrapolation. Cinq prototypes K4 ont été rejetés et un essai
+de cache reste non concluant ; ils sont retirés. Les rapports de profil sont
+durcis pour refuser une fausse parité. Le temps total reste à mesurer.
 
 ## Ce qui accélère la conversion
 
