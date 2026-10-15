@@ -1,8 +1,26 @@
 # LFM2.5 — calibration après la V2
 
-Campagne QUANT-2026-10-15-LFM25-25. État initial : recherche et code local ; aucun gain V3 annoncé. L'utilisateur autorise une nouvelle conversion H100 puis les tests et privilégie la fidélité au BF16, sans imposer KL0,01–0,02. La V2 publiée reste immuable.
+Campagnes QUANT-2026-10-15-LFM25-25 à29. **Révision du15octobre : conversion et mesures historiques terminées, candidat K8 refusé pour publication.** L'utilisateur privilégie maintenant les réglages du convertisseur officiel. La V2 publiée reste immuable ; aucune V3 installée ou publiée. La recherche29 est documentaire et CPU, sans nouvelle dépense H100.
 
-## Résultats du pilote et candidat retenu
+## Résultat complet du candidat K8
+
+Le convertisseur CUDA officiel1.5.4 a terminé en45min51,54s, avec source déjà en cache. ExpertsK4 et106projections communesK8 donnent **4,27856555bpw réels**, contre4,20971609 enV2 (+206303853octets). Les captures routées et les nouvelles traces n'ont pas été utilisées. Ce temps ne démontre pas un gain de vitesse face à la V2 dont la préparation incluait un téléchargement à froid.
+
+| Protocole figé | KL V2 | KL K8 | Variation KL | PPL K8 | Gates KL/PPL |
+|---|---:|---:|---:|---:|---|
+| BOS,4088positions | 0,083458 | 0,080079 | −4,05% | 18,160152 | passe / échoue |
+| Sans BOS,8192positions | 0,187928 | 0,153575 | −18,28% | 26,824301 | passe / passe |
+| Français,1024positions | 0,139829 | 0,129810 | −7,17% | 64,622880 | passe / échoue |
+| Python,1024positions | 0,103885 | 0,110854 | +6,71% | 11,607101 | échoue / échoue |
+| Court,2048positions | 0,200784 | 0,214752 | +6,96% | 49,826615 | échoue / passe |
+
+Les28fenêtres ont terminé en747,01s, avec16376positions scorées, mêmes IDs, enseignantsBF16, vocabulaire128000 et moteur355b5262 que la V2. Les plafonds figés avant conversion restent inchangés. Les fenêtres BOS6, principale8 et courte5 régressent de plus de20% enKL. **La recette n'améliore pas tous les usages et ne remplace pas la V2.** [Rapport numérique](measurements/quant-lfm25-v3-20261015/quality.json), [log](measurements/quant-lfm25-v3-20261015/quality.log).
+
+Le compactage est sans perte sur les octets conservés et sur16384000logitsF16 testés ; cela ne prouve pas la qualité du quantifié. Les contrôles dialogue/CJK et les smokes supplémentaires du nouveau candidat restent non exécutés, celui-ci ayant déjà échoué aux gates. Les applications cloud sont arrêtées, zéro tâche. L'essai28 de promotion d'expertsK5 est annulé avant prototype/GPU à la demande de l'utilisateur.
+
+## Sélection du pilote, avant les tests complets
+
+Cette sélection a servi à la conversion expérimentale ci-dessus. Son échec final est conservé ; elle ne recommande plus ce candidat pour diffusion.
 
 Le pilote est terminé : 216 quantifications de matrices d’experts et huit contrôles du tronc, sur validation indépendante. Les captures conditionnelles sont rejetées sur ce panel ; les conserver comme options expérimentales ne signifie pas les activer sur le nouveau modèle.
 
@@ -58,3 +76,82 @@ Avant la conversion complète, figer ces gates : KL principal avec et sans BOS r
 ## Vérification
 
 La campagne doit conserver les commandes, versions, SHA, durées, coûts et résultats négatifs dans `opti.md` et ses mesures. Les tests CPU comparent H à une somme extérieure F64 indépendante, inversent les poids pour contrôler la sensibilité, exercent les garde-fous et le câblage des hooks. CrossHair a tenté trois contrats d'isolation de cartes à20s/condition : **non confirmés**, sans contre-exemple retourné ; les tenseurs, CUDA, les fichiers et la qualité du modèle ne sont pas formellement prouvés. CrossHair confirme les deux postconditions de bornes du vrai `scored_count` ; cela reste une recherche symbolique, pas une preuve du parcours complet. Le test du masque de score détecte une mutation qui score aussi les positions exclues. Les tests GPU de conversion et du bridge restent nécessaires. Aucun changement Rust/Metal du moteur n'est livré par cette recette.
+
+## Recherche29 : ce que Sushi permet réellement de conclure
+
+Sources Sushi figées au commit `47930102459b91c73b80f5bf7ce612f3cc736dd7`, consultées le15octobre2026. Son [README](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/README.md) décrit un convertisseur hybride EXL3/affine. La [séparation publique/privée](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/CLAUDE.md) est explicite : recettes, données et convertisseurs « sashimi » sont privés. Nous pouvons étudier ses contrats et mesures, sans prétendre disposer de sa méthode complète.
+
+| Lecture publiée par les auteurs | KL | Portée de la comparaison |
+|---|---:|---|
+| Flash-Next Sushi4, publication29septembre | 0,0592 | Référence BF16,16×512,7186positions jusqu'au premier EOS, cache élève8bits |
+| MiMo Sushi2,3 | 0,0860 | Référence MOPD stockée, en partieFP8/MXFP4 ; pas un modèle source entièrementBF16 |
+| GLM Sushi2,4 livré | 0,074213 | Référence NAX BF16,4×512 ; code0,0429 et prose0,1055 |
+| GLM Sushi2,5 expérimental | 0,057151 | Même référence et même écran4×512 que la ligne précédente |
+| GLM, comparaison de cache en contexte long | 0,00715 | Cache8bits contre cacheBF16 **du même modèle déjà quantifié**,496positions avant EOS |
+
+Sources directes : [Flash-Next](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/docs/qwen4-kld.md), [MiMo](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/docs/mimo2-kld.md), [GLM](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/docs/glm5-kld.md). Ce sont leurs résultats publiés, pas des reproductions locales. Le0,00715 ne mesure pas la fidélité des poids auBF16 et ne justifie pas une cible identique pour LFM.
+
+Leur [protocole](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/docs/quality-kld.md) score des continuations de l'enseignant et distingue premierEOS/toutespositions. Notre test historique score des séquences imposées, avec des réinitialisations et masques différents. Une comparaison de nombres entre ces populations ne classe pas les quantifications. La lecture de [`scoreRow`](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/src/kld.zig#L247) confirme une sommeF64 sur le vocabulaire complet ; `--top-k10` est une métadonnée du fichier, pas une troncature de leur KL. Leurs petits chiffres ne s'expliquent donc pas par une renormalisation sur dix tokens.
+
+Ce qui est transférable : précisions distinctes pour experts et tronc, conservation des états/biais sensibles, contrôle numérique face à une référence explicite et mesure séparée du cache. Le [contrat des experts](https://github.com/beamivalice/sushi/blob/47930102459b91c73b80f5bf7ce612f3cc736dd7/docs/engine-exl3-experts.md) expose MCG/MUL1, des fenêtres et des taux fractionnaires. Copier un réglage de fenêtre dans un décodeur16bits donnerait d'autres poids : ce n'est pas une option de qualité directement applicable à notre moteur. Sushi emploie aussi MCG ; notre choix MCG n'est donc pas démontré fautif.
+
+## Réglages officiels : base et ablations utiles
+
+La V2 utilise **déjà le quantifier officiel CUDA1.5.4**, commit `16a49792a3c93d8432d72e6c4bce800841566577`. La [documentation officielle](https://github.com/turboderp-org/exllamav3/blob/16a49792a3c93d8432d72e6c4bce800841566577/doc/convert.md) recommande actuellement MUL1. Elle ne fournit pas de réduction deKL garantie contre MCG. Changer de H100 ou de codebook ne suffit pas à certifier la fidélité.
+
+| Réglage | État V2 | Décision issue de la recherche |
+|---|---|---|
+| `-b4 --hq` | Actif | Garder la promotion officielle des couches sensibles ; K8 partout est rejeté par le test complet. |
+| `-hb16 -eb16` | Actif | Garder les matrices liées à haute précision ; le compactage supprime seulement leur copie redondante vérifiée. |
+| `--out_scales auto` | Actif | Garder comme référence ; forcer toutes les scales n'est pas une amélioration établie. |
+| `-cr250 -cc2048` | 512000tokens | Référence reproductible ; une hausse exige un vrai corpus plus grand et des lignes complètes. |
+| `-cb mul1` | MCG | Première ablation officielle, même budget ; son effetKL reste non mesuré. |
+| `--scaled_hessian` | Désactivé | Deuxième ablation, compatible avec les experts ; option expérimentale, pas un gain acquis. |
+| YAQA, `--hessians` | Désactivé | Objectif intéressant, mais couverture des experts fusionnés manquante dans l'outil stock. |
+
+Recette de départ **à comparer**, sans kernel ou capture personnalisée :
+
+```sh
+python -m exllamav3.conversion.convert_model \
+  -i "$LFM_SOURCE" -w "$LFM_STOCK_WORK" -o "$LFM_STOCK_OUT" \
+  -b 4 --hq -hb 16 -eb 16 -cb mul1 \
+  --out_scales auto -cr 250 -cc 2048
+```
+
+Les dossiers doivent être nouveaux. Aucun lancement de cette recette n'a eu lieu pendant la recherche29. Le parseur dense/MoE natif reconnaît MUL1, mais cela ne remplace pas un prévol physique de ses nouveaux poids. Les taux fractionnaires et les fenêtres Sushi ne sont pas inclus dans cette recette.
+
+Le [vrai `scaled_ldl`](https://github.com/turboderp-org/exllamav3/blob/16a49792a3c93d8432d72e6c4bce800841566577/exllamav3/modules/quant/exl3_lib/quantize.py) refactorise la Hessienne après avoir intégré les échelles d'entrée propres au tenseur. Cela distingue son objectif de la factorisation partagée utilisée enV2. Il ajoute une décomposition par tenseur, sans changer le format d'inférence. **Hypothèse** : cette métrique peut mieux distribuer l'erreur sur les experts ; ni coûtH100 ni gainKL ne sont encore mesurés sur LFM.
+
+## Deux contrôles concrets avant d'augmenter la calibration
+
+Le vrai `split_raw` officiel a été exercé surCPU avec le tokenizer source exact, aux tailles250/1000/2000. À1000, `technical.utf8` demande74lignes2048 mais ne contient que35lignes pleines : le découpage rend1ligne courte et **38vides**. À250, les18lignes demandées sont toutes pleines. À2000, le fichier code manque aussi de données :192pleines,1courte,103vides. Aucune quantification n'a consommé ces lignes. [Rapport et empreintes](measurements/quant-lfm25-v3-20261015/calibration-capacity29.json).
+
+Il faut donc augmenter les textes/traces disponibles avant de monter `-cr`, puis contrôler longueur, IDs, BOS/template, couverture et indépendance des données. Répéter les mêmes textes ou concaténer des lignes vides ne crée pas de diversité. Le remplacement de39lignes par nos traces au pilote25 était presque neutre ; cela ne valide ni un corpus entièrement généré ni une hausse de taille.
+
+Le collecteur [YAQA officiel](https://github.com/turboderp-org/exllamav3/blob/16a49792a3c93d8432d72e6c4bce800841566577/util/yaqa_hessians.py) ne sélectionne que `nn.Linear`. Son vrai `find_targets`, exécuté sur la structure40blocs en `meta`, couvre **70projections communes sur106**, et **zéro expert fusionné**. Ajouter `w1/w2/w3/in_proj` au motif couvre106projections communes, toujours aucun expert. Les38modules fusionnés représentent7296projections et **95,7435% des valeurs du checkpoint**. [Audit de couverture](measurements/quant-lfm25-v3-20261015/yaqa-stock-coverage.json). Aucun poids chargé, forward, gradient ou gainKL mesuré dans ce contrôle.
+
+`--out_scales yaqa` avec uniquement une diagonale ne réalise pas l'arrondi bilatéral complet. Des facteurs `hout` déclenchent cet arrondi ; garder une capture d'entrée sur les états quantifiés est une ablation distincte de remplacer `hin` par des facteurs source. L'outil stock et le master consulté ont le même collecteur. Il faudrait une adaptation des experts avant de qualifier cette voie de YAQA couvrant LFM2.5.
+
+## Papiers : intérêt et limites d'application
+
+| Source primaire | Apport pertinent | Application ici |
+|---|---|---|
+| [QTIP, NeurIPS2024](https://arxiv.org/abs/2406.11235) | Treillis et transformation d'incohérence ; base scientifique d'EXL3. | Déjà dans le quantifier ; pas un nouvel interrupteur de qualité. |
+| [YAQA, version2](https://arxiv.org/html/2505.22988v2) | Approximation de Hessienne du KL final ; environ30% de réduction empirique contreLDLQ dans les expériences des auteurs. | Piste directement alignée sur notre objectif ; leurs résultats4bits surLlama ne garantissent pas ceux d'unLFM MoE. Le collecteur officiel limite aujourd'hui son application. |
+| [GuidedQuant, ICML2025](https://arxiv.org/abs/2505.07004) | Importance des sorties issue des gradients de la loss ; intégration démontrée avecQTIP. | Alternative à étudier pour des facteurs sensibles au résultat final ; pas un flagEXL3 ni la même approximation queYAQA. |
+| [GPTAQ, anciennementGPTQv2](https://arxiv.org/abs/2504.02692) | Calibration asymétrique qui tient compte d'entrées déjà déformées. | Différent de la simple propagation actuellement active ; pas implémenté par `--hq`. |
+| [FastKron, version2 septembre2026](https://arxiv.org/abs/2608.06291) | Réduit le coût algorithmique d'un arrondi à deux Hessiennes. | Piste de coût pourYAQA, sans garantie supplémentaire deKL. La PRofficielle395 de collecte récursive demeure ouverte, pas dans la roue1.5.4. |
+| [A KL Lens on Quantization, avril2026](https://arxiv.org/abs/2604.13440) | Sensibilité de composants hybrides mesurée enKL plutôt qu'enMSE/SQNR. | Motive une validation de sortie pour les blocs conv/attention deLFM ; leurs résultats surSSM ne sont pas une validation deLFM. |
+| [XOR-Trellis, septembre2026](https://arxiv.org/abs/2610.00432), [CurveTQ, octobre2026](https://arxiv.org/abs/2610.09212) | Recherche de treillis tenant compte de la courbure, sans rotationHadamard. | Nouveaux codecs/méthodes, pas des réglages de l'EXL3 stock. Pas de changement du format livré pour cette campagne. |
+
+Les titres des papiers peuvent évoluer :2504.02692 est désormais GPTAQ ;2608.06291 est désormais FastKron, appeléBaKron dans la [PR395](https://github.com/turboderp-org/exllamav3/pull/395). Les anciennes références restent identifiables par leurs IDs. La PR distingue ses temps de phases et son code GPU mesuré de la préparation soumise ; nous n'en déduisons aucun temps de conversion pour notreH100.
+
+## Décision29 et prochain protocole
+
+La meilleure base **mesurée et conservée** reste la V2. La prochaine comparaison utile est une matrice2×2 **MCG/MUL1 × Hessienne partagée/scalée**, à bitratesHQ identiques, corpus original et paramètres fixes. Un pilote doit comparer les projections puis la sortie du modèle sur validation distincte : les seuls proxys de reconstruction du25 ont mal prédit les régressions du candidatK8. Les nouvelles options restent à mesurer avant une conversion24B ; cette recherche ne désigne pas un gagnant non testé.
+
+Après cette ablation seulement, tester un corpus réellement agrandi avec des fenêtres complètes et la répartition des domaines annoncée. Ne pas mélanger immédiatement codebook, Hessienne, corpus et nouvelles précisions : leurs effets resteraient impossibles à attribuer. Aucun expert supprimé, seuil deKL relâché ou teacher approximatif pour afficher un meilleur score. Les jeux historiques restent des régressions ; tout réglage sélectionné d'après leur sortie exige un nouvel échantillon final disjoint. Les holdouts dialogue/CJK du25 sont encore disponibles et n'ont pas été scorés sur les candidats.
+
+La [pipeline officielle d'allocation](https://github.com/turboderp-org/exllamav3/blob/16a49792a3c93d8432d72e6c4bce800841566577/doc/optimize.md) mesure déjà une sensibilité finale et crée des traces en domaine, mais reste annoncée non testée sur modèles sparse. Nous ne la présentons pas comme une recette MoE garantie. Il n'existe pas de réglage publié permettant de promettre KL0,01–0,02 pour ceLFM à4bpw. Les écartsBF16/F16/backend mesurés au23 restent séparés de l'erreur de quantification ; ils ne se soustraient pas auKL.
+
+Sources etSHA : [manifeste documentaire](measurements/quant-lfm25-v3-20261015/settings29-sources.json), [comparaison officielle après1.5.4](measurements/quant-lfm25-v3-20261015/upstream-compare29.json). Aucun nouveau code exécutable produit modifié au29, aucun nouveau modèle converti. Les contrôles du code précédent restent :664tests de la suite complète passés/1Ling ignoré,14nouveaux tests ciblés de compactage passés,2postconditions de bornes de score confirmées parCrossHair ;3contrats de cartes et2de métadonnées nonconfirmés à20s/condition. Ces recherches symboliques ne prouvent pas CUDA/MLX, les I/O ou la qualité. La CI du commitbc5304 a ses checks conversion/régression/Linux/macOS réussis ; Kani restait en cours à la dernière inspection.

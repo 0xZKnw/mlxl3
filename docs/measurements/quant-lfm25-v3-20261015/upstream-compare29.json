@@ -1,0 +1,443 @@
+{
+  "status": "documentary comparison only; no upgrade or GPU validation",
+  "base": "16a49792a3c93d8432d72e6c4bce800841566577",
+  "head": "058b8630fd081f3ff46fce6246955b157c3a2e3b",
+  "url": "https://github.com/turboderp-org/exllamav3/compare/16a49792a3c93d8432d72e6c4bce800841566577...058b8630fd081f3ff46fce6246955b157c3a2e3b",
+  "ahead_by": 156,
+  "raw_local_path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/research/lfm25-settings-29/upstream-compare.json",
+  "raw_local_sha256": "5e68dfd185517ae7a66e4cc16130432f142c311ac235a373874ed72886b35815",
+  "files": [
+    {
+      "additions": 50,
+      "deletions": 7,
+      "filename": "exllamav3/conversion/allocation.py",
+      "status": "modified"
+    },
+    {
+      "additions": 7,
+      "deletions": 5,
+      "filename": "exllamav3/conversion/compile.py",
+      "status": "modified"
+    },
+    {
+      "additions": 29,
+      "deletions": 24,
+      "filename": "exllamav3/conversion/convert_model.py",
+      "status": "modified"
+    },
+    {
+      "additions": 5,
+      "deletions": 1,
+      "filename": "exllamav3/conversion/quant_config.py",
+      "status": "modified"
+    },
+    {
+      "additions": 4,
+      "deletions": 1,
+      "filename": "exllamav3/exllamav3_ext/dsv4_pool_quant.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 16,
+      "deletions": 6,
+      "filename": "exllamav3/exllamav3_ext/quant/codebook.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_common.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_h1_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_h2_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_h3_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k0_n128_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k0_n128_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k0_n256_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k0_n256_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k1_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k1_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k2_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k2_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k3_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k3_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k4_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k4_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k5_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k5_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k6_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k6_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k7_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k7_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k8_cb1.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/comp_units/exl3_moe_inst_k8_cb2.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 29,
+      "deletions": 5,
+      "filename": "exllamav3/exllamav3_ext/quant/coop_autotune.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/coop_autotune.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 12,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_devctx.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_devctx.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 171,
+      "deletions": 14,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_gemm.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 2,
+      "deletions": 6,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_gemm_inner.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 28,
+      "deletions": 12,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_gemm_kernel.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 10,
+      "deletions": 1,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_gemv.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 5,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_gemv_int8.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 4,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_gemv_int8_kernel.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 9,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_gemv_kernel.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 102,
+      "deletions": 7,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_kernel_map.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 89,
+      "deletions": 57,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_kernel_map.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 193,
+      "deletions": 24,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_moe.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 1,
+      "deletions": 8,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_moe_common.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 18,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_moe_coop.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 118,
+      "deletions": 16,
+      "filename": "exllamav3/exllamav3_ext/quant/exl3_moe_kernel.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 9,
+      "deletions": 4,
+      "filename": "exllamav3/exllamav3_ext/quant/frac.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 6,
+      "deletions": 1,
+      "filename": "exllamav3/exllamav3_ext/quant/hadamard.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 15,
+      "deletions": 2,
+      "filename": "exllamav3/exllamav3_ext/quant/pack.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 28,
+      "deletions": 5,
+      "filename": "exllamav3/exllamav3_ext/quant/quantize.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 9,
+      "deletions": 1,
+      "filename": "exllamav3/exllamav3_ext/quant/quantize_tiles_kernel.cuh",
+      "status": "modified"
+    },
+    {
+      "additions": 18,
+      "deletions": 14,
+      "filename": "exllamav3/exllamav3_ext/quant/reconstruct.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 4,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/quant/util.cu",
+      "status": "modified"
+    },
+    {
+      "additions": 659,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_gemm_inner_rdna.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 1026,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_gemv_kernel_rdna.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 1270,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_gemv_multirow_rdna.cu",
+      "status": "added"
+    },
+    {
+      "additions": 110,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_gemv_multirow_rdna.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 909,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_gemv_rdna.cu",
+      "status": "added"
+    },
+    {
+      "additions": 693,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_gemv_tiles_rdna.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 773,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_mgemv_rdna.cu",
+      "status": "added"
+    },
+    {
+      "additions": 137,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_mgemv_rdna.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 520,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_moe_inner_rdna.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 34,
+      "deletions": 0,
+      "filename": "exllamav3/exllamav3_ext/rocm/quant/exl3_moe_pipe_instances_rdna.cuh",
+      "status": "added"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "exllamav3/modules/block_sparse_mlp.py",
+      "status": "modified"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "exllamav3/modules/block_sparse_mlp_cpu.py",
+      "status": "modified"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "exllamav3/modules/block_sparse_mlp_routing.py",
+      "status": "modified"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "exllamav3/modules/linear.py",
+      "status": "modified"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "exllamav3/modules/quant/exl3_lib/quantize.py",
+      "status": "modified"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "tests/conversion/test_convert_linear.py",
+      "status": "added"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "tests/conversion/test_optimizer_targets.py",
+      "status": "renamed"
+    },
+    {
+      "additions": 0,
+      "deletions": 0,
+      "filename": "tests/conversion/test_out_scales.py",
+      "status": "added"
+    }
+  ]
+}
