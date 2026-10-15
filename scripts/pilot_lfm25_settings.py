@@ -8,7 +8,7 @@ import math
 from contextlib import contextmanager
 from pathlib import Path
 
-PROFILES = ("mcg-standard", "mcg-scaled", "mul1-standard", "mul1-scaled")
+PROFILES = ("mcg-standard", "mcg-scaled", "mcg-no-down", "mcg-trunk-only")
 SEEDS = (25, 26)
 EXPERTS = {2: [58, 24, 44], 20: [8, 39, 43], 39: [21, 11, 18]}
 
@@ -28,8 +28,27 @@ def settings_args(codebook: str, scaled: bool) -> list[str]:
 def profile_options(profile: str) -> tuple[str, bool]:
     if profile not in PROFILES:
         raise ValueError("Unknown registered settings profile")
-    codebook, mode = profile.split("-")
-    return codebook, mode == "scaled"
+    return "mcg", profile != "mcg-standard"
+
+
+def projection_scaled(profile: str, key: str) -> bool:
+    """Select only the official Hessian factorization for this projection.
+
+    raises: ValueError
+    post: profile != 'mcg-standard' or not __return__
+    post: profile != 'mcg-scaled' or __return__
+    post: profile != 'mcg-trunk-only' or __return__ == ('.feed_forward.experts.' not in key)
+    post: profile != 'mcg-no-down' or __return__ == (not ('.feed_forward.experts.' in key and key.endswith('.w2')))
+    """
+    _, scaled = profile_options(profile)
+    if not isinstance(key, str) or not key:
+        raise ValueError("A nonempty projection key is required")
+    expert = ".feed_forward.experts." in key
+    if profile == "mcg-no-down":
+        return not (expert and key.endswith(".w2"))
+    if profile == "mcg-trunk-only":
+        return not expert
+    return scaled
 
 
 @contextmanager
@@ -327,7 +346,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                 if sum(len(x) for x, _ in inputs) < 32:
                     raise ValueError("Insufficient routed validation coverage")
                 for profile in PROFILES:
-                    cb, scaled = profile_options(profile)
+                    cb, _ = profile_options(profile)
                     for seed in SEEDS:
                         h = {
                             k: v.clone() if isinstance(v, torch.Tensor) else v
@@ -337,7 +356,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                             "K": bits,
                             "seed": seed,
                             cb: True,
-                            "scaled_hessian": scaled,
+                            "scaled_hessian": projection_scaled(profile, linear.key),
                             "devices": [0],
                             "device_ratios": None,
                             "apply_out_scales": None,

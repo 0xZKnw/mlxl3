@@ -13,7 +13,7 @@ import quantize_lfm25_modal as base
 from pilot_lfm25_settings import choose_settings, profile_options, settings_args
 
 VOLUME = "mlxl3-lfm25-v3-20261015"
-DATA = Path("/data/settings32")
+DATA = Path("/data/settings33")
 PREPARATION = Path("/data/prepare25-complete.json")
 NATIVE_SHA256 = "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8"
 volume = modal.Volume.from_name(VOLUME, create_if_missing=False)
@@ -21,13 +21,13 @@ if modal.is_local():
     import quantize_lfm25_v3_modal as previous
 
     image = previous.image
-    for name in ("pilot_lfm25_settings", "quantize_lfm25_settings_modal"):
+    for name in ("pilot_lfm25_settings", "quantize_lfm25_settings_modal", "convert_lfm25_settings"):
         image = image.add_local_file(
             Path(__file__).with_name(f"{name}.py"), f"/opt/mlxl3/{name}.py", copy=True
         )
 else:
     image = base.image
-app = modal.App("mlxl3-lfm25-settings32", image=image)
+app = modal.App("mlxl3-lfm25-settings33", image=image)
 
 
 def preparation() -> dict:
@@ -51,7 +51,17 @@ def settings_command(source, work, output, probe, profile, original_command):
     command = original_command(source, work, output, probe)
     position = command.index("-cb")
     command[position : position + 2] = settings_args(codebook, scaled)
+    if profile in ("mcg-no-down", "mcg-trunk-only"):
+        command[2:4] = ["/opt/mlxl3/convert_lfm25_settings.py", profile]
     return command
+
+
+def settings_sources() -> dict[str, str]:
+    folder = Path(__file__).parent if modal.is_local() else Path("/opt/mlxl3")
+    return {
+        name: hashlib.sha256((folder / name).read_bytes()).hexdigest()
+        for name in ("pilot_lfm25_settings.py", "convert_lfm25_settings.py")
+    }
 
 
 def convert_profile(profile: str, files: dict[str, bytes] | None = None) -> str:
@@ -61,14 +71,16 @@ def convert_profile(profile: str, files: dict[str, bytes] | None = None) -> str:
     root.mkdir(parents=True, exist_ok=True)
     if files is None:
         approval = json.loads((root / "probe-approved.json").read_text())
-        if approval.get("profile") != profile or approval.get("native_sha256") != NATIVE_SHA256:
+        if (
+            approval.get("profile") != profile
+            or approval.get("native_sha256") != NATIVE_SHA256
+            or approval.get("settings_source_sha256") != settings_sources()
+        ):
             raise ValueError("Native approval belongs to another settings profile")
         result = json.loads((DATA / "pilot/report.json").read_text())
         selected = (result.get("selection") or {}).get("selected", {})
         reproduced = choose_settings(result)
-        helper_sha256 = hashlib.sha256(
-            Path(__file__).with_name("pilot_lfm25_settings.py").read_bytes()
-        ).hexdigest()
+        helper_sha256 = settings_sources()["pilot_lfm25_settings.py"]
         if (
             result.get("status") != "complete"
             or selected.get("profile") != profile
@@ -96,6 +108,7 @@ def convert_profile(profile: str, files: dict[str, bytes] | None = None) -> str:
         if value.get("status") != "complete":
             raise ValueError("Incomplete official conversion")
         value["settings_profile"] = profile
+        value["settings_source_sha256"] = settings_sources()
         (Path(value["folder"]) / "report.json").write_text(json.dumps(value, indent=2) + "\n")
         return json.dumps(value)
     finally:
@@ -176,7 +189,8 @@ def convert(profile: str) -> str:
 
 
 @app.local_entrypoint()
-def main(stage: str = "pilot", profile: str = "mul1-standard", probe_source: str = ""):
+def main(stage: str = "pilot", candidate_profile: str = "mcg-no-down", probe_source: str = ""):
+    profile = candidate_profile
     if stage == "pilot":
         result = pilot.remote()
     elif stage == "probe" and probe_source:
@@ -187,6 +201,6 @@ def main(stage: str = "pilot", profile: str = "mul1-standard", probe_source: str
         result = convert.remote(profile)
     else:
         raise ValueError("Choose pilot, probe with source, or convert")
-    destination = Path("build") / f"lfm25-settings32-{stage}-{profile}.json"
+    destination = Path("build") / f"lfm25-settings33-{stage}-{profile}.json"
     destination.write_text(result + "\n")
     print(f"Report: {destination}")

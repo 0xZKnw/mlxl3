@@ -1,6 +1,18 @@
 # MLXL3 — journal des optimisations
 
-### QUANT-2026-10-15-LFM25-32 — calibration complète sur le panneau d’experts figé30 — préenregistré, en cours
+### QUANT-2026-10-15-LFM25-33 — isoler les projections sensibles au scaled_hessian officiel — préenregistré, en cours
+
+- Motif nouveau32 : avec250lignes, scaledMCG améliore leKLpartielmoyen de20,92%, maisdownw2descouchesd’experts sensibles régressentjusqu’à47,81% enRMS etundomaine+22,13%. Lesgardes32restent inchangés, aucun24Bautoriséparsonrésultat. Tester deschoix **par type deprojection** entrelesdeuxfactorisations officielles, mêmespoids/bpw/calibration, sanschangerHcapturé/algorithmeCUDA/damping/refit/codebook.
+- ComparerMCGstandard etMCGscaledglobaux (contrôles32 répétés pourvalidernouveaucode), plusMCGscaledpartout sauflesdownw2experts, etMCGscaledseulementsurletronc (expertsstandards). Panneau9experts30figé/250×2048cal/12×1024validation/sixdomaines ;29projections×4profils×2seeds=232quantifications/96KLpartiels. Ceschoix sontunegestiondesoptionsofficiellespartenseur, pasunnouveaukernel niuneHconditionnelle.
+- Nouveauxprofilsdansunnamespace `settings33`, précédentsrésultatsconservés. Samedomain/projection10%,restaurationbyteexact/canary/min32tokens/q_fallback. Sélectionuniquementparvalidation, aucunchoixd’aprèsles5testsfinaux. Unseulprofiladmissible→prévol20inchangé→24Bofficielavecsélecteurd’options, puiscompactageettestsfinauxconditionnels. Si aucunadmissible, arrêtercesablationsofficielles.
+- AvantGPU : inspecterlepassagedesoptionsauquantifierscalaire/groupéofficiel, réutiliserleconvertisseur entieravecsélectionminimaleaupointcommun, testerprofil/type/erreurs/frontières/nouveauparcoursCLI, tentativeCrossHair sursélecteurpur. Les5sourcesnumériquesCUDA épingléesresterontbyteexactes ; tracerlewrapper parsonSHA etcommandelivrée. NoCIsecrets,nouvellecompilation/proveurs horsGPU.
+- Budgetrestant : touslesjobs30/31/32arrêtés après175s/150s/280s d’enfants ; soldeUI17,71USD relevéavant31, actualiseravant24B. Plafondcampagne12USDdepuis17,91/réserve5USD inchangé ; pilote≤780s/prévol180s/24B6000s,retry0,H10080GB/8CPU/96GiB. Aucunnouvelachatoupublication sansgates.
+
+- Précision33 préenregistrée **avantGPU** : lescontrôlesMCGstandard/scaled doivent reproduireles58RMS/profil et24KL/profil du32 à `abs≤1e-8+1e-6×|référence|`. Unécartau-delà bloqueuneconclusioncausaleetla promotion avantdiagnostic. LesprofilshybridespartagentlaHcapturéeofficielle, sanspermettrereglagesopposéssurunmêmeqmap ; lafrancière groupéeet scalaireestpartitionnéeavantlesappels officiels etlesfonctionsrestaurées mêmeencasd’erreur.
+
+- Vérification33 **terminée avantGPU** : suitecomplète774passés/1Lingignoré puis97testsciblés aprèscorrectiondel’optionCLI ambiguë `--profile`→`--candidate-profile` ; authModal reste `--profile`. CheminsréelsCLIhelp sanscredentials, parseur/prepare/main,groupe/scalar/restaurationerreurs, conflitsqmap etSHAwrappercouverts. Mutationqui réactivescaled surdown protégée détectée, source restaurébyteexact. Ruffformat/lint,compileall,diffpassent (premierPLW1510testsubprocess corrigé). CrossHair4contrats du vraisélécteur **nonconfirmés** à20s/condition,sanscontre-exemple ;2contratsargsinchangés confirmés précédemment. Aucune preuveCUDA/I/O ougarantiegain24B. Rapports `docs/measurements/quant-lfm25-settings33-20261015/`.
+
+### QUANT-2026-10-15-LFM25-32 — calibration complète sur le panneau d’experts figé30 — terminé, profils rejetés avant24B
 
 - Reprisecorrective après31, sansbaisserlagardecouverture32tokens : avec250lignes, leclassementchoisit unnouvelexpertfroid26couche20 noncouvertparvalidation. Aucunrésultatcomplet n’estdéduitdes72quantifications partielles31. Figer désormais **exactementles9expertsdu30**, choisisavantcetessai : couche2=58/24/44, couche20=8/39/43, couche39=21/11/18. Ce choix préserve le panneau dont la couverturevalidation étaitréellement suffisante et permetunecomparaison32→250surlesmêmesclés ; iln’estpasuncherrypickd’unprofilgagnant.
 - Protocole31 autrementinchangé : toutes250×2048cal, mêmes12×1024validation,4profils×2seeds,29projections/232quantifications/96KLfullvocabF64. CalibrationsH/sensibilitésuniquementsurtrain ; garde-fous10%domain/projection, sélection etrestaurationinchangés. Reportercomptes250lignes et provenancepanneau30 ; lesexperts sélectionnés ne représententpastousles2432expertsdu24B.
@@ -8,6 +20,10 @@
 - AvantGPU : régression du panneau contrelemanifeste30 ettestsaffectés, Ruff/compile/diff ; dernière suitecomplète726/1skip31 restepertinentehorsdecepetitchangement. Aucunecompilation/preuve/test localenparallèleavecGPU.
 
 - Vérification32 **avantGPU réussie** :49testsciblés, mutation d’expert26 détectée puis source restaurébyteexact ; Ruffformat/lint/compile/diff passent. Suitecomplète726/1skip31 réutilisée pourlesparcoursinchangés ;2contratsCrossHair de `settings_args` inchangésréutilisés, pasdepreuveCUDA/I/O. Preuves `docs/measurements/quant-lfm25-settings32-20261015/`.
+
+- Pilote32 **lancé** depuis63070f6e, app `ap-LJNgp0RLPmU8FC5KQ3ACRs` compte2/xzknw ; log `build/lfm25-settings32-pilot-modal.log`. Panneau30figé/toutes250lignes, sourcequantifierinchangés, pasdeGPUlocalniCPUproveur/compilationencours. Sélectionenattente, aucun24Bsupplémentairelancé.
+
+- Pilote32 **terminé/rejeté avant24B**,279,845s :262captures/232quantifications/96fenêtresKL complètes,2048000routes par couche, restaurationpoids/logitsbitexact etcanaryKL0,0904908. KLpartielMCGstandard0,0477042 ; MCGscaled0,0377232(−20,92%),MUL1standard0,0475916(−0,24%),MUL1scaled0,0379929(−20,36%). Aucunprofiléligible : domainespire+22,13%/+54,00%/+12,50%, projectionsdownw2scaledjusqu’à+47,81%. Touslesrésultats,2seeds etprofilsnégatifs gardés dans `docs/measurements/quant-lfm25-settings32-20261015/pilot*.json/.log`. AucunKL24Bmesuré ; apparrêtée0tâche. Leclassementchangevs30, justifiantlacalibrationcomplète, sansprétendrequesonKLpartielaugmenté32→250 dégradeunmodèle24B.
 
 ### QUANT-2026-10-15-LFM25-31 — vérifier les réglages sur les512k tokens complets — terminé, non concluant
 
