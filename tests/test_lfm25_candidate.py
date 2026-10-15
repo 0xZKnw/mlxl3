@@ -1,9 +1,13 @@
 import copy
 import json
 import math
+import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "benchmarks"))
 from eval_lfm25_candidate import file_sha, ppl_gate, run
 from test_lfm25_quality import fake_native
 
