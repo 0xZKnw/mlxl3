@@ -156,7 +156,6 @@ def choose_settings(report: dict) -> dict | None:
 def run(source: Path, calibration: Path, validation_file: Path, output: Path) -> dict:
     import time
 
-    import numpy as np
     import torch
     from exllamav3 import Config, Model
     from exllamav3.modules.mlp import capture_out_sensitivity, finalize_out_sensitivity
@@ -169,6 +168,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
     report = {
         "status": "running",
         "partial_model_only": True,
+        "calibration_rows": 250,
         "projections": [],
         "validation": [],
         "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -188,7 +188,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
             raise ValueError("Changed registered token shapes")
         if any(t.dtype != torch.int64 or t.min() < 0 or t.max() >= 125017 for t in (train, valid)):
             raise ValueError("Invalid source token IDs")
-        train = train[np.linspace(0, 249, 32).astype(int).tolist()]
+        train_rows = len(train)
         config = Config.from_directory(str(source))
         model = Model.from_config(config)
         model.load(device="cuda:0", max_output_size=2048)
@@ -226,7 +226,13 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                     if y.numel() != 128000 or not torch.isfinite(y).all().item():
                         raise ValueError("Invalid source forward")
                     print(
-                        json.dumps({"phase": "capture", "done": number + 1, "total": 44}),
+                        json.dumps(
+                            {
+                                "phase": "capture",
+                                "done": number + 1,
+                                "total": train_rows + len(valid),
+                            }
+                        ),
                         flush=True,
                     )
         finally:
@@ -236,9 +242,11 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
         panels = []
         for layer, mlp in blocks.items():
             counts = torch.zeros(64, dtype=torch.long)
-            for x in states[layer][:32]:
+            for x in states[layer][:train_rows]:
                 picks, _ = mlp.routing_fn(len(x), mlp.routing_cfg, x.cuda(), {})
                 counts += picks.flatten().cpu().bincount(minlength=64)
+            if counts.sum().item() != train_rows * train.shape[1] * 4:
+                raise ValueError("Incomplete full-calibration routing coverage")
             chosen = select_experts(counts.tolist())
             report.setdefault("expert_selection", {})[str(layer)] = {
                 "counts": counts.tolist(),
@@ -265,7 +273,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                         raise ValueError("Invalid source expert output")
                     for p in linears:
                         features = a if p == "down" else x
-                        if n < 32:
+                        if n < train_rows:
                             h = captures[p]
                             h["H"].addmm_(features.float().T, features.float())
                             h["count"] += len(features)
@@ -274,7 +282,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                             validation_inputs[p].append(
                                 (features[token].cpu(), affinity[token, slot].cpu())
                             )
-                    if n < 32 and token.numel():
+                    if n < train_rows and token.numel():
                         capture_out_sensitivity(
                             sensitivity,
                             linears["gate"],
@@ -293,7 +301,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                     )
         for name, linear in trunk.items():
             h = linear.init_H_data(True)
-            for values in trunk_states[name][:32]:
+            for values in trunk_states[name][:train_rows]:
                 x = values.cuda().float()
                 h["H"].addmm_(x.T, x)
                 h["count"] += len(x)
@@ -303,7 +311,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                     linear,
                     5 if "feed_forward" in name else 6,
                     h,
-                    [(x, torch.ones(len(x))) for x in trunk_states[name][32:]],
+                    [(x, torch.ones(len(x))) for x in trunk_states[name][train_rows:]],
                     None,
                 )
             )

@@ -7,7 +7,6 @@ import math
 from pathlib import Path
 
 import pytest
-import torch
 from pilot_lfm25_settings import (
     PROFILES,
     SEEDS,
@@ -17,6 +16,8 @@ from pilot_lfm25_settings import (
     profile_options,
     settings_args,
 )
+
+torch = pytest.importorskip("torch")
 
 
 @pytest.mark.parametrize("profile", PROFILES)

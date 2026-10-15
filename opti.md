@@ -1,6 +1,16 @@
 # MLXL3 — journal des optimisations
 
-### QUANT-2026-10-15-LFM25-30 — comparer les réglages officiels puis convertir la V3 — préenregistré, en cours
+### QUANT-2026-10-15-LFM25-31 — vérifier les réglages sur les512k tokens complets — préenregistré, en cours
+
+- Motif nouveau après30 :32lignes ne représententque65k des512k tokens de la conversion complète. Vérifier si la réduction de l’estimation deH et des sensibilitésoutput modifie le classement des réglages, sans déclarer30 erroné ni relâcher ses gates. La variabilité25/26 deMCG standard estvisible ; conserver lesdeuxseeds.
+- Même source1769516/quantifierofficiel16a4979/HQ K4/K5/K6/head16 et4profils, mais capturesH/sensibilités sur **toutes250×2048 lignes**, sans sous-échantillonnage. Les12fenêtres devalidation/sixdomaines restent disjointes ; mêmes29projections,232quantifications,96KLpartiels fullvocab128000/F64. Mêmes garde-fousrestaurationbyteexact/canary/couverture/q_fallback, même sélection≤10% pardomaine/projection. Aucun choix d’après les5testsfinaux historiques.
+- Nouveau dossier `/data/settings31`, rapportslocauxdistincts ; nepasécraser30. Lesexpertsfroid/médian/chaud sont déterminés par lescomptes250lignes, donc lescomparaisonscausales32→250 parprojection ne sont affirméesquesi leurcléestidentique ; comparaisonprincipale entreprofils à250lignes. LeKLetlemicroproxy ne prédisentpasunKL24B garanti.
+- PiloteH100 bornéenfant780s/fonction900s, retry0 ; soldeUI **17,71USD** après30 (facturationpouvantêtreenretard). Plafondcampagnecumulé12USD depuissolde17,91, réserve5USD. Prévols/conversion éventuels gardentleslimitesetgates30 ; si encoreaucunnouveauprofiladmissible, arrêter cettepisteofficielle sansrefaireun24BidentiqueàV2. Candidatrejeté = aucunepublication conditionnelle.
+- AvantGPU : petitesmodifications ducollecteur250lignes, mêmes tests/tentativeCrossHair/CI ; exécutionsCPU/GPU séquentielles. Prévol miniature historique20/calibrationdefault16×128 si profilretenu ; un seul24Bcompletapprouvé, compactageettestsfinaux requis avantHF.
+
+- Vérification31 **terminée avantGPU** :726tests passés/1ignoré(Lingabsent),2avertissementsattendus deModal.local sansVolume ; collection sansTorch ignoreexplicitementlemodule au lieu d’échouer. Ruffformat/lint,compileall,diffcheck passent. CrossHair2postconditionssettings_args confirmées, tenseursCUDA/I/O horsportée. Contrôler réellement262captures et2048000routes par couche auH100 ; aucun gain présumé. Rapports `docs/measurements/quant-lfm25-settings31-20261015/`.
+
+### QUANT-2026-10-15-LFM25-30 — comparer les réglages officiels — terminé, profils rejetés avant24B
 
 - Autorisation explicite : tester les réglages sur Modal et produire une V3 fidèle. Reprendre29 avec des mesures nouvelles, conserverV1/V2 et le candidatK8 rejeté. Source1769516, quantifierCUDA officiel16a4979, moteur355b5262, checkout82b64e33 au départ. Aucun kernel ni captureH personnalisée dans la recette finale.
 - Matrice figée : codebookMCG/MUL1 × `scaled_hessian` faux/vrai ; HQ officiel, expertsK4, troncHQK5/K6, head/embed16, scalesauto, corpus original250×2048 exact. Ne pas ajouterK8 ouK5experts, ne pas changer les données en même temps. Mêmebaseque25, répétée uniquement pour isoler ces deux nouveaux facteurs.
@@ -16,6 +26,13 @@
 - Bornes affinées avant GPU après vérification du tarif officielModal :H1000,001097USD/s +CPU8×0,0000131 +RAM96×0,00000222 ≈0,00141492USD/s. Timeouts fonctions900s/pilote,240s/prévol,6300s/conversion ; auplafond900+3×240+6300=7920s, ≈11,21USD decesressources, horsstockage/egress/préparationCPU. Ne pas demander unerégion ouoptionnonpréemptible majorée. Captures,quantificationetrestauration exécutées avecunmodèlecloud unique.
 
 - Vérification30 **CPU terminée avantGPU** : suite complète723passés/1ignoré (Linglocal absent), puis48tests ciblés après ajout des parcours succèsconversion ettimeoutpilote. Mutation du garde domain/projection volontairement détectée, source restaurébyteexact ; Ruffformat/lint, compileall etdiffcheck passent. CrossHair confirme2postconditions de la vraie fonction `settings_args` (20s/condition) ; tenseursCUDA/ModalI/O etKLmodèle horsportée, aucunepreuveGPU. CI actualiséePR/pushmain sanssecrets ; résultatsducommit exact encoreenattente. Preuves `docs/measurements/quant-lfm25-settings30-20261015/`, essaisH100 toujoursnonlancés àcetteentrée.
+
+- Pilote30 **lancé** depuis4c89e48e (commitpoussé) : app `ap-uTeTwQic0SLD2dta28moDR`, compte2/xzknw, imageencoursdepréparation ; log `build/lfm25-settings30-pilot-modal.log`. Aucunmodèlelocal/test/proveurenparallèle ; limites780s enfant/900sfonction/retry0 inchangées. Sélection etgainKL24B encore **nonmesurés**.
+
+- CI30 premiercommit4c89e48e : packingCBMC réussi, conversionetNative encoreencours ; Regression échoue à lacollection car sonenvironnement necontientpasTorch. Diagnosticconservé `build/lfm25-settings30-ci-regression-failed.log`. Lesnouveauxtests suivent maintenant le `pytest.importorskip("torch")` des autressuitesoptionnelles ; la CI quantization installe explicitementTorch etexécute réellementles48tests. Correction limitéeaucollecteurdetests, aucun source/image duH100 encoursmodifié ; contrôlesaffectés àexécuter après arrêtGPU.
+
+- Pilote30 **terminé/rejeté pour conversion**,174,962s de calcul :232quantifications et96fenêtresKL complètes, restaurationpoids/logitsbitexact ; canary réelKL0,09049. KLpartielMCGstandard0,0385834 ; MCGscaled0,0452004 (+17,15%), MUL1standard0,0502436 (+30,22%), MUL1scaled0,0431620 (+11,87%). Aucun profil ne passe lesgatesdomain/projection10% : scaleddégradecertainesw2expertsd’environ48%, MUL1standard a desdomainesjusqu’à+69,92%. Sélectionnull donc **aucun24Blancé**, pasd’assouplissementposthoc. CeKL sur29projections n’estpasceluidumodèlecomplet. Rapports `pilot.json` et `pilot-scores.json` dans `docs/measurements/quant-lfm25-settings30-20261015/` ; apparrêtée0tâche etcomptes4×2×12/29×4×2 vérifiés.
+- CorrectioncollecteCI30 vérifiée aprèsarrêtGPU :48testsciblés passent avecTorch,Ruffformat/lint passent ; erreursCIinitiales gardées. Les contrôlesTorch sont explicitementignorés danslejobgénéral sansTorch, etrestent obligatoiresdanslejobquantization. Aucunequalité24B ouprévolnouveau annoncé.
 
 ### QUANT-2026-10-15-LFM25-29 — réglages officiels EXL3, Sushi et KL comparable — recherche terminée, pistes non mesurées
 
