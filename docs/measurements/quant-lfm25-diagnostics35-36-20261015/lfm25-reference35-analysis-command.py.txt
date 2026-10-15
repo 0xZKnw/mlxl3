@@ -1,0 +1,169 @@
+"""Registered diagnostic35 CPU-only comparison; reuses the production F64 scorer."""
+import hashlib
+import json
+import math
+import os
+import platform
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+from eval_lfm25_quality import losses
+from diagnose_lfm25_reference import validate_windows
+
+ROOT = Path.cwd()
+OUTPUT = ROOT / 'build/lfm25-reference35-comparison.json'
+if OUTPUT.exists():
+    raise FileExistsError('Preserve previous diagnostic35 analysis')
+started = time.monotonic()
+report = {'status': 'running', 'publication': False, 'stage': 'provenance', 'windows': {},
+          'protocol': '1024 imposed inputs per window, all positions scored, no added BOS, full vocabulary128000, KL reference to actual in nats, F64 scorer',
+          'provenance': {'command': [sys.executable, str(Path(__file__).resolve())],
+                         'working_directory': str(ROOT), 'python': sys.version,
+                         'platform': platform.platform(), 'numpy': np.__version__,
+                         'environment': {key: os.environ.get(key) for key in ('PYTHONPATH','OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','VECLIB_MAXIMUM_THREADS')}}}
+
+def sha(path):
+    with Path(path).open('rb') as handle:
+        return hashlib.file_digest(handle, 'sha256').hexdigest()
+
+def save():
+    report['elapsed_seconds'] = time.monotonic() - started
+    pending = OUTPUT.with_suffix('.tmp')
+    pending.write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+    pending.replace(OUTPUT)
+
+def load_report(path):
+    path = ROOT / path
+    data = json.loads(path.read_text())
+    if data.get('status') != 'complete':
+        raise ValueError('Incomplete source report: ' + str(path))
+    report['provenance'].setdefault('reports', {})[str(path)] = sha(path)
+    return data
+
+save()
+try:
+    report['provenance']['analysis_script_sha256'] = sha(__file__)
+    report['provenance']['scorer_file'] = str(ROOT / 'benchmarks/eval_lfm25_quality.py')
+    report['provenance']['scorer_sha256'] = sha(ROOT / 'benchmarks/eval_lfm25_quality.py')
+    cloud = load_report('build/lfm25-reference35-cloud.json')
+    baseline = load_report('docs/measurements/quant-lfm25-v2-20261015/v2-quality.json')['cases']['main-8192']
+    source_report = load_report('docs/measurements/quant-lfm25-v2-20261015/diagnostic23-source-cloud.json')
+    cuda_report = load_report('docs/measurements/quant-lfm25-v2-20261015/diagnostic23-cloud.json')
+    native_report = load_report('docs/measurements/quant-lfm25-v2-20261015/diagnostic23-native.json')
+    source_baseline = load_report('docs/measurements/quant-lfm25-v2-20261015/diagnostic23-source-comparison.json')['windows']
+    cuda_baseline = load_report('docs/measurements/quant-lfm25-v2-20261015/diagnostic23-comparison.json')['windows']
+    plan_path = ROOT / 'build/diagnostic23-input.json'
+    inputs = validate_windows(json.loads(plan_path.read_text()))
+    ids_path = ROOT / 'build/lfm25-v3-quality-ids/main-8192.json'
+    ids = json.loads(ids_path.read_text())
+    if len(ids) != 8193 or hashlib.sha256(np.asarray(ids, dtype='<u4').tobytes()).hexdigest() != baseline['token_sha256']:
+        raise ValueError('Historical labels/IDs changed')
+    report['provenance']['plan_file'] = str(plan_path)
+    report['provenance']['plan_file_sha256'] = sha(plan_path)
+    report['provenance']['labels_file'] = str(ids_path)
+    report['provenance']['labels_file_sha256'] = sha(ids_path)
+    report['provenance']['full_ids_u32le_sha256'] = baseline['token_sha256']
+    pairs = [('mlx', 'tf_prefill'), ('mlx', 'tf_decode'), ('tf_prefill', 'tf_decode'), ('tf_decode', 'tf_prefill')]
+    pairs += [(reference, actual) for reference in ('tf_prefill', 'tf_decode') for actual in ('source_f16', 'v2_cuda', 'v2_native')]
+    pairs += [('mlx', 'source_f16'), ('mlx', 'v2_cuda'), ('mlx', 'v2_native')]
+    for name, start, number in [('window1', 0, 0), ('window5', 4096, 4)]:
+        if inputs[name] != ids[start:start + 1024]:
+            raise ValueError('Input/label alignment changed')
+        labels = ids[start + 1:start + 1025]
+        record = {'positions': 1024, 'vocabulary': 128000, 'source_token_offset': start,
+                  'input_u32le_sha256': hashlib.sha256(np.asarray(inputs[name], dtype='<u4').tobytes()).hexdigest(),
+                  'label_u32le_sha256': hashlib.sha256(np.asarray(labels, dtype='<u4').tobytes()).hexdigest(),
+                  'arrays': {}, 'comparisons': {}, 'historical_reproduction': {}}
+        report['windows'][name] = record
+        teacher_name = f'teacher-{number:02d}.npy'
+        paths = {
+            'mlx': (Path(baseline['teacher_dir']) / teacher_name, baseline['teacher_files'][teacher_name], 524288128, 'float32'),
+            'source_f16': (ROOT / f'build/diagnostic23-source-{name}.npy', source_report['windows'][name]['sha256'], source_report['windows'][name]['bytes'], 'float16'),
+            'v2_cuda': (ROOT / f'build/diagnostic23-cuda-{name}.npy', cuda_report['windows'][name]['sha256'], cuda_report['windows'][name]['bytes'], 'float16'),
+            'v2_native': (ROOT / f'build/lfm25-diagnostic23-native/{name}.npy', native_report['windows'][name]['sha256'], native_report['windows'][name]['bytes'], 'float16'),
+        }
+        for phase in ('prefill', 'decode'):
+            entry = cloud['windows'][f'{phase}-{name}']
+            paths[f'tf_{phase}'] = (ROOT / f'build/lfm25-reference35/{phase}-{name}.npy', entry['sha256'], entry['bytes'], 'float32')
+            if entry['shape'] != [1024, 128000] or entry['storage_dtype'] != 'float32':
+                raise ValueError('Unexpected official reference manifest')
+        arrays = {}
+        for kind, (path, expected_sha, expected_bytes, expected_dtype) in paths.items():
+            report['stage'] = f'{name}/validate/{kind}'
+            actual_sha = sha(path)
+            if actual_sha != expected_sha or path.stat().st_size != expected_bytes:
+                raise ValueError('Array SHA/bytes mismatch: ' + str(path))
+            array = np.load(path, mmap_mode='r', allow_pickle=False)
+            if array.shape != (1024, 128000) or str(array.dtype) != expected_dtype:
+                raise ValueError('Array shape/dtype mismatch: ' + str(path))
+            for first in range(0, 1024, 32):
+                if not np.isfinite(array[first:first+32]).all():
+                    raise ValueError('Nonfinite historical/reference array: ' + str(path))
+            arrays[kind] = array
+            record['arrays'][kind] = {'path': str(path), 'sha256': actual_sha, 'bytes': expected_bytes,
+                                      'shape': [1024, 128000], 'dtype': expected_dtype,
+                                      'finite_values_checked': 131072000, 'sha_verified': True}
+            save()
+        for reference, actual in pairs:
+            key = f'{reference}_to_{actual}'
+            report['stage'] = f'{name}/{key}'
+            total = np.zeros(3, dtype=np.float64)
+            matches = 0
+            segments = []
+            segment_total = np.zeros(3, dtype=np.float64)
+            segment_matches = 0
+            for index, label in enumerate(labels):
+                row = np.asarray(losses(arrays[actual][index], arrays[reference][index], label), dtype=np.float64)
+                if row.shape != (3,) or not np.isfinite(row).all() or row[2] < -1e-9:
+                    raise ValueError('Invalid F64 score')
+                total += row
+                segment_total += row
+                same = int(np.argmax(arrays[actual][index]) == np.argmax(arrays[reference][index]))
+                matches += same
+                segment_matches += same
+                if (index + 1) % 128 == 0:
+                    segment_mean = segment_total / 128
+                    segments.append({'first': index - 127, 'last': index, 'positions': 128,
+                                     'actual_nll': float(segment_mean[0]), 'reference_nll': float(segment_mean[1]),
+                                     'mean_kl_reference_to_actual': float(segment_mean[2]), 'top1_matches': segment_matches})
+                    segment_total.fill(0)
+                    segment_matches = 0
+            mean = total / 1024
+            result = {'positions': 1024, 'vocabulary': 128000, 'actual_nll': float(mean[0]),
+                      'reference_nll': float(mean[1]), 'actual_ppl': math.exp(mean[0]),
+                      'reference_ppl': math.exp(mean[1]), 'mean_kl_reference_to_actual': float(mean[2]),
+                      'top1_matches': matches, 'top1_fraction': matches / 1024, 'segments': segments}
+            record['comparisons'][key] = result
+            print(json.dumps({'window': name, 'comparison': key, **{k:v for k,v in result.items() if k != 'segments'}}), flush=True)
+            save()
+        for actual in ('source_f16', 'v2_cuda', 'v2_native'):
+            observed = record['comparisons'][f'mlx_to_{actual}']
+            if actual == 'source_f16':
+                old = source_baseline[name]
+                expected = {'actual_nll': math.log(old['source_f16_ppl']), 'reference_nll': math.log(old['teacher_bf16_ppl']), 'mean_kl_reference_to_actual': old['teacher_to_source_f16_kl']}
+            elif actual == 'v2_cuda':
+                old = cuda_baseline[name]
+                expected = {'actual_nll': math.log(old['cuda_ppl']), 'reference_nll': math.log(old['bf16_ppl']), 'mean_kl_reference_to_actual': old['cuda_kl']}
+            else:
+                old = native_report['windows'][name]
+                expected = {'actual_nll': old['nll'], 'reference_nll': old['bf16_nll'], 'mean_kl_reference_to_actual': old['kl']}
+            errors = {key: abs(observed[key] - value) for key, value in expected.items()}
+            passed = all(error <= 1e-6 for error in errors.values())
+            record['historical_reproduction'][actual] = {'tolerance_absolute': 1e-6, 'errors': errors, 'passed': passed}
+            if not passed:
+                raise ValueError('Historical scores did not reproduce: ' + name + '/' + actual)
+        del arrays
+        save()
+    if len(report['windows']) != 2 or any(len(item['comparisons']) != 13 for item in report['windows'].values()):
+        raise ValueError('Incomplete reference comparison matrix')
+    report.update(status='complete', stage='done', total_comparisons=26,
+                  compared_positions=26624, historical_arrays_verified=8, new_arrays_verified=4,
+                  historical_reproduction_passed=True)
+except BaseException as error:
+    report.update(status='failed', error=f'{type(error).__name__}: {error}')
+    raise
+finally:
+    save()
+print(json.dumps({'status': report['status'], 'elapsed_seconds': report['elapsed_seconds'], 'output': str(OUTPUT)}), flush=True)

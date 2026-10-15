@@ -639,3 +639,61 @@ def test_route_diagnostic_uses_the_existing_v3_volume_without_creating_another()
     import diagnose_lfm25_routes_modal as target
 
     assert target.VOLUME == "mlxl3-lfm25-v3-20261015"
+
+
+def test_real_modal_cli_help_imports_without_authentication(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    env = dict(os.environ, MODAL_CONFIG_PATH=str(tmp_path / "modal.toml"), NO_COLOR="1")
+    for key in ("MODAL_PROFILE", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"):
+        env.pop(key, None)
+    result = subprocess.run(
+        [sys.executable, "-m", "modal", "run", "scripts/diagnose_lfm25_routes_modal.py", "--help"],
+        cwd=Path(__file__).resolve().parents[1],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "--profile TEXT" in result.stdout
+
+
+def test_real_modal_sdk_resolves_copy_before_lazy_mount_without_rpc():
+    import asyncio
+
+    import diagnose_lfm25_routes_modal as target
+    from modal._image import _Image
+    from modal._utils.async_utils import synchronizer
+
+    image = synchronizer._translate_in(target.image)
+    snapshots = {}
+
+    class OfflineResolver:
+        async def load(self, obj, context):
+            assert not isinstance(obj, _Image)
+
+    async def visit(node):
+        if node in snapshots:
+            return
+        snapshots[node] = dict(node.__dict__)
+        for dependency in node._deps_():
+            if isinstance(dependency, _Image):
+                await visit(dependency)
+        if node._rep == "Image(local files)":
+            await node._load(node, OfflineResolver(), SimpleNamespace(app_id=None), None)
+        else:
+            # The real SDK validates mount ordering before requiring an app/RPC.
+            with pytest.raises(AssertionError):
+                await node._load(node, OfflineResolver(), SimpleNamespace(app_id=None), None)
+            node._hydrate("im-offline-test", SimpleNamespace(), None)
+
+    try:
+        asyncio.run(visit(image))
+    finally:
+        for node, state in snapshots.items():
+            node.__dict__.clear()
+            node.__dict__.update(state)

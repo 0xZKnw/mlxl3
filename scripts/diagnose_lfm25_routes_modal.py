@@ -15,11 +15,11 @@ VOLUME = "mlxl3-lfm25-v3-20261015"
 volume = modal.Volume.from_name(VOLUME, create_if_missing=False)
 image = base.image
 if modal.is_local():
-    image = image.add_local_python_source("quantize_lfm25_modal").add_local_file(
+    image = image.add_local_file(
         Path(__file__).with_name("diagnose_lfm25_routes.py"),
         "/opt/mlxl3/diagnose_lfm25_routes.py",
         copy=True,
-    )
+    ).add_local_python_source("quantize_lfm25_modal")
 app = modal.App("mlxl3-lfm25-routes36", image=image)
 
 
