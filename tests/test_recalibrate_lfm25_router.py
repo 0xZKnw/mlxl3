@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import math
+import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
-import recalibrate_lfm25_router as target
-import torch
 from safetensors import safe_open
-from safetensors.torch import load_file, save_file
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import recalibrate_lfm25_router as target
+
+torch = pytest.importorskip("torch")
+_tensor_files = importlib.import_module("safetensors.torch")
+load_file, save_file = _tensor_files.load_file, _tensor_files.save_file
 
 
 def captures():

@@ -7,8 +7,10 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import capture_lfm25_router as target
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import capture_lfm25_router as target
 
 torch = pytest.importorskip("torch")
 
@@ -409,6 +411,14 @@ class FakeQuantized:
         self.originals = {layer: module.routing_fn for layer, module in self.modules.items()}
 
     def forward(self, tokens, params):
+        assert tokens.shape == (1, 1), "Actual imposed input must remain one token"
+        batch_size, maximum = params["batch_shape"]
+        assert batch_size >= tokens.shape[0], "Batch size too large for cache"
+        assert maximum % 256 == 0, "Cache sequence length must be a multiple of256"
+        assert tokens.shape[0] * maximum <= params["cache"].max_num_tokens, (
+            "Cache too small for batch shape"
+        )
+        assert 0 <= params["past_len"] < maximum
         token = int(tokens.item())
         self.calls.append((token, params["past_len"], params["cache"], params["batch_shape"]))
         assert params["attn_mode"] == "flash_attn"
@@ -431,6 +441,10 @@ class FakeQuantized:
 
     def unload(self):
         self.unloads += 1
+
+
+def quant_cache(capacity=256):
+    return SimpleNamespace(max_num_tokens=capacity)
 
 
 def tiny_plan():
@@ -474,7 +488,7 @@ def test_real_decode_entry_uses_fresh_caches_offsets_and_exact_storage(
                 )
             else:
                 record = target.decode_quantized_sequence(
-                    model, object(), tokens, output, capture, offset, progress.append, True
+                    model, quant_cache(), tokens, output, capture, offset, progress.append, True
                 )
             values = np.load(output, allow_pickle=False)
             expected = np.tile(np.arange(4), (len(tokens), 1))
@@ -495,7 +509,7 @@ def test_real_decode_entry_uses_fresh_caches_offsets_and_exact_storage(
     assert [call[1] for call in model.calls] == [0, 1, 0]
     if kind == "quantized":
         assert model.calls[0][2] is model.calls[1][2] and model.calls[2][2] is not model.calls[0][2]
-        assert [call[3] for call in model.calls] == [(1, 2), (1, 2), (1, 1)]
+        assert [call[3] for call in model.calls] == [(1, 256), (1, 256), (1, 256)]
 
 
 @pytest.mark.parametrize("kind", ["teacher", "quantized"])
@@ -516,7 +530,7 @@ def test_decode_error_keeps_partial_capture_incomplete_and_restores_hooks(
         if kind == "teacher":
             target.decode_teacher_sequence(model, [0, 1], path, capture)
         else:
-            target.decode_quantized_sequence(model, object(), [0, 1], path, capture)
+            target.decode_quantized_sequence(model, quant_cache(), [0, 1], path, capture)
     with pytest.raises(ValueError):
         capture.payload(2)
     if kind == "teacher":
@@ -535,7 +549,9 @@ def test_quantized_decode_rejects_overflow_when_storing_or_hashing(tmp_path, sma
     model = FakeQuantized("f16_overflow")
     for path, hashing in ((None, True), (tmp_path / "overflow.npy", False)):
         with pytest.raises(ValueError):
-            target.decode_quantized_sequence(model, object(), [0], path=path, hash_logits=hashing)
+            target.decode_quantized_sequence(
+                model, quant_cache(), [0], path=path, hash_logits=hashing
+            )
 
 
 @pytest.mark.parametrize("kind", ["teacher", "quantized"])
@@ -550,7 +566,7 @@ def test_decode_rejects_existing_output_and_empty_tokens_before_forward(
             if kind == "teacher":
                 target.decode_teacher_sequence(model, tokens, path)
             else:
-                target.decode_quantized_sequence(model, object(), tokens, path)
+                target.decode_quantized_sequence(model, quant_cache(), tokens, path)
     assert output.read_bytes() == b"preserve old attempt" and model.calls == []
     assert not (tmp_path / "empty.npy").exists()
 
@@ -608,8 +624,8 @@ def fake_quant_loader(model):
         assert not model.calls
         return (
             model,
-            {name: object() for name, _ in sequences},
-            [object(), object()] if phase == "train" else [],
+            {name: quant_cache(2048) for name, _ in sequences},
+            [quant_cache(), quant_cache()] if phase == "train" else [],
             model.modules.copy(),
         )
 
@@ -1185,3 +1201,42 @@ def test_real_teacher_run_requires_actual_passive_control_before_training_export
         assert report["status"] == "complete" and len(report["files"]) == 43
         assert len(model.calls) == 390
     assert not list(output.glob("*control*.npy"))
+
+
+@pytest.mark.parametrize(
+    ("length", "capacity"),
+    [
+        (1, 256),
+        (128, 256),
+        (255, 256),
+        (256, 256),
+        (257, 512),
+        (1023, 1024),
+        (1024, 1024),
+        (2048, 2048),
+    ],
+)
+def test_quantized_decode_flash_attention_shape_matches_cache_pages_without_padding_tokens(
+    small_vocabulary, length, capacity
+):
+    model = FakeQuantized()
+    model.modules.clear()
+    tokens = list(range(length))
+    result = target.decode_quantized_sequence(
+        model, quant_cache(capacity), tokens, hash_logits=True
+    )
+    assert result["shape"] == [length, 4]
+    assert [call[0] for call in model.calls] == tokens
+    assert [call[1] for call in model.calls] == list(range(length))
+    assert {call[3] for call in model.calls} == {(1, capacity)}
+
+
+@pytest.mark.parametrize(("length", "capacity"), [(1, 0), (128, 0), (257, 256), (1023, 768)])
+def test_quantized_decode_rejects_flash_attention_shape_exceeding_cache_before_first_token(
+    small_vocabulary, length, capacity
+):
+    model = FakeQuantized()
+    model.modules.clear()
+    with pytest.raises(AssertionError, match="Cache too small for batch shape"):
+        target.decode_quantized_sequence(model, quant_cache(capacity), list(range(length)))
+    assert model.calls == []

@@ -13,16 +13,17 @@ from pathlib import Path
 import modal
 import quantize_lfm25_modal as base
 from diagnose_lfm25_routes import V2_SHARDS
-from lfm25_router_plan import ALPHAS, child_timeout, validate_plan
+from lfm25_router_plan import ALPHAS, PLAN_SHA256, child_timeout, validate_plan
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = Path("/data/router38")
-SOURCE = Path("/data/hf/hub/models--LiquidAI--LFM2.5-24B-A2B/snapshots") / base.REVISION
+DATA = Path("/data/router38-resume")
+TEACHER = Path("/data/router38/teacher")
+TEACHER_REPORT_SHA256 = "bd18d5894b02af3b91efb7f2e61253635b5c06785ffc154d5680c7b14abf5478"
 V2 = Path("/data/v2/output")
 CACHE_SOURCE = Path("/data/diagnostic37-fixed-tune-trace/cache-a.bin")
-CACHE = Path("/tmp/mlxl3-router38-cache.bin")
+CACHE = Path("/tmp/mlxl3-router38-resume-cache.bin")
 CACHE_SHA256 = "1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65"
-FIT = Path("/tmp/mlxl3-router38-fit")
+FIT = Path("/tmp/mlxl3-router38-resume-fit")
 VOLUME = "mlxl3-lfm25-v3-20261015"
 volume = modal.Volume.from_name(VOLUME, create_if_missing=False)
 SCRIPTS = (
@@ -70,7 +71,7 @@ if modal.is_local():
         ROOT / "benchmarks/eval_lfm25_quality.py", "/opt/mlxl3/eval_lfm25_quality.py", copy=True
     )
     image = image.run_function(build_preflight)
-app = modal.App("mlxl3-lfm25-router38", image=image)
+app = modal.App("mlxl3-lfm25-router38-resume", image=image)
 
 
 def atomic_json(path: Path, report: dict) -> None:
@@ -83,6 +84,42 @@ def complete_report(folder: Path) -> dict:
     report = json.loads((folder / "report.json").read_text())
     if not isinstance(report, dict) or report.get("status") != "complete":
         raise ValueError("Child did not complete: " + str(folder))
+    return report
+
+
+def verified_teacher() -> dict:
+    """Verify the exact completed BF16 capture before reusing any of its data."""
+    path = TEACHER / "report.json"
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != TEACHER_REPORT_SHA256:
+        raise ValueError("Preserved BF16 teacher report changed")
+    report = json.loads(raw)
+    expected = (
+        {f"layer-{i}.safetensors" for i in range(2, 40)}
+        | {"routing-parameters.safetensors"}
+        | {f"validation-{i:02d}.npy" for i in range(12)}
+        | {"chat-holdout.npy", "cjk-holdout.npy"}
+    )
+    if (
+        report.get("status") != "complete"
+        or report.get("kind") != "teacher"
+        or report.get("plan_sha256") != PLAN_SHA256
+        or report.get("passive_hook_control", {}).get("bitexact") is not True
+        or set(report.get("files", {})) != expected
+    ):
+        raise ValueError("Preserved BF16 teacher is incomplete or uses a different protocol")
+    for name, record in report["files"].items():
+        artifact = TEACHER / name
+        if (
+            artifact.is_symlink()
+            or not artifact.is_file()
+            or artifact.stat().st_size != record["bytes"]
+        ):
+            raise ValueError("Preserved BF16 teacher file is missing or truncated: " + name)
+        with artifact.open("rb") as handle:
+            digest = hashlib.file_digest(handle, "sha256").hexdigest()
+        if digest != record["sha256"]:
+            raise ValueError("Preserved BF16 teacher file changed: " + name)
     return report
 
 
@@ -142,7 +179,7 @@ def execute(plan: dict) -> dict:
     def child(name, command, limit, folder):
         report["stage"] = name
         save()
-        timeout = child_timeout(int(5300 - (time.monotonic() - started)), limit)
+        timeout = child_timeout(int(3400 - (time.monotonic() - started)), limit)
         print(json.dumps({"stage": name, "timeout_seconds": timeout}), flush=True)
         base.run_logged([sys.executable, "-u", *command], DATA / (name + ".log"), timeout)
         if CACHE.read_bytes() != cache_bytes:
@@ -219,20 +256,15 @@ def execute(plan: dict) -> dict:
 
     save()
     try:
-        teacher = DATA / "teacher"
-        child(
-            "teacher",
-            [
-                "/opt/mlxl3/capture_lfm25_router.py",
-                "teacher",
-                str(plan_path),
-                str(teacher),
-                "--source",
-                str(SOURCE),
-            ],
-            2300,
-            teacher,
-        )
+        report["stage"] = "verify_preserved_teacher"
+        save()
+        preserved = verified_teacher()
+        teacher = TEACHER
+        report["stages"]["teacher"] = preserved
+        report["teacher_reused"] = True
+        report["teacher_source_commit"] = "f46c06b3b32ebefe6532dc66b532186edca81592"
+        report["teacher_report_sha256"] = TEACHER_REPORT_SHA256
+        save()
         train = quant("quant-train", V2, "train", 900)
         fit = child(
             "fit",
@@ -327,7 +359,7 @@ def execute(plan: dict) -> dict:
     gpu="H100!",
     cpu=8,
     memory=98304,
-    timeout=5500,
+    timeout=3600,
     retries=0,
     max_containers=1,
     scaledown_window=2,
@@ -342,7 +374,7 @@ def main():
     plan_path = ROOT / "docs/measurements/quant-lfm25-router38-20261015/input-plan.json"
     plan = validate_plan(json.loads(plan_path.read_text()))
     result = recalibrate.remote(plan)
-    output = ROOT / "build/lfm25-router38-cloud.json"
+    output = ROOT / "build/lfm25-router38-resume-cloud.json"
     atomic_json(output, result)
     print(
         json.dumps(

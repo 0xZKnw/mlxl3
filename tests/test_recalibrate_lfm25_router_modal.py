@@ -3,10 +3,13 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 
 def test_plan_is_the_reviewed_disjoint_dataset():
@@ -53,6 +56,7 @@ def runner(tmp_path, monkeypatch):
     monkeypatch.setattr(target, "CACHE_SHA256", hashlib.sha256(bytes(176)).hexdigest())
     monkeypatch.setattr(target, "validate_plan", lambda p: p)
     monkeypatch.setattr(target, "V2_SHARDS", {"model.safetensors": "a" * 64})
+    monkeypatch.setattr(target, "verified_teacher", lambda: {"status": "complete", "files": {}})
     commits = []
     monkeypatch.setattr(target, "volume", SimpleNamespace(commit=lambda: commits.append(True)))
     return target, commits
@@ -95,20 +99,22 @@ def fake_children(target, monkeypatch, failure=None):
             if name == "teacher" or name.startswith("final-"):
                 expected |= {"chat-holdout.npy", "cjk-holdout.npy"}
             result = {
-                "status": "running" if failure == "partial" and name == "teacher" else "complete",
+                "status": "running"
+                if failure == "partial" and name == "quant-train"
+                else "complete",
                 "files": {n: {"bytes": 123, "sha256": "a" * 64} for n in expected},
                 "passive_hook_control": {"bitexact": True},
                 "model_files": {"model.safetensors": {"sha256": "a" * 64}},
             }
-            if failure == "missing" and name == "teacher":
+            if failure == "missing" and name == "quant-train":
                 result["files"].pop("layer-2.safetensors")
             if failure == "reload" and name == "validation-alpha-025":
                 result["model_files"]["model.safetensors"]["sha256"] = "b" * 64
             if failure == "passive" and name == "quant-train":
                 result["passive_hook_control"]["bitexact"] = False
-        if failure == "cache" and name == "teacher":
+        if failure == "cache" and name == "quant-train":
             target.CACHE.write_bytes(b"X" * 176)
-        if failure == "cache_append" and name == "teacher":
+        if failure == "cache_append" and name == "quant-train":
             target.CACHE.write_bytes(target.CACHE.read_bytes() + b"duplicate-key-record")
         (folder / "report.json").write_text(json.dumps(result))
 
@@ -151,7 +157,6 @@ def test_pipeline_orders_real_reload_stages_and_persists_small_artifacts(runner,
     install_scores(monkeypatch, "0.5")
     result = target.execute({"validation": {"domains": ["fixture"]}})
     assert commands == [
-        "teacher",
         "quant-train",
         "fit",
         "validation-baseline",
@@ -162,6 +167,7 @@ def test_pipeline_orders_real_reload_stages_and_persists_small_artifacts(runner,
         "final-alpha-050",
     ]
     assert result["status"] == "complete" and result["selected"] == "alpha-050"
+    assert result["teacher_reused"] is True and "teacher" not in commands
     assert result["final_quality_passed"] is True and result["publication"] is False
     assert result["cache_prefix_preserved"] is True and commits == [True]
     assert len(list((target.DATA / "fit-artifacts").glob("*.safetensors"))) == 3
@@ -249,3 +255,108 @@ def test_artifact_persistence_failure_cannot_leave_a_complete_report(runner, mon
     report = json.loads((target.DATA / "report.json").read_text())
     assert report["status"] == "failed" and report["selected"] is None
     assert report["final_quality_passed"] is False and commits == [True]
+
+
+def test_preserved_teacher_failure_stops_before_any_new_gpu_model(runner, monkeypatch):
+    target, commits = runner
+    commands = fake_children(target, monkeypatch)
+
+    def fail():
+        raise ValueError("teacher file changed")
+
+    monkeypatch.setattr(target, "verified_teacher", fail)
+    with pytest.raises(ValueError, match="teacher file changed"):
+        target.execute({})
+    assert commands == [] and commits == [True]
+    report = json.loads((target.DATA / "report.json").read_text())
+    assert report["status"] == "failed" and report["publication"] is False
+
+
+@pytest.fixture
+def preserved_teacher(tmp_path, monkeypatch):
+    import recalibrate_lfm25_router_modal as target
+
+    folder = tmp_path / "teacher"
+    folder.mkdir()
+    expected = (
+        {f"layer-{i}.safetensors" for i in range(2, 40)}
+        | {"routing-parameters.safetensors"}
+        | {f"validation-{i:02d}.npy" for i in range(12)}
+        | {"chat-holdout.npy", "cjk-holdout.npy"}
+    )
+    report = {
+        "status": "complete",
+        "kind": "teacher",
+        "plan_sha256": target.PLAN_SHA256,
+        "passive_hook_control": {"bitexact": True},
+        "files": {},
+    }
+    for name in expected:
+        path = folder / name
+        path.write_bytes(name.encode())
+        report["files"][name] = {
+            "bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+    monkeypatch.setattr(target, "TEACHER", folder)
+
+    def pin():
+        raw = json.dumps(report).encode()
+        (folder / "report.json").write_bytes(raw)
+        monkeypatch.setattr(target, "TEACHER_REPORT_SHA256", hashlib.sha256(raw).hexdigest())
+
+    pin()
+    return target, report, pin
+
+
+def test_completed_preserved_teacher_is_checked_without_reexecution(preserved_teacher):
+    target, report, _ = preserved_teacher
+    assert target.verified_teacher() == report
+    assert len(report["files"]) == 53
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "report",
+        "status",
+        "kind",
+        "plan",
+        "passive",
+        "files",
+        "missing",
+        "short",
+        "bytes",
+        "symlink",
+    ],
+)
+def test_teacher_reuse_checks_protocol_and_all_binary_artifacts(preserved_teacher, failure):
+    target, report, pin = preserved_teacher
+    path = target.TEACHER / "layer-2.safetensors"
+    if failure == "report":
+        (target.TEACHER / "report.json").write_bytes(b"changed")
+    elif failure in ("status", "kind"):
+        report[failure] = "wrong"
+        pin()
+    elif failure == "plan":
+        report["plan_sha256"] = "wrong"
+        pin()
+    elif failure == "passive":
+        report["passive_hook_control"]["bitexact"] = False
+        pin()
+    elif failure == "files":
+        report["files"].pop(path.name)
+        pin()
+    elif failure == "missing":
+        path.unlink()
+    elif failure == "short":
+        path.write_bytes(b"x")
+    elif failure == "bytes":
+        path.write_bytes(b"X" * path.stat().st_size)
+    else:
+        replacement = target.TEACHER / "replacement"
+        replacement.write_bytes(path.read_bytes())
+        path.unlink()
+        path.symlink_to(replacement)
+    with pytest.raises(ValueError):
+        target.verified_teacher()

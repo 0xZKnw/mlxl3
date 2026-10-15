@@ -304,7 +304,7 @@ def decode_quantized_sequence(
         "attn_mode": "flash_attn",
         "cache": cache,
         "past_len": 0,
-        "batch_shape": (1, len(tokens)),
+        "batch_shape": (1, cache_capacity(len(tokens))),
     }
     values, logits, digest, dtypes = None, None, hashlib.sha256(), set()
     if path is not None:
