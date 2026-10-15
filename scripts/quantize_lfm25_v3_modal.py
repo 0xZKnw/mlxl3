@@ -245,9 +245,9 @@ def prepare(original_ids: bytes):
             "--seed",
             "20261015",
             "-cs",
-            "131072",
+            "524288",
             "-ambs",
-            "8",
+            "128",
         ]
         report["trace_command"] = command
         base.run_logged(command, folder / "trace.log", 1000)
