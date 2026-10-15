@@ -1,0 +1,96 @@
+{
+  "status": "complete_readonly_diagnosis",
+  "created_utc": "2026-10-15T18:42:09.425971+00:00",
+  "source_commit": "f46c06b3b32ebefe6532dc66b532186edca81592",
+  "run_id": 38780494028,
+  "job_id": 116581458461,
+  "job_conclusion": "failure",
+  "kani_step_conclusion": "cancelled",
+  "job_start_utc": "2026-10-15T17:54:15Z",
+  "job_completed_utc": "2026-10-15T18:19:42Z",
+  "kani_start_utc": "2026-10-15T17:54:45.515Z",
+  "compile_complete_utc": "2026-10-15T17:55:09.363Z",
+  "successful_harnesses_observed": 54,
+  "harnesses_started_observed": 55,
+  "last_unfinished_harness": "speculative::verification::dflash_copy_len_11",
+  "last_harness_start_utc": "2026-10-15T18:16:46.7048271Z",
+  "cancellation_utc": "2026-10-15T18:19:40.3326985Z",
+  "successful_long_harness": {
+    "name": "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+    "seconds": 766.658,
+    "failed_properties": 0,
+    "total_properties": 372,
+    "unreachable_properties": 1,
+    "satisfied_covers": 5,
+    "total_covers": 5
+  },
+  "cancellation_cause": "unknown; annotation only The operation was canceled.; no summary/raw details",
+  "job_timeout_minutes": 60,
+  "caller_step_timeout": null,
+  "resolved_action_commit": "69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237",
+  "resolved_action_yml_blob": "b417ac0566bc01dd988b5b09d4c8e4d1e6510108",
+  "resolved_action_timeout": null,
+  "resolved_run_kani_step": "cd working-directory; command args; no timeout wrapper",
+  "installation_or_network_stall": false,
+  "installation_or_network_evidence": "First-time setup complete 17:54:45.505Z; cargo command started 17:54:45.515Z; compilation finished 17:55:09.363Z; successive harness results follow.",
+  "introduced_by_f46_commit": false,
+  "source_scope": "git diff f46^ f46 -- native .github/workflows/rust.yml Cargo.toml Cargo.lock is empty; does not claim full PR has no Rust changes. DFlash length-11 macro harness and bounds predate experiment38 (2026-10-10).",
+  "next_3da_commit_utc": "2026-10-15T18:27:06Z",
+  "next_3da_push_run_created_utc": "2026-10-15T18:27:10Z",
+  "next_3da_explains_f46_cancellation": false,
+  "limits": [
+    "No rerun, test, build, prover or inference executed.",
+    "54 observed successful bounded harnesses do not establish complete suite verification; DFlash length-11 and any subsequent harnesses remain unverified in this run.",
+    "GitHub check-run exposes no causal cancellation detail.",
+    "No timeout25 was found in workflow caller or exact composite action; cancellation is not attributed to a configured 25-minute limit."
+  ],
+  "read_only_commands": [
+    "gh run view 38780494028 --job 116581458461 --log",
+    "gh api repos/0xZKnw/mlxl3/actions/jobs/116581458461",
+    "gh api repos/0xZKnw/mlxl3/actions/runs/38780494028",
+    "gh api repos/0xZKnw/mlxl3/check-runs/116581458461/annotations",
+    "gh api repos/0xZKnw/mlxl3/check-runs/116581458461",
+    "gh api repos/model-checking/kani-github-action/contents/action.yml?ref=69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237",
+    "git show f46c06b3b32ebefe6532dc66b532186edca81592:.github/workflows/rust.yml",
+    "git diff --stat f46^ f46 -- native .github/workflows/rust.yml Cargo.toml Cargo.lock",
+    "git blame -L 500,549 f46 -- native/src/speculative.rs"
+  ],
+  "files": {
+    "lfm25-router38-f46-kani-job.log": {
+      "bytes": 169859,
+      "sha256": "21d23917422ef643ec21efe648b6cb8d89ecc6ffba2c47423fff2264fa476322"
+    },
+    "lfm25-router38-f46-kani-job.json": {
+      "bytes": 1698,
+      "sha256": "597e6879ce99a42cb14ba2c6c53185578d1aba8d8f01a374fe0482cdadc71396"
+    },
+    "lfm25-router38-f46-native-run.json": {
+      "bytes": 12013,
+      "sha256": "87bf9bfb4d9bc3e96948ade32bbeda433bc591b4c317a89d30c6109064a930fb"
+    },
+    "lfm25-router38-f46-kani-annotations.json": {
+      "bytes": 790,
+      "sha256": "a5ba18ac5a275af47cb1f12f41502a451c252dc37226321ad13b79fdd9270b9a"
+    },
+    "lfm25-router38-f46-kani-check-run.json": {
+      "bytes": 3476,
+      "sha256": "d1c4039fdfab56048c8b529be42e056c7063d4a69e9a5fb9e08c1f3bacf18c18"
+    },
+    "lfm25-router38-f46-kani-action.json": {
+      "bytes": 2446,
+      "sha256": "32d406448187499dbf883c4f1002bcb397d6ac35e4e20d4da7b3bdd10d34636f"
+    },
+    "lfm25-router38-f46-kani-action.yml": {
+      "bytes": 1003,
+      "sha256": "71b585f9ef2d96cee621aebdd66d88d2d9860591a58e3f1ff5b5c01e12e0c4b8"
+    },
+    "lfm25-router38-f46-rust.yml": {
+      "bytes": 6854,
+      "sha256": "54e3744f8d75597f081436aa4bd8940f7c83b9a91f8bfe56ef1343911cebffd8"
+    },
+    "lfm25-router38-native-recent-runs.json": {
+      "bytes": 1535,
+      "sha256": "218fbc2a5b6f2a1830c7fb32c6dd76a4da5bf814e46c88897088ac7a080a469f"
+    }
+  }
+}

@@ -1,6 +1,12 @@
 # LFM2.5 — calibration après la V2
 
-Campagnes QUANT-2026-10-15-LFM25-25 à37. **Révision du15octobre : le candidat K8 est refusé pour publication ; les réglages officiels sont maintenant mesurés sur H100.** La V2 publiée reste immuable ; aucune V3 installée ou publiée. Les pilotes30–33 sont clos : aucun des nouveaux profils ne passe tous les garde-fous. Aucune conversion24B supplémentaire n’a été engagée ; les résultats et limites sont conservés ci-dessous.
+Campagnes QUANT-2026-10-15-LFM25-25 à38. **Révision du15octobre : le candidat K8 est refusé pour publication ; les réglages officiels sont maintenant mesurés sur H100.** La V2 publiée reste immuable ; aucune V3 installée ou publiée. Les pilotes30–33 sont clos : aucun des nouveaux profils ne passe tous les garde-fous. Aucune conversion24B supplémentaire n’a été engagée ; les résultats et limites sont conservés ci-dessous.
+
+## Calibration des routeurs mesurée sur H100 (38)
+
+La correction utilise les activations V2 quantifiées et les logits de routage BF16 appariés pour recalibrer les 38 gates F16, sans changer les treillis EXL3 4bpw. Les trois checkpoints ont été exportés et rechargés sur H100. **Aucun ne passe la validation préenregistrée** : sur 12276 positions identiques, KL V2 0,108003 / PPL 10,99983 ; correction0,25 : 0,107534 / 11,02100 ; correction0,5 : 0,114168 / 11,08692 ; correction1 : 0,135970 / 10,95806. La correction la plus douce ne gagne que0,434% en KL et dégrade notamment le code ; les autres augmentent le KL moyen. Le corpus et le teacher diffèrent des anciens résultats : ne pas comparer directement ces valeurs aux 0,188 historiques.
+
+Le protocole conserve TF5.16.1 BF16 en décodage causal, 38 biais FP32 exacts, le vocabulaire complet128000 et les pertes F64. Contrôles passifs bitexacts et cache CUDA176octets inchangé ; 29779 tenseurs non-gate par candidat sont préservés aux SHA. Les trois petits fichiers de gates et les rapports sont conservés pour reproduire les exports à partir de V2. Aucun test final chat/CJK ni parcours natif d’un candidat n’a été engagé après le rejet en validation. Aucun modèle HF ni app installée n’a été remplacé. Le gain attendu n’est donc pas obtenu par cette correction isolée ; les constats34–37 restent conservés. [Résultats38](lfm25-router38-results-2026-10-15.md), [preuves GPU et limites](measurements/quant-lfm25-router38-20261015/gpu-verification.json).
 
 ## Attribution de l’erreur (34–37)
 
