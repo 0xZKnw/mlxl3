@@ -8,12 +8,40 @@ import os
 
 import pytest
 from pilot_lfm25_calibration import choose_pilot, select_experts
-from quantize_lfm25_v3_modal import convert, fetch_trace_sources, make_mix, ngrams
+from quantize_lfm25_v3_modal import convert_candidate, fetch_trace_sources, make_mix, ngrams
 
 
-def local_convert(*args):
-    with pytest.warns(UserWarning, match="executing locally"):
-        return convert.local(*args)
+@pytest.mark.parametrize("tokens", [[7, 124894], [], [-1], [125017], [True]])
+def test_chat_preflight_uses_pinned_source_and_rejects_invalid_tokens(monkeypatch, tokens):
+    import sys
+    from types import SimpleNamespace
+
+    import quantize_lfm25_v3_modal as module
+
+    class Tokenizer:
+        def __len__(self):
+            return 125017
+
+        def apply_chat_template(self, messages, **kwargs):
+            assert messages == [{"role": "user", "content": "Bonjour."}]
+            assert kwargs == {"tokenize": True, "add_generation_prompt": True}
+            return tokens
+
+    def load(source, revision, trust_remote_code):
+        assert source == module.base.SOURCE and revision == module.base.REVISION
+        assert trust_remote_code is False
+        return Tokenizer()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "transformers",
+        SimpleNamespace(AutoTokenizer=SimpleNamespace(from_pretrained=load)),
+    )
+    if tokens == [7, 124894]:
+        module.trace_runtime_smoke()
+    else:
+        with pytest.raises(ValueError):
+            module.trace_runtime_smoke()
 
 
 def test_real_count_selection_covers_cold_median_hot():
@@ -138,20 +166,22 @@ def test_trace_sources_are_checked_before_writing(tmp_path, monkeypatch, corrupt
 
 def test_unknown_variant_is_rejected_before_network_or_gpu():
     with pytest.raises(ValueError):
-        local_convert("unknown", "trace")
+        convert_candidate("unknown", "trace")
     with pytest.raises(ValueError):
-        local_convert("affinity", "trace", "not-a-boolean")
+        convert_candidate("affinity", "trace", "not-a-boolean")
 
 
 @pytest.mark.parametrize("audit", ["complete", "missing", "duplicate"])
 def test_conversion_boundary_audits_coverage_and_preserves_failure_status(
     tmp_path, monkeypatch, audit
 ):
+    pytest.importorskip("torch")
     from types import SimpleNamespace
 
     import quantize_lfm25_v3_modal as module
 
     folder = tmp_path / "probe"
+    (tmp_path / "config.json").write_text('{"vocab_size":128}')
     (folder / "output").mkdir(parents=True)
     (folder / "output/config.json").write_text(
         json.dumps({"num_experts": 2, "num_hidden_layers": 3, "num_dense_layers": 1})
@@ -170,6 +200,10 @@ def test_conversion_boundary_audits_coverage_and_preserves_failure_status(
             tmp_path, tmp_path / "work", tmp_path / "output", True
         )
         assert command[2] == "/opt/mlxl3/exl3_moe_calibration.py" and "-m" not in command
+        from safetensors.torch import load_file
+
+        tokens = load_file(command[command.index("--cal_data") + 1])["input_ids"]
+        assert tokens.shape == (16, 128) and tokens[0].tolist() == list(range(128))
         rows = [{"key": str(i), "count": 64, "effective_rows": 32.0} for i in range(8)]
         if audit == "missing":
             rows.pop()
@@ -193,11 +227,11 @@ def test_conversion_boundary_audits_coverage_and_preserves_failure_status(
     )
     monkeypatch.setattr(module.base, "convert_model", fake_convert)
     if audit == "complete":
-        result = json.loads(local_convert("affinity", "trace", False, {"fixture": b"test"}))
+        result = json.loads(convert_candidate("affinity", "trace", False, {"fixture": b"test"}))
         assert result["status"] == "complete" and result["coverage"]["hessians"] == 8
     else:
         with pytest.raises(ValueError, match="coverage"):
-            local_convert("affinity", "trace", False, {"fixture": b"test"})
+            convert_candidate("affinity", "trace", False, {"fixture": b"test"})
         assert json.loads((folder / "report.json").read_text())["status"] == "failed"
     assert committed and module.base.conversion_command is old_command
 

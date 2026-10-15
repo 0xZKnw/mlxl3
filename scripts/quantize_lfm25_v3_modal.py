@@ -34,13 +34,29 @@ def fetch_trace_sources(destination: str = "/opt/exl3-source"):
         path.write_bytes(data)
 
 
+def trace_runtime_smoke():
+    from transformers import AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        base.SOURCE, revision=base.REVISION, trust_remote_code=False
+    )
+    tokens = tokenizer.apply_chat_template(
+        [{"role": "user", "content": "Bonjour."}], tokenize=True, add_generation_prompt=True
+    )
+    if not tokens or any(type(t) is not int or not 0 <= t < len(tokenizer) for t in tokens):
+        raise ValueError("Invalid source chat-template preflight")
+    print(f"Source chat template: {len(tokens)} valid tokens; no GPU/model weights loaded")
+
+
 volume = modal.Volume.from_name(VOLUME, create_if_missing=True)
-image = base.image.env({"PYTHONPATH": "/opt/mlxl3:/opt/exl3-source"})
+image = base.image.pip_install("transformers==5.16.1").env(
+    {"PYTHONPATH": "/opt/mlxl3:/opt/exl3-source"}
+)
 for name in ("quantize_lfm25_modal", "exl3_moe_calibration", "pilot_lfm25_calibration"):
     image = image.add_local_file(
         ROOT / "scripts" / f"{name}.py", f"/opt/mlxl3/{name}.py", copy=True
     )
-image = image.run_function(fetch_trace_sources)
+image = image.run_function(fetch_trace_sources).run_function(trace_runtime_smoke)
 app = modal.App("mlxl3-lfm25-v3", image=image)
 
 
@@ -135,13 +151,17 @@ def prepare(original_ids: bytes):
 
     from huggingface_hub import snapshot_download
 
-    folder = Path("/data/prepare25")
+    complete = Path("/data/prepare25-complete.json")
+    if complete.exists():
+        raise FileExistsError("A completed calibration preparation already exists")
+    folder = Path(f"/data/prepare25-{time.time_ns()}")
     folder.mkdir(exist_ok=False)
     report = {
         "status": "running",
         "publication": False,
         "stage": "prepare",
         "converter": base.CONVERTER,
+        "folder": str(folder),
     }
     started = time.monotonic()
     try:
@@ -228,21 +248,14 @@ def prepare(original_ids: bytes):
             if p.is_file() and p.name != "report.json"
         }
         (folder / "report.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+        if report["status"] == "complete":
+            with complete.open("x") as handle:
+                handle.write(json.dumps(report, indent=2, allow_nan=False) + "\n")
         volume.commit()
     return report
 
 
-@app.function(
-    gpu="H100!",
-    cpu=8,
-    memory=98304,
-    timeout=10800,
-    retries=0,
-    max_containers=1,
-    scaledown_window=2,
-    volumes={"/data": volume},
-)
-def convert(
+def convert_candidate(
     mode: str, corpus: str, trunk8: bool = False, probe_files: dict[str, bytes] | None = None
 ):
     import os
@@ -264,11 +277,11 @@ def convert(
             or approval.get("trunk8") is not trunk8
         ):
             raise ValueError("Native probe approval does not match these calibration hooks")
-        preparation = json.loads(Path("/data/prepare25/report.json").read_text())
+        preparation = json.loads(Path("/data/prepare25-complete.json").read_text())
         if preparation["status"] != "complete":
             raise ValueError("Calibration pilot not complete")
         name = ("original" if corpus == "original" else "trace-mix") + ".safetensors"
-        if file_sha(Path("/data/prepare25") / name) != preparation["files"][name]["sha256"]:
+        if file_sha(Path(preparation["folder"]) / name) != preparation["files"][name]["sha256"]:
             raise ValueError("Calibration file changed after the pilot")
     base.volume = volume
     original_command = base.conversion_command
@@ -282,12 +295,21 @@ def convert(
         if mode != "all":
             values[2:4] = ["/opt/mlxl3/exl3_moe_calibration.py"]
         if not probe:
-            path = (
-                "/data/prepare25/"
-                + ("original" if corpus == "original" else "trace-mix")
-                + ".safetensors"
+            path = Path(preparation["folder"]) / (
+                ("original" if corpus == "original" else "trace-mix") + ".safetensors"
             )
-            values += ["--cal_data", path]
+            values += ["--cal_data", str(path)]
+        else:
+            import torch
+            from safetensors.torch import save_file
+
+            if json.loads((source / "config.json").read_text())["vocab_size"] != 128:
+                raise ValueError("The native probe requires its 128-token fixture")
+            calibration = work.parent / "probe-calibration.safetensors"
+            save_file(
+                {"input_ids": torch.arange(128, dtype=torch.long).repeat(16, 1)}, str(calibration)
+            )
+            values += ["--cal_data", str(calibration)]
         if trunk8:
             import yaml
             from exllamav3 import Config, Model
@@ -347,14 +369,42 @@ def convert(
         volume.commit()
 
 
+@app.function(
+    gpu="H100!",
+    cpu=8,
+    memory=98304,
+    timeout=10800,
+    retries=0,
+    max_containers=1,
+    scaledown_window=2,
+    volumes={"/data": volume},
+)
+def convert(mode: str, corpus: str, trunk8: bool = False):
+    return convert_candidate(mode, corpus, trunk8)
+
+
+@app.function(
+    gpu="H100!",
+    cpu=8,
+    memory=98304,
+    timeout=900,
+    retries=0,
+    max_containers=1,
+    scaledown_window=2,
+    volumes={"/data": volume},
+)
+def probe(mode: str, corpus: str, trunk8: bool, files: dict[str, bytes]):
+    return convert_candidate(mode, corpus, trunk8, files)
+
+
 @app.local_entrypoint()
 def main(stage: str = "prepare", mode: str = "", corpus: str = "", trunk8: bool = False):
     if stage == "prepare":
         result = prepare.remote((ROOT / "build/v2-calibration-input-ids.safetensors").read_bytes())
     elif stage == "probe":
-        source = ROOT / "build/lfm25-modal-probe/source"
+        source = ROOT / "build/lfm25-v3-probe-source"
         files = {p.name: p.read_bytes() for p in source.iterdir() if p.is_file()}
-        result = json.loads(convert.remote(mode, corpus, trunk8, files))
+        result = json.loads(probe.remote(mode, corpus, trunk8, files))
     elif stage == "convert":
         result = json.loads(convert.remote(mode, corpus, trunk8))
     else:
