@@ -20,7 +20,7 @@ LEGACY_CAPTURE = Path("/data/diagnostic23")
 LEGACY = Path("/opt/mlxl3/diagnostic23-original.py")
 VOLUME = "mlxl3-lfm25-v3-20261015"
 volume = modal.Volume.from_name(VOLUME, create_if_missing=False)
-image = base.image
+image = base.image.env({"PYTHONPATH": "/opt/mlxl3"})
 if modal.is_local():
     for name in (
         "diagnose_lfm25_tuning",

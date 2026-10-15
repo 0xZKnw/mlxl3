@@ -13,6 +13,12 @@
 
 - Archivage37 : diffcheck initialrefuseespacesdepytest/CLI danslogspreuves (aucuncommit/push/GPU). Originauxbuildinchangés ; logsenarchive déterministe `cpu-logs.tar.gz`, indexSHAetsizerevérifiésaprèslecturebyteexact. Pasdenettoyagedespreuvesni changementdescodes testés.
 
+- Diagnostic37 **lancé** sourceff19be56f1608deadfec0585591c91a9883be68a, app `ap-4jpD4TjvTAdmJ389p8pmwK` compte2/xzknw ; log `build/lfm25-tuning37-modal.log`. SuiteCPU/proveurs/compilations terminés avantappel, aucune inférencelocale. Imageencoursdeconstruction ; caches/logitsnonencoremesurés, V2etmodèlespubliésinchangés.
+
+- Premier37 **échecinitialisationduconteneur avantfonction/capture** : importdistantdelanceur échoue `ModuleNotFoundError: diagnose_lfm25_routes` ; scriptscopiéssous/opt/mlxl3maischeminabsentdesimportsduconteneur. App4jp arrêtéeimmédiatementpouréviterbouclerestart, aucunlogit/cache37produit ; pasdeconclusionnumérique. LeprévolréelSDKlocalnecoutraitpasl’importremote. Premièrecommandeappstop sans--yes refuseentréeinteractive (aucunconteneuractif), relance--yes autorisée. Correctifpréenregistré : raccorder chemincopiéavantimports oumonterlesmodules Pythoncomme36, sanschangerworkerlegacy/math/protocole ; testd’import subprocessisolédepuisunrépertoire/mountsansscripts (rougeavantfix), tests/lint/formalaffectésetSDKavantrelance. PréserverlogfailedetétatGPU/Volume, vérifierDATAabsentavantréutilisation ; mêmesbornes1260s/180s/540s/retry0.
+
+- Correctifimport37 **validéavantrelance** : uneENVimagePYTHONPATH=/opt/mlxl3 ; régressionisoléeavecmodulesréels reproduitModuleNotFoundErroravantfix puisimportdistantsansscripts/RPC/GPUréussit.27testslanceurpassés1,06s ; Ruff/compile/diff/CLIverts, suite951/1ignoré antérieureréutiliséepourcheminsinchangés. Worker/math/ressources/cold_stage/cache_nameinchangés,4contratsCrossHairréutilisés. [Archivebyteexactinitial+fix](docs/measurements/quant-lfm25-diagnostic37-20261015/container-import-fix-verification.json). App4jpstoppée0tâche, DATA23/37absentsconfirmés ; aucunlogit/cacheécrasé.
+
 ### QUANT-2026-10-15-LFM25-35 — oracle Transformers BF16 indépendant — terminé, comparaison validée
 
 - Motif34 : aucun bug certain du score/alignement/teacher par lecture ; la référenceMLX n’a pas été comparée directement au runtimeBF16 officiel. LiquidAI documente sur les mêmes shards (1769516 et6b45d2eb identiques selon métadonnéesHub) KL BF16MLX0,0681 vsFP32 etFP32MLX0,0003, surtout attribué aux flips d’experts. Ces résultats ne sont pas nos mesures et lesKLne se soustraientpas.

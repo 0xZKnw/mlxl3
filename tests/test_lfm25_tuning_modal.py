@@ -330,3 +330,73 @@ def test_real_sdk_enforces_copy_before_lazy_mount_without_rpc():
         for node, state in snapshots.items():
             node.__dict__.clear()
             node.__dict__.update(state)
+
+
+def test_remote_module_import_uses_the_actual_image_pythonpath(tmp_path):
+    import inspect
+    import os
+    import shlex
+    import shutil
+    import subprocess
+    import sys
+
+    import diagnose_lfm25_tuning_modal as target
+    from modal._utils.async_utils import synchronizer
+
+    environment, visited = {}, set()
+
+    def visit(node):
+        if node in visited:
+            return
+        visited.add(node)
+        for dependency in node._deps_():
+            if hasattr(dependency, "_rep"):
+                visit(dependency)
+        if "env." in node._rep:
+            builder = inspect.getclosurevars(node._load).nonlocals["dockerfile_function"]
+            for command in builder("2025.06").commands:
+                if command.startswith("ENV "):
+                    key, value = shlex.split(command[4:])[0].split("=", 1)
+                    environment[key] = value
+
+    visit(synchronizer._translate_in(target.image))
+    root = Path(__file__).resolve().parents[1]
+    module_root, payload = tmp_path / "module-root", tmp_path / "image-payload"
+    module_root.mkdir()
+    payload.mkdir()
+    for name in ("diagnose_lfm25_tuning_modal", "quantize_lfm25_modal"):
+        shutil.copyfile(root / "scripts" / f"{name}.py", module_root / f"{name}.py")
+    for name in ("diagnose_lfm25_routes", "diagnose_lfm25_routes_modal", "diagnose_lfm25_tuning"):
+        shutil.copyfile(root / "scripts" / f"{name}.py", payload / f"{name}.py")
+    bootstrap = module_root / "remote_import.py"
+    bootstrap.write_text(
+        "import sys\nfrom pathlib import Path\nimport modal\n"
+        "modal.is_local = lambda: False\n"
+        "import diagnose_lfm25_tuning_modal\n"
+        "import diagnose_lfm25_routes, diagnose_lfm25_tuning\n"
+        "assert diagnose_lfm25_tuning_modal.STAGES == ('cold-a','warm-a','cold-b','routes-a')\n"
+        "assert Path(diagnose_lfm25_routes.__file__).parent == Path(sys.argv[1])\n"
+        "assert Path(diagnose_lfm25_tuning.__file__).parent == Path(sys.argv[1])\n"
+        "assert not any(Path(p).resolve() == Path(sys.argv[2]) for p in sys.path if p)\n"
+        "print('remote module and actual copied helpers imported without RPC/GPU')\n"
+    )
+    runtime_path = os.pathsep.join(
+        str(payload) if item == "/opt/mlxl3" else item
+        for item in environment.get("PYTHONPATH", "").split(os.pathsep)
+        if item
+    )
+    env = dict(os.environ, PYTHONPATH=runtime_path, MODAL_CONFIG_PATH=str(tmp_path / "modal.toml"))
+    for key in ("MODAL_PROFILE", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"):
+        env.pop(key, None)
+    result = subprocess.run(
+        [sys.executable, str(bootstrap), str(payload), str(root / "scripts")],
+        cwd=module_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert environment["PYTHONPATH"] == "/opt/mlxl3"
+    assert "actual copied helpers imported" in result.stdout
