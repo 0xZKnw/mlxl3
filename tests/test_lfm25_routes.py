@@ -407,7 +407,9 @@ def complete_result():
 @pytest.mark.parametrize(
     "failure", [None, "timeout", "error", "incomplete", "invalid_json", "partial_complete"]
 )
-def test_modal_real_child_boundary_reaps_and_marks_failures(tmp_path, monkeypatch, failure):
+def test_modal_real_child_boundary_reaps_and_marks_failures(
+    tmp_path, monkeypatch, failure, recovery_cache
+):
     import diagnose_lfm25_routes_modal as target
 
     root = tmp_path / "diagnostic36-routes"
@@ -417,7 +419,7 @@ def test_modal_real_child_boundary_reaps_and_marks_failures(tmp_path, monkeypatc
 
     def child(command, log, timeout):
         commands.append(command)
-        assert timeout == 900 and command[2] == "/opt/mlxl3/diagnose_lfm25_routes.py"
+        assert timeout == 540 and command[2] == "/opt/mlxl3/diagnose_lfm25_routes.py"
         assert json.loads(Path(command[3]).read_text()) == plan()
         if failure in ("timeout", "error"):
             raise (
@@ -697,3 +699,122 @@ def test_real_modal_sdk_resolves_copy_before_lazy_mount_without_rpc():
         for node, state in snapshots.items():
             node.__dict__.clear()
             node.__dict__.update(state)
+
+
+@pytest.fixture
+def recovery_cache(tmp_path, monkeypatch):
+    import diagnose_lfm25_routes_modal as target
+
+    path = tmp_path / "cache-a-recovery.bin"
+    data = b"frozen-cache-fixture"
+    path.write_bytes(data)
+    monkeypatch.setattr(target, "TUNE_CACHE", path)
+    monkeypatch.setattr(target, "CACHE_BYTES", len(data))
+    monkeypatch.setattr(target, "CACHE_SHA256", hashlib.sha256(data).hexdigest())
+    return path, data
+
+
+def test_registered_recovery_constants_sdk_image_and_time_bounds():
+    import inspect
+    import shlex
+
+    import diagnose_lfm25_routes_modal as target
+    from modal._utils.async_utils import synchronizer
+
+    assert target.DATA == Path("/data/diagnostic37-routes-recovery")
+    assert target.TUNE_CACHE == Path("/data/diagnostic37-fixed-tune-trace/cache-a-recovery.bin")
+    assert target.CACHE_BYTES == 176
+    assert target.CACHE_SHA256 == "1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65"
+    assert target.app.name == "mlxl3-lfm25-routes-recovery37"
+    commands, seen = [], set()
+
+    def visit(node):
+        if node in seen:
+            return
+        seen.add(node)
+        for dependency in node._deps_():
+            if hasattr(dependency, "_rep"):
+                visit(dependency)
+        builder = inspect.getclosurevars(node._load).nonlocals.get("dockerfile_function")
+        if builder:
+            commands.extend(builder("2025.06").commands)
+
+    visit(synchronizer._translate_in(target.image))
+    assert any("modal==1.5.5" in command for command in commands)
+    environment = {}
+    for command in commands:
+        if command.startswith("ENV "):
+            for assignment in shlex.split(command)[1:]:
+                key, value = assignment.split("=", 1)
+                environment[key] = value
+    assert environment["PYTHONPATH"] == "/opt/mlxl3"
+    assert environment["EXLLAMAV3_TUNE_CACHE"] == str(target.TUNE_CACHE)
+    function = synchronizer._translate_in(target.diagnose)
+    arguments = inspect.getclosurevars(function._load).nonlocals
+    assert arguments["timeout"] == arguments["startup_timeout"] == 660
+    assert arguments["scaledown_window"] == 2
+    assert function._spec.gpus == "H100!"
+    assert function._spec.cpu == 8 and function._spec.memory == 98304
+
+
+@pytest.mark.parametrize("failure", ["missing", "empty", "bytes", "sha"])
+def test_recovery_refuses_unapproved_cache_before_child(
+    tmp_path, monkeypatch, recovery_cache, failure
+):
+    import diagnose_lfm25_routes_modal as target
+
+    cache, data = recovery_cache
+    if failure == "missing":
+        cache.unlink()
+    else:
+        cache.write_bytes({"empty": b"", "bytes": data + b"x", "sha": b"x" * len(data)}[failure])
+    monkeypatch.setattr(target, "DATA", tmp_path / "recovery")
+    commits = []
+    monkeypatch.setattr(target, "volume", SimpleNamespace(commit=lambda: commits.append(True)))
+    monkeypatch.setattr(target.base, "run_logged", lambda *_: pytest.fail("Child must not start"))
+    with pytest.raises(ValueError):
+        target.execute(plan())
+    saved = json.loads((target.DATA / "report.json").read_text())
+    assert saved["status"] == "failed" and not saved["causal_interpretation"]
+    assert saved["recovery_cache"]["expected_sha256"] == target.CACHE_SHA256
+    assert saved["recovery_cache"]["before"] == saved["recovery_cache"]["after"]
+    assert commits == [True]
+
+
+@pytest.mark.parametrize("change", ["none", "append", "replace", "missing"])
+def test_recovery_records_cache_digests_and_preserves_prefix(
+    tmp_path, monkeypatch, recovery_cache, change
+):
+    import diagnose_lfm25_routes_modal as target
+
+    cache, data = recovery_cache
+    monkeypatch.setattr(target, "DATA", tmp_path / "recovery")
+    monkeypatch.setattr(target, "volume", SimpleNamespace(commit=lambda: None))
+
+    def child(command, log, timeout):
+        assert timeout == 540
+        target.DATA.mkdir()
+        (target.DATA / "report.json").write_text(json.dumps(complete_result()))
+        if change == "missing":
+            cache.unlink()
+        else:
+            cache.write_bytes(
+                {"none": data, "append": data + b"new-record", "replace": b"x" * len(data)}[change]
+            )
+
+    monkeypatch.setattr(target.base, "run_logged", child)
+    if change in ("replace", "missing"):
+        with pytest.raises(ValueError):
+            target.execute(plan())
+    else:
+        assert target.execute(plan())["status"] == "complete"
+    saved = json.loads((target.DATA / "report.json").read_text())
+    evidence = saved["recovery_cache"]
+    assert evidence["before"]["sha256"] == target.CACHE_SHA256
+    assert evidence["prefix_preserved"] == (change in ("none", "append"))
+    assert evidence["bytes_unchanged"] == (change in ("none", "replace"))
+    assert evidence["sha256_unchanged"] == (change == "none")
+    assert saved["causal_interpretation"] is False and saved["publication"] is False
+    if change == "append":
+        assert evidence["after"]["bytes"] == len(data) + len(b"new-record")
+        assert evidence["after"]["sha256"] == hashlib.sha256(cache.read_bytes()).hexdigest()
