@@ -41,7 +41,10 @@ def trace_runtime_smoke():
         base.SOURCE, revision=base.REVISION, trust_remote_code=False
     )
     tokens = tokenizer.apply_chat_template(
-        [{"role": "user", "content": "Bonjour."}], tokenize=True, add_generation_prompt=True
+        [{"role": "user", "content": "Bonjour."}],
+        tokenize=True,
+        add_generation_prompt=True,
+        return_dict=False,
     )
     if not tokens or any(type(t) is not int or not 0 <= t < len(tokenizer) for t in tokens):
         raise ValueError("Invalid source chat-template preflight")

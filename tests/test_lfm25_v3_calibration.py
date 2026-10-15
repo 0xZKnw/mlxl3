@@ -24,7 +24,9 @@ def test_chat_preflight_uses_pinned_source_and_rejects_invalid_tokens(monkeypatc
 
         def apply_chat_template(self, messages, **kwargs):
             assert messages == [{"role": "user", "content": "Bonjour."}]
-            assert kwargs == {"tokenize": True, "add_generation_prompt": True}
+            assert kwargs["tokenize"] is True and kwargs["add_generation_prompt"] is True
+            if kwargs.get("return_dict", True):
+                return {"input_ids": tokens}
             return tokens
 
     def load(source, revision, trust_remote_code):
