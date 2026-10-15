@@ -29,9 +29,10 @@ def test_chat_preflight_uses_pinned_source_and_rejects_invalid_tokens(monkeypatc
                 return {"input_ids": tokens}
             return tokens
 
-    def load(source, revision, trust_remote_code):
+    def load(source, revision, trust_remote_code, cache_dir):
         assert source == module.base.SOURCE and revision == module.base.REVISION
         assert trust_remote_code is False
+        assert module.Path(cache_dir).is_dir() and not cache_dir.startswith("/data/")
         return Tokenizer()
 
     monkeypatch.setitem(

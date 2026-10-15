@@ -35,11 +35,14 @@ def fetch_trace_sources(destination: str = "/opt/exl3-source"):
 
 
 def trace_runtime_smoke():
+    import tempfile
+
     from transformers import AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        base.SOURCE, revision=base.REVISION, trust_remote_code=False
-    )
+    with tempfile.TemporaryDirectory(prefix="mlxl3-chat-preflight-") as directory:
+        tokenizer = AutoTokenizer.from_pretrained(
+            base.SOURCE, revision=base.REVISION, trust_remote_code=False, cache_dir=directory
+        )
     tokens = tokenizer.apply_chat_template(
         [{"role": "user", "content": "Bonjour."}],
         tokenize=True,
@@ -48,19 +51,54 @@ def trace_runtime_smoke():
     )
     if not tokens or any(type(t) is not int or not 0 <= t < len(tokenizer) for t in tokens):
         raise ValueError("Invalid source chat-template preflight")
+    if not modal.is_local() and Path("/data").exists() and any(Path("/data").iterdir()):
+        raise ValueError("Image preflight populated the reserved Volume mount")
     print(f"Source chat template: {len(tokens)} valid tokens; no GPU/model weights loaded")
 
 
 volume = modal.Volume.from_name(VOLUME, create_if_missing=True)
 image = base.image.pip_install("transformers==5.16.1").env(
-    {"PYTHONPATH": "/opt/mlxl3:/opt/exl3-source"}
+    {
+        "PYTHONPATH": "/opt/mlxl3:/opt/exl3-source",
+        "HF_HOME": "/tmp/mlxl3-image-hf",
+        "HF_XET_CACHE": "/tmp/mlxl3-image-xet",
+    }
 )
 for name in ("quantize_lfm25_modal", "exl3_moe_calibration", "pilot_lfm25_calibration"):
     image = image.add_local_file(
         ROOT / "scripts" / f"{name}.py", f"/opt/mlxl3/{name}.py", copy=True
     )
-image = image.run_function(fetch_trace_sources).run_function(trace_runtime_smoke)
+image = (
+    image.run_function(fetch_trace_sources)
+    .run_function(trace_runtime_smoke)
+    .env({"HF_HOME": "/data/hf", "HF_XET_CACHE": "/data/hf/xet"})
+)
 app = modal.App("mlxl3-lfm25-v3", image=image)
+
+
+@app.function(
+    cpu=1,
+    memory=1024,
+    timeout=60,
+    retries=0,
+    max_containers=1,
+    scaledown_window=2,
+    volumes={"/data": volume},
+)
+def check_mount():
+    import importlib.metadata
+    import os
+
+    if not Path("/data").is_dir() or os.environ["HF_HOME"] != "/data/hf":
+        raise ValueError("Runtime cache or Volume mount is incorrect")
+    package = Path(importlib.metadata.distribution("exllamav3").locate_file("exllamav3"))
+    return {
+        "status": "complete",
+        "stage": "mount",
+        "gpu_requested": False,
+        "transformers": importlib.metadata.version("transformers"),
+        "converter_sources": base.check_converter_sources(package),
+    }
 
 
 def file_sha(path: Path) -> str:
@@ -402,7 +440,9 @@ def probe(mode: str, corpus: str, trunk8: bool, files: dict[str, bytes]):
 
 @app.local_entrypoint()
 def main(stage: str = "prepare", mode: str = "", corpus: str = "", trunk8: bool = False):
-    if stage == "prepare":
+    if stage == "mount":
+        result = check_mount.remote()
+    elif stage == "prepare":
         result = prepare.remote((ROOT / "build/v2-calibration-input-ids.safetensors").read_bytes())
     elif stage == "probe":
         source = ROOT / "build/lfm25-v3-probe-source"
@@ -411,7 +451,7 @@ def main(stage: str = "prepare", mode: str = "", corpus: str = "", trunk8: bool 
     elif stage == "convert":
         result = json.loads(convert.remote(mode, corpus, trunk8))
     else:
-        raise ValueError("stage must be prepare, probe, or convert")
+        raise ValueError("stage must be mount, prepare, probe, or convert")
     destination = ROOT / "build" / f"lfm25-v3-{stage}-cloud.json"
     destination.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
     print(json.dumps({"status": result.get("status"), "report": str(destination)}), flush=True)
