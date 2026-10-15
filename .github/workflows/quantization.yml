@@ -69,10 +69,15 @@ jobs:
           ruff check scripts/generate_lfm25_trace.py benchmarks/eval_lfm25_candidate.py benchmarks/eval_lfm25_quality.py tests/test_lfm25_trace.py tests/test_lfm25_candidate.py tests/test_lfm25_quality.py
           python -m compileall -q scripts/generate_lfm25_trace.py benchmarks/eval_lfm25_candidate.py benchmarks/eval_lfm25_quality.py
           python -m pytest -q tests/test_lfm25_trace.py tests/test_lfm25_candidate.py tests/test_lfm25_quality.py
+          ruff format --check docs/measurements/quant-lfm25-v3-20261015/compact-operation.py tests/test_lfm25_compact_operation.py
+          ruff check docs/measurements/quant-lfm25-v3-20261015/compact-operation.py tests/test_lfm25_compact_operation.py
+          python -m compileall -q docs/measurements/quant-lfm25-v3-20261015/compact-operation.py
+          python -m pytest -q tests/test_lfm25_compact_operation.py
       - name: Attempt symbolic expert map isolation (tensor and GPU paths excluded)
         run: |
           crosshair check tests/exl3_moe_calibration_contracts.py --report_all --per_condition_timeout=20
           crosshair check eval_lfm25_quality.scored_count --report_all --per_condition_timeout=20
+          crosshair check docs/measurements/quant-lfm25-v3-20261015/compact-operation.py --report_all --per_condition_timeout=20
       - name: Search for counterexamples to the three profile failure guards
         run: |
           mkdir -p build/proofs
