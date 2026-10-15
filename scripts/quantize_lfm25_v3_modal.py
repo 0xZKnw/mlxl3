@@ -57,14 +57,19 @@ def trace_runtime_smoke():
 
 
 volume = modal.Volume.from_name(VOLUME, create_if_missing=True)
-image = base.image.pip_install("transformers==5.16.1").env(
+image = base.image.pip_install("transformers==5.16.1", "accelerate==1.12.0").env(
     {
         "PYTHONPATH": "/opt/mlxl3:/opt/exl3-source",
         "HF_HOME": "/tmp/mlxl3-image-hf",
         "HF_XET_CACHE": "/tmp/mlxl3-image-xet",
     }
 )
-for name in ("quantize_lfm25_modal", "exl3_moe_calibration", "pilot_lfm25_calibration"):
+for name in (
+    "quantize_lfm25_modal",
+    "exl3_moe_calibration",
+    "pilot_lfm25_calibration",
+    "generate_lfm25_trace",
+):
     image = image.add_local_file(
         ROOT / "scripts" / f"{name}.py", f"/opt/mlxl3/{name}.py", copy=True
     )
@@ -123,7 +128,10 @@ def make_mix(original_path: Path, trace_path: Path, output: Path):
     if any(row.shape != (1, 2048) or row.dtype != torch.int64 for row in rows):
         raise ValueError("Invalid original calibration rows")
     old = torch.cat(rows)
-    trace = json.loads(trace_path.read_text())["rows"]
+    data = json.loads(trace_path.read_text())
+    if data.get("status", "complete") != "complete":
+        raise ValueError("Incomplete source trace generation")
+    trace = data["rows"]
     order = list(range(len(trace)))
     random.Random(20261015).shuffle(order)
     replacements = []
@@ -225,29 +233,9 @@ def prepare(original_ids: bytes):
         command = [
             sys.executable,
             "-u",
-            "/opt/exl3-source/sc_trace.py",
-            "-m",
+            "/opt/mlxl3/generate_lfm25_trace.py",
             str(source),
-            "-o",
             str(folder / "trace.json"),
-            "-co",
-            str(folder / "trace.safetensors"),
-            "-cr",
-            "96",
-            "-cc",
-            "2048",
-            "--target_tokens",
-            "196608",
-            "--max_new_tokens",
-            "3072",
-            "--max_epochs",
-            "1",
-            "--seed",
-            "20261015",
-            "-cs",
-            "524288",
-            "-ambs",
-            "128",
         ]
         report["trace_command"] = command
         base.run_logged(command, folder / "trace.log", 1000)

@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 20
     env:
       MLXL3_SKIP_METAL_CHECK: '1'
-      PYTHONPATH: src:references/PonyExl3:scripts
+      PYTHONPATH: src:references/PonyExl3:scripts:benchmarks
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -65,9 +65,14 @@ jobs:
           ruff check scripts/exl3_moe_calibration.py scripts/pilot_lfm25_calibration.py scripts/quantize_lfm25_v3_modal.py tests/test_exl3_moe_calibration.py tests/test_lfm25_v3_calibration.py tests/exl3_moe_calibration_contracts.py
           python -m compileall -q scripts/exl3_moe_calibration.py scripts/pilot_lfm25_calibration.py scripts/quantize_lfm25_v3_modal.py
           python -m pytest -q tests/test_exl3_moe_calibration.py tests/test_lfm25_v3_calibration.py
+          ruff format --check scripts/generate_lfm25_trace.py benchmarks/eval_lfm25_candidate.py benchmarks/eval_lfm25_quality.py tests/test_lfm25_trace.py tests/test_lfm25_candidate.py tests/test_lfm25_quality.py
+          ruff check scripts/generate_lfm25_trace.py benchmarks/eval_lfm25_candidate.py benchmarks/eval_lfm25_quality.py tests/test_lfm25_trace.py tests/test_lfm25_candidate.py tests/test_lfm25_quality.py
+          python -m compileall -q scripts/generate_lfm25_trace.py benchmarks/eval_lfm25_candidate.py benchmarks/eval_lfm25_quality.py
+          python -m pytest -q tests/test_lfm25_trace.py tests/test_lfm25_candidate.py tests/test_lfm25_quality.py
       - name: Attempt symbolic expert map isolation (tensor and GPU paths excluded)
         run: |
           crosshair check tests/exl3_moe_calibration_contracts.py --report_all --per_condition_timeout=20
+          crosshair check eval_lfm25_quality.scored_count --report_all --per_condition_timeout=20
       - name: Search for counterexamples to the three profile failure guards
         run: |
           mkdir -p build/proofs
