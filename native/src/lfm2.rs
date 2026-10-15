@@ -953,6 +953,22 @@ impl Lfm2 {
         self.context_limit
     }
 
+    /// Logical F16 context states for batch one. Views can retain larger backing
+    /// allocations; temporary activations and allocator caches are not included.
+    pub fn context_memory_profile(&self) -> Result<serde_json::Value> {
+        let mut profile = crate::contracts::LfmContextMemory::default();
+        for layer in &self.layers {
+            profile = match &layer.operator {
+                Operator::Attention(attention) => {
+                    profile.attention(attention.kv_heads, attention.head_dim)
+                }
+                Operator::Conv(conv) => profile.convolution(conv.length, conv.dim),
+            }
+            .context("invalid or overflowing LFM2 context memory profile")?;
+        }
+        Ok(profile.into_json())
+    }
+
     pub fn reset(&mut self) {
         self.offset = 0;
         for layer in &mut self.layers {

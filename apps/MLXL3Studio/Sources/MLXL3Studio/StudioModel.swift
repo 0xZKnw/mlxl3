@@ -178,17 +178,10 @@ final class StudioModel: ObservableObject {
         if dflash2Enabled && mtpEnabled {
             mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
         }
-        if mtpEnabled {
-            temperature = 0; topK = 1; repetitionPenalty = 1
-        }
         if dflash2Enabled {
             if dflashDraftPath.isEmpty {
                 dflash2Enabled = false
                 preferences.set(false, forKey: "studio.dflash2Enabled")
-            } else {
-                temperature = 0
-                topK = 1
-                repetitionPenalty = 1
             }
         }
         mtpLegacyModelName = selectedModelName
@@ -238,6 +231,14 @@ final class StudioModel: ObservableObject {
     var mtpAvailable: Bool {
         mtpSupported ?? ["qwen3_5", "qwen3_5_moe"].contains(selectedModel?.modelType ?? "")
     }
+    // Saved intent can survive an incompatible model; applicability is not engine activity.
+    var mtpApplicable: Bool { mtpEnabled && mtpAvailable }
+    var dflash2Applicable: Bool { dflash2Enabled && dflash2Available }
+    var samplingLocked: Bool { mtpApplicable || dflash2Applicable }
+    var samplingTemperature: Double { samplingLocked ? 0 : temperature }
+    var samplingTopK: Int { samplingLocked ? 1 : topK }
+    var samplingRepetitionPenalty: Double { samplingLocked ? 1 : repetitionPenalty }
+
     var mtpAutomaticDownloadAvailable: Bool {
         mtpAutoDownloadSupported ?? false
     }
@@ -700,14 +701,14 @@ final class StudioModel: ObservableObject {
                     conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
                     maxTokens: -1,
-                    temperature: temperature,
-                    topK: topK,
-                    repetitionPenalty: repetitionPenalty,
+                    temperature: samplingTemperature,
+                    topK: samplingTopK,
+                    repetitionPenalty: samplingRepetitionPenalty,
                     mcpEnabled: mcpEnabled,
-                    dflash2: dflash2Enabled && dflash2Available,
+                    dflash2: dflash2Applicable,
                     dflashDraftPath: dflashDraftPath,
                     dflashMode: dflashMode,
-                    mtp: mtpEnabled && mtpAvailable,
+                    mtp: mtpApplicable,
                     mtpHeadPath: mtpHeadPath,
                     mtpDepth: mtpDepth,
                     memorySaver: memorySaverEnabled && memorySaverSupported
@@ -968,7 +969,6 @@ final class StudioModel: ObservableObject {
                 preferences.set(path, forKey: "studio.mtpHead.\(model.path)")
                 dflash2Enabled = false
                 mtpEnabled = true
-                temperature = 0; topK = 1; repetitionPenalty = 1
                 preferences.set(true, forKey: "studio.mtpEnabled")
                 saveMTPSelection()
                 schedulePersistence()
@@ -1036,7 +1036,6 @@ final class StudioModel: ObservableObject {
         mtpDepth = max(1, saved.depth)
         // The global switch owns ON/OFF; saved tuning only restores the depth.
         mtpTuneRows = saved.rows; mtpTunedAt = saved.tunedAt
-        if mtpEnabled { temperature = 0; topK = 1; repetitionPenalty = 1 }
     }
 
     func tuneMTP() {
@@ -1096,8 +1095,7 @@ final class StudioModel: ObservableObject {
                 preferences.set(mtpEnabled, forKey: "studio.mtpEnabled"); saveMTPSelection()
             }
             mtpTuneProgress = 1
-            // Baseline is also measured in greedy mode, keeping the comparison valid.
-            temperature = 0; topK = 1; repetitionPenalty = 1
+            // Tuning uses greedy internally; retain the user's ordinary sampling settings.
             schedulePersistence(); finishMTPTuning(error: nil)
         case "cancelled":
             finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
@@ -1122,9 +1120,6 @@ final class StudioModel: ObservableObject {
 
     func enableDFlashGreedy() {
         mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
-        temperature = 0
-        topK = 1
-        repetitionPenalty = 1
         dflash2Enabled = true
         preferences.set(true, forKey: "studio.dflash2Enabled")
         settingsDidChange()

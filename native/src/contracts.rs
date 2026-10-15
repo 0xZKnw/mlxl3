@@ -922,3 +922,250 @@ fn memory_saver_releases_every_unused_buffer() {
     kani::cover!(!saver && bytes == 536_870_912 && !release);
     kani::cover!(saver && bytes == u64::MAX && release);
 }
+
+/// Logical F16 states retained by batch-one LFM2, excluding backing storage,
+/// allocator caches and temporary activations. Signed totals match Swift Int.
+#[cfg(any(feature = "mlx", test, kani))]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct LfmContextMemory {
+    fixed_bytes: i64,
+    bytes_per_token: i64,
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+impl LfmContextMemory {
+    pub(crate) fn attention(self, kv_heads: i32, head_dim: i32) -> Option<Self> {
+        if kv_heads <= 0 || head_dim <= 0 {
+            return None;
+        }
+        // Two F16 tensors, each [1, kv_heads, tokens, head_dim].
+        let bytes = i64::from(kv_heads)
+            .checked_mul(i64::from(head_dim))?
+            .checked_mul(4)?;
+        Some(Self {
+            bytes_per_token: self.bytes_per_token.checked_add(bytes)?,
+            ..self
+        })
+    }
+
+    pub(crate) fn convolution(self, length: i32, dim: i32) -> Option<Self> {
+        if length <= 0 || dim <= 0 {
+            return None;
+        }
+        // A F16 history view [1, length - 1, dim].
+        let bytes = i64::from(length - 1)
+            .checked_mul(i64::from(dim))?
+            .checked_mul(2)?;
+        Some(Self {
+            fixed_bytes: self.fixed_bytes.checked_add(bytes)?,
+            ..self
+        })
+    }
+
+    #[cfg(any(feature = "mlx", test))]
+    pub(crate) fn into_json(self) -> serde_json::Value {
+        serde_json::json!({
+            "fixed_bytes": self.fixed_bytes,
+            "draft_bytes_per_token": null,
+            "layers": [{"bytes_per_token": self.bytes_per_token, "step": 1, "max_tokens": null}]
+        })
+    }
+}
+
+#[test]
+fn lfm_context_memory_matches_independent_tensor_shapes() {
+    // LFM2.5-24B-A2B: ten attention and thirty convolution layers.
+    let mut profile = LfmContextMemory::default();
+    for layer in 0..40 {
+        profile = if layer % 4 == 3 {
+            profile.attention(8, 64).unwrap()
+        } else {
+            profile.convolution(3, 2048).unwrap()
+        };
+    }
+    assert_eq!(
+        (profile.fixed_bytes, profile.bytes_per_token),
+        (245_760, 20_480)
+    );
+    for tokens in [1, 2, 23, 24, 255, 256, 257, 32_768] {
+        // Independent shapes include batch, both K/V tensors and F16 item size.
+        let kv_shape = [10_i64, 2, 1, 8, tokens, 64, 2];
+        let conv_shape = [30_i64, 1, 2, 2048, 2];
+        let expected = kv_shape.iter().product::<i64>() + conv_shape.iter().product::<i64>();
+        assert_eq!(
+            profile.fixed_bytes + profile.bytes_per_token * tokens,
+            expected
+        );
+    }
+    let json = profile.into_json();
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "fixed_bytes": 245760, "draft_bytes_per_token": null,
+            "layers": [{"bytes_per_token": 20480, "step": 1, "max_tokens": null}]
+        })
+    );
+    let wire =
+        serde_json::to_vec(&serde_json::json!({"type":"ready", "context_memory":json})).unwrap();
+    let decoded: serde_json::Value = serde_json::from_slice(&wire).unwrap();
+    assert_eq!(
+        decoded["context_memory"]["layers"][0]["bytes_per_token"],
+        20480
+    );
+}
+
+#[test]
+fn lfm_context_memory_supports_empty_history_and_mixed_layer_geometry() {
+    let empty = LfmContextMemory::default();
+    assert_eq!(empty.convolution(1, 2048), Some(empty));
+    let profile = empty
+        .attention(1, 2)
+        .unwrap()
+        .attention(2, 4)
+        .unwrap()
+        .convolution(4, 16)
+        .unwrap();
+    assert_eq!((profile.fixed_bytes, profile.bytes_per_token), (96, 40));
+    assert_eq!(empty.into_json()["fixed_bytes"], 0);
+}
+
+#[test]
+fn lfm_context_memory_rejects_invalid_dimensions_without_changing_state() {
+    let valid = LfmContextMemory::default()
+        .attention(8, 64)
+        .unwrap()
+        .convolution(3, 2048)
+        .unwrap();
+    for invalid in [i32::MIN, -1, 0] {
+        assert_eq!(valid.attention(invalid, 64), None);
+        assert_eq!(valid.attention(8, invalid), None);
+        assert_eq!(valid.convolution(invalid, 2048), None);
+        assert_eq!(valid.convolution(3, invalid), None);
+    }
+    assert_eq!((valid.fixed_bytes, valid.bytes_per_token), (8192, 2048));
+}
+
+#[test]
+fn lfm_context_memory_rejects_product_and_sum_overflow() {
+    let empty = LfmContextMemory::default();
+    assert_eq!(empty.attention(i32::MAX, i32::MAX), None);
+    // The largest single convolution fits in i64; a second one must not wrap.
+    let large = empty.convolution(i32::MAX, i32::MAX).unwrap();
+    assert!(large.fixed_bytes > i64::MAX / 2);
+    assert_eq!(large.convolution(i32::MAX, i32::MAX), None);
+    let near_limit = LfmContextMemory {
+        fixed_bytes: i64::MAX - 2,
+        bytes_per_token: i64::MAX - 4,
+    };
+    assert_eq!(near_limit.convolution(2, 1).unwrap().fixed_bytes, i64::MAX);
+    assert_eq!(near_limit.convolution(2, 2), None);
+    assert_eq!(
+        near_limit.attention(1, 1).unwrap().bytes_per_token,
+        i64::MAX
+    );
+    assert_eq!(near_limit.attention(1, 2), None);
+}
+
+#[test]
+fn lfm_context_memory_sampled_dimensions_match_wide_integer_oracle() {
+    for first in [i32::MIN, -1, 0, 1, 2, 8, 64, 2048, i32::MAX] {
+        for second in [i32::MIN, -1, 0, 1, 2, 8, 64, 2048, i32::MAX] {
+            let empty = LfmContextMemory::default();
+            let expected_attention = (first > 0 && second > 0)
+                .then(|| i128::from(first) * i128::from(second) * 4)
+                .and_then(|n| i64::try_from(n).ok());
+            let expected_conv = (first > 0 && second > 0)
+                .then(|| (i128::from(first) - 1) * i128::from(second) * 2)
+                .and_then(|n| i64::try_from(n).ok());
+            assert_eq!(
+                empty.attention(first, second).map(|p| p.bytes_per_token),
+                expected_attention
+            );
+            assert_eq!(
+                empty.convolution(first, second).map(|p| p.fixed_bytes),
+                expected_conv
+            );
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_context_attention_matches_f16_shapes_and_rejects_overflow() {
+    let total: i64 = kani::any();
+    let heads: i32 = kani::any();
+    kani::assume(total >= 0); // Every reachable accumulator starts at zero and only adds.
+    let profile = LfmContextMemory {
+        fixed_bytes: 0,
+        bytes_per_token: total,
+    };
+    // Full i32 head count, actual LFM2.5 head dimension; no loops or stubs.
+    let expected = (heads > 0).then(|| i128::from(total) + i128::from(heads) * 256);
+    let expected = expected.and_then(|n| i64::try_from(n).ok());
+    let actual = profile.attention(heads, 64);
+    assert_eq!(actual.map(|p| p.bytes_per_token), expected);
+    if let Some(result) = actual {
+        assert_eq!(result.fixed_bytes, 0);
+    }
+    kani::cover!(heads == 8 && total == 0 && actual.is_some());
+    kani::cover!(heads == 0 && actual.is_none());
+    kani::cover!(heads == 1 && total == i64::MAX && actual.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_context_conv_matches_f16_history_and_rejects_overflow() {
+    let total: i64 = kani::any();
+    let length: i32 = kani::any();
+    kani::assume(total >= 0);
+    let profile = LfmContextMemory {
+        fixed_bytes: total,
+        bytes_per_token: 0,
+    };
+    // Full i32 history length, actual LFM2.5 hidden dimension.
+    let expected = (length > 0).then(|| i128::from(total) + (i128::from(length) - 1) * 4096);
+    let expected = expected.and_then(|n| i64::try_from(n).ok());
+    let actual = profile.convolution(length, 2048);
+    assert_eq!(actual.map(|p| p.fixed_bytes), expected);
+    if let Some(result) = actual {
+        assert_eq!(result.bytes_per_token, 0);
+    }
+    kani::cover!(length == 3 && total == 0 && actual.is_some());
+    kani::cover!(length == 1 && total == i64::MAX && actual.is_some());
+    kani::cover!(length == 0 && actual.is_none());
+    kani::cover!(length == 2 && total == i64::MAX && actual.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_context_memory_small_dimensions_match_wide_oracle() {
+    let total: i64 = kani::any();
+    let first: i8 = kani::any();
+    let second: i8 = kani::any();
+    kani::assume(total >= 0);
+    let profile = LfmContextMemory {
+        fixed_bytes: total,
+        bytes_per_token: total,
+    };
+    let positive = first > 0 && second > 0;
+    let attention = positive
+        .then(|| i128::from(total) + i128::from(first) * i128::from(second) * 4)
+        .and_then(|n| i64::try_from(n).ok());
+    let conv = positive
+        .then(|| i128::from(total) + (i128::from(first) - 1) * i128::from(second) * 2)
+        .and_then(|n| i64::try_from(n).ok());
+    let actual_attention = profile.attention(i32::from(first), i32::from(second));
+    let actual_conv = profile.convolution(i32::from(first), i32::from(second));
+    assert_eq!(actual_attention.map(|p| p.bytes_per_token), attention);
+    assert_eq!(actual_conv.map(|p| p.fixed_bytes), conv);
+    if let Some(result) = actual_attention {
+        assert_eq!(result.fixed_bytes, total);
+    }
+    if let Some(result) = actual_conv {
+        assert_eq!(result.bytes_per_token, total);
+    }
+    kani::cover!(first == 1 && second == 1 && total == 0 && actual_attention.is_some());
+    kani::cover!(first == 1 && second == 127 && total == i64::MAX && actual_conv.is_some());
+    kani::cover!(first == 127 && second == 127 && total == i64::MAX && actual_conv.is_none());
+    kani::cover!(first == i8::MIN && actual_attention.is_none() && actual_conv.is_none());
+}

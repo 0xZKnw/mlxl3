@@ -2797,7 +2797,11 @@ fn native_bridge(
         "mtp_configure_supported":true,
         "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
         "memory_saver_supported":true,
-        "context_memory":match &model { NativeChatModel::Qwen(target) => Some(target.context_memory_profile()?), _ => None },
+        "context_memory":match &model {
+            NativeChatModel::Qwen(target) => Some(target.context_memory_profile()?),
+            NativeChatModel::Lfm2(target) => Some(target.context_memory_profile()?),
+            _ => None
+        },
         "mtp_tuning_key":tuning_key,
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},

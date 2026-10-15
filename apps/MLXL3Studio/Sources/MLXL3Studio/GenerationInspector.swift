@@ -100,7 +100,7 @@ struct GenerationInspector: View {
                         SettingCard(title: L("Échantillonnage", "Sampling"), icon: "dial.medium") {
                             SliderSetting(
                                 label: L("Température", "Temperature"),
-                                value: $studio.temperature,
+                                value: Binding(get: { studio.samplingTemperature }, set: { studio.temperature = $0 }),
                                 range: 0...1.5,
                                 format: "%.2f"
                             )
@@ -109,13 +109,13 @@ struct GenerationInspector: View {
                                 HStack {
                                     Text("Top K")
                                     Spacer()
-                                    Text("\(studio.topK)").monospacedDigit()
+                                    Text("\(studio.samplingTopK)").monospacedDigit()
                                 }
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(StudioTheme.secondary)
                                 Slider(
                                     value: Binding(
-                                        get: { Double(studio.topK) },
+                                        get: { Double(studio.samplingTopK) },
                                         set: { studio.topK = Int($0.rounded()) }
                                     ),
                                     in: 0...200,
@@ -126,27 +126,36 @@ struct GenerationInspector: View {
                             Divider().overlay(Color.white.opacity(0.08))
                             SliderSetting(
                                 label: L("Répétition", "Repetition"),
-                                value: $studio.repetitionPenalty,
+                                value: Binding(get: { studio.samplingRepetitionPenalty }, set: { studio.repetitionPenalty = $0 }),
                                 range: 1...1.3,
                                 format: "%.2f"
                             )
-                            if studio.mtpEnabled || studio.dflash2Enabled {
-                                Label(L("MTP est activé : ces paramètres sont verrouillés. Désactive MTP pour les modifier.",
-                                        "MTP is enabled: these settings are locked. Disable MTP to change them."), systemImage: "lock")
+                            if studio.samplingLocked {
+                                let mode = studio.dflash2Applicable ? "DFlash2" : "MTP"
+                                Label(L("\(mode) utilise le mode greedy. Désactive \(mode) pour modifier ces paramètres.",
+                                        "\(mode) uses greedy sampling. Disable \(mode) to change these settings."), systemImage: "lock")
                                     .font(.caption).foregroundStyle(StudioTheme.quiet)
                             }
                         }
-                        .disabled(studio.mtpEnabled || studio.dflash2Enabled)
+                        .disabled(studio.samplingLocked)
 
-                        if studio.mtpAvailable {
+                        if studio.mtpAvailable || studio.mtpEnabled || studio.mtpDownloading {
                             SettingCard(title: "MTP · Qwen3.5 / Qwen3.6", icon: "bolt") {
-                                Toggle(L("Prédiction native de tokens", "Native token prediction"), isOn: Binding(
+                                Toggle(studio.mtpAvailable
+                                       ? L("Prédiction native de tokens", "Native token prediction")
+                                       : L("Préférence MTP (inactive pour ce modèle)", "MTP preference (inactive for this model)"), isOn: Binding(
                                     get: { studio.mtpEnabled || studio.mtpDownloading },
                                     set: { studio.setMTPEnabled($0) }
                                 ))
                                 .font(.system(size: 11))
-                                .disabled(studio.isGenerating)
-                                MTPTuningControls().id("mtp-tuning")
+                                .disabled(studio.isGenerating || (!(studio.mtpEnabled || studio.mtpDownloading)
+                                    && (!studio.mtpAvailable || !studio.engineState.isReady)))
+                                if !studio.mtpAvailable {
+                                    Text(L("Préférence MTP conservée ; indisponible pour ce modèle. Tu peux la désactiver ici.",
+                                           "MTP preference saved; unavailable for this model. You can turn it off here."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                }
+                                MTPTuningControls().id("mtp-tuning").disabled(!studio.mtpAvailable)
                                 if studio.isGenerating && !studio.isTuningMTP {
                                     Text(studio.mtpActive == true
                                          ? L("MTP actif et vérifié par le moteur", "MTP active and target verified")
@@ -165,7 +174,7 @@ struct GenerationInspector: View {
                                 }
                                 Button(L("Choisir la tête MTP…", "Choose MTP head…")) { studio.chooseMTPHead() }
                                     .buttonStyle(GlassPillButtonStyle())
-                                    .disabled(studio.mtpDownloading || studio.isGenerating)
+                                    .disabled(!studio.mtpAvailable || studio.mtpDownloading || studio.isGenerating)
                                 Text(studio.mtpHeadPath.isEmpty
                                      ? L("Qwen3.6-35B-A3B : tête 4 bits (~453 MiB) téléchargée à l’activation.", "Qwen3.6-35B-A3B: 4-bit head (~453 MiB) downloads when enabled.")
                                      : studio.mtpHeadPath)
@@ -176,13 +185,22 @@ struct GenerationInspector: View {
                             }
                         }
 
-                        if studio.dflash2Available {
+                        if studio.dflash2Available || studio.dflash2Enabled || studio.dflashDownloading {
                             SettingCard(title: "DFlash2 · Qwen3.6 / Qwen3.8", icon: "bolt.fill") {
-                                Toggle(L("Accélérer avec DFlash2", "Accelerate with DFlash2"), isOn: Binding(
+                                Toggle(studio.dflash2Available
+                                       ? L("Accélérer avec DFlash2", "Accelerate with DFlash2")
+                                       : L("Préférence DFlash2 (inactive pour ce modèle)", "DFlash2 preference (inactive for this model)"), isOn: Binding(
                                     get: { studio.dflash2Enabled || studio.dflashDownloading },
                                     set: { studio.setDFlash2Enabled($0) }
-                                )).font(.system(size: 11)).disabled(studio.isGenerating || !studio.engineState.isReady)
-                                MTPTuningControls(dflash: true)
+                                )).font(.system(size: 11))
+                                .disabled(studio.isGenerating || (!(studio.dflash2Enabled || studio.dflashDownloading)
+                                    && (!studio.dflash2Available || !studio.engineState.isReady)))
+                                if !studio.dflash2Available {
+                                    Text(L("Préférence DFlash2 conservée ; indisponible pour ce modèle. Tu peux la désactiver ici.",
+                                           "DFlash2 preference saved; unavailable for this model. You can turn it off here."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                }
+                                MTPTuningControls(dflash: true).disabled(!studio.dflash2Available)
                                 if studio.dflashDownloading {
                                     ProgressView(value: studio.dflashDownloadTotal > 0 ? studio.dflashDownloadCompleted / studio.dflashDownloadTotal : 0)
                                     Text(L("Téléchargement et préparation du draft…", "Downloading and preparing the draft…"))
@@ -193,7 +211,7 @@ struct GenerationInspector: View {
                                        "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."))
                                     .font(.caption).foregroundStyle(StudioTheme.quiet)
                                 Button(L("Choisir un draft local…", "Choose a local draft…"), action: studio.chooseDFlashDraft)
-                                    .buttonStyle(GlassPillButtonStyle()).disabled(studio.isGenerating || studio.dflashDownloading)
+                                    .buttonStyle(GlassPillButtonStyle()).disabled(!studio.dflash2Available || studio.isGenerating || studio.dflashDownloading)
                             }
                             .id("dflash-tuning")
                         }
