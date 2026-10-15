@@ -62,6 +62,16 @@ def test_expert_parity_has_nonempty_finite_reference_and_detects_mutation():
             relative_rms(actual, reference)
 
 
+@pytest.mark.parametrize("actual,reference", [(1e200, -1e200), (1e200, 1.0)])
+def test_finite_parity_inputs_cannot_return_nan_or_infinite_error(actual, reference):
+    torch = pytest.importorskip("torch")
+    with pytest.raises(ValueError):
+        relative_rms(
+            torch.tensor([actual], dtype=torch.float64),
+            torch.tensor([reference], dtype=torch.float64),
+        )
+
+
 def test_small_bf16_transformers_model_generates_with_fresh_recurrent_state():
     torch = pytest.importorskip("torch")
     pytest.importorskip("transformers")

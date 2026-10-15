@@ -2,6 +2,27 @@
 
 Campagne QUANT-2026-10-15-LFM25-25. État initial : recherche et code local ; aucun gain V3 annoncé. L'utilisateur autorise une nouvelle conversion H100 puis les tests et privilégie la fidélité au BF16, sans imposer KL0,01–0,02. La V2 publiée reste immuable.
 
+## Résultats du pilote et candidat retenu
+
+Le pilote est terminé : 216 quantifications de matrices d’experts et huit contrôles du tronc, sur validation indépendante. Les captures conditionnelles sont rejetées sur ce panel ; les conserver comme options expérimentales ne signifie pas les activer sur le nouveau modèle.
+
+| Corpus | Capture | Ratio géométrique d’erreur | Pire projection | Décision |
+|---|---|---:|---:|---|
+| Original | Tous tokens | 1,0000 | 1,0000 | Référence retenue |
+| Original | Routée | 1,1045 | 1,4570 | Rejetée |
+| Original | Affinité p | 1,1056 | 1,4469 | Rejetée |
+| Original | Affinité p² | 1,1126 | 1,4282 | Rejetée |
+| Traces BF16 | Tous tokens | 1,0012 | 1,0295 | Pas de gain établi |
+| Traces BF16 | Routée | 1,1027 | 1,4046 | Rejetée |
+| Traces BF16 | Affinité p | 1,1040 | 1,4041 | Rejetée |
+| Traces BF16 | Affinité p² | 1,1107 | 1,3971 | Rejetée |
+
+Les deux sondes communes donnent des ratios K8/HQ de **0,27695 et 0,14172**, soit des baisses d’erreur de72,30% et85,83%. Le candidat conserve donc la calibration originale et les experts K4, avec les projections communes K8. Le surcoût estimé est206307328octets : **4,27857bpw compacts**, contre4,20972 en V2. Ces proxys ne sont pas des mesures KL du modèle complet. [Données du pilote](measurements/quant-lfm25-v3-20261015/pilot.json), [sélection figée](measurements/quant-lfm25-v3-20261015/selected-recipe.json).
+
+Le premier prévol sur la fixture à embedding/routeurs construits échoue à4,014% RMS. La matrice de contrôle conserve cet échec : nouvelle/HQ2,180%, historique/HQ2,347%, historique/K8 **0,1923%** ; chaque cas a4096valeurs finies et32/32argmax identiques. La tolérance2% n’a pas changé et aucune fixture n’a été retouchée. Le K8 retenu passe sur la source miniature historique inchangée ; cela ne prouve pas une parité universelle entre moteurs. Les résultats complets sont conservés dans [la matrice des prévols](measurements/quant-lfm25-v3-20261015/probe-control-matrix.json). La publication reste conditionnée aux tests24B complets.
+
+La génération source a produit64conversations BF16 en574,62s, dont39longues ; son remplacement des lignes aléatoires n’est finalement pas utilisé. Transformers5.16.1 utilise grouped_mm en prévol/prefill et bascule officiellement en batched_mm au décodage CUDA, toujours BF16 ; les38biais de routage FP32 restent exacts. Les deux holdouts de régression dialogue/CJK ne partagent aucun13gramme avec la calibration ni les64conversations générées. Ils restent réservés à l’évaluation finale.
+
 ## Ce qui justifie un nouvel essai
 
 La V2 atteint KL0,08345755 avec BOS et0,18792807 sans BOS sur les protocoles historiques. Le pic de la cinquième fenêtre se reproduit dans ExLlamaV3 CUDA : ce n'est pas uniquement un problème du moteur MLXL3. GSS, scalesauto, refit, propagation des états et HQ sont déjà actifs. Le bilan et les limites interbackend sont dans [le rapport V2](lfm25-v2-results-2026-10-15.md).

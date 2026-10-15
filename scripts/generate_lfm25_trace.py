@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import math
 import random
 import time
 from pathlib import Path
@@ -77,9 +78,12 @@ def relative_rms(actual, reference) -> float:
     ):
         raise ValueError("Invalid expert parity vectors")
     energy = reference.double().square().sum().item()
-    if energy <= 1e-20:
+    if not math.isfinite(energy) or energy <= 1e-20:
         raise ValueError("Empty expert reference energy")
-    return ((actual.double() - reference.double()).square().sum().item() / energy) ** 0.5
+    error = ((actual.double() - reference.double()).square().sum().item() / energy) ** 0.5
+    if not math.isfinite(error):
+        raise ValueError("Nonfinite expert parity error")
+    return error
 
 
 def run(source: Path, output: Path):
@@ -103,7 +107,9 @@ def run(source: Path, output: Path):
     report = {
         "status": "running",
         "rows": [],
-        "backend": "transformers-grouped_mm-bf16",
+        "backend": "transformers-bf16",
+        "experts_implementation_requested": "grouped_mm",
+        "decode_optimization": "Transformers 5.16.1 switches to batched_mm on CUDA",
         "source": str(source),
         "versions": {
             p: importlib.metadata.version(p) for p in ("torch", "transformers", "accelerate")
