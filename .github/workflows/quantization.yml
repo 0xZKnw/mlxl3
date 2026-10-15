@@ -85,6 +85,19 @@ jobs:
           ruff check scripts/diagnose_lfm25_tuning.py scripts/diagnose_lfm25_tuning_modal.py tests/test_lfm25_tuning.py tests/test_lfm25_tuning_modal.py
           python -m compileall -q scripts/diagnose_lfm25_tuning.py scripts/diagnose_lfm25_tuning_modal.py
           python -m pytest -q tests/test_lfm25_tuning.py tests/test_lfm25_tuning_modal.py
+      - name: Check deployable router recalibration without cloud credentials
+        run: |
+          ruff format --check scripts/lfm25_router_plan.py scripts/capture_lfm25_router.py scripts/recalibrate_lfm25_router.py scripts/evaluate_lfm25_router.py scripts/recalibrate_lfm25_router_modal.py tests/test_capture_lfm25_router.py tests/test_recalibrate_lfm25_router.py tests/test_evaluate_lfm25_router.py tests/test_recalibrate_lfm25_router_modal.py
+          ruff check scripts/lfm25_router_plan.py scripts/capture_lfm25_router.py scripts/recalibrate_lfm25_router.py scripts/evaluate_lfm25_router.py scripts/recalibrate_lfm25_router_modal.py tests/test_capture_lfm25_router.py tests/test_recalibrate_lfm25_router.py tests/test_evaluate_lfm25_router.py tests/test_recalibrate_lfm25_router_modal.py
+          python -m compileall -q scripts/lfm25_router_plan.py scripts/capture_lfm25_router.py scripts/recalibrate_lfm25_router.py scripts/evaluate_lfm25_router.py scripts/recalibrate_lfm25_router_modal.py
+          python -m pytest -q tests/test_capture_lfm25_router.py tests/test_recalibrate_lfm25_router.py tests/test_evaluate_lfm25_router.py tests/test_recalibrate_lfm25_router_modal.py
+          crosshair check lfm25_router_plan.child_timeout --report_all --per_condition_timeout=20
+          crosshair check capture_lfm25_router.capture_position --report_all --per_condition_timeout=20
+          crosshair check capture_lfm25_router.cache_capacity --report_all --per_condition_timeout=20
+          crosshair check recalibrate_lfm25_router.checked_alpha --report_all --per_condition_timeout=20
+          crosshair check recalibrate_lfm25_router.enough_samples --report_all --per_condition_timeout=20
+          crosshair check evaluate_lfm25_router.improves_kl --report_all --per_condition_timeout=20
+          crosshair check evaluate_lfm25_router.domain_gate --report_all --per_condition_timeout=20
       - name: Attempt symbolic expert map isolation (tensor and GPU paths excluded)
         run: |
           crosshair check tests/exl3_moe_calibration_contracts.py --report_all --per_condition_timeout=20
