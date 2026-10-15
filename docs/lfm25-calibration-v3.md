@@ -1,6 +1,29 @@
 # LFM2.5 — calibration après la V2
 
-Campagnes QUANT-2026-10-15-LFM25-25 à29. **Révision du15octobre : conversion et mesures historiques terminées, candidat K8 refusé pour publication.** L'utilisateur privilégie maintenant les réglages du convertisseur officiel. La V2 publiée reste immuable ; aucune V3 installée ou publiée. La recherche29 est documentaire et CPU, sans nouvelle dépense H100.
+Campagnes QUANT-2026-10-15-LFM25-25 à33. **Révision du15octobre : le candidat K8 est refusé pour publication ; les réglages officiels sont maintenant mesurés sur H100.** La V2 publiée reste immuable ; aucune V3 installée ou publiée. Les pilotes30–33 sont clos : aucun des nouveaux profils ne passe tous les garde-fous. Aucune conversion24B supplémentaire n’a été engagée ; les résultats et limites sont conservés ci-dessous.
+
+## Réglages officiels mesurés sur H100 (30–33)
+
+Même source et quantifier officiel épinglés, HQ K4/K5/K6, head16, scalesauto ; quatre profils, deux graines,29projections physiques (neuf experts et deux projections communes). Les poids décodés remplacent temporairement ces projections dans le modèle sourceF16, puis sont restaurés byteexact ; les logits source sont aussi vérifiés bitexact après chaque variante. Un contrôle négatif réel produit KL0,09049084. Validation disjointe :12×1024tokens,128positions scorées par fenêtre, vocabulaire complet128000 et calculF64. **Ces KL partiels ne sont pas les KL du modèle24B entièrement quantifié ni des mesures contre le teacherBF16 final.**
+
+| Réglage | Pilote30,32lignes de calibration | Pilote32,250lignes complètes | Pire domaine32 / contrôle | Pire projection32 / contrôle |
+|---|---:|---:|---:|---:|
+| MCG standard | 0,0385834 | 0,0477042 | 1,0000 | 1,0000 |
+| MCG scaled | 0,0452004 | 0,0377232 | 1,2213 | 1,4781 |
+| MUL1 standard | 0,0502436 | 0,0475916 | 1,5400 | 1,0055 |
+| MUL1 scaled | 0,0431620 | 0,0379929 | 1,1250 | 1,4644 |
+
+Les pilotes30 et32 ont chacun232quantifications et96fenêtres KL complètes ; leurs durées sont174,96s et279,85s hors préparation Modal. Avec la calibration complète, MCGscaled réduit le KL partiel moyen de20,92%, mais échoue aux seuils préenregistrés de régression10% par domaine et projection. MUL1 n'améliore pas uniformément le résultat. **Aucun profil global ne déclenche une nouvelle conversion24B.** Ces expériences ne sont pas des benchmarks de vitesse. [Pilote30](measurements/quant-lfm25-settings30-20261015/pilot.json), [scores32](measurements/quant-lfm25-settings32-20261015/pilot-scores.json).
+
+L'essai31 a capturé toutes les250séquences mais sélectionné un nouvel expert froid insuffisamment couvert en validation. Il s'est arrêté après72quantifications : rapportfailed, sélectionnulle, aucun résultat complet déduit. L'essai32 conserve exactement les experts déjà couverts du30, avec2048000routes par couche. [Échec31 conservé](measurements/quant-lfm25-settings31-20261015/pilot-first-failed.json).
+
+L'essai33 teste MCGscaled sauf les descentes `w2` des experts, et MCGscaled sur le tronc seul. Il choisit uniquement entre les options de factorisation officielles ; le quantifier CUDA, les poids sources, le budget de bits, les captures et les seuils restent inchangés. Un petit wrapper partitionne les appels officiels scalaire/groupé par option, refuse des options contradictoires sur une Hessienne partagée, et restaure les fonctions même après erreur. Les contrôles globaux doivent reproduire32 à1e-8+1e-6×|référence| avant toute conclusion. Pilote, prévol CUDA/natif puis évaluation24B sont des étapes distinctes ; aucune fidélité finale n'est présumée.
+
+Le pilote33 est terminé en220,29s :232quantifications et96mesures KL. Les164contrôles RMS/KL reproduisent32 exactement (écart maximal0). Le profil `mcg-no-down` atteint KLpartiel0,04587661 (−3,83%), pireprojection1,00809×, mais le domaine multilingue régresse de32,60%. `mcg-trunk-only` atteint0,04401518 (−7,73%), projections toutes≤1,00000×, mais le multilingue régresse de37,13%. Les seuils préenregistrés restent inchangés : sélectionnulle, aucune conversion24B supplémentaire. [Scores33](measurements/quant-lfm25-settings33-20261015/pilot-scores.json), [reproduction des contrôles](measurements/quant-lfm25-settings33-20261015/control-reproduction.json).
+
+Les quatre applications30–33 sont arrêtées, zéro tâche. Solde Modal affiché après actualisation :16,68USD contre17,91USD avant ces essais (écart affiché1,23USD, pas une facture isolée). Aucun nouveau modèle publié/installé. Les prévols CUDA/natif du sélecteur mixte et les cinq tests finaux/holdouts/smokes d’un nouveau24B restent non exécutés : aucun candidat n’a passé le pilote. Le wrapper est un outil expérimental vérifié surCPU, sans validation numérique de son parcours CUDA complet. La PR reste en brouillon.
+
+Vérification CPU33 :774tests passés/1Ling ignoré, puis97ciblés après correction de l'optionCLI candidate pour conserver `--profile` à l'authentification Modal. La mutation réactivant scaled sur une descente protégée est détectée. Ruff/compile/diff passent. CrossHair confirme précédemment2contrats inchangés d'arguments ; les4contrats du sélecteur restent non confirmés à20s/condition, sans contre-exemple. Les tenseursCUDA, les I/O et le KL ne sont pas formellement prouvés. [Preuves et limites33](measurements/quant-lfm25-settings33-20261015/cpu-verification.json).
 
 ## Résultat complet du candidat K8
 
@@ -105,7 +128,7 @@ La V2 utilise **déjà le quantifier officiel CUDA1.5.4**, commit `16a49792a3c93
 | `-hb16 -eb16` | Actif | Garder les matrices liées à haute précision ; le compactage supprime seulement leur copie redondante vérifiée. |
 | `--out_scales auto` | Actif | Garder comme référence ; forcer toutes les scales n'est pas une amélioration établie. |
 | `-cr250 -cc2048` | 512000tokens | Référence reproductible ; une hausse exige un vrai corpus plus grand et des lignes complètes. |
-| `-cb mul1` | MCG | Première ablation officielle, même budget ; son effetKL reste non mesuré. |
+| `-cb mul1` | MCG | Première ablation officielle, même budget ; effet partiel mesuré30/32, pas de profil global admissible. |
 | `--scaled_hessian` | Désactivé | Deuxième ablation, compatible avec les experts ; option expérimentale, pas un gain acquis. |
 | YAQA, `--hessians` | Désactivé | Objectif intéressant, mais couverture des experts fusionnés manquante dans l'outil stock. |
 
@@ -120,7 +143,7 @@ python -m exllamav3.conversion.convert_model \
 
 Les dossiers doivent être nouveaux. Aucun lancement de cette recette n'a eu lieu pendant la recherche29. Le parseur dense/MoE natif reconnaît MUL1, mais cela ne remplace pas un prévol physique de ses nouveaux poids. Les taux fractionnaires et les fenêtres Sushi ne sont pas inclus dans cette recette.
 
-Le [vrai `scaled_ldl`](https://github.com/turboderp-org/exllamav3/blob/16a49792a3c93d8432d72e6c4bce800841566577/exllamav3/modules/quant/exl3_lib/quantize.py) refactorise la Hessienne après avoir intégré les échelles d'entrée propres au tenseur. Cela distingue son objectif de la factorisation partagée utilisée enV2. Il ajoute une décomposition par tenseur, sans changer le format d'inférence. **Hypothèse** : cette métrique peut mieux distribuer l'erreur sur les experts ; ni coûtH100 ni gainKL ne sont encore mesurés sur LFM.
+Le [vrai `scaled_ldl`](https://github.com/turboderp-org/exllamav3/blob/16a49792a3c93d8432d72e6c4bce800841566577/exllamav3/modules/quant/exl3_lib/quantize.py) refactorise la Hessienne après avoir intégré les échelles d'entrée propres au tenseur. Cela distingue son objectif de la factorisation partagée utilisée enV2. Il ajoute une décomposition par tenseur, sans changer le format d'inférence. **Hypothèse** : cette métrique peut mieux distribuer l'erreur sur les experts ; le pilote32 mesure un gain KL partiel moyen, accompagné de régressions qui bloquent sa promotion ; le KL24B de cette option reste non mesuré.
 
 ## Deux contrôles concrets avant d'augmenter la calibration
 

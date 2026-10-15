@@ -77,6 +77,10 @@ jobs:
           ruff check scripts/pilot_lfm25_settings.py scripts/quantize_lfm25_settings_modal.py scripts/convert_lfm25_settings.py tests/test_lfm25_settings.py
           python -m compileall -q scripts/pilot_lfm25_settings.py scripts/quantize_lfm25_settings_modal.py scripts/convert_lfm25_settings.py
           python -m pytest -q tests/test_lfm25_settings.py
+          ruff format --check scripts/diagnose_lfm25_reference.py scripts/diagnose_lfm25_reference_modal.py scripts/diagnose_lfm25_routes.py scripts/diagnose_lfm25_routes_modal.py tests/test_lfm25_reference.py tests/test_lfm25_routes.py
+          ruff check scripts/diagnose_lfm25_reference.py scripts/diagnose_lfm25_reference_modal.py scripts/diagnose_lfm25_routes.py scripts/diagnose_lfm25_routes_modal.py tests/test_lfm25_reference.py tests/test_lfm25_routes.py
+          python -m compileall -q scripts/diagnose_lfm25_reference.py scripts/diagnose_lfm25_reference_modal.py scripts/diagnose_lfm25_routes.py scripts/diagnose_lfm25_routes_modal.py
+          python -m pytest -q tests/test_lfm25_reference.py tests/test_lfm25_routes.py
       - name: Attempt symbolic expert map isolation (tensor and GPU paths excluded)
         run: |
           crosshair check tests/exl3_moe_calibration_contracts.py --report_all --per_condition_timeout=20
@@ -84,6 +88,8 @@ jobs:
           crosshair check docs/measurements/quant-lfm25-v3-20261015/compact-operation.py --report_all --per_condition_timeout=20
           crosshair check pilot_lfm25_settings.settings_args --report_all --per_condition_timeout=20
           crosshair check pilot_lfm25_settings.projection_scaled --report_all --per_condition_timeout=20
+          crosshair check diagnose_lfm25_reference.valid_token --report_all --per_condition_timeout=20
+          crosshair check diagnose_lfm25_routes.checked_position --report_all --per_condition_timeout=20
       - name: Search for counterexamples to the three profile failure guards
         run: |
           mkdir -p build/proofs

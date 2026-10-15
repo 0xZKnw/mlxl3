@@ -1,0 +1,62 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_real_fp32_bias_restoration_rejects_rounding_missing_bias_and_bad_shape __
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-241/test_real_fp32_bias_restoratio0')
+
+    def test_real_fp32_bias_restoration_rejects_rounding_missing_bias_and_bad_shape(tmp_path):
+        torch = pytest.importorskip("torch")
+        save_file = pytest.importorskip("safetensors.torch").save_file
+        model = torch.nn.Module()
+        model.device = "cpu"
+        model.layers = torch.nn.ModuleList([torch.nn.Module() for _ in range(38)])
+        index, tensors = {}, {}
+        for i, layer in enumerate(model.layers):
+            layer.register_buffer("expert_bias", torch.zeros(64, dtype=torch.bfloat16))
+            name = f"layers.{i}.expert_bias"
+            index[name] = "biases.safetensors"
+            tensors[name] = torch.linspace(-0.170103, 0.220137, 64) + i * 0.00001
+        save_file(tensors, str(tmp_path / "biases.safetensors"))
+>       hashes = reference.restore_biases(model, tmp_path, index)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_lfm25_reference.py:166: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Module(
+  (layers): ModuleList(
+    (0-37): 38 x Module()
+  )
+)
+source = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-241/test_real_fp32_bias_restoratio0')
+index = {'layers.0.expert_bias': 'biases.safetensors', 'layers.1.expert_bias': 'biases.safetensors', 'layers.2.expert_bias': 'biases.safetensors', 'layers.3.expert_bias': 'biases.safetensors', ...}
+
+    def restore_biases(model, source: Path, index: dict) -> dict:
+        import torch
+        from safetensors import safe_open
+    
+        hashes = {}
+        for name, shard in index.items():
+            if not name.endswith("expert_bias"):
+                continue
+            with safe_open(source / shard, framework="pt", device="cpu") as handle:
+                original = handle.get_tensor(name)
+            if (
+                original.dtype != torch.float32
+                or original.shape != (64,)
+                or not torch.isfinite(original).all().item()
+            ):
+                raise ValueError("Invalid original routing bias")
+            parent, attr = name.rsplit(".", 1)
+            setattr(model.get_submodule(parent), attr, original.to(model.device, dtype=torch.bfloat16))
+            actual = model.get_buffer(name).cpu()
+            if actual.dtype != torch.float32 or not torch.equal(
+                actual.view(torch.uint8), original.view(torch.uint8)
+            ):
+>               raise ValueError("Source routing bias was rounded")
+E               ValueError: Source routing bias was rounded
+
+scripts/diagnose_lfm25_reference.py:91: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_reference.py::test_real_fp32_bias_restoration_rejects_rounding_missing_bias_and_bad_shape
+1 failed in 0.41s
