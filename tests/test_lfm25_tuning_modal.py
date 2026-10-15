@@ -75,7 +75,7 @@ def install_child(target, monkeypatch, failure=None):
         stage, plan, folder, cache, legacy = command[3:]
         folder, cache = Path(folder), Path(cache)
         assert stage == target.STAGES[len(commands)]
-        assert timeout == (540 if stage == "routes-a" else 180)
+        assert timeout == (540 if stage == "routes-a" else 480)
         assert json.loads(Path(plan).read_text()) == {"frozen": True}
         assert Path(legacy) == target.LEGACY
         assert Path(log) == target.DATA / f"{stage}.log"
@@ -449,7 +449,7 @@ def test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount():
     import diagnose_lfm25_tuning_modal as target
     from modal._utils.async_utils import synchronizer
 
-    assert target.DATA == Path("/data/diagnostic37-fixed-tune-retry-sdk")
+    assert target.DATA == Path("/data/diagnostic37-fixed-tune-trace")
     seen, commands, functions = set(), [], []
 
     def visit(node):
@@ -470,3 +470,18 @@ def test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount():
     visit(synchronizer._translate_in(target.image))
     assert any("modal==1.5.5" in command for command in commands)
     assert target.runtime_preflight in functions
+
+
+def test_registered_instrumented_time_budgets_and_hardware_are_bounded():
+    import inspect
+
+    import diagnose_lfm25_tuning_modal as target
+    from modal._utils.async_utils import synchronizer
+
+    function = synchronizer._translate_in(target.diagnose)
+    arguments = inspect.getclosurevars(function._load).nonlocals
+    assert arguments["timeout"] == arguments["startup_timeout"] == 2160
+    assert arguments["scaledown_window"] == 2
+    assert function._spec.gpus == "H100!"
+    assert function._spec.cpu == 8 and function._spec.memory == 98304
+    assert 3 * 480 + 540 < arguments["timeout"]

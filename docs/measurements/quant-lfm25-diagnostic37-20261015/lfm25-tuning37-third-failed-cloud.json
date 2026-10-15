@@ -1,0 +1,20 @@
+{
+  "status": "failed",
+  "publication": false,
+  "causal_interpretation": false,
+  "stages": {},
+  "plan_file": "/data/diagnostic37-fixed-tune-retry-sdk/input.json",
+  "elapsed_seconds": 180.00535359399998,
+  "stage": "cold-a",
+  "active_command": [
+    "/usr/local/bin/python",
+    "-u",
+    "/opt/mlxl3/diagnose_lfm25_tuning.py",
+    "cold-a",
+    "/data/diagnostic37-fixed-tune-retry-sdk/input.json",
+    "/data/diagnostic37-fixed-tune-retry-sdk/cold-a",
+    "/data/diagnostic37-fixed-tune-retry-sdk/cache-a.bin",
+    "/opt/mlxl3/diagnostic23-original.py"
+  ],
+  "launcher_error": "TimeoutExpired(['bash', '-o', 'pipefail', '-c', '/usr/local/bin/python -u /opt/mlxl3/diagnose_lfm25_tuning.py cold-a /data/diagnostic37-fixed-tune-retry-sdk/input.json /data/diagnostic37-fixed-tune-retry-sdk/cold-a /data/diagnostic37-fixed-tune-retry-sdk/cache-a.bin /opt/mlxl3/diagnostic23-original.py 2>&1 | tee /data/diagnostic37-fixed-tune-retry-sdk/cold-a.log'], 180)"
+}

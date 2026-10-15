@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import hashlib
 import importlib.metadata
 import inspect
@@ -231,22 +232,26 @@ def run_stage(stage, plan, output: Path, cache: Path, legacy: Path) -> dict:
         report["runtime"] = runtime_metadata()
         report["script_sha256"] = file_sha(Path(__file__))
         save()
-        if stage == "routes-a":
-            from diagnose_lfm25_routes import run
-            from diagnose_lfm25_routes_modal import validate_result
+        faulthandler.dump_traceback_later(60, repeat=True)
+        try:
+            if stage == "routes-a":
+                from diagnose_lfm25_routes import run
+                from diagnose_lfm25_routes_modal import validate_result
 
-            result = validate_result(run(plan, capture))
-        else:
-            original = load_legacy(legacy)
-            previous = original.__globals__["volume"]
-            original.__globals__["volume"] = types.SimpleNamespace(commit=lambda: None)
-            try:
-                result = original(plan["windows"], plan["shards"])
-            finally:
-                original.__globals__["volume"] = previous
-                if LEGACY_OUTPUT.exists():
-                    LEGACY_OUTPUT.rename(capture)
-            validate_legacy_report(result)
+                result = validate_result(run(plan, capture))
+            else:
+                original = load_legacy(legacy)
+                previous = original.__globals__["volume"]
+                original.__globals__["volume"] = types.SimpleNamespace(commit=lambda: None)
+                try:
+                    result = original(plan["windows"], plan["shards"])
+                finally:
+                    original.__globals__["volume"] = previous
+                    if LEGACY_OUTPUT.exists():
+                        LEGACY_OUTPUT.rename(capture)
+                validate_legacy_report(result)
+        finally:
+            faulthandler.cancel_dump_traceback_later()
         saved = json.loads((capture / "report.json").read_text())
         if saved != result:
             raise ValueError("Returned and persisted numerical capture reports differ")

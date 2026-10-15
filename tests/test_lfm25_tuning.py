@@ -378,3 +378,59 @@ def test_runtime_metadata_records_configs_and_versions_without_changing_flags(
         assert result["config_files"]["config.json"]["sha256"] == target.file_sha(
             tmp_path / "config.json"
         )
+
+
+@pytest.mark.parametrize("stage", ["cold-a", "routes-a"])
+@pytest.mark.parametrize("failure", [False, True])
+def test_traceback_timer_covers_capture_and_is_cancelled_on_success_or_error(
+    tmp_path, monkeypatch, stage, failure
+):
+    cache, output, _original_path, _observed, raw, _old_volume = setup_run(tmp_path, monkeypatch)
+    events = []
+    monkeypatch.setattr(
+        target.faulthandler,
+        "dump_traceback_later",
+        lambda seconds, *, repeat: events.append(("armed", seconds, repeat)),
+    )
+    monkeypatch.setattr(
+        target.faulthandler, "cancel_dump_traceback_later", lambda: events.append("cancelled")
+    )
+
+    def invoked():
+        assert events == [("armed", 60, True)]
+        events.append("capture")
+
+    if stage == "cold-a":
+
+        def legacy(windows, shards):
+            invoked()
+            result = raw(windows, shards)
+            if failure:
+                raise RuntimeError("interrupted legacy capture")
+            return result
+
+        monkeypatch.setattr(target, "load_legacy", lambda _: legacy)
+    else:
+        import diagnose_lfm25_routes_modal as validator
+
+        cache.write_bytes(cache_bytes(1))
+
+        def capture(plan, path):
+            invoked()
+            if failure:
+                raise RuntimeError("interrupted routes capture")
+            path.mkdir()
+            result = {"status": "complete", "test_only": True}
+            (path / "report.json").write_text(json.dumps(result))
+            cache.write_bytes(cache_bytes(1, 2))
+            return result
+
+        monkeypatch.setattr(routes, "run", capture)
+        monkeypatch.setattr(validator, "validate_result", lambda result: result)
+    if failure:
+        with pytest.raises(RuntimeError, match="interrupted"):
+            target.run_stage(stage, plan(), output, cache, LEGACY)
+        assert json.loads((output / "run.json").read_text())["status"] == "failed"
+    else:
+        assert target.run_stage(stage, plan(), output, cache, LEGACY)["status"] == "complete"
+    assert events == [("armed", 60, True), "capture", "cancelled"]

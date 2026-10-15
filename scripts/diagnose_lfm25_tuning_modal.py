@@ -15,7 +15,7 @@ from diagnose_lfm25_routes_modal import validate_result
 from diagnose_lfm25_tuning import LEGACY_SHA256, STAGES
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = Path("/data/diagnostic37-fixed-tune-retry-sdk")
+DATA = Path("/data/diagnostic37-fixed-tune-trace")
 LEGACY_CAPTURE = Path("/data/diagnostic23")
 LEGACY = Path("/opt/mlxl3/diagnostic23-original.py")
 VOLUME = "mlxl3-lfm25-v3-20261015"
@@ -170,7 +170,7 @@ def execute(plan: dict) -> dict:
             ]
             report["active_command"] = command
             save()
-            base.run_logged(command, DATA / f"{stage}.log", 540 if stage == "routes-a" else 180)
+            base.run_logged(command, DATA / f"{stage}.log", 540 if stage == "routes-a" else 480)
             envelope = json.loads((folder / "run.json").read_text())
             after = cache_snapshot(cache)
             capture_path = folder / "capture/report.json"
@@ -208,7 +208,7 @@ def execute(plan: dict) -> dict:
     gpu="H100!",
     cpu=8,
     memory=98304,
-    timeout=1260,
+    timeout=2160,
     retries=0,
     max_containers=1,
     scaledown_window=2,

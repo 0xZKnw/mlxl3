@@ -1,0 +1,53 @@
+{
+  "status": "interrupted_evidence_preserved_byteexact",
+  "pairs": [
+    {
+      "original": "build/lfm25-tuning37-interrupted-original-report.json",
+      "preserved": "build/lfm25-tuning37-interrupted-preserved-report.json",
+      "bytes": 67,
+      "sha256": "2259d9eec744df7aa058b0061ba6e9bb32cb3e6d7fe38b7fe278b97725239a64",
+      "equal": true
+    },
+    {
+      "original": "build/lfm25-tuning37-interrupted-original-window1.npy",
+      "preserved": "build/lfm25-tuning37-interrupted-preserved-window1.npy",
+      "bytes": 262144128,
+      "sha256": "e016ed9eb2885a16ecb964bca259412c4976f49bfe7da1161bcaa55a4b7f2db3",
+      "equal": true
+    }
+  ],
+  "partial_array": {
+    "shape": [
+      1024,
+      128000
+    ],
+    "dtype": "float16",
+    "rows_with_any_nonzero": 647,
+    "first_rows": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "last_rows": [
+      639,
+      640,
+      641,
+      642,
+      643,
+      644,
+      645,
+      646
+    ],
+    "not_validated_logits": true
+  },
+  "root_duplicate_may_be_removed": true,
+  "volume_preserved_paths": [
+    "/diagnostic37-fixed-tune-retry-sdk/interrupted-legacy23-report.json",
+    "/diagnostic37-fixed-tune-retry-sdk/interrupted-legacy23-window1.npy"
+  ]
+}
