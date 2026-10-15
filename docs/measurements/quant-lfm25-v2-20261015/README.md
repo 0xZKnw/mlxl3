@@ -1,4 +1,6 @@
-# Essais20/21 : H100, contrôles appariés et tête liée
+# Essais20–23 : H100, qualité et diagnostic de calibration
+
+Révision finale : conversion53min29s, intégrité/compaction validées,5protocolesqualité et6smokes réussis. ComparatifGGUF mixte, contrôles CUDA/source terminés. [Rapport complet](../../lfm25-v2-results-2026-10-15.md). La publication est suivie dans `hf-v2-publication.json` ; les états initiaux ci-dessous sont conservés comme historique.
 
 État de ce premier enregistrement : conversion24B en cours, aucune qualité v2
 mesurée et aucune publicationHFv2. Le journal racine conserve le protocole
@@ -62,3 +64,32 @@ Certains logs sont compressés sansperte en`.log.gz` pour conserverleursespaces
 originaux. `compressed-logs.json` et lesmanifestes donnent lesSHA vérifiés.
 Les fichiers temporaires de poids/teachers sont locaux ou surleVolumeprivé,
 pas inclus dans cette preuveGit.
+
+
+## Résultats finaux et commandes
+
+- `cloud-complete-report.json` : fonction3209,232s,4shardsbruts/SHA ; `cloud-full-conversion.log.gz` et son manifeste conservent le log complet byteexact.
+- `raw-integrity.json` :7402projections,556356224valeursfloat finies. `head-compact-full.json` :262144000valeurs de tête liées vérifiées,782autrestenseurs byteexacts et16384000logits natifs bitexacts ; modèlefinal12614197321octets/4,209716bpw.
+- `v2-quality.json` :28fenêtres/5protocoles, gates touspassés. Le boolNumPy du rapport final a provoqué une erreur de sérialisation **après** toutes les fenêtres ; trace dans `.log`, instantané `v2-quality-before-finalization-failed.json`, reprise d'agrégats sansGPU contrôlée à1e−12.
+- `functional-smokes.json/.events.jsonl` :6réponses finales, vrai bridge1.4.4, échéances180s, exit0/rejoint ; FR,391,JSON,PythonAST et2tours mémoire.
+- `gguf-full-kl.json` :16fenêtres/logitsF32 complets via bibliothèque officielle llama.cpp b11620, mêmesID/teachers. AncienPPL18,3467 reproduit ; comparaison àv2 mixte. Pilote exact `.cpp.txt`, en-têtes/source/binaireSHA et8casnégatifs dans `gguf-driver-*.json`. Bruts8,39GB conservés localement dans `build/gguf-kl22`.
+- `diagnostic23-comparison.json` :deuxfenêtres surlesmêmespoids, Native/CUDA ; le picKL existe danslesdeux. `diagnostic23-source-comparison.json` :sourceCUDA-F16 nonquantifiée, qui permet d'établir une forteperte liéeauxpoids/recette surlafenêtre5. LeslogitsF16 complets sont locaux dansbuild, SHAetdimensions danslesrapports. Scripts exacts archivés `.py.txt` ; échechydratation initial conservé, puis sourcePython montée etdeuxcaches créés avantallocationmodèle.
+- `local-v2-install.json`, `local-v2-registered-smoke.json` :clonesAPFS indépendants du modèle final,14fichiersSHA+manifesteidentiques, anciennesentrées du registre conservées, vrai bridge paraliasrépond391/exit0. Moteur/app installés nonremplacés, UI nonexercée.
+
+Commandes de vérification des sources exécutables inchangées depuisc639 :
+
+```bash
+PYTHONPATH=benchmarks:scripts:src:references/PonyExl3 python -m pytest -q
+ruff format --check scripts/quantize_lfm25_moe.py scripts/quantize_lfm25_modal.py tests/test_lfm25_moe_conversion.py tests/test_lfm25_modal.py tests/lfm25_calibration_contracts.py tests/lfm25_modal_contracts.py
+ruff check scripts/quantize_lfm25_moe.py scripts/quantize_lfm25_modal.py tests/test_lfm25_moe_conversion.py tests/test_lfm25_modal.py tests/lfm25_calibration_contracts.py tests/lfm25_modal_contracts.py
+python -m compileall -q scripts/quantize_lfm25_moe.py scripts/quantize_lfm25_modal.py
+python -m pip check
+crosshair check tests/lfm25_calibration_contracts.py --report_all
+crosshair check tests/lfm25_modal_contracts.py --report_all
+```
+
+570passés/1Lingignoré ; contratsCrossHair limités à3conditionsarithmétiques et2conditionsbooléennes. Pasdepreuve formelle duCUDA/Metal/I/O. Le pilote C++ a été compilé avecASan/UBSan/Wall/Wextra/Werror ; la tentativeCBMC échoue carl'outil estabsent. CI du codec639 :conversion/packing/nativeLinux/macOS/Desktop réussis, Kaniannulé. Lescommitsdepreuves suivants sont distingués. AucuntestGPUvide ouignoré n'estcompté commeparité.
+
+## Audit24 du corpus exact
+
+`calibration-composition.json` : les512000IDs réellement employés contiennent79872tokensuniformes (15,6%),39lignesMT19937seed0/modulo125017, oracle NumPy bitexact. Mutation et tri lexicographique erroné sont détectés aprèscontrôlepositif. Le fichier safetensors source exact reste dansbuild/SHA10a4a6ee… ; échecs initiaux du conteneur liste etdu vocabulairepad conservés. Aucun nouveaugainqualité n’estmesuré etaucune calibration n’estmodifiée.

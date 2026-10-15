@@ -1,9 +1,6 @@
 # LFM2.5-24B-A2B : préparation qualité v2
 
-État au 15 octobre2026 : préparation Metal vérifiée, prévol CUDA avec biais réels
-validé et conversion24B surH100 en cours. Les résultats globaux v2 ne sont pas
-encore mesurés. Journal : essais17 à20 de
-[`opti.md`](../opti.md). La v1 et son tag HF sont conservés.
+État au 15 octobre2026 : conversion v2 et évaluations terminées. Le gate8192tokens donne **PPL26,86163/KL0,187928**, contre29,47950/0,323047 en v1. Les quatre protocoles complémentaires et les six smokes du moteur1.4.4 passent. La comparaison GGUF est mixte et le diagnostic source/CUDA montre une fenêtre sensible àla quantification : [résultats complets et prochaines pistes](lfm25-v2-results-2026-10-15.md). La [v2 HF](https://huggingface.co/0xzknw/LFM2.5-24B-A2B-EXL3-4bpw/tree/v2) est publiée et son dossier v2 enregistré pour test local ; v1 reste conservée. Les paragraphes de préparation ci-dessous décrivent le protocole initial, avec ses limites.
 
 ## Ce que l'audit établit
 

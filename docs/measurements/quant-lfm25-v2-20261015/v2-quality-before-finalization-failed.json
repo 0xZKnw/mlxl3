@@ -1,0 +1,378 @@
+{
+  "status": "running",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+  "native_sha256": "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8",
+  "cases": {
+    "main-8192": {
+      "status": "complete",
+      "windows": [
+        {
+          "tokens": 1024,
+          "nll": 2.4498515642439016,
+          "bf16_nll": 2.4360479758100624,
+          "kl": 0.06577057793059396,
+          "greedy_matches": 918
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.367829435649292,
+          "bf16_nll": 3.401584523052724,
+          "kl": 0.16153397838395211,
+          "greedy_matches": 810
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.086417594182435,
+          "bf16_nll": 3.118361211252127,
+          "kl": 0.12868024382081067,
+          "greedy_matches": 853
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.439483435059424,
+          "bf16_nll": 3.5945090604879866,
+          "kl": 0.15981985366685691,
+          "greedy_matches": 815
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.7730626886571432,
+          "bf16_nll": 4.16012233736411,
+          "kl": 0.5265056418210282,
+          "greedy_matches": 701
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.233493937527798,
+          "bf16_nll": 3.2419892692515364,
+          "kl": 0.12854322788939793,
+          "greedy_matches": 854
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.5870063000886483,
+          "bf16_nll": 3.4812430240428633,
+          "kl": 0.14378764599282895,
+          "greedy_matches": 839
+        },
+        {
+          "tokens": 1024,
+          "nll": 3.3884455027764897,
+          "bf16_nll": 3.2675518802899215,
+          "kl": 0.18878335050557665,
+          "greedy_matches": 811
+        }
+      ],
+      "window": 1024,
+      "score_first": 0,
+      "score_last": 1023,
+      "input_tokens": 8192,
+      "token_sha256": "50b57d40e5f664a8c77fb5448eb35968f176f3839461b801c2a3a56f65926724",
+      "teacher_dir": "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/quality-8192",
+      "teacher_files": {
+        "teacher-00.npy": "edadd42ad0f887e80eca2f73b4d8eb91db8b18c26a39128ccaf95d50a33097fb",
+        "teacher-01.npy": "c58b47b94ddd677e7ac8d8f5a60e884154e8da76dd9bcd83935a28f801bc1ce1",
+        "teacher-02.npy": "1e5e5e091e665c7a202d4855310a202d0a427952bd49b6bb36638f9bcc9b4a71",
+        "teacher-03.npy": "e2efbbb4c453a5741fdfcfda0745048d3b91c79cd360b1b46799147e420be4e2",
+        "teacher-04.npy": "171fb435133b7c081ec34cb67ba1042d8d06b2ca0ce2defefca0c7a2c1c8ea70",
+        "teacher-05.npy": "3ff8e19ad23d6ade44e85eb18cc57705285cbff4d13513a64eafbf301069f042",
+        "teacher-06.npy": "96c4515627e5f9cde87aaeb7ea4e0462f80c3ddd3521cc0c02831c103e66edbb",
+        "teacher-07.npy": "ac5fc9d8b38ba446b2ccb327597e573b2a7caf66aa67fb6367b5ee9af41f600e"
+      },
+      "v1_native": {
+        "mean_nll": 3.38369507135542,
+        "perplexity": 29.479498963188515
+      },
+      "v1_kl": 0.32304705897602726,
+      "scored_tokens": 8192,
+      "native": {
+        "mean_nll": 3.2906988072731416,
+        "perplexity": 26.86162819988955
+      },
+      "bf16": {
+        "mean_nll": 3.337676160193917,
+        "perplexity": 28.15362611139805
+      },
+      "mean_kl_bf16_to_native": 0.18792806500138068,
+      "greedy_match_fraction": 0.8057861328125,
+      "ppl_change_from_v1_percent": -8.880309555355526,
+      "kl_change_from_v1_percent": -41.8264120413099,
+      "ppl_change_from_bf16_percent": -4.589099487207548
+    },
+    "fr-audit": {
+      "status": "complete",
+      "windows": [
+        {
+          "tokens": 512,
+          "nll": 4.069686525777009,
+          "bf16_nll": 4.077803434907275,
+          "kl": 0.12738383628625435,
+          "greedy_matches": 389
+        },
+        {
+          "tokens": 512,
+          "nll": 4.152327987409977,
+          "bf16_nll": 4.190045674740287,
+          "kl": 0.15227383173106404,
+          "greedy_matches": 394
+        }
+      ],
+      "window": 512,
+      "score_first": 0,
+      "score_last": 511,
+      "input_tokens": 1024,
+      "token_sha256": "30ba6f207ff96379a12a60c2018f90f6bd67eb9f5b006d366ae6161ac4a66a95",
+      "teacher_dir": "/Users/justin/Documents/mix-stq1_0/build/lfm25-v2-quality/fr-audit",
+      "teacher_files": {
+        "teacher-00.npy": "be48c2436b003d6a7e40e7a5a2f8df88a45189ee0935d2fdca76381f0cc41aa0",
+        "teacher-01.npy": "599e4fe20b5a4bf3bc838178cf4d2e135ea6069c862458126dad906fbc98b7dc"
+      },
+      "v1_native": {
+        "mean_nll": 4.169548115778267,
+        "perplexity": 64.68621482212484
+      },
+      "v1_kl": 0.22663007015530923,
+      "scored_tokens": 1024,
+      "native": {
+        "mean_nll": 4.111007256593494,
+        "perplexity": 61.00813748035817
+      },
+      "bf16": {
+        "mean_nll": 4.133924554823781,
+        "perplexity": 62.42242306541219
+      },
+      "mean_kl_bf16_to_native": 0.1398288340086592,
+      "greedy_match_fraction": 0.7646484375,
+      "ppl_change_from_v1_percent": -5.686029630703704,
+      "kl_change_from_v1_percent": -38.30084687665908,
+      "ppl_change_from_bf16_percent": -2.26566915477151
+    },
+    "python-quality": {
+      "status": "complete",
+      "windows": [
+        {
+          "tokens": 512,
+          "nll": 1.9267508017246417,
+          "bf16_nll": 1.9613945096184222,
+          "kl": 0.06729554723891401,
+          "greedy_matches": 451
+        },
+        {
+          "tokens": 512,
+          "nll": 2.8626987542408426,
+          "bf16_nll": 2.873329551467806,
+          "kl": 0.14047544722633237,
+          "greedy_matches": 423
+        }
+      ],
+      "window": 512,
+      "score_first": 0,
+      "score_last": 511,
+      "input_tokens": 1024,
+      "token_sha256": "73108c0d6d04be610d0d499e93667208a310ad6239044dbb959bcfc84b41494a",
+      "teacher_dir": "/Users/justin/Documents/mix-stq1_0/build/lfm25-v2-quality/python-quality",
+      "teacher_files": {
+        "teacher-00.npy": "239b9f58c707fcf1df5e8b76fe8b3f5c2acf5097ed87aada850f84ec00845bc5",
+        "teacher-01.npy": "c8d794e5311b7f977db1cd640778ed211c4300e9703e8d4f082e2596fb721d09"
+      },
+      "v1_native": {
+        "mean_nll": 2.42775746392645,
+        "perplexity": 11.333437917571063
+      },
+      "v1_kl": 0.21570997112505785,
+      "scored_tokens": 1024,
+      "native": {
+        "mean_nll": 2.3947247779827423,
+        "perplexity": 10.96517978485173
+      },
+      "bf16": {
+        "mean_nll": 2.417362030543114,
+        "perplexity": 11.216232176416915
+      },
+      "mean_kl_bf16_to_native": 0.10388549723262319,
+      "greedy_match_fraction": 0.853515625,
+      "ppl_change_from_v1_percent": -3.249306480502223,
+      "kl_change_from_v1_percent": -51.84019695946481,
+      "ppl_change_from_bf16_percent": -2.2382952458227856
+    },
+    "short-2048": {
+      "status": "complete",
+      "windows": [
+        {
+          "tokens": 256,
+          "nll": 3.0555131505084723,
+          "bf16_nll": 3.04380543101352,
+          "kl": 0.08741341887296991,
+          "greedy_matches": 222
+        },
+        {
+          "tokens": 256,
+          "nll": 3.7531103269323047,
+          "bf16_nll": 3.7523207096557716,
+          "kl": 0.21936175445829048,
+          "greedy_matches": 209
+        },
+        {
+          "tokens": 256,
+          "nll": 3.9390087901306794,
+          "bf16_nll": 4.041973874547708,
+          "kl": 0.346423240993914,
+          "greedy_matches": 181
+        },
+        {
+          "tokens": 256,
+          "nll": 4.1950472313015466,
+          "bf16_nll": 4.088837326626722,
+          "kl": 0.17051678222408745,
+          "greedy_matches": 203
+        },
+        {
+          "tokens": 256,
+          "nll": 3.9689970980432583,
+          "bf16_nll": 3.9724644080095355,
+          "kl": 0.21172107244054097,
+          "greedy_matches": 190
+        },
+        {
+          "tokens": 256,
+          "nll": 4.24769651124621,
+          "bf16_nll": 4.116811941222081,
+          "kl": 0.21328427154918744,
+          "greedy_matches": 186
+        },
+        {
+          "tokens": 256,
+          "nll": 4.903223988135304,
+          "bf16_nll": 4.77696121070075,
+          "kl": 0.22466693529321774,
+          "greedy_matches": 188
+        },
+        {
+          "tokens": 256,
+          "nll": 3.222744386656163,
+          "bf16_nll": 3.1632152785598797,
+          "kl": 0.13288454304209504,
+          "greedy_matches": 205
+        }
+      ],
+      "window": 256,
+      "score_first": 0,
+      "score_last": 255,
+      "input_tokens": 2048,
+      "token_sha256": "3aa63b368d5e904b8fae9b451df92ca05a091119d092c5c7fc59e9561ffadb0a",
+      "teacher_dir": "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/quality-final",
+      "teacher_files": {
+        "teacher-00.npy": "dfed5c2871fe9f867b8f3bc0ae81cb39fb636451445440a3e0853b83fe1e1574",
+        "teacher-01.npy": "01e374e96576ed5953eeeebe1a42e3b959a2768d828e95d5bc659feb8377cbf9",
+        "teacher-02.npy": "0af805cfabc58db70e2a190e45b8e01854cbd423997a3c2af72f47b5c1723513",
+        "teacher-03.npy": "924a4f959d889668115dc07286c85cfe9918f1c727206989deb32c85665400ad",
+        "teacher-04.npy": "24bd9eb915aee843a26470bd034b9b57c6ab0d2fb1c4540f9209165808765cbb",
+        "teacher-05.npy": "412851cbc241346ed486565e31c3af59780324452af441fb54ba81902f762b31",
+        "teacher-06.npy": "621fb85d284d966d9b7dbff85721a04f4631233b82d7d6a880d19d8c3c33741a",
+        "teacher-07.npy": "15ea50dbb62e7955c5ee99be03aaad0e57ca31b88be22955c852c5793f9dac17"
+      },
+      "v1_native": {
+        "mean_nll": 3.9974393744684003,
+        "perplexity": 54.45852345816963
+      },
+      "v1_kl": 0.42793689501407733,
+      "scored_tokens": 2048,
+      "native": {
+        "mean_nll": 3.910667685369243,
+        "perplexity": 49.93227989862694
+      },
+      "bf16": {
+        "mean_nll": 3.8695487725419957,
+        "perplexity": 47.9207580397673
+      },
+      "mean_kl_bf16_to_native": 0.20078400235928787,
+      "greedy_match_fraction": 0.7734375,
+      "ppl_change_from_v1_percent": -8.311359310024935,
+      "kl_change_from_v1_percent": -53.08093209568132,
+      "ppl_change_from_bf16_percent": 4.1976002491245445
+    },
+    "bos-paired": {
+      "status": "running",
+      "windows": [
+        {
+          "tokens": 511,
+          "nll": 1.908857459384619,
+          "bf16_nll": 1.908326294191547,
+          "kl": 0.04979047266869667,
+          "greedy_matches": 482
+        },
+        {
+          "tokens": 511,
+          "nll": 2.860197510689769,
+          "bf16_nll": 2.9714158189939144,
+          "kl": 0.11437365837744698,
+          "greedy_matches": 419
+        },
+        {
+          "tokens": 511,
+          "nll": 3.28657833660552,
+          "bf16_nll": 3.2640970557837643,
+          "kl": 0.0882857687465985,
+          "greedy_matches": 436
+        },
+        {
+          "tokens": 511,
+          "nll": 2.867621004782888,
+          "bf16_nll": 2.877507208606547,
+          "kl": 0.08377742080069461,
+          "greedy_matches": 449
+        },
+        {
+          "tokens": 511,
+          "nll": 3.0406511307272033,
+          "bf16_nll": 3.1436532816488887,
+          "kl": 0.07143573125064642,
+          "greedy_matches": 434
+        },
+        {
+          "tokens": 511,
+          "nll": 2.8951212911637083,
+          "bf16_nll": 2.9318161320638567,
+          "kl": 0.07692128476881861,
+          "greedy_matches": 432
+        },
+        {
+          "tokens": 511,
+          "nll": 2.5408247444718293,
+          "bf16_nll": 2.5787443996429458,
+          "kl": 0.08675865067157827,
+          "greedy_matches": 450
+        },
+        {
+          "tokens": 511,
+          "nll": 3.2338358099916906,
+          "bf16_nll": 3.247615112574968,
+          "kl": 0.09631743780552451,
+          "greedy_matches": 430
+        }
+      ],
+      "window": 1024,
+      "score_first": 512,
+      "score_last": 1022,
+      "input_tokens": 8192,
+      "token_sha256": "f860546349740b6bbc32e35c4992374047d275e84b8fd87c794a613088bcf074",
+      "teacher_dir": "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/paired-bf16-native",
+      "teacher_files": {
+        "teacher-00.npy": "ea42825c368ffdd9050472a5a51790d0e881cb829c5d484e3dbbf745953775cc",
+        "teacher-01.npy": "341f52b8b6adbb6f04fe56a6cdc0fccbd27689c1a5c2df4e5624694917e6e3dc",
+        "teacher-02.npy": "d7121de006555e66559cfd358573dcffe79253f7ef01f8db0dbb9ee409808598",
+        "teacher-03.npy": "cdf4b113310307aa784fceaa08700213ca5f9e2884df45574ef368d622a57fa9",
+        "teacher-04.npy": "b8317fedc76c4f26bcdf5f9074f7a892392b8708807033b186ab2c131edf6ed7",
+        "teacher-05.npy": "c53ee9daf3e7002e8a65019e37ecaf3f8ee22e91e9c2ddf83430d403795b22a9",
+        "teacher-06.npy": "bb7b3e4078ef1799a9d283dc441fa03e343a9592101577d0faf15fc6971df727",
+        "teacher-07.npy": "97344e7d8a1716cd2815096bddae8f0e86744b8f3639e4451fa03e3fe9d61d9b"
+      },
+      "v1_native": {
+        "mean_nll": 2.910477228479458,
+        "perplexity": 18.36556104477144
+      },
+      "v1_kl": 0.1574105160082837
+    }
+  },
+  "stage": "bos-paired 8/8"
+}

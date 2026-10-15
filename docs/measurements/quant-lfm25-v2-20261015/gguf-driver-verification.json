@@ -1,0 +1,53 @@
+{
+  "status": "passed",
+  "negative_tests": [
+    {
+      "case": "empty",
+      "exit": 1,
+      "message": "RAW_FAILED expected exactly 8192 valid token IDs"
+    },
+    {
+      "case": "invalid",
+      "exit": 1,
+      "message": "RAW_FAILED expected exactly 8192 valid token IDs"
+    },
+    {
+      "case": "short",
+      "exit": 1,
+      "message": "RAW_FAILED expected exactly 8192 valid token IDs"
+    },
+    {
+      "case": "negative",
+      "exit": 1,
+      "message": "RAW_FAILED token outside LFM vocabulary"
+    },
+    {
+      "case": "overflow",
+      "exit": 1,
+      "message": "RAW_FAILED token outside LFM vocabulary"
+    },
+    {
+      "case": "extra",
+      "exit": 1,
+      "message": "RAW_FAILED too many token IDs"
+    },
+    {
+      "case": "preserve-existing-output",
+      "exit": 1
+    },
+    {
+      "case": "argc",
+      "exit": 1
+    }
+  ],
+  "compile": "clang++ C++17 -O2 -Wall -Wextra -Werror ASan UBSan",
+  "source_sha256": "421349d597b61b85e464d9a7f397ed6a4d6e6d05981dcb61782047623c309d11",
+  "binary_sha256": "c6150f228a94cad97e7d8a619b2cc9bf4120e8aee5ed184b8a8ef7686c552a85",
+  "libllama_sha256": "b3241471f6336c90d5e9cb4b8696679e2ed1c9d4bb80f7bb60c6a1f8b820b21e",
+  "formal": {
+    "status": "unverified",
+    "tool": "CBMC",
+    "reason": "[Errno 2] No such file or directory: 'cbmc'",
+    "scope": "C++ driver, I/O and llama/Metal library not formally proved"
+  }
+}

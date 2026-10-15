@@ -1,0 +1,200 @@
+{
+  "status": "complete",
+  "date": "2026-10-15",
+  "reference": "BF16 layerwise MLX teacher; same imposed tokens and engine for v1/v2",
+  "native_sha256": "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8",
+  "native_version": "1.4.4",
+  "cases": {
+    "main-8192": {
+      "input_tokens": 8192,
+      "scored_tokens": 8192,
+      "window": 1024,
+      "score_first": 0,
+      "score_last": 1023,
+      "token_sha256": "50b57d40e5f664a8c77fb5448eb35968f176f3839461b801c2a3a56f65926724",
+      "v1_native": {
+        "mean_nll": 3.38369507135542,
+        "perplexity": 29.479498963188515
+      },
+      "v1_kl": 0.32304705897602726,
+      "native": {
+        "mean_nll": 3.2906988072731416,
+        "perplexity": 26.86162819988955
+      },
+      "bf16": {
+        "mean_nll": 3.3376761601939164,
+        "perplexity": 28.15362611139804
+      },
+      "mean_kl_bf16_to_native": 0.18792806500138068,
+      "greedy_match_fraction": 0.8057861328125,
+      "ppl_change_from_v1_percent": -8.880309555355526,
+      "kl_change_from_v1_percent": -41.8264120413099
+    },
+    "fr-audit": {
+      "input_tokens": 1024,
+      "scored_tokens": 1024,
+      "window": 512,
+      "score_first": 0,
+      "score_last": 511,
+      "token_sha256": "30ba6f207ff96379a12a60c2018f90f6bd67eb9f5b006d366ae6161ac4a66a95",
+      "v1_native": {
+        "mean_nll": 4.169548115778267,
+        "perplexity": 64.68621482212484
+      },
+      "v1_kl": 0.22663007015530923,
+      "native": {
+        "mean_nll": 4.111007256593494,
+        "perplexity": 61.00813748035817
+      },
+      "bf16": {
+        "mean_nll": 4.133924554823781,
+        "perplexity": 62.42242306541219
+      },
+      "mean_kl_bf16_to_native": 0.1398288340086592,
+      "greedy_match_fraction": 0.7646484375,
+      "ppl_change_from_v1_percent": -5.686029630703704,
+      "kl_change_from_v1_percent": -38.30084687665908
+    },
+    "python-quality": {
+      "input_tokens": 1024,
+      "scored_tokens": 1024,
+      "window": 512,
+      "score_first": 0,
+      "score_last": 511,
+      "token_sha256": "73108c0d6d04be610d0d499e93667208a310ad6239044dbb959bcfc84b41494a",
+      "v1_native": {
+        "mean_nll": 2.42775746392645,
+        "perplexity": 11.333437917571063
+      },
+      "v1_kl": 0.21570997112505785,
+      "native": {
+        "mean_nll": 2.3947247779827423,
+        "perplexity": 10.96517978485173
+      },
+      "bf16": {
+        "mean_nll": 2.417362030543114,
+        "perplexity": 11.216232176416915
+      },
+      "mean_kl_bf16_to_native": 0.10388549723262319,
+      "greedy_match_fraction": 0.853515625,
+      "ppl_change_from_v1_percent": -3.249306480502223,
+      "kl_change_from_v1_percent": -51.84019695946481
+    },
+    "short-2048": {
+      "input_tokens": 2048,
+      "scored_tokens": 2048,
+      "window": 256,
+      "score_first": 0,
+      "score_last": 255,
+      "token_sha256": "3aa63b368d5e904b8fae9b451df92ca05a091119d092c5c7fc59e9561ffadb0a",
+      "v1_native": {
+        "mean_nll": 3.9974393744684003,
+        "perplexity": 54.45852345816963
+      },
+      "v1_kl": 0.42793689501407733,
+      "native": {
+        "mean_nll": 3.9106676853692424,
+        "perplexity": 49.932279898626916
+      },
+      "bf16": {
+        "mean_nll": 3.8695487725419957,
+        "perplexity": 47.9207580397673
+      },
+      "mean_kl_bf16_to_native": 0.20078400235928787,
+      "greedy_match_fraction": 0.7734375,
+      "ppl_change_from_v1_percent": -8.311359310024969,
+      "kl_change_from_v1_percent": -53.08093209568132
+    },
+    "bos-paired": {
+      "input_tokens": 8192,
+      "scored_tokens": 4088,
+      "window": 1024,
+      "score_first": 512,
+      "score_last": 1022,
+      "token_sha256": "f860546349740b6bbc32e35c4992374047d275e84b8fd87c794a613088bcf074",
+      "v1_native": {
+        "mean_nll": 2.910477228479458,
+        "perplexity": 18.36556104477144
+      },
+      "v1_kl": 0.1574105160082837,
+      "native": {
+        "mean_nll": 2.8292109109771535,
+        "perplexity": 16.932094621672828
+      },
+      "bf16": {
+        "mean_nll": 2.8653969129383037,
+        "perplexity": 17.55602003337925
+      },
+      "mean_kl_bf16_to_native": 0.08345755313625057,
+      "greedy_match_fraction": 0.8639921722113503,
+      "ppl_change_from_v1_percent": -7.805187217554188,
+      "kl_change_from_v1_percent": -46.98095447964948
+    }
+  },
+  "gguf_comparison": {
+    "bos-paired": {
+      "scored_tokens": 4088,
+      "perplexity": 18.34669152648982,
+      "mean_kl_bf16_to_gguf": 0.08550691955333546,
+      "v2_ppl": 16.932094621672828,
+      "v2_kl": 0.08345755313625057,
+      "v2_ppl_difference_percent": -7.710365123731055,
+      "v2_kl_difference_percent": -2.3967258179691364
+    },
+    "main-8192": {
+      "scored_tokens": 8192,
+      "perplexity": 28.199009034361715,
+      "mean_kl_bf16_to_gguf": 0.13455269026570998,
+      "v2_ppl": 26.86162819988955,
+      "v2_kl": 0.18792806500138068,
+      "v2_ppl_difference_percent": -4.742651888378447,
+      "v2_kl_difference_percent": 39.66875328190529
+    }
+  },
+  "functional_smokes_passed": 6,
+  "gates": {
+    "primary_ppl_and_kl": true,
+    "supplemental_fr_code": true,
+    "historical_nonregression": true,
+    "generation": true
+  },
+  "limits": [
+    "limited corpora; three WikiText protocols overlap",
+    "per-window improvements are not uniform",
+    "BF16 teacher vs FP16 runtimes mixes precision and quantization",
+    "v2 loses KL to user GGUF on no-BOS protocol; no universal superiority claim",
+    "GPU arithmetic and end-to-end quality are not formally proved"
+  ],
+  "diagnostic_nonquantized_source": {
+    "window1": {
+      "positions": 1024,
+      "source_f16_ppl": 11.584762075165694,
+      "teacher_bf16_ppl": 11.427788486151284,
+      "teacher_to_source_f16_kl": 0.029743887541132653,
+      "source_f16_to_v2_cuda_kl": 0.06276177383814012,
+      "source_f16_to_v2_native_kl": 0.06313871297680954,
+      "teacher_to_v2_cuda_kl": 0.07189789101013916,
+      "teacher_to_v2_native_kl": 0.06577057793059396,
+      "source_teacher_argmax_matches": 948,
+      "source_output_sha256": "99c1eec9c4a05f646c7138e17e170183f70ee21460fbaf2a1ab23a492eebd38b"
+    },
+    "window5": {
+      "positions": 1024,
+      "source_f16_ppl": 62.15598760226837,
+      "teacher_bf16_ppl": 64.07936142060659,
+      "teacher_to_source_f16_kl": 0.05988124431502736,
+      "source_f16_to_v2_cuda_kl": 0.452807852294555,
+      "source_f16_to_v2_native_kl": 0.4608481669268493,
+      "teacher_to_v2_cuda_kl": 0.5197751079397274,
+      "teacher_to_v2_native_kl": 0.5265056418210282,
+      "source_teacher_argmax_matches": 899,
+      "source_output_sha256": "069e3cf6c53e90eb047e24cd735fc01fa32776f4b7c4b279a1d5520028c756fc"
+    }
+  },
+  "gguf_sha256": "a235d23638cc5549cb1ff61da7522c8a7e97f056f27093462a1e56f35aba91d8",
+  "gguf_type": "Unsloth UD-Q4_K_XL",
+  "gguf_bytes": 14876901632,
+  "weight_bytes": 12614197321,
+  "effective_bpw": 4.20971609308479,
+  "v1_weight_bytes": 12443937520
+}
