@@ -15,12 +15,40 @@ from diagnose_lfm25_routes_modal import validate_result
 from diagnose_lfm25_tuning import LEGACY_SHA256, STAGES
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = Path("/data/diagnostic37-fixed-tune")
+DATA = Path("/data/diagnostic37-fixed-tune-retry-sdk")
 LEGACY_CAPTURE = Path("/data/diagnostic23")
 LEGACY = Path("/opt/mlxl3/diagnostic23-original.py")
 VOLUME = "mlxl3-lfm25-v3-20261015"
 volume = modal.Volume.from_name(VOLUME, create_if_missing=False)
-image = base.image.env({"PYTHONPATH": "/opt/mlxl3"})
+
+
+def runtime_preflight():
+    import importlib.metadata
+    import inspect
+
+    from diagnose_lfm25_tuning import load_legacy
+
+    versions = {
+        name: importlib.metadata.version(name)
+        for name in ("torch", "exllamav3", "numpy", "safetensors", "modal")
+    }
+    if versions["modal"] != "1.5.5" or modal.__version__ != "1.5.5":
+        raise ValueError("The legacy diagnostic requires Modal SDK 1.5.5")
+    original = load_legacy(LEGACY)
+    if list(inspect.signature(original).parameters) != ["windows", "expected_shards"]:
+        raise ValueError("Pinned legacy diagnostic callable signature changed")
+    result = {
+        "status": "complete",
+        "gpu_requested": False,
+        "versions": versions,
+        "legacy_sha256": LEGACY_SHA256,
+        "callable_source": original.__code__.co_filename,
+    }
+    print(json.dumps(result), flush=True)
+    return result
+
+
+image = base.image.pip_install("modal==1.5.5").env({"PYTHONPATH": "/opt/mlxl3"})
 if modal.is_local():
     for name in (
         "diagnose_lfm25_tuning",
@@ -32,12 +60,16 @@ if modal.is_local():
         image = image.add_local_file(
             ROOT / "scripts" / f"{name}.py", f"/opt/mlxl3/{name}.py", copy=True
         )
-    image = image.add_local_file(
-        ROOT
-        / "docs/measurements/quant-lfm25-diagnostics35-36-20261015/diagnostic23-original.py.txt",
-        str(LEGACY),
-        copy=True,
-    ).add_local_python_source("quantize_lfm25_modal")
+    image = (
+        image.add_local_file(
+            ROOT
+            / "docs/measurements/quant-lfm25-diagnostics35-36-20261015/diagnostic23-original.py.txt",
+            str(LEGACY),
+            copy=True,
+        )
+        .run_function(runtime_preflight)
+        .add_local_python_source("quantize_lfm25_modal")
+    )
 app = modal.App("mlxl3-lfm25-tuning37", image=image)
 
 

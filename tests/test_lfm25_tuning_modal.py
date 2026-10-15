@@ -400,3 +400,73 @@ def test_remote_module_import_uses_the_actual_image_pythonpath(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert environment["PYTHONPATH"] == "/opt/mlxl3"
     assert "actual copied helpers imported" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "missing", [None, "torch", "exllamav3", "numpy", "safetensors", "modal", "wrong-modal"]
+)
+def test_cpu_image_preflight_checks_all_runtime_distributions_and_actual_legacy_sdk(
+    tmp_path, monkeypatch, missing
+):
+    import importlib.metadata
+
+    import diagnose_lfm25_tuning_modal as target
+
+    legacy = (
+        Path(__file__).resolve().parents[1]
+        / "docs/measurements/quant-lfm25-diagnostics35-36-20261015/diagnostic23-original.py.txt"
+    )
+    monkeypatch.setattr(target, "LEGACY", legacy)
+    requested = []
+
+    def version(name):
+        requested.append(name)
+        if name == missing:
+            raise importlib.metadata.PackageNotFoundError(name)
+        return (
+            "1.0.0"
+            if name == "modal" and missing == "wrong-modal"
+            else "1.5.5"
+            if name == "modal"
+            else "pinned-base"
+        )
+
+    monkeypatch.setattr(importlib.metadata, "version", version)
+    if missing:
+        with pytest.raises((importlib.metadata.PackageNotFoundError, ValueError)):
+            target.runtime_preflight()
+    else:
+        result = target.runtime_preflight()
+        assert requested == ["torch", "exllamav3", "numpy", "safetensors", "modal"]
+        assert result["status"] == "complete" and result["gpu_requested"] is False
+        assert result["legacy_sha256"] == target.LEGACY_SHA256
+        assert result["callable_source"] == str(legacy)
+
+
+def test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount():
+    import inspect
+
+    import diagnose_lfm25_tuning_modal as target
+    from modal._utils.async_utils import synchronizer
+
+    assert target.DATA == Path("/data/diagnostic37-fixed-tune-retry-sdk")
+    seen, commands, functions = set(), [], []
+
+    def visit(node):
+        if node in seen:
+            return
+        seen.add(node)
+        for dependency in node._deps_():
+            if hasattr(dependency, "_rep"):
+                visit(dependency)
+        variables = inspect.getclosurevars(node._load).nonlocals
+        builder = variables.get("dockerfile_function")
+        if builder:
+            commands.extend(builder("2025.06").commands)
+        function = variables.get("build_function")
+        if function:
+            functions.append(inspect.unwrap(function.get_raw_f()))
+
+    visit(synchronizer._translate_in(target.image))
+    assert any("modal==1.5.5" in command for command in commands)
+    assert target.runtime_preflight in functions
