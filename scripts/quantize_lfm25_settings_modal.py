@@ -13,7 +13,7 @@ import quantize_lfm25_modal as base
 from pilot_lfm25_settings import choose_settings, profile_options, settings_args
 
 VOLUME = "mlxl3-lfm25-v3-20261015"
-DATA = Path("/data/settings31")
+DATA = Path("/data/settings32")
 PREPARATION = Path("/data/prepare25-complete.json")
 NATIVE_SHA256 = "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8"
 volume = modal.Volume.from_name(VOLUME, create_if_missing=False)
@@ -27,7 +27,7 @@ if modal.is_local():
         )
 else:
     image = base.image
-app = modal.App("mlxl3-lfm25-settings31", image=image)
+app = modal.App("mlxl3-lfm25-settings32", image=image)
 
 
 def preparation() -> dict:
@@ -187,6 +187,6 @@ def main(stage: str = "pilot", profile: str = "mul1-standard", probe_source: str
         result = convert.remote(profile)
     else:
         raise ValueError("Choose pilot, probe with source, or convert")
-    destination = Path("build") / f"lfm25-settings31-{stage}-{profile}.json"
+    destination = Path("build") / f"lfm25-settings32-{stage}-{profile}.json"
     destination.write_text(result + "\n")
     print(f"Report: {destination}")

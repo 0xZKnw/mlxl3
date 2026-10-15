@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from pilot_lfm25_settings import (
+    EXPERTS,
     PROFILES,
     SEEDS,
     applied_weights,
@@ -18,6 +19,20 @@ from pilot_lfm25_settings import (
 )
 
 torch = pytest.importorskip("torch")
+
+
+def test_registered_expert_panel_keeps_the_successful_preselection():
+    prior = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "docs/measurements/quant-lfm25-settings30-20261015/pilot.json"
+        ).read_text()
+    )
+    assert prior["status"] == "complete" and prior["restoration_verified"]
+    assert EXPERTS == {int(k): v["chosen"] for k, v in prior["expert_selection"].items()}
+    assert all(
+        len(set(values)) == 3 and all(0 <= v < 64 for v in values) for values in EXPERTS.values()
+    )
 
 
 @pytest.mark.parametrize("profile", PROFILES)

@@ -1,6 +1,15 @@
 # MLXL3 — journal des optimisations
 
-### QUANT-2026-10-15-LFM25-31 — vérifier les réglages sur les512k tokens complets — préenregistré, en cours
+### QUANT-2026-10-15-LFM25-32 — calibration complète sur le panneau d’experts figé30 — préenregistré, en cours
+
+- Reprisecorrective après31, sansbaisserlagardecouverture32tokens : avec250lignes, leclassementchoisit unnouvelexpertfroid26couche20 noncouvertparvalidation. Aucunrésultatcomplet n’estdéduitdes72quantifications partielles31. Figer désormais **exactementles9expertsdu30**, choisisavantcetessai : couche2=58/24/44, couche20=8/39/43, couche39=21/11/18. Ce choix préserve le panneau dont la couverturevalidation étaitréellement suffisante et permetunecomparaison32→250surlesmêmesclés ; iln’estpasuncherrypickd’unprofilgagnant.
+- Protocole31 autrementinchangé : toutes250×2048cal, mêmes12×1024validation,4profils×2seeds,29projections/232quantifications/96KLfullvocabF64. CalibrationsH/sensibilitésuniquementsurtrain ; garde-fous10%domain/projection, sélection etrestaurationinchangés. Reportercomptes250lignes et provenancepanneau30 ; lesexperts sélectionnés ne représententpastousles2432expertsdu24B.
+- Nouveau `/data/settings32`, aucunécrasement deséchecs30/31. H100enfant780s/fonction900s,retry0 ; limitescampagne12USD/réserve5USD inchangées, dépenses30/31 réelles courtes(175set150s horsinit). Éventuelprévol/24Buniquementsiunprofiladmissibleapparaît ; sinonarrêtercettepiste sansfabriquerunmeilleurrésultat. Mêmegatesfinaux/HFconditionnel que30.
+- AvantGPU : régression du panneau contrelemanifeste30 ettestsaffectés, Ruff/compile/diff ; dernière suitecomplète726/1skip31 restepertinentehorsdecepetitchangement. Aucunecompilation/preuve/test localenparallèleavecGPU.
+
+- Vérification32 **avantGPU réussie** :49testsciblés, mutation d’expert26 détectée puis source restaurébyteexact ; Ruffformat/lint/compile/diff passent. Suitecomplète726/1skip31 réutilisée pourlesparcoursinchangés ;2contratsCrossHair de `settings_args` inchangésréutilisés, pasdepreuveCUDA/I/O. Preuves `docs/measurements/quant-lfm25-settings32-20261015/`.
+
+### QUANT-2026-10-15-LFM25-31 — vérifier les réglages sur les512k tokens complets — terminé, non concluant
 
 - Motif nouveau après30 :32lignes ne représententque65k des512k tokens de la conversion complète. Vérifier si la réduction de l’estimation deH et des sensibilitésoutput modifie le classement des réglages, sans déclarer30 erroné ni relâcher ses gates. La variabilité25/26 deMCG standard estvisible ; conserver lesdeuxseeds.
 - Même source1769516/quantifierofficiel16a4979/HQ K4/K5/K6/head16 et4profils, mais capturesH/sensibilités sur **toutes250×2048 lignes**, sans sous-échantillonnage. Les12fenêtres devalidation/sixdomaines restent disjointes ; mêmes29projections,232quantifications,96KLpartiels fullvocab128000/F64. Mêmes garde-fousrestaurationbyteexact/canary/couverture/q_fallback, même sélection≤10% pardomaine/projection. Aucun choix d’après les5testsfinaux historiques.
@@ -9,6 +18,10 @@
 - AvantGPU : petitesmodifications ducollecteur250lignes, mêmes tests/tentativeCrossHair/CI ; exécutionsCPU/GPU séquentielles. Prévol miniature historique20/calibrationdefault16×128 si profilretenu ; un seul24Bcompletapprouvé, compactageettestsfinaux requis avantHF.
 
 - Vérification31 **terminée avantGPU** :726tests passés/1ignoré(Lingabsent),2avertissementsattendus deModal.local sansVolume ; collection sansTorch ignoreexplicitementlemodule au lieu d’échouer. Ruffformat/lint,compileall,diffcheck passent. CrossHair2postconditionssettings_args confirmées, tenseursCUDA/I/O horsportée. Contrôler réellement262captures et2048000routes par couche auH100 ; aucun gain présumé. Rapports `docs/measurements/quant-lfm25-settings31-20261015/`.
+
+- Pilote31 **lancé** depuis4b21220f, app `ap-SJglcmtBnzq2MMK7sNIN0w` compte2/xzknw ; log `build/lfm25-settings31-pilot-modal.log`. Toutes250lignes exigées, aucunmodèlelocal/test/proveurencours. Aucun24Blancé ; attendresélectionetprévol sansrelâchergates.
+
+- Pilote31 **interrompu parlagarde, nonconcluant**,150,114s :262capturesfinies,2048000routes danschaquecouche=512000×4 ;72/232quantifications seulement avant `Insufficient routed validation coverage` surlepanneaunouveau. Rapportfailed/selectionnull etlogarchivés `pilot-first-failed.*`, apparrêtée0tâche ; aucuneparitéKLglobale/qualité24B. Lesseuils32lignes/10%restentinchangés. Reprise32 surlesexperts30préfigés, pasunelocalisationd’expertdepuislerésultatKL.
 
 ### QUANT-2026-10-15-LFM25-30 — comparer les réglages officiels — terminé, profils rejetés avant24B
 

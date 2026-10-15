@@ -10,6 +10,7 @@ from pathlib import Path
 
 PROFILES = ("mcg-standard", "mcg-scaled", "mul1-standard", "mul1-scaled")
 SEEDS = (25, 26)
+EXPERTS = {2: [58, 24, 44], 20: [8, 39, 43], 39: [21, 11, 18]}
 
 
 def settings_args(codebook: str, scaled: bool) -> list[str]:
@@ -161,7 +162,6 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
     from exllamav3.modules.mlp import capture_out_sensitivity, finalize_out_sensitivity
     from exllamav3.modules.quant import LinearEXL3
     from exllamav3.modules.quant.exl3_lib.quantize import quantize_exl3
-    from pilot_lfm25_calibration import select_experts
     from safetensors.torch import load_file
 
     output.mkdir(exist_ok=False)
@@ -169,6 +169,7 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
         "status": "running",
         "partial_model_only": True,
         "calibration_rows": 250,
+        "expert_panel_origin": "QUANT-2026-10-15-LFM25-30",
         "projections": [],
         "validation": [],
         "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -247,7 +248,9 @@ def run(source: Path, calibration: Path, validation_file: Path, output: Path) ->
                 counts += picks.flatten().cpu().bincount(minlength=64)
             if counts.sum().item() != train_rows * train.shape[1] * 4:
                 raise ValueError("Incomplete full-calibration routing coverage")
-            chosen = select_experts(counts.tolist())
+            chosen = EXPERTS[layer]
+            if any(counts[expert].item() < 512 for expert in chosen):
+                raise ValueError("Frozen expert panel lacks training coverage")
             report.setdefault("expert_selection", {})[str(layer)] = {
                 "counts": counts.tolist(),
                 "chosen": chosen,
