@@ -72,6 +72,21 @@ def test_remote_job_refuses_overwrite_before_loading_gpu(tmp_path, monkeypatch):
     assert (tmp_path / "v2" / "original").read_text() == "preserved"
 
 
+def test_v3_version_preserves_v2_and_refuses_unsafe_names(tmp_path, monkeypatch):
+    import quantize_lfm25_modal as module
+
+    monkeypatch.setattr(module, "DATA", tmp_path)
+    for name in ("v2", "v3"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "original").write_text(name)
+    with pytest.raises(FileExistsError):
+        convert_model(candidate="v3")
+    with pytest.raises(ValueError):
+        convert_model(candidate="../outside")
+    assert (tmp_path / "v2/original").read_text() == "v2"
+    assert (tmp_path / "v3/original").read_text() == "v3"
+
+
 @pytest.mark.parametrize("change", ["none", "changed", "missing"])
 def test_converter_hash_guard_catches_wrong_wheel_sources(tmp_path, monkeypatch, change):
     import hashlib

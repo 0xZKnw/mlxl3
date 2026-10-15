@@ -121,9 +121,11 @@ app = modal.App("mlxl3-lfm25-v2", image=image)
 volume = modal.Volume.from_name(VOLUME, create_if_missing=True)
 
 
-def convert_model(probe_files: dict[str, bytes] | None = None) -> str:
+def convert_model(probe_files: dict[str, bytes] | None = None, candidate: str = "v2") -> str:
+    if candidate not in ("v2", "v3"):
+        raise ValueError("Unknown candidate version")
     probe = probe_files is not None
-    folder = DATA / (f"probe-{time.time_ns()}" if probe else "v2")
+    folder = DATA / (f"probe-{time.time_ns()}" if probe else candidate)
     folder.mkdir(exist_ok=False)
     report = {
         "status": "running",
