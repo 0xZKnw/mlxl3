@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import hashlib
 import json
 from contextlib import contextmanager
@@ -24,6 +25,19 @@ def synthetic_windows(monkeypatch):
             for name, tokens in frozen_plan()["windows"].items()
         },
     )
+
+
+def test_historical_window_validation_needs_no_numpy(monkeypatch):
+    original_import = builtins.__import__
+
+    def no_numpy(name, *args, **kwargs):
+        if name == "numpy" or name.startswith("numpy."):
+            raise ModuleNotFoundError("No module named 'numpy'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_numpy)
+    plan = frozen_plan()
+    assert reference.validate_windows(plan) == plan["windows"]
 
 
 def test_historical_input_and_token_domain_are_exact():
@@ -256,7 +270,8 @@ def test_real_run_records_complete_or_failed_and_restores_grouped_hook(
 
 
 @pytest.mark.parametrize(
-    "error", ["timeout", "incomplete", "invalid", "badshape", "missing", "complete"]
+    "error",
+    ["timeout", "incomplete", "truncated", "invalidlist", "badshape", "missing", "complete"],
 )
 def test_modal_worker_runs_bounded_child_and_marks_launch_failures(tmp_path, monkeypatch, error):
     pytest.importorskip("modal")
@@ -290,7 +305,9 @@ def test_modal_worker_runs_bounded_child_and_marks_launch_failures(tmp_path, mon
             del records["decode-window5"]
         path.write_text(
             "{bad"
-            if error == "invalid"
+            if error == "truncated"
+            else "[]"
+            if error == "invalidlist"
             else json.dumps(
                 {"status": "running" if error == "incomplete" else "complete", "windows": records}
             )
@@ -301,10 +318,14 @@ def test_modal_worker_runs_bounded_child_and_marks_launch_failures(tmp_path, mon
         report = json.loads(worker.diagnose.local({}))
         assert report["status"] == "complete"
     else:
-        with pytest.raises((TimeoutError, ValueError)):
+        with pytest.raises((TimeoutError, ValueError, TypeError)):
             worker.diagnose.local({})
         report = json.loads((worker.DATA / "report.json").read_text())
         assert report["status"] == "failed" and report["publication"] is False
+    if error in ("truncated", "invalidlist"):
+        assert (worker.DATA / "report-first-invalid.json").read_text() == (
+            "{bad" if error == "truncated" else "[]"
+        )
     assert commits == [True]
     before = (worker.DATA / "report.json").read_bytes()
     with pytest.raises(FileExistsError):

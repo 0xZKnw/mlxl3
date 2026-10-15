@@ -54,6 +54,8 @@ def diagnose(plan: dict) -> str:
         ]
         base.run_logged(command, DATA.with_suffix(".log"), 780)
         report = json.loads((DATA / "report.json").read_text())
+        if not isinstance(report, dict):
+            raise TypeError("Official reference report must be an object")
         expected = {
             f"{phase}-{name}" for phase in ("prefill", "decode") for name in ("window1", "window5")
         }
@@ -77,7 +79,11 @@ def diagnose(plan: dict) -> str:
         report_path = DATA / "report.json"
         try:
             report = json.loads(report_path.read_text()) if report_path.exists() else {}
-        except (ValueError, OSError):
+            if not isinstance(report, dict):
+                raise TypeError("Official reference report must be an object")
+        except (ValueError, TypeError, OSError):
+            if report_path.exists():
+                report_path.replace(DATA / "report-first-invalid.json")
             report = {}
         report.update(status="failed", publication=False, launcher_error=repr(error))
         report_path.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")

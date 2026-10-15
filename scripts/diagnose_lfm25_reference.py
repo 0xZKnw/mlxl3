@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import struct
 import time
 from contextlib import nullcontext
 from pathlib import Path
@@ -48,8 +49,6 @@ def file_sha(path: Path) -> str:
 
 
 def validate_windows(plan: dict) -> dict[str, list[int]]:
-    import numpy as np
-
     windows = plan.get("windows") if isinstance(plan, dict) else None
     if not isinstance(windows, dict) or set(windows) != set(WINDOW_HASHES):
         raise ValueError("Expected exactly the historical windows 1 and 5")
@@ -58,10 +57,7 @@ def validate_windows(plan: dict) -> dict[str, list[int]]:
             raise ValueError("Expected 1024 imposed tokens per window")
         for token in tokens:
             valid_token(token)
-        if (
-            hashlib.sha256(np.asarray(tokens, dtype="<u4").tobytes()).hexdigest()
-            != WINDOW_HASHES[name]
-        ):
+        if hashlib.sha256(struct.pack("<1024I", *tokens)).hexdigest() != WINDOW_HASHES[name]:
             raise ValueError("Historical diagnostic tokens changed")
     return windows
 
