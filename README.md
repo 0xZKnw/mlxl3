@@ -30,6 +30,19 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
+## Desktop 1.4.8
+
+Desktop **1.4.8, build 29** adds a continuous 120 ms token fade and smooth
+scroll following that pauses while reading earlier messages. Reduce Motion is
+respected. Equal-opacity text is drawn in groups, and fully opaque lines use
+the direct drawing path.
+
+The bundle reuses the published **engine 1.4.8 byte for byte**. No engine code
+or model weights change in this Desktop release. The app version also matches
+the runtime so older updaters accept the bundle. Measurements, CPU/memory costs
+and validation limits are in the [Desktop changelog](docs/release-v1.4.8.md);
+the independent [engine release](docs/release-engine-v1.4.8.md) is unchanged.
+
 ## Desktop 1.4.6 and engine 1.4.6
 
 Desktop **1.4.6, build 28** bundles engine **1.4.6**. It fixes arm64 verification

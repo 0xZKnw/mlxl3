@@ -24,16 +24,37 @@ pour les écritures complexes ; le contrat conserve le rendu et les textes.
 
 ## Performances
 
-Les mesures préliminaires APP-02, sur Apple M5/24 Go et Qwen3.6-35B-A3B EXL3
-2,49 bpw avec MTP1, donnent des médianes de débit stables : 56,84 → 56,85 tok/s
-français et 59,28 → 59,41 tok/s code, huit passages ABBA + BAAB et 128 tokens
-par requête. La variance empêche de démontrer une marge stricte de 1 %.
+La campagne du code final compare les 32 sources Swift intégrées sur Apple M5,
+24 Go, macOS 27.2, sur secteur, avec le **même moteur public 1.4.8** et
+Qwen3.6-35B-A3B EXL3 2,49 bpw + tête MTP 4 bits. Huit passages ABBA + BAAB,
+48 tokens de warmup, puis deux prompts de 128 tokens, contexte 4096, température
+0, top-k 1 et MTP1 donnent les médianes suivantes :
 
-Le coût UI dépend du cas : la prose 64 Kio à 50 ms ajoute 0,331 s CPU sur une
-relecture de 24 appends et environ 51 Mio d’empreinte processus. Le CPU n’est donc
-pas gratuit partout. FPS, énergie et latence de présentation de chaque pixel ne
-sont pas mesurés. Ces essais antérieurs au portage sur main restent historiques ;
-les résultats du paquet final sont consignés séparément avant publication.
+| Prompt | Avant | Après | Écart observé |
+| --- | ---: | ---: | ---: |
+| Français | 65,76 tok/s | 65,16 tok/s | −0,91 % |
+| Code | 67,61 tok/s | 68,88 tok/s | +1,89 % |
+
+Les 16 générations ont le même texte, le même nombre de tokens et les mêmes
+compteurs d’acceptation MTP. La dispersion et la dérive entre blocs dépassent
+1 % : **la marge stricte de 1 % reste non démontrée**, et aucun gain de débit
+n’est revendiqué. Ces chiffres qualifient ces deux prompts, pas tous les modèles.
+
+Les 88 relectures UI couvrent prose, code et raisonnement, de 64 Kio à 1 Mio,
+avec cadences de 50 ms, 15 arrivées/s et rafales. La médiane du CPU total
+par passage, pour les 11 cas, passe de **7,537 à 8,034 s (+6,6 %)**. Pour la prose 64 Kio à 50 ms,
+le CPU passe de **0,501 à 0,625 s** par relecture de 24 appends, et l’empreinte
+du processus UI de **168,0 à 182,0 Mio**. Le fondu continu a donc un coût mesuré ;
+le regroupement du dessin ne rend pas l’ensemble gratuit.
+Sur la prose de 1 Mio à 50 ms, le surcoût CPU médian observé est de 45,2 %
+(0,519 → 0,754 s), avec une forte dispersion de la baseline.
+
+Les mesures de délai d’arrivée concernent l’ordonnancement des callbacks ; elles
+ne mesurent pas la présentation de chaque pixel. FPS et énergie sont **non
+mesurés**. Une première tentative sans fenêtre visible a été rejetée avant tout
+échantillon et conservée ; la série complète a ensuite été effectuée sur le bureau
+standard, avec les gardes de visibilité et de concurrence inchangés. Les anciens
+essais APP-02 restent archivés séparément et ne sont pas additionnés à cette série.
 
 ## Installation et compatibilité
 
@@ -58,11 +79,47 @@ tracking, lecture et reprise. Une mutation qui redémarre les âges précédents
 est rejetée. Les tests existants de LaTeX, copie complète, bridge, annulation et
 historique long sont conservés.
 
-Les résultats locaux et la CI du SHA source exact, l’identité du runtime publié,
-les vérifications du DMG/updater, les tailles et les SHA-256 seront inscrits dans
-la validation jointe. Swift strict et le vérificateur SIL contrôlent la compilation,
-sans constituer une preuve de comportement SwiftUI. Les gestes physiques, les
-autres Mac, les autres modèles et les contextes longs ne sont pas requalifiés.
+La suite locale `PYTHONPATH=src scripts/check-e2e.sh` réussit avec **840 tests
+Python passés et 115 sautés**, ainsi que tous les contrôles Desktop. Elle utilise
+les mêmes 32 sources Swift de production que le paquet final ; elle a été
+exécutée sur le candidat 1.4.7 avant la correction du numéro de version. Les
+contrôles affectés ont ensuite été rejoués sur le DMG 1.4.8 : signature stricte,
+manifestes, quatre empreintes runtime, compatibilité, installation jetable et
+15 cas updater signés. Le vrai préflight de l’ancien client 1.3.0 accepte aussi
+ce paquet ; il rejetait le candidat 1.4.7 avec moteur 1.4.8.
+
+`swiftc -swift-version 6 -warnings-as-errors -Xfrontend -sil-verify-all` et
+l’exécution du contrôle natif de réponse réussissent. Ce sont des contrôles de
+compilation et des tests, sans preuve formelle du comportement SwiftUI.
+CrossHair n’est pas disponible pour le contrôleur Python. Le test physique de
+buffer Metal est explicitement sauté ; aucun code moteur n’a changé. Les gestes
+physiques, les autres Mac, modèles et contextes longs, les FPS et l’énergie ne
+sont pas requalifiés.
+
+La [CI Desktop du commit exact](https://github.com/0xZKnw/mlxl3/actions/runs/38953567273)
+est **réussie** : 840 tests Python passés, 115 sautés, puis toute la suite native
+Desktop, dont les 786 cas et 63 images. La [CI de conversion](https://github.com/0xZKnw/mlxl3/actions/runs/38953567239)
+est également réussie. Les jobs Rust/Kani sont relevés avec leur statut réel
+dans la validation jointe ; aucun succès global de ces jobs encore en cours
+n’est annoncé pour cette modification exclusivement Desktop.
+
+## Sources et artefacts
+
+- Source compilée et tag Desktop :
+  [`e032a8e814375dea3bedc529930e1918ff401306`](https://github.com/0xZKnw/mlxl3/commit/e032a8e814375dea3bedc529930e1918ff401306),
+  aucun fichier suivi modifié au moment de l’assemblage.
+- DMG : **73 423 924 octets**, SHA-256
+  `ca5dbea362c7709cc36b834684fcd091230f5be457822de330b17a7ffccea151`.
+- Runtime public conservé : source
+  [`26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef`](https://github.com/0xZKnw/mlxl3/commit/26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef),
+  archive **66 959 926 octets**, SHA-256
+  `2c79f9b13b7e28f863c6156c45eb88b66cd10565f8f111af0a7555a3635aba44`.
+
+Le fichier joint `MLXL3-Desktop-v1.4.8-validation.json` contient les identités
+publiques, le checksum du DMG, les comptes de tests, les liens CI et les mesures
+agrégées. Les journaux bruts, sources de preuve et métadonnées locales sont
+conservés sur la machine ; ils ne sont pas joints aux téléchargements publics.
+Les résultats de publication font l’objet d’un compte rendu séparé du commit compilé.
 
 ## Remerciements
 
@@ -71,3 +128,10 @@ autres Mac, les autres modèles et les contextes longs ne sont pas requalifiés.
   [MLX](https://github.com/ml-explore/mlx), runtime Apple Silicon du moteur embarqué.
 - [Qwen](https://github.com/QwenLM), modèles utilisés pour les contrôles. Les
   attributions et licences amont du moteur restent dans sa release et le dépôt.
+
+## Fichiers téléchargeables
+
+|Fichier|Octets|SHA-256|
+|---|---:|---|
+|[MLXL3-Desktop-v1.4.8-b29-Apple-Silicon.dmg](https://github.com/0xZKnw/mlxl3/releases/download/v1.4.8/MLXL3-Desktop-v1.4.8-b29-Apple-Silicon.dmg)|73423924|`ca5dbea362c7709cc36b834684fcd091230f5be457822de330b17a7ffccea151`|
+|[MLXL3-Desktop-v1.4.8-validation.json](https://github.com/0xZKnw/mlxl3/releases/download/v1.4.8/MLXL3-Desktop-v1.4.8-validation.json)|3394|`e1daed2dff4a457749a902f390091440cb0aaac740c3f569b9cb913f7c1fae19`|
