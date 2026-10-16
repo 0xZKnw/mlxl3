@@ -82,12 +82,13 @@ la production des artefacts ne vaut pas remplacement dans `/Applications`.
 
 La source conservée passe **118 tests Rust CPU / 3 ignorés**, format et Clippy
 strict, dont **33 tests API inclus**. La suite intégrée Python/Swift passe
-**495 tests Python / 69 sautés**, puis les contrôles Desktop ; le sampling compte
+**1267 tests Python /64 sautés** avec Pony/Torch CPU pour l’intégration37/38/39, puis les contrôles Desktop ; le sampling compte
 **821 assertions / 180 états**, et l'oracle mémoire 240 cas. Le rendu LaTeX passe neuf formules dans deux styles, les copies/roundtrips,
 les quatre côtés du cadre et ses pixels, huit combinaisons de délimiteurs et
-63 cas de préparation. Les contrôles Desktop ont été terminés en deux segments
-après correction d’un appel de constructeur interne dans le nouveau test.
-Les compilations de la reprise traitent les avertissements Swift comme des erreurs.
+63 cas de préparation. La suite Desktop complète a été rejouée après l’intégration37/38/39 ; elle
+passe, y compris les deux formules signalées. L’échec de compilation du nouveau
+test lors de la première campagne reste archivé. Les contrôles ciblés Swift
+traitent les avertissements comme des erreurs.
 Les sources Swift/AppKit restent non prouvées formellement.
 
 Kani du sélecteur opt-in : **33 obligations / 5 couvertures**, booléens symboliques
@@ -96,6 +97,12 @@ ni Metal, ni toutes les interactions HTTP. Les tests GPU restés ignorés, le lo
 contexte non qualifié et les timeouts formels sont identifiés dans le rapport.
 Les autres fonctionnalités/R&D de l'audit restent dans la
 [matrice des 40 propositions](audit-api-lfm-status.md).
+
+L’intégration37/38/39 conserve les poidsV2 et les sources natives/UI qualifiées
+byte-identiques. CrossHair confirme29postconditions scalaires dans son modèle ;
+7conditions de chaînes restent non confirmées après20s chacune. Les64tests
+sautés sont63tests Metal explicitement exclus de la suite CPU et1modèleLing
+absent. [Commandes, couverture et échecs conservés](measurements/audit-api-lfm-20261016/integration-37-38-39/verification.json).
 
 Les SHA source, état des jobs CI du commit exact, signatures, noms, tailles et
 SHA-256 des fichiers livrés sont publiés dans **MLXL3-v1.4.4-validation.json**,

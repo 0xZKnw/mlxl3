@@ -88,7 +88,7 @@ Distribution **ad-hoc, sans notarisation Apple**. L'app installée est conservé
   adaptateur, faux bridge jetable, TCP/processus, stats invalides, déconnexion,
   drainage, startup, UTF-8 et client non lecteur. Trois mutations de fermeture
   et délais sont détectées. Format et Clippy strict `chat`/`mlx,chat` passent.
-- Suite intégrée : **495 Python réussis /69 sautés**, puis Desktop complet ;
+- Suite intégrée : **1267 Python réussis /64 sautés** avec Pony/Torch CPU, puis Desktop complet ;
   les changements Rust finaux ont été retestés séparément. Les ajouts Python des
   PR37/38 ont une vérification combinée distincte, consignée dans le manifeste
   final ; les correctifs LaTeX sont détaillés dans le changelog Desktop.
@@ -104,6 +104,12 @@ Distribution **ad-hoc, sans notarisation Apple**. L'app installée est conservé
 - Les vrais parcours bridge/API ont été exercés avec le préfill actif ; la cause
   de fin, la récupération de la requête suivante et l'arrêt des processus passent.
   Les résultats du binaire livré sont consignés séparément des prototypes.
+
+L’intégration37/38/39 conserve les poidsV2 et les sources natives/UI qualifiées
+byte-identiques. CrossHair confirme29postconditions scalaires dans son modèle ;
+7conditions de chaînes restent non confirmées après20s chacune. Les64tests
+sautés sont63tests Metal explicitement exclus de la suite CPU et1modèleLing
+absent. [Commandes, couverture et échecs conservés](measurements/audit-api-lfm-20261016/integration-37-38-39/verification.json).
 
 Les identités source/binaires, jobs CI du commit exact et leurs éventuelles
 interruptions, contrôles du paquet signé, noms/tailles/SHA-256 sont publiés dans
