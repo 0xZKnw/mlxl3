@@ -30,9 +30,12 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
-## Desktop 1.4.4 and engine 1.4.5
+## Desktop 1.4.5 and engine 1.4.5
 
-Desktop **1.4.4, build 26** bundles engine **1.4.5**. LFM models without MTP no
+Desktop **1.4.5, build 27** bundles engine **1.4.5**. It fixes the app updater's
+assumption that app and engine versions must match. Version 1.4.4 was withdrawn
+from the stable channel because Desktop 1.4.3 rejected its bundled engine version.
+LFM models without MTP no
 longer inherit a sampling lock, and their context-memory estimate is available.
 The local HTTP API now reports explicit stop causes, rejects concurrent work,
 recovers disconnected requests and bounds transport waits. It also exposes
@@ -44,7 +47,7 @@ opt-in (`MLXL3_LFM_MOE_PREFILL=1`). The timing studies do not meet the stability
 release speedup; the default remains canonical. The unsuccessful capacity-cache
 prototype was removed. Model weights are unchanged.
 
-[Desktop changelog](docs/release-v1.4.4.md) ·
+[Desktop changelog](docs/release-v1.4.5.md) ·
 [Engine changelog](docs/release-engine-v1.4.5.md) ·
 [Audit decisions and verification](docs/measurements/audit-api-lfm-20261016/lfm-final.md).
 

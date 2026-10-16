@@ -1,5 +1,11 @@
 # MLXL3 Desktop 1.4.4 — build 26
 
+**Retirée du canal stable le 16 octobre 2026.** L’updater de 1.4.3 exigeait
+que les versions Desktop et moteur soient identiques ; il refusait donc ce DMG
+1.4.4 avec moteur 1.4.5. Les tests d’archive moteur ne couvraient pas ce parcours
+d’installation app. La [version 1.4.5](release-v1.4.5.md) corrige ce défaut et
+permet la migration depuis 1.4.3. Les résultats ci-dessous restent historiques.
+
 Cette version embarque le moteur **1.4.5** et corrige l'inspecteur des modèles LFM
 ainsi que la fiabilité de l'API locale.
 
