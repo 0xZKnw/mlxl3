@@ -1,5 +1,5 @@
 {
-  "status": "local_source_checks_complete_final_release_artifact_pending",
+  "status": "artifacts_validated_ci_publication_pending",
   "rust_cpu": {
     "passed": 118,
     "ignored": 3,
@@ -38,7 +38,10 @@
     "desktop": "1.4.4 build26",
     "engine": "1.4.5",
     "published": false,
-    "installed_app_replaced": false
+    "installed_app_replaced": false,
+    "artifacts_validated": true,
+    "artifact_source_commit": "f75cf254911e83bed9acdc2a4ad542614bedaa6c",
+    "report": "delivery-final.json"
   },
   "native_source_hashes": "retained-evidence.tar.gz: final-opt-in/verification.json",
   "archives": {
@@ -71,6 +74,13 @@
       "path": "latex-evidence.tar.gz",
       "bytes": 20673,
       "sha256": "92f11d5bb8ae794a4e2683b2e1a521f7b2e7b42bf3f176542cf85a51f2fa7d57"
+    },
+    "delivery-final": {
+      "status": "complete",
+      "archive": "delivery-final-evidence.tar.gz",
+      "bytes": 22911,
+      "sha256": "f5808d218abe6374db200afeecb4020b285b013a52b950fd7f2ada5d2a58d713",
+      "large_dumps": "local; SHA in numerical reports"
     }
   },
   "desktop_latex": {

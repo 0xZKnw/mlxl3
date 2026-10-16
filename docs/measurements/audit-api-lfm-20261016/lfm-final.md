@@ -205,3 +205,30 @@ EXL3 sur les entrées testées. Les fonctionnalités/R&D restantes des40proposit
 restent dans la [matrice de l'audit](../../audit-api-lfm-status.md). L'app installée
 est conservée selon la décision utilisateur ; un build ou une release ne vaut
 pas installation.
+
+## Paquet finalement construit
+
+Desktop1.4.4/b26 et moteur1.4.5 ont été construits depuis la source propre
+`f75cf254911e83bed9acdc2a4ad542614bedaa6c` ; runtime signé
+`961a1ad2cb1b3e2bd45c4d9a4946bca0e0a7525f9c9b975f4469bcb81b9f5fdc`.
+Le code natif est byte-identique aux sources déjà qualifiées ; ce commit ajoute
+le rendu LaTeX et les preuves documentaires. Aucun nouveau gain vitesse n’est
+déduit de cette reconstruction. La comparaison numérique a néanmoins été répétée
+sur ce runtime signé : défaut8pas et batch65 forcé0/1, mêmes logits/50états finis,
+formes/octets et trace. Trois processus modèles terminés/rejoints,25,59s au total.
+
+Le bridge réel couvre les quatreprompts/1732tokens (33,10s), l’API active passe
+13contrôles avec annulation/reprise (4,70s) ; par défaut, JSON et SSE rendent
+`length`/usage1 et l’arrêt0 est attendu (4,65s). Tous superviseurs passent et
+aucun moteur modèle ne reste. Ces durées sont fonctionnelles, pas des benchmarks.
+
+Les40contrôles du bundle, manifestes, TAR, signatures, polices, architectures et
+DMG monté en lecture seule passent. Copie du DMG identique, runtime déplacé valide,
+volume détaché. L’updater a été retesté sur la nouvelle archive réelle (2,99s),
+avec fixtures/home jetables. [Résultats détaillés](delivery-final.json),
+[preuves brutes](delivery-final-evidence.tar.gz) et indexSHA à côté.
+
+État de cette capture : artefacts validés, CI du SHA de PR et publication à
+inspecter ; l’app utilisateur1.4.3/b25 n’a pas été remplacée. Le manifeste de
+validation joint aux releases fournit l’état de diffusion final. Les commits
+documentaires ultérieurs ne changent pas les octets source des exécutables.
