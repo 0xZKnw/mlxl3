@@ -67,7 +67,7 @@ def fake_native(tmp_path, mode):
         "if mode == 'extra': tokens.append(tokens[-1])\n"
         "for token in tokens:\n"
         "    if mode == 'malformed': print('bad JSON', flush=True); break\n"
-        "    bits = [0x7e00,0] if mode == 'nonfinite' else [True,0] if mode == 'boolean' else [0,0]\n"
+        "    bits = [0x7e00,0] if mode == 'nonfinite' or (mode == 'first-nonfinite' and token == 0) else [True,0] if mode == 'boolean' else [0,0]\n"
         "    print(json.dumps({'token':999 if mode == 'wrong-token' else token, 'logits':bits}), flush=True)\n"
         "if mode == 'exit-error': sys.exit(2)\n"
     )
@@ -83,6 +83,98 @@ def test_native_window_checks_real_transport_and_loss(tmp_path):
     assert result["tokens"] == result["greedy_matches"] == 2
     assert result["nll"] == result["bf16_nll"] == pytest.approx(math.log(2))
     assert result["kl"] == 0
+
+
+def test_subset_scores_only_requested_positions_but_reads_the_entire_window(tmp_path):
+    binary = fake_native(tmp_path, "ok")
+    teacher = np.array([[math.log(3), 0], [0, 0]])
+    result = quality.native_window(
+        binary,
+        tmp_path,
+        [0, 1],
+        [1, 0],
+        teacher,
+        tmp_path / "stderr",
+        2,
+        score_first=1,
+        score_last=1,
+    )
+    assert result["tokens"] == result["greedy_matches"] == 1
+    assert result["bf16_nll"] == result["nll"] == pytest.approx(math.log(2))
+    assert result["kl"] == 0
+
+
+@pytest.mark.parametrize("mode", ["first-nonfinite", "extra", "short"])
+def test_unscored_native_rows_still_require_valid_complete_output(tmp_path, mode):
+    binary = fake_native(tmp_path, mode)
+    with pytest.raises((ValueError, RuntimeError)):
+        quality.native_window(
+            binary,
+            tmp_path,
+            [0, 1],
+            [1, 0],
+            np.zeros((2, 2)),
+            tmp_path / "stderr",
+            2,
+            score_first=1,
+            score_last=1,
+        )
+
+
+@pytest.mark.parametrize("first,last", [(0, -1), (2, 2), (-1, 1), (1, 0), (True, 1)])
+def test_invalid_score_ranges_fail_before_starting_a_process(tmp_path, first, last):
+    with pytest.raises(ValueError):
+        quality.native_window(
+            tmp_path / "absent",
+            tmp_path,
+            [0, 1],
+            [1, 0],
+            np.zeros((2, 2)),
+            tmp_path / "stderr",
+            2,
+            score_first=first,
+            score_last=last,
+        )
+
+
+def test_unscored_teacher_or_label_corruption_is_rejected(tmp_path):
+    teacher = np.array([[float("nan"), 0], [0, 0]])
+    with pytest.raises(ValueError):
+        quality.native_window(
+            tmp_path / "absent",
+            tmp_path,
+            [0, 1],
+            [1, 0],
+            teacher,
+            tmp_path / "stderr",
+            2,
+            score_first=1,
+            score_last=1,
+        )
+    with pytest.raises(ValueError):
+        quality.native_window(
+            tmp_path / "absent",
+            tmp_path,
+            [0, 1],
+            [True, 0],
+            np.zeros((2, 2)),
+            tmp_path / "stderr",
+            2,
+            score_first=1,
+            score_last=1,
+        )
+
+
+def test_score_range_against_independent_finite_index_enumeration():
+    for length in range(1, 17):
+        for first in range(-1, length + 1):
+            for last in range(-1, length + 1):
+                selected = [i for i in range(length) if first <= i <= last]
+                if first < 0 or last >= length or not selected:
+                    with pytest.raises(ValueError):
+                        quality.scored_count(length, first, last)
+                else:
+                    assert quality.scored_count(length, first, last) == len(selected)
 
 
 @pytest.mark.parametrize(

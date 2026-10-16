@@ -1,0 +1,437 @@
+{
+  "status": "complete_rejected_validation",
+  "source_commit": "3da63cb55b7ead34b5ee3f57d0bd0fb775166108",
+  "modal_app": "ap-QKU66NQEPkAvBIO4Cjof1D",
+  "modal_workspace": "xzknw",
+  "modal_profile": "compte2",
+  "volume": "mlxl3-lfm25-v3-20261015",
+  "data": "/router38-resume",
+  "gpu": "H100",
+  "cpu": 8,
+  "memory_mib": 98304,
+  "function_timeout_seconds": 3600,
+  "retries": 0,
+  "elapsed_parent_seconds": 897.1822974930001,
+  "gpu_tasks_at_verification": 0,
+  "teacher_reused": true,
+  "teacher_report_sha256": "bd18d5894b02af3b91efb7f2e61253635b5c06785ffc154d5680c7b14abf5478",
+  "teacher_source_commit": "f46c06b3b32ebefe6532dc66b532186edca81592",
+  "cache_sha256": "1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65",
+  "cache_bytes_unchanged": true,
+  "train_tokens": 32768,
+  "train_capture_artifacts": 39,
+  "teacher_artifacts": 53,
+  "validation_positions": 12276,
+  "validation_sequences": 12,
+  "validation_domains": 6,
+  "vocabulary": 128000,
+  "fit_device": "cuda:0",
+  "fit_experts": {
+    "fit": 2221,
+    "cold": 211
+  },
+  "expert_count": 2432,
+  "gate_files": {
+    "alpha-025": {
+      "bytes": 9965648,
+      "sha256": "bf3c49fece34ec6fc28a2d2edd05a1999984b5191a0030d7aa9d525275c59e2f",
+      "tensors": 38,
+      "finite_f16_values": 4980736,
+      "shape_per_tensor": [
+        64,
+        2048
+      ],
+      "local_path": "build/lfm25-router38-alpha-025.gates.safetensors",
+      "remote_path": "/router38-resume/fit-artifacts/alpha-025.gates.safetensors"
+    },
+    "alpha-050": {
+      "bytes": 9965648,
+      "sha256": "88e938bfd527c63b44409be69617e359311a2b8a3d7104d0617873d2117e5c4c",
+      "tensors": 38,
+      "finite_f16_values": 4980736,
+      "shape_per_tensor": [
+        64,
+        2048
+      ],
+      "local_path": "build/lfm25-router38-alpha-050.gates.safetensors",
+      "remote_path": "/router38-resume/fit-artifacts/alpha-050.gates.safetensors"
+    },
+    "alpha-100": {
+      "bytes": 9965648,
+      "sha256": "46be35ebc0ada11f2d337b4da9bd068c15a20d68a6baa8d731ce33e0290558da",
+      "tensors": 38,
+      "finite_f16_values": 4980736,
+      "shape_per_tensor": [
+        64,
+        2048
+      ],
+      "local_path": "build/lfm25-router38-alpha-100.gates.safetensors",
+      "remote_path": "/router38-resume/fit-artifacts/alpha-100.gates.safetensors"
+    }
+  },
+  "non_gate_tensors_unchanged_per_candidate": 29779,
+  "selection": {
+    "status": "complete",
+    "baseline": {
+      "tokens": 12276,
+      "kl": 0.10800263033578265,
+      "nll": 2.397880018925016,
+      "teacher_nll": 2.4116933469979522,
+      "ppl": 10.999832208672837,
+      "teacher_ppl": 11.152830776653683,
+      "greedy_matches": 10709
+    },
+    "baseline_domains": {
+      "c4": {
+        "tokens": 2046,
+        "kl": 0.08141404581778067,
+        "nll": 2.9632366285407197,
+        "teacher_nll": 2.9519082420363922,
+        "ppl": 19.360533311308156,
+        "teacher_ppl": 19.142447320510705,
+        "greedy_matches": 1785
+      },
+      "code": {
+        "tokens": 2046,
+        "kl": 0.084555449700482,
+        "nll": 1.2434952121877798,
+        "teacher_nll": 1.233700263587235,
+        "ppl": 3.467712699439692,
+        "teacher_ppl": 3.4339124379348127,
+        "greedy_matches": 1889
+      },
+      "multilingual": {
+        "tokens": 2046,
+        "kl": 0.1507910534261856,
+        "nll": 2.8460006332569954,
+        "teacher_nll": 2.8952788902957027,
+        "ppl": 17.21877973515061,
+        "teacher_ppl": 18.08854545765296,
+        "greedy_matches": 1708
+      },
+      "technical": {
+        "tokens": 2046,
+        "kl": 0.15568356972823308,
+        "nll": 3.272039361862442,
+        "teacher_nll": 3.2865391137005395,
+        "ppl": 26.365052436873583,
+        "teacher_ppl": 26.750124129878518,
+        "greedy_matches": 1688
+      },
+      "wiki": {
+        "tokens": 2046,
+        "kl": 0.11465291553721549,
+        "nll": 2.010881071816447,
+        "teacher_nll": 2.033043346109956,
+        "ppl": 7.469895963582232,
+        "teacher_ppl": 7.637293955342889,
+        "greedy_matches": 1817
+      },
+      "tiny": {
+        "tokens": 2046,
+        "kl": 0.06091874780479905,
+        "nll": 2.0516272058857115,
+        "teacher_nll": 2.069690226257888,
+        "ppl": 7.780551370207236,
+        "teacher_ppl": 7.922368595929544,
+        "greedy_matches": 1822
+      }
+    },
+    "candidates": {
+      "0.25": {
+        "overall": {
+          "tokens": 12276,
+          "kl": 0.10753378751143101,
+          "nll": 2.399802362896945,
+          "teacher_nll": 2.4116933469979522,
+          "ppl": 11.020998007266062,
+          "teacher_ppl": 11.152830776653683,
+          "greedy_matches": 10731
+        },
+        "domains": {
+          "c4": {
+            "tokens": 2046,
+            "kl": 0.08108199536690625,
+            "nll": 2.9696927796168024,
+            "teacher_nll": 2.9519082420363922,
+            "ppl": 19.48593220079559,
+            "teacher_ppl": 19.142447320510705,
+            "greedy_matches": 1786
+          },
+          "code": {
+            "tokens": 2046,
+            "kl": 0.09879384092956811,
+            "nll": 1.2573250064604522,
+            "teacher_nll": 1.233700263587235,
+            "ppl": 3.516003609659379,
+            "teacher_ppl": 3.4339124379348127,
+            "greedy_matches": 1884
+          },
+          "multilingual": {
+            "tokens": 2046,
+            "kl": 0.15644338815184555,
+            "nll": 2.862655815504318,
+            "teacher_nll": 2.8952788902957027,
+            "ppl": 17.507963166282362,
+            "teacher_ppl": 18.08854545765296,
+            "greedy_matches": 1712
+          },
+          "technical": {
+            "tokens": 2046,
+            "kl": 0.1372790394727626,
+            "nll": 3.2377369046388225,
+            "teacher_nll": 3.2865391137005395,
+            "ppl": 25.476001837576383,
+            "teacher_ppl": 26.750124129878518,
+            "greedy_matches": 1713
+          },
+          "wiki": {
+            "tokens": 2046,
+            "kl": 0.10617616606117217,
+            "nll": 2.017275057015037,
+            "teacher_nll": 2.033043346109956,
+            "ppl": 7.517811389827542,
+            "teacher_ppl": 7.637293955342889,
+            "greedy_matches": 1820
+          },
+          "tiny": {
+            "tokens": 2046,
+            "kl": 0.06542829508633137,
+            "nll": 2.0541286141462383,
+            "teacher_nll": 2.069690226257888,
+            "ppl": 7.800038067608293,
+            "teacher_ppl": 7.922368595929544,
+            "greedy_matches": 1816
+          }
+        },
+        "eligible": false,
+        "failed_domains": [
+          "code",
+          "multilingual",
+          "tiny"
+        ]
+      },
+      "0.5": {
+        "overall": {
+          "tokens": 12276,
+          "kl": 0.11416755408049457,
+          "nll": 2.4057657649132724,
+          "teacher_nll": 2.4116933469979522,
+          "ppl": 11.08691700439299,
+          "teacher_ppl": 11.152830776653683,
+          "greedy_matches": 10713
+        },
+        "domains": {
+          "c4": {
+            "tokens": 2046,
+            "kl": 0.08561648957243508,
+            "nll": 2.971760053749738,
+            "teacher_nll": 2.9519082420363922,
+            "ppl": 19.52625663085508,
+            "teacher_ppl": 19.142447320510705,
+            "greedy_matches": 1785
+          },
+          "code": {
+            "tokens": 2046,
+            "kl": 0.10630879102987907,
+            "nll": 1.2418122901514803,
+            "teacher_nll": 1.233700263587235,
+            "ppl": 3.461881717242688,
+            "teacher_ppl": 3.4339124379348127,
+            "greedy_matches": 1896
+          },
+          "multilingual": {
+            "tokens": 2046,
+            "kl": 0.17157803818953896,
+            "nll": 2.8771551813670437,
+            "teacher_nll": 2.8952788902957027,
+            "ppl": 17.763666820424785,
+            "teacher_ppl": 18.08854545765296,
+            "greedy_matches": 1675
+          },
+          "technical": {
+            "tokens": 2046,
+            "kl": 0.1368716596472891,
+            "nll": 3.2474321207036994,
+            "teacher_nll": 3.2865391137005395,
+            "ppl": 25.724198395342224,
+            "teacher_ppl": 26.750124129878518,
+            "greedy_matches": 1721
+          },
+          "wiki": {
+            "tokens": 2046,
+            "kl": 0.11911495082408895,
+            "nll": 2.033115281039663,
+            "teacher_nll": 2.033043346109956,
+            "ppl": 7.637843363307294,
+            "teacher_ppl": 7.637293955342889,
+            "greedy_matches": 1816
+          },
+          "tiny": {
+            "tokens": 2046,
+            "kl": 0.06551539521973637,
+            "nll": 2.0633196624680106,
+            "teacher_nll": 2.069690226257888,
+            "ppl": 7.872059061618116,
+            "teacher_ppl": 7.922368595929544,
+            "greedy_matches": 1820
+          }
+        },
+        "eligible": false,
+        "failed_domains": [
+          "c4",
+          "code",
+          "multilingual",
+          "wiki",
+          "tiny"
+        ]
+      },
+      "1": {
+        "overall": {
+          "tokens": 12276,
+          "kl": 0.13597020867052792,
+          "nll": 2.394075324455194,
+          "teacher_nll": 2.4116933469979522,
+          "ppl": 10.958060722160678,
+          "teacher_ppl": 11.152830776653683,
+          "greedy_matches": 10596
+        },
+        "domains": {
+          "c4": {
+            "tokens": 2046,
+            "kl": 0.10158327370514993,
+            "nll": 2.985592191232872,
+            "teacher_nll": 2.9519082420363922,
+            "ppl": 19.798223099677625,
+            "teacher_ppl": 19.142447320510705,
+            "greedy_matches": 1759
+          },
+          "code": {
+            "tokens": 2046,
+            "kl": 0.10778758996652392,
+            "nll": 1.2372674601724345,
+            "teacher_nll": 1.233700263587235,
+            "ppl": 3.446183752740831,
+            "teacher_ppl": 3.4339124379348127,
+            "greedy_matches": 1886
+          },
+          "multilingual": {
+            "tokens": 2046,
+            "kl": 0.20194459804632287,
+            "nll": 2.83556944398124,
+            "teacher_nll": 2.8952788902957027,
+            "ppl": 17.04010092106325,
+            "teacher_ppl": 18.08854545765296,
+            "greedy_matches": 1667
+          },
+          "technical": {
+            "tokens": 2046,
+            "kl": 0.1651361225305387,
+            "nll": 3.2359554326353073,
+            "teacher_nll": 3.2865391137005395,
+            "ppl": 25.43065745540715,
+            "teacher_ppl": 26.750124129878518,
+            "greedy_matches": 1694
+          },
+          "wiki": {
+            "tokens": 2046,
+            "kl": 0.12718261063657094,
+            "nll": 1.9987190770387606,
+            "teacher_nll": 2.033043346109956,
+            "ppl": 7.379597346571483,
+            "teacher_ppl": 7.637293955342889,
+            "greedy_matches": 1811
+          },
+          "tiny": {
+            "tokens": 2046,
+            "kl": 0.1121870571380612,
+            "nll": 2.0713483416705505,
+            "teacher_nll": 2.069690226257888,
+            "ppl": 7.9355156940941365,
+            "teacher_ppl": 7.922368595929544,
+            "greedy_matches": 1779
+          }
+        },
+        "eligible": false,
+        "failed_domains": [
+          "c4",
+          "code",
+          "multilingual",
+          "technical",
+          "wiki",
+          "tiny"
+        ]
+      }
+    },
+    "selected": null
+  },
+  "publication": false,
+  "v2_unchanged": true,
+  "native_final_tests_executed": false,
+  "fresh_chat_cjk_tests_executed": false,
+  "reason_final_tests_not_executed": "No preregistered validation candidate eligible; do not tune or publish on failed guards.",
+  "modal_displayed_credit_usd": 11.69,
+  "credit_observation_note": "UI workspace snapshot after run; billing may lag and is not an isolated invoice.",
+  "commands": [
+    "PYTHONPATH=scripts:benchmarks MODAL_PROFILE=compte2 modal run --detach scripts/recalibrate_lfm25_router_modal.py",
+    "MODAL_PROFILE=compte2 modal app list --json",
+    "MODAL_PROFILE=compte2 modal volume get mlxl3-lfm25-v3-20261015 /router38-resume/<individual-file> build/<unique-file>"
+  ],
+  "postchecks": [
+    "client-return JSON equals preserved remote JSON",
+    "all three gate files SHA/bytes match fit report",
+    "all 114 gate tensors exact names, shape64x2048, F16, finite and SHA match",
+    "all four score reports complete and aggregate equals selected-report data",
+    "29779 non-gate tensor hash maps agree across all candidates",
+    "archive read back byte-for-byte"
+  ],
+  "files": {
+    "lfm25-router38-resume-cloud.json": {
+      "bytes": 193667,
+      "sha256": "e834316a2936a1b7b16ea516b2cede329c3391a70aa334bdf36a5a0e73e487f4"
+    },
+    "lfm25-router38-validation-baseline-score.json": {
+      "bytes": 13756,
+      "sha256": "0a9b05bf54a265a69bcbe5b01399f2927e83982ccd9f3347a044f3ee0f6755e0"
+    },
+    "lfm25-router38-validation-alpha-025-score.json": {
+      "bytes": 13773,
+      "sha256": "354ad4a14b91b998a1c3bb3904cc74844bfc2bbd7a74a1b8e8b14254bad2d64d"
+    },
+    "lfm25-router38-validation-alpha-050-score.json": {
+      "bytes": 13772,
+      "sha256": "d63f9e91a2a1a2d5c487f366bc3d86fe4b3db100b5a7a79449c88fa1c0c828b1"
+    },
+    "lfm25-router38-validation-alpha-100-score.json": {
+      "bytes": 13774,
+      "sha256": "da04066f44e3387b4efd515d39e21fdf5858a32923ec3ea4cf4d9e342c680e67"
+    },
+    "lfm25-router38-3da-ci-diagnosis.json": {
+      "bytes": 8681,
+      "sha256": "1e4a2b3746f96977aad66ad99b93922a36144f7e5e88b3f45471f7222e2e99e1"
+    },
+    "lfm25-router38-f46-kani-ci-diagnosis.json": {
+      "bytes": 4666,
+      "sha256": "0daf7c80389cd41ba912a23b5837115c384af45d4e4f7181e5f862f618266979"
+    },
+    "gpu-evidence.tar.gz": {
+      "bytes": 3237775,
+      "sha256": "5686ffc2e27ba9f3604c1aaa468d25aefe014f9df4892f032b119e05d815cae7"
+    },
+    "lfm25-router38-final-apps.json": {
+      "bytes": 939,
+      "sha256": "dda5911a363b465438d5e96680644c5d2f9e381d95744b1927466737adc11ce1"
+    }
+  },
+  "limits": [
+    "Rejected router calibration, not a successful quality fix.",
+    "EXL3 V2 trellises reused; no complete24B conversion repeated.",
+    "Training residual metrics do not prove generalization or final KL.",
+    "Raw logits/captures stay on Modal Volume with pinned hashes in capture reports; not downloaded again.",
+    "Small gate artifacts remain locally in build and on Volume; full SSD checkpoint exports vanished after stop but are reproducible with immutable V2 and all38gates.",
+    "No complete formal proof of tensors/CUDA/I/O.",
+    "New-code CPU322 tests and source checks precede GPU. Full preextension1258/1skip and final noTorch824/30skip differ in environment.",
+    "CI3da conversion/Regression/native OS jobs pass; Kani pending snapshot. CrossHair CI11/12 confirmed,1notconfirmed after20s; local12scalarposts confirmed separately."
+  ],
+  "gpu_app_stopped_at_reported": "2026-10-15 20:43:30+02:00"
+}
