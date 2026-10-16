@@ -103,6 +103,15 @@ est également réussie. Les jobs Rust/Kani sont relevés avec leur statut réel
 dans la validation jointe ; aucun succès global de ces jobs encore en cours
 n’est annoncé pour cette modification exclusivement Desktop.
 
+
+Actualisation après publication : le [job Kani du moteur hérité](https://github.com/0xZKnw/mlxl3/actions/runs/38953567272)
+a terminé en **échec par interruption (code 143)** pendant
+`dflash_copy_len_10`, après 65 harnais réussis. Les obligations déjà
+rapportées n’affichent aucun échec ; le harnais interrompu et la suite complète
+restent **non vérifiés**, sans cause d’interruption établie. Les jobs Rust Linux
+et macOS sont réussis. Les sources du moteur et de Kani sont identiques à la
+baseline ; aucun changement ni nouvelle exécution du moteur n’est ajouté ici.
+
 ## Sources et artefacts
 
 - Source compilée et tag Desktop :

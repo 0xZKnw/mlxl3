@@ -40,3 +40,11 @@ La cible≤1% reste non concluante : dispersion/dérive et faible effectif. Aucu
 [Desktop exactsource SUCCESS](https://github.com/0xZKnw/mlxl3/actions/runs/38953567273),840passés/115sautés et natifcomplet ; conversion SUCCESS. StatutsRust/Kani séparés dans lessnapshotsJSON. BufferMetalexplicitementsauté, pas nouveaucontrôle27B, FPS/énergie/gestes physiques nonmesurés. Tests visibles terminés, aucune nouvelle fenêtre ouverte après demande d’arrêt. Appinstallée nonremplacée.
 
 Publication vérifiée : [Desktop1.4.8](https://github.com/0xZKnw/mlxl3/releases/tag/v1.4.8), tag source exact, canal stable, deux actifs re-téléchargés et SHA-256 identiques. Moteur public inchangé, app installée non remplacée. Les jobs Rust Linux et macOS ont ensuite réussi ; Kani reste en cours au dernier relevé.
+
+Actualisation après publication : le [job Kani du moteur hérité](https://github.com/0xZKnw/mlxl3/actions/runs/38953567272)
+a terminé en **échec par interruption (code 143)** pendant
+`dflash_copy_len_10`, après 65 harnais réussis. Les obligations déjà
+rapportées n’affichent aucun échec ; le harnais interrompu et la suite complète
+restent **non vérifiés**, sans cause d’interruption établie. Les jobs Rust Linux
+et macOS sont réussis. Les sources du moteur et de Kani sont identiques à la
+baseline ; aucun changement ni nouvelle exécution du moteur n’est ajouté ici.
