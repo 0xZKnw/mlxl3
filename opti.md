@@ -1,6 +1,6 @@
 # MLXL3 — journal des optimisations
 
-### Q27-2026-10-16-20 — intégration main et moteur1.4.7 — en cours
+### Q27-2026-10-16-20 — intégration main et moteur1.4.7 — terminé, publié et vérifié
 
 - Autorisation explicite du16octobre : pousser le travail sur main puis publier une nouvelle version moteur. main distant c9a19a85 a ajouté les correctifs updater/Desktop1.4.6 ; aucun calcul natif ne diffère de la base7ce611c1, seuls Cargo/version changent. Le tag engine-v1.4.6 existe : utiliser1.4.7. Préserver le checkout personnel modifié et intégrer uniquement les fichiers du worktree qwen27-smallm.
 - Baseline : Q27-03 etQ27-19 validés, native7 fichiers candidate-v2-identity.json, moteur d6a4ea44 et résultats13,6508/13,3806tok/s batterie avec layout1. Conserver MLP2/4 par défaut, M3 série, layout optionnel OFF ; aucune nouvelle quantification ou installation locale, aucune somme de gains.
@@ -14,6 +14,14 @@
 - Contrôles intégration1.4.7 : complete, 9étapes ; logs build/engine-v1.4.7/checks/status.json, copies/preuves de release àconserver. Aucune inference GPU ni publication pendant cette phase CPU.
 
 - Contrôles locaux intégration passés :179Rust/85ignorés,442Python, fmt/Clippy strict, troisKaniCPU réussis ; preuves copiées docs/measurements/engine-v1.4.7/prebuild-checks etintegration.json. Les sept sources numériques restent identiquesQ19 ; version seule et amontupdater intégrés. Prêt pour commit/push puis build propre et contrôle du paquet signé ; aucune publication encore.
+
+- main poussé957b1946 ; paquet signé/reproductible construit sourcepropre957b, installation réelle enstorejetable sélectionnée par Desktop1.4.6 et fallback passent. Compilation initiale du harnais Swift refusée sur typeData, corrigée sanschangementproduction et diagnostic conservé. AvantcontrôleGPU : ajouter comparaison fonctionnelleFR130/code256 aux hashes/compteursQ27-03 sous défaut(absence lane) puis lane1 ; pas campagne de vitesse, source/codebook identiques. GPUseul, bridge600s puisgolden600s, tousenfantsjoints ; versions/commit/clés vérifiés.
+
+- Contrôle GPU du paquet1.4.7 : complete, parité=True ; build/engine-v1.4.7/physical/status.json etgolden-status.json. Aucune vitesse nouvelle revendiquée, aucun modèle/poids/app utilisateur modifié. Publication encoreconditionnéeauxrésultatsCI inspectés.
+
+- Clôture20 : moteur1.4.7 **publié et vérifié**, sourcepropre957b19469e2a4ed0cb788046cad8e75c100c583d, main poussé avant build. Archive66960079octets/SHA bd952551a310df8cbec8e2ba12513e0544998e794270f11c4b1819f74baaca30, manifeste13587octets/SHA ee9786aac69d681adebb80111e9f6aae1aad11b9c676a232cecb333500594074 ; validation79462octets etpreuves36984octets jointes, quatreSHA distants vérifiés. Tagengine-v1.4.7 au boncommit ; Desktopv1.4.6 reste latest, app installée intacte.
+- Build/paquet reproductible/signatures/arch/minOS/manifestes et vraiinstallateurDesktop1.4.6→moteur1.4.7/storejetable+fallback réussis. Bridge du paquet signé238,35s :sixbudgets/deuxpréfixes/deuxannulations/troisrefus ; comparaisonhistorique79,87s/quatresorties sousdéfaut etlane1 exacte enIDs/texte/histoire/count/compteurs, tousprocessus0/joints. Aucun nouveau gain devitesse déduit decescontrôlesfonctionnels ; code natif identiqueQ19, optionOFF conservée.
+- CI957b :NativeLinux/macOS, RegressionDesktop/protocole etconversion/packing réussis ; KaniusageAPI réussi, suiteKani complète encoreen cours au relevé, pasdeCIglobaleverte annoncée. Local179Rust/85ignorés,442Python ettroisKaniCPU79/11cov passent. Les limitesArrayICE/MSL/Swift/CrossHair/longcontexte restent visibles. Compte-rendu docs/measurements/engine-v1.4.7/verification.md ; changelog docs/release-engine-v1.4.7.md repris dans release https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.7. Aucunessai20encours ; ajout documentaire final sans changement du binaire/source957b publié.
 
 ### Q27-2026-10-16-19 — portage natif ordre des lanes EXL3 — validé localement, option OFF par défaut
 

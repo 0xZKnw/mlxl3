@@ -52,3 +52,19 @@ Cette release concerne **le moteur uniquement**. Desktop reste1.4.6/build28 ; so
 - [Sushi / beamivalice](https://github.com/beamivalice/sushi/tree/70dc0e807e4113179389377253fe8270d5a3333b), idée de disposition des activations et de lectures directes par lane ; cette release en adapte le mécanisme au codec et aux oracles MLXL3.
 - [MLX](https://github.com/ml-explore/mlx), runtime Apple Silicon et opérateurs de référence ; [ExLlamaV3](https://github.com/turboderp-org/exllamav3), format EXL3 ; [PonyExl3](https://github.com/beamivalice/PonyExl3), travaux de conversion et d'inférence EXL3.
 - [MTPLX](https://github.com/youssofal/MTPLX), travaux amont MTP et architecture de référence ; [Qwen](https://github.com/QwenLM), modèles et architecture ; [Kani](https://github.com/model-checking/kani), vérification des contrats CPU.
+
+
+## Artefacts et validation du paquet publié
+
+Source du moteur : 957b19469e2a4ed0cb788046cad8e75c100c583d. Le binaire signé annonce ce commit propre, version1.4.7/profilrelease.
+
+| Fichier | Octets | SHA-256 |
+|---|---:|---|
+| MLXL3-Engine-v1.4.7-arm64.tar.gz | 66960079 | bd952551a310df8cbec8e2ba12513e0544998e794270f11c4b1819f74baaca30 |
+| MLXL3-Engine-v1.4.7-verification.tar.gz | 36984 | 7b0fd5c99cbd93784ff8f1dedee402266e5be0218f50f10b2e8349717226f02f |
+| MLXL3-Engine-v1.4.7-arm64.json | 13587 | ee9786aac69d681adebb80111e9f6aae1aad11b9c676a232cecb333500594074 |
+| MLXL3-Engine-v1.4.7-validation.json | 79462 | 5b3345f5741d1e5d96f85785e89b253f4421cf6f049dbb9233a2f80833934d9b |
+
+Paquet reproductible, signatures/arm64/macOS26.2/hashes vérifiés. Le vrai installateur sélectionne1.4.7 depuis Desktop1.4.6 enstorejetable, exécute le moteur relocalisé puis vérifie le fallback. Le bridge du paquet signé passe sixbudgets, deuxpréfixes, deuxannulations et troisrefus ; les quatre sorties FR/code sous défaut livré et lane1 ont les hashes/compteurs historiques exacts. Aucun gain de vitesse supplémentaire attribué à ce contrôle fonctionnel.
+
+CI du commit exact : [Desktop/protocole](https://github.com/0xZKnw/mlxl3/actions/runs/38940141542) réussi ; [RustLinux/macOS](https://github.com/0xZKnw/mlxl3/actions/runs/38940141824) réussis, étapeKaniusageAPI réussie ; [conversion/packing](https://github.com/0xZKnw/mlxl3/actions/runs/38940141850) réussis. **La suite Kani complète reste en cours au relevé de publication ; aucune CI globale verte ni preuve complète n'est proclamée.** Les trois harnais ciblés de cette optimisation passent localement.
