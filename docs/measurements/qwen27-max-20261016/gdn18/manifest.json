@@ -1,0 +1,35 @@
+{
+  "status": "prepared_unexecuted",
+  "runtime_modified": false,
+  "scope": "API + shared shader opt-in macro + scalar guard/tests only; no qwen35 caller, no env activation",
+  "archive": "docs/measurements/engine-v1.4.2/rapid-followup-raw.tar.gz",
+  "archive_sha256": "fe80221d6eb99d44c270c22c9a51bd770ee2648d7bb61291bf8d123d0ace38ad",
+  "paths": {
+    "native/src/contracts.rs": {
+      "before_sha256": "0b21c96aa770686071784ee113126cfb52ff19ce73e1f52990f4da185ed1d7f4",
+      "after_sha256": "88859cd8c554dd06a83b5d5630d415b786f43ae5fce842d9ffe60dc7bff4d344",
+      "added": 65,
+      "removed": 0
+    },
+    "native/src/gated_delta.rs": {
+      "before_sha256": "f618e91cbc8d479598377d8207e5a72867bd3e639280bd837ed3cc3193ba4730",
+      "after_sha256": "a018a7d78cf44498c5be248b3d788f0c6e612a4e2b35bf16dbecc58729e7a96f",
+      "added": 488,
+      "removed": 43
+    },
+    "native/shaders/gated_delta_packed.metal": {
+      "before_sha256": "199e0dfe67e7b4821e124c8dd67d451b3d8523e9c46bb1076a34d9e426804894",
+      "after_sha256": "c1587fe3d4774ddb771ff8baedfb08b65b9a24a28822bd867093d9283b9b45cb",
+      "added": 61,
+      "removed": 2
+    }
+  },
+  "patch_sha256": "dcd047d3e0be1507c4ddd172eeb459becb8b87f02487f42a86e536ee8917abe7",
+  "prepared_properties": {
+    "guard": "six full i32 symbols, no assumes, no loops, five covers; T1..4/Hk16/Hv32|48/D128/C4",
+    "quality": "32 split comparisons + 40 serial rollback state/conv prefixes, both retention modes, finite nonempty bitexact; T0/5, dtypes, ranks/lengths refused",
+    "micro": "opt-in MLXL3_GDN_FUSED_MICRO=1 only after all quality; Hv32|48 x T1|2, 3 warmups, 40 AB/BA pairs; M1 no tape, M2 tape"
+  },
+  "checks_executed": [],
+  "remaining": "Parent must format, lint, build real mlx,chat, tests, Kani actual guard/API, MSL verifier attempt, numeric mutation/control restore before GPU speed. No claimed proof/performance."
+}

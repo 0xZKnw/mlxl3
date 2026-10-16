@@ -1,0 +1,276 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+____________ test_mul1_codec_matches_independent_scalar_windows[1] _____________
+
+k = 1
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1533 / 1536 (99.8%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 47858 (ACTUAL), 15713 (DESIRED)
+E            [0, 1]: 47303 (ACTUAL), 46810 (DESIRED)
+E            [0, 2]: 45599 (ACTUAL), 15346 (DESIRED)
+E            [0, 3]: 10930 (ACTUAL), 43818 (DESIRED)
+E            [0, 4]: 48644 (ACTUAL), 14027 (DESIRED)
+E           Max absolute difference among violations: 32762
+E           Max relative difference among violations: 3.52068015
+E            ACTUAL: array([[47858, 47303, 45599, ..., 46283, 15581, 48686],
+E                  [48215, 15526, 13245, ..., 10709, 46588, 15359],
+E                  [13639, 46616, 11430, ..., 14944, 47525, 49025],...
+E            DESIRED: array([[15713, 46810, 15346, ..., 15491, 14791, 46200],
+E                  [44812, 45821, 47788, ..., 47206, 48499, 16191],
+E                  [46255, 47539, 14611, ..., 11652, 47456, 48963],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+____________ test_mul1_codec_matches_independent_scalar_windows[2] _____________
+
+k = 2
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1535 / 1536 (99.9%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 47484 (ACTUAL), 15443 (DESIRED)
+E            [0, 1]: 44479 (ACTUAL), 47234 (DESIRED)
+E            [0, 2]: 16157 (ACTUAL), 15332 (DESIRED)
+E            [0, 3]: 15096 (ACTUAL), 15408 (DESIRED)
+E            [0, 4]: 15963 (ACTUAL), 15055 (DESIRED)
+E           Max absolute difference among violations: 32762
+E           Max relative difference among violations: 3.71748621
+E            ACTUAL: array([[47484, 44479, 16157, ..., 48637, 13334, 12746],
+E                  [16392, 15138, 45710, ..., 15505, 43374, 15235],
+E                  [15055, 15810, 14847, ..., 49143, 47220, 15027],...
+E            DESIRED: array([[15443, 47234, 15332, ..., 46422, 45599, 47816],
+E                  [16475, 14819, 11430, ..., 14583, 44812, 13445],
+E                  [46394, 14459, 44368, ..., 47969, 13445, 15720],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+____________ test_mul1_codec_matches_independent_scalar_windows[3] _____________
+
+k = 3
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1534 / 1536 (99.9%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 46477 (ACTUAL), 46144 (DESIRED)
+E            [0, 1]: 45034 (ACTUAL), 14958 (DESIRED)
+E            [0, 2]: 45433 (ACTUAL), 48079 (DESIRED)
+E            [0, 3]: 16385 (ACTUAL), 16423 (DESIRED)
+E            [0, 4]: 49039 (ACTUAL), 47733 (DESIRED)
+E           Max absolute difference among violations: 32761
+E           Max relative difference among violations: 3.42945445
+E            ACTUAL: array([[46477, 45034, 45433, ..., 46699, 42853, 14304],
+E                  [48402, 46394, 12857, ..., 47816, 16108, 14764],
+E                  [16669, 14362, 13666, ..., 14165, 16171, 14791],...
+E            DESIRED: array([[46144, 14958, 48079, ..., 46893, 12857, 46948],
+E                  [47317, 12746, 14639, ..., 14348, 11319, 42410],
+E                  [15491, 46837, 49067, ..., 47359, 45765, 44257],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+____________ test_mul1_codec_matches_independent_scalar_windows[4] _____________
+
+k = 4
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1529 / 1536 (99.5%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 45488 (ACTUAL), 14861 (DESIRED)
+E            [0, 1]: 47927 (ACTUAL), 10709 (DESIRED)
+E            [0, 2]: 14653 (ACTUAL), 15581 (DESIRED)
+E            [0, 3]: 47678 (ACTUAL), 48568 (DESIRED)
+E            [0, 4]: 44479 (ACTUAL), 12857 (DESIRED)
+E           Max absolute difference among violations: 32761
+E           Max relative difference among violations: 3.3144316
+E            ACTUAL: array([[45488, 47927, 14653, ..., 47470, 45655, 46643],
+E                  [38768, 14819, 44923, ..., 45765, 49369, 48998],
+E                  [14027, 12469, 15478, ..., 48353, 44812, 14417],...
+E            DESIRED: array([[14861, 10709, 15581, ..., 48748, 15824, 10487],
+E                  [15568, 14110, 13362, ..., 14221, 45034, 45987],
+E                  [16365,  9847, 15290, ..., 48332, 45821, 12206],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+____________ test_mul1_codec_matches_independent_scalar_windows[5] _____________
+
+k = 5
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1531 / 1536 (99.7%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 47899 (ACTUAL), 48589 (DESIRED)
+E            [0, 1]: 48152 (ACTUAL), 46144 (DESIRED)
+E            [0, 2]: 48506 (ACTUAL), 45876 (DESIRED)
+E            [0, 3]: 45266 (ACTUAL), 47276 (DESIRED)
+E            [0, 4]: 46588 (ACTUAL), 13189 (DESIRED)
+E           Max absolute difference among violations: 32764
+E           Max relative difference among violations: 3.02950789
+E            ACTUAL: array([[47899, 48152, 48506, ..., 15276, 15429, 16129],
+E                  [47913, 46948, 48235, ..., 46338, 45377, 48374],
+E                  [ 9847, 45034, 12912, ..., 47996, 46338, 48679],...
+E            DESIRED: array([[48589, 46144, 45876, ..., 15970, 15720, 47678],
+E                  [12635, 46643, 47553, ..., 15554, 12968, 48215],
+E                  [15221, 10265, 12690, ..., 48201, 46727, 12413],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+____________ test_mul1_codec_matches_independent_scalar_windows[6] _____________
+
+k = 6
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1529 / 1536 (99.5%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 48201 (ACTUAL), 47705 (DESIRED)
+E            [0, 1]: 45156 (ACTUAL), 48422 (DESIRED)
+E            [0, 2]: 12968 (ACTUAL), 48901 (DESIRED)
+E            [0, 3]: 49283 (ACTUAL), 49546 (DESIRED)
+E            [0, 4]: 14985 (ACTUAL), 15970 (DESIRED)
+E           Max absolute difference among violations: 32762
+E           Max relative difference among violations: 3.21518842
+E            ACTUAL: array([[48201, 45156, 12968, ..., 48547, 47004, 15450],
+E                  [48956,  8704, 12206, ..., 15970, 47816, 48263],
+E                  [47955, 46338, 14694, ..., 15970, 46283, 15678],...
+E            DESIRED: array([[47705, 48422, 48901, ..., 49252, 47927, 15755],
+E                  [48443, 48145, 13971, ..., 46338, 47303, 14165],
+E                  [48644, 48291, 13189, ..., 46699, 13639, 15588],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+____________ test_mul1_codec_matches_independent_scalar_windows[7] _____________
+
+k = 7
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1530 / 1536 (99.6%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 15706 (ACTUAL), 13556 (DESIRED)
+E            [0, 1]: 16302 (ACTUAL), 16254 (DESIRED)
+E            [0, 2]: 48010 (ACTUAL), 45034 (DESIRED)
+E            [0, 3]: 46228 (ACTUAL), 15831 (DESIRED)
+E            [0, 4]: 47955 (ACTUAL), 13694 (DESIRED)
+E           Max absolute difference among violations: 32762
+E           Max relative difference among violations: 3.43133566
+E            ACTUAL: array([[15706, 16302, 48010, ..., 48949, 14958, 15672],
+E                  [48066, 48866, 12358, ..., 44036, 47484, 48066],
+E                  [45544, 14694, 47317, ..., 49182, 48360, 15976],...
+E            DESIRED: array([[13556, 16254, 45034, ..., 46948, 15713, 14639],
+E                  [11319, 47802, 13722, ..., 14500, 46505, 15304],
+E                  [46255, 13861, 47442, ..., 47969, 14082, 16053],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+____________ test_mul1_codec_matches_independent_scalar_windows[8] _____________
+
+k = 8
+
+    @pytest.mark.parametrize("k", range(1, 9))
+    def test_mul1_codec_matches_independent_scalar_windows(k):
+        rng = np.random.default_rng(1016 + k)
+        packed = rng.integers(0, 65536, (2, 3, 16 * k), dtype=np.uint16)
+        expected = scalar_inner(packed, k, False, mul1=True)
+        for values in (packed, packed.view(np.int16)):
+            actual = draft.decode_inner(values, k, False, mul1=True)
+            assert np.isfinite(actual).all() and actual.size == 1536
+>           np.testing.assert_array_equal(actual.view(np.uint16), expected.view(np.uint16))
+E           AssertionError: 
+E           Arrays are not equal
+E           
+E           Mismatched elements: 1531 / 1536 (99.7%)
+E           First 5 mismatches are at indices:
+E            [0, 0]: 14791 (ACTUAL), 12469 (DESIRED)
+E            [0, 1]: 15685 (ACTUAL), 14736 (DESIRED)
+E            [0, 2]: 49310 (ACTUAL), 48360 (DESIRED)
+E            [0, 3]: 14445 (ACTUAL), 13189 (DESIRED)
+E            [0, 4]: 15082 (ACTUAL), 15110 (DESIRED)
+E           Max absolute difference among violations: 32762
+E           Max relative difference among violations: 3.31913464
+E            ACTUAL: array([[14791, 15685, 49310, ..., 16485, 15381, 13556],
+E                  [47622, 47664, 15699, ..., 15422, 16219, 49515],
+E                  [12857, 47955, 15505, ..., 13971, 47248, 47345],...
+E            DESIRED: array([[12469, 14736, 48360, ..., 15720, 12469, 12524],
+E                  [48277, 15595, 47428, ..., 15359, 14805, 48894],
+E                  [12635, 13750, 10930, ..., 15976, 13639, 14736],...
+
+tests/test_experimental_draft_head.py:189: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[1]
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[2]
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[3]
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[4]
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[5]
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[6]
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[7]
+FAILED tests/test_experimental_draft_head.py::test_mul1_codec_matches_independent_scalar_windows[8]
+8 failed, 23 deselected in 0.11s

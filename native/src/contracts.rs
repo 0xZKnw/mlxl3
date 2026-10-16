@@ -318,7 +318,8 @@ pub(crate) fn dense_mlp_batch(
     m5: bool,
     enabled: bool,
 ) -> bool {
-    enabled && m5 && hidden == 5120 && (2..=4).contains(&rows) && grouped_exl3 && down_exl3
+    // M3 batching regressed alone; only M2/M4 passed the physical cost screen.
+    enabled && m5 && hidden == 5120 && matches!(rows, 2 | 4) && grouped_exl3 && down_exl3
 }
 
 #[test]
@@ -326,7 +327,7 @@ fn dense_mlp_batch_requires_supported_weights_and_rows() {
     for rows in 0..=9 {
         assert_eq!(
             dense_mlp_batch(rows, 5120, true, true, true, true),
-            (2..=4).contains(&rows)
+            matches!(rows, 2 | 4)
         );
     }
     for (hidden, grouped, down, m5, enabled) in [
@@ -336,7 +337,9 @@ fn dense_mlp_batch_requires_supported_weights_and_rows() {
         (5120, true, true, false, true),
         (5120, true, true, true, false),
     ] {
-        assert!(!dense_mlp_batch(3, hidden, grouped, down, m5, enabled));
+        for rows in [2, 4] {
+            assert!(!dense_mlp_batch(rows, hidden, grouped, down, m5, enabled));
+        }
     }
     assert!(!dense_mlp_batch(
         usize::MAX,
@@ -360,7 +363,7 @@ fn dense_mlp_batch_stays_within_supported_domain() {
     let selected = dense_mlp_batch(rows, hidden, grouped, down, m5, enabled);
     assert_eq!(
         selected,
-        enabled && m5 && hidden == 5120 && rows >= 2 && rows <= 4 && grouped && down
+        enabled && m5 && hidden == 5120 && (rows == 2 || rows == 4) && grouped && down
     );
     if selected {
         assert!(rows <= i32::MAX as usize);
@@ -371,10 +374,11 @@ fn dense_mlp_batch_stays_within_supported_domain() {
         }
     }
     kani::cover!(selected && rows == 2);
-    kani::cover!(selected && rows == 3);
+    kani::cover!(!selected && rows == 3 && enabled && m5 && grouped && down && hidden == 5120);
     kani::cover!(selected && rows == 4);
     kani::cover!(!selected && !grouped);
     kani::cover!(!selected && rows == 8);
+    kani::cover!(!selected && rows == 2 && !enabled && m5 && grouped && down && hidden == 5120);
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
@@ -1480,4 +1484,205 @@ fn generation_stop_reason_matches_observed_terminal_event() {
     kani::cover!(!eos && full);
     kani::cover!(!eos && !full);
     kani::cover!(eos && full);
+}
+
+/// Experimental activation layout is opt-in; absent or malformed values stay off.
+pub fn exl3_lane_order_enabled(value: Option<&str>) -> bool {
+    value == Some("1")
+}
+
+/// Keep persisted calibration profiles distinct for both activation layouts.
+pub fn exl3_lane_order_key(enabled: bool) -> u8 {
+    u8::from(enabled)
+}
+
+/// Exact inventory geometries screened in Q27-16, with stock large-M fallback.
+#[cfg(any(feature = "mlx", test, kani))]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn exl3_lane_order(
+    rows: i32,
+    input: i32,
+    output: i32,
+    k: usize,
+    grouped: bool,
+    mul1: bool,
+    m5: bool,
+    enabled: bool,
+) -> bool {
+    enabled
+        && m5
+        && mul1
+        && matches!(rows, 1 | 2)
+        && match (input, output, grouped) {
+            (5120, 16384, true) => k == 2,
+            (5120, 34816, true) => (1..=3).contains(&k),
+            (5120, 248320, false) => k == 3,
+            (5120, 1024, false) => matches!(k, 3 | 4),
+            (5120, 12288, false) => matches!(k, 1 | 2),
+            (5120, 10240, false) => k == 1,
+            (5120, 6144, false) => k == 2,
+            (6144, 5120, false) => matches!(k, 2 | 3),
+            (17408, 5120, false) => (1..=3).contains(&k),
+            _ => false,
+        }
+}
+
+/// Within each tile16, group four values used by the same SIMD lane.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn exl3_lane_source_index(index: u32) -> u32 {
+    let within = index & 15;
+    (index & !15) | ((within & 12) >> 1) | (within & 1) | ((within & 2) << 2)
+}
+
+#[test]
+fn exl3_lane_order_option_is_explicit_and_key_is_distinct() {
+    for (option, expected) in [
+        (None, false),
+        (Some(""), false),
+        (Some("0"), false),
+        (Some("1"), true),
+        (Some("01"), false),
+        (Some("true"), false),
+        (Some("1 "), false),
+    ] {
+        assert_eq!(exl3_lane_order_enabled(option), expected);
+    }
+    assert_eq!(exl3_lane_order_key(false), 0);
+    assert_eq!(exl3_lane_order_key(true), 1);
+}
+
+#[test]
+fn exl3_lane_order_matches_all_sixteen_inventory_shapes_and_fallbacks() {
+    let inventory = [
+        (5120, 16384, 2, true),
+        (5120, 34816, 1, true),
+        (5120, 34816, 2, true),
+        (5120, 34816, 3, true),
+        (5120, 248320, 3, false),
+        (6144, 5120, 2, false),
+        (17408, 5120, 1, false),
+        (17408, 5120, 2, false),
+        (5120, 1024, 3, false),
+        (5120, 12288, 1, false),
+        (5120, 12288, 2, false),
+        (6144, 5120, 3, false),
+        (17408, 5120, 3, false),
+        (5120, 1024, 4, false),
+        (5120, 10240, 1, false),
+        (5120, 6144, 2, false),
+    ];
+    for (input, output, k, grouped) in inventory {
+        for rows in [1, 2] {
+            assert!(exl3_lane_order(
+                rows, input, output, k, grouped, true, true, true
+            ));
+        }
+        for rows in [i32::MIN, -1, 0, 3, 4, 8, 24, i32::MAX] {
+            assert!(!exl3_lane_order(
+                rows, input, output, k, grouped, true, true, true
+            ));
+        }
+        for (mul1, m5, enabled) in [
+            (false, true, true),
+            (true, false, true),
+            (true, true, false),
+        ] {
+            assert!(!exl3_lane_order(
+                1, input, output, k, grouped, mul1, m5, enabled
+            ));
+        }
+    }
+    for (input, output, k, grouped) in [
+        (2048, 5120, 2, false),
+        (5120, 1025, 3, false),
+        (5120, 16384, 2, false),
+        (6144, 5120, 1, false),
+        (5120, 248320, 2, false),
+        (17408, 5120, 4, false),
+        (5120, 34816, 7, true),
+        (5120, 34816, usize::MAX, true),
+        (i32::MAX, i32::MAX, 2, false),
+    ] {
+        assert!(!exl3_lane_order(
+            1, input, output, k, grouped, true, true, true
+        ));
+    }
+}
+
+#[test]
+fn exl3_lane_permutation_matches_independent_table_for_every_inventory_input() {
+    let expected = [0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15];
+    for input in [5120u32, 6144, 17408] {
+        let mut seen = vec![false; input as usize];
+        for index in 0..input {
+            let mapped = exl3_lane_source_index(index);
+            assert_eq!(mapped, (index / 16) * 16 + expected[(index % 16) as usize]);
+            assert!(mapped < input && !seen[mapped as usize]);
+            seen[mapped as usize] = true;
+        }
+        assert!(seen.into_iter().all(|value| value));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn exl3_lane_layout_key_distinguishes_options() {
+    let enabled: bool = kani::any();
+    let other: bool = kani::any();
+    let key = exl3_lane_order_key(enabled);
+    assert!(key <= 1);
+    assert_eq!(key == exl3_lane_order_key(other), enabled == other);
+    kani::cover!(key == 0);
+    kani::cover!(key == 1);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn exl3_lane_permutation_is_bijective_and_preserves_tile_bounds() {
+    let index: u32 = kani::any();
+    let other: u32 = kani::any();
+    let mapped = exl3_lane_source_index(index);
+    assert_eq!(mapped / 16, index / 16);
+    assert_eq!(
+        exl3_lane_source_index(exl3_lane_source_index(mapped)),
+        index
+    );
+    assert_eq!(mapped == exl3_lane_source_index(other), index == other);
+    kani::cover!(index == 2 && mapped == 8);
+    kani::cover!(index == u32::MAX && mapped == u32::MAX);
+    kani::cover!(index > 15 && mapped != index);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn exl3_lane_order_preserves_shape_and_large_m_fallback() {
+    let rows: i32 = kani::any();
+    let input: i32 = kani::any();
+    let output: i32 = kani::any();
+    let k: usize = kani::any();
+    let grouped: bool = kani::any();
+    let mul1: bool = kani::any();
+    let m5: bool = kani::any();
+    let enabled: bool = kani::any();
+    let selected = exl3_lane_order(rows, input, output, k, grouped, mul1, m5, enabled);
+    if selected {
+        assert!(enabled && m5 && mul1 && (rows == 1 || rows == 2));
+        assert!(matches!(input, 5120 | 6144 | 17408));
+        assert!(output > 0 && output <= 248320 && output % 128 == 0);
+        assert!((1..=4).contains(&k));
+        assert!(!grouped || (input == 5120 && matches!(output, 16384 | 34816)));
+        let index: u32 = kani::any();
+        if index < input as u32 {
+            assert!(exl3_lane_source_index(index) < input as u32);
+        }
+    }
+    if rows >= 3 || !enabled || !mul1 || !m5 {
+        assert!(!selected);
+    }
+    kani::cover!(selected && rows == 1 && output == 248320);
+    kani::cover!(selected && rows == 2 && grouped && k == 1);
+    kani::cover!(selected && input == 6144);
+    kani::cover!(selected && input == 17408);
+    kani::cover!(rows == 3 && enabled && !selected);
+    kani::cover!(!enabled && rows == 1 && !selected);
 }

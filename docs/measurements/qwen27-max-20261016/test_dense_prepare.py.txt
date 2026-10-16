@@ -1,0 +1,122 @@
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+PATH = Path(__file__).with_name("dense_prepare.py")
+spec = importlib.util.spec_from_file_location("dense_prepare", PATH)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+
+
+def test_shapes_and_boundaries():
+    assert m.checked_size(1, 17408) == 17408
+    assert m.checked_size(2, 17408) == 34816
+    for rows in (None, True, False, -1, 0, 3, 4, 8, 1.0, "1", 2**63):
+        with pytest.raises(ValueError):
+            m.checked_size(rows, 17408)
+    for width in (
+        None,
+        True,
+        0,
+        -128,
+        128,
+        17407,
+        17409,
+        34816,
+        17408.0,
+        "17408",
+        2**63,
+    ):
+        with pytest.raises(ValueError):
+            m.checked_size(1, width)
+
+
+def test_source_and_mutation_boundaries():
+    assert m.SOURCE.count(m.ROUNDING) == 1
+    assert "half probability" in m.SOURCE and "half activated" in m.SOURCE
+    assert "half glu" in m.SOURCE and "half scaled" in m.SOURCE
+    bad = m.mutation_source()
+    assert m.ROUNDING not in bad and "shift == 6u" in bad
+    for text in ("", m.SOURCE.replace(m.ROUNDING, ""), m.SOURCE + m.ROUNDING):
+        with pytest.raises(ValueError):
+            m.mutation_source(text)
+
+
+def test_checkpoint_records_refuse_missing_duplicate_geometry():
+    class Fake:
+        tensors = {}
+
+    ck = Fake()
+    for layer in range(64):
+        prefix = f"model.language_model.layers.{layer}.mlp.down_proj"
+        ck.tensors[prefix + ".trellis"] = (
+            None,
+            None,
+            {"dtype": "I16", "shape": [1088, 320, 32]},
+        )
+        ck.tensors[prefix + ".mul1"] = (None, None, {})
+    assert [r["layer"] for r in m.records(ck)] == list(range(64))
+    prefix = "model.language_model.layers.0.mlp.down_proj"
+    ck.tensors.pop(prefix + ".mul1")
+    with pytest.raises(ValueError, match="dimensions/codebook"):
+        m.records(ck)
+    ck.tensors[prefix + ".mul1"] = (None, None, {})
+    ck.tensors.pop(prefix + ".trellis")
+    with pytest.raises(ValueError, match="all 64"):
+        m.records(ck)
+
+
+@pytest.mark.parametrize(
+    "error", [AssertionError("divergence"), TimeoutError("silent"), KeyboardInterrupt()]
+)
+def test_run_failures_persist_false_and_original_error(tmp_path, monkeypatch, error):
+    output = tmp_path / "report.json"
+
+    def fail(*args):
+        raise error
+
+    monkeypatch.setattr(m, "run", fail)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["dense_prepare.py", "--checkpoint", str(tmp_path), "--output", str(output)],
+    )
+    with pytest.raises(type(error)):
+        m.main()
+    report = json.loads(output.read_text())
+    assert report["status"] == "failed" and report["parity"] is False
+    assert report["quality_complete"] is False and report["timings"] == []
+    assert type(error).__name__ in report["error"]
+
+
+def test_no_overwrite_and_preregistered_pairs(tmp_path, monkeypatch):
+    path = tmp_path / "existing.json"
+    path.write_text("unchanged")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["dense_prepare.py", "--checkpoint", str(tmp_path), "--output", str(path)],
+    )
+    with pytest.raises(SystemExit):
+        m.main()
+    assert path.read_text() == "unchanged"
+    path = tmp_path / "new.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "dense_prepare.py",
+            "--checkpoint",
+            str(tmp_path),
+            "--output",
+            str(path),
+            "--iterations",
+            "2",
+        ],
+    )
+    with pytest.raises(SystemExit):
+        m.main()
+    assert not path.exists()

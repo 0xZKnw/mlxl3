@@ -201,8 +201,18 @@ unsupported; ordinary dense K=7 projections remain supported.
 These are physical-engine measurements, not estimates. Results from different
 rows use different workloads and must not be combined.
 
+The current source build batches dense Qwen27B MLP verification at widths
+**2 and 4** on supported M5/EXL3 shapes. Width 3 uses the serial MLP after its
+isolated batching regression. `MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH=0` restores
+the previous dispatch; grouped MB3 remains opt-in. Tune uses a new calibration
+key for this policy. See the [October 16 protocol and limits](docs/qwen27-optimization-20261016.md).
+
+The local source build also provides MLXL3_EXL3_LANE_ORDER=1 for the measured dense Qwen27B path. This opt-in setting is off by default and separates Tune profiles. It is validated on the M5 standard with the original EXL3 checkpoint and MTP head; the installed desktop app is unchanged.
+
 | Model and workload | Decode | Prefill / TTFT | Notes |
 | --- | ---: | ---: | --- |
+| Qwen3.8-27B EXL3, MTP1, French 130 tokens / code 256 tokens | **11.08 / 10.94 tok/s** ABBA medians | See October 16 report | MacBook Pro (M5), 24 GB, AC; +20.7% / +21.4% versus serial MLP; local source build |
+| Qwen3.8-27B EXL3, MTP1, optional activation layout | **13.65 / 13.38 tok/s** combined ABBA/BAAB medians | [October 16 research and validation](docs/qwen27-max-optimisations-20261016.md) | M5 standard,24GB,battery; +24.4% / +24.3% versus paired layout-off controls; local source build, opt-in |
 | Qwen3.6-35B-A3B EXL3 2.49 bpw, greedy, 48 generated tokens | **47.545 tok/s** latest median | Captured prefill 0.153–0.154 s | Apple M5, three alternating runs |
 | Same target with experimental lossless DFlash2 | **74.645 tok/s** steady-state confirmation | Draft-context setup 0.006–0.007 s | **+43.8%** paired after the shared MoE route-preparation gain, five useful head rows/proposals per block, 86.7% accepted, exact sequences |
 | Ling 3.0 Tiny EXL3 4 bpw, 84-token prompt / 128-token generation | **102.873 tok/s** best control median | **105.524 tok/s**, 796.23 ms TTFT | M5, battery-powered diagnostic campaign |

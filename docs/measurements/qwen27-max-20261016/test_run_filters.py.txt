@@ -1,0 +1,58 @@
+import copy
+import json
+from pathlib import Path
+
+import funnel_screen_v2 as screen
+import pytest
+from run_filters import ROOT, validate
+
+
+def fixture():
+    # Parser-only fixture: normalize dispatch metadata without claiming a GPU run.
+    path = ROOT / "docs/measurements/qwen27-max-20261016/funnel-profile.json"
+    data = json.loads(Path(path).read_text())
+    for cell in data["timings"]:
+        cell["nt_override"] = screen.stock_nt(cell, cell["rows"])
+    return data
+
+
+def test_positive_complete_validator_fixture():
+    assert validate(fixture(), 32) == 0
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "partial",
+        "divergent",
+        "empty",
+        "duplicate",
+        "missing_samples",
+        "nan",
+        "stale_gate",
+        "wrong_nt",
+        "missing_mutation",
+    ],
+)
+def test_invalid_physical_reports_cannot_pass(kind):
+    data = copy.deepcopy(fixture())
+    if kind == "partial":
+        data["status"] = "running"
+    elif kind == "divergent":
+        data["parity"] = False
+    elif kind == "empty":
+        data["checks"][0]["values"] = 0
+    elif kind == "duplicate":
+        data["timings"][1] = data["timings"][0]
+    elif kind == "missing_samples":
+        data["timings"][0]["timing"]["samples_ms"][0].pop()
+    elif kind == "nan":
+        data["timings"][0]["timing"]["samples_ms"][0][0] = float("nan")
+    elif kind == "stale_gate":
+        data["timings"][0]["gate"]["passed"] = True
+    elif kind == "wrong_nt":
+        data["timings"][0]["nt_override"] = 1
+    else:
+        data["mutation"]["different_fp32_words"] = 0
+    with pytest.raises(ValueError):
+        validate(data, 32)

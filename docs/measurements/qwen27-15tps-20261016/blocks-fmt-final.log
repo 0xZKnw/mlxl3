@@ -1,0 +1,12 @@
+Diff in /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/native/src/linear.rs:1425:
+         let x = input(0)?;
+         let expected = full.forward(&x)?.take(&blocks.ids, -1)?.to_f16_bits()?;
+         let bad = full.forward_output_blocks(&x, &corrupted)?.to_f16_bits()?;
+-        assert!(bad.iter().all(|&bits| half::f16::from_bits(bits).is_finite()));
++        assert!(
++            bad.iter()
++                .all(|&bits| half::f16::from_bits(bits).is_finite())
++        );
+         let differences = bad.iter().zip(&expected).filter(|(a, b)| a != b).count();
+         assert!(
+             differences > 0,

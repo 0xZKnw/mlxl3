@@ -1,0 +1,121 @@
+{
+  "status": "complete",
+  "recorded_at": "2026-10-16T16:09:26.692091+00:00",
+  "git_head": "7ce611c1c0db9a704bbe35abccc6293fc6ee7995",
+  "branch": "codex/qwen27-smallm",
+  "source_state": "local modifications, not committed/pushed/installed",
+  "engine_sha256": "4db446744abcd61ec0ff497fe83b4990202ebde1bf48ec28526d9f4f26793b55",
+  "test_sha256": "62a02e1149b2ad8e4d907e5e17e8f9568b47a9d16f8b941758c4585e69ae38fa",
+  "sources": {
+    "native/src/qwen35.rs": "2f369b44aae622d08ab306e55e24b33b62373f473fa4ff68b76b73cb8881ebcf",
+    "native/src/mtp_tune.rs": "af3b681e238fc161820fd633bcdaa2821070fa8532213010c1fda4e22eb2c3d4",
+    "native/src/linear.rs": "d36d372fd3a24626bd07b15ed2dc5b4a38af401cb3581f742a16bc092595236c",
+    "native/src/lfm2.rs": "affaa07aea8c9db38180fc855cb49ed4ff93efe9d46962b43fe547355b4af374",
+    "native/src/contracts.rs": "0b21c96aa770686071784ee113126cfb52ff19ce73e1f52990f4da185ed1d7f4",
+    "native/src/mtp.rs": "37743f26c74c5ada0c62e56b2a804d2e61ff2b84c6fba71c07039422e035e596",
+    "benchmarks/benchmark_smallm.py": "da6d837e11cc4223268c948e134ec1ebb2133037137f4672c3e21ac82a8939f0",
+    "benchmarks/analyze_smallm_profile.py": "ad68859c22b0a4602e93b3ff45fcf9feac8d48e0b96d304fe18847dff2a885c8",
+    "benchmarks/benchmark_smallm_reuse.py": "cdbc26b38fbd18f8a7dcab3565c40ca569c58a7c6532d46406ed5144e2495134",
+    "benchmarks/compare_native.py": "d637784c24b83e354803f60714f4c3183a66f28f9a7d0260d9e54ca4ca1f993f",
+    "scripts/experimental-draft-head.py": "c39641661da709f49eb4826721b410a68fc8e1c3f01b4b1cf3b5cea24970e09f",
+    "tests/test_smallm_profile.py": "6b6829014c17b7c7dc958d15aa2cf704ac385b0284069ec8def1bccfd3900a0f",
+    "tests/test_smallm_reuse.py": "8b7289de4e3dfd635325c359ad4f18613a8f76c18c5066712aee08ee268685d4",
+    "tests/test_compare_native.py": "4afcfa19152ef96fa1032b5478160725b564687b118eeec97bf93c046598d1ff",
+    "tests/test_experimental_draft_head.py": "b3111862a9e4a1083b892f98fcd93c09f9f60d74b2aafc14dd3418370fe9105f",
+    ".github/workflows/rust.yml": "491a3770c48136cc8cb1ef57c233091494aaf3761bc1a354bd66b1815a4ca830"
+  },
+  "best_qualified_decode_tps": {
+    "French": 11.076502,
+    "code": 10.936245,
+    "trial": "Q27-03",
+    "scope": "historical same-session ABBA MTP1 with default MLP M2/M4; not remeasured at closure"
+  },
+  "retained_tests": {
+    "Rust": {
+      "passed": 175,
+      "ignored": 83
+    },
+    "Python": {
+      "passed": 299,
+      "ignored": 0
+    },
+    "commands_and_logs": [
+      "frspec-retained-rust-status.json",
+      "frspec-final-tooling-status.json"
+    ]
+  },
+  "withdrawn_blocks_prototype": {
+    "engine": "18b5cde3",
+    "Rust": {
+      "passed": 177,
+      "ignored": 86
+    },
+    "bounded_scalar_kani": {
+      "blocks": {
+        "success": 267,
+        "internal_unreachable": 1,
+        "covers_satisfied": 4,
+        "symbolic_length": "0..8",
+        "unwind": 10,
+        "assume": 0
+      },
+      "remap": {
+        "success": 246,
+        "internal_unreachable": 1,
+        "covers_satisfied": 3
+      }
+    },
+    "parity": true,
+    "generation_gain_qualified": false,
+    "artifacts_preserved": true
+  },
+  "verification_limits": [
+    "Kani actual MLX Array and numeric test fail by compiler ICE; no GPU proof",
+    "CrossHair attempted, module unavailable",
+    "Initial full Kani suite interrupted after 59 successes and two unfinished harnesses",
+    "No GitHub CI run for local modified sources",
+    "Long context and other GPUs not qualified",
+    "Future EXL3/GDN/prefill priorities documentary only, no speed estimates certified"
+  ],
+  "closure_checks": {
+    "git_diff_check": true,
+    "fmt_check": true,
+    "workflow_yaml_parsed": true,
+    "PR_and_push_triggers": true,
+    "report_local_links_checked": 27,
+    "linear_production_prefix_unchanged_since_4db": true,
+    "all_seven_restore_hashes_match": true,
+    "four_stock_AR_MTP_smoke_requests_pass": true,
+    "no_running_trial_reports": true,
+    "no_active_compiler_prover_native_processes": true,
+    "all_14_Q27_entries_closed": true
+  },
+  "key_evidence": {
+    "blocks-abba-status.json": "a375cc1efde43a2d6d3e6f5ceeeb26167ae92f6222b30df9b2fe356a94aac07b",
+    "blocks-cpu-final-status.json": "1060aa4b70ae88cde450796bfadd17977f1f45a9e090092de25bdde4c22c7f4f",
+    "blocks-cpu-retained-status.json": "6b734a824685303737fa00eacd745e3bba23a7acc97ad04d0062c48b166af92e",
+    "blocks-cpu-status.json": "50fcd146971146941c7eab5cb00f576b7cc073cf9d9c3eb10b02afda53c577f8",
+    "blocks-gpu-quality-status.json": "72ecc56a9829c4ebb31b91597275a7995959ed45defd990fe52ae9e23ee4ff71",
+    "blocks-micro-status.json": "da4c47b626dd36003e2abcecf05792956e5c291395905280a5112b7459808ad3",
+    "blocks-withdrawal-status.json": "fd3c45f494a091d0fc31e8881562fcb454a1b5136784f52082fa092eef429c56",
+    "codebook-run-status.json": "00d2ce895b4c1f9a6b705516f9674eb4e902af4fb664529ec72b394325f70eaf",
+    "codebook-tooling-status.json": "6176b67239aa8090acac07151300cf96a5c13984cd398074093000b55cb5d8d4",
+    "frspec-abba-status.json": "75ba8ecab2fa3a22e36a03ddca0cefb428716ad25b7527fb6dca2840c6102f78",
+    "frspec-artifact-status.json": "02f3b6f847acaa91d073c634d20d63d5b55e389e55a8bc05af3f8825de793900",
+    "frspec-final-rust-status.json": "4a3dd264787ca73b86dce84b62214ed1d7321c8b135f99ddef65ed94d3ed6367",
+    "frspec-final-tooling-status.json": "9542364e139773b0e2abf11e264a047b804ecceb3c2b574d26fe1e10e00ee9b0",
+    "frspec-gpu-quality-corrected-status.json": "2e706625bd722819139f6435b412d7e16b1de0deec07d76f6e4b94f6cd8d7391",
+    "frspec-gpu-quality-status.json": "7ad1a7a4515763db482c14d04ac7987b1eef4ba894e14cfc5129dbe1e24d1bda",
+    "frspec-retained-rust-status.json": "c4f6847a456fb1fa5d6544e9869512257ecf9bb2a08299f3024b81216ae52894",
+    "frspec-rust-status.json": "aa4838d6f385e315e7dfc1a20ddc5ef2941d97c02b3ffe209268be9b84f3bfdd",
+    "frspec-tooling-status.json": "6b822cf39ddffdeb1cb33b4669f919f63b14e48e67b9a51effcb6524ce58f188",
+    "pipeline-abba-status.json": "6cafad21b20a614eb56df705758f5b8f312d0e035d93ed990da8559aa89991e3",
+    "pipeline-quality-status.json": "47aa3ea79d4f0410200f60fc6cbf8ff7cfe062a68354f9de9a53e48c748b3eb7",
+    "restored-stock-smoke-status.json": "1a81a4154c9711c384691cd75cd1e2e4bb655dbbe7d479c368ede613cf001c98",
+    "reuse-m4-run-status.json": "390d5ff5c976fc9de6450f0376d9237b3fcdc0f3786dc7de8f1a236209929c02",
+    "reuse-run-status.json": "828bda90a4588e8000494587439f309a42b1780f3d2cbdf2d5529a3cc4d16cae"
+  },
+  "installed_app": "unchanged",
+  "target_weights": "unchanged",
+  "15_tok_s_achieved": false
+}

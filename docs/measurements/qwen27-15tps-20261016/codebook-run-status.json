@@ -1,0 +1,48 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "benchmarks/benchmark_smallm_reuse.py",
+    "--checkpoint",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--output",
+    "docs/measurements/qwen27-15tps-20261016/codebook-profile.json",
+    "--iterations",
+    "40",
+    "--rows",
+    "2",
+    "--codebook-table"
+  ],
+  "timeout_seconds": 600,
+  "sources": {
+    "benchmarks/benchmark_smallm.py": "da6d837e11cc4223268c948e134ec1ebb2133037137f4672c3e21ac82a8939f0",
+    "benchmarks/benchmark_smallm_reuse.py": "cdbc26b38fbd18f8a7dcab3565c40ca569c58a7c6532d46406ed5144e2495134",
+    "tests/test_smallm_reuse.py": "8b7289de4e3dfd635325c359ad4f18613a8f76c18c5066712aee08ee268685d4",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "5a4e911376902e4e3e6f8209fce62f393a18f3a22f86afc203689b3ae69041a6",
+    "target/release/mlxl3-rs": "4db446744abcd61ec0ff497fe83b4990202ebde1bf48ec28526d9f4f26793b55"
+  },
+  "conditions": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "swap": "vm.swapusage: total = 5120.00M  used = 3712.62M  free = 1407.38M  (encrypted)"
+  },
+  "reaped": true,
+  "exit_code": 0,
+  "checks": 8,
+  "comparisons": 4,
+  "table": {
+    "count": 65536,
+    "bytes": 131072,
+    "sha256": "bc48d02cb1c14939dc47b90f870dd689d63e3b1ab69a157e65538db68677a6c8",
+    "bit_exact_cpu_gpu": true
+  },
+  "mutation": {
+    "shift": 1,
+    "different_fp32_words": 32768,
+    "rejected": true
+  },
+  "passed_comparisons": 0,
+  "seconds": 4.166709042037837,
+  "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true"
+}

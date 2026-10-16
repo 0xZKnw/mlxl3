@@ -46,6 +46,22 @@
             ) {
                 float x_values[MLXL3_QMV_MB][4];
                 for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+#if defined(MLXL3_QMV_LANE_ORDER) && MLXL3_QMV_LANE_ORDER
+                    // MLXL3_Q27_LANE_INPUT_PERMUTED
+                    half4 x_quad = half4(0.0h);
+                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+                        const device half4* x_quads =
+                            reinterpret_cast<const device half4*>(
+                                xhat + (row_base + batch_row) * uint(INPUT_DIMS)
+                                     + tile_k * 16u
+                            );
+                        x_quad = x_quads[lane & 3u];
+                    }
+                    x_values[batch_row][0] = float(x_quad.x);
+                    x_values[batch_row][1] = float(x_quad.y);
+                    x_values[batch_row][2] = float(x_quad.z);
+                    x_values[batch_row][3] = float(x_quad.w);
+#else
                     half2 x_pair = half2(0.0h);
                     if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
                         const device half2* x_pairs =
@@ -61,6 +77,7 @@
                     x_values[batch_row][1] = float(x_pair0.y);
                     x_values[batch_row][2] = float(x_pair1.x);
                     x_values[batch_row][3] = float(x_pair1.y);
+#endif
                 }
                 for (
                     uint output_tile = 0u;

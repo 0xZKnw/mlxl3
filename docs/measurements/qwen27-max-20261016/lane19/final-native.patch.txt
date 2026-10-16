@@ -1,0 +1,1048 @@
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -1485,3 +1485,204 @@
+     kani::cover!(!eos && !full);
+     kani::cover!(eos && full);
+ }
++
++/// Experimental activation layout is opt-in; absent or malformed values stay off.
++pub fn exl3_lane_order_enabled(value: Option<&str>) -> bool {
++    value == Some("1")
++}
++
++/// Keep persisted calibration profiles distinct for both activation layouts.
++pub fn exl3_lane_order_key(enabled: bool) -> u8 {
++    u8::from(enabled)
++}
++
++/// Exact inventory geometries screened in Q27-16, with stock large-M fallback.
++#[cfg(any(feature = "mlx", test, kani))]
++#[allow(clippy::too_many_arguments)]
++pub(crate) fn exl3_lane_order(
++    rows: i32,
++    input: i32,
++    output: i32,
++    k: usize,
++    grouped: bool,
++    mul1: bool,
++    m5: bool,
++    enabled: bool,
++) -> bool {
++    enabled
++        && m5
++        && mul1
++        && matches!(rows, 1 | 2)
++        && match (input, output, grouped) {
++            (5120, 16384, true) => k == 2,
++            (5120, 34816, true) => (1..=3).contains(&k),
++            (5120, 248320, false) => k == 3,
++            (5120, 1024, false) => matches!(k, 3 | 4),
++            (5120, 12288, false) => matches!(k, 1 | 2),
++            (5120, 10240, false) => k == 1,
++            (5120, 6144, false) => k == 2,
++            (6144, 5120, false) => matches!(k, 2 | 3),
++            (17408, 5120, false) => (1..=3).contains(&k),
++            _ => false,
++        }
++}
++
++/// Within each tile16, group four values used by the same SIMD lane.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn exl3_lane_source_index(index: u32) -> u32 {
++    let within = index & 15;
++    (index & !15) | ((within & 12) >> 1) | (within & 1) | ((within & 2) << 2)
++}
++
++#[test]
++fn exl3_lane_order_option_is_explicit_and_key_is_distinct() {
++    for (option, expected) in [
++        (None, false),
++        (Some(""), false),
++        (Some("0"), false),
++        (Some("1"), true),
++        (Some("01"), false),
++        (Some("true"), false),
++        (Some("1 "), false),
++    ] {
++        assert_eq!(exl3_lane_order_enabled(option), expected);
++    }
++    assert_eq!(exl3_lane_order_key(false), 0);
++    assert_eq!(exl3_lane_order_key(true), 1);
++}
++
++#[test]
++fn exl3_lane_order_matches_all_sixteen_inventory_shapes_and_fallbacks() {
++    let inventory = [
++        (5120, 16384, 2, true),
++        (5120, 34816, 1, true),
++        (5120, 34816, 2, true),
++        (5120, 34816, 3, true),
++        (5120, 248320, 3, false),
++        (6144, 5120, 2, false),
++        (17408, 5120, 1, false),
++        (17408, 5120, 2, false),
++        (5120, 1024, 3, false),
++        (5120, 12288, 1, false),
++        (5120, 12288, 2, false),
++        (6144, 5120, 3, false),
++        (17408, 5120, 3, false),
++        (5120, 1024, 4, false),
++        (5120, 10240, 1, false),
++        (5120, 6144, 2, false),
++    ];
++    for (input, output, k, grouped) in inventory {
++        for rows in [1, 2] {
++            assert!(exl3_lane_order(
++                rows, input, output, k, grouped, true, true, true
++            ));
++        }
++        for rows in [i32::MIN, -1, 0, 3, 4, 8, 24, i32::MAX] {
++            assert!(!exl3_lane_order(
++                rows, input, output, k, grouped, true, true, true
++            ));
++        }
++        for (mul1, m5, enabled) in [
++            (false, true, true),
++            (true, false, true),
++            (true, true, false),
++        ] {
++            assert!(!exl3_lane_order(
++                1, input, output, k, grouped, mul1, m5, enabled
++            ));
++        }
++    }
++    for (input, output, k, grouped) in [
++        (2048, 5120, 2, false),
++        (5120, 1025, 3, false),
++        (5120, 16384, 2, false),
++        (6144, 5120, 1, false),
++        (5120, 248320, 2, false),
++        (17408, 5120, 4, false),
++        (5120, 34816, 7, true),
++        (5120, 34816, usize::MAX, true),
++        (i32::MAX, i32::MAX, 2, false),
++    ] {
++        assert!(!exl3_lane_order(
++            1, input, output, k, grouped, true, true, true
++        ));
++    }
++}
++
++#[test]
++fn exl3_lane_permutation_matches_independent_table_for_every_inventory_input() {
++    let expected = [0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15];
++    for input in [5120u32, 6144, 17408] {
++        let mut seen = vec![false; input as usize];
++        for index in 0..input {
++            let mapped = exl3_lane_source_index(index);
++            assert_eq!(mapped, (index / 16) * 16 + expected[(index % 16) as usize]);
++            assert!(mapped < input && !seen[mapped as usize]);
++            seen[mapped as usize] = true;
++        }
++        assert!(seen.into_iter().all(|value| value));
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn exl3_lane_layout_key_distinguishes_options() {
++    let enabled: bool = kani::any();
++    let other: bool = kani::any();
++    let key = exl3_lane_order_key(enabled);
++    assert!(key <= 1);
++    assert_eq!(key == exl3_lane_order_key(other), enabled == other);
++    kani::cover!(key == 0);
++    kani::cover!(key == 1);
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn exl3_lane_permutation_is_bijective_and_preserves_tile_bounds() {
++    let index: u32 = kani::any();
++    let other: u32 = kani::any();
++    let mapped = exl3_lane_source_index(index);
++    assert_eq!(mapped / 16, index / 16);
++    assert_eq!(
++        exl3_lane_source_index(exl3_lane_source_index(mapped)),
++        index
++    );
++    assert_eq!(mapped == exl3_lane_source_index(other), index == other);
++    kani::cover!(index == 2 && mapped == 8);
++    kani::cover!(index == u32::MAX && mapped == u32::MAX);
++    kani::cover!(index > 15 && mapped != index);
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn exl3_lane_order_preserves_shape_and_large_m_fallback() {
++    let rows: i32 = kani::any();
++    let input: i32 = kani::any();
++    let output: i32 = kani::any();
++    let k: usize = kani::any();
++    let grouped: bool = kani::any();
++    let mul1: bool = kani::any();
++    let m5: bool = kani::any();
++    let enabled: bool = kani::any();
++    let selected = exl3_lane_order(rows, input, output, k, grouped, mul1, m5, enabled);
++    if selected {
++        assert!(enabled && m5 && mul1 && (rows == 1 || rows == 2));
++        assert!(matches!(input, 5120 | 6144 | 17408));
++        assert!(output > 0 && output <= 248320 && output % 128 == 0);
++        assert!((1..=4).contains(&k));
++        assert!(!grouped || (input == 5120 && matches!(output, 16384 | 34816)));
++        let index: u32 = kani::any();
++        if index < input as u32 {
++            assert!(exl3_lane_source_index(index) < input as u32);
++        }
++    }
++    if rows >= 3 || !enabled || !mul1 || !m5 {
++        assert!(!selected);
++    }
++    kani::cover!(selected && rows == 1 && output == 248320);
++    kani::cover!(selected && rows == 2 && grouped && k == 1);
++    kani::cover!(selected && input == 6144);
++    kani::cover!(selected && input == 17408);
++    kani::cover!(rows == 3 && enabled && !selected);
++    kani::cover!(!enabled && rows == 1 && !selected);
++}
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -57,6 +57,84 @@
+     }
+     let _restore = Restore(DENSE_DECODE_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+     run()
++}
++
++fn lane_order_enabled() -> bool {
++    #[cfg(test)]
++    if let Some(enabled) = LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get) {
++        return enabled;
++    }
++    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    *ENABLED.get_or_init(|| {
++        crate::contracts::exl3_lane_order_enabled(
++            std::env::var("MLXL3_EXL3_LANE_ORDER").ok().as_deref(),
++        )
++    })
++}
++
++#[cfg(test)]
++thread_local! {
++    static LANE_ORDER_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
++}
++
++/// Load under true to prepare indices; this override can then select stock on the same weights.
++#[cfg(test)]
++pub(crate) fn with_lane_order_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
++    struct Restore(Option<bool>);
++    impl Drop for Restore {
++        fn drop(&mut self) {
++            LANE_ORDER_TEST_OVERRIDE.with(|flag| flag.set(self.0));
++        }
++    }
++    let _restore = Restore(LANE_ORDER_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
++    run()
++}
++
++fn lane_order_indices(
++    input: i32,
++    output: i32,
++    k: usize,
++    cb: Codebook,
++    grouped: bool,
++) -> Result<Option<Array>> {
++    if !crate::contracts::exl3_lane_order(
++        1,
++        input,
++        output,
++        k,
++        grouped,
++        cb == Codebook::Mul1,
++        array::is_m5_gpu()?,
++        lane_order_enabled(),
++    ) {
++        return Ok(None);
++    }
++    let values = (0..input)
++        .map(|index| i32::try_from(crate::contracts::exl3_lane_source_index(index as u32)))
++        .collect::<std::result::Result<Vec<_>, _>>()?;
++    let indices = Array::from_i32(&values, &[input])?;
++    indices.eval()?;
++    Ok(Some(indices))
++}
++
++fn lane_order_input(
++    xhat: Array,
++    indices: Option<&Array>,
++    matrix_rows: i32,
++    groups: i32,
++    input: i32,
++) -> Result<(Array, bool)> {
++    if let Some(indices) = indices.filter(|_| lane_order_enabled() && matches!(matrix_rows, 1 | 2))
++    {
++        let shape = xhat.shape().to_vec();
++        let value = xhat
++            .reshape(&[matrix_rows, groups, input])?
++            .take(indices, 2)?
++            .reshape(&shape)?;
++        Ok((value, true))
++    } else {
++        Ok((xhat, false))
++    }
+ }
+ 
+ fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
+@@ -147,6 +225,7 @@
+     rows: i32,
+     cols: i32,
+     simdgroups: i32,
++    lane_indices: Option<Array>,
+ }
+ 
+ impl Exl3Linear {
+@@ -243,6 +322,7 @@
+             rows,
+             cols,
+             simdgroups,
++            lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
+         })
+     }
+ 
+@@ -304,9 +384,12 @@
+             .reshape(&[1, self.rows / 128, 128])?
+             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+             .reshape(&[self.rows])?;
++        let (xhat, lane_order) =
++            lane_order_input(xhat, self.lane_indices.as_ref(), 1, 1, self.rows)?;
+         let input_tiles = self.rows / 16;
+         let output_tiles = self.cols / 16;
+-        let mut header = codebook_header(self.cb);
++        let mut header = codebook_header(self.cb)
++            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order));
+         let output = if self.k == 7 {
+             let inverse = codec::permutation_inverse()
+                 .map(|v| v.to_string())
+@@ -421,6 +504,8 @@
+             .reshape(&[matrix_rows, self.rows / 128, 128])?
+             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+             .reshape(&[matrix_rows, self.rows])?;
++        let (xhat, lane_order) =
++            lane_order_input(xhat, self.lane_indices.as_ref(), matrix_rows, 1, self.rows)?;
+         let input_tiles = self.rows / 16;
+         let output_tiles = self.cols / 16;
+         let splits = split_count(input_tiles, output_tiles);
+@@ -446,6 +531,7 @@
+             nt = 1;
+         }
+         let header = codebook_header(self.cb)
++            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order))
+             + &format!(
+                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_MATRIX_ROWS {matrix_rows}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {output}\n",
+                 self.simdgroups,
+@@ -648,6 +734,7 @@
+     k: usize,
+     cb: Codebook,
+     simdgroups: i32,
++    lane_indices: Option<Array>,
+ }
+ 
+ impl Exl3Group {
+@@ -700,6 +787,12 @@
+             array.eval()?;
+         }
+         let biases = linears.into_iter().map(|l| l.bias).collect();
++        let lane_indices =
++            if widths.as_slice() == [10240, 6144] || widths.as_slice() == [17408, 17408] {
++                lane_order_indices(rows, cols, k, cb, true)?
++            } else {
++                None
++            };
+         Ok(Self {
+             trellis,
+             suh,
+@@ -713,6 +806,7 @@
+             k,
+             cb,
+             simdgroups,
++            lane_indices,
+         })
+     }
+ 
+@@ -790,6 +884,8 @@
+             .reshape(&[groups, self.rows / 128, 128])?
+             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+             .reshape(&[-1])?;
++        let (xhat, lane_order) =
++            lane_order_input(xhat, self.lane_indices.as_ref(), 1, groups, self.rows)?;
+         let tiles = self.cols / 16;
+         let splits = split_count(self.rows / 16, tiles);
+         let nt = if dense_decode_nt4_enabled()
+@@ -811,6 +907,7 @@
+             1
+         };
+         let header = codebook_header(self.cb)
++            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order))
+             + &format!(
+                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
+                 sg = self.simdgroups,
+@@ -886,6 +983,13 @@
+             .reshape(&[matrix_rows * groups, self.rows / 128, 128])?
+             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+             .reshape(&[-1])?;
++        let (xhat, lane_order) = lane_order_input(
++            xhat,
++            self.lane_indices.as_ref(),
++            matrix_rows,
++            groups,
++            self.rows,
++        )?;
+         let tiles = self.cols / 16;
+         let splits = split_count(self.rows / 16, tiles);
+         let mut nt = if tiles >= 1024 {
+@@ -914,6 +1018,7 @@
+             nt = 1;
+         }
+         let header = codebook_header(self.cb)
++            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order))
+             + &format!(
+                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_MATRIX_ROWS {matrix_rows}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 1\n#define GROUPS {groups}\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
+                 sg = self.simdgroups,
+@@ -1284,6 +1389,165 @@
+     use super::*;
+ 
+     #[test]
++    fn lane_order_override_restores_and_stays_thread_local() {
++        assert_eq!(LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get), None);
++        with_lane_order_test(false, || {
++            assert!(!lane_order_enabled());
++            with_lane_order_test(true, || assert!(lane_order_enabled()));
++            assert!(!lane_order_enabled());
++            std::thread::spawn(|| {
++                assert_eq!(LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get), None);
++            })
++            .join()
++            .unwrap();
++            assert!(
++                std::panic::catch_unwind(|| {
++                    with_lane_order_test(true, || panic!("temporary test failure"));
++                })
++                .is_err()
++            );
++            assert!(!lane_order_enabled());
++        });
++        assert_eq!(LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get), None);
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn lane_order_real_array_api() {
++        let bits: u16 = kani::any();
++        let x = Array::from_f16_bits(&[bits; 16], &[16]).unwrap();
++        let ids = Array::from_i32(
++            &[0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15],
++            &[16],
++        )
++        .unwrap();
++        let result = with_lane_order_test(true, || lane_order_input(x, Some(&ids), 1, 1, 16));
++        assert_eq!(result.unwrap().0.shape(), [16]);
++    }
++
++    #[test]
++    #[ignore = "physical M5, MLXL3_QWEN_TEST_MODEL; run alone"]
++    fn lane_order_real_projections_match_stock_and_reject_mutated_index() -> Result<()> {
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
++        let mut cases = 0;
++        for prefix in [
++            "lm_head",
++            "model.language_model.layers.0.mlp.down_proj",
++            "model.language_model.layers.0.linear_attn.in_proj_z",
++        ] {
++            let mut linear =
++                with_lane_order_test(true, || Exl3Linear::from_checkpoint(&checkpoint, prefix))?;
++            ensure!(
++                linear.lane_indices.is_some(),
++                "fixture missing prepared lane indices"
++            );
++            for rows in [1, 2, 3, 4] {
++                let bits = (0..rows * linear.rows)
++                    .map(|i| f16::from_f32(((i * 37 % 251) as f32 - 125.0) / 256.0).to_bits())
++                    .collect::<Vec<_>>();
++                let x = Array::from_f16_bits(&bits, &[rows, linear.rows])?;
++                let expected = with_lane_order_test(false, || linear.forward(&x))?.to_f16_bits()?;
++                let actual = with_lane_order_test(true, || linear.forward(&x))?.to_f16_bits()?;
++                ensure!(
++                    expected.len() == (rows * linear.cols) as usize
++                        && !expected.is_empty()
++                        && expected
++                            .iter()
++                            .chain(&actual)
++                            .all(|&v| f16::from_bits(v).is_finite()),
++                    "invalid lane projection values"
++                );
++                ensure!(
++                    expected == actual,
++                    "lane projection differs for {prefix} M={rows}"
++                );
++                if prefix == "lm_head" && rows == 1 {
++                    let correct = linear.lane_indices.take().context("missing lane indices")?;
++                    let mut ids = (0..linear.rows)
++                        .map(|i| crate::contracts::exl3_lane_source_index(i as u32) as i32)
++                        .collect::<Vec<_>>();
++                    ids.swap(0, 2);
++                    linear.lane_indices = Some(Array::from_i32(&ids, &[linear.rows])?);
++                    let corrupted =
++                        with_lane_order_test(true, || linear.forward(&x))?.to_f16_bits()?;
++                    ensure!(
++                        corrupted.len() == expected.len()
++                            && corrupted.iter().all(|&v| f16::from_bits(v).is_finite())
++                            && corrupted != expected,
++                        "mutation escaped lane oracle"
++                    );
++                    let differing = corrupted
++                        .iter()
++                        .zip(&expected)
++                        .filter(|(a, b)| a != b)
++                        .count();
++                    eprintln!("lane mutation detected: {differing} finite FP16 values");
++                    linear.lane_indices = Some(correct);
++                    ensure!(
++                        with_lane_order_test(true, || linear.forward(&x))?.to_f16_bits()?
++                            == expected,
++                        "restored index differs"
++                    );
++                }
++                cases += 1;
++            }
++        }
++        for (left, right) in [("in_proj_qkv", "in_proj_z"), ("gate_proj", "up_proj")] {
++            let branch = if left == "in_proj_qkv" {
++                "linear_attn"
++            } else {
++                "mlp"
++            };
++            let group = with_lane_order_test(true, || {
++                Exl3Group::new(vec![
++                    Exl3Linear::from_checkpoint(
++                        &checkpoint,
++                        &format!("model.language_model.layers.0.{branch}.{left}"),
++                    )?,
++                    Exl3Linear::from_checkpoint(
++                        &checkpoint,
++                        &format!("model.language_model.layers.0.{branch}.{right}"),
++                    )?,
++                ])
++            })?;
++            ensure!(
++                group.lane_indices.is_some(),
++                "fixture missing grouped lane indices"
++            );
++            for rows in [1, 2, 3, 4] {
++                let bits = (0..rows * group.rows)
++                    .map(|i| f16::from_f32(((i * 53 % 251) as f32 - 125.0) / 256.0).to_bits())
++                    .collect::<Vec<_>>();
++                let x = Array::from_f16_bits(&bits, &[rows, group.rows])?;
++                let expected = with_lane_order_test(false, || group.forward(&x))?;
++                let actual = with_lane_order_test(true, || group.forward(&x))?;
++                ensure!(
++                    expected.len() == 2 && actual.len() == 2,
++                    "missing grouped outputs"
++                );
++                for ((left, right), &width) in expected.iter().zip(&actual).zip(&group.widths) {
++                    let a = left.to_f16_bits()?;
++                    let b = right.to_f16_bits()?;
++                    ensure!(
++                        a.len() == (rows * width) as usize
++                            && !a.is_empty()
++                            && a.iter().chain(&b).all(|&v| f16::from_bits(v).is_finite()),
++                        "invalid grouped lane values"
++                    );
++                    ensure!(
++                        a == b,
++                        "grouped lane projection differs for {branch} M={rows}"
++                    );
++                }
++                cases += 1;
++            }
++        }
++        ensure!(cases == 20, "missing lane projection comparisons");
++        Ok(())
++    }
++
++    #[test]
+     fn grouped_mb3_override_restores_and_stays_thread_local() {
+         assert_eq!(GROUPED_MB3_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+         with_grouped_mb3_test(false, || {
+--- a/native/src/lib.rs
++++ b/native/src/lib.rs
+@@ -6,7 +6,10 @@
+ pub mod checkpoint;
+ pub mod codec;
+ mod contracts;
+-pub use contracts::{GenerationStopReason, reusable_prefix_len, smallm_kernel_key};
++pub use contracts::{
++    GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, reusable_prefix_len,
++    smallm_kernel_key,
++};
+ pub mod dflash;
+ #[cfg(feature = "mlx")]
+ pub(crate) mod embedding;
+--- a/native/src/mtp_tune.rs
++++ b/native/src/mtp_tune.rs
+@@ -33,6 +33,9 @@
+         std::env::var_os("MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH").is_none_or(|value| value == "1"),
+         std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"),
+         allocator_cache_mib()?,
++        mlxl3_native::exl3_lane_order_enabled(
++            std::env::var("MLXL3_EXL3_LANE_ORDER").ok().as_deref(),
++        ),
+     )
+ }
+ 
+@@ -52,6 +55,7 @@
+     dense_batch: bool,
+     grouped_mb3: bool,
+     allocator_mib: Option<usize>,
++    lane_order: bool,
+ ) -> Result<String> {
+     let allocator_key = mlxl3_native::memory_policy::allocator_cache_key(allocator_mib)
+         .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?;
+@@ -68,7 +72,7 @@
+         _ => "mtp-m5-v1",
+     };
+     Ok(format!(
+-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:smallm-v2={}",
++        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:lanelayout-v1={}:smallm-v2={}",
+         artifact_key(path)?,
+         env!("CARGO_PKG_VERSION"),
+         env!("MLXL3_BUILD_REVISION"),
+@@ -78,6 +82,7 @@
+         u8::from(std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")),
+         u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
+         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
++        mlxl3_native::exl3_lane_order_key(lane_order),
+         mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
+     ))
+ }
+@@ -111,17 +116,30 @@
+     let directory = tempfile::tempdir()?;
+     std::fs::write(directory.path().join("config.json"), "{}")?;
+     let mut keys = std::collections::HashSet::new();
+-    for (dense, mb3, suffix) in [
+-        (false, false, "0"),
+-        (true, false, "1"),
+-        (false, true, "2"),
+-        (true, true, "3"),
+-    ] {
+-        let key =
+-            runtime_key_with_options(directory.path(), 4096, dense, mb3, allocator_cache_mib()?)?;
+-        anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
+-        anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+-    }
++    for lane_order in [false, true] {
++        for (dense, mb3, suffix) in [
++            (false, false, "0"),
++            (true, false, "1"),
++            (false, true, "2"),
++            (true, true, "3"),
++        ] {
++            let key = runtime_key_with_options(
++                directory.path(),
++                4096,
++                dense,
++                mb3,
++                allocator_cache_mib()?,
++                lane_order,
++            )?;
++            anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
++            anyhow::ensure!(key.contains(&format!(
++                ":lanelayout-v1={}:smallm-v2=",
++                u8::from(lane_order),
++            )));
++            anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
++        }
++    }
++    anyhow::ensure!(keys.len() == 8);
+     let production = runtime_key(directory.path(), 4096)?;
+     anyhow::ensure!(keys.contains(&production), "production key not recognized");
+     Ok(())
+@@ -133,12 +151,13 @@
+     std::fs::write(directory.path().join("config.json"), "{}")?;
+     let mut keys = std::collections::HashSet::new();
+     for limit in [None, Some(0), Some(256), Some(4096)] {
+-        let key = runtime_key_with_options(directory.path(), 4096, false, false, limit)?;
++        let key = runtime_key_with_options(directory.path(), 4096, false, false, limit, false)?;
+         anyhow::ensure!(keys.insert(key), "allocator calibration key collision");
+     }
+     for invalid in [4097, usize::MAX] {
+         anyhow::ensure!(
+-            runtime_key_with_options(directory.path(), 4096, false, false, Some(invalid)).is_err()
++            runtime_key_with_options(directory.path(), 4096, false, false, Some(invalid), false)
++                .is_err()
+         );
+     }
+     Ok(())
+--- a/native/src/qwen35.rs
++++ b/native/src/qwen35.rs
+@@ -2743,7 +2743,9 @@
+     #[test]
+     #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone"]
+     fn dense_mlp_batch_matches_serial_layers() -> Result<()> {
+-        let model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
++        let model = crate::linear::with_lane_order_test(true, || {
++            Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))
++        })?;
+         ensure!(
+             model.layers.len() == 64 && model.mtp_layout.hidden_size == 5120,
+             "requires dense Qwen27B fixture"
+@@ -2799,11 +2801,12 @@
+                         Array::from_f16_bits(&bits, &[1, 1, 5120])
+                     })
+                     .collect::<Result<Vec<_>>>()?;
+-                let expected =
+-                    with_dense_mlp_batch(false, || mlp.forward_verification(&inputs, 5120))?
+-                        .iter()
+-                        .map(Array::to_f16_bits)
+-                        .collect::<Result<Vec<_>>>()?;
++                let expected = crate::linear::with_lane_order_test(false, || {
++                    with_dense_mlp_batch(false, || mlp.forward_verification(&inputs, 5120))
++                })?
++                .iter()
++                .map(Array::to_f16_bits)
++                .collect::<Result<Vec<_>>>()?;
+                 ensure!(
+                     expected.len() == rows
+                         && expected.iter().all(|row| row.len() == 5120
+@@ -2811,8 +2814,10 @@
+                     "invalid serial MLP oracle"
+                 );
+                 for mb3 in [false, true] {
+-                    let actual = crate::linear::with_grouped_mb3_test(mb3, || {
+-                        with_dense_mlp_batch(true, || mlp.forward_verification(&inputs, 5120))
++                    let actual = crate::linear::with_lane_order_test(true, || {
++                        crate::linear::with_grouped_mb3_test(mb3, || {
++                            with_dense_mlp_batch(true, || mlp.forward_verification(&inputs, 5120))
++                        })
+                     })?;
+                     ensure!(
+                         actual.len() == rows
+@@ -2863,17 +2868,25 @@
+     #[test]
+     #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone"]
+     fn dense_smallm_dispatch_matches_serial_prefixes() -> Result<()> {
+-        check_dense_smallm_prefixes(&[2, 3, 4, 8])
++        check_dense_smallm_prefixes(&[2, 3, 4, 8], false)
+     }
+ 
+     #[test]
+     #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone"]
+     fn dense_m3_fallback_matches_serial_prefixes() -> Result<()> {
+-        check_dense_smallm_prefixes(&[3])
+-    }
+-
+-    fn check_dense_smallm_prefixes(widths: &[usize]) -> Result<()> {
+-        let mut model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
++        check_dense_smallm_prefixes(&[3], false)
++    }
++
++    #[test]
++    #[ignore = "physical GPU, MLXL3_QWEN_TEST_MODEL; run alone"]
++    fn dense_lane_order_matches_stock_prefixes() -> Result<()> {
++        check_dense_smallm_prefixes(&[1, 2, 3, 4], true)
++    }
++
++    fn check_dense_smallm_prefixes(widths: &[usize], lane_order: bool) -> Result<()> {
++        let mut model = crate::linear::with_lane_order_test(lane_order, || {
++            Qwen35Moe::load(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))
++        })?;
+         ensure!(
+             model.layers.len() == 64
+                 && model.vocab == 248320
+@@ -2885,7 +2898,7 @@
+         for length in [24, 257] {
+             model.reset();
+             let prefix = (0..length).map(|i| (i * 37 + 1) as u32).collect::<Vec<_>>();
+-            model.forward_mtp(&prefix)?;
++            crate::linear::with_lane_order_test(false, || model.forward_mtp(&prefix))?;
+             let base = model.snapshot()?;
+             for &total in widths {
+                 model.mtp_pipeline = false;
+@@ -2893,24 +2906,26 @@
+                 let tokens = (0..total).map(|i| (i * 53 + 1) as u32).collect::<Vec<_>>();
+                 let mut expected_logits = Vec::new();
+                 let mut expected_prefixes = Vec::new();
+-                crate::linear::with_grouped_mb3_test(false, || -> Result<()> {
+-                    for &token in &tokens {
+-                        let bits = model.forward(token)?.to_f16_bits()?;
+-                        ensure!(
+-                            bits.len() == 248320
+-                                && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
+-                            "invalid serial logits"
+-                        );
+-                        expected_logits.extend(bits);
+-                        let hidden = model.mtp_hidden()?.to_f16_bits()?;
+-                        ensure!(
+-                            hidden.len() == 5120
+-                                && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
+-                            "invalid serial hidden"
+-                        );
+-                        expected_prefixes.push((state_bytes(&model)?, hidden));
+-                    }
+-                    Ok(())
++                crate::linear::with_lane_order_test(false, || {
++                    crate::linear::with_grouped_mb3_test(false, || -> Result<()> {
++                        for &token in &tokens {
++                            let bits = model.forward(token)?.to_f16_bits()?;
++                            ensure!(
++                                bits.len() == 248320
++                                    && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
++                                "invalid serial logits"
++                            );
++                            expected_logits.extend(bits);
++                            let hidden = model.mtp_hidden()?.to_f16_bits()?;
++                            ensure!(
++                                hidden.len() == 5120
++                                    && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
++                                "invalid serial hidden"
++                            );
++                            expected_prefixes.push((state_bytes(&model)?, hidden));
++                        }
++                        Ok(())
++                    })
+                 })?;
+                 for (batch, mb3, pipeline) in [
+                     (false, false, false),
+@@ -2920,72 +2935,98 @@
+                     (true, true, true),
+                 ] {
+                     model.mtp_pipeline = pipeline;
+-                    with_dense_mlp_batch(batch, || -> Result<()> {
+-                        crate::linear::with_grouped_mb3_test(mb3, || -> Result<()> {
+-                            for retained in 1..=total {
+-                                model.restore(base.clone())?;
+-                                let (logits, raw) = model.verify_mtp(&tokens)?;
+-                                let bits = logits.to_f16_bits()?;
+-                                ensure!(
+-                                    bits.len() == total * 248320
+-                                        && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
+-                                    "invalid verify logits"
+-                                );
+-                                ensure!(
+-                                    bits == expected_logits,
+-                                    "logits differ prefix={length} M={total} MB3={mb3} pipeline={pipeline}"
+-                                );
+-                                ensure!(
+-                                    raw.shape() == [1, total as i32, 5120],
+-                                    "invalid verify hidden shape"
+-                                );
+-                                let hidden = raw.to_f16_bits()?;
+-                                ensure!(
+-                                    hidden.len() == total * 5120
+-                                        && hidden.iter().all(|&v| f16::from_bits(v).is_finite()),
+-                                    "invalid verify hidden"
+-                                );
+-                                for (row, (_, expected)) in expected_prefixes.iter().enumerate() {
++                    crate::linear::with_lane_order_test(lane_order, || {
++                        with_dense_mlp_batch(batch, || -> Result<()> {
++                            crate::linear::with_grouped_mb3_test(mb3, || -> Result<()> {
++                                for retained in 1..=total {
++                                    model.restore(base.clone())?;
++                                    let (logits, raw) = model.verify_mtp(&tokens)?;
++                                    let bits = logits.to_f16_bits()?;
+                                     ensure!(
+-                                        hidden[row * 5120..(row + 1) * 5120] == *expected,
+-                                        "verify hidden differs"
++                                        bits.len() == total * 248320
++                                            && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
++                                        "invalid verify logits"
+                                     );
++                                    ensure!(
++                                        bits == expected_logits,
++                                        "logits differ prefix={length} M={total} MB3={mb3} pipeline={pipeline}"
++                                    );
++                                    ensure!(
++                                        raw.shape() == [1, total as i32, 5120],
++                                        "invalid verify hidden shape"
++                                    );
++                                    let hidden = raw.to_f16_bits()?;
++                                    ensure!(
++                                        hidden.len() == total * 5120
++                                            && hidden
++                                                .iter()
++                                                .all(|&v| f16::from_bits(v).is_finite()),
++                                        "invalid verify hidden"
++                                    );
++                                    for (row, (_, expected)) in expected_prefixes.iter().enumerate()
++                                    {
++                                        ensure!(
++                                            hidden[row * 5120..(row + 1) * 5120] == *expected,
++                                            "verify hidden differs"
++                                        );
++                                    }
++                                    model.commit_dflash_verification(retained, total)?;
++                                    model.set_mtp_hidden(raw.slice(
++                                        1,
++                                        retained as i32 - 1,
++                                        retained as i32,
++                                    )?)?;
++                                    let actual =
++                                        (state_bytes(&model)?, model.mtp_hidden()?.to_f16_bits()?);
++                                    ensure!(
++                                        actual == expected_prefixes[retained - 1],
++                                        "rollback differs prefix={length} M={total} retained={retained} batch={batch} MB3={mb3} pipeline={pipeline}"
++                                    );
++                                    let saved = model.snapshot()?;
++                                    let mut continuation = Vec::new();
++                                    for token in [113, 127] {
++                                        let bits = model.forward(token)?.to_f16_bits()?;
++                                        ensure!(
++                                            bits.len() == 248320
++                                                && bits
++                                                    .iter()
++                                                    .all(|&v| f16::from_bits(v).is_finite()),
++                                            "invalid post-commit continuation logits"
++                                        );
++                                        continuation.push(bits);
++                                    }
++                                    let continued_states = state_bytes(&model)?;
++                                    crate::linear::with_lane_order_test(
++                                        false,
++                                        || -> Result<()> {
++                                            model.restore(base.clone())?;
++                                            for &token in &tokens[..retained] {
++                                                model.forward(token)?;
++                                            }
++                                            for (index, token) in [113, 127].into_iter().enumerate()
++                                            {
++                                                let bits = model.forward(token)?.to_f16_bits()?;
++                                                ensure!(
++                                                    bits.len() == 248320
++                                                        && bits.iter().all(|&v| f16::from_bits(v).is_finite()),
++                                                    "invalid serial continuation logits"
++                                                );
++                                                ensure!(
++                                                    bits == continuation[index],
++                                                    "post-commit continuation logits differ"
++                                                );
++                                            }
++                                            ensure!(
++                                                state_bytes(&model)? == continued_states,
++                                                "post-commit continuation states differ"
++                                            );
++                                            Ok(())
++                                        },
++                                    )?;
++                                    model.restore(saved)?;
+                                 }
+-                                model.commit_dflash_verification(retained, total)?;
+-                                model.set_mtp_hidden(raw.slice(
+-                                    1,
+-                                    retained as i32 - 1,
+-                                    retained as i32,
+-                                )?)?;
+-                                let actual =
+-                                    (state_bytes(&model)?, model.mtp_hidden()?.to_f16_bits()?);
+-                                ensure!(
+-                                    actual == expected_prefixes[retained - 1],
+-                                    "rollback differs prefix={length} M={total} retained={retained} batch={batch} MB3={mb3} pipeline={pipeline}"
+-                                );
+-                                let saved = model.snapshot()?;
+-                                let mut continuation = Vec::new();
+-                                for token in [113, 127] {
+-                                    continuation.push(model.forward(token)?.to_f16_bits()?);
+-                                }
+-                                let continued_states = state_bytes(&model)?;
+-                                model.restore(base.clone())?;
+-                                for &token in &tokens[..retained] {
+-                                    model.forward(token)?;
+-                                }
+-                                for (index, token) in [113, 127].into_iter().enumerate() {
+-                                    ensure!(
+-                                        model.forward(token)?.to_f16_bits()? == continuation[index],
+-                                        "post-commit continuation logits differ"
+-                                    );
+-                                }
+-                                ensure!(
+-                                    state_bytes(&model)? == continued_states,
+-                                    "post-commit continuation states differ"
+-                                );
+-                                model.restore(saved)?;
+-                            }
+-                            Ok(())
++                                Ok(())
++                            })
+                         })
+                     })?;
+                     println!(
+--- a/native/shaders/_qmv_tile_kernel.metal
++++ b/native/shaders/_qmv_tile_kernel.metal
+@@ -46,6 +46,22 @@
+             ) {
+                 float x_values[MLXL3_QMV_MB][4];
+                 for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
++#if defined(MLXL3_QMV_LANE_ORDER) && MLXL3_QMV_LANE_ORDER
++                    // MLXL3_Q27_LANE_INPUT_PERMUTED
++                    half4 x_quad = half4(0.0h);
++                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
++                        const device half4* x_quads =
++                            reinterpret_cast<const device half4*>(
++                                xhat + (row_base + batch_row) * uint(INPUT_DIMS)
++                                     + tile_k * 16u
++                            );
++                        x_quad = x_quads[lane & 3u];
++                    }
++                    x_values[batch_row][0] = float(x_quad.x);
++                    x_values[batch_row][1] = float(x_quad.y);
++                    x_values[batch_row][2] = float(x_quad.z);
++                    x_values[batch_row][3] = float(x_quad.w);
++#else
+                     half2 x_pair = half2(0.0h);
+                     if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+                         const device half2* x_pairs =
+@@ -61,6 +77,7 @@
+                     x_values[batch_row][1] = float(x_pair0.y);
+                     x_values[batch_row][2] = float(x_pair1.x);
+                     x_values[batch_row][3] = float(x_pair1.y);
++#endif
+                 }
+                 for (
+                     uint output_tile = 0u;
+--- a/native/shaders/_qmv_mapped_tile_kernel.metal
++++ b/native/shaders/_qmv_mapped_tile_kernel.metal
+@@ -90,6 +90,28 @@
+                 // the same transformed activation row.
+                 float x_values[MLXL3_QMV_MB][4];
+                 for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
++#if defined(MLXL3_QMV_LANE_ORDER) && MLXL3_QMV_LANE_ORDER
++                    // MLXL3_Q27_LANE_INPUT_PERMUTED
++                    half4 x_quad(0);
++#if MLXL3_BATCH_ROWS
++                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
++#endif
++                    const device half4* x_quads = reinterpret_cast<const device half4*>(
++                        xhat
++#if MLXL3_BATCH_ROWS
++                        + (row_base + batch_row) * uint(GROUPS) * uint(INPUT_DIMS)
++#endif
++                        + sub * uint(INPUT_DIMS) + tile_k * 16u
++                    );
++                    x_quad = x_quads[lane & 3u];
++#if MLXL3_BATCH_ROWS
++                    }
++#endif
++                    x_values[batch_row][0] = float(x_quad.x);
++                    x_values[batch_row][1] = float(x_quad.y);
++                    x_values[batch_row][2] = float(x_quad.z);
++                    x_values[batch_row][3] = float(x_quad.w);
++#else
+                     half2 x_pair(0);
+ #if MLXL3_BATCH_ROWS
+                     if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+@@ -111,6 +133,7 @@
+                     x_values[batch_row][1] = float(x_pair0.y);
+                     x_values[batch_row][2] = float(x_pair1.x);
+                     x_values[batch_row][3] = float(x_pair1.y);
++#endif
+                 }
+                 for (
+                     uint output_tile = 0u;

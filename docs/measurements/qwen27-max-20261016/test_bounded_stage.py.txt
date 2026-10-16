@@ -1,0 +1,49 @@
+import json
+import subprocess
+import sys
+
+import pytest
+from bounded_stage import execute
+
+
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        ("print('done')", "process_complete"),
+        ("raise SystemExit(3)", "failed"),
+        ("import time; time.sleep(5)", "failed"),
+    ],
+)
+def test_real_children_exit_failure_and_silent_timeout(tmp_path, body, expected):
+    log = tmp_path / "child.log"
+    if expected == "failed":
+        with pytest.raises((RuntimeError, subprocess.TimeoutExpired)):
+            execute([sys.executable, "-c", body], log, 0.15)
+    else:
+        execute([sys.executable, "-c", body], log, 2)
+    result = json.loads((tmp_path / "child.log.status.json").read_text())
+    assert result["status"] == expected and result["parity"] is False
+    assert result["reaped"] is True and result["exit_code"] is not None
+
+
+def test_launch_failure_is_not_certified(tmp_path):
+    with pytest.raises(OSError):
+        execute([str(tmp_path / "missing")], tmp_path / "failed", 1)
+    result = json.loads((tmp_path / "failed.status.json").read_text())
+    assert result["status"] == "failed" and result["parity"] is False
+    assert "error" in result and "reaped" not in result
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+def test_invalid_deadline_never_launches(tmp_path, timeout):
+    with pytest.raises(ValueError):
+        execute([sys.executable], tmp_path / "invalid", timeout)
+    assert not (tmp_path / "invalid.status.json").exists()
+
+
+def test_existing_log_is_preserved(tmp_path):
+    log = tmp_path / "existing"
+    log.write_bytes(b"old evidence")
+    with pytest.raises(FileExistsError):
+        execute([sys.executable], log, 1)
+    assert log.read_bytes() == b"old evidence"

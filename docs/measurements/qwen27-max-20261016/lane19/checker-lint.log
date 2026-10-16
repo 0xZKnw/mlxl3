@@ -1,0 +1,23 @@
+I001 [*] Import block is un-sorted or un-formatted
+ --> /tmp/mlxl3-q27-max-20261016/test_campaign19_check.py:1:1
+  |
+1 | / import copy
+2 | | import json
+3 | | from pathlib import Path
+4 | |
+5 | | import pytest
+6 | |
+7 | | from campaign19_check import METRICS, check
+  | |___________________________________________^
+8 |
+9 |   REFERENCE = Path(
+  |
+help: Organize imports
+  |
+5 | import pytest
+  -
+6 | from campaign19_check import METRICS, check
+  |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

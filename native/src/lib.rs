@@ -6,7 +6,10 @@ pub mod array;
 pub mod checkpoint;
 pub mod codec;
 mod contracts;
-pub use contracts::{GenerationStopReason, reusable_prefix_len, smallm_kernel_key};
+pub use contracts::{
+    GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, reusable_prefix_len,
+    smallm_kernel_key,
+};
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;

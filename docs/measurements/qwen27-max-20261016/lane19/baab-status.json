@@ -1,0 +1,158 @@
+{
+  "status": "complete",
+  "parity": true,
+  "speed_gate_passed": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "benchmarks/compare_native.py",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--baseline",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "--candidate",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "--output",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/docs/measurements/qwen27-max-20261016/lane19/baab",
+    "--prompt-file",
+    "docs/measurements/qwen27-20261016/prompt-code.txt",
+    "--tokens",
+    "256",
+    "--warmup-tokens",
+    "64",
+    "--mtp-depth",
+    "1",
+    "--mtp-head",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "--repeats",
+    "1",
+    "--order",
+    "BAAB",
+    "--load-timeout",
+    "120",
+    "--request-timeout",
+    "180",
+    "--campaign-timeout",
+    "900",
+    "--baseline-env",
+    "MLXL3_EXL3_LANE_ORDER=0",
+    "--candidate-env",
+    "MLXL3_EXL3_LANE_ORDER=1"
+  ],
+  "sources": {
+    "native/src/contracts.rs": "1383bf08bfa339e71bc3e051febb1fee7dd6a20ae4ade01c1e07c14d3c5377f9",
+    "native/src/linear.rs": "dfbf9a0f5e0aec2cb109dbbb380a351ff1a7c4d6f64645957741976d00002fe7",
+    "native/src/lib.rs": "0f14cad9235c92feeb45e814cdafa90c8aa25e8350354d86dd909f7bcc82136c",
+    "native/src/mtp_tune.rs": "0f95daaacbf47f30a127f5de1250ee7c02085a90961ae537df2e780ede725d6e",
+    "native/src/qwen35.rs": "5b440a0be31009f2ad53e102c20531f12cb6587b7fcb7945446d05300662ff3c",
+    "native/shaders/_qmv_tile_kernel.metal": "fb7c934cb24d7c84e6a0cb87c4bd85a59ce5c3e329ef7cf4c767f27f277db959",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "b8c3fedc2fc1b3eda85ce901e1f5be4e7dbb44700605030cac545dbd5e79e3ef",
+    "target/release/mlxl3-rs": "d6a4ea4425ee525add3f3102e9d9fb91cc88cd084334ef42de2e0aa43db24536",
+    "target/release/deps/mlxl3_native-139c3f42a710aa58": "32cc7e76dc337a0d3ec1dcd7876b291fbd21e5716727be5e899b9fa890b95a03"
+  },
+  "common_environment": {
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "allocator": "absent/default",
+  "batch": "absent/default M2/M4",
+  "battery_authorized": true,
+  "child": {
+    "status": "process_complete",
+    "parity": false,
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "benchmarks/compare_native.py",
+      "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+      "--baseline",
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+      "--candidate",
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+      "--output",
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/docs/measurements/qwen27-max-20261016/lane19/baab",
+      "--prompt-file",
+      "docs/measurements/qwen27-20261016/prompt-code.txt",
+      "--tokens",
+      "256",
+      "--warmup-tokens",
+      "64",
+      "--mtp-depth",
+      "1",
+      "--mtp-head",
+      "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+      "--repeats",
+      "1",
+      "--order",
+      "BAAB",
+      "--load-timeout",
+      "120",
+      "--request-timeout",
+      "180",
+      "--campaign-timeout",
+      "900",
+      "--baseline-env",
+      "MLXL3_EXL3_LANE_ORDER=0",
+      "--candidate-env",
+      "MLXL3_EXL3_LANE_ORDER=1"
+    ],
+    "timeout_seconds": 930,
+    "pid": 15744,
+    "seconds": 198.90970691700932,
+    "exit_code": 0,
+    "reaped": true
+  },
+  "analysis": {
+    "parity": true,
+    "order": "BAAB",
+    "prompts": {
+      "short": {
+        "tps": {
+          "A": [
+            11.024847495752361,
+            10.91753561134555
+          ],
+          "B": [
+            13.712712898006345,
+            13.644312722089596
+          ]
+        },
+        "medians": {
+          "A": 10.971191553548955,
+          "B": 13.67851281004797
+        },
+        "gain_percent": 24.676638296623764,
+        "drift_percent": {
+          "A": 0.9829313887952162,
+          "B": 0.5013090604850445
+        },
+        "min_b_over_max_a": 1.2375965043821657,
+        "every_b_at_least_three_percent": true,
+        "passed": true
+      },
+      "document": {
+        "tps": {
+          "A": [
+            10.766085286098901,
+            10.876384825189358
+          ],
+          "B": [
+            13.49189984031543,
+            13.31066113007041
+          ]
+        },
+        "medians": {
+          "A": 10.82123505564413,
+          "B": 13.40128048519292
+        },
+        "gain_percent": 23.842430335187025,
+        "drift_percent": {
+          "A": 1.024509245090921,
+          "B": 1.3616056217942596
+        },
+        "min_b_over_max_a": 1.2238129988967792,
+        "every_b_at_least_three_percent": true,
+        "passed": true
+      }
+    },
+    "passed": true
+  }
+}

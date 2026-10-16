@@ -1,0 +1,17 @@
+{
+  "status": "unverified",
+  "array_api": "unverified",
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--features",
+    "mlx,chat",
+    "--tests",
+    "--harness",
+    "lane_order_real_array_api"
+  ],
+  "error": "child exited 1",
+  "known_kani_ice": true,
+  "metal": "MSL fragments receive generated MLX headers/arguments; installed CBMC supports C/C++ not Metal dialect or GPU SIMDs. No surrogate C rewrite or shader proof claimed; exact physical oracle required."
+}

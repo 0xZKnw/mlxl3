@@ -1,0 +1,46 @@
+{
+  "status": "complete",
+  "parity": true,
+  "environment": {
+    "MLXL3_QWEN_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_MTP_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_MTP_TEST_HEAD": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "MLXL3_ALLOCATOR_CACHE_MIB": "256",
+    "MLXL3_QWEN_PIPELINE": "1",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "test_sha256": "a741f75e7c5678f75a193264b25ab96de90c489e0a32ca051a7077f59542cea9",
+  "checks": [
+    {
+      "name": "layer_pipeline_matches_unscheduled_logits_and_states",
+      "command": [
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/deps/mlxl3_native-139c3f42a710aa58",
+        "qwen35::tests::layer_pipeline_matches_unscheduled_logits_and_states",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 29.234888582956046
+    },
+    {
+      "name": "mtp_recursive_sessions_match_greedy_and_exact_caches",
+      "command": [
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/deps/mlxl3_native-139c3f42a710aa58",
+        "qwen35::tests::mtp_recursive_sessions_match_greedy_and_exact_caches",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "passed",
+      "reaped": true,
+      "exit_code": 0,
+      "seconds": 23.15223991696257
+    }
+  ]
+}

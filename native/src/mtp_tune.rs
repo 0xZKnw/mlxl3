@@ -30,9 +30,12 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
     runtime_key_with_options(
         path,
         context,
-        std::env::var("MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH").as_deref() == Ok("1"),
+        std::env::var_os("MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH").is_none_or(|value| value == "1"),
         std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"),
         allocator_cache_mib()?,
+        mlxl3_native::exl3_lane_order_enabled(
+            std::env::var("MLXL3_EXL3_LANE_ORDER").ok().as_deref(),
+        ),
     )
 }
 
@@ -52,6 +55,7 @@ fn runtime_key_with_options(
     dense_batch: bool,
     grouped_mb3: bool,
     allocator_mib: Option<usize>,
+    lane_order: bool,
 ) -> Result<String> {
     let allocator_key = mlxl3_native::memory_policy::allocator_cache_key(allocator_mib)
         .context("MLXL3_ALLOCATOR_CACHE_MIB must be an integer in 0..4096")?;
@@ -68,7 +72,7 @@ fn runtime_key_with_options(
         _ => "mtp-m5-v1",
     };
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:smallm-v1={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:adaptive={}:embedding-pack={}:allocator-cache-v1={allocator_key}:lookup={}:lanelayout-v1={}:smallm-v2={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
@@ -78,6 +82,7 @@ fn runtime_key_with_options(
         u8::from(std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")),
         u8::from(std::env::var("MLXL3_EMBEDDINGS_PACKED").as_deref() == Ok("1")),
         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
+        mlxl3_native::exl3_lane_order_key(lane_order),
         mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
     ))
 }
@@ -111,17 +116,30 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
     let directory = tempfile::tempdir()?;
     std::fs::write(directory.path().join("config.json"), "{}")?;
     let mut keys = std::collections::HashSet::new();
-    for (dense, mb3, suffix) in [
-        (false, false, "0"),
-        (true, false, "1"),
-        (false, true, "2"),
-        (true, true, "3"),
-    ] {
-        let key =
-            runtime_key_with_options(directory.path(), 4096, dense, mb3, allocator_cache_mib()?)?;
-        anyhow::ensure!(key.ends_with(&format!(":smallm-v1={suffix}")));
-        anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+    for lane_order in [false, true] {
+        for (dense, mb3, suffix) in [
+            (false, false, "0"),
+            (true, false, "1"),
+            (false, true, "2"),
+            (true, true, "3"),
+        ] {
+            let key = runtime_key_with_options(
+                directory.path(),
+                4096,
+                dense,
+                mb3,
+                allocator_cache_mib()?,
+                lane_order,
+            )?;
+            anyhow::ensure!(key.ends_with(&format!(":smallm-v2={suffix}")));
+            anyhow::ensure!(key.contains(&format!(
+                ":lanelayout-v1={}:smallm-v2=",
+                u8::from(lane_order),
+            )));
+            anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+        }
     }
+    anyhow::ensure!(keys.len() == 8);
     let production = runtime_key(directory.path(), 4096)?;
     anyhow::ensure!(keys.contains(&production), "production key not recognized");
     Ok(())
@@ -133,12 +151,13 @@ fn runtime_key_separates_allocator_policies_and_rejects_invalid_limits() -> Resu
     std::fs::write(directory.path().join("config.json"), "{}")?;
     let mut keys = std::collections::HashSet::new();
     for limit in [None, Some(0), Some(256), Some(4096)] {
-        let key = runtime_key_with_options(directory.path(), 4096, false, false, limit)?;
+        let key = runtime_key_with_options(directory.path(), 4096, false, false, limit, false)?;
         anyhow::ensure!(keys.insert(key), "allocator calibration key collision");
     }
     for invalid in [4097, usize::MAX] {
         anyhow::ensure!(
-            runtime_key_with_options(directory.path(), 4096, false, false, Some(invalid)).is_err()
+            runtime_key_with_options(directory.path(), 4096, false, false, Some(invalid), false)
+                .is_err()
         );
     }
     Ok(())

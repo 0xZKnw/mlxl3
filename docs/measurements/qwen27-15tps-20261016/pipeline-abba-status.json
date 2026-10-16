@@ -1,0 +1,98 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "benchmarks/compare_native.py",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--baseline",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "--candidate",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "--output",
+    "docs/measurements/qwen27-15tps-20261016/pipeline-abba",
+    "--prompt-file",
+    "docs/measurements/qwen27-20261016/prompt-code.txt",
+    "--tokens",
+    "256",
+    "--warmup-tokens",
+    "64",
+    "--mtp-depth",
+    "1",
+    "--mtp-head",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "--repeats",
+    "1",
+    "--order",
+    "ABBA",
+    "--load-timeout",
+    "120",
+    "--request-timeout",
+    "180",
+    "--campaign-timeout",
+    "900",
+    "--baseline-env",
+    "MLXL3_QWEN_PIPELINE=0",
+    "--candidate-env",
+    "MLXL3_QWEN_PIPELINE=1"
+  ],
+  "sha256": "4db446744abcd61ec0ff497fe83b4990202ebde1bf48ec28526d9f4f26793b55",
+  "common_environment": {
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "batch": "absent/default M2/M4",
+  "allocator_cache": "absent/default",
+  "reaped": true,
+  "exit_code": 0,
+  "prompts": {
+    "short": {
+      "A_tps": [
+        11.192295986948048,
+        10.989162484805556
+      ],
+      "B_tps": [
+        11.228558064334159,
+        11.415033763843468
+      ],
+      "median_gain_percent": 2.0834218679196104,
+      "max_min_drift_percent": {
+        "A": 1.8484893860051699,
+        "B": 1.6607270358392823
+      },
+      "tokens": 130,
+      "counters": [
+        71,
+        71,
+        60
+      ],
+      "speed_gate_passed": false,
+      "matches_Q27_03": true
+    },
+    "document": {
+      "A_tps": [
+        11.022840473089227,
+        11.033113767596612
+      ],
+      "B_tps": [
+        11.052861926749411,
+        11.144355037824269
+      ],
+      "median_gain_percent": 0.6404743242859112,
+      "max_min_drift_percent": {
+        "A": 0.09320006519613067,
+        "B": 0.827777562781562
+      },
+      "tokens": 256,
+      "counters": [
+        142,
+        142,
+        113
+      ],
+      "speed_gate_passed": false,
+      "matches_Q27_03": true
+    }
+  },
+  "speed_gate_passed": false,
+  "seconds": 212.08107312500942
+}

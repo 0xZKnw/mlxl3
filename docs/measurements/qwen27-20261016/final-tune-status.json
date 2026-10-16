@@ -1,0 +1,152 @@
+{
+  "status": "complete",
+  "parity": true,
+  "sha256": "4db446744abcd61ec0ff497fe83b4990202ebde1bf48ec28526d9f4f26793b55",
+  "validator": "docs/measurements/tune-feedback-20261010/diagnose-tune.py",
+  "validator_sha256": "3d2d8742730d65fd9d6d41e192b386322695e56b9135b33505af19a1450c1525",
+  "validator_tests": 1,
+  "common_environment": {
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "allocator_cache": "absent/default",
+  "batch": "absent/default",
+  "deadline_ready": 120,
+  "deadline_tune": 360,
+  "reaped": true,
+  "conditions": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "swap": "vm.swapusage: total = 5120.00M  used = 4144.69M  free = 975.31M  (encrypted)"
+  },
+  "command": [
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "--registry",
+    "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-q27-final-tune-1mxcze_x/models.json",
+    "bridge",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--context-length",
+    "4096"
+  ],
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": {
+      "draft_bytes_per_token": 4096,
+      "fixed_bytes": 153954304,
+      "layers": [
+        {
+          "bytes_per_token": 65536,
+          "max_tokens": null,
+          "step": 1
+        }
+      ]
+    },
+    "dflash_configure_supported": true,
+    "dflash_family": "qwen38_dense",
+    "dflash_supported": true,
+    "dflash_tune_supported": true,
+    "dflash_tuning_key": "0ecfe80cf1bcb3e2:1.4.5:7ce611c1c0db-dirty:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v2=1:dflash-v4:copy=0",
+    "load_seconds": 2.642952584,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "model_context_limit": 262144,
+    "modules": 401,
+    "mtp_auto_download_supported": true,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": true,
+    "mtp_tune_supported": true,
+    "mtp_tuning_key": "0ecfe80cf1bcb3e2:1.4.5:7ce611c1c0db-dirty:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v2=1",
+    "resident_gb": 9.696705133,
+    "runtime_commit": "7ce611c1c0db-dirty",
+    "runtime_executable": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.5",
+    "type": "ready"
+  },
+  "request": {
+    "type": "tune_mtp",
+    "request_id": "final-qwen27",
+    "mtp_head_path": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit"
+  },
+  "result": {
+    "best_depth": 1,
+    "noise_margin_percent": 3,
+    "request_id": "final-qwen27",
+    "rows": [
+      {
+        "accepted_tokens": 0,
+        "decode_seconds": 20.707895625,
+        "decode_tokens": 190,
+        "decode_tps": 9.175244237305257,
+        "depth": 0,
+        "eligible": true,
+        "lookup_blocks": 0,
+        "proposed_tokens": 0,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      },
+      {
+        "accepted_tokens": 81,
+        "decode_seconds": 17.739731166,
+        "decode_tokens": 190,
+        "decode_tps": 10.710421607975343,
+        "depth": 1,
+        "eligible": true,
+        "lookup_blocks": 0,
+        "proposed_tokens": 108,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      },
+      {
+        "accepted_tokens": 105,
+        "decode_seconds": 27.238645333,
+        "decode_tokens": 190,
+        "decode_tps": 6.975383602128419,
+        "depth": 2,
+        "eligible": true,
+        "lookup_blocks": 0,
+        "proposed_tokens": 169,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      },
+      {
+        "accepted_tokens": 114,
+        "decode_seconds": 24.036026291,
+        "decode_tokens": 190,
+        "decode_tps": 7.904800806077634,
+        "depth": 3,
+        "eligible": true,
+        "lookup_blocks": 0,
+        "proposed_tokens": 224,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      }
+    ],
+    "sample_tokens": 96,
+    "samples": 2,
+    "tuning_key": "0ecfe80cf1bcb3e2:1.4.5:7ce611c1c0db-dirty:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v2=1",
+    "type": "mtp_tune_complete"
+  },
+  "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true",
+  "seconds": 117.38244812504854,
+  "exit_code": 0
+}

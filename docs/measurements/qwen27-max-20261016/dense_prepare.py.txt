@@ -1,0 +1,339 @@
+"""Q27-17 disposable dense SwiGLU/suh/H128 screen, exact MLX0.32.2 oracle."""
+
+import argparse
+import hashlib
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path("/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0")
+sys.path.insert(0, str(ROOT / "benchmarks"))
+
+# The Sigmoid expression and typed half temporaries follow MLX0.32.2,
+# unary_ops.h and compiled.cpp. H128 stores at radix16/radix8 boundaries.
+SOURCE = r"""
+uint tid = thread_position_in_threadgroup.x;
+uint index = thread_position_in_grid.x;
+half g = gate[index];
+auto y = 1 / (1 + metal::exp(metal::abs(g)));
+half probability = (g < 0) ? y : 1 - y;
+half activated = g * probability;
+half glu = activated * up[index];
+#if STAGE == 0
+xhat[index] = glu;
+#else
+half scaled = glu * suh[index % WIDTH];
+#if STAGE == 1
+xhat[index] = scaled;
+#else
+threadgroup float ha[128];
+threadgroup float hb[128];
+ha[tid] = float(scaled);
+for (uint shift = 0u; shift < 7u; ++shift) {
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    uint h = 1u << shift;
+    float own = ha[tid], peer = ha[tid ^ h];
+    float value = (tid & h) ? peer - own : own + peer;
+    hb[tid] = (shift == 3u || shift == 6u) ? float(half(value)) : value;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    ha[tid] = hb[tid];
+}
+xhat[index] = half(ha[tid] * 0.08838834764831845f);
+#endif
+#endif
+"""
+ROUNDING = "(shift == 3u || shift == 6u) ? float(half(value)) : value"
+
+
+def checked_size(rows, width):
+    """raises: ValueError
+    post: __return__ % 128 == 0 and 0 < __return__ <= 34816
+    """
+    if (
+        type(rows) is not int
+        or rows not in (1, 2)
+        or type(width) is not int
+        or width != 17408
+    ):
+        raise ValueError("only preregistered M1/M2, H17408")
+    return rows * width
+
+
+def mutation_source(source=SOURCE):
+    if source.count(ROUNDING) != 1:
+        raise ValueError("missing or ambiguous H128 rounding boundary")
+    return source.replace(ROUNDING, "(shift == 6u) ? float(half(value)) : value")
+
+
+def kernel(mx, rows, width, stage=2, source=SOURCE):
+    size = checked_size(rows, width)
+    if type(stage) is not int or stage not in (0, 1, 2) or not source.strip():
+        raise ValueError("invalid stage/source")
+    digest = hashlib.sha256(source.encode()).hexdigest()[:16]
+    compiled = mx.fast.metal_kernel(
+        name=f"q2717_prepare_r{rows}_h{width}_s{stage}_{digest}",
+        input_names=["gate", "up", "suh"],
+        output_names=["xhat"],
+        header=f"#define WIDTH {width}u\n#define STAGE {stage}\n",
+        source=source,
+    )
+
+    def call(gate, up, suh):
+        if (
+            gate.shape != (rows, width)
+            or up.shape != gate.shape
+            or suh.shape != (width,)
+        ):
+            raise ValueError("invalid gate/up/suh shapes")
+        if any(a.dtype != mx.float16 for a in (gate, up, suh)):
+            raise ValueError("FP16 gate/up/suh required")
+        return compiled(
+            inputs=[gate, up, suh],
+            output_shapes=[(rows, width)],
+            output_dtypes=[mx.float16],
+            grid=(size, 1, 1),
+            threadgroup=(128, 1, 1),
+        )[0]
+
+    return call
+
+
+def records(checkpoint):
+    result = []
+    for name, (_, _, info) in sorted(checkpoint.tensors.items()):
+        match = re.fullmatch(
+            r"model\.language_model\.layers\.(\d+)\.mlp\.down_proj\.trellis", name
+        )
+        if not match:
+            continue
+        prefix = name.removesuffix(".trellis")
+        dims = info["shape"]
+        if (
+            info["dtype"] != "I16"
+            or len(dims) != 3
+            or dims[:2] != [1088, 320]
+            or dims[2] not in (16, 32, 48, 64)
+            or prefix + ".mul1" not in checkpoint.tensors
+        ):
+            raise ValueError("unexpected down EXL3 dimensions/codebook")
+        result.append({"layer": int(match[1]), "prefix": prefix, "k": dims[2] // 16})
+    if len(result) != 64 or sorted(r["layer"] for r in result) != list(range(64)):
+        raise ValueError("requires exactly all 64 dense down projections")
+    return sorted(result, key=lambda r: r["layer"])
+
+
+def run(args, report, save):
+    import mlx.core as mx
+    import numpy as np
+    from benchmark_smallm import Checkpoint, assert_exact, paired, qmv
+    from benchmark_smallm_reuse import speed_gate
+
+    mx.set_cache_limit(256 * 1024**2)
+    width = 17408
+    swiglu = mx.compile(lambda gate, up: (gate * mx.sigmoid(gate)) * up, shapeless=True)
+
+    def oracle(gate, up, suh, stage=2):
+        glu = swiglu(gate, up)
+        if stage == 0:
+            return glu
+        scaled = glu.astype(mx.float16) * suh.astype(mx.float16)
+        if stage == 1:
+            return scaled
+        rows = gate.shape[0]
+        return mx.hadamard_transform(
+            scaled.reshape(rows, width // 128, 128), scale=1 / 128**0.5
+        ).reshape(rows, width)
+
+    compiled = {
+        (rows, stage): kernel(mx, rows, width, stage)
+        for rows in (1, 2)
+        for stage in range(3)
+    }
+    # Every finite FP16 gate appears; up=2^-10 keeps unnormalized H128 finite.
+    bits = np.arange(65536, dtype=np.uint16)
+    finite = bits[(bits & 0x7C00) != 0x7C00]
+    assert finite.size == 63488
+    padded = np.resize(finite, 4 * width).view(np.float16)
+    for part in range(4):
+        gate = mx.array(padded[part * width : (part + 1) * width].reshape(1, width))
+        up = mx.full((1, width), 1 / 1024, dtype=mx.float16)
+        suh = mx.array(np.where(np.arange(width) % 2, -1, 1).astype(np.float16))
+        for stage in range(3):
+            assert_exact(
+                oracle(gate, up, suh, stage), compiled[1, stage](gate, up, suh)
+            )
+            report["checks"].append(
+                {
+                    "scope": "finite_half_gates",
+                    "part": part,
+                    "stage": stage,
+                    "values": width,
+                }
+            )
+    save()
+    checkpoint = Checkpoint(args.checkpoint)
+    layers = records(checkpoint)
+    report["checkpoint_headers"] = checkpoint.headers
+    representative = {}
+    for record in layers:
+        representative.setdefault(record["k"], record)
+    assert representative and set(representative).issubset({1, 2, 3, 4})
+    rng = np.random.default_rng(2717)
+    for record in layers:
+        raw_scale = checkpoint.load(record["prefix"] + ".suh")
+        if (
+            raw_scale.shape != (width,)
+            or raw_scale.dtype != np.float16
+            or not np.isfinite(raw_scale).all()
+        ):
+            raise ValueError("invalid actual down input scales")
+        suh = mx.array(raw_scale)
+        report["scales"].append(
+            {**record, "sha256": hashlib.sha256(raw_scale.tobytes()).hexdigest()}
+        )
+        weights = None
+        shape = {"input": width, "widths": [5120], "k": record["k"], "cb": 2}
+        if representative[record["k"]] == record:
+            weights = mx.array(
+                checkpoint.load(record["prefix"] + ".trellis").view(np.uint32)
+            )
+        for rows in (1, 2):
+            for salt in range(2):
+                gate = mx.array(rng.normal(0, 0.5, (rows, width)).astype(np.float16))
+                up = mx.array(rng.normal(0, 0.5, (rows, width)).astype(np.float16))
+                prepared = [oracle(gate, up, suh), compiled[rows, 2](gate, up, suh)]
+                assert_exact(*prepared)
+                entry = {
+                    **record,
+                    "scope": "real_scale",
+                    "rows": rows,
+                    "salt": salt,
+                    "values": rows * width,
+                }
+                if weights is not None:
+                    down = qmv(mx, shape, rows)
+                    sub = mx.zeros((320,), dtype=mx.uint32)
+                    assert_exact(
+                        *[
+                            down(x.reshape(rows, 1, width), weights, sub)
+                            for x in prepared
+                        ]
+                    )
+                    entry["down_raw_bit_exact"] = True
+                report["checks"].append(entry)
+                if "mutation" not in report:
+                    bad = kernel(mx, rows, width, source=mutation_source())(
+                        gate, up, suh
+                    )
+                    a, b = np.asarray(prepared[0]), np.asarray(bad)
+                    assert np.isfinite(b).all()
+                    differences = int(
+                        np.count_nonzero(a.view(np.uint16) != b.view(np.uint16))
+                    )
+                    assert differences > 0, (
+                        "rounding mutation escaped independent oracle"
+                    )
+                    try:
+                        assert_exact(prepared[0], bad)
+                    except AssertionError:
+                        report["mutation"] = {
+                            "rejected": True,
+                            "different_fp16_words": differences,
+                        }
+                    else:
+                        raise AssertionError("rounding mutation accepted")
+            save()
+        del weights, suh
+        mx.synchronize()
+        mx.clear_cache()
+    assert (
+        len(report["checks"]) == 268
+        and len(report["scales"]) == 64
+        and report["mutation"]["rejected"]
+    )
+    report["quality_complete"] = True
+    save()
+    for record in representative.values():
+        suh = mx.array(checkpoint.load(record["prefix"] + ".suh"))
+        for rows in (1, 2):
+            gate = mx.array(rng.normal(0, 0.5, (rows, width)).astype(np.float16))
+            up = mx.array(rng.normal(0, 0.5, (rows, width)).astype(np.float16))
+
+            def chain(steps, prepare, gate=gate, up=up, suh=suh):
+                value = gate
+                for _ in range(steps):
+                    value = (mx.tanh(prepare(value, up, suh)) * 0.2).astype(mx.float16)
+                return value
+
+            functions = [
+                lambda steps, fn=fn, chain=chain: chain(steps, fn)
+                for fn in (oracle, compiled[rows, 2])
+            ]
+            assert_exact(*[fn(8) for fn in functions])
+            entry = {
+                **record,
+                "rows": rows,
+                "status": "running",
+                "chain_bit_exact": True,
+            }
+            report["timings"].append(entry)
+            save()
+            timing = paired(mx, functions, args.iterations, 8)
+            entry.update(
+                status="complete", timing=timing, gate=speed_gate(timing["samples_ms"])
+            )
+            save()
+            print(json.dumps({**record, "rows": rows, **entry["gate"]}), flush=True)
+    assert len(report["timings"]) == 2 * len(representative)
+    report.update(
+        status="complete",
+        parity=True,
+        passing_cells=sum(t["gate"]["passed"] for t in report["timings"]),
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--iterations", type=int, default=40)
+    args = parser.parse_args()
+    if (
+        not args.checkpoint
+        or not args.output
+        or args.output.exists()
+        or args.iterations != 40
+    ):
+        parser.error("requires checkpoint, new output, and the preregistered 40 pairs")
+    report = {
+        "status": "running",
+        "parity": False,
+        "checks": [],
+        "scales": [],
+        "timings": [],
+        "source_sha256": hashlib.sha256(SOURCE.encode()).hexdigest(),
+        "cache_mib": 256,
+        "iterations": 40,
+        "quality_complete": False,
+        "scope": (
+            "8 dependent prepare-only steps, host+MLX+GPU sync; "
+            "no model/token throughput"
+        ),
+    }
+
+    def save():
+        args.output.write_text(json.dumps(report, indent=2) + "\n")
+
+    save()
+    try:
+        run(args, report, save)
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

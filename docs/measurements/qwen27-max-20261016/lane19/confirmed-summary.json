@@ -1,0 +1,399 @@
+{
+  "status": "validated_local_opt_in",
+  "default_enabled": false,
+  "engine_sha256": "d6a4ea4425ee525add3f3102e9d9fb91cc88cd084334ef42de2e0aa43db24536",
+  "test_sha256": "32cc7e76dc337a0d3ec1dcd7876b291fbd21e5716727be5e899b9fa890b95a03",
+  "source_head": "7ce611c1c0db9a704bbe35abccc6293fc6ee7995",
+  "local_modified": true,
+  "branch": "codex/qwen27-smallm",
+  "device": "Apple M5 standard,10GPU,24GB",
+  "power": "battery, explicitly authorized",
+  "mlx": "0.32.2",
+  "mode": "MTP1, MLP M2/M4 default, stockhead, allocator default, pipeline/adaptive/lookup off,context4096,greedy, promptcache off",
+  "flag": "MLXL3_EXL3_LANE_ORDER=1",
+  "prompts": {
+    "short": {
+      "tps": {
+        "A": [
+          10.876999774130162,
+          11.055841071341852,
+          11.024847495752361,
+          10.91753561134555
+        ],
+        "B": [
+          13.335126626000614,
+          13.65733327333988,
+          13.712712898006345,
+          13.644312722089596
+        ]
+      },
+      "medians": {
+        "A": 10.971191553548955,
+        "B": 13.650822997714737
+      },
+      "gain_percent": 24.42425174227294,
+      "max_min_drift_percent": {
+        "A": 1.6442153252319347,
+        "B": 2.8315162097487745
+      },
+      "generated_tokens": 130
+    },
+    "document": {
+      "tps": {
+        "A": [
+          10.718314408473475,
+          10.768462145053785,
+          10.766085286098901,
+          10.876384825189358
+        ],
+        "B": [
+          13.163679261657725,
+          13.450448794130681,
+          13.49189984031543,
+          13.31066113007041
+        ]
+      },
+      "medians": {
+        "A": 10.767273715576344,
+        "B": 13.380554962100545
+      },
+      "gain_percent": 24.27059361130319,
+      "max_min_drift_percent": {
+        "A": 1.4747693591719901,
+        "B": 2.49338024828456
+      },
+      "generated_tokens": 256
+    }
+  },
+  "campaigns": {
+    "ABBA": {
+      "seconds": 202.1645614169538,
+      "analysis": {
+        "parity": true,
+        "order": "ABBA",
+        "prompts": {
+          "short": {
+            "tps": {
+              "A": [
+                10.876999774130162,
+                11.055841071341852
+              ],
+              "B": [
+                13.335126626000614,
+                13.65733327333988
+              ]
+            },
+            "medians": {
+              "A": 10.966420422736007,
+              "B": 13.496229949670248
+            },
+            "gain_percent": 23.06868995911684,
+            "drift_percent": {
+              "A": 1.6442153252319347,
+              "B": 2.4162248801674835
+            },
+            "min_b_over_max_a": 1.2061612083559123,
+            "every_b_at_least_three_percent": true,
+            "passed": true
+          },
+          "document": {
+            "tps": {
+              "A": [
+                10.718314408473475,
+                10.768462145053785
+              ],
+              "B": [
+                13.163679261657725,
+                13.450448794130681
+              ]
+            },
+            "medians": {
+              "A": 10.74338827676363,
+              "B": 13.307064027894203
+            },
+            "gain_percent": 23.862823208907248,
+            "drift_percent": {
+              "A": 0.46786961707958596,
+              "B": 2.1784907302340617
+            },
+            "min_b_over_max_a": 1.222428893219829,
+            "every_b_at_least_three_percent": true,
+            "passed": true
+          }
+        },
+        "passed": true
+      },
+      "source": "abba-status.json"
+    },
+    "BAAB": {
+      "seconds": 198.90970691700932,
+      "analysis": {
+        "parity": true,
+        "order": "BAAB",
+        "prompts": {
+          "short": {
+            "tps": {
+              "A": [
+                11.024847495752361,
+                10.91753561134555
+              ],
+              "B": [
+                13.712712898006345,
+                13.644312722089596
+              ]
+            },
+            "medians": {
+              "A": 10.971191553548955,
+              "B": 13.67851281004797
+            },
+            "gain_percent": 24.676638296623764,
+            "drift_percent": {
+              "A": 0.9829313887952162,
+              "B": 0.5013090604850445
+            },
+            "min_b_over_max_a": 1.2375965043821657,
+            "every_b_at_least_three_percent": true,
+            "passed": true
+          },
+          "document": {
+            "tps": {
+              "A": [
+                10.766085286098901,
+                10.876384825189358
+              ],
+              "B": [
+                13.49189984031543,
+                13.31066113007041
+              ]
+            },
+            "medians": {
+              "A": 10.82123505564413,
+              "B": 13.40128048519292
+            },
+            "gain_percent": 23.842430335187025,
+            "drift_percent": {
+              "A": 1.024509245090921,
+              "B": 1.3616056217942596
+            },
+            "min_b_over_max_a": 1.2238129988967792,
+            "every_b_at_least_three_percent": true,
+            "passed": true
+          }
+        },
+        "passed": true
+      },
+      "source": "baab-status.json"
+    }
+  },
+  "physical": {
+    "projections": 20,
+    "mutation_finite_values": 246227,
+    "mlp_cases": 384,
+    "prefix_configurations": 40,
+    "commits": 100,
+    "continuation_tokens": 200,
+    "state_arrays": 128,
+    "session_cycles": 32,
+    "speculative_blocks": 29,
+    "ar_cycles": 3,
+    "bridge_budgets": 6,
+    "prefixes": 2,
+    "cancellations": 2,
+    "invalid_requests": 3
+  },
+  "cpu": {
+    "rust_passed": 179,
+    "rust_ignored": 85,
+    "checker_tests": 34,
+    "kani_success": 79,
+    "kani_covers": 11,
+    "kani_unreachable": 0
+  },
+  "limits": [
+    "15tok/s not reached",
+    "long context not benchmarked",
+    "Kani real Array API ICE; MLX/Metal/concurrency not proved",
+    "CrossHair unavailable",
+    "local changes have no remote CI run",
+    "installed app unchanged",
+    "no RAM gain claimed"
+  ],
+  "conditions": [
+    {
+      "order": "ABBA",
+      "label": "A",
+      "conditions": {
+        "recorded_at_unix": 1792170331.8260171,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t79%; discharging; 2:23 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 2940.12M  free = 1155.88M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "order": "ABBA",
+      "label": "B",
+      "conditions": {
+        "recorded_at_unix": 1792170388.226548,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t78%; discharging; 2:13 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 3285.31M  free = 810.69M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "order": "ABBA",
+      "label": "B",
+      "conditions": {
+        "recorded_at_unix": 1792170434.101915,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t77%; discharging; 2:03 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 3237.19M  free = 858.81M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "order": "ABBA",
+      "label": "A",
+      "conditions": {
+        "recorded_at_unix": 1792170479.580239,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t76%; discharging; 1:53 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 3398.88M  free = 697.12M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "order": "BAAB",
+      "label": "B",
+      "conditions": {
+        "recorded_at_unix": 1792170534.0222468,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t75%; discharging; 1:43 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 3398.88M  free = 697.12M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "order": "BAAB",
+      "label": "A",
+      "conditions": {
+        "recorded_at_unix": 1792170579.1311738,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t74%; discharging; 1:24 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 3430.44M  free = 665.56M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "order": "BAAB",
+      "label": "A",
+      "conditions": {
+        "recorded_at_unix": 1792170633.302408,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t73%; discharging; 1:16 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 3430.44M  free = 665.56M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "order": "BAAB",
+      "label": "B",
+      "conditions": {
+        "recorded_at_unix": 1792170687.491519,
+        "power": {
+          "returncode": 0,
+          "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t72%; discharging; 1:09 remaining present: true\n",
+          "stderr": ""
+        },
+        "thermal": {
+          "returncode": 0,
+          "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+          "stderr": ""
+        },
+        "swap": {
+          "returncode": 0,
+          "stdout": "vm.swapusage: total = 4096.00M  used = 3430.44M  free = 665.56M  (encrypted)\n",
+          "stderr": ""
+        }
+      }
+    }
+  ]
+}

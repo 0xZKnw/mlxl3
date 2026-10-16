@@ -1,0 +1,156 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "benchmarks/compare_native.py",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--baseline",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/candidate/mlxl3-rs",
+    "--candidate",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/candidate/mlxl3-rs",
+    "--output",
+    "docs/measurements/qwen27-15tps-20261016/blocks-abba",
+    "--prompt-file",
+    "docs/measurements/qwen27-20261016/prompt-code.txt",
+    "--tokens",
+    "256",
+    "--warmup-tokens",
+    "64",
+    "--mtp-depth",
+    "1",
+    "--mtp-head",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "--candidate-mtp-head",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/head",
+    "--repeats",
+    "1",
+    "--order",
+    "ABBA",
+    "--load-timeout",
+    "120",
+    "--request-timeout",
+    "180",
+    "--campaign-timeout",
+    "900"
+  ],
+  "environment": {
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "allocator_cache": "absent/default",
+  "batch_flag": "absent/default",
+  "timeout_seconds": 930,
+  "sources": {
+    "benchmarks/compare_native.py": "d637784c24b83e354803f60714f4c3183a66f28f9a7d0260d9e54ca4ca1f993f",
+    "scripts/native_json_process.py": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c",
+    "build/qwen27-blocks-20261016/candidate/mlxl3-rs": "18b5cde33abb86a4cfac36885c489a2303817fa3590849bb0041f3921ae0c633"
+  },
+  "head_metadata_sha256": "7e4ff0466add6116f582136b93330b3e26645b2fb68d9a8495f80bfb156693b2",
+  "pid": 6747,
+  "exit_code": 0,
+  "reaped": true,
+  "prompts": {
+    "short": {
+      "tps": {
+        "A": [
+          10.638945844329685,
+          10.6714636231378
+        ],
+        "B": [
+          9.936398257822608,
+          10.026252751863915
+        ]
+      },
+      "medians": {
+        "A": 10.655204733733743,
+        "B": 9.981325504843262
+      },
+      "gain_percent": -6.32441370888932,
+      "drift_percent": {
+        "A": 0.305648503939393,
+        "B": 0.9042964232091499
+      },
+      "speed_gate_passed": false,
+      "tokens": 130,
+      "mtp_counters": [
+        {
+          "label": "A",
+          "mtp_proposed_tokens": 71,
+          "mtp_accepted_tokens": 60,
+          "mtp_blocks": 71
+        },
+        {
+          "label": "B",
+          "mtp_proposed_tokens": 77,
+          "mtp_accepted_tokens": 54,
+          "mtp_blocks": 77
+        },
+        {
+          "label": "B",
+          "mtp_proposed_tokens": 77,
+          "mtp_accepted_tokens": 54,
+          "mtp_blocks": 77
+        },
+        {
+          "label": "A",
+          "mtp_proposed_tokens": 71,
+          "mtp_accepted_tokens": 60,
+          "mtp_blocks": 71
+        }
+      ]
+    },
+    "document": {
+      "tps": {
+        "A": [
+          10.429971182217038,
+          10.47415959094321
+        ],
+        "B": [
+          9.990393828099366,
+          10.499096835637074
+        ]
+      },
+      "medians": {
+        "A": 10.452065386580124,
+        "B": 10.24474533186822
+      },
+      "gain_percent": -1.9835319340624435,
+      "drift_percent": {
+        "A": 0.42366760132099834,
+        "B": 5.091921462664573
+      },
+      "speed_gate_passed": false,
+      "tokens": 256,
+      "mtp_counters": [
+        {
+          "label": "A",
+          "mtp_proposed_tokens": 142,
+          "mtp_accepted_tokens": 113,
+          "mtp_blocks": 142
+        },
+        {
+          "label": "B",
+          "mtp_proposed_tokens": 146,
+          "mtp_accepted_tokens": 109,
+          "mtp_blocks": 146
+        },
+        {
+          "label": "B",
+          "mtp_proposed_tokens": 146,
+          "mtp_accepted_tokens": 109,
+          "mtp_blocks": 146
+        },
+        {
+          "label": "A",
+          "mtp_proposed_tokens": 142,
+          "mtp_accepted_tokens": 113,
+          "mtp_blocks": 142
+        }
+      ]
+    }
+  },
+  "speed_gate_passed": false,
+  "seconds": 232.2042381670326
+}

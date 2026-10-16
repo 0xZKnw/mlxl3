@@ -162,6 +162,7 @@ def main():
     parser.add_argument("--warmup-tokens", type=int)
     parser.add_argument("--mtp-depth", type=int, choices=range(4), default=0)
     parser.add_argument("--mtp-head", type=Path)
+    parser.add_argument("--candidate-mtp-head", type=Path)
     parser.add_argument("--dflash-mode", type=int, choices=range(4), default=0)
     parser.add_argument("--dflash-draft", type=Path)
     parser.add_argument(
@@ -189,6 +190,8 @@ def main():
         )
     if args.mtp_depth > 0 and args.mtp_head is None:
         parser.error("--mtp-head is required when --mtp-depth > 0")
+    if args.candidate_mtp_head is not None and (args.mtp_depth == 0 or args.compare_mtp_dflash):
+        parser.error("--candidate-mtp-head requires MTP in both arms")
     if args.dflash_mode > 0 and args.dflash_draft is None:
         parser.error("--dflash-draft is required when --dflash-mode > 0")
     if args.mtp_depth > 0 and args.dflash_mode > 0 and not args.compare_mtp_dflash:
@@ -214,6 +217,9 @@ def main():
             "warmup_tokens": warmup_tokens,
             "mtp_depth": args.mtp_depth,
             "mtp_head": str(args.mtp_head.resolve()) if args.mtp_head else None,
+            "candidate_mtp_head": str((args.candidate_mtp_head or args.mtp_head).resolve())
+            if args.mtp_head
+            else None,
             "dflash_mode": args.dflash_mode,
             "dflash_draft": str(args.dflash_draft.resolve()) if args.dflash_draft else None,
             "compare_mtp_dflash": args.compare_mtp_dflash,
@@ -246,11 +252,17 @@ def main():
     try:
         for pass_index, label in enumerate(args.order):
             mtp_depth = args.mtp_depth if not args.compare_mtp_dflash or label == "A" else 0
+            mtp_head = (
+                args.candidate_mtp_head
+                if label == "B" and args.candidate_mtp_head
+                else args.mtp_head
+            )
             dflash_mode = args.dflash_mode if not args.compare_mtp_dflash or label == "B" else 0
             current = {
                 "label": label,
                 "index": pass_index,
                 "mtp_depth": mtp_depth,
+                "mtp_head": str(mtp_head.resolve()) if mtp_depth else None,
                 "dflash_mode": dflash_mode,
                 "status": "running",
                 "conditions": {"recorded_at_unix": time.time()},
@@ -321,7 +333,7 @@ def main():
                                 request_id,
                                 args.request_timeout,
                                 mtp_depth,
-                                args.mtp_head if mtp_depth else None,
+                                mtp_head if mtp_depth else None,
                                 dflash_mode,
                                 args.dflash_draft if dflash_mode else None,
                                 campaign_deadline,

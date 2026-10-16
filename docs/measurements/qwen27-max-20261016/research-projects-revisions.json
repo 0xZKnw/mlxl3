@@ -1,0 +1,77 @@
+[
+  {
+    "repo": "beamivalice/sushi",
+    "revision": "70dc0e807e4113179389377253fe8270d5a3333b",
+    "url": "https://github.com/beamivalice/sushi/commit/70dc0e807e4113179389377253fe8270d5a3333b.patch",
+    "header_lines": [
+      "From 70dc0e807e4113179389377253fe8270d5a3333b Mon Sep 17 00:00:00 2001",
+      "From: Theinruj Toranavikrai <my.beam@gmail.com>",
+      "Date: Fri, 16 Oct 2026 20:12:38 +0700",
+      "Subject: [PATCH] docs(perf): re-time the lane funnel rung table on 5feaacf1",
+      " (n64 on the funnel, w15 and w16)",
+      "",
+      "The recorded merge/funnel table predates 5feaacf1, so its n64 cells read",
+      "K4's old packed branch. Re-timed on a quiet box, every even n from 24 to 64"
+    ]
+  },
+  {
+    "repo": "lithos-ai/lithos-metal",
+    "revision": "5485ad6bac0a5649d66a347f3e01a655ea29d937",
+    "url": "https://github.com/lithos-ai/lithos-metal/commit/5485ad6bac0a5649d66a347f3e01a655ea29d937.patch",
+    "header_lines": [
+      "From f22f78609c2aae033221e0928561b59db64c92e1 Mon Sep 17 00:00:00 2001",
+      "From: Yu Zhou <yu@gpuos.ai>",
+      "Date: Sat, 10 Oct 2026 20:33:32 +0000",
+      "Subject: [PATCH 1/2] ci: gate a build against the previous release on real",
+      " models",
+      "",
+      "release-gate.yml builds, on hosted macOS, the bundle a tag of the commit would publish; tools/ci/release_gate.py on",
+      "each Mac runner installs it and the previous release's published bundle the way the Homebrew formula does, serves each"
+    ]
+  },
+  {
+    "repo": "turboderp-org/exllamav3",
+    "revision": "058b8630fd081f3ff46fce6246955b157c3a2e3b",
+    "url": "https://github.com/turboderp-org/exllamav3/commit/058b8630fd081f3ff46fce6246955b157c3a2e3b.patch",
+    "header_lines": [
+      "From 058b8630fd081f3ff46fce6246955b157c3a2e3b Mon Sep 17 00:00:00 2001",
+      "From: turboderp <11859846+turboderp@users.noreply.github.com>",
+      "Date: Wed, 14 Oct 2026 22:26:39 +0200",
+      "Subject: [PATCH] CPU-MoE: Fix MSVC atomics",
+      "",
+      "---",
+      " exllamav3/exllamav3_ext/cpu/moe_handoff.cu | 44 +++++++++++-----------",
+      " 1 file changed, 22 insertions(+), 22 deletions(-)"
+    ]
+  },
+  {
+    "repo": "ikawrakow/ik_llama.cpp",
+    "revision": "cea2d61ffdac38ee2958ba88d120fa07cb67703a",
+    "url": "https://github.com/ikawrakow/ik_llama.cpp/commit/cea2d61ffdac38ee2958ba88d120fa07cb67703a.patch",
+    "header_lines": [
+      "From cea2d61ffdac38ee2958ba88d120fa07cb67703a Mon Sep 17 00:00:00 2001",
+      "From: Serhii Trykhlieb <batttime@gmail.com>",
+      "Date: Fri, 16 Oct 2026 18:40:26 +0300",
+      "Subject: [PATCH] llama: reduce MTP output buffer allocation (#2687)",
+      "",
+      "Reserve logits and embedding output capacities independently for MTP. Avoid preallocating n_batch logits rows at context initialization and grow the logits portion on demand.",
+      "---",
+      " src/llama.cpp | 23 +++++++++++++++++------"
+    ]
+  },
+  {
+    "repo": "ggml-org/llama.cpp",
+    "revision": "7182ef71e6d5dd0c8ea76486fac134fcd25025d4",
+    "url": "https://github.com/ggml-org/llama.cpp/commit/7182ef71e6d5dd0c8ea76486fac134fcd25025d4.patch",
+    "header_lines": [
+      "From 7182ef71e6d5dd0c8ea76486fac134fcd25025d4 Mon Sep 17 00:00:00 2001",
+      "From: texasich <101962694+texasich@users.noreply.github.com>",
+      "Date: Fri, 16 Oct 2026 10:01:37 -0500",
+      "Subject: [PATCH] common: honor HTTP_PROXY/HTTPS_PROXY env vars in http client",
+      " (#21752)",
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: 8bit"
+    ]
+  }
+]

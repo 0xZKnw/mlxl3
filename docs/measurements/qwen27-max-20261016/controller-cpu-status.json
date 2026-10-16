@@ -1,0 +1,83 @@
+{
+  "status": "complete",
+  "tests_passed": 19,
+  "initial_failures": [
+    "Ruff unusedsys/importorder and blind Exception corrected beforeGPU"
+  ],
+  "checks": [
+    {
+      "name": "format",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "format",
+        "--check",
+        "/tmp/mlxl3-q27-max-20261016/bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/test_bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/run_filters.py",
+        "/tmp/mlxl3-q27-max-20261016/test_run_filters.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.010004708000000001,
+      "reaped": true
+    },
+    {
+      "name": "lint",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "check",
+        "/tmp/mlxl3-q27-max-20261016/bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/test_bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/run_filters.py",
+        "/tmp/mlxl3-q27-max-20261016/test_run_filters.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.012705833999999996,
+      "reaped": true
+    },
+    {
+      "name": "compile",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "/tmp/mlxl3-q27-max-20261016/bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/test_bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/run_filters.py",
+        "/tmp/mlxl3-q27-max-20261016/test_run_filters.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.027660875,
+      "reaped": true
+    },
+    {
+      "name": "tests",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "/tmp/mlxl3-q27-max-20261016/test_bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/test_run_filters.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.387400042,
+      "reaped": true
+    },
+    {
+      "name": "crosshair",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "crosshair",
+        "check",
+        "/tmp/mlxl3-q27-max-20261016/bounded_stage.py",
+        "/tmp/mlxl3-q27-max-20261016/run_filters.py",
+        "--per_condition_timeout=5"
+      ],
+      "exit_code": 1,
+      "seconds": 0.020185792000000036,
+      "reaped": true
+    }
+  ],
+  "limits": "CPU tests not source proof; CrossHair absent"
+}

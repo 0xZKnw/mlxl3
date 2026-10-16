@@ -1,0 +1,26 @@
+{
+  "status": "failed",
+  "mutation_detected": false,
+  "restored": true,
+  "mutant_source_sha256": "e2696c967002ec0c1d165a3777183cc377dbf9830860f19fc386cfa4a677d4ae",
+  "mutant_test_sha256": "a34f21853acf9e2b9c863ebe93d07b6e1687c8bad58c4732d2b825d35df8f5db",
+  "restore_build": {
+    "status": "process_complete",
+    "parity": false,
+    "command": [
+      "cargo",
+      "test",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "timeout_seconds": 300,
+    "pid": 12677,
+    "seconds": 32.42734587506857,
+    "exit_code": 0,
+    "reaped": true
+  },
+  "restored_test_sha256": "f675aa7b9414f5e0b9a409ead249af17b85b2f62fe3995fcd117969a9cbcc612"
+}

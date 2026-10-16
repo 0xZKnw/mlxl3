@@ -1,0 +1,68 @@
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+spec = importlib.util.spec_from_file_location(
+    "funnel_screen", Path(__file__).with_name("funnel_screen_v2.py")
+)
+screen = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(screen)
+
+
+def test_independent_integer_oracles_and_guard_mutations():
+    screen.self_test()
+
+
+@pytest.mark.parametrize(
+    "error", [ValueError("divergent"), TimeoutError("silent"), KeyboardInterrupt()]
+)
+def test_cli_preserves_failure_and_partial_evidence(tmp_path, monkeypatch, error):
+    output = tmp_path / "failed.json"
+
+    def fail(args, report, save):
+        report["checks"].append({"fixture": "observed"})
+        save()
+        raise error
+
+    monkeypatch.setattr(screen, "run", fail)
+    monkeypatch.setattr(
+        sys, "argv", ["funnel", "--checkpoint", str(tmp_path), "--output", str(output)]
+    )
+    with pytest.raises(type(error)):
+        screen.main()
+    report = json.loads(output.read_text())
+    assert report["status"] == "failed" and report["parity"] is False
+    assert report["checks"] == [{"fixture": "observed"}] and report["error"]
+
+
+def test_existing_evidence_cannot_be_overwritten(tmp_path, monkeypatch):
+    output = tmp_path / "existing.json"
+    output.write_bytes(b"preserve")
+    monkeypatch.setattr(
+        sys, "argv", ["funnel", "--checkpoint", str(tmp_path), "--output", str(output)]
+    )
+    with pytest.raises(SystemExit, match="2"):
+        screen.main()
+    assert output.read_bytes() == b"preserve"
+
+
+def test_all_real_m1_nt_are_explicit_and_m2_unchanged():
+    import json
+
+    shapes = json.loads(
+        (screen.ROOT / "docs/measurements/qwen27-20261016/inventory.json").read_text()
+    )["shapes"]
+    assert len(shapes) == 16
+    expected = [4, 2, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+    assert [screen.stock_nt(shape, 1) for shape in shapes] == expected
+    assert all(screen.stock_nt(shape, 2) is None for shape in shapes)
+    changed = [
+        shape
+        for shape in shapes
+        if not (shape["input"] == 5120 and sum(shape["widths"]) in (16384, 34816, 248320))
+    ]
+    assert len(changed) == 11
+    assert all(len(shape["widths"]) == 1 and screen.stock_nt(shape, 1) == 4 for shape in changed)

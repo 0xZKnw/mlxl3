@@ -76,6 +76,11 @@ jobs:
           python -m py_compile scripts/check_dflash2.py
       - name: Check bridge and QMM validation tools
         run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py
+      - name: Check factorial small-M profile and promotion gates
+        run: |
+          ruff format --check benchmarks/analyze_smallm_profile.py benchmarks/benchmark_smallm_reuse.py tests/test_smallm_profile.py tests/test_smallm_reuse.py
+          ruff check benchmarks/analyze_smallm_profile.py benchmarks/benchmark_smallm_reuse.py tests/test_smallm_profile.py tests/test_smallm_reuse.py
+          python -m pytest -q tests/test_smallm_profile.py tests/test_smallm_reuse.py
       - name: Check LFM2.5 quality evaluator and subprocess failures
         run: |
           ruff format --check benchmarks/eval_lfm25_quality.py tests/test_lfm25_quality.py
@@ -121,5 +126,17 @@ jobs:
             printf '%s\n' "$lfm_cpu_output"
             [[ "$lfm_cpu_output" == *"1 passed; 0 failed; 0 ignored;"* ]]
           done
+      - name: Check EXL3 lane layout CPU state and Tune key
+        if: matrix.os == 'macos-26'
+        shell: bash
+        run: |
+          mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          lane_cpu_output="$(cargo test --locked --release --lib --features mlx,chat linear::tests::lane_order_override_restores_and_stays_thread_local -- --exact)"
+          printf '%s\n' "$lane_cpu_output"
+          [[ "$lane_cpu_output" == *"1 passed; 0 failed; 0 ignored;"* ]]
+          lane_key_output="$(cargo test --locked --release --bin mlxl3-rs --features mlx,chat mtp_tune::runtime_key_distinguishes_smallm_options -- --exact)"
+          printf '%s\n' "$lane_key_output"
+          [[ "$lane_key_output" == *"1 passed; 0 failed; 0 ignored;"* ]]
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
       # not run inference or numeric GPU checks; the macOS build uses pinned libmlx.

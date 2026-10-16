@@ -13,7 +13,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def write_bridge(path, behavior="valid", speed=2, expected_mtp=None, expected_dflash=None):
+def write_bridge(
+    path, behavior="valid", speed=2, expected_mtp=None, expected_dflash=None, expected_head="head"
+):
     path.write_text(
         f"#!{sys.executable}\n"
         "import json, os, sys, time\n"
@@ -40,7 +42,7 @@ def write_bridge(path, behavior="valid", speed=2, expected_mtp=None, expected_df
         "    if expected_mtp is not None:\n"
         "        assert request['mtp'] == (expected_mtp > 0)\n"
         "        assert request['mtp_depth'] == max(1, expected_mtp)\n"
-        "        assert request['mtp_head_path'] == (str(Path(__file__).parent / 'head') if expected_mtp else '')\n"
+        f"        assert request['mtp_head_path'] == (str(Path(__file__).parent / {expected_head!r}) if expected_mtp else '')\n"
         "    count += 1\n"
         "    if expected_dflash is not None:\n"
         "        assert request['dflash2'] == (expected_dflash > 0)\n"
@@ -101,6 +103,7 @@ def run_campaign(
     candidate_mtp=None,
     candidate_dflash=None,
     slow_probe_after=None,
+    candidate_head="head",
 ):
     baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
     write_bridge(baseline, expected_mtp=expected_mtp, expected_dflash=expected_dflash)
@@ -110,6 +113,7 @@ def run_campaign(
         speed=4,
         expected_mtp=expected_mtp if candidate_mtp is None else candidate_mtp,
         expected_dflash=expected_dflash if candidate_dflash is None else candidate_dflash,
+        expected_head=candidate_head,
     )
     # Disposable condition probes keep this process integration portable.
     for name in ["pmset", "sysctl"]:
@@ -168,6 +172,52 @@ def test_explicit_mtp_modes_and_short_warmup_reach_both_engines(tmp_path, depth)
         prompt = current["prompts"]["short"]
         assert prompt["warmup"]["stats"]["generated_tokens"] == 2
         assert [r["stats"]["generated_tokens"] for r in prompt["runs"]] == [4, 4]
+
+
+def test_distinct_heads_reach_every_warmup_and_measured_request(tmp_path):
+    run, _, report = run_campaign(
+        tmp_path,
+        extra_args=[
+            "--mtp-depth",
+            "1",
+            "--mtp-head",
+            str(tmp_path / "head"),
+            "--candidate-mtp-head",
+            str(tmp_path / "head-B"),
+        ],
+        expected_mtp=1,
+        candidate_head="head-B",
+    )
+    assert run.returncode == 0, run.stderr
+    assert report["status"] == "complete" and report["parity"] is True
+    assert report["protocol"]["candidate_mtp_head"] == str(tmp_path / "head-B")
+    for entry in report["passes"]:
+        expected = "head-B" if entry["label"] == "B" else "head"
+        assert entry["mtp_head"] == str(tmp_path / expected)
+
+
+def test_candidate_head_without_mtp_never_launches_an_engine(tmp_path):
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "benchmarks/compare_native.py"),
+            str(tmp_path),
+            "--baseline",
+            str(tmp_path / "missing-A"),
+            "--candidate",
+            str(tmp_path / "missing-B"),
+            "--output",
+            str(tmp_path / "results"),
+            "--candidate-mtp-head",
+            str(tmp_path / "head-B"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    assert run.returncode == 2 and "requires MTP in both arms" in run.stderr
+    assert not (tmp_path / "results").exists()
 
 
 @pytest.mark.parametrize("mode", range(4))

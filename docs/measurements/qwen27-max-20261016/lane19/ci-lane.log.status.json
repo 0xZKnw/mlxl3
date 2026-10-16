@@ -1,0 +1,21 @@
+{
+  "status": "process_complete",
+  "parity": false,
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--release",
+    "--lib",
+    "--features",
+    "mlx,chat",
+    "linear::tests::lane_order_override_restores_and_stays_thread_local",
+    "--",
+    "--exact"
+  ],
+  "timeout_seconds": 120,
+  "pid": 14690,
+  "seconds": 0.3917480419622734,
+  "exit_code": 0,
+  "reaped": true
+}

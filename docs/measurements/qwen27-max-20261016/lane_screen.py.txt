@@ -1,0 +1,205 @@
+"""Q27-16 disposable half4 activation-load screen; permutation cost included."""
+
+import hashlib
+import json
+from pathlib import Path
+
+import funnel_screen as base
+
+MARKER = "// MLXL3_Q27_LANE_INPUT_PERMUTED"
+LANE_ORDER = (0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15)
+BASE_RUN = base.run
+BASE_QMV = base.qmv
+
+OLD_TILE = """                    half2 x_pair = half2(0.0h);
+                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+                        const device half2* x_pairs =
+                            reinterpret_cast<const device half2*>(
+                                xhat + (row_base + batch_row) * uint(INPUT_DIMS)
+                                     + tile_k * 16u
+                            );
+                        x_pair = x_pairs[lane & 7u];
+                    }
+                    half2 x_pair0 = simd_shuffle(x_pair, ushort(lane & 3u));
+                    half2 x_pair1 = simd_shuffle(x_pair, ushort((lane & 3u) + 4u));
+                    x_values[batch_row][0] = float(x_pair0.x);
+                    x_values[batch_row][1] = float(x_pair0.y);
+                    x_values[batch_row][2] = float(x_pair1.x);
+                    x_values[batch_row][3] = float(x_pair1.y);"""
+
+NEW_TILE = """                    // MLXL3_Q27_LANE_INPUT_PERMUTED
+                    half4 x_quad = half4(0.0h);
+                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+                        const device half4* x_quads =
+                            reinterpret_cast<const device half4*>(
+                                xhat + (row_base + batch_row) * uint(INPUT_DIMS)
+                                     + tile_k * 16u
+                            );
+                        x_quad = x_quads[lane & 3u];
+                    }
+                    x_values[batch_row][0] = float(x_quad.x);
+                    x_values[batch_row][1] = float(x_quad.y);
+                    x_values[batch_row][2] = float(x_quad.z);
+                    x_values[batch_row][3] = float(x_quad.w);"""
+
+OLD_MAPPED = """                    half2 x_pair(0);
+#if MLXL3_BATCH_ROWS
+                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+#endif
+                    const device half2* x_pairs = reinterpret_cast<const device half2*>(
+                        xhat
+#if MLXL3_BATCH_ROWS
+                        + (row_base + batch_row) * uint(GROUPS) * uint(INPUT_DIMS)
+#endif
+                        + sub * uint(INPUT_DIMS) + tile_k * 16u
+                    );
+                    x_pair = x_pairs[lane & 7u];
+#if MLXL3_BATCH_ROWS
+                    }
+#endif
+                    half2 x_pair0 = simd_shuffle(x_pair, ushort(lane & 3u));
+                    half2 x_pair1 = simd_shuffle(x_pair, ushort((lane & 3u) + 4u));
+                    x_values[batch_row][0] = float(x_pair0.x);
+                    x_values[batch_row][1] = float(x_pair0.y);
+                    x_values[batch_row][2] = float(x_pair1.x);
+                    x_values[batch_row][3] = float(x_pair1.y);"""
+
+NEW_MAPPED = """                    // MLXL3_Q27_LANE_INPUT_PERMUTED
+                    half4 x_quad(0);
+#if MLXL3_BATCH_ROWS
+                    if (row_base + batch_row < uint(MLXL3_MATRIX_ROWS)) {
+#endif
+                    const device half4* x_quads = reinterpret_cast<const device half4*>(
+                        xhat
+#if MLXL3_BATCH_ROWS
+                        + (row_base + batch_row) * uint(GROUPS) * uint(INPUT_DIMS)
+#endif
+                        + sub * uint(INPUT_DIMS) + tile_k * 16u
+                    );
+                    x_quad = x_quads[lane & 3u];
+#if MLXL3_BATCH_ROWS
+                    }
+#endif
+                    x_values[batch_row][0] = float(x_quad.x);
+                    x_values[batch_row][1] = float(x_quad.y);
+                    x_values[batch_row][2] = float(x_quad.z);
+                    x_values[batch_row][3] = float(x_quad.w);"""
+
+
+def transform(source):
+    variants = [(OLD_TILE, NEW_TILE), (OLD_MAPPED, NEW_MAPPED)]
+    matches = [(old, new) for old, new in variants if old in source]
+    if MARKER in source or len(matches) != 1 or source.count(matches[0][0]) != 1:
+        raise ValueError("inspect changed or ambiguous QMV activation-load source")
+    old, new = matches[0]
+    return source.replace(old, new)
+
+
+def permutation(dims: int) -> tuple[int, ...]:
+    """pre: dims > 0 and dims % 16 == 0
+    post: len(__return__) == dims
+    post: all(0 <= value < dims for value in __return__)
+    post: len(set(__return__)) == dims
+    """
+    if isinstance(dims, bool) or not isinstance(dims, int) or dims <= 0 or dims % 16:
+        raise ValueError("activation dimensions must be a positive multiple of 16")
+    return tuple(start + offset for start in range(0, dims, 16) for offset in LANE_ORDER)
+
+
+def qmv(mx, shape, rows, **options):
+    source = options.get("source")
+    candidate = source is not None and MARKER in source
+    if candidate and source.count(MARKER) != 1:
+        raise ValueError("ambiguous lane permutation marker")
+    kernel = BASE_QMV(mx, shape, rows, **options)
+    if not candidate:
+        return kernel
+    indices = mx.array(permutation(shape["input"]), dtype=mx.int32)
+
+    def call(xhat, weights, tile_sub):
+        return kernel(mx.take(xhat, indices, axis=-1), weights, tile_sub)
+
+    return call
+
+
+def stock_nt(shape, rows):
+    if rows != 1:
+        return None
+    cols = sum(shape["widths"])
+    if shape["input"] == 5120 and (
+        (shape["k"] == 2 and cols in (16384, 34816)) or (shape["k"] == 3 and cols == 248320)
+    ):
+        return 4
+    tiles = cols // 16
+    if tiles >= 1024:
+        return 2 if tiles % 2 == 0 else 1
+    return 4 if tiles % 4 == 0 else 2 if tiles % 2 == 0 else 1
+
+
+def self_test():
+    checks = mutations = 0
+    for dims in (16, 128, 512, 5120, 17408):
+        order = permutation(dims)
+        assert len(order) == dims and sorted(order) == list(range(dims))
+        for lane in range(32):
+            for tile in range(dims // 16):
+                begin = tile * 16
+                expected = [begin + 2 * (lane % 4) + offset for offset in (0, 1, 8, 9)]
+                actual = list(order[begin + 4 * (lane % 4) : begin + 4 * (lane % 4) + 4])
+                assert actual == expected
+                checks += 1
+    for basis in range(16):
+        original = [int(index == basis) for index in range(16)]
+        packed = [original[index] for index in permutation(16)]
+        for lane in range(32):
+            expected = [original[2 * (lane % 4) + offset] for offset in (0, 1, 8, 9)]
+            assert packed[4 * (lane % 4) : 4 * (lane % 4) + 4] == expected
+            bad = original[4 * (lane % 4) : 4 * (lane % 4) + 4]
+            mutations += bad != expected
+            checks += 1
+    assert mutations > 0
+    for name in ("_qmv_tile_kernel.metal", "_qmv_mapped_tile_kernel.metal"):
+        stock = (base.ROOT / "native/shaders" / name).read_text()
+        candidate = transform(stock)
+        assert candidate.count(MARKER) == 1 and candidate.count(base.OLD) == stock.count(base.OLD)
+        old, new = (OLD_MAPPED, NEW_MAPPED) if "mapped" in name else (OLD_TILE, NEW_TILE)
+        assert candidate.replace(new, old) == stock
+        for invalid in ("", stock.replace(old, ""), stock + old, candidate):
+            try:
+                transform(invalid)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("missing or duplicate source accepted")
+    print(json.dumps({"self_test": True, "lane_cases": checks, "mutation_cases": mutations}))
+
+
+def run(args, report, save):
+    report.update(
+        candidate="half4_lane_order",
+        lane_order=list(LANE_ORDER),
+        permutation_cost="mx.take inside every candidate projection, including timed chains",
+        metadata="one immutable GPU index array per candidate kernel",
+        nt_protocol="explicit native M1 NT; unchanged M2 dispatch",
+        base_sha256=hashlib.sha256(Path(base.__file__).read_bytes()).hexdigest(),
+    )
+    save()
+    old_transform, old_qmv, old_nt = base.transform, base.qmv, base.stock_nt
+    base.transform, base.qmv, base.stock_nt = transform, qmv, stock_nt
+    try:
+        BASE_RUN(args, report, save)
+    finally:
+        base.transform, base.qmv, base.stock_nt = old_transform, old_qmv, old_nt
+
+
+def main():
+    old_run, old_self_test = base.run, base.self_test
+    base.run, base.self_test = run, self_test
+    try:
+        base.main()
+    finally:
+        base.run, base.self_test = old_run, old_self_test
+
+
+if __name__ == "__main__":
+    main()

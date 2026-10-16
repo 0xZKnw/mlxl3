@@ -1,0 +1,71 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "fmt-retained",
+      "command": [
+        "cargo",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.2336193749215454
+    },
+    {
+      "name": "clippy-retained",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 1.954654166009277
+    },
+    {
+      "name": "tests-retained",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit_code": 0,
+      "seconds": 42.15624304104131,
+      "tests": {
+        "passed": 177,
+        "failed": 0,
+        "ignored": 86
+      }
+    },
+    {
+      "name": "build-retained",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit_code": 0,
+      "seconds": 0.07260391698218882
+    }
+  ],
+  "engine_sha256": "18b5cde33abb86a4cfac36885c489a2303817fa3590849bb0041f3921ae0c633",
+  "test_sha256": "870f153c51e0bc7e17d84cc91fcc4f34b0fa0568b7297be2cbf98906057bdd1a",
+  "sources": {
+    "native/src/contracts.rs": "b27d8b1633b5cf1ebb662ebf53c1f4ad7bf946f4eaef183df7223f0d259c357b",
+    "native/src/linear.rs": "9b9cea15a9b1b97778c01e6ff74bddaef26a24ec21d83f23d0ecc4a663125575",
+    "native/src/lfm2.rs": "cbe2f0bc22cee446d595525249262aa89d28a9b4868e04d8858feb3dff25449d",
+    "native/src/mtp.rs": "c119119636de359668b5094012789de31d8696525adae0f66539bcda0b623367",
+    "native/src/qwen35.rs": "328da58d12e89488679d309aa7a00c3d95224281f1c1faa9f197be1d2ad1948f"
+  }
+}
