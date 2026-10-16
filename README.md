@@ -30,10 +30,11 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
-## Desktop 1.4.5 and engine 1.4.5
+## Desktop 1.4.6 and engine 1.4.6
 
-Desktop **1.4.5, build 27** bundles engine **1.4.5**. It fixes the app updater's
-assumption that app and engine versions must match. Version 1.4.4 was withdrawn
+Desktop **1.4.6, build 28** bundles engine **1.4.6**. It fixes arm64 verification
+with LLVM lipo in recent Xcode versions and removes the MTPLX settings footer.
+The app updater supports independent app and engine versions. Version 1.4.4 was withdrawn
 from the stable channel because Desktop 1.4.3 rejected its bundled engine version.
 LFM models without MTP no
 longer inherit a sampling lock, and their context-memory estimate is available.
@@ -47,8 +48,8 @@ opt-in (`MLXL3_LFM_MOE_PREFILL=1`). The timing studies do not meet the stability
 release speedup; the default remains canonical. The unsuccessful capacity-cache
 prototype was removed. Model weights are unchanged.
 
-[Desktop changelog](docs/release-v1.4.5.md) ·
-[Engine changelog](docs/release-engine-v1.4.5.md) ·
+[Desktop changelog](docs/release-v1.4.6.md) ·
+[Engine changelog](docs/release-engine-v1.4.6.md) ·
 [Audit decisions and verification](docs/measurements/audit-api-lfm-20261016/lfm-final.md).
 
 ## DFlash2 in v1.4.3

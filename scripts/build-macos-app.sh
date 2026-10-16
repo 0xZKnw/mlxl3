@@ -45,7 +45,7 @@ install -m 755 "${mlx_root}/lib/libjaccl.dylib" "${runtime_dist_dir}/libjaccl.dy
 install -m 644 "${mlx_root}/lib/mlx.metallib" "${runtime_dist_dir}/mlx.metallib"
 for component in mlxl3 libmlx.dylib libjaccl.dylib; do
     codesign --force --sign - "${runtime_dist_dir}/${component}"
-    lipo -verify_arch arm64 "${runtime_dist_dir}/${component}"
+    lipo "${runtime_dist_dir}/${component}" -verify_arch arm64
 done
 "${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist"
 
