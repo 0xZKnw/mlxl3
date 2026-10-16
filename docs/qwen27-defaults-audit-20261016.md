@@ -1,35 +1,38 @@
-# Qwen3.8-27B : optimisations activées dans le Desktop
+# Qwen3.8-27B : audit des optimisations activées dans le Desktop
 
-Audit Q27-22 du 16 octobre 2026, moteur publié 1.4.7 / source 957b1946, correctif 1.4.8 en qualification. Le Desktop 1.4.6 lance le bridge avec son environnement hérité ; il ne définit aucune des options de performance ci-dessous. Le moteur installé est bien 1.4.7 (`Engines/current.json`, lecture seule). Aucun autre moteur natif ne tournait au relevé ; batterie 52 %, explicitement autorisée.
+Audit Q27-22 du 16 octobre 2026, à partir du moteur 1.4.7 (source957b1946). Révision après publication du moteur **1.4.8**, source26987a2c : le défaut d'activation identifié est corrigé et vérifié. Le Desktop1.4.6 transmet son environnement au bridge ; il ne définit aucune des options de performance ci-dessous.
 
-**Un seul gain de décodage qualifié est resté coupé par erreur de livraison : lane order, Q27-19.** Les autres optimisations de débit retenues sont déjà automatiques. Les options encore coupées ont une qualification insuffisante, un autre objectif ou un autre modèle. L'audit ne relance pas les anciens benchmarks et n'active aucune option supplémentaire.
+**Un seul gain de décodage qualifié était resté coupé : lane order, Q27-19.** Les autres gains retenus sont déjà automatiques. Les options encore coupées n'ont pas établi de gain de débit du27B, ou concernent la mémoire ou un autre modèle. L'audit n'a relancé aucun ancien benchmark et n'a activé aucun autre paramètre.
 
-| Mécanisme / option | Défaut réel1.4.7 | Preuve et décision27B/M5 |
+| Mécanisme / option | Défaut réel | Preuve et décision sur le27B/M5 |
 |---|---|---|
-| `MLXL3_EXL3_LANE_ORDER` | **OFF** en absence de variable | Q27-19 : 13,6508FR/13,3806code contre10,9712/10,7673 tok/s, ABBA+BAAB sur batterie. Défaut de livraison confirmé ; corrigé séparément sousQ27-21. Garde M5/Mul1,16formes,M1/M2 par projection conservée |
-| `MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH` | **ON** absent ou1, M2/M4 seulement | Q27-03 : 11,0765/10,9362tok/s contre9,176/9,0106 sur secteur, avantlane. App atteint le même `forward_verification`; aucun flag manquant |
-| `MLXL3_DENSE_DECODE_NT4` | **ON** sauf0, formes qualifiées | Round2 :≈5% sur forward àtokens imposés ; bridgehistorique nonconcluant. Déjà intégré dans `Exl3Linear`/`Exl3Group`. Ne pas réadditionner ce gain àQ19 |
-| TensorOps M5 / `MLXL3_DISABLE_TENSOR_OPS` | **Automatique** ; variable de désactivation absente normalement | `Array::is_m5_gpu` détecte AppleM5 ; QMM préfill déjà livré. Pas de bascule supplémentaire côtéGUI |
-| `MLXL3_DENSE_PREFILL_M64` | **ON** sauf0, grandes formes/préfill admissibles | Sélection BM64 déjà dans `tensor_qmm`. Agit sur le préfill et ses limites, pas une seconde accélération cachée du decode |
-| `MLXL3_EXPERIMENTAL_GROUPED_MB3` | **OFF** | K1/K2 historiques nonconcluants ; Q27-00/02 gardent M3 série après régression du batchMLP3. Ce n'est pas un gain validé laissé coupé |
-| `MLXL3_QWEN_PIPELINE` | **OFF pourdense27B** ; autoMTP pourMoE qualifié | Q27-05 :FR11,0907→11,3218/code11,0280→11,0986tok/s, sous3% malgré contrôlesstables. Ne pas généraliser le boostMoE au27B |
-| `MLXL3_QWEN_FUSED_NORM` et `MLXL3_MTP_FUSED_NORM` | **OFF** | Campagnes1.4.0 :qualité bitexacte, −3,03% à+1,80% et dérive ; gain nonétabli. Activationpardéfaut déjà rejetée |
-| `MLXL3_MTP_ADAPTIVE` | **OFF** | Contrôleur/états/budgets validés, vitesse nonqualifiée. MTP1 reste la meilleure profondeur mesurée du27B ; davantage de propositions ne garantit pas davantage de tok/s |
-| `MLXL3_MTP_LOOKUP` | **OFF** | Qualité contrôlée, gain historique nonreproduit et débitdense nonmesuré. Les propositions issues du contexte sont vérifiées mais peuvent coûter plus qu'elles rapportent |
-| `MLXL3_EMBEDDINGS_PACKED` | **OFF** | Économie de301465600octets MLX pour l'embedding27B dans le contrôlehistorique, exactitude validée. Objectifmémoire, débit nonqualifié ; aucune hausseTPS déduite de cette économie |
-| `MLXL3_ALLOCATOR_CACHE_MIB` | **DéfautMLX conservé**, aucune limiteforcée | Q27-03/Q19débit qualifié sous cedéfaut ;256Mio servait àborner les grossesfixtures dequalité. Désactiver le cache peut supprimerlaréutilisation ; aucune hausseTPS qualifiée |
-| Cachepréfixe / compaction / nettoyage après chargement | **Actifs par défaut**, budget256Mio | Réutilisation conditionnée àunpréfixe déjàcapturé ;0/57 sur un premier court message n'indique pas unboostdedecodeoublié. Le cachepréfixe accélère surtout la reprise duprompt ; ne seconfond pasavec lecacheallocateur |
-| Chaîne draftGPU / projectionsgroupées / fusionsGDN déjàretenues | **Chemins automatiques existants** | Session/projections réelles déjà exercées parQ27-03/19. Les prototypes GDNHv48, tête réduite etfunnel ne sont pasdesflags prêtsàactiver : rejetés/retirés |
+| `MLXL3_EXL3_LANE_ORDER` | OFF dans1.4.7 ; **ON dans1.4.8** | Q27-19 :13,65/13,38tok/s contre10,97/10,77, ABBA+BAAB sur batterie. Seul défaut de livraison confirmé. Garde M5/Mul1,16formes,M1/M2 conservée |
+| `MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH` | **ON**, M2/M4 | Q27-03 :11,08/10,94 contre9,18/9,01tok/s sur secteur, avantlane. L'app atteint déjà ce chemin ; gains non additionnables |
+| `MLXL3_DENSE_DECODE_NT4` | **ON**, sauf0 | Environ5% sur forward à tokens imposés ; bridge historique non concluant. Déjà intégré aux projections qualifiées |
+| TensorOps M5 / `MLXL3_DISABLE_TENSOR_OPS` | **Automatique** | Détection AppleM5 et QMM déjà livrées. La variable sert à désactiver ; aucune bascule manquante dans le Desktop |
+| `MLXL3_DENSE_PREFILL_M64` | **ON**, sauf0 | BM64 pour les grandes formes admissibles. Concerne le préfill ; aucune seconde accélération cachée du decode |
+| `MLXL3_EXPERIMENTAL_GROUPED_MB3` | **OFF** | Essais historiques non concluants. Q27-00/02 conservent M3 en série après régression du batchMLP3 |
+| `MLXL3_QWEN_PIPELINE` | **OFF sur le dense27B** | Q27-05 :11,09→11,32FR et11,03→11,10code, sous le seuil3%. Le défaut automatique duMoE qualifié ne s'étend pas au27B |
+| `MLXL3_QWEN_FUSED_NORM` / `MLXL3_MTP_FUSED_NORM` | **OFF** | Qualité bitexacte ; −3,03% à+1,80% et dérive. Gain non établi, activation par défaut déjà rejetée |
+| `MLXL3_MTP_ADAPTIVE` | **OFF** | Contrôleur, états et budgets validés ; vitesse non qualifiée. MTP1 reste la meilleure profondeur mesurée du27B |
+| `MLXL3_MTP_LOOKUP` | **OFF** | Gain historique non reproduit, débit dense non mesuré. Vérifier des propositions du contexte a aussi un coût |
+| `MLXL3_EMBEDDINGS_PACKED` | **OFF** | Économie historique de301465600octets MLX pour l'embedding27B, exactitude validée. Objectif mémoire ; aucun gainTPS qualifié |
+| `MLXL3_ALLOCATOR_CACHE_MIB` | **Défaut MLX conservé** | Débit Q27-03/19 qualifié ainsi ;256Mio servait aux grosses fixtures de qualité. Limiter ou couper la réutilisation n'est pas un gain établi |
+| Cache préfixe, compaction et nettoyage au chargement | **Actifs par défaut** | Budget256Mio, réutilisation d'un préfixe capturé. `0/57` sur un court prompt n'indique pas un boost de decode oublié |
+| Chaîne draftGPU, projections groupées, fusionsGDN retenues | **Chemins automatiques existants** | Déjà exercés par Q27-03/19. Les prototypes GDNHv48, tête réduite et funnel rejetés/retirés ne sont pas des options prêtes à activer |
 
-## Câblage vérifié
+## Câblage et qualification du correctif
 
-`MLXL3Bridge.start` transmet `ProcessInfo.processInfo.environment` au moteur indépendant. `StudioModel` et le bridge choisissent MTP1 par défaut ; la clé de calibration inclut version, commit, modèle, contexte, batchMLP, lane, pipeline et autresoptions décrites. Une miseàjourmoteur ne doit donc pas reprendre une ancienne mesure comme silaconfiguration était inchangée. L'interface affiche bien 1.4.7 : la panne décrite n'est pas une ancienne version encoreinstallée.
+`MLXL3Bridge.start` transmet `ProcessInfo.processInfo.environment`. `StudioModel` et le bridge choisissent MTP1 par défaut. La clé Tune inclut modèle, contexte, version, commit et options pertinentes ; les anciennes calibrations ne sont pas attribuées à la nouvelle configuration.
 
-Le correctif deQ27-21 atteint les deuxappelants de la décision lane :préparation/dispatch dans `linear.rs`, puis `runtime_key` dans `mtp_tune.rs`. Absence devientON,1resteON,0/valeursinvalides ycomprisnonUnicode restentOFF ; profils0/1 restentdistincts. Le shader et la garde des formes sont inchangés. Les autresparamètres ci-dessus restent telsquequalifiés.
+Le correctif atteint les deux appelants de la décision lane : dispatch dans `linear.rs` et clé Tune dans `mtp_tune.rs`. Absence et1 activent ;0, vide, malformé et non Unicode désactivent. Le shader et les gardes sont inchangés. Le paquet signé passe six processus pour ces variantes, six sorties FR130/code256 exactes aux références, puis budgets, préfixes, annulations et reprises du bridge.
 
-## Sources locales et limites
+La comparaison récente du paquet observe11,21FR/11,22code contre9,17/8,62tok/s, avec une dérive des témoins dépassant3% : **non concluante en vitesse**, BAAB conditionnelle non lancée. Les13,65/13,38 restent les mesures historiques Q27-19 ;15tok/s ne sont pas établis. [Changelog et limites1.4.8](release-engine-v1.4.8.md).
 
-- [Source du dispatch](../native/src/linear.rs), [Qwen etbatchMLP](../native/src/qwen35.rs), [contrats](../native/src/contracts.rs), [Tune](../native/src/mtp_tune.rs), [détectionM5/cache](../native/src/array.rs), [bridgeDesktop](../apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift), [sélectionMTP](../apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift).
-- [Q27-03/MLP](qwen27-optimization-20261016.md), [Q27-05/pipeline](qwen27-vers-15-20261016.md), [Q27-19/lanes et34pistes](qwen27-max-optimisations-20261016.md), [MB3/batchhistoriques](qwen27-speed-20261008.md), [NT4](qwen27-m5-round2.md), [préfill](qwen27-m5-optimization.md), [fusionsnorme](mtp-dense-1.4.0-validation.md), [lookup](engine-v1.4.2-research.md), [journalcomplet](../opti.md).
+## Sources et portée
 
-Audit statique du code et des preuves conservées : aucun nouveau gainadditif, aucune nouvelle preuve GPU, aucunbenchmark relancé pourcet inventaire. Les 14 lignes ne sont pas 14 gains. Les résultats de vitesse du défaut 1.4.8 seront joints àla release aprèsqualification ;13,65/13,38 restent les mesures historiquesQ19 tantquecettenouvellecampagne n'est pas terminée. Les débits d'un message court réel dépendent aussi du contenu, de l'acceptation, du contexte et desconditionsmatérielles.
+[Dispatch](../native/src/linear.rs), [Qwen/MLP](../native/src/qwen35.rs), [contrats](../native/src/contracts.rs), [Tune](../native/src/mtp_tune.rs), [détectionM5/cache](../native/src/array.rs), [bridgeDesktop](../apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift), [sélectionMTP](../apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift).
+
+[Q27-03](qwen27-optimization-20261016.md), [pipelineQ27-05](qwen27-vers-15-20261016.md), [Q27-19 et34pistes](qwen27-max-optimisations-20261016.md), [MB3/batch historiques](qwen27-speed-20261008.md), [NT4](qwen27-m5-round2.md), [préfill](qwen27-m5-optimization.md), [normes fusionnées](mtp-dense-1.4.0-validation.md), [lookup](engine-v1.4.2-research.md), [journal](../opti.md).
+
+Audit statique de14mécanismes, sans nouveau gain additionnel ni preuveGPU générale. Les débits d'un message réel dépendent aussi du contenu, de l'acceptation, du contexte et des conditions de la machine. [Validation publiée](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.8).

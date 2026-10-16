@@ -1,5 +1,7 @@
 # Qwen3.8-27B EXL3 : recherche consolidée vers 15 tok/s
 
+> Révision du16octobre2026 : le [moteur1.4.8](release-engine-v1.4.8.md) active désormais le chemin qualifié Q27-19 par défaut dans l'app. Les chiffres ci-dessous restent ceux de la campagne historique ; le comparatif récent du paquet est non concluant en vitesse à cause de la dérive. Le défaut d'activation et l'[audit des autres options](qwen27-defaults-audit-20261016.md) sont consignés séparément.
+
 **Résultat confirmé : 13,65 tok/s en français et 13,38 tok/s en code sur batterie**, avec l'option locale d'ordre des activations. Les témoins appariés donnent 10,97 et 10,77 tok/s : **+24,42 % et +24,27 %**, sur huit processus en ABBA puis BAAB. Les 15 tok/s ne sont pas atteints. L'option reste désactivée par défaut dans le code local ; l'app installée est inchangée.
 
 **34 mécanismes distincts examinés**, après déduplication des 49 lignes des trois notes (19 entrées de la note arXiv, 18 entrées de la note projets, 12 pistes locales). Ce sont des mécanismes examinés, dont certains sont déjà rejetés ou exigent un autre contrat ; ce ne sont pas 34 nouvelles optimisations ni 34 gains additionnables. Le comptage des octets et le diagnostic des goulots sont une méthode de sélection, pas une 35e optimisation.

@@ -1,0 +1,1187 @@
+{
+  "schema": 1,
+  "status": "functional_validated_speed_inconclusive_full_kani_incomplete",
+  "recorded_at_utc": "2026-10-16T18:38:19.047996+00:00",
+  "source_commit": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+  "source_clean_at_build": true,
+  "runtime_info": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "26987a2c1aa9",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.4.8"
+  },
+  "default_activation_validated": true,
+  "package": {
+    "status": "complete",
+    "source_commit": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+    "source_clean": true,
+    "checks": [
+      "mlxl3 ad-hoc signature and arm64",
+      "libmlx.dylib ad-hoc signature and arm64",
+      "libjaccl.dylib ad-hoc signature and arm64",
+      "archive byte reproducible",
+      "all 5 archive members, manifest, sizes, hashes verified",
+      "clean signed runtime-info and min macOS26.2"
+    ],
+    "build": {
+      "status": "process_complete",
+      "parity": false,
+      "command": [
+        "cargo",
+        "build",
+        "--release",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "timeout_seconds": 600,
+      "pid": 30630,
+      "seconds": 41.13644375000149,
+      "exit_code": 0,
+      "reaped": true
+    },
+    "runtime_info": {
+      "architecture": "aarch64",
+      "bridge_protocol": 1,
+      "chat_enabled": true,
+      "commit": "26987a2c1aa9",
+      "mlx_enabled": true,
+      "profile": "release",
+      "version": "1.4.8"
+    },
+    "assets": {
+      "MLXL3-Engine-v1.4.8-arm64.tar.gz": {
+        "size": 66959926,
+        "sha256": "2c79f9b13b7e28f863c6156c45eb88b66cd10565f8f111af0a7555a3635aba44"
+      },
+      "MLXL3-Engine-v1.4.8-arm64.json": {
+        "size": 13587,
+        "sha256": "cdd4421ba021e3ab5263a7b4c148337656cc9136978186e57d44a21e873b176f"
+      }
+    },
+    "manifest": {
+      "architecture": "arm64",
+      "bridge_protocol": 1,
+      "files": {
+        "libjaccl.dylib": {
+          "sha256": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3",
+          "size": 1546672
+        },
+        "libmlx.dylib": {
+          "sha256": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2",
+          "size": 21815104
+        },
+        "mlx.metallib": {
+          "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed",
+          "size": 182351120
+        },
+        "mlxl3": {
+          "sha256": "e5bb400bdeb1b43d29a675f284c051cf3061194310ac81bd55830aec212f6d6a",
+          "size": 9957472
+        }
+      },
+      "minimum_app_version": "1.4.0",
+      "minimum_macos": "26.2.0",
+      "notices": {
+        "Apache-2.0": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object code, generated documentation,\n      and conversions to other media types.\n\n      \"Work\" shall mean the work of authorship, whether in Source or\n      Object form, made available under the License, as indicated by a\n      copyright notice that is included in or attached to the work\n      (an example is provided in the Appendix below).\n\n      \"Derivative Works\" shall mean any work, whether in Source or Object\n      form, that is based on (or derived from) the Work and for which the\n      editorial revisions, annotations, elaborations, or other modifications\n      represent, as a whole, an original work of authorship. For the purposes\n      of this License, Derivative Works shall not include works that remain\n      separable from, or merely link (or bind by name) to the interfaces of,\n      the Work and Derivative Works thereof.\n\n      \"Contribution\" shall mean any work of authorship, including\n      the original version of the Work and any modifications or additions\n      to that Work or Derivative Works thereof, that is intentionally\n      submitted to Licensor for inclusion in the Work by the copyright owner\n      or by an individual or Legal Entity authorized to submit on behalf of\n      the copyright owner. For the purposes of this definition, \"submitted\"\n      means any form of electronic, verbal, or written communication sent\n      to the Licensor or its representatives, including but not limited to\n      communication on electronic mailing lists, source code control systems,\n      and issue tracking systems that are managed by, or on behalf of, the\n      Licensor for the purpose of discussing and improving the Work, but\n      excluding communication that is conspicuously marked or otherwise\n      designated in writing by the copyright owner as \"Not a Contribution.\"\n\n      \"Contributor\" shall mean Licensor and any individual or Legal Entity\n      on behalf of whom a Contribution has been received by Licensor and\n      subsequently incorporated within the Work.\n\n   2. Grant of Copyright License. Subject to the terms and conditions of\n      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      copyright license to reproduce, prepare Derivative Works of,\n      publicly display, publicly perform, sublicense, and distribute the\n      Work and such Derivative Works in Source or Object form.\n\n   3. Grant of Patent License. Subject to the terms and conditions of\n      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      (except as stated in this section) patent license to make, have made,\n      use, offer to sell, sell, import, and otherwise transfer the Work,\n      where such license applies only to those patent claims licensable\n      by such Contributor that are necessarily infringed by their\n      Contribution(s) alone or by combination of their Contribution(s)\n      with the Work to which such Contribution(s) was submitted. If You\n      institute patent litigation against any entity (including a\n      cross-claim or counterclaim in a lawsuit) alleging that the Work\n      or a Contribution incorporated within the Work constitutes direct\n      or contributory patent infringement, then any patent licenses\n      granted to You under this License for that Work shall terminate\n      as of the date such litigation is filed.\n\n   4. Redistribution. You may reproduce and distribute copies of the\n      Work or Derivative Works thereof in any medium, with or without\n      modifications, and in Source or Object form, provided that You\n      meet the following conditions:\n\n      (a) You must give any other recipients of the Work or Derivative\n          Works a copy of this License; and\n\n      (b) You must cause any modified files to carry prominent notices\n          stating that You changed the files; and\n\n      (c) You must retain, in the Source form of any Derivative Works\n          that You distribute, all copyright, patent, trademark, and\n          attribution notices from the Source form of the Work, excluding\n          those notices that do not pertain to any part of the Derivative\n          Works; and\n\n      (d) If the Work includes a \"NOTICE\" text file as part of its\n          distribution, then any Derivative Works that You distribute must\n          include a readable copy of the attribution notices contained\n          within such NOTICE file, excluding those notices that do not\n          pertain to any part of the Derivative Works, in at least one of\n          the following places: within a NOTICE text file distributed as\n          part of the Derivative Works; within the Source form or\n          documentation, if provided along with the Derivative Works; or,\n          within a display generated by the Derivative Works, if and\n          wherever such third-party notices normally appear. The contents\n          of the NOTICE file are for informational purposes only and do\n          not modify the License. You may add Your own attribution notices\n          within Derivative Works that You distribute, alongside or as an\n          addendum to the NOTICE text from the Work, provided that such\n          additional attribution notices cannot be construed as modifying\n          the License.\n\n      You may add Your own copyright statement to Your modifications and\n      may provide additional or different license terms and conditions\n      for use, reproduction, or distribution of Your modifications, or\n      for any such Derivative Works as a whole, provided Your use,\n      reproduction, and distribution of the Work otherwise complies with\n      the conditions stated in this License.\n\n   5. Submission of Contributions. Unless You explicitly state otherwise,\n      any Contribution intentionally submitted for inclusion in the Work\n      by You to the Licensor shall be under the terms and conditions of\n      this License, without any additional terms or conditions.\n      Notwithstanding the above, nothing herein shall supersede or modify\n      the terms of any separate license agreement you may have executed\n      with Licensor regarding such Contributions.\n\n   6. Trademarks. This License does not grant permission to use the trade\n      names, trademarks, service marks, or product names of the Licensor,\n      except as required for reasonable and customary use in describing the\n      origin of the Work and reproducing the content of the NOTICE file.\n\n   7. Disclaimer of Warranty. Unless required by applicable law or\n      agreed to in writing, Licensor provides the Work (and each\n      Contributor provides its Contributions) on an \"AS IS\" BASIS,\n      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or\n      implied, including, without limitation, any warranties or conditions\n      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A\n      PARTICULAR PURPOSE. You are solely responsible for determining the\n      appropriateness of using or redistributing the Work and assume any\n      risks associated with Your exercise of permissions under this License.\n\n   8. Limitation of Liability. In no event and under no legal theory,\n      whether in tort (including negligence), contract, or otherwise,\n      unless required by applicable law (such as deliberate and grossly\n      negligent acts) or agreed to in writing, shall any Contributor be\n      liable to You for damages, including any direct, indirect, special,\n      incidental, or consequential damages of any character arising as a\n      result of this License or out of the use or inability to use the\n      Work (including but not limited to damages for loss of goodwill,\n      work stoppage, computer failure or malfunction, or any and all\n      other commercial damages or losses), even if such Contributor\n      has been advised of the possibility of such damages.\n\n   9. Accepting Warranty or Additional Liability. While redistributing\n      the Work or Derivative Works thereof, You may choose to offer,\n      and charge a fee for, acceptance of support, warranty, indemnity,\n      or other liability obligations and/or rights consistent with this\n      License. However, in accepting such obligations, You may act only\n      on Your own behalf and on Your sole responsibility, not on behalf\n      of any other Contributor, and only if You agree to indemnify,\n      defend, and hold each Contributor harmless for any liability\n      incurred by, or claims asserted against, such Contributor by reason\n      of your accepting any such warranty or additional liability.\n\n   END OF TERMS AND CONDITIONS\n\n   APPENDIX: How to apply the Apache License to your work.\n\n      To apply the Apache License to your work, attach the following\n      boilerplate notice, with the fields enclosed by brackets \"[]\"\n      replaced with your own identifying information. (Don't include\n      the brackets!)  The text should be enclosed in the appropriate\n      comment syntax for the file format. We also recommend that a\n      file or class name and description of purpose be included on the\n      same \"printed page\" as the copyright notice for easier\n      identification within third-party archives.\n\n   Copyright 2026 Theinruj Toranavikrai\n\n   Licensed under the Apache License, Version 2.0 (the \"License\");\n   you may not use this file except in compliance with the License.\n   You may obtain a copy of the License at\n\n       http://www.apache.org/licenses/LICENSE-2.0\n\n   Unless required by applicable law or agreed to in writing, software\n   distributed under the License is distributed on an \"AS IS\" BASIS,\n   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n   See the License for the specific language governing permissions and\n   limitations under the License.\n",
+        "MTPLX": "MTPLX\nCopyright 2026 Youssof Altoukhi\n\nMTPLX is a native MTP speculative decoding project for Apple Silicon.\n\nATTRIBUTION REQUIREMENT\n\nThis NOTICE file is part of the Apache License 2.0 terms for MTPLX (see\nsection 4(d) of the LICENSE). Any product, application, service, or\ndistribution that includes, embeds, or is built on MTPLX, in whole or in\npart, modified or unmodified, must display the following attribution within\nthe product itself, in a place a user of that product can see (for example an\nAbout screen, a credits or acknowledgements screen, a settings or help page,\ndocumentation shipped with the product, or the startup banner of a command\nline tool):\n\n  Powered by MTPLX\n  https://github.com/youssofal/mtplx\n\nAttribution in a source repository, a README, or a marketing page alone does\nnot satisfy this requirement. The words \"Powered by MTPLX\" must appear\nin-product. The link is required wherever the display medium supports it.\n\nPublic benchmarks, articles, and research that use or build on MTPLX should\ncredit \"MTPLX by Youssof Altoukhi\" with the same link.\n\nIf MTPLX informs academic or technical writing, please cite the repository using\nthe included CITATION.cff metadata.\n"
+      },
+      "schema": 1,
+      "version": "1.4.8"
+    }
+  },
+  "cpu": {
+    "status": "cpu_complete_gpu_pending",
+    "rust": {
+      "passed": 179,
+      "ignored": 85
+    },
+    "python_passed": 442,
+    "kani": {
+      "lane-default-kani": {
+        "SUCCESS": 197,
+        "SATISFIED": 6,
+        "UNREACHABLE": 7,
+        "FAILURE": 0
+      },
+      "exl3_lane_order_preserves_shape_and_large_m_fallback": {
+        "SUCCESS": 68,
+        "SATISFIED": 6,
+        "UNREACHABLE": 0,
+        "FAILURE": 0
+      },
+      "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds": {
+        "SUCCESS": 9,
+        "SATISFIED": 3,
+        "UNREACHABLE": 0,
+        "FAILURE": 0
+      },
+      "exl3_lane_layout_key_distinguishes_options": {
+        "SUCCESS": 2,
+        "SATISFIED": 2,
+        "UNREACHABLE": 0,
+        "FAILURE": 0
+      }
+    },
+    "numerical_sources_unchanged": [
+      "native/src/qwen35.rs",
+      "native/src/lib.rs",
+      "native/shaders/_qmv_tile_kernel.metal",
+      "native/shaders/_qmv_mapped_tile_kernel.metal"
+    ],
+    "failure_reproduced": "regression-before.log; 101; one failing assertion false vs true",
+    "sources": {
+      "native/src/contracts.rs": "37a1e9bd8046169ef66eef67822bc3abc89678ad19bbb7f0d045cef55e31aaf7",
+      "native/src/linear.rs": "26e4e090e25559f955742451a0ce17c2990fbf2baa6283e82cc2f05b1e824c11",
+      "native/src/mtp_tune.rs": "569ee44f9fd94bf4b692ad86c91eb66c9348411bc0fe71780e6e1e3191064742",
+      "native/src/qwen35.rs": "5b440a0be31009f2ad53e102c20531f12cb6587b7fcb7945446d05300662ff3c",
+      "native/src/lib.rs": "0f14cad9235c92feeb45e814cdafa90c8aa25e8350354d86dd909f7bcc82136c",
+      "native/shaders/_qmv_tile_kernel.metal": "fb7c934cb24d7c84e6a0cb87c4bd85a59ce5c3e329ef7cf4c767f27f277db959",
+      "native/shaders/_qmv_mapped_tile_kernel.metal": "b8c3fedc2fc1b3eda85ce901e1f5be4e7dbb44700605030cac545dbd5e79e3ef",
+      "Cargo.toml": "3dac7137e647acb9cb182c68eb37797f091745835190595471b414c7b21de2e5",
+      "Cargo.lock": "761d8be3485207533bbd1d36a0df2a9363618d72628c79ad6b5e7c85a2cddd0d"
+    }
+  },
+  "quality": {
+    "status": "complete",
+    "parity": true,
+    "record_counts": {
+      "runtime": 1,
+      "warmup": 2,
+      "budget": 6,
+      "prefix_parity": 2,
+      "rejected_request": 3,
+      "cancel_at": 2,
+      "non_unit_penalty_fallback": 1
+    },
+    "runtime": {
+      "bridge_protocol": 1,
+      "context_limit": 4096,
+      "context_memory": {
+        "draft_bytes_per_token": 4096,
+        "fixed_bytes": 153954304,
+        "layers": [
+          {
+            "bytes_per_token": 65536,
+            "max_tokens": null,
+            "step": 1
+          }
+        ]
+      },
+      "dflash_configure_supported": true,
+      "dflash_family": "qwen38_dense",
+      "dflash_supported": true,
+      "dflash_tune_supported": true,
+      "dflash_tuning_key": "0ecfe80cf1bcb3e2:1.4.8:26987a2c1aa9:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:lanelayout-v1=1:smallm-v2=1:dflash-v4:copy=0",
+      "load_seconds": 2.868371959,
+      "mcp_errors": {},
+      "mcp_servers": 0,
+      "mcp_tools": 0,
+      "memory_saver_supported": true,
+      "mlx_version": "0.32.2",
+      "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+      "model_context_limit": 262144,
+      "modules": 401,
+      "mtp_auto_download_supported": true,
+      "mtp_configure_supported": true,
+      "mtp_max_depth": 3,
+      "mtp_supported": true,
+      "mtp_tune_supported": true,
+      "mtp_tuning_key": "0ecfe80cf1bcb3e2:1.4.8:26987a2c1aa9:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:lanelayout-v1=1:smallm-v2=1",
+      "resident_gb": 9.696705133,
+      "runtime_commit": "26987a2c1aa9",
+      "runtime_executable": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/runtime/mlxl3",
+      "runtime_profile": "release",
+      "runtime_version": "1.4.8",
+      "type": "ready"
+    },
+    "golden_processes": 6,
+    "golden_completions": 6,
+    "all_processes_reaped": true,
+    "child": {
+      "status": "process_complete",
+      "parity": false,
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check-mtp-bridge.py",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/runtime/mlxl3",
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+        "--tokens",
+        "1,2,3,4,17,64",
+        "--prompt-file",
+        "docs/measurements/qwen27-20261016/prompt-boundaries-long.txt",
+        "--check-prefix"
+      ],
+      "timeout_seconds": 600,
+      "pid": 31600,
+      "seconds": 266.833077459014,
+      "exit_code": 0,
+      "reaped": true
+    },
+    "parent_diagnostic": {
+      "path": "physical-v2/status.json",
+      "status": "failed",
+      "reason": "collector expected single JSON; checker emits 17 NDJSON records; actual GPU child completed successfully",
+      "repeated_gpu_work": false
+    },
+    "parser_regression_tests": 29,
+    "parser_sha256": "45b50df4f2bf9ff46764cab73988017b0dcd202395ae2a8f53255c7cabb9fed5"
+  },
+  "performance": {
+    "status": "complete",
+    "parity": true,
+    "speed_gate_passed": false,
+    "source_commit": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+    "passes": {
+      "ABBA": {
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+            "benchmarks/compare_native.py",
+            "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+            "--baseline",
+            "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/runtime/mlxl3",
+            "--candidate",
+            "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/runtime/mlxl3",
+            "--output",
+            "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/performance/abba",
+            "--prompt-file",
+            "docs/measurements/qwen27-20261016/prompt-code.txt",
+            "--tokens",
+            "256",
+            "--warmup-tokens",
+            "64",
+            "--mtp-depth",
+            "1",
+            "--mtp-head",
+            "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+            "--repeats",
+            "1",
+            "--order",
+            "ABBA",
+            "--load-timeout",
+            "120",
+            "--request-timeout",
+            "180",
+            "--campaign-timeout",
+            "900",
+            "--baseline-env",
+            "MLXL3_EXL3_LANE_ORDER=0"
+          ],
+          "timeout_seconds": 930,
+          "pid": 33029,
+          "seconds": 239.96184966701549,
+          "exit_code": 0,
+          "reaped": true
+        },
+        "analysis": {
+          "parity": true,
+          "order": "ABBA",
+          "prompts": {
+            "short": {
+              "tps": {
+                "A": [
+                  8.782454666635635,
+                  9.556919865331611
+                ],
+                "B": [
+                  11.16784217856978,
+                  11.242409658359506
+                ]
+              },
+              "medians": {
+                "A": 9.169687265983622,
+                "B": 11.205125918464642
+              },
+              "gain_percent": 22.197470790871954,
+              "drift_percent": {
+                "A": 8.818322759332343,
+                "B": 0.6676981873258825
+              },
+              "min_b_over_max_a": 1.1685608267033714,
+              "every_b_at_least_three_percent": true,
+              "passed": false
+            },
+            "document": {
+              "tps": {
+                "A": [
+                  8.421266897531396,
+                  8.823122359914965
+                ],
+                "B": [
+                  11.051378350931634,
+                  11.39232159277724
+                ]
+              },
+              "medians": {
+                "A": 8.62219462872318,
+                "B": 11.221849971854436
+              },
+              "gain_percent": 30.150738356926034,
+              "drift_percent": {
+                "A": 4.77191219888029,
+                "B": 3.085074377322927
+              },
+              "min_b_over_max_a": 1.2525473296324254,
+              "every_b_at_least_three_percent": true,
+              "passed": false
+            }
+          },
+          "passed": false
+        }
+      }
+    },
+    "candidate_environment": "MLXL3_EXL3_LANE_ORDER absent",
+    "common_environment": {
+      "MLXL3_QWEN_PIPELINE": "0",
+      "MLXL3_MTP_ADAPTIVE": "0",
+      "MLXL3_MTP_LOOKUP": "0"
+    },
+    "allocator": "absent/default",
+    "mlp": "absent/default M2/M4",
+    "battery_authorized": true,
+    "binary_sha256": "e5bb400bdeb1b43d29a675f284c051cf3061194310ac81bd55830aec212f6d6a",
+    "combined": {}
+  },
+  "ci_first_attempt": [
+    {
+      "conclusion": "failure",
+      "headSha": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T18:17:06Z",
+          "conclusion": "success",
+          "databaseId": 117120631311,
+          "name": "native (macos-26)",
+          "startedAt": "2026-10-16T18:05:50Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T18:05:52Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T18:05:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T18:05:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:06Z",
+              "conclusion": "success",
+              "name": "Install Rust tooling",
+              "number": 3,
+              "startedAt": "2026-10-16T18:05:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:07Z",
+              "conclusion": "success",
+              "name": "Run cargo fmt --check",
+              "number": 4,
+              "startedAt": "2026-10-16T18:06:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:53Z",
+              "conclusion": "success",
+              "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+              "number": 5,
+              "startedAt": "2026-10-16T18:06:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:40Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --features chat",
+              "number": 6,
+              "startedAt": "2026-10-16T18:06:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:46Z",
+              "conclusion": "success",
+              "name": "Run cargo build --locked --features chat",
+              "number": 7,
+              "startedAt": "2026-10-16T18:07:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:53Z",
+              "conclusion": "success",
+              "name": "Check Metal cache key ordering and allocation regressions",
+              "number": 8,
+              "startedAt": "2026-10-16T18:07:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:53Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T18:07:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:00Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+              "number": 10,
+              "startedAt": "2026-10-16T18:07:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:01Z",
+              "conclusion": "success",
+              "name": "Lint native verification scripts and regressions",
+              "number": 11,
+              "startedAt": "2026-10-16T18:08:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:09:44Z",
+              "conclusion": "success",
+              "name": "Check bridge and QMM validation tools",
+              "number": 12,
+              "startedAt": "2026-10-16T18:08:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:09:45Z",
+              "conclusion": "success",
+              "name": "Check factorial small-M profile and promotion gates",
+              "number": 13,
+              "startedAt": "2026-10-16T18:09:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:09:47Z",
+              "conclusion": "success",
+              "name": "Check LFM2.5 quality evaluator and subprocess failures",
+              "number": 14,
+              "startedAt": "2026-10-16T18:09:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:09:49Z",
+              "conclusion": "success",
+              "name": "Check idle-memory benchmark failure and parity gates",
+              "number": 15,
+              "startedAt": "2026-10-16T18:09:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:12:41Z",
+              "conclusion": "success",
+              "name": "Compile and lint the shipped MLX bridge",
+              "number": 16,
+              "startedAt": "2026-10-16T18:09:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:14:30Z",
+              "conclusion": "success",
+              "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+              "number": 17,
+              "startedAt": "2026-10-16T18:12:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:17:00Z",
+              "conclusion": "success",
+              "name": "Check EXL3 lane layout CPU state and Tune key",
+              "number": 18,
+              "startedAt": "2026-10-16T18:14:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:17:01Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 35,
+              "startedAt": "2026-10-16T18:17:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:17:01Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 36,
+              "startedAt": "2026-10-16T18:17:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:17:03Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 37,
+              "startedAt": "2026-10-16T18:17:01Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563422/job/117120631311"
+        },
+        {
+          "completedAt": "2026-10-16T18:25:59Z",
+          "conclusion": "failure",
+          "databaseId": 117120631856,
+          "name": "kani",
+          "startedAt": "2026-10-16T18:05:39Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T18:05:41Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T18:05:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:43Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T18:05:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:27Z",
+              "conclusion": "success",
+              "name": "Verify validated API token usage with Kani",
+              "number": 3,
+              "startedAt": "2026-10-16T18:05:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:25:56Z",
+              "conclusion": "failure",
+              "name": "Verify Rust safety contracts with Kani",
+              "number": 4,
+              "startedAt": "2026-10-16T18:06:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:25:56Z",
+              "conclusion": "skipped",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "2026-10-16T18:25:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:25:56Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-16T18:25:56Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563422/job/117120631856"
+        },
+        {
+          "completedAt": "2026-10-16T18:08:34Z",
+          "conclusion": "success",
+          "databaseId": 117120631888,
+          "name": "native (ubuntu-latest)",
+          "startedAt": "2026-10-16T18:05:39Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T18:05:40Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T18:05:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:42Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T18:05:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:51Z",
+              "conclusion": "success",
+              "name": "Install Rust tooling",
+              "number": 3,
+              "startedAt": "2026-10-16T18:05:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:51Z",
+              "conclusion": "success",
+              "name": "Run cargo fmt --check",
+              "number": 4,
+              "startedAt": "2026-10-16T18:05:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:17Z",
+              "conclusion": "success",
+              "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+              "number": 5,
+              "startedAt": "2026-10-16T18:05:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:49Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --features chat",
+              "number": 6,
+              "startedAt": "2026-10-16T18:06:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:52Z",
+              "conclusion": "success",
+              "name": "Run cargo build --locked --features chat",
+              "number": 7,
+              "startedAt": "2026-10-16T18:06:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:59Z",
+              "conclusion": "success",
+              "name": "Check Metal cache key ordering and allocation regressions",
+              "number": 8,
+              "startedAt": "2026-10-16T18:06:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:00Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T18:06:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:05Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+              "number": 10,
+              "startedAt": "2026-10-16T18:07:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:06Z",
+              "conclusion": "success",
+              "name": "Lint native verification scripts and regressions",
+              "number": 11,
+              "startedAt": "2026-10-16T18:07:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:28Z",
+              "conclusion": "success",
+              "name": "Check bridge and QMM validation tools",
+              "number": 12,
+              "startedAt": "2026-10-16T18:07:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:29Z",
+              "conclusion": "success",
+              "name": "Check factorial small-M profile and promotion gates",
+              "number": 13,
+              "startedAt": "2026-10-16T18:08:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:31Z",
+              "conclusion": "success",
+              "name": "Check LFM2.5 quality evaluator and subprocess failures",
+              "number": 14,
+              "startedAt": "2026-10-16T18:08:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:32Z",
+              "conclusion": "success",
+              "name": "Check idle-memory benchmark failure and parity gates",
+              "number": 15,
+              "startedAt": "2026-10-16T18:08:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:32Z",
+              "conclusion": "skipped",
+              "name": "Compile and lint the shipped MLX bridge",
+              "number": 16,
+              "startedAt": "2026-10-16T18:08:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:32Z",
+              "conclusion": "skipped",
+              "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+              "number": 17,
+              "startedAt": "2026-10-16T18:08:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:32Z",
+              "conclusion": "skipped",
+              "name": "Check EXL3 lane layout CPU state and Tune key",
+              "number": 18,
+              "startedAt": "2026-10-16T18:08:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:32Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 35,
+              "startedAt": "2026-10-16T18:08:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:32Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 36,
+              "startedAt": "2026-10-16T18:08:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:08:32Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 37,
+              "startedAt": "2026-10-16T18:08:32Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563422/job/117120631888"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563422"
+    },
+    {
+      "conclusion": "success",
+      "headSha": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T18:05:19Z",
+          "conclusion": "success",
+          "databaseId": 117120304815,
+          "name": "packing-proof",
+          "startedAt": "2026-10-16T18:04:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T18:04:49Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T18:04:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:04:53Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T18:04:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:06Z",
+              "conclusion": "success",
+              "name": "Install CBMC 6.11.0 from the checked release asset",
+              "number": 3,
+              "startedAt": "2026-10-16T18:04:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:17Z",
+              "conclusion": "success",
+              "name": "Verify the shared source under the host address-space model",
+              "number": 4,
+              "startedAt": "2026-10-16T18:05:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:17Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "2026-10-16T18:05:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:17Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-16T18:05:17Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563396/job/117120304815"
+        },
+        {
+          "completedAt": "2026-10-16T18:10:43Z",
+          "conclusion": "success",
+          "databaseId": 117120305540,
+          "name": "conversion",
+          "startedAt": "2026-10-16T18:04:54Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T18:04:56Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T18:04:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:00Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T18:04:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:07Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-10-16T18:05:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:39Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5 crosshair-tool==0.0.101 z3-solver==5.1.0.0",
+              "number": 4,
+              "startedAt": "2026-10-16T18:05:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:40Z",
+              "conclusion": "success",
+              "name": "Apply the pinned optional converter patch",
+              "number": 5,
+              "startedAt": "2026-10-16T18:05:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:46Z",
+              "conclusion": "success",
+              "name": "Check host contracts and benchmark failure gates",
+              "number": 6,
+              "startedAt": "2026-10-16T18:05:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:06:44Z",
+              "conclusion": "success",
+              "name": "Verify routed CUDA calibration on CPU without cloud credentials",
+              "number": 7,
+              "startedAt": "2026-10-16T18:05:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:07:20Z",
+              "conclusion": "success",
+              "name": "Check deployable router recalibration without cloud credentials",
+              "number": 8,
+              "startedAt": "2026-10-16T18:06:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:25Z",
+              "conclusion": "success",
+              "name": "Attempt symbolic expert map isolation (tensor and GPU paths excluded)",
+              "number": 9,
+              "startedAt": "2026-10-16T18:07:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:26Z",
+              "conclusion": "success",
+              "name": "Search for counterexamples to the three profile failure guards",
+              "number": 10,
+              "startedAt": "2026-10-16T18:10:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:27Z",
+              "conclusion": "success",
+              "name": "Search for counterexamples to routed calibration alignment",
+              "number": 11,
+              "startedAt": "2026-10-16T18:10:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:28Z",
+              "conclusion": "success",
+              "name": "Check CUDA launch contracts without allocating cloud resources",
+              "number": 12,
+              "startedAt": "2026-10-16T18:10:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:37Z",
+              "conclusion": "success",
+              "name": "Check the shared packing source with host sanitizers",
+              "number": 13,
+              "startedAt": "2026-10-16T18:10:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 25,
+              "startedAt": "2026-10-16T18:10:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 26,
+              "startedAt": "2026-10-16T18:10:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:10:41Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 27,
+              "startedAt": "2026-10-16T18:10:38Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563396/job/117120305540"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563396"
+    },
+    {
+      "conclusion": "success",
+      "headSha": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T18:16:45Z",
+          "conclusion": "success",
+          "databaseId": 117120304832,
+          "name": "desktop-and-protocol",
+          "startedAt": "2026-10-16T18:04:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T18:04:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T18:04:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:00Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T18:04:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:07Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-10-16T18:05:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:05:24Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+              "number": 4,
+              "startedAt": "2026-10-16T18:05:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:16:38Z",
+              "conclusion": "success",
+              "name": "Run scripts/check-e2e.sh",
+              "number": 5,
+              "startedAt": "2026-10-16T18:05:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:16:39Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T18:16:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:16:40Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 10,
+              "startedAt": "2026-10-16T18:16:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T18:16:43Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-16T18:16:40Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563434/job/117120304832"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563434"
+    }
+  ],
+  "ci_diagnosis": {
+    "status": "incomplete_exit_143",
+    "exit_code": 143,
+    "source_commit": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+    "verified_harness_count": 65,
+    "verified_harnesses": [
+      "codec::verification::exl3_permutation_and_inverse_are_bijections",
+      "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+      "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+      "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+      "contracts::exl3_lane_order_preserves_shape_and_large_m_fallback",
+      "contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+      "contracts::exl3_lane_layout_key_distinguishes_options",
+      "contracts::exl3_lane_order_default_and_bounded_explicit_values",
+      "contracts::generation_stop_reason_matches_observed_terminal_event",
+      "contracts::lfm_context_memory_small_dimensions_match_wide_oracle",
+      "contracts::lfm_context_conv_matches_f16_history_and_rejects_overflow",
+      "contracts::lfm_context_attention_matches_f16_shapes_and_rejects_overflow",
+      "contracts::memory_saver_releases_every_unused_buffer",
+      "contracts::idle_cache_release_preserves_small_working_sets",
+      "contracts::verification::qmv_shape_matches_wide_arithmetic",
+      "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+      "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+      "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+      "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+      "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+      "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+      "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+      "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+      "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+      "contracts::grouped_mb3_preserves_rows_and_all_fallbacks",
+      "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+      "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+      "contracts::mtp_add_norm_launch_bounds",
+      "contracts::pipeline_layer_has_no_final_or_outside_submission",
+      "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+      "contracts::dense_mlp_batch_stays_within_supported_domain",
+      "contracts::smallm_kernel_key_is_injective",
+      "contracts::lfm_prefill_end_preserves_context_and_all_block_positions",
+      "contracts::lfm_moe_exact_prefill_accepts_only_the_qualified_geometry",
+      "contracts::lfm_moe_prefill_selection_respects_qualification_and_override",
+      "contracts::biased_router_domain_bounds_dispatch",
+      "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+      "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+      "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+      "dflash::dflash_layouts_have_bounded_published_geometry",
+      "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "memory_policy::verification::adaptive_choice_is_bounded_and_preserves_hysteresis",
+      "memory_policy::verification::cache_budget_never_accepts_an_overflow_or_excess",
+      "memory_policy::verification::adaptive_next_is_bounded_and_resets_only_on_switch",
+      "memory_policy::verification::adaptive_observation_is_bounded_and_ignores_invalid_samples",
+      "memory_policy::verification::cache_mib_budget_is_bounded",
+      "memory_policy::verification::capture_selection_matches_bounded_symbolic_ids",
+      "memory_policy::verification::compaction_requires_large_real_waste_without_overflow",
+      "memory_policy::verification::allocator_tuning_key_is_bounded_and_injective",
+      "mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary",
+      "mtp::draft_projection_verification::optional_projection_guards_dimensions_and_quantization",
+      "mtp::managed_mtp_never_crosses_architectures",
+      "registry::verification::model_name_validation_matches_the_registry_contract",
+      "speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix",
+      "speculative::verification::adaptive_work_never_exceeds_the_existing_budget",
+      "speculative::verification::speculative_work_reserves_target_within_both_budgets",
+      "speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "speculative::verification::mtp_all_depths_commit_target_prefix_within_budgets",
+      "speculative::verification::tuning_requires_parity_and_nonzero_acceptance",
+      "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+      "speculative::verification::dflash_disabled_copy_never_proposes"
+    ],
+    "incomplete_harnesses": [
+      "speculative::verification::dflash_copy_len_17"
+    ],
+    "new_changed_contracts_verified_in_ci": [
+      "contracts::exl3_lane_order_default_and_bounded_explicit_values",
+      "contracts::exl3_lane_layout_key_distinguishes_options",
+      "contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+      "contracts::exl3_lane_order_preserves_shape_and_large_m_fallback"
+    ],
+    "assertion_failure_reported": false,
+    "cause_of_sigterm": "not established; no OOM or timeout claim",
+    "unrelated_sources_and_workflow_unchanged_vs_1_4_7": true,
+    "signal_interpretation": "exit143 is consistent with SIGTERM; sender and cause not established"
+  },
+  "ci_rerun": {
+    "head_sha": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+    "run_attempt": 2,
+    "status": "in_progress",
+    "conclusion": null,
+    "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/38944563422"
+  },
+  "evidence_members": 119,
+  "assets": {
+    "MLXL3-Engine-v1.4.8-arm64.tar.gz": {
+      "size": 66959926,
+      "sha256": "2c79f9b13b7e28f863c6156c45eb88b66cd10565f8f111af0a7555a3635aba44"
+    },
+    "MLXL3-Engine-v1.4.8-verification.tar.gz": {
+      "size": 112459,
+      "sha256": "78e7890199811dd3961abe47995e545304e5b5d55f29109ca9ed7f379e7b2237"
+    },
+    "MLXL3-Engine-v1.4.8-arm64.json": {
+      "size": 13587,
+      "sha256": "cdd4421ba021e3ab5263a7b4c148337656cc9136978186e57d44a21e873b176f"
+    }
+  },
+  "validation_self_sha256": "published separately in release asset table",
+  "installed_user_store_changed": false,
+  "desktop_latest_expected": "v1.4.6",
+  "limitations": [
+    "15tok/s not achieved",
+    "new speed campaign failed drift gate; BAAB not run",
+    "CPU bounded verification does not prove MLX/Metal/concurrency/generation",
+    "full CI Kani attempt1 exit143; attempt2 in progress",
+    "Array Kani ICE; Python CrossHair unavailable",
+    "other Mac/long context/general quality corpus not requalified"
+  ]
+}
