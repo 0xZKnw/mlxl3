@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v1.4.7 (/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.45s
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-82bbf79f7c42ef10)
+
+running 1 test
+test contracts::exl3_lane_order_default_is_on_and_explicit_values_are_strict ... FAILED
+
+failures:
+
+---- contracts::exl3_lane_order_default_is_on_and_explicit_values_are_strict stdout ----
+
+thread 'contracts::exl3_lane_order_default_is_on_and_explicit_values_are_strict' (14368095) panicked at native/src/contracts.rs:1548:9:
+assertion `left == right` failed
+  left: false
+ right: true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    contracts::exl3_lane_order_default_is_on_and_explicit_values_are_strict
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 69 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

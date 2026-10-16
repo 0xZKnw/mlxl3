@@ -1,0 +1,247 @@
+{
+  "status": "complete",
+  "stages": [
+    {
+      "name": "fmt",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--check"
+        ],
+        "timeout_seconds": 300,
+        "pid": 28200,
+        "seconds": 0.29200520901940763,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "clippy",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--all-targets",
+          "--features",
+          "mlx,chat",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "timeout_seconds": 300,
+        "pid": 28204,
+        "seconds": 6.52848266705405,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "rust",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--release",
+          "--features",
+          "mlx,chat"
+        ],
+        "timeout_seconds": 300,
+        "pid": 28529,
+        "seconds": 74.20112558302935,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "build",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "build",
+          "--locked",
+          "--release",
+          "--features",
+          "mlx,chat"
+        ],
+        "timeout_seconds": 300,
+        "pid": 29394,
+        "seconds": 0.128819040954113,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "python-format",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+          "format",
+          "--check",
+          "benchmarks/benchmark_smallm.py",
+          "benchmarks/compare_native.py",
+          "benchmarks/analyze_smallm_profile.py",
+          "benchmarks/benchmark_smallm_reuse.py",
+          "scripts/experimental-draft-head.py",
+          "tests/test_compare_native.py",
+          "tests/test_experimental_draft_head.py",
+          "tests/test_smallm_profile.py",
+          "tests/test_smallm_reuse.py"
+        ],
+        "timeout_seconds": 300,
+        "pid": 29397,
+        "seconds": 0.0382986250333488,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "python-lint",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+          "check",
+          "benchmarks/benchmark_smallm.py",
+          "benchmarks/compare_native.py",
+          "benchmarks/analyze_smallm_profile.py",
+          "benchmarks/benchmark_smallm_reuse.py",
+          "scripts/experimental-draft-head.py",
+          "tests/test_compare_native.py",
+          "tests/test_experimental_draft_head.py",
+          "tests/test_smallm_profile.py",
+          "tests/test_smallm_reuse.py"
+        ],
+        "timeout_seconds": 300,
+        "pid": 29398,
+        "seconds": 0.01024716708343476,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "python-tests",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "pytest",
+          "-q",
+          "tests/test_bridge_benchmark.py",
+          "tests/test_package_engine.py",
+          "tests/test_qmm_tiles.py",
+          "tests/test_compare_native.py",
+          "tests/test_native_json_process.py",
+          "tests/test_mtp_model_switch.py",
+          "tests/test_smallm_benchmark.py",
+          "tests/test_decode_microbenchmarks.py",
+          "tests/test_experimental_draft_head.py",
+          "tests/test_dflash2_check.py",
+          "tests/test_smallm_profile.py",
+          "tests/test_smallm_reuse.py"
+        ],
+        "timeout_seconds": 300,
+        "pid": 29399,
+        "seconds": 94.96547383302823,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "lane-default-kani",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_order_default_and_bounded_explicit_values"
+        ],
+        "timeout_seconds": 300,
+        "pid": 30299,
+        "seconds": 21.42621645797044,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "exl3_lane_layout_key_distinguishes_options",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_layout_key_distinguishes_options"
+        ],
+        "timeout_seconds": 300,
+        "pid": 30389,
+        "seconds": 1.0470437080366537,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds"
+        ],
+        "timeout_seconds": 300,
+        "pid": 30416,
+        "seconds": 1.0018301660893485,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "exl3_lane_order_preserves_shape_and_large_m_fallback",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_order_preserves_shape_and_large_m_fallback"
+        ],
+        "timeout_seconds": 300,
+        "pid": 30441,
+        "seconds": 1.1152725419960916,
+        "exit_code": 0,
+        "reaped": true
+      }
+    }
+  ]
+}

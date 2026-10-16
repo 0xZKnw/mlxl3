@@ -67,7 +67,9 @@ fn lane_order_enabled() -> bool {
     static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ENABLED.get_or_init(|| {
         crate::contracts::exl3_lane_order_enabled(
-            std::env::var("MLXL3_EXL3_LANE_ORDER").ok().as_deref(),
+            std::env::var_os("MLXL3_EXL3_LANE_ORDER")
+                .as_deref()
+                .map(|value| value.to_str().unwrap_or("")),
         )
     })
 }

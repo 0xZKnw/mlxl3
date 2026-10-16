@@ -1486,9 +1486,9 @@ fn generation_stop_reason_matches_observed_terminal_event() {
     kani::cover!(eos && full);
 }
 
-/// Experimental activation layout is opt-in; absent or malformed values stay off.
+/// Enable the qualified layout by default; explicit malformed values stay off.
 pub fn exl3_lane_order_enabled(value: Option<&str>) -> bool {
-    value == Some("1")
+    value.is_none_or(|value| value == "1")
 }
 
 /// Keep persisted calibration profiles distinct for both activation layouts.
@@ -1535,15 +1535,17 @@ pub(crate) fn exl3_lane_source_index(index: u32) -> u32 {
 }
 
 #[test]
-fn exl3_lane_order_option_is_explicit_and_key_is_distinct() {
+fn exl3_lane_order_default_is_on_and_explicit_values_are_strict() {
     for (option, expected) in [
-        (None, false),
+        (None, true),
         (Some(""), false),
         (Some("0"), false),
         (Some("1"), true),
         (Some("01"), false),
         (Some("true"), false),
         (Some("1 "), false),
+        (Some("１"), false),
+        (Some("1\0"), false),
     ] {
         assert_eq!(exl3_lane_order_enabled(option), expected);
     }
@@ -1622,6 +1624,26 @@ fn exl3_lane_permutation_matches_independent_table_for_every_inventory_input() {
         }
         assert!(seen.into_iter().all(|value| value));
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn exl3_lane_order_default_and_bounded_explicit_values() {
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let present: bool = kani::any();
+    let decoded = std::str::from_utf8(&bytes[..length]);
+    let value = decoded.unwrap_or("");
+    let enabled = exl3_lane_order_enabled(present.then_some(value));
+    assert_eq!(enabled, !present || (length == 1 && bytes[0] == b'1'));
+    assert_eq!(exl3_lane_order_key(enabled), u8::from(enabled));
+    kani::cover!(!present && enabled);
+    kani::cover!(present && length == 1 && bytes[0] == b'1' && enabled);
+    kani::cover!(present && length == 1 && bytes[0] == b'0' && !enabled);
+    kani::cover!(present && length == 0 && !enabled);
+    kani::cover!(present && decoded.is_err() && !enabled);
+    kani::cover!(present && length > 1 && !enabled);
 }
 
 #[cfg(kani)]

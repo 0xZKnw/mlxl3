@@ -34,7 +34,9 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
         std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"),
         allocator_cache_mib()?,
         mlxl3_native::exl3_lane_order_enabled(
-            std::env::var("MLXL3_EXL3_LANE_ORDER").ok().as_deref(),
+            std::env::var_os("MLXL3_EXL3_LANE_ORDER")
+                .as_deref()
+                .map(|value| value.to_str().unwrap_or("")),
         ),
     )
 }
