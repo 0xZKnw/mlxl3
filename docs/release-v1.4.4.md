@@ -1,6 +1,6 @@
 # MLXL3 Desktop 1.4.4 build 26 / moteur 1.4.5 — correctif local
 
-Ce build local corrige l’inspecteur de génération des modèles LFM. Aucune release GitHub n’est publiée par cette tâche.
+Ce build local corrige l’inspecteur de génération des modèles LFM. Aucune release GitHub n’est publiée par cette tâche. Le paquet est prêt ; son installation a été bloquée avant exécution par la revue automatique, en attente d’un accord explicite pour remplacer l’app.
 
 ## Correctifs
 
@@ -25,7 +25,7 @@ Rust : 5 nouveaux tests, 80 tests CPU réussis / 3 ignorés historiques, format/
 
 Le vrai bridge LFM V2 s’est chargé et fermé proprement sans génération : MTP/DFlash indisponibles, contexte 4096 / max 131072 et profil exact par oracle config. Aucun nouveau KL/PPL ou benchmark ; poids V2 immuables. Vérification UI isolée, pas de lecture de l’historique personnel. Les anciennes valeurs de sampling déjà écrasées par une version précédente ne peuvent pas être reconstituées.
 
-[Preuves et revue de l’audit joint](measurements/lfm-mtp-ui-20261016/). Le constat distinct sur finish_reason API n’est pas corrigé par cette tâche.
+[Preuves et revue de l’audit joint](measurements/lfm-mtp-ui-20261016/). Le constat distinct sur finish_reason API n’est pas corrigé par cette tâche. Packaging : 45 tests passés, compilation/lint/format et cohérence archive/manifeste/binaire vérifiés ; sélection du moteur embarqué 1.4.5 confirmée face au moteur géré 1.4.4, sans modifier le pointeur. Deux contrats Python CrossHair non confirmés ; aucune preuve I/O revendiquée.
 
 ## Remerciements
 

@@ -10,12 +10,14 @@ La préférence globale MTP/DFlash pouvait survivre à un changement Qwen→LFM.
 - [Contrôle visuel vivant](live-ui-observations.json) : curseurs modifiables, température 0,73→0,85, OFF cliqué et effectif, mémoire et recommandation visibles. Préférences et conversations jetables, processus nettoyé. L’essai AX headless antérieur échoué reste dans les preuves ; le contrôle Cua l’a complété.
 - Les commandes exactes, empreintes et diagnostics figurent dans les manifestes et archives de preuve. Les workflows existants exécutent les suites Desktop et packaging sur PR/push ; aucun run GitHub n’est revendiqué pour cette branche locale non poussée.
 
+- [Packaging](package-engine-version-fix.json) : régression CLI rouge avant correction, 45 tests réussis, Ruff/format/compilation passés ; deux contrats CrossHair non confirmés. Le vrai paquet signé passe ses auto-tests et [le sélecteur](final-resolver.json) écarte l’ancien moteur géré.
+
 ## Audit joint
 
 [Revue statique des 1629 lignes et empreinte du document](audit-review.json). Le document est traité comme une liste de propositions tierces. Plusieurs protections et optimisations existent déjà. Le défaut distinct de finish_reason API lorsque max_tokens est épuisé est confirmé mais reste à traiter ; les pistes de performance non mesurées ne sont pas présentées comme des gains.
 
 ## Livraison
 
-Desktop 1.4.4 build 26 et moteur 1.4.5 sont versionnés séparément. Le manifeste final de livraison consigne l’état d’installation, les SHA-256 et la sauvegarde locale. Aucune publication, fusion ou release GitHub dans cette tâche.
+Desktop 1.4.4 build 26 et moteur 1.4.5 sont versionnés séparément. [Le manifeste final de livraison](delivery.json) consigne les SHA-256 et l’état réel : **artefact prêt, installation refusée par la revue automatique avant exécution**, dans l’attente de l’accord explicite pour remplacer l’app. L’app installée reste 1.2.0 build 19 ; les fichiers personnels et le pointeur moteur sont inchangés. Des sauvegardes privées des préférences et conversations sont conservées ; aucune ancienne app n’a encore été déplacée. Aucune publication, fusion ou release GitHub dans cette tâche.
 
 L’estimation LFM décrit le cache logique persistant ; elle exclut backing retenu par les vues, temporaires, allocateur et RAM processus. Les anciennes valeurs de sampling déjà écrasées par une app antérieure ne sont pas récupérables.
