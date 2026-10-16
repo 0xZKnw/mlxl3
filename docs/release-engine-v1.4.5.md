@@ -1,6 +1,8 @@
 # MLXL3 moteur 1.4.5 — fiabilité API et LFM
 
-Ce moteur accompagne **Desktop 1.4.4 build 26**. Il corrige la fin de génération,
+Ce moteur accompagne **Desktop 1.4.5 build 27**. Desktop1.4.4 a été retiré du canal
+stable après un défaut de préflight de l’app ; le moteur publié reste inchangé.
+Il corrige la fin de génération,
 le cycle de vie du serveur HTTP et le profil mémoire LFM.
 
 ## Nouveautés
@@ -76,7 +78,7 @@ changement de quantification, ni amélioration KL/PPL, ne fait partie de ce mote
 
 **MLXL3-Engine-v1.4.5-arm64.tar.gz** et son manifeste
 **MLXL3-Engine-v1.4.5-arm64.json** : Apple Silicon, macOS **26.2+**, Desktop
-**1.4.0+**, MLX **0.32.2**. Desktop **1.4.4 build 26** embarque ce moteur et corrige
+**1.4.0+**, MLX **0.32.2**. Desktop **1.4.5 build 27** embarque ce moteur et corrige
 son inspecteur. Les poids et outils Python de quantification sont séparés.
 
 Publication moteur avec **`latest=false`**, indépendamment du DMG Desktop.

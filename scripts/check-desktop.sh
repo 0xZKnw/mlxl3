@@ -66,6 +66,14 @@ swiftc "${swiftc_args[@]}" \
     tests/updater-check.swift -o "${test_dir}/updater-check"
 "${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"} ${MLXL3_TEST_ENGINE_VERSION:+"${MLXL3_TEST_ENGINE_VERSION}"}
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/updater-application-check.swift > "${test_dir}/UpdaterApplicationCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+    "${test_dir}/UpdaterApplicationCombined.swift" -o "${test_dir}/updater-application-check"
+"${test_dir}/updater-application-check" "${test_dir}/archives" ${MLXL3_TEST_APP_DMG:+"${MLXL3_TEST_APP_DMG}"} ${MLXL3_TEST_APP_VERSION:+"${MLXL3_TEST_APP_VERSION}"}
+
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/file-import-check.swift -o "${test_dir}/file-import-check"
