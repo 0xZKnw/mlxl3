@@ -1,5 +1,5 @@
 {
-  "status": "validated_local_artifact_installation_blocked_before_execution",
+  "status": "validated_local_artifact_installation_declined_by_user",
   "recorded_at": "2026-10-16T00:02:57.920745+00:00",
   "branch": "codex/lfm-mtp-ui-state",
   "base_commit": "c9aa43a312c63246eeb4b5a680ada26092c65a1c",
@@ -57,7 +57,7 @@
     }
   },
   "installation": {
-    "status": "blocked_auto_review_before_process_execution",
+    "status": "declined_by_user_after_auto_review_block",
     "request": "replace /Applications/MLXL3 Desktop.app with tested local fix while preserving the old app and personal data",
     "reason": "Auto-review requires explicit user approval to replace the application in /Applications; fix request alone was considered insufficient authorization.",
     "installed_app_changed": false,
@@ -67,7 +67,9 @@
     "managed_pointer_unchanged": true,
     "private_preferences_conversations_backup_created": true,
     "whole_old_app_backup_created": false,
-    "pending_user_approval": true
+    "pending_user_approval": false,
+    "user_decision": "Non, garder l’app actuelle",
+    "user_decision_recorded_at": "2026-10-16T00:07:04.638788+00:00"
   },
   "verification": {
     "desktop_final_assertions": 821,

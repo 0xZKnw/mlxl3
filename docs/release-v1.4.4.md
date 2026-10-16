@@ -1,6 +1,6 @@
 # MLXL3 Desktop 1.4.4 build 26 / moteur 1.4.5 — correctif local
 
-Ce build local corrige l’inspecteur de génération des modèles LFM. Aucune release GitHub n’est publiée par cette tâche. Le paquet est prêt ; son installation a été bloquée avant exécution par la revue automatique, en attente d’un accord explicite pour remplacer l’app.
+Ce build local corrige l’inspecteur de génération des modèles LFM. Aucune release GitHub n’est publiée par cette tâche. Le paquet est prêt ; après le blocage initial avant exécution par la revue automatique, l’utilisateur a explicitement demandé de garder l’app actuelle. Aucune installation n’est prévue.
 
 ## Correctifs
 
