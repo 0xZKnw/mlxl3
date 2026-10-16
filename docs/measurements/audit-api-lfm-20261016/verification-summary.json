@@ -1,0 +1,93 @@
+{
+  "status": "artifacts_validated_ci_publication_pending",
+  "rust_cpu": {
+    "passed": 118,
+    "ignored": 3,
+    "api_included": 33
+  },
+  "integrated_previous_unchanged_python_swift": {
+    "python_passed": 495,
+    "python_skipped": 69,
+    "swift_sampling_assertions": 821,
+    "swift_sampling_states": 180,
+    "memory_cases": 240,
+    "note": "Python unchanged; current Desktop checked in two segments after fixing test-only compile error; see latex-verification.json"
+  },
+  "lfm": {
+    "default": "serial",
+    "opt_in": "MLXL3_LFM_MOE_PREFILL=1; qualified geometry only",
+    "numeric_scope": "historical32 plus retained-code5 checks; terminal full128000F16,50states,38MoE routes and17forced continuations",
+    "performance": "two final signed-runtime orders complete but not qualified: drift >3%; default serial",
+    "kv_capacity": "rejected_removed",
+    "signed_runtime_numeric": "3c84dda5/f4da463b: M1 eight steps matches historical bytes; batch65 old/forced0/1 full128000F16/50finite states bitexact"
+  },
+  "selector_kani": {
+    "success": 33,
+    "covers_satisfied": 5,
+    "domain": "two bools and0..4 arbitrary bytes; unwind6; no assumptions",
+    "kind": "bounded_model_check"
+  },
+  "limitations": [
+    "Origin30s timeout",
+    "general offsets120s timeout",
+    "KV retired budget120s timeout and C++ parser unsupported",
+    "not every intermediate logit or full131072 context",
+    "first CI Kani runner shutdown, no counterexample identified"
+  ],
+  "delivery": {
+    "desktop": "1.4.4 build26",
+    "engine": "1.4.5",
+    "published": false,
+    "installed_app_replaced": false,
+    "artifacts_validated": true,
+    "artifact_source_commit": "f75cf254911e83bed9acdc2a4ad542614bedaa6c",
+    "report": "delivery-final.json"
+  },
+  "native_source_hashes": "retained-evidence.tar.gz: final-opt-in/verification.json",
+  "archives": {
+    "physical-evidence": {
+      "path": "physical-evidence.tar.gz",
+      "bytes": 35338,
+      "sha256": "328860272beaeef4868ac046ce22a07cb9e5ffc83405132b5073c4c37156c0a1"
+    },
+    "retained-evidence": {
+      "path": "retained-evidence.tar.gz",
+      "bytes": 74148,
+      "sha256": "b42d34c16a16b36f371aa0fc0f77611f4a7f0b1c63994823094d5dcbcf3bff8f"
+    },
+    "performance-evidence": {
+      "path": "performance-evidence.tar.gz",
+      "bytes": 108697,
+      "sha256": "3c477022ced6073edd78e60243788c3639931d44a1443561424af3b9f68f80fb"
+    },
+    "release-qualification": {
+      "status": "complete",
+      "archive": "release-qualification-evidence.tar.gz",
+      "bytes": 53301,
+      "sha256": "1d3ed6de95011e9b81b807fd6f3889d7e3e7665fcc3fd1a85dfc15e90045bdc0",
+      "entries": "see index",
+      "large_dumps": "local only; hashes recorded in release-numeric/report.json",
+      "performance_qualified": false,
+      "numeric_parity": true
+    },
+    "latex": {
+      "path": "latex-evidence.tar.gz",
+      "bytes": 20673,
+      "sha256": "92f11d5bb8ae794a4e2683b2e1a521f7b2e7b42bf3f176542cf85a51f2fa7d57"
+    },
+    "delivery-final": {
+      "status": "complete",
+      "archive": "delivery-final-evidence.tar.gz",
+      "bytes": 22911,
+      "sha256": "f5808d218abe6374db200afeecb4020b285b013a52b950fd7f2ada5d2a58d713",
+      "large_dumps": "local; SHA in numerical reports"
+    }
+  },
+  "desktop_latex": {
+    "status": "passed",
+    "formulas": 9,
+    "image_styles": 2,
+    "prepared_cases": 63,
+    "formal_proof": false
+  }
+}

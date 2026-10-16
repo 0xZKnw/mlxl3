@@ -17,6 +17,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Verify validated API token usage with Kani
+        uses: model-checking/kani-github-action@v1
+        with:
+          kani-version: '0.68.0'
+          command: cargo kani
+          args: --no-default-features --tests --harness validated_usage_respects_budget_without_total_overflow --jobs 1 --output-format terse
       - name: Verify Rust safety contracts with Kani
         uses: model-checking/kani-github-action@v1
         with:
@@ -94,5 +100,25 @@ jobs:
           export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
           cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
           cargo build --locked --release --features mlx,chat
+      - name: Check LFM prefill CPU oracles against the MLX-feature source
+        if: matrix.os == 'macos-26'
+        shell: bash
+        run: |
+          mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          lfm_cpu_tests=(
+            route_canonicalization_matches_independent_token_layer_fixture
+            route_canonicalization_rejects_incomplete_rows_and_counts
+            route_capture_refuses_bad_shapes_dtypes_ids_and_nonfinite_scores
+            a_valid_route_order_mutation_is_detected_by_the_fixture_oracle
+            route_trace_scope_refuses_nesting_and_restores_after_error
+            prefill_counters_require_real_grouped_execution
+            microblock_eligibility_requires_v2_config_and_every_mapped_projection
+          )
+          for lfm_cpu_test in "${lfm_cpu_tests[@]}"; do
+            lfm_cpu_output="$(cargo test --locked --lib --features mlx,chat "lfm2::prefill_tests::$lfm_cpu_test" -- --exact)"
+            printf '%s\n' "$lfm_cpu_output"
+            [[ "$lfm_cpu_output" == *"1 passed; 0 failed; 0 ignored;"* ]]
+          done
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
       # not run inference or numeric GPU checks; the macOS build uses pinned libmlx.

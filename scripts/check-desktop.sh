@@ -51,6 +51,15 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
 "${test_dir}/idle-unload-check" "$PWD/tests/fake-desktop-engine.py"
 
+# Keep global speculative preferences independent of current-model sampling.
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/speculative-sampling-check.swift > "${test_dir}/SpeculativeSamplingCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/SpeculativeSamplingCombined.swift" -o "${test_dir}/sampling-check"
+"${test_dir}/sampling-check" "$PWD/tests/fake-desktop-engine.py" \
+    "$PWD/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift"
+
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \

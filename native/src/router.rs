@@ -216,7 +216,7 @@ pub fn topk_biased(values: &Array, bias: &Array, top_k: usize) -> Result<(Array,
         .map_err(|_| anyhow::anyhow!("router values must have rank 2"))?;
     ensure!(
         crate::contracts::biased_router_domain(rows, experts, top_k),
-        "biased router requires one row, 1..=64 experts and a valid top-k"
+        "biased router requires bounded rows, 1..=64 experts and a valid top-k"
     );
     ensure!(
         values.dtype() == Dtype::Float16
@@ -228,14 +228,17 @@ pub fn topk_biased(values: &Array, bias: &Array, top_k: usize) -> Result<(Array,
         r#"
             constexpr uint EXPERTS = {experts}u;
             constexpr uint TOP_K = {top_k}u;
+            uint row = threadgroup_position_in_grid.y;
+            uint input_base = row * EXPERTS;
+            uint output_base = row * TOP_K;
             uint lane = thread_index_in_simdgroup;
-            half probability = lane < EXPERTS ? probabilities[lane] : half(0);
+            half probability = lane < EXPERTS ? probabilities[input_base + lane] : half(0);
             float candidate = lane < EXPERTS
                 ? float(probability) + float(bias[lane])
                 : -INFINITY;
             uint second_expert = lane + 32u;
             float second = second_expert < EXPERTS
-                ? float(probabilities[second_expert]) + float(bias[second_expert])
+                ? float(probabilities[input_base + second_expert]) + float(bias[second_expert])
                 : -INFINITY;
             uint chosen[TOP_K];
             for (uint rank = 0u; rank < TOP_K; ++rank) {{
@@ -250,22 +253,22 @@ pub fn topk_biased(values: &Array, bias: &Array, top_k: usize) -> Result<(Array,
             if (lane == 0u) {{
                 for (uint slot = 0u; slot < TOP_K; ++slot) {{
                     uint expert = chosen[TOP_K - 1u - slot];
-                    indices[slot] = expert;
-                    scores[slot] = probabilities[expert];
+                    indices[output_base + slot] = expert;
+                    scores[output_base + slot] = probabilities[input_base + expert];
                 }}
             }}
         "#
     );
     let mut outputs = array::metal_kernel(
-        &format!("mlxl3_rs_topk_biased_e{experts}_k{top_k}_v2"),
+        &format!("mlxl3_rs_topk_biased_e{experts}_k{top_k}_v3"),
         &["probabilities", "bias"],
         &["indices", "scores"],
         "",
         &source,
         &[values, bias],
-        &[vec![1, top_k as i32], vec![1, top_k as i32]],
+        &[vec![rows, top_k as i32], vec![rows, top_k as i32]],
         &[Dtype::UInt32, Dtype::Float16],
-        [32, 1, 1],
+        [32, rows, 1],
         [32, 1, 1],
     )?;
     ensure!(
@@ -455,67 +458,83 @@ mod tests {
     #[ignore = "physical Apple GPU; LFM2.5 biased 64-expert regression"]
     fn biased_router_matches_independent_sort_through_64_experts() -> Result<()> {
         use half::f16;
-        for experts in [1, 2, 31, 32, 33, 63, 64] {
-            for fixture in 0..5 {
-                let probabilities = (0..experts)
-                    .map(|i| {
-                        f16::from_f32(match fixture {
-                            0 => ((i * 37 % 101) + 1) as f32 / 128.,
-                            1 | 2 => 0.5,
-                            3 => (i + 1) as f32 / 128.,
-                            _ => {
-                                if i % 2 == 0 {
-                                    0.
-                                } else {
-                                    -0.
+        let mut cases = 0;
+        for rows in [1, 2, 3, 7, 8, 23, 24, 25, 63, 64, 65, 128, 266] {
+            for experts in [1, 2, 31, 32, 33, 63, 64] {
+                for fixture in 0..5 {
+                    let probabilities = (0..rows * experts)
+                        .map(|index| {
+                            let expert = index % experts;
+                            let row = index / experts;
+                            f16::from_f32(match fixture {
+                                0 => (((expert * 37 + row * 17) % 101) + 1) as f32 / 128.,
+                                1 | 2 => 0.5,
+                                3 => (((expert + row * 7) % experts) + 1) as f32 / 128.,
+                                _ => {
+                                    if (expert + row) % 2 == 0 {
+                                        0.
+                                    } else {
+                                        -0.
+                                    }
                                 }
-                            }
+                            })
+                            .to_bits()
                         })
-                        .to_bits()
-                    })
-                    .collect::<Vec<_>>();
-                let biases = (0..experts)
-                    .map(|i| {
-                        f16::from_f32(match fixture {
-                            0 => ((i * 13 % 29) - 14) as f32 / 64.,
-                            2 if i == experts - 1 => 1.,
-                            _ => 0.,
-                        })
-                        .to_bits()
-                    })
-                    .collect::<Vec<_>>();
-                let values = Array::from_f16_bits(&probabilities, &[1, experts])?;
-                let bias = Array::from_f16_bits(&biases, &[experts])?;
-                let selection = probabilities
-                    .iter()
-                    .zip(&biases)
-                    .map(|(p, b)| f16::from_bits(*p).to_f32() + f16::from_bits(*b).to_f32())
-                    .collect::<Vec<_>>();
-                for top_k in [1, 4.min(experts as usize), experts as usize] {
-                    let mut order = (0..experts as u32).collect::<Vec<_>>();
-                    order.sort_by(|a, b| {
-                        selection[*b as usize]
-                            .partial_cmp(&selection[*a as usize])
-                            .expect("finite routing fixture")
-                            .then(a.cmp(b))
-                    });
-                    order.truncate(top_k);
-                    order.reverse();
-                    let expected_scores = order
-                        .iter()
-                        .map(|&index| probabilities[index as usize])
                         .collect::<Vec<_>>();
-                    let (indices, scores) = topk_biased(&values, &bias, top_k)?;
-                    assert_eq!(indices.shape(), [1, top_k as i32]);
-                    assert_eq!(
-                        indices.to_u32()?,
-                        order,
-                        "E={experts}, K={top_k}, fixture={fixture}"
-                    );
-                    assert_eq!(scores.to_f16_bits()?, expected_scores);
+                    let biases = (0..experts)
+                        .map(|expert| {
+                            f16::from_f32(match fixture {
+                                0 => ((expert * 13 % 29) - 14) as f32 / 64.,
+                                2 if expert == experts - 1 => 1.,
+                                _ => 0.,
+                            })
+                            .to_bits()
+                        })
+                        .collect::<Vec<_>>();
+                    let values = Array::from_f16_bits(&probabilities, &[rows, experts])?;
+                    let bias = Array::from_f16_bits(&biases, &[experts])?;
+                    for top_k in [1, 4.min(experts as usize), experts as usize] {
+                        let mut expected_indices = Vec::new();
+                        let mut expected_scores = Vec::new();
+                        for probabilities in probabilities.chunks_exact(experts as usize) {
+                            let selection = probabilities
+                                .iter()
+                                .zip(&biases)
+                                .map(|(p, b)| {
+                                    f16::from_bits(*p).to_f32() + f16::from_bits(*b).to_f32()
+                                })
+                                .collect::<Vec<_>>();
+                            let mut order = (0..experts as u32).collect::<Vec<_>>();
+                            order.sort_by(|a, b| {
+                                selection[*b as usize]
+                                    .partial_cmp(&selection[*a as usize])
+                                    .expect("finite routing fixture")
+                                    .then(a.cmp(b))
+                            });
+                            order.truncate(top_k);
+                            order.reverse();
+                            expected_scores
+                                .extend(order.iter().map(|&expert| probabilities[expert as usize]));
+                            expected_indices.extend(order);
+                        }
+                        let (indices, scores) = topk_biased(&values, &bias, top_k)?;
+                        assert_eq!(indices.shape(), [rows, top_k as i32]);
+                        assert_eq!(scores.shape(), [rows, top_k as i32]);
+                        assert_eq!(
+                            indices.to_u32()?,
+                            expected_indices,
+                            "M={rows}, E={experts}, K={top_k}, fixture={fixture}"
+                        );
+                        assert_eq!(scores.to_f16_bits()?, expected_scores);
+                        cases += 1;
+                    }
                 }
             }
         }
+        assert_eq!(cases, 1365);
+        println!(
+            "biased router multirow: {cases} independent finite fixtures, indices and F16 scores bit exact"
+        );
         Ok(())
     }
 
@@ -527,7 +546,7 @@ mod tests {
         for top_k in [0, 65, usize::MAX] {
             assert!(topk_biased(&values, &bias, top_k).is_err());
         }
-        let rows = Array::from_f16_bits(&[0x3800; 128], &[2, 64])?;
+        let rows = Array::from_f16_bits(&[], &[0, 64])?;
         assert!(topk_biased(&rows, &bias, 4).is_err());
         let rank = values.reshape(&[64])?;
         assert!(topk_biased(&rank, &bias, 4).is_err());

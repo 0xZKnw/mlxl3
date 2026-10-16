@@ -127,6 +127,9 @@ emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, mode
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
     request = json.loads(line)
+    if path := os.environ.get('MLXL3_SAMPLING_CHECK_REQUESTS'):
+        with open(path, 'a') as log:
+            log.write(json.dumps({'model': model, 'request': request}) + '\n')
     if model in ('mtp-memory-saver', 'dflash-memory-saver'):
         with open(os.path.join(os.environ['MLXL3_HOME'], 'memory-saver-requests.jsonl'), 'a') as log:
             log.write(json.dumps(request) + '\n')

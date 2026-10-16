@@ -1,0 +1,141 @@
+{
+  "status": "complete",
+  "source_state": "c9aa43a3 with recorded local metadata/UI fix",
+  "binary": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/target/debug/mlxl3-rs",
+  "binary_sha256": "3855c4a2a6791d1d0b4ddedb9cbce10139b73d17a223545381a06ec819c0cea7",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+  "model_files": {
+    "model-00001-of-00004.safetensors": {
+      "bytes": 4105824032,
+      "sha256": "cce3f431c4a79319bfa10952baaa6db6179971631f5e2a8d60da04bb981c7f8e"
+    },
+    "model-00002-of-00004.safetensors": {
+      "bytes": 4098373902,
+      "sha256": "3e87ad7f40ee617dce5d699bb70faaa1d78ea3cac11fd616185ca2a0ab773c77"
+    },
+    "model-00003-of-00004.safetensors": {
+      "bytes": 4093646372,
+      "sha256": "b06ea4d40f096d9bedcdc2de00e2c60685feb6da1ca89164824d937bc53576ef"
+    },
+    "model-00004-of-00004.safetensors": {
+      "bytes": 316353015,
+      "sha256": "0c2967321f556980b8556a8d6abe3f3de5ddcd6ef5899f5736d16eb0d3252e43"
+    },
+    "config.json": {
+      "bytes": 1962,
+      "sha256": "d6cb556687ddd8382a90cbb957b4fbbdf95ed607bbc4800dc85fd5e5510edade"
+    },
+    "quantization_config.json": {
+      "bytes": 6863640,
+      "sha256": "1f14eebf3c583e8ce313438f9f0d00f916600dc7c120d0129f7604e7e011ef10"
+    },
+    "model.safetensors.index.json": {
+      "bytes": 2695272,
+      "sha256": "0a0dc2746c597a1d735264a9eb71f47513f8a479fb68cdf7de6700f7a49d8974"
+    }
+  },
+  "expected": {
+    "bytes_per_token": 20480,
+    "fixed_bytes": 245760
+  },
+  "events": [
+    {
+      "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+      "type": "loading"
+    },
+    {
+      "bridge_protocol": 1,
+      "context_limit": 4096,
+      "context_memory": {
+        "draft_bytes_per_token": null,
+        "fixed_bytes": 245760,
+        "layers": [
+          {
+            "bytes_per_token": 20480,
+            "max_tokens": null,
+            "step": 1
+          }
+        ]
+      },
+      "dflash_configure_supported": true,
+      "dflash_family": null,
+      "dflash_supported": false,
+      "dflash_tune_supported": false,
+      "dflash_tuning_key": "05a894fad1dd5c86:1.4.4:c9aa43a312c6-dirty:debug:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+      "load_seconds": 4.411204167,
+      "mcp_errors": {},
+      "mcp_servers": 0,
+      "mcp_tools": 0,
+      "memory_saver_supported": true,
+      "mlx_version": "0.32.2",
+      "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+      "model_context_limit": 131072,
+      "modules": 7402,
+      "mtp_auto_download_supported": false,
+      "mtp_configure_supported": true,
+      "mtp_max_depth": 3,
+      "mtp_supported": false,
+      "mtp_tune_supported": false,
+      "mtp_tuning_key": "05a894fad1dd5c86:1.4.4:c9aa43a312c6-dirty:debug:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0",
+      "resident_gb": 12.641698501,
+      "runtime_commit": "c9aa43a312c6-dirty",
+      "runtime_executable": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/target/debug/mlxl3-rs",
+      "runtime_profile": "debug",
+      "runtime_version": "1.4.4",
+      "type": "ready"
+    }
+  ],
+  "generation_executed": false,
+  "performance_measured": false,
+  "memory_footprint_measured": false,
+  "command": [
+    "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/target/debug/mlxl3-rs",
+    "bridge",
+    "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+    "--context-length",
+    "4096"
+  ],
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": {
+      "draft_bytes_per_token": null,
+      "fixed_bytes": 245760,
+      "layers": [
+        {
+          "bytes_per_token": 20480,
+          "max_tokens": null,
+          "step": 1
+        }
+      ]
+    },
+    "dflash_configure_supported": true,
+    "dflash_family": null,
+    "dflash_supported": false,
+    "dflash_tune_supported": false,
+    "dflash_tuning_key": "05a894fad1dd5c86:1.4.4:c9aa43a312c6-dirty:debug:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+    "load_seconds": 4.411204167,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+    "model_context_limit": 131072,
+    "modules": 7402,
+    "mtp_auto_download_supported": false,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": false,
+    "mtp_tune_supported": false,
+    "mtp_tuning_key": "05a894fad1dd5c86:1.4.4:c9aa43a312c6-dirty:debug:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0",
+    "resident_gb": 12.641698501,
+    "runtime_commit": "c9aa43a312c6-dirty",
+    "runtime_executable": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/target/debug/mlxl3-rs",
+    "runtime_profile": "debug",
+    "runtime_version": "1.4.4",
+    "type": "ready"
+  },
+  "exit_code": 0,
+  "elapsed_seconds": 9.49968579201959
+}

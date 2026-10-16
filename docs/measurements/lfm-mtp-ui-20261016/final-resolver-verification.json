@@ -1,0 +1,66 @@
+{
+  "status": "complete",
+  "exit": 0,
+  "source_commit": "0bebf7446a08db1e13879394288a8a4bacab1632",
+  "source_files": {
+    "EngineRuntimeStore.swift": "69e40fc3b87ffb876e2d4c5740822eb5be72985122ac3befb4e646a9d3c8ac63",
+    "UpdateManager.swift": "58361c6a64311da99c4fc507e85136cf75ad4d3d37335dbe5d35c570cf3b2a99",
+    "Localization.swift": "da7ebdfafbfa72f20d1d7da8173086ac218743eb877843ee553e4e3ff6c57178",
+    "MLXL3Bridge.swift": "39b9f2d8092060b53c821b8e10209d4c74e9b05b3b078099ee54266bff31f1ed"
+  },
+  "bundle_build_info": {
+    "version": "1.4.4",
+    "build": "26",
+    "commit": "0bebf7446a08db1e13879394288a8a4bacab1632",
+    "tracked_changes": false,
+    "runtime": "Rust + MLX 0.32.2",
+    "signing": "ad-hoc; not notarized",
+    "swift_sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+  },
+  "command": "/bin/zsh build/lfm-mtp-ui-state/check-final-resolver.zsh --final-package-confirmed \"$PWD/dist/MLXL3 Desktop.app\"",
+  "artifacts": {
+    "check-final-resolver.zsh": {
+      "bytes": 2515,
+      "sha256": "bbd2c5746e418724082c636585ff4829adb9b832e6794c5ca12e86bad465e836"
+    },
+    "final-resolver-check.swift": {
+      "bytes": 6371,
+      "sha256": "5faa745e8cddb5c2a6d00d3bb63cca6a82bce96c41b756d3fb6cf10d267cc296"
+    },
+    "final-resolver-CLIResolver.swift": {
+      "bytes": 1546,
+      "sha256": "e0f1797fa0fea255a8d4b2e85dffbcf30d0bab1a301dd749e66d31c7ba4c471a"
+    },
+    "final-resolver.json": {
+      "bytes": 1793,
+      "sha256": "f245924c58bd18fad7194c7e6f94595186abad00d80d3315c4991c897b86b3c6"
+    },
+    "final-resolver.stdout": {
+      "bytes": 1793,
+      "sha256": "f245924c58bd18fad7194c7e6f94595186abad00d80d3315c4991c897b86b3c6"
+    },
+    "final-resolver.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "final-resolver-build.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "final-resolver-command.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "scope": "Production resolver/store sources compiled into disposable helper using final packaged Info.plist/runtime unchanged; real managed pointer and old managed engine only read. No engine subprocess, GUI, model, GPU or UserDefaults instantiated. Helper copy removed after completion. Resolver fallback #filePath differs in extraction; exact bundled path assertion prevents accepting that fallback.",
+  "expected": {
+    "Desktop": "1.4.4",
+    "bundled_engine": "1.4.5",
+    "real_managed_pointer": "1.4.4",
+    "managed_engine_valid_at_old_floor": true,
+    "managed_engine_rejected_at_new_bundle_floor": true,
+    "installedVersion": "1.4.5",
+    "CLIResolver": "bundled runtime",
+    "pointer_content_unchanged": true
+  }
+}

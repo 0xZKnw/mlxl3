@@ -188,7 +188,7 @@ extension UpdateManager {
         flash.setDFlash2Enabled(true)
         for _ in 0..<200 where flash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(flash.dflash2Enabled && flash.dflashActive == true && flash.canTuneDFlash, "One click must install and activate the matching draft")
-        precondition(flash.temperature == 0 && flash.topK == 1 && flash.repetitionPenalty == 1)
+        precondition(flash.samplingTemperature == 0 && flash.samplingTopK == 1 && flash.samplingRepetitionPenalty == 1)
         let history = flash.conversations[0].messages.count
         try await renderTuneToolbar(flash, "dflash-idle", dflash: true)
         precondition(!flash.showInspector)
@@ -577,7 +577,7 @@ extension UpdateManager {
         renamed.setMTPEnabled(true)
         for _ in 0..<200 where renamed.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(renamed.mtpEnabled && renamed.mtpHeadPath == "/tmp/mlxl3-fixture-mtp")
-        precondition(renamed.temperature == 0 && renamed.topK == 1 && renamed.repetitionPenalty == 1)
+        precondition(renamed.samplingTemperature == 0 && renamed.samplingTopK == 1 && renamed.samplingRepetitionPenalty == 1)
         precondition(renamed.dflash2Available, "Engine capability must override the directory name")
         precondition(renamed.runtimeIdentity == "fixture · release · MLX 0.32.2")
         renamed.ejectModel()
