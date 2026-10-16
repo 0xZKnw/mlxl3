@@ -9,6 +9,12 @@
 - Les mesures Q19 restent celles du code prérelease sous identité documentée : ne pas inventer de débit du paquet1.4.7 ni refaire les performances pour un simple numéro de version. Si intégration change du calcul, revenir aux contrôles numériques puis au protocole de vitesse affecté avant toute revendication. Aucun succès CI déduit de l'existence d'un workflow.
 - Publier tag engine-v1.4.7 au commit source exact et release moteur avec latest=false ; joindre tar.gz, manifeste, tailles/SHA256 et validation JSON. Vérifier artefacts distants et que Desktopv1.4.6 reste latest. Consigner échecs, résultats et état réel avant clôture.
 
+- Intégration locale terminée sur c9a19a85 via rebase ae79e947 : seul conflit dans le journal, résolu en conservant les deux historiques. Les sept sources natives sont byte-identiques à Q19candidate-v2 ; version Cargo/lock passée de1.4.6 à1.4.7, Desktop1.4.6 conservé. Les logs/patchs bruts ont des espaces et lignes finales attendus : le premier diffcheck les signale, bytes conservés ; contrôler source et documentation hors trois dossiers de mesures au lieu de modifier les preuves. Changelog rédigé, aucun push/release encore.
+
+- Contrôles intégration1.4.7 : complete, 9étapes ; logs build/engine-v1.4.7/checks/status.json, copies/preuves de release àconserver. Aucune inference GPU ni publication pendant cette phase CPU.
+
+- Contrôles locaux intégration passés :179Rust/85ignorés,442Python, fmt/Clippy strict, troisKaniCPU réussis ; preuves copiées docs/measurements/engine-v1.4.7/prebuild-checks etintegration.json. Les sept sources numériques restent identiquesQ19 ; version seule et amontupdater intégrés. Prêt pour commit/push puis build propre et contrôle du paquet signé ; aucune publication encore.
+
 ### Q27-2026-10-16-19 — portage natif ordre des lanes EXL3 — validé localement, option OFF par défaut
 
 - Q27-16 passe20/32microfiltres etexactitude32/32formes ; candidatglobalM1/M2 justifié,12cellulesnonqualifiéesrestentvisibles. Hypothèseglobale àfalsifier parvraimodèle : réduirelectures/shuffles amortitlescopiesd'entrée, nepasadditionnerlespourcentages. Baselinecode4db44674/M2M4MLP/MTP1 ; source actuelle7ce611c1dirty,poidsinchangés.
