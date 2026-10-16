@@ -1429,8 +1429,7 @@ impl NativeChatModel {
     fn forward_many(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         anyhow::ensure!(!tokens.is_empty(), "empty token batch");
         if let Self::Lfm2(model) = self
-            && model.supports_moe_exact_prefill()
-            && std::env::var_os("MLXL3_LFM_MOE_PREFILL").is_some_and(|value| value == "1")
+            && model.uses_moe_exact_prefill()
         {
             let (output, stats) = model.prefill_moe_exact(tokens)?;
             if std::env::var_os("MLXL3_LFM_PREFILL_TRACE").is_some_and(|value| value == "1") {
@@ -1479,13 +1478,7 @@ impl NativeChatModel {
         match self {
             Self::Gemma4(_) => 256,
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
-            Self::Lfm2(model)
-                if model.supports_moe_exact_prefill()
-                    && std::env::var_os("MLXL3_LFM_MOE_PREFILL")
-                        .is_some_and(|value| value == "1") =>
-            {
-                8
-            }
+            Self::Lfm2(model) if model.uses_moe_exact_prefill() => 8,
             Self::Qwen(_) => 256,
             Self::Ling(_) => 128,
             Self::Lfm2(_) => 1,

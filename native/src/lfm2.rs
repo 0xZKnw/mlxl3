@@ -4,7 +4,6 @@
 use crate::{
     array::{self, Array, Dtype},
     checkpoint::{self, Checkpoint},
-    lfm_cache::KvCache,
     linear::{Exl3Group, Exl3Linear, checkpoint_array},
     moe::Exl3SwitchGlu,
     router,
@@ -378,7 +377,6 @@ struct Attention {
     theta: f32,
     keys: Option<Array>,
     values: Option<Array>,
-    capacity_cache: Option<KvCache>,
 }
 
 impl Attention {
@@ -423,7 +421,6 @@ impl Attention {
             theta,
             keys: None,
             values: None,
-            capacity_cache: None,
         })
     }
 
@@ -433,12 +430,6 @@ impl Attention {
             .get(1)
             .context("LFM2 attention input must have time")?;
         ensure!(time > 0, "empty LFM2 attention input");
-        if let Some(cache) = &self.capacity_cache {
-            ensure!(
-                cache.position() == offset,
-                "LFM2 KV capacity position mismatch"
-            );
-        }
         let projections = self.qkv.forward(x)?;
         let q = projections[0]
             .reshape(&[1, time, self.heads, self.head_dim])?
@@ -453,21 +444,6 @@ impl Attention {
         let v = projections[2]
             .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .transpose(&[0, 2, 1, 3])?;
-        if let Some(cache) = &mut self.capacity_cache {
-            let views = cache.append(&k, &v)?;
-            let out = Array::sdpa(
-                &q,
-                &views[0],
-                &views[1],
-                (self.head_dim as f32).powf(-0.5),
-                time > 1,
-            )?
-            .transpose(&[0, 2, 1, 3])?
-            .reshape(&[1, time, self.heads * self.head_dim])?;
-            // Keep the logical views solely in KvCache. Extra persistent clones
-            // in keys/values would prevent donation on every subsequent append.
-            return self.output.forward(&out);
-        }
         let keys = match &self.keys {
             Some(previous) => Array::concatenate(&[previous, &k], 2)?,
             None => k,
@@ -493,9 +469,6 @@ impl Attention {
     fn reset(&mut self) {
         self.keys = None;
         self.values = None;
-        if let Some(cache) = &mut self.capacity_cache {
-            cache.reset();
-        }
     }
 }
 
@@ -1005,12 +978,7 @@ impl Lfm2 {
         }
         let moe_exact_prefill = exact_moe_prefill_config(&config, attention.len(), true)
             && exact_moe_projection_metadata(checkpoint);
-        let flag = std::env::var_os("MLXL3_LFM_KV_CAPACITY");
-        let capacity_enabled = crate::lfm_cache::capacity_enabled(
-            flag.as_deref().map(std::ffi::OsStr::as_encoded_bytes),
-            moe_exact_prefill,
-        );
-        let mut model = Self {
+        Ok(Self {
             embeddings,
             norm,
             head,
@@ -1020,37 +988,7 @@ impl Lfm2 {
             moe_exact_prefill,
             eps: config.norm_eps,
             offset: 0,
-        };
-        model.configure_capacity_cache(capacity_enabled)?;
-        Ok(model)
-    }
-
-    // Load-time choice; also used by the same-instance physical OFF/ON fixture.
-    // A reset preserves this choice, while reconfiguration clears all old state.
-    fn configure_capacity_cache(&mut self, requested: bool) -> Result<()> {
-        self.reset();
-        let enabled = requested && self.moe_exact_prefill;
-        for layer in &mut self.layers {
-            if let Operator::Attention(attention) = &mut layer.operator {
-                attention.capacity_cache = if enabled {
-                    Some(KvCache::new(
-                        attention.kv_heads,
-                        attention.head_dim,
-                        self.context_limit,
-                    )?)
-                } else {
-                    None
-                };
-            }
-        }
-        Ok(())
-    }
-
-    /// Selected experimental storage mode; this does not assert physical reuse.
-    pub fn uses_capacity_kv_cache(&self) -> bool {
-        self.layers.iter().any(|layer| matches!(
-            &layer.operator, Operator::Attention(attention) if attention.capacity_cache.is_some()
-        ))
+        })
     }
 
     pub fn supports_batched_prefill(&self) -> bool {
@@ -1060,9 +998,17 @@ impl Lfm2 {
     }
 
     /// Eligibility for the registered V2 K4/MCG geometry.
-    /// The caller must still opt in after parity and performance qualification.
     pub fn supports_moe_exact_prefill(&self) -> bool {
         self.moe_exact_prefill
+    }
+
+    /// One selection contract for bridge chunking and the actual dispatch.
+    pub fn uses_moe_exact_prefill(&self) -> bool {
+        let flag = std::env::var_os("MLXL3_LFM_MOE_PREFILL");
+        crate::contracts::lfm_moe_prefill_enabled(
+            self.supports_moe_exact_prefill(),
+            flag.as_deref().map(std::ffi::OsStr::as_encoded_bytes),
+        )
     }
 
     /// Consumes one token for decode, or at least 24 tokens for dense TensorOps prefill.
@@ -1217,18 +1163,11 @@ impl Lfm2 {
         for (index, layer) in self.layers.iter().enumerate() {
             match &layer.operator {
                 Operator::Attention(attention) => {
-                    if let Some(cache) = &attention.capacity_cache {
-                        if let Some(views) = cache.views() {
-                            states.push((format!("model.layers.{index}.keys"), &views[0]));
-                            states.push((format!("model.layers.{index}.values"), &views[1]));
-                        }
-                    } else {
-                        if let Some(keys) = &attention.keys {
-                            states.push((format!("model.layers.{index}.keys"), keys));
-                        }
-                        if let Some(values) = &attention.values {
-                            states.push((format!("model.layers.{index}.values"), values));
-                        }
+                    if let Some(keys) = &attention.keys {
+                        states.push((format!("model.layers.{index}.keys"), keys));
+                    }
+                    if let Some(values) = &attention.values {
+                        states.push((format!("model.layers.{index}.values"), values));
                     }
                 }
                 Operator::Conv(conv) => {
@@ -1249,8 +1188,8 @@ impl Lfm2 {
         self.context_limit
     }
 
-    /// F16 state payload for batch one: logical KV in the baseline, reserved KV
-    /// in capacity mode. Backing slack, activations and allocator caches differ.
+    /// Logical F16 context states for batch one. Views can retain larger backing
+    /// allocations; temporary activations and allocator caches are not included.
     pub fn context_memory_profile(&self) -> Result<serde_json::Value> {
         let mut profile = crate::contracts::LfmContextMemory::default();
         for layer in &self.layers {
@@ -1262,28 +1201,7 @@ impl Lfm2 {
             }
             .context("invalid or overflowing LFM2 context memory profile")?;
         }
-        let mut profile = profile.into_json();
-        if self.uses_capacity_kv_cache() {
-            profile["layers"][0]["step"] = crate::lfm_cache::CAPACITY_STEP.into();
-            profile["layers"][0]["max_tokens"] = self.context_limit.into();
-            let (mut logical, mut reserved) = (0usize, 0usize);
-            for layer in &self.layers {
-                if let Operator::Attention(attention) = &layer.operator
-                    && let Some(cache) = &attention.capacity_cache
-                {
-                    logical = logical
-                        .checked_add(cache.logical_bytes()?)
-                        .context("KV logical payload overflow")?;
-                    reserved = reserved
-                        .checked_add(cache.reserved_bytes()?)
-                        .context("KV reserved payload overflow")?;
-                }
-            }
-            profile["kv_capacity"] = serde_json::json!({
-                "logical_bytes":logical, "reserved_payload_bytes":reserved,
-            });
-        }
-        Ok(profile)
+        Ok(profile.into_json())
     }
 
     pub fn reset(&mut self) {

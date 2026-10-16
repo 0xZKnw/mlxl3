@@ -18,7 +18,6 @@
 #include <libproc.h>
 #include <sys/resource.h>
 #include "kernel_cache_key.h"
-#include "mlx_bridge.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -407,39 +406,6 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
 }
 int mlxl3_array_concatenate(void* const* inputs, size_t count, int axis, void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::concatenate(arrays(inputs, count), axis)); });
-}
-int mlxl3_array_update_slice(void* storage, void* update, int32_t axis,
-                             int32_t start, int32_t end) noexcept {
-  return protect([&] {
-    auto& source = arr(storage);
-    const auto& values = arr(update);
-    if (axis < 0 || size_t(axis) >= source.ndim() || start < 0 ||
-        start >= end || end > source.shape(axis))
-      throw std::invalid_argument("slice update range outside storage");
-    if (source.dtype() != values.dtype() || source.ndim() != values.ndim())
-      throw std::invalid_argument("slice update dtype or rank mismatch");
-    for (size_t i = 0; i < source.ndim(); ++i) {
-      const auto expected = i == size_t(axis) ? end - start : source.shape(i);
-      if (values.shape(i) != expected)
-        throw std::invalid_argument("slice update shape mismatch");
-    }
-    mx::Shape first(source.ndim(), 0), last = source.shape();
-    first[axis] = start;
-    last[axis] = end;
-    auto result = mx::slice_update(source, values, first, last);
-    // MLX returns values directly for a full replacement. Preserve a row
-    // contiguous capacity buffer even when values are a transposed QKV view.
-    if (start == 0 && end == source.shape(axis)) result = mx::contiguous(result);
-    source.overwrite_descriptor(result);
-  });
-}
-int mlxl3_array_storage_identity(void* p, uint64_t* identity) noexcept {
-  return protect([&] {
-    if (!identity) throw std::invalid_argument("null storage identity output");
-    const auto& a = arr(p);
-    mx::eval(a);
-    *identity = uint64_t(reinterpret_cast<uintptr_t>(a.data_shared_ptr().get()));
-  });
 }
 int mlxl3_array_affine4(void* x, void* w, void* scales, void* biases,
                         void* indices, void** out) noexcept {

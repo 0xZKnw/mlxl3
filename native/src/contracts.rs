@@ -116,6 +116,50 @@ fn biased_router_offsets_cover_registered_rows_and_all_expert_widths() {
     }
 }
 
+/// Only an explicit opt-in selects the numerically qualified microblocks.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn lfm_moe_prefill_enabled(qualified: bool, flag: Option<&[u8]>) -> bool {
+    qualified && matches!(flag, Some([b'1']))
+}
+
+#[test]
+fn lfm_moe_prefill_selection_preserves_default_and_explicit_fallback() {
+    for qualified in [false, true] {
+        assert!(!lfm_moe_prefill_enabled(qualified, None));
+        for byte in 0..=u8::MAX {
+            assert_eq!(
+                lfm_moe_prefill_enabled(qualified, Some(&[byte])),
+                qualified && byte == b'1'
+            );
+        }
+        for invalid in [vec![], vec![b'1'; 2], vec![b'1'; 1024], vec![0xff; 1024]] {
+            assert!(!lfm_moe_prefill_enabled(qualified, Some(&invalid)));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn lfm_moe_prefill_selection_respects_qualification_and_override() {
+    let qualified: bool = kani::any();
+    let present: bool = kani::any();
+    let bytes: [u8; 4] = kani::any();
+    // Finite string domain 0..4, constructed without a caller precondition.
+    let length = usize::from(kani::any::<u8>()) % 5;
+    let flag = present.then_some(&bytes[..length]);
+    let enabled = lfm_moe_prefill_enabled(qualified, flag);
+    assert_eq!(
+        enabled,
+        qualified && present && length == 1 && bytes[0] == b'1'
+    );
+    kani::cover!(qualified && !present && !enabled);
+    kani::cover!(qualified && present && length == 1 && bytes[0] == b'1' && enabled);
+    kani::cover!(qualified && present && length == 1 && bytes[0] == b'0' && !enabled);
+    kani::cover!(!qualified && !present && !enabled);
+    kani::cover!(qualified && present && length == 2 && !enabled);
+}
+
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn lfm_moe_exact_prefill_geometry(
     hidden: i32,

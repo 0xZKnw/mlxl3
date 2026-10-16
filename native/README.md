@@ -105,16 +105,18 @@ already exist. They are architecture-specific; hybrid states cannot be restored
 from KV alone. LFM baseline attention concatenates KV and short-convolution
 state may retain a larger backing allocation.
 
-`MLXL3_LFM_MOE_PREFILL=1` selects microblocks of at most eight tokens only for
-the qualified LFM2.5-24B-A2B V2 geometry and mapped K4/MCG expert projections.
+`MLXL3_LFM_MOE_PREFILL=1` opts into microblocks of at most eight tokens only for
+qualified LFM2.5-24B-A2B V2 geometry and mapped K4/MCG expert projections.
+The default, `0`, and invalid explicit values keep the canonical serial path.
 Attention, convolution, norms, residuals, gates and the final head keep canonical
-M1 shapes; only independent MoE FFN rows are grouped. The default remains off.
-The [LFM-01 report](../docs/measurements/audit-api-lfm-20261016/lfm-01.md) records
-32 exact terminal-logit/state/route cases and passive route capture, on a frozen
-binary predating the experimental capacity-cache integration. This is numerical
-qualification of that matrix, not a speed claim, all-position proof or BF16
-quality measurement. The independent LFM capacity-cache variant is still under
-integration/qualification and is not established default behavior.
+M1 shapes; only independent MoE FFN rows are grouped. This path remains experimental
+because the complete performance campaign was interrupted by host sleep and a
+concurrent graphics workload. No qualified speedup is claimed for this release.
+The [LFM report](../docs/measurements/audit-api-lfm-20261016/lfm-final.md) records
+the numerical matrix, T600 checks and real bridge/API checks with this path active.
+These are bounded validations, not an all-position proof or BF16 quality measurement.
+The capacity-cache prototype was removed after a screen showed no useful benefit;
+LFM keeps concatenated KV.
 
 Adaptive MTP and several fused/alternative paths are experimental and off by
 default. In particular, `MLXL3_MTP_FUSED_NORM=1` and

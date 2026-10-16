@@ -1,56 +1,91 @@
 # MLXL3 Desktop 1.4.4 — build 26
 
-**Release publique en préparation, non publiée.** Cette version embarquera le moteur **1.4.5**. Elle réunit les correctifs de l’inspecteur LFM et de l’API locale ; les variantes de performance LFM attendent encore leur qualification finale.
+Cette version embarque le moteur **1.4.5** et corrige l'inspecteur des modèles LFM
+ainsi que la fiabilité de l'API locale.
 
 ## Nouveautés
 
-- L’inspecteur distingue la préférence MTP/DFlash enregistrée du mode réellement disponible. Sur LFM sans tête compatible, température, Top K, répétition et bouton OFF restent accessibles.
-- L’estimation de contexte reçoit le profil de cache logique des modèles LFM denses/MoE. Pour LFM2.5-24B-A2B : **20 480 octets/token + 245 760 octets fixes**.
-- Le moteur expose `/v1/capabilities` pour décrire les fonctions réellement acceptées par son API. Voir les [notes du moteur 1.4.5](release-engine-v1.4.5.md).
+- L'inspecteur distingue la préférence MTP/DFlash enregistrée du mode compatible
+  avec le modèle chargé. Sur LFM sans tête MTP, le bouton OFF et les réglages de
+  sampling restent accessibles.
+- L'estimation de contexte utilise désormais le profil des caches LFM. Pour
+  LFM2.5-24B-A2B : **20 480 octets/token + 245 760 octets fixes**.
+- Le moteur expose `/ready` et `/v1/capabilities` ; les fonctions réellement
+  acceptées par l'API sont décrites dans les [notes moteur](release-engine-v1.4.5.md).
 
 ## Correctifs
 
-Une préférence spéculative conservée après un changement Qwen→LFM ne verrouille plus le sampling d’un modèle incompatible. Les réglages libres sont conservés lorsqu’on active puis désactive un mode compatible ; MTP/DFlash continuent d’imposer greedy lorsqu’ils sont effectivement utilisés.
+Le passage Qwen→LFM ne verrouille plus température, Top K et répétition à cause
+d'une ancienne préférence spéculative. Les valeurs libres restent conservées
+lorsqu'on active puis désactive un mode compatible.
 
-L’API distingue désormais EOS, budget de sortie et contexte plein dans `finish_reason`. Elle refuse immédiatement une génération supplémentaire lorsque le moteur est occupé, annule une requête déconnectée même avant le premier delta et borne les attentes du bridge et des clients HTTP. Les réponses invalides ne sont plus présentées comme une réussite. L’arrêt pendant le chargement nettoie également le sous-processus moteur.
+L'API annonce correctement les fins EOS, budget de sortie et contexte plein.
+Elle refuse une requête supplémentaire lorsque le moteur est occupé, récupère
+une déconnexion avant le premier delta et borne les attentes et écritures HTTP.
+L'arrêt du serveur pendant le chargement termine et attend le processus moteur.
 
-Le packaging prend la version du moteur dans `Cargo.toml`, indépendamment de la version Desktop ; l’option explicite reste prioritaire.
+Le packaging utilise la version Cargo du moteur, indépendamment de la version
+Desktop ; l'option explicite de version reste prioritaire.
 
 ## Performances et mémoire
 
-Qualification numérique locale du préfill MoE : **32 cas V2** passent, longueurs **1..8/23/24/25/63/64/65/128/266**, préfixes **0 et17**, avec **128000logits F16 terminaux,50états, routes/affinités des38MoE et17continuations forcées bitidentiques**. La capture de routes est passive sur128tokens. Ce résultat porte sur le binaire figé `dac890b…`, avant le raccordement KV à capacité ; il ne valide pas automatiquement le code modifié ensuite. Le chemin reste **opt-in, désactivé par défaut** à cette étape. [Preuves et limites LFM-01](measurements/audit-api-lfm-20261016/lfm-01.md).
+Un préfill MoE par microblocs est disponible en option pour la géométrie EXL3
+K4/MCG qualifiée de LFM2.5-24B-A2B V2. Il conserve les formes M1 canoniques pour
+attention, convolution, normes, gates et head. Activation explicite :
+`MLXL3_LFM_MOE_PREFILL=1` dans l'environnement du moteur. **Il reste désactivé par
+défaut** : les campagnes de vitesse ont été perturbées par la veille puis une
+charge graphique concurrente. Aucun boost de vitesse n'est annoncé comme validé.
 
-**À compléter avant publication :** variantes LFM retenues ou rejetées, parité numérique, matériel, modèle, protocole et résultats comparatifs. Aucun gain de vitesse ni amélioration KL/PPL n’est établi par les contrôles CPU. Un prototype ne constitue pas une accélération livrée.
+Les contrôles numériques du chemin actif comparent 128 000 logits F16 terminaux,
+50 états et les routes des 38 MoE, puis 17 continuations forcées. La matrice
+historique comprend 32 cas jusqu'à 266 tokens ; les contrôles affectés ont aussi
+été répétés jusqu'à 600 tokens. Les résultats sont bitidentiques sur ces entrées,
+sans preuve de toutes les positions ou de tout le contexte maximal. Le prototype
+KV à capacité a été retiré faute de gain utile. [Rapport et limites](measurements/audit-api-lfm-20261016/lfm-final.md).
 
-Le profil mémoire décrit les états persistants logiques. Il exclut poids, grands backings retenus par des vues, temporaires, cache allocateur et RAM processus. La taille initiale du checkpoint affichée n’est pas une mesure de toute la mémoire résidente.
+L'estimation mémoire décrit les états persistants logiques ; elle exclut poids,
+backings supplémentaires, temporaires, cache allocateur et RAM processus. Aucun
+poids ni paramètre de quantification n'est modifié ; aucune baisse KL/PPL n'est
+revendiquée.
 
 ## Installation et compatibilité
 
-Artefact prévu : **MLXL3-Desktop-v1.4.4-b26-Apple-Silicon.dmg**. Apple Silicon, macOS **26.2+**, moteur **1.4.5** et MLX **0.32.2** embarqués ; les poids se téléchargent séparément. Distribution prévue **signée ad-hoc, sans notarisation Apple** ; la signature du build final reste à vérifier.
+Artefact : **MLXL3-Desktop-v1.4.4-b26-Apple-Silicon.dmg**. Apple Silicon, macOS
+**26.2+**, moteur **1.4.5** et MLX **0.32.2** embarqués. Les poids sont séparés.
+Distribution **signée ad-hoc, sans notarisation Apple**.
 
-Le canal moteur indépendant doit conserver `--latest=false` pour que l’updater Desktop propose le DMG. Cette préparation n’a pas remplacé l’application installée ; aucun remplacement dans `/Applications` n’est prévu au titre de la décision utilisateur de conserver l’app actuelle.
+La publication moteur conserve `latest=false`, pour que le canal Desktop propose
+le DMG. L'app actuellement installée est conservée, selon la décision utilisateur ;
+la production des artefacts ne vaut pas remplacement dans `/Applications`.
 
 ## Vérification et limites
 
-**Campagne UI/mémoire antérieure au lot API :** suite Desktop exécutée, puis **821 assertions / 180 états** après les dernières retouches ; ancien comportement et mutation détectés. Le contrôle visuel vivant a vérifié les curseurs, OFF et l’estimation mémoire. Un chargement réel LFM V2 a confirmé capacités et profil, sans génération. Rust : **80 tests CPU réussis / 3 ignorés**, **220 obligations Kani / 11 couvertures** sur les domaines arithmétiques documentés. [Preuves UI/mémoire](measurements/lfm-mtp-ui-20261016/README.md).
+La source conservée passe **118 tests Rust CPU / 3 ignorés**, format et Clippy
+strict, dont **33 tests API inclus**. La suite intégrée Python/Swift passe
+**495 tests Python / 69 sautés**, puis les contrôles Desktop ; le sampling compte
+**821 assertions / 180 états**, et l'oracle mémoire 240 cas. Les sources Swift et
+Python sont inchangées depuis ce contrôle intégré ; les changements Rust finaux
+ont leurs contrôles propres.
 
-**Nouveau lot API : 33 tests CPU réussis, aucun ignoré**, format et Clippy strict passés. Les fixtures exercent HTTP, faux bridge, déconnexion, saturation, erreurs, SIGTERM pendant le chargement et vrai TCP non lecteur. Trois mutations retirant des protections de fermeture/délai sont détectées, puis restaurées. Kani valide **65 obligations / 3 couvertures** sur les compteurs et budgets u64. Le harnais du parseur Origin a atteint **30 secondes sans conclusion** : il reste non prouvé. [Rapport API](measurements/audit-api-lfm-20261016/api.md).
+Kani du sélecteur opt-in : **33 obligations / 5 couvertures**, booléens symboliques
+et chaînes de 0 à 4 octets, unwind 6, sans hypothèse. Les preuves CPU ne prouvent
+ni Metal, ni toutes les interactions HTTP. Les tests GPU restés ignorés, le long
+contexte non qualifié et les timeouts formels sont identifiés dans le rapport.
+Les autres fonctionnalités/R&D de l'audit restent dans la
+[matrice des 40 propositions](audit-api-lfm-status.md).
 
-Ces preuves restent séparées : elles ne prouvent ni SwiftUI, ni les échanges concurrents, ni MLX/Metal, ni la fidélité de toute génération. Les valeurs de sampling déjà écrasées par une ancienne version ne peuvent pas être reconstituées. Le packaging antérieur dispose de **45 tests réussis** ; deux contrats CrossHair restent non confirmés, sans preuve I/O.
-
-**À compléter avant publication :** suites intégrées finales, build livré `mlx,chat`, qualification physique des sources finales LFM et mesures retenues, CI du SHA exact, signature et cohérence des artefacts.
-
-## Identité de la release préparée
-
-Tag prévu : `v1.4.4`. **SHA source et rapport final à compléter après le dernier build.** Les anciennes empreintes du paquet local ne décrivent pas encore ce nouveau lot.
-
-| Artefact prévu | Taille en octets | SHA-256 |
-|---|---:|---|
-| `MLXL3-Desktop-v1.4.4-b26-Apple-Silicon.dmg` | À compléter | À compléter |
-| Rapport/manifeste de validation final | À compléter | À compléter |
+Les SHA source, état des jobs CI du commit exact, signatures, noms, tailles et
+SHA-256 des fichiers livrés sont publiés dans **MLXL3-v1.4.4-validation.json**,
+joint aux deux releases. Les résultats du paquet livré sont distingués des
+anciens binaires de recherche ; un job interrompu n'est pas déclaré réussi.
 
 ## Remerciements
 
-- [@0xZKnw](https://github.com/0xZKnw) pour les signalements, l’intégration Desktop/moteur et les validations LFM/API.
-- [@HENK0O](https://github.com/HENK0O) pour les bases de gestion mémoire et de recommandation de contexte de [PR31](https://github.com/0xZKnw/mlxl3/pull/31) et [PR32](https://github.com/0xZKnw/mlxl3/pull/32).
-- [LiquidAI](https://huggingface.co/LiquidAI) pour LFM et [MLX](https://github.com/ml-explore/mlx) pour le runtime Apple Silicon ; les autres projets du moteur sont crédités dans [son changelog](release-engine-v1.4.5.md).
+- [@0xZKnw](https://github.com/0xZKnw), intégration et validation API/LFM/UI dans
+  [PR #39](https://github.com/0xZKnw/mlxl3/pull/39).
+- [@HENK0O](https://github.com/HENK0O), fondations mémoire/contexte des
+  [PR #31](https://github.com/0xZKnw/mlxl3/pull/31) et
+  [PR #32](https://github.com/0xZKnw/mlxl3/pull/32).
+- [MLX / mlx-lm](https://github.com/ml-explore/mlx-lm), exécution Apple Silicon
+  et architecture LFM ; les autres projets amont du moteur sont crédités dans
+  [son changelog](release-engine-v1.4.5.md).

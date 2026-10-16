@@ -19,8 +19,6 @@ pub mod gpu;
 pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
-#[cfg(any(feature = "mlx", test, kani))]
-mod lfm_cache;
 #[cfg(feature = "mlx")]
 pub mod linear;
 #[cfg(feature = "mlx")]

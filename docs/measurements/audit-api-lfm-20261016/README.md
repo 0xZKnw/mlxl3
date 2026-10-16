@@ -15,10 +15,12 @@ distingue ce lot des propositions déjà présentes et des pistes R&D non qualif
 - [Correctifs antérieurs MTP/LFM et mémoire logique](../lfm-mtp-ui-20261016/README.md) :
   indépendants de la qualification des nouvelles optimisations.
 
-L’API dispose de preuves locales CPU distinctes du GPU. Les résultats physiques
-LFM, leurs binaires/poids/options/conditions et la décision d’intégration doivent
-être ajoutés par le coordinateur après inspection ; **ce README n’annonce aucun
-gain de vitesse ou qualité**. Le plan n’est pas un relevé d’exécution.
+Le [rapport du code LFM conservé](lfm-final.md) distingue les résultats physiques,
+les sources/binaires, le prototype KV retiré et les campagnes vitesse encore en
+cours. L'[archive physique historique](physical-evidence.tar.gz) et son
+[index SHA256](physical-evidence-index.json) préservent les contrôles du prototype
+et les échecs ; les preuves du code conservé seront jointes séparément.
+Aucun gain de vitesse ou de qualité BF16 n'est déduit des seuls tests CPU.
 
 Le driver existant `compare_native.py` est adapté aux 3 paires et à un budget global
 optionnel ; sa parité texte/token/historique ne remplace pas les logits/états.
@@ -36,3 +38,12 @@ Publication autorisée par l’utilisateur après vérification : nouvelle PR, m
 lorsque les contrôles exacts sont bons, puis sous-versions Desktop et moteur avec
 changelogs/empreintes distincts. Aucune installation dans `/Applications` n’est
 impliquée : l’utilisateur a demandé de conserver l’app actuelle.
+
+
+Les [résultats de synthèse](verification-summary.json), les [preuves du code conservé](retained-evidence.tar.gz)
+et leur [index](retained-evidence-index.json) conservent les contrôles CPU, numériques
+et les frontières réelles. Les [essais de vitesse interrompus](performance-evidence.tar.gz)
+et leur [index](performance-evidence-index.json) restent publiés sans qualification
+rétroactive. Les contrôleurs, journaux et échecs sont archivés ; les gros dumps CLI
+restent locaux avec leurs SHA dans les rapports. Les originaux des inventaires
+processus restent locaux ; seules les copies publiques sont expurgées.
