@@ -1,0 +1,205 @@
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 22%]
+...................................................sssssss.ssss......... [ 30%]
+...............................ssssssssssssssssssssssssssssssssss....... [ 37%]
+.......................................sssssssssss.................ssss. [ 45%]
+........................................................................ [ 53%]
+................................ssssssss.s.ss........................... [ 60%]
+........................................................................ [ 68%]
+........................................................................ [ 75%]
+.....................sssssssssssssssssssssssssssssssssss..............ss [ 83%]
+........................................................................ [ 91%]
+........................................................................ [ 98%]
+............                                                             [100%]
+=============================== warnings summary ===============================
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[timeout]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[incomplete]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[truncated]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[invalidlist]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[badshape]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[missing]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[complete]
+  /Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/modal/_functions.py:1965: UserWarning: The diagnose function is executing locally and will not have access to the mounted Volume or NetworkFileSystem data
+    warnings.warn(
+
+tests/test_lfm25_tuning.py::test_real_archived_source_imports_through_sdk_without_importing_cuda
+tests/test_lfm25_tuning_modal.py::test_cpu_image_preflight_checks_all_runtime_distributions_and_actual_legacy_sdk[None]
+  /Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/scripts/diagnose_lfm25_tuning.py:87: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    original = inspect.unwrap(namespace["diagnose"].get_raw_f())
+
+tests/test_lfm25_tuning_modal.py::test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount
+  /Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/tests/test_lfm25_tuning_modal.py:468: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    functions.append(inspect.unwrap(function.get_raw_f()))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_capture_lfm25_router.py:15: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_exl3_moe_calibration.py:16: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_compact_operation.py:7: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_routes.py:28: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_settings.py:22: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_recalibrate_lfm25_router.py:17: could not import 'torch': No module named 'torch'
+SKIPPED [7] tests/test_lfm25_group_profile.py:150: could not import 'ponyexl3.ref.layer': No module named 'ponyexl3'
+SKIPPED [4] tests/test_lfm25_group_profile.py:208: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [7] tests/test_lfm25_moe_conversion.py:124: could not import 'ponyexl3.cli.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:137: could not import 'ponyexl3.convert.driver': No module named 'ponyexl3'
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:207: requires a physical Apple GPU
+SKIPPED [4] tests/test_lfm25_moe_conversion.py:261: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:371: requires a physical Apple GPU
+SKIPPED [8] tests/test_lfm25_moe_conversion.py:398: requires a physical Apple GPU
+SKIPPED [3] tests/test_lfm25_moe_conversion.py:457: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:510: requires a physical Apple GPU
+SKIPPED [5] tests/test_lfm25_moe_conversion.py:539: requires a physical Apple GPU
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:555: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_reference.py:121: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_reference.py:144: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:153: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:168: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:196: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_reference.py:236: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:51: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_trace.py:67: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:76: could not import 'torch': No module named 'torch'
+SKIPPED [3] tests/test_lfm25_v3_calibration.py:181: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_v3_calibration.py:244: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+SKIPPED [6] tests/test_quantize_k4_boundaries.py:12: physical Apple GPU required
+SKIPPED [6] tests/test_quantize_k4_boundaries.py:34: physical Apple GPU required
+SKIPPED [8] tests/test_quantize_packing.py:12: requires a physical Apple GPU
+SKIPPED [6] tests/test_quantize_packing.py:32: requires a physical Apple GPU
+SKIPPED [4] tests/test_quantize_packing.py:46: requires a physical Apple GPU
+SKIPPED [4] tests/test_quantize_packing.py:54: requires a physical Apple GPU
+SKIPPED [1] tests/test_quantize_packing.py:62: requires a physical Apple GPU
+SKIPPED [2] tests/test_quantize_packing_benchmark.py:69: physical Apple GPU
+840 passed, 115 skipped, 10 warnings in 104.48s (0:01:44)
+Building for debugging...
+[Planning deferred tasks]
+[2 / 14]
+[3 / 15] SwiftMath
+[13 / 126]
+[17 / 126]
+[25 / 126]
+[27 / 126]
+[28 / 126]
+[34 / 126]
+[37 / 126]
+[44 / 126]
+[47 / 126]
+[49 / 126]
+[50 / 126]
+[60 / 126]
+[61 / 126]
+[65 / 126]
+[66 / 126]
+[73 / 126]
+[74 / 126]
+[80 / 126]
+[81 / 126]
+[83 / 126]
+[85 / 126]
+[86 / 126]
+[94 / 126]
+[97 / 126]
+[98 / 126]
+[101 / 126]
+[102 / 126]
+[103 / 126]
+[114 / 126] SwiftMath
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[118 / 123] SwiftMath
+[118 / 123] MLXL3Studio-product
+[127 / 241]
+[130 / 241] SwiftMath
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[134 / 242]
+[137 / 242]
+[142 / 242]
+[144 / 242]
+[145 / 242]
+[150 / 242]
+[154 / 242]
+[157 / 242]
+[161 / 242]
+[164 / 242]
+[166 / 242]
+[167 / 242]
+[177 / 242]
+[178 / 242]
+[181 / 242]
+[183 / 242]
+[186 / 242]
+[193 / 242]
+[195 / 242]
+[200 / 242]
+[201 / 242]
+[202 / 242]
+[204 / 242]
+[206 / 242]
+[207 / 242]
+[216 / 242]
+[217 / 242]
+[220 / 242]
+[221 / 242]
+[224 / 242]
+[225 / 242]
+[227 / 242]
+[238 / 242] MLXL3Studio-product
+[239 / 242] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[241 / 242] MLXL3Studio-product
+Build complete! (54,37 secs)
+Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability
+Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures
+MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start
+Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+Model idle unload checks passed: 114 assertions, real deadline, preferences and Studio/bridge lifecycle
+Speculative sampling checks passed: 821 assertions, 180 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests
+Signed engine installation, relocation, execution and fallback passed
+Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+Installer boundaries passed: signed Mach-O engine activation and disposable app replacement/backup
+Real DMG preflight passed: signature, versions, compatibility, runtime hashes/list; detached
+App updater preflight passed: 15 signed independent-version, compatibility and integrity cases
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+MCP checks passed: default off, persisted on/off, request flag, isolated preview
+Bridge callback with 50 ms occupied IO: legacy 55.043 ms; independent UUID 0.028 ms
+Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+Markdown checks passed: fences, 300k code, long tables
+Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+Token fade checks passed: continuous ages, replacement/motion, 786 bounded append cases, Unicode and 63 native drawing comparisons
+Scroll checks passed: native initial/final anchor and interpolation; production state transitions for tracking/drag/deceleration/reading/resume
+LaTeX rendering checks passed: 9 formulas, 2 styles, parse/copy/roundtrip, actual pixels/frame, invalid input
+Response UI checks passed: complete copy, native control/clipboard action, 63 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+CLI transport passed: large output, NDJSON, cancellation, error reporting
+Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport
+MLXL3 full E2E suite passed

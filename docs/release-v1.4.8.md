@@ -1,4 +1,4 @@
-# MLXL3 Desktop 1.4.7 — build 29
+# MLXL3 Desktop 1.4.8 — build 29
 
 ## Nouveautés
 
@@ -37,12 +37,15 @@ les résultats du paquet final sont consignés séparément avant publication.
 
 ## Installation et compatibilité
 
-**MLXL3-Desktop-v1.4.7-b29-Apple-Silicon.dmg**, Apple Silicon arm64,
+**MLXL3-Desktop-v1.4.8-b29-Apple-Silicon.dmg**, Apple Silicon arm64,
 macOS **26.2+**, MLX **0.32.2**. Signature ad-hoc, sans notarisation Apple.
 Les modèles et conversations existants sont conservés.
 
 Le bundle réutilise le moteur **1.4.8 déjà publié**, sans recompilation ni
 modification de ses fichiers. Les versions Desktop et moteur sont indépendantes.
+Le numéro Desktop est aligné sur le moteur pour que les anciens clients qui
+exigent encore leur égalité acceptent aussi le paquet. Avec certains anciens
+clients et LLVM lipo, une installation manuelle du DMG peut rester nécessaire.
 Le canal moteur [engine-v1.4.8](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.8)
 reste publié avec `latest=false` ; cette publication Desktop fournit le DMG stable.
 Aucun remplacement de l’app utilisateur n’est exécuté par nos tests.

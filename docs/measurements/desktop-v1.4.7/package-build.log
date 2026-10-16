@@ -1,0 +1,95 @@
+Building for production...
+[Planning deferred tasks]
+[14 / 26]
+[15 / 27] SwiftMath
+[27 / 127]
+[30 / 127]
+[38 / 127]
+[40 / 127]
+[41 / 127]
+[47 / 127]
+[50 / 127]
+[57 / 127]
+[60 / 127]
+[62 / 127]
+[63 / 127]
+[73 / 127]
+[74 / 127]
+[77 / 127]
+[78 / 127]
+[79 / 127]
+[85 / 127]
+[86 / 127]
+[92 / 127]
+[93 / 127]
+[95 / 127]
+[97 / 127]
+[98 / 127]
+[106 / 127]
+[110 / 127]
+[113 / 127]
+[114 / 127]
+[115 / 127]
+[116 / 127] SwiftMath
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[123 / 128] MLXL3Studio-product
+[135 / 235]
+[138 / 235]
+[146 / 235]
+[148 / 235]
+[149 / 235]
+[154 / 235]
+[158 / 235]
+[161 / 235]
+[165 / 235]
+[168 / 235]
+[170 / 235]
+[171 / 235]
+[181 / 235]
+[182 / 235]
+[185 / 235]
+[187 / 235]
+[190 / 235]
+[196 / 235]
+[198 / 235]
+[203 / 235]
+[204 / 235]
+[205 / 235]
+[207 / 235]
+[209 / 235]
+[210 / 235]
+[219 / 235]
+[220 / 235]
+[224 / 235]
+[227 / 235]
+[228 / 235]
+[230 / 235]
+[231 / 235] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[233 / 235] MLXL3Studio-product
+[234 / 235] MLXL3Studio-product
+Build complete! (70,27 secs)
+/Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/dist/MLXL3 Desktop.app: replacing existing signature
+Application créée : /Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/dist/MLXL3 Desktop.app
+Published engine and manifest remained byte-identical after app signing.
+created: /Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/dist/MLXL3-Desktop-v1.4.7-b29-Apple-Silicon.dmghdiutil: WARNING: 'hdiutil create -volname -format ...' is deprecated. Please use 'diskutil image create from/blank --volumeName --format ...' instead.
+
+DMG autonome créé : /Users/justin/.codex/worktrees/desktop-fluidite-release/mix-stq1_0/dist/MLXL3-Desktop-v1.4.7-b29-Apple-Silicon.dmg
