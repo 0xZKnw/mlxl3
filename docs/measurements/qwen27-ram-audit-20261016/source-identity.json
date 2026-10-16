@@ -1,0 +1,45 @@
+{
+  "head": "8c08c4c45c1f7795f476ca514e7c7d3b8cebce7b",
+  "branch": "codex/retour-version-normale",
+  "source_sha256": {
+    "native/src/main.rs": "df09acc15028cb9d5f558e5c6fa36f30a5bb1919f0e4ff01f00985edc982debd",
+    "native/src/qwen35.rs": "db0325d0ad504398ffd43edbb4213ac622eb4da4f1fe0209279b4f914013f882",
+    "native/src/array.rs": "61ba5170db07991a47e22728a7c5b8271f530914a0a7a7293e909a53f9f4b714",
+    "native/src/contracts.rs": "78265a42b75fd0d98973ee7f6c47c21751baf2a77bc28a701428b1c39978e213",
+    "native/src/mtp.rs": "ed7d26eb9b19a1399e034fa58588aa87943415a6758afb988c8383f4eac19f6f",
+    "native/src/lfm2.rs": "9a500aa4d6a4197e063c8f7917f41843bf4347469ca8d6d3db43ad2e57ed58c8",
+    "native/src/linear.rs": "48cffac804ccaa9a8e0a66616b85c0c8afbeecead2665e168b2c4f11cf478748",
+    "native/ffi/mlx_bridge.cpp": "71d91278f629421dd47fc3a5c2bd3dca71d718d8f4a953ab8fadd25e2f53197f",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "4158fb13c9647cd25cd361a2791991f927abba3fdf13a24633872a4ec37b43c4",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "f1f5d84b0e01df9258171ed6526f835a367a3c58f73382ad6fe9638c80eec8a1",
+    "Cargo.toml": "54e890f20e9f4eb32b40c54af406ae838cc0810aebe597aea32ff8e1f53ac89c",
+    "Cargo.lock": "7aba7a4ee4f12f8b9e99842f6d04cd00a8c03ae1d0e8935f262a06542091e9dd",
+    ".github/workflows/rust.yml": "8b8c78d7a35e216e0461f160d2277e685433999d0029072d94e48b2d117abe9b",
+    ".github/workflows/check.yml": "eff30ddd4dac30b8488a6368d4d3f3b3cc6b951764b502a5fd1187721456052f"
+  },
+  "model_config_sha256": "dd800226988cd64f99025617a04ea130562976886c89a23299ee264f0543fef4",
+  "quantization_config": {
+    "quant_method": "exl3",
+    "version": "1.4.2",
+    "bits": 2.0,
+    "head_bits": 3,
+    "calibration": {
+      "rows": 250,
+      "cols": 2048
+    },
+    "out_scales": "always",
+    "codebook": "mul1",
+    "mtp_bits": 2
+  },
+  "alternate_branch": {
+    "name": "codex/adaptive-memory-qwen",
+    "sha": "0f53d2cadc9f5a556340abdc4d86763400a3f4a4"
+  },
+  "post_smallm_branch_sha": "d6011ab751ba4c1b889c9a75a21e22b2cf4eb237",
+  "new_binary": "not_built",
+  "new_gpu_tests": "not_run",
+  "new_benchmarks": "not_run",
+  "installed_app": "not_inspected_or_changed",
+  "quantization_config_sha256": "bb8649aa7e85b03fbae9e29ec2fb6df63fe71c990c1aace65950d5ee5135706e",
+  "quantization_config_tensor_storage_entries": 707
+}

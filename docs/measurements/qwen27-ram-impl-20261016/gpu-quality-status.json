@@ -1,0 +1,185 @@
+{
+  "status": "failed",
+  "validated": false,
+  "cases": [
+    {
+      "name": "bf16-all-patterns",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "embedding::tests::lossless_embedding_preserves_every_bf16_pattern_and_cast",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120,
+      "expected_negative": false,
+      "elapsed_seconds": 0.237513917,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/bf16-all-patterns.log"
+    },
+    {
+      "name": "bf16-all-widths",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "embedding::tests::lossless_embedding_variable_widths_cross_bytes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120,
+      "expected_negative": false,
+      "elapsed_seconds": 0.12819049999999999,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/bf16-all-widths.log"
+    },
+    {
+      "name": "compact-copy",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "array::tests::compact_cache_views_preserve_all_bits_and_release_parent_storage",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120,
+      "expected_negative": false,
+      "elapsed_seconds": 0.073694708,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/compact-copy.log"
+    },
+    {
+      "name": "compact-negative-control",
+      "status": "expected_failure_detected",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "array::tests::compact_cache_views_preserve_all_bits_and_release_parent_storage",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120,
+      "expected_negative": true,
+      "elapsed_seconds": 0.038191000000000086,
+      "exit_code": 101,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/compact-negative-control.log"
+    },
+    {
+      "name": "compact-copy-restored",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "array::tests::compact_cache_views_preserve_all_bits_and_release_parent_storage",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120,
+      "expected_negative": false,
+      "elapsed_seconds": 0.076094875,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/compact-copy-restored.log"
+    },
+    {
+      "name": "snapshot-model",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "qwen35::memory_tests::compact_prefill_snapshot_preserves_logits_states_and_budget",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "expected_negative": false,
+      "elapsed_seconds": 9.549459042,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/snapshot-model.log"
+    },
+    {
+      "name": "embedding-model",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "qwen35::memory_tests::lossless_embedding_model_matches_dense_short_and_long",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 600,
+      "expected_negative": false,
+      "elapsed_seconds": 277.87192450000003,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/embedding-model.log"
+    },
+    {
+      "name": "head-cache",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "mtp::native::cache_tests::cache_only_matches_full_head_and_next_prediction",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "expected_negative": false,
+      "elapsed_seconds": 5.296458167000026,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/head-cache.log"
+    },
+    {
+      "name": "mtp-rollback",
+      "status": "timeout",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "qwen35::tests::mtp_prefill_verification_and_rollback_match_target",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "expected_negative": false,
+      "reaped": true,
+      "exit_code": -15
+    }
+  ],
+  "conditions": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t57%; discharging; 2:42 remaining present: true",
+    "swap": "vm.swapusage: total = 2048.00M  used = 1205.00M  free = 843.00M  (encrypted)",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B5101f"
+  },
+  "binary_sha256": "b1ef5f4987e327bb1b6123f8d8b374a344d59b2a8ecb4dbe854a3aac9474ddb7",
+  "planned_cases": [
+    "bf16-all-patterns",
+    "bf16-all-widths",
+    "compact-copy",
+    "compact-negative-control",
+    "compact-copy-restored",
+    "snapshot-model",
+    "embedding-model",
+    "head-cache",
+    "mtp-rollback",
+    "mtp-sessions"
+  ],
+  "error": "TimeoutError('mtp-rollback')"
+}

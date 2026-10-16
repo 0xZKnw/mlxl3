@@ -874,3 +874,86 @@ fn memory_saver_releases_every_unused_buffer() {
     kani::cover!(!saver && bytes == 536_870_912 && !release);
     kani::cover!(saver && bytes == u64::MAX && release);
 }
+
+/// Copy only large, wasteful saved views; never called in per-token rollback.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn compact_wasteful_view(logical: usize, retained: usize) -> bool {
+    logical > 0
+        && retained > logical.saturating_mul(2)
+        && retained.saturating_sub(logical) >= 65_536
+}
+
+#[cfg(test)]
+#[test]
+fn cache_compaction_boundaries() {
+    for (logical, retained, expected) in [
+        (0, usize::MAX, false),
+        (1, 65_536, false),
+        (1, 65_537, true),
+        (65_536, 131_072, false),
+        (65_536, 131_073, true),
+        (usize::MAX, usize::MAX, false),
+        (usize::MAX / 2 + 1, usize::MAX, false),
+    ] {
+        assert_eq!(compact_wasteful_view(logical, retained), expected);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn cache_compaction_selection_is_bounded() {
+    let logical: usize = kani::any();
+    let retained: usize = kani::any();
+    let selected = compact_wasteful_view(logical, retained);
+    let expected = logical > 0
+        && (retained as u128) > 2 * (logical as u128)
+        && (retained as u128) >= (logical as u128) + 65_536;
+    assert_eq!(selected, expected);
+    kani::cover!(selected);
+    kani::cover!(!selected && logical > usize::MAX / 2);
+}
+
+/// Restrict default packing to the dense geometry qualified on physical MLX.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn lossless_embedding_default(
+    hidden: i32,
+    layers: usize,
+    vocab: i32,
+    experts: i32,
+    disabled: bool,
+) -> bool {
+    !disabled && hidden == 5120 && layers == 64 && vocab == 248_320 && experts == 0
+}
+
+#[cfg(test)]
+#[test]
+fn lossless_embedding_default_boundaries() {
+    assert!(lossless_embedding_default(5120, 64, 248_320, 0, false));
+    for (h, l, v, e, d) in [
+        (5120, 64, 248_320, 0, true),
+        (2048, 40, 248_320, 256, false),
+        (5120, 63, 248_320, 0, false),
+        (5120, 64, 248_319, 0, false),
+        (5120, 64, 248_320, 1, false),
+    ] {
+        assert!(!lossless_embedding_default(h, l, v, e, d));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lossless_embedding_default_requires_qualified_geometry() {
+    let h: i32 = kani::any();
+    let l: usize = kani::any();
+    let v: i32 = kani::any();
+    let e: i32 = kani::any();
+    let disabled: bool = kani::any();
+    let enabled = lossless_embedding_default(h, l, v, e, disabled);
+    assert_eq!(
+        enabled,
+        !disabled && h == 5120 && l == 64 && v == 248_320 && e == 0
+    );
+    kani::cover!(enabled);
+    kani::cover!(!enabled && disabled && h == 5120 && l == 64 && v == 248_320 && e == 0);
+    kani::cover!(!enabled && !disabled && e > 0);
+}

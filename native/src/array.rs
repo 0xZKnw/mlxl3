@@ -60,6 +60,9 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    fn mlxl3_pack_bf16_embedding(p: *mut c_void, out: *mut *mut c_void) -> i32;
+    fn mlxl3_array_retained_bytes(p: *mut c_void, out: *mut u64) -> i32;
+    fn mlxl3_array_compact_copy(p: *mut c_void, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_affine4(
         x: *mut c_void,
         w: *mut c_void,
@@ -474,6 +477,38 @@ impl Array {
     pub fn byte_len(&self) -> Result<usize> {
         bytes_for(&self.shape, self.dtype)
     }
+    /// Full backing allocation, including storage outside a sliced view.
+    /// Evaluates this array; only use at cache/request boundaries.
+    pub fn retained_bytes(&self) -> Result<usize> {
+        let mut bytes = 0;
+        checked(unsafe { mlxl3_array_retained_bytes(self.handle.as_ptr(), &mut bytes) })?;
+        usize::try_from(bytes).context("retained array size overflow")
+    }
+    /// Detach wasteful views only at a saved prefill checkpoint, never per token.
+    pub fn compact_for_cache(&self) -> Result<Self> {
+        if std::env::var("MLXL3_CACHE_COMPACTION").as_deref() == Ok("0")
+            || !crate::contracts::compact_wasteful_view(self.byte_len()?, self.retained_bytes()?)
+        {
+            return self.try_clone();
+        }
+        Self::output(|out| unsafe { mlxl3_array_compact_copy(self.handle.as_ptr(), out) })
+    }
+    pub(crate) fn pack_bf16_embedding(&self) -> Result<Option<[Self; 2]>> {
+        let mut pointers = [std::ptr::null_mut(); 2];
+        checked(unsafe { mlxl3_pack_bf16_embedding(self.handle.as_ptr(), pointers.as_mut_ptr()) })?;
+        if pointers.iter().all(|p| p.is_null()) {
+            return Ok(None);
+        }
+        // Own both handles even if metadata validation fails for one of them.
+        let converted: Vec<_> = pointers.into_iter().map(Self::owned).collect();
+        let mut arrays = converted
+            .into_iter()
+            .collect::<Result<Vec<_>>>()?
+            .into_iter();
+        let payload = arrays.next().context("missing packed payload")?;
+        let metadata = arrays.next().context("missing packed metadata")?;
+        Ok(Some([payload, metadata]))
+    }
     pub fn eval(&self) -> Result<()> {
         checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
     }
@@ -858,6 +893,68 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "physical Apple GPU; run alone, compaction enabled"]
+    fn compact_cache_views_preserve_all_bits_and_release_parent_storage() -> Result<()> {
+        for dtype in [
+            Dtype::Float16,
+            Dtype::BFloat16,
+            Dtype::Float32,
+            Dtype::UInt32,
+        ] {
+            let pattern = (0..65_536u32)
+                .flat_map(|v| {
+                    if dtype.item_size() == 2 {
+                        (v as u16).to_ne_bytes().to_vec()
+                    } else {
+                        (v.rotate_left(13) ^ 0xdead_beef).to_ne_bytes().to_vec()
+                    }
+                })
+                .collect::<Vec<_>>();
+            for strided in [false, true] {
+                let view = if strided {
+                    let mut bytes = Vec::with_capacity(pattern.len() * 32);
+                    for element in pattern.chunks_exact(dtype.item_size()) {
+                        for _ in 0..32 {
+                            bytes.extend_from_slice(element);
+                        }
+                    }
+                    Array::from_bytes(&bytes, &[65_536, 32], dtype)?.slice(1, 31, 32)?
+                } else {
+                    Array::from_bytes(&pattern.repeat(32), &[32, 65_536], dtype)?
+                        .slice(0, 19, 20)?
+                };
+                let before = view.retained_bytes()?;
+                let compact = view.compact_for_cache()?;
+                assert_eq!(compact.dtype(), dtype);
+                assert_eq!(compact.shape(), view.shape());
+                assert_eq!(
+                    compact.to_bytes()?,
+                    pattern,
+                    "dtype={dtype:?}, strided={strided}"
+                );
+                assert!(compact.retained_bytes()? <= view.byte_len()? * 2);
+                assert!(compact.retained_bytes()? < before);
+                drop(view);
+                assert_eq!(compact.to_bytes()?, pattern);
+            }
+        }
+        let dense = Array::from_f32(&[0., -0., 1., -1.], &[4])?;
+        let duplicate = dense.compact_for_cache()?;
+        assert_eq!(dense.to_bytes()?, duplicate.to_bytes()?);
+        assert_eq!(dense.retained_bytes()?, duplicate.retained_bytes()?);
+        let mut out = std::ptr::null_mut();
+        assert!(
+            checked(unsafe { mlxl3_array_compact_copy(std::ptr::null_mut(), &mut out) }).is_err()
+        );
+        assert!(
+            checked(unsafe {
+                mlxl3_array_compact_copy(dense.handle.as_ptr(), std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "requires physical Apple GPU; run alone"]

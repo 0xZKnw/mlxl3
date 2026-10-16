@@ -1,0 +1,91 @@
+{
+  "status": "complete",
+  "integration": "modified local source and verified local bundle; not installed, committed, pushed or published",
+  "head": "8c08c4c45c1f7795f476ca514e7c7d3b8cebce7b",
+  "signed_bundle_runtime_sha256": "bba3a85d627ac461acc3b2acae4c4552e71a69c87742e7422b693a4454b95df2",
+  "memory_saver": false,
+  "kv_dtype": "F16 unchanged",
+  "prefix_reuse_preserved": true,
+  "allocator_policy": "MLX default unchanged",
+  "memory": {
+    "protocol": "same signed binary, embedding/compaction OFF/OFF vs ON/ON, AB then BA, context4096, prompt687, generated32",
+    "process_footprint_saved_bytes": [
+      805960216,
+      867384048
+    ],
+    "mlx_active_saved_bytes": [
+      839817216,
+      839817216
+    ],
+    "processes_reaped": 4,
+    "cases": 32,
+    "completions": 24,
+    "cancellations": 4,
+    "expected_errors": 4,
+    "all_four_process_oracles_identical": true
+  },
+  "tests": {
+    "rust_cpu": {
+      "passed": 62,
+      "ignored": 3
+    },
+    "rust_mlx_chat": {
+      "passed": 78,
+      "ignored": 69
+    },
+    "gpu_positive_selections": 9,
+    "gpu_expected_negative_control": 1,
+    "mtp_matrix_cases": 180,
+    "model_positions": 12,
+    "logits_per_position": 248320,
+    "original_dtype_states": 128,
+    "prefill_lengths": [
+      24,
+      257,
+      8193
+    ],
+    "python": {
+      "passed": 338,
+      "skipped": 4
+    },
+    "desktop_full_suite": "passed",
+    "signed_bundle_timeline_and_mcp_hooks": "passed; Metal skipped in UI hooks, separately tested physically",
+    "tune": "four depths,190decodeTokens each,two nonempty hashes equal across depths,cancel/recovery/final generation exact"
+  },
+  "verification": {
+    "kani_harnesses": 46,
+    "kani_obligations_success": 5705,
+    "kani_covers_satisfied": 126,
+    "kani_stdlib_or_model_unreachable_inspected": 72,
+    "cbmc_codec_obligations": 43,
+    "cbmc_width_obligations": 52,
+    "asan_ubsan_roundtrips": 590976,
+    "min_max_pairs": 32896,
+    "codec_mutation_detected": true,
+    "full_cpp_loader": "unverified; CBMC libc++/C++20 parser incompatibility",
+    "python_io": "unverified formally; CrossHair missing",
+    "metal_allocator_concurrency": "not formally proved"
+  },
+  "retained_failures": [
+    "MTP matrix V1 timeout180s and600s, reaped; final V2 all180cases passed in834.99s with1200s deadline, production binary unchanged",
+    "Initial compiler/lint/CBMC instrumentation failures retained; repaired affected checks pass",
+    "Sandbox Python MLX abort134 and Swift cache access failure; nonsandbox suites passed"
+  ],
+  "limits": [
+    "RAM gain validated only on described short profile; long8193 is correctness only",
+    "No speed boost or universal absence of bugs claimed",
+    "Power probes disagree: nested raw controllers report AC; separate nonsandbox process reports Battery80%discharging at closure; temperature/frequencies not measured",
+    "No comparative isolated model-loading time/peak campaign",
+    "Baseline exact commit GitHub two runs/four jobs passed; changed local diff has no remote CI run"
+  ],
+  "artifacts": {
+    "lossless_log_archives_verified": 79,
+    "source_hashes_verified": 50,
+    "installed_app_hashes_unchanged": true,
+    "bundle_hashes_unchanged": true,
+    "runtime_byte_exact_to_verified_v1": true,
+    "checkpoint_payload_hashes": "checkpoint-payload-hashes.json",
+    "no_test_engines_remaining": "ps at closure showed only user installed MLXL3Studio PID50558"
+  },
+  "in_progress_experiments": []
+}

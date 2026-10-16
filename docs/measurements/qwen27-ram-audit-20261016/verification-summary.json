@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "unchanged_source_hashes": {
+    "native/src/main.rs": true,
+    "native/src/qwen35.rs": true,
+    "native/src/array.rs": true,
+    "native/src/contracts.rs": true,
+    "native/src/mtp.rs": true,
+    "native/src/lfm2.rs": true,
+    "native/src/linear.rs": true,
+    "native/ffi/mlx_bridge.cpp": true,
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": true,
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": true,
+    "Cargo.toml": true,
+    "Cargo.lock": true,
+    ".github/workflows/rust.yml": true,
+    ".github/workflows/check.yml": true
+  },
+  "json_files_parsed": 6,
+  "report_local_links_resolved": [
+    "measurements/qwen27-ram-audit-20261016/memory-dimensions.json",
+    "measurements/qwen27-ram-audit-20261016/source-identity.json",
+    "measurements/qwen27-ram-audit-20261016/checkpoint-headers.json",
+    "ram-idle-context.md",
+    "memory-saver.md",
+    "measurements/qwen27-ram-audit-20261016/historical-evidence.json",
+    "measurements/qwen27-ram-audit-20261016/embedding-exponent-feasibility.json",
+    "measurements/qwen27-ram-audit-20261016/embedding-analysis-command.json"
+  ],
+  "independent_size_recomputation": true,
+  "historical_gpu_claims_not_reexecuted": true,
+  "new_runtime_tests": {
+    "executed": 0,
+    "reason": "No executable production or test code changed; one CPU analysis only"
+  },
+  "formal_verification": "not_run_no_runtime_changes",
+  "ci": "remote_lookup_connection_failed_no_status_claimed",
+  "remaining_runtime_properties": [
+    "GPU BF16 reconstruction and F16 conversion parity",
+    "model logits/hidden/states and MTP/bridge flows",
+    "process RAM and allocator granularity",
+    "load peak, TTFT and decode speed"
+  ],
+  "integration": "documentation_and_CPU_feasibility_only"
+}

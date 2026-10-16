@@ -9,6 +9,8 @@ mod contracts;
 pub use contracts::{reusable_prefix_len, smallm_kernel_key};
 pub mod dflash;
 #[cfg(feature = "mlx")]
+mod embedding;
+#[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(feature = "mlx")]
 pub mod gemma4;

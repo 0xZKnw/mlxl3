@@ -26,6 +26,7 @@
 #include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
+#include "lossless_embedding.h"
 
 namespace mx = mlx::core;
 static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_PATCH == 2,
@@ -151,6 +152,73 @@ int mlxl3_mlx_init(const char* metallib) noexcept {
 void mlxl3_array_free(void* p) noexcept { delete static_cast<mx::array*>(p); }
 int mlxl3_array_clone(void* p, void** out) noexcept {
   return protect([&] { *out = new mx::array(arr(p)); });
+}
+int mlxl3_array_compact_copy(void* p, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null compact output");
+    auto source = mx::contiguous(arr(p));
+    mx::eval(source);
+    auto output = allocated_array(source.shape(), source.dtype());
+    if (output->nbytes()) std::memcpy(output->data<uint8_t>(), source.data<uint8_t>(), output->nbytes());
+    *out = output.release();
+  });
+}
+int mlxl3_array_retained_bytes(void* p, uint64_t* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null retained size output");
+    auto& a = arr(p);
+    mx::eval(a);
+    *out = a.size() ? a.buffer_size() : 0;
+  });
+}
+// Original BF16 bits, variable exponent width per block. No quantization.
+// A null pair means that keeping the dense table is smaller or more practical.
+int mlxl3_pack_bf16_embedding(void* p, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null packed embedding output");
+    out[0] = nullptr; out[1] = nullptr;
+    auto& a = arr(p);
+    if (a.dtype() != mx::bfloat16 || a.ndim() != 2 || a.shape(0) <= 0 ||
+        a.shape(1) <= 0 || a.shape(1) % 128)
+      throw std::invalid_argument("packed embedding requires BF16 [vocab, width divisible by128]");
+    mx::eval(a);
+    if (!a.flags().row_contiguous)
+      throw std::invalid_argument("embedding must be contiguous");
+    const size_t count = a.size(), blocks = count / 128;
+    if (blocks > size_t(INT32_MAX) / 2) return;
+    auto metadata = allocated_array({int32_t(blocks * 2)}, mx::uint32);
+    auto* meta = metadata->data<uint32_t>();
+    const auto* input = a.data<uint16_t>();
+    size_t total = 0;
+    for (size_t b = 0; b < blocks; ++b) {
+      uint8_t low = 255, high = 0;
+      for (size_t i = 0; i < 128; ++i) {
+        uint8_t exponent = uint8_t((input[b * 128 + i] >> 7) & 255);
+        low = std::min(low, exponent); high = std::max(high, exponent);
+      }
+      uint8_t width = mlxl3_exponent_width(low, high);
+      meta[2 * b] = uint32_t(total);
+      meta[2 * b + 1] = uint32_t(low) | (uint32_t(width) << 8);
+      total += 128 + 16 * size_t(width);
+      // MLX array dimensions and device offsets are explicitly bounded.
+      if (total > size_t(INT32_MAX)) return;
+    }
+    if (total + metadata->nbytes() >= a.nbytes()) return;
+    auto payload = allocated_array({int32_t(total)}, mx::uint8);
+    auto* bytes = payload->data<uint8_t>();
+    std::memset(bytes, 0, total);
+    for (size_t b = 0; b < blocks; ++b) {
+      uint8_t* block = bytes + meta[2 * b];
+      uint8_t low = uint8_t(meta[2 * b + 1]), width = uint8_t(meta[2 * b + 1] >> 8);
+      for (uint32_t i = 0; i < 128; ++i) {
+        uint16_t value = input[b * 128 + i];
+        block[i] = uint8_t((value & 127) | ((value >> 8) & 128));
+        uint8_t delta = uint8_t(((value >> 7) & 255) - low);
+        mlxl3_pack_exponent(block + 128, i, width, delta);
+      }
+    }
+    out[0] = payload.release(); out[1] = metadata.release();
+  });
 }
 int mlxl3_array_metadata(void* p, size_t* rank, const int32_t** dims, int* type) noexcept {
   return protect([&] {

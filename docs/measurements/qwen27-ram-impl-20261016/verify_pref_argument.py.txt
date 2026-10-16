@@ -1,0 +1,15 @@
+import ctypes,json,sys
+ctypes.CDLL('/System/Library/Frameworks/Foundation.framework/Foundation')
+objc=ctypes.CDLL('/usr/lib/libobjc.A.dylib')
+cf=ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
+objc.objc_getClass.argtypes=[ctypes.c_char_p];objc.objc_getClass.restype=ctypes.c_void_p
+objc.sel_registerName.argtypes=[ctypes.c_char_p];objc.sel_registerName.restype=ctypes.c_void_p
+msg=objc.objc_msgSend;msg.argtypes=[ctypes.c_void_p,ctypes.c_void_p];msg.restype=ctypes.c_void_p
+prefs=msg(objc.objc_getClass(b'NSUserDefaults'),objc.sel_registerName(b'standardUserDefaults'))
+cf.CFStringCreateWithCString.argtypes=[ctypes.c_void_p,ctypes.c_char_p,ctypes.c_uint32];cf.CFStringCreateWithCString.restype=ctypes.c_void_p
+key=cf.CFStringCreateWithCString(None,b'studio.memorySaverEnabled',0x08000100)
+msg.argtypes=[ctypes.c_void_p,ctypes.c_void_p,ctypes.c_void_p];msg.restype=ctypes.c_bool
+value=bool(msg(prefs,objc.sel_registerName(b'boolForKey:'),key))
+expected=sys.argv[2]=='YES'
+assert value==expected,(sys.argv,value)
+print(json.dumps({'argument':sys.argv[2],'foundation_bool':value,'expected':expected}))

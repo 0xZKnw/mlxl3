@@ -863,6 +863,37 @@ pub struct QwenSnapshot {
 impl QwenSnapshot {
     /// Logical payload, excluding shared weights and MLX allocator capacity.
     pub fn byte_len(&self) -> Result<usize> {
+        self.payload_bytes(false)
+    }
+    /// Conservative sum of full backing allocations; aliases can count twice.
+    pub fn retained_bytes(&self) -> Result<usize> {
+        self.payload_bytes(true)
+    }
+    pub fn compact_for_cache(mut self) -> Result<Self> {
+        for layer in &mut self.layers {
+            let arrays = match layer {
+                LayerSnapshot::Linear { conv, recurrent } => [conv, recurrent],
+                LayerSnapshot::Attention { keys, values } => [keys, values],
+            };
+            for a in arrays {
+                *a = a.as_ref().map(Array::compact_for_cache).transpose()?;
+            }
+        }
+        self.last_hidden = self
+            .last_hidden
+            .as_ref()
+            .map(Array::compact_for_cache)
+            .transpose()?;
+        Ok(self)
+    }
+    fn payload_bytes(&self, retained: bool) -> Result<usize> {
+        let bytes = |a: &Array| {
+            if retained {
+                a.retained_bytes()
+            } else {
+                a.byte_len()
+            }
+        };
         self.layers
             .iter()
             .flat_map(|layer| match layer {
@@ -873,12 +904,12 @@ impl QwenSnapshot {
             .try_fold(
                 self.last_hidden
                     .as_ref()
-                    .map(Array::byte_len)
+                    .map(bytes)
                     .transpose()?
                     .unwrap_or(0),
-                |bytes, array| {
-                    bytes
-                        .checked_add(array.byte_len()?)
+                |total, a| {
+                    total
+                        .checked_add(bytes(a)?)
                         .context("snapshot size overflow")
                 },
             )
@@ -968,7 +999,7 @@ impl Layer {
 }
 
 pub struct Qwen35Moe {
-    embeddings: Array,
+    embeddings: crate::embedding::Embedding,
     norm: Array,
     head: Projection,
     layers: Vec<Layer>,
@@ -1031,10 +1062,17 @@ impl Qwen35Moe {
                 .context("missing dense Qwen intermediate size")?
         };
         let hidden = config.hidden_size;
-        let embeddings = half_weight(
+        let embeddings = crate::embedding::Embedding::load(
             checkpoint,
             "model.language_model.embed_tokens.weight",
-            Some(&[config.vocab_size, hidden]),
+            [config.vocab_size, hidden],
+            crate::contracts::lossless_embedding_default(
+                hidden,
+                config.num_hidden_layers,
+                config.vocab_size,
+                config.num_experts,
+                std::env::var("MLXL3_LOSSLESS_EMBEDDING").as_deref() == Ok("0"),
+            ),
         )?;
         let norm = sanitized_norm(checkpoint, "model.language_model.norm.weight", &[hidden])?;
         let head = Projection::load(checkpoint, "lm_head", hidden, config.vocab_size, false)?;
@@ -2155,7 +2193,7 @@ mod tests {
     use super::*;
     use std::time::Instant;
 
-    fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
+    pub(super) fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
         model
             .layers
             .iter()
@@ -2863,6 +2901,10 @@ mod tests {
                 let verification = (1..=total as u32).collect::<Vec<_>>();
                 for retained in 1..=total {
                     model.restore(saved.clone())?;
+                    // Numerical validation only: avoid accumulating allocator
+                    // scratch across the 180 independent comparisons.
+                    crate::array::synchronize()?;
+                    crate::array::clear_cache()?;
                     let mut expected_logits = Vec::new();
                     for &token in &verification {
                         expected_logits.extend(model.forward(token)?.to_f16_bits()?);
@@ -2885,6 +2927,7 @@ mod tests {
                     );
                     assert_eq!(model.mtp_hidden()?.to_f16_bits()?, hidden);
                 }
+                println!("MTP prefill={time} total={total}: all retained prefixes exact");
             }
         }
         for invalid in [vec![], vec![model.vocab as u32], vec![1; 9]] {
@@ -3867,6 +3910,146 @@ mod tests {
             "Qwen target M=8: token_major={token_major_ms:.3}ms layer_major={layer_major_ms:.3}ms speedup={:.2}x samples={token_major_samples:?}/{layer_major_samples:?}",
             token_major_ms / layer_major_ms
         );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "local Qwen checkpoint and physical Apple GPU; run alone, up to 600s"]
+    fn lossless_embedding_model_matches_dense_short_and_long() -> Result<()> {
+        let path = std::env::var("MLXL3_MTP_TEST_MODEL")?;
+        let checkpoint = crate::checkpoint::inspect(Path::new(&path))?;
+        let mut model = Qwen35Moe::from_checkpoint(&checkpoint)?;
+        ensure!(
+            matches!(model.embeddings, crate::embedding::Embedding::Packed { .. }),
+            "run this check with default packed embedding"
+        );
+        let mut alternative = crate::embedding::Embedding::load(
+            &checkpoint,
+            "model.language_model.embed_tokens.weight",
+            [248_320, 5120],
+            false,
+        )?;
+        let packed_bytes = model.embeddings.retained_bytes()?;
+        let dense_bytes = alternative.retained_bytes()?;
+        ensure!(
+            packed_bytes < dense_bytes,
+            "real embedding must use less storage"
+        );
+        let ids = std::iter::once(0)
+            .chain((0..127).map(|i| i * 1951))
+            .chain([248_319, 248_044, 248_319])
+            .collect::<Vec<i32>>();
+        let ids = Array::from_i32(&ids, &[ids.len() as i32])?;
+        assert_eq!(
+            model.embeddings.take(&ids, 0)?.to_bytes()?,
+            alternative.take(&ids, 0)?.to_bytes()?
+        );
+        let mut positions = 0;
+        for length in [24usize, 257, 8193] {
+            let prefix = (0..length)
+                .map(|i| (i % 127 + 1) as u32)
+                .collect::<Vec<_>>();
+            // The independent reference is the original whole-table MLX F16 cast.
+            std::mem::swap(&mut model.embeddings, &mut alternative);
+            model.reset();
+            let mut expected = None;
+            for chunk in prefix.chunks(256) {
+                expected = Some(model.forward_tokens(chunk)?);
+            }
+            let expected = expected.context("missing dense prefill")?;
+            let logits = expected.to_f16_bits()?;
+            ensure!(
+                logits.len() == 248_320 && expected.to_f32()?.iter().all(|x| x.is_finite()),
+                "invalid dense logits"
+            );
+            let states = tests::state_bytes(&model)?;
+            ensure!(states.len() == 128, "invalid dense state count");
+            let hidden = model.mtp_hidden()?.to_bytes()?;
+            ensure!(!hidden.is_empty(), "empty dense hidden");
+            std::mem::swap(&mut model.embeddings, &mut alternative);
+            model.reset();
+            let mut actual = None;
+            for chunk in prefix.chunks(256) {
+                actual = Some(model.forward_tokens(chunk)?);
+            }
+            let actual = actual.context("missing packed prefill")?;
+            assert_eq!(actual.to_f16_bits()?, logits, "prefill {length}");
+            assert_eq!(tests::state_bytes(&model)?, states, "states {length}");
+            assert_eq!(model.mtp_hidden()?.to_bytes()?, hidden);
+            assert_eq!(model.offset(), length as i32);
+            let mut anchor = actual.chat_greedy_ids()?[0];
+            positions += 1;
+            for _ in 0..3 {
+                let saved = model.snapshot()?;
+                std::mem::swap(&mut model.embeddings, &mut alternative);
+                let expected = model.forward(anchor)?;
+                let logits = expected.to_f16_bits()?;
+                ensure!(
+                    logits.len() == 248_320 && expected.to_f32()?.iter().all(|x| x.is_finite()),
+                    "invalid dense decode logits"
+                );
+                let states = tests::state_bytes(&model)?;
+                let hidden = model.mtp_hidden()?.to_bytes()?;
+                model.restore(saved)?;
+                std::mem::swap(&mut model.embeddings, &mut alternative);
+                let actual = model.forward(anchor)?;
+                assert_eq!(actual.to_f16_bits()?, logits);
+                assert_eq!(tests::state_bytes(&model)?, states);
+                assert_eq!(model.mtp_hidden()?.to_bytes()?, hidden);
+                anchor = actual.chat_greedy_ids()?[0];
+                positions += 1;
+            }
+            println!("length={length}: full logits, hidden and 128 original-dtype states bitexact");
+        }
+        let report = serde_json::json!({"status":"complete", "positions":positions,
+            "dense_embedding_bytes":dense_bytes,"packed_embedding_bytes":packed_bytes,
+            "saved_embedding_bytes":dense_bytes-packed_bytes,"logits_per_position":248320,
+            "state_arrays":128,"prefill_lengths":[24,257,8193],"speed":"not_measured"});
+        println!("{report}");
+        if let Ok(path) = std::env::var("MLXL3_EMBEDDING_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+        }
+        Ok(())
+    }
+    #[test]
+    #[ignore = "local Qwen checkpoint and physical Apple GPU; run alone"]
+    fn compact_prefill_snapshot_preserves_logits_states_and_budget() -> Result<()> {
+        let mut model = Qwen35Moe::load(Path::new(&std::env::var("MLXL3_MTP_TEST_MODEL")?))?;
+        let prefix = (0..256).map(|i| (i % 127 + 1) as u32).collect::<Vec<_>>();
+        let anchor = model.forward_tokens(&prefix)?.chat_greedy_ids()?[0];
+        let original = model.snapshot()?;
+        let before = original.retained_bytes()?;
+        let logical = original.byte_len()?;
+        let states = tests::state_bytes(&model)?;
+        let hidden = model.mtp_hidden()?.to_bytes()?;
+        let compact = original.clone().compact_for_cache()?;
+        let after = compact.retained_bytes()?;
+        assert_eq!(compact.byte_len()?, logical);
+        assert!(after < before && after <= (256 * 1024 * 1024));
+        model.restore(compact)?;
+        assert_eq!(tests::state_bytes(&model)?, states);
+        assert_eq!(model.mtp_hidden()?.to_bytes()?, hidden);
+        let candidate = model.forward(anchor)?;
+        let bits = candidate.to_f16_bits()?;
+        let following_states = tests::state_bytes(&model)?;
+        let following_hidden = model.mtp_hidden()?.to_bytes()?;
+        model.restore(original)?;
+        let expected = model.forward(anchor)?;
+        assert_eq!(expected.to_f16_bits()?, bits);
+        assert_eq!(tests::state_bytes(&model)?, following_states);
+        assert_eq!(model.mtp_hidden()?.to_bytes()?, following_hidden);
+        assert_eq!(bits.len(), model.vocab as usize);
+        assert!(expected.to_f32()?.iter().all(|v| v.is_finite()));
+        let report = serde_json::json!({"status":"complete","prefix_tokens":256,"logits":bits.len(),"state_arrays":states.len(),"logical_bytes":logical,"retained_before":before,"retained_after":after,"budget_bytes":(256 * 1024 * 1024),"speed":"not_measured"});
+        println!("{report}");
+        if let Ok(path) = std::env::var("MLXL3_COMPACT_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+        }
         Ok(())
     }
 }

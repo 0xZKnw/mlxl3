@@ -32,6 +32,7 @@ pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<Stri
         context,
         std::env::var("MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH").as_deref() == Ok("1"),
         std::env::var("MLXL3_EXPERIMENTAL_GROUPED_MB3").as_deref() == Ok("1"),
+        std::env::var("MLXL3_LOSSLESS_EMBEDDING").as_deref() != Ok("0"),
     )
 }
 
@@ -40,6 +41,7 @@ fn runtime_key_with_options(
     context: usize,
     dense_batch: bool,
     grouped_mb3: bool,
+    packed_embedding: bool,
 ) -> Result<String> {
     let hardware = std::process::Command::new("/usr/sbin/sysctl")
         .args(["-n", "machdep.cpu.brand_string"])
@@ -54,7 +56,7 @@ fn runtime_key_with_options(
         _ => "mtp-m5-v1",
     };
     Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}:smallm-v1={}",
+        "{}:{}:{}:{}:{}:{}:{context}:pipeline={pipeline}:lookup={}:smallm-v1={}:embedding-storage-v1={}",
         artifact_key(path)?,
         env!("CARGO_PKG_VERSION"),
         env!("MLXL3_BUILD_REVISION"),
@@ -62,7 +64,8 @@ fn runtime_key_with_options(
         env!("MLXL3_MLX_VERSION"),
         hardware,
         u8::from(std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")),
-        mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3)
+        mlxl3_native::smallm_kernel_key(dense_batch, grouped_mb3),
+        u8::from(packed_embedding)
     ))
 }
 
@@ -77,9 +80,14 @@ fn runtime_key_distinguishes_smallm_options() -> Result<()> {
         (false, true, "2"),
         (true, true, "3"),
     ] {
-        let key = runtime_key_with_options(directory.path(), 4096, dense, mb3)?;
-        anyhow::ensure!(key.ends_with(&format!(":smallm-v1={suffix}")));
-        anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+        for packed in [false, true] {
+            let key = runtime_key_with_options(directory.path(), 4096, dense, mb3, packed)?;
+            anyhow::ensure!(key.ends_with(&format!(
+                ":smallm-v1={suffix}:embedding-storage-v1={}",
+                u8::from(packed)
+            )));
+            anyhow::ensure!(keys.insert(key), "kernel calibration key collision");
+        }
     }
     let production = runtime_key(directory.path(), 4096)?;
     anyhow::ensure!(keys.contains(&production), "production key not recognized");

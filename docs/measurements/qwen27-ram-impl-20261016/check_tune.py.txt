@@ -1,0 +1,312 @@
+"""Owned real-bridge Tune regression; memory_saver is always false."""
+
+import importlib.util
+import json
+import math
+import os
+import pathlib
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+OUT = ROOT / "docs/measurements/qwen27-ram-impl-20261016"
+sys.path.insert(0, str(ROOT / "scripts"))
+from native_json_process import JsonProcess
+
+spec = importlib.util.spec_from_file_location("idle", ROOT / "benchmarks/benchmark_idle_memory.py")
+idle = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(idle)
+
+
+def validate_tune(event, key):
+    if event.get("type") != "mtp_tune_complete" or event.get("tuning_key") != key:
+        raise ValueError("wrong Tune completion/key")
+    rows = event.get("rows")
+    if (
+        not isinstance(rows, list)
+        or len(rows) != 4
+        or any(type(r.get("depth")) is not int for r in rows)
+        or [r["depth"] for r in rows] != list(range(4))
+    ):
+        raise ValueError("incomplete Tune grid")
+    hashes = rows[0].get("token_hashes")
+    if (
+        not isinstance(hashes, list)
+        or len(hashes) != 2
+        or not all(isinstance(h, str) and h for h in hashes)
+    ):
+        raise ValueError("empty Tune oracle")
+    for row in rows:
+        if (
+            row.get("token_hashes") != hashes
+            or type(row.get("decode_tokens")) is not int
+            or row["decode_tokens"] != 190
+        ):
+            raise ValueError("Tune parity/count divergence")
+        for name in ["decode_tps", "decode_seconds"]:
+            if (
+                type(row.get(name)) not in (float, int)
+                or not math.isfinite(row[name])
+                or row[name] <= 0
+            ):
+                raise ValueError("invalid Tune metrics")
+        for name in ["accepted_tokens", "proposed_tokens"]:
+            if type(row.get(name)) is not int or row[name] < 0:
+                raise ValueError("invalid Tune counters")
+        if row["accepted_tokens"] > row["proposed_tokens"] or type(row.get("eligible")) is not bool:
+            raise ValueError("invalid Tune eligibility/acceptance")
+    depth = event.get("best_depth")
+    if type(depth) is not int or not 0 <= depth <= 3:
+        raise ValueError("invalid selected depth")
+    if depth and (not rows[depth]["eligible"] or rows[depth]["accepted_tokens"] == 0):
+        raise ValueError("selected ineligible depth")
+
+
+def self_test():
+    import copy
+
+    valid = {
+        "type": "mtp_tune_complete",
+        "tuning_key": "fixture",
+        "best_depth": 0,
+        "rows": [
+            {
+                "depth": d,
+                "decode_tokens": 190,
+                "token_hashes": ["h1", "h2"],
+                "decode_tps": 7.0,
+                "decode_seconds": 27.0,
+                "accepted_tokens": 0 if d == 0 else 10,
+                "proposed_tokens": 0 if d == 0 else 20,
+                "eligible": True,
+            }
+            for d in range(4)
+        ],
+    }
+    validate_tune(valid, "fixture")
+    corrupt = []
+    for mutate in [
+        lambda x: x.update(rows=[]),
+        lambda x: x["rows"][1].update(depth=0),
+        lambda x: x["rows"][0].update(token_hashes=[]),
+        lambda x: x["rows"][2].update(token_hashes=["other", "h2"]),
+        lambda x: x["rows"][1].update(decode_tokens=0),
+        lambda x: x["rows"][0].update(decode_tps=float("nan")),
+        lambda x: x["rows"][0].update(decode_tps=True),
+        lambda x: x["rows"][1].update(accepted_tokens=21),
+        lambda x: x.update(tuning_key="wrong"),
+        lambda x: x.update(best_depth=4),
+    ]:
+        item = copy.deepcopy(valid)
+        mutate(item)
+        try:
+            validate_tune(item, "fixture")
+        except (ValueError, TypeError, KeyError):
+            corrupt.append(True)
+        else:
+            raise AssertionError("corrupt Tune accepted")
+    result = {
+        "status": "passed",
+        "valid_fixture": 1,
+        "corruptions_rejected": len(corrupt),
+        "classification": "deterministic schema checks; not physical Tune validation",
+    }
+    (OUT / "tune-validator-selftest.json").write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result))
+
+
+def main():
+    report = {
+        "status": "running",
+        "parity": False,
+        "reaped": False,
+        "memory_saver": False,
+        "requests": [],
+    }
+    dest = OUT / "tune-bridge.json"
+
+    def save():
+        dest.write_text(json.dumps(report, indent=2) + "\n")
+
+    save()
+
+    def interrupted(*_):
+        raise KeyboardInterrupt("Tune regression interrupted")
+
+    previous = {s: signal.signal(s, interrupted) for s in (signal.SIGTERM, signal.SIGALRM)}
+    signal.alarm(900)
+    try:
+        memory = json.loads((OUT / "memory-campaign-status.json").read_text())
+        if memory.get("status") != "complete" or memory.get("parity") is not True:
+            raise RuntimeError("RAM campaign must finish first")
+        active = [
+            line
+            for line in subprocess.check_output(
+                ["/bin/ps", "-axo", "pid=,comm="], text=True
+            ).splitlines()
+            if pathlib.Path(line.strip().split(None, 1)[1]).name
+            in {"mlxl3", "mlxl3-rs", "candidate-tests", "candidate-tests-v2"}
+        ]
+        if active:
+            raise RuntimeError("existing engine process")
+        report["conditions"] = {
+            k: subprocess.check_output(cmd, text=True).strip()
+            for k, cmd in {
+                "power": ["/usr/bin/pmset", "-g", "batt"],
+                "swap": ["/usr/sbin/sysctl", "vm.swapusage"],
+            }.items()
+        }
+        engine = ROOT / "dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3"
+        model = "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0"
+        head = (
+            "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit"
+        )
+        env = os.environ.copy()
+        env.update(MLXL3_LOSSLESS_EMBEDDING="1", MLXL3_CACHE_COMPACTION="1")
+        with tempfile.TemporaryDirectory(prefix="qwen27-tune-") as directory:
+            logpath = ROOT / "build/qwen27-ram-impl-20261016/tune-bridge.stderr"
+            with logpath.open("w") as log:
+                child_ref = None
+                try:
+                    with JsonProcess(
+                        [
+                            str(engine),
+                            "--registry",
+                            str(pathlib.Path(directory) / "models.json"),
+                            "bridge",
+                            model,
+                            "--context-length",
+                            "4096",
+                        ],
+                        stderr=log,
+                        env=env,
+                    ) as child:
+                        child_ref = child
+                        deadline = time.monotonic() + 120
+                        while True:
+                            ready = child.receive(deadline)
+                            if ready["type"] == "error":
+                                raise ValueError(ready)
+                            if ready["type"] == "ready":
+                                break
+                        key = ready["mtp_tuning_key"]
+                        if not key.endswith(":embedding-storage-v1=1"):
+                            raise ValueError("wrong embedding calibration key")
+                        report["ready"] = ready
+
+                        def generate(name, depth=0):
+                            request = {
+                                "type": "generate",
+                                "request_id": name,
+                                "messages": [
+                                    {
+                                        "role": "user",
+                                        "content": "List the integers from 1 to 100, separated by spaces.",
+                                    }
+                                ],
+                                "max_tokens": 8,
+                                "temperature": 0,
+                                "top_k": 1,
+                                "repetition_penalty": 1,
+                                "reuse_prompt_cache": False,
+                                "memory_saver": False,
+                                "mtp": depth > 0,
+                                "mtp_depth": max(1, depth),
+                                "mtp_head_path": head,
+                            }
+                            event = idle.exchange(child, request, timeout=180)
+                            quality = idle.quality(event)
+                            report["requests"].append({"name": name, "quality": quality})
+                            save()
+                            return event
+
+                        golden = generate("golden")
+                        deadline = time.monotonic() + 120
+                        child.send(
+                            {
+                                "type": "tune_mtp",
+                                "request_id": "cancel-tune",
+                                "mtp_head_path": head,
+                                "memory_saver": False,
+                            },
+                            deadline,
+                        )
+                        sent = False
+                        while True:
+                            event = child.receive(deadline)
+                            if event.get("request_id") != "cancel-tune":
+                                raise ValueError("wrong cancellation request")
+                            if event["type"] == "mtp_tune_progress" and not sent:
+                                child.process.send_signal(signal.SIGUSR1)
+                                sent = True
+                            if event["type"] == "error":
+                                raise ValueError(event)
+                            if event["type"] == "cancelled":
+                                if not sent:
+                                    raise ValueError("cancel was not exercised")
+                                break
+                        report["tune_cancelled"] = True
+                        save()
+                        recovery = generate("after-cancel")
+                        if any(golden[k] != recovery[k] for k in ["token_hash", "cache_context"]):
+                            raise ValueError("cancel recovery diverged")
+                        deadline = time.monotonic() + 600
+                        child.send(
+                            {
+                                "type": "tune_mtp",
+                                "request_id": "full-tune",
+                                "mtp_head_path": head,
+                                "memory_saver": False,
+                            },
+                            deadline,
+                        )
+                        while True:
+                            event = child.receive(deadline)
+                            if event.get("request_id") != "full-tune":
+                                raise ValueError("wrong Tune request")
+                            if event["type"] in ("error", "cancelled"):
+                                raise ValueError(event)
+                            if event["type"] == "mtp_tune_complete":
+                                break
+                        validate_tune(event, key)
+                        report["tune"] = event
+                        save()
+                        pong = idle.exchange(child, {"type": "ping", "request_id": "after-tune"})
+                        if (
+                            pong.get("type") != "pong"
+                            or type(pong["memory"]["mlx_cache_bytes"]) is not int
+                            or pong["memory"]["mlx_cache_bytes"] < 0
+                        ):
+                            raise ValueError("invalid post-Tune memory")
+                        report["idle_after_tune"] = pong["memory"]
+                        final = generate("after-tune", event["best_depth"])
+                        if any(golden[k] != final[k] for k in ["token_hash", "cache_context"]):
+                            raise ValueError("Tune recovery diverged")
+                        child.send(
+                            {"type": "shutdown", "request_id": "shutdown"}, time.monotonic() + 5
+                        )
+                        if child.process.wait(timeout=10) != 0:
+                            raise ValueError("engine exit failed")
+                finally:
+                    report["reaped"] = child_ref is None or child_ref.process.poll() is not None
+        report.update(status="complete", parity=True)
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        save()
+        raise
+    finally:
+        signal.alarm(0)
+        for s, h in previous.items():
+            signal.signal(s, h)
+        save()
+    print("Real Tune, cancellation and recovery passed", flush=True)
+
+
+if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        self_test()
+    else:
+        main()

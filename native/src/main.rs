@@ -1609,8 +1609,8 @@ impl PromptCache {
         Ok(Some(Self {
             conversation: conversation.to_owned(),
             tokens: tokens.to_vec(),
-            state,
-            logits: logits.try_clone()?,
+            state: state.compact_for_cache()?,
+            logits: logits.compact_for_cache()?,
             draft: dflash
                 .map(|session| session.cache.try_clone())
                 .transpose()?,
@@ -1752,7 +1752,7 @@ fn prefill_mtp(
             None,
         )?;
         if let Some(saved) = &mut saved {
-            saved.mtp = Some(head.snapshot()?);
+            saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
         }
         *cache = saved;
     }
@@ -1792,7 +1792,7 @@ fn prefill_mtp(
                 None,
             )?;
             if let Some(saved) = &mut saved {
-                saved.mtp = Some(head.snapshot()?);
+                saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
             }
             *cache = saved;
         }

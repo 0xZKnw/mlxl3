@@ -1,0 +1,52 @@
+{
+  "status": "complete",
+  "validated": true,
+  "cases": [
+    {
+      "name": "mtp-sessions",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests-v2",
+        "qwen35::tests::mtp_recursive_sessions_match_greedy_and_exact_caches",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "expected_negative": false,
+      "elapsed_seconds": 44.184402042,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/mtp-sessions.log"
+    },
+    {
+      "name": "mtp-rollback-final",
+      "status": "passed",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests-v2",
+        "qwen35::tests::mtp_prefill_verification_and_rollback_match_target",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 1200,
+      "expected_negative": false,
+      "elapsed_seconds": 835.292010792,
+      "exit_code": 0,
+      "reaped": true,
+      "log": "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/mtp-rollback-final.log"
+    }
+  ],
+  "conditions": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36241507)\t80%; AC attached; not charging present: true",
+    "swap": "vm.swapusage: total = 4096.00M  used = 2438.62M  free = 1657.38M  (encrypted)",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B5101f"
+  },
+  "binary_sha256": "c8a40d4cde05252ebce1fb71cb65f3f484000fce2c29798be0d664bf95f6015e",
+  "planned_cases": [
+    "mtp-sessions",
+    "mtp-rollback-final"
+  ]
+}

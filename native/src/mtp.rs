@@ -390,6 +390,16 @@ mod native {
         values: Array,
     }
 
+    impl Cache {
+        /// Only saved prefill checkpoints are detached, never rollback snapshots.
+        pub fn compact_for_cache(self) -> Result<Self> {
+            Ok(Self {
+                keys: self.keys.compact_for_cache()?,
+                values: self.values.compact_for_cache()?,
+            })
+        }
+    }
+
     enum Mlp {
         Dense(Box<Dense>),
         Moe(Box<Moe>),
@@ -973,7 +983,7 @@ mod native {
                 let expected = bytes(&complete)?;
                 let expected_prediction = head.hidden(&target, &probe, &[37])?.to_bytes()?;
                 match initial {
-                    Some(cache) => head.restore(cache)?,
+                    Some(cache) => head.restore(cache.compact_for_cache()?)?,
                     None => head.reset()?,
                 }
                 head.extend_cache(&target, &hidden, &tokens)?;

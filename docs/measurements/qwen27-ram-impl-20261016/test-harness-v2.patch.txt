@@ -1,0 +1,21 @@
+--- qwen35-v1.rs
++++ qwen35-v2.rs
+@@ -2901,6 +2901,10 @@
+                 let verification = (1..=total as u32).collect::<Vec<_>>();
+                 for retained in 1..=total {
+                     model.restore(saved.clone())?;
++                    // Numerical validation only: avoid accumulating allocator
++                    // scratch across the 180 independent comparisons.
++                    crate::array::synchronize()?;
++                    crate::array::clear_cache()?;
+                     let mut expected_logits = Vec::new();
+                     for &token in &verification {
+                         expected_logits.extend(model.forward(token)?.to_f16_bits()?);
+@@ -2923,6 +2927,7 @@
+                     );
+                     assert_eq!(model.mtp_hidden()?.to_f16_bits()?, hidden);
+                 }
++                println!("MTP prefill={time} total={total}: all retained prefixes exact");
+             }
+         }
+         for invalid in [vec![], vec![model.vocab as u32], vec![1; 9]] {

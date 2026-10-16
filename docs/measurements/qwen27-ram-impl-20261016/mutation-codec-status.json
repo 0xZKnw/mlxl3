@@ -1,0 +1,14 @@
+{
+  "status": "detected",
+  "mutation": "drop cross-byte exponent write in copied real header",
+  "exit_code": -6,
+  "production_header_unchanged": true,
+  "command": [
+    "/usr/bin/clang++",
+    "-std=c++20",
+    "-O1",
+    "build/qwen27-ram-impl-20261016/mutation-codec/tests/lossless_embedding_codec.cpp",
+    "-o",
+    "build/qwen27-ram-impl-20261016/mutation-codec/mutant"
+  ]
+}
