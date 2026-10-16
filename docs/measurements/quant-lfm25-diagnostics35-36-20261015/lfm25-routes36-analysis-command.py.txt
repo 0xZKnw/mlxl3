@@ -1,0 +1,238 @@
+"""Registered diagnostic36 analysis; CPU/F64, existing production losses scorer."""
+import hashlib
+import json
+import math
+import os
+import platform
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+from safetensors.numpy import load_file
+from eval_lfm25_quality import losses
+from diagnose_lfm25_routes import LAYERS, validate_plan
+
+ROOT = Path.cwd()
+OUTPUT = ROOT / 'build/lfm25-routes36-comparison.json'
+if OUTPUT.exists():
+    raise FileExistsError('Preserve earlier diagnostic36 comparisons')
+started = time.monotonic()
+report = {
+    'status': 'running', 'publication': False, 'causal_interpretation': False,
+    'stage': 'provenance', 'windows': {}, 'historical_reproduction_passed': False,
+    'protocol': '1024 imposed inputs/labels per window, no added BOS, full vocabulary128000, KL(reference||actual) in nats; original losses scorer and Float64 arithmetic; segments128',
+    'provenance': {'command': [sys.executable, str(Path(__file__).resolve())], 'working_directory': str(ROOT),
+                   'python': sys.version, 'platform': platform.platform(), 'numpy': np.__version__,
+                   'environment': {k: os.environ.get(k) for k in ('PYTHONPATH', 'OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS')}}}
+
+
+def sha(path):
+    with Path(path).open('rb') as handle:
+        return hashlib.file_digest(handle, 'sha256').hexdigest()
+
+
+def save():
+    report['elapsed_seconds'] = time.monotonic() - started
+    pending = OUTPUT.with_suffix('.tmp')
+    pending.write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+    pending.replace(OUTPUT)
+
+
+def load_report(path):
+    path = ROOT / path
+    item = json.loads(path.read_text())
+    if item.get('status') != 'complete':
+        raise ValueError('Incomplete provenance: ' + str(path))
+    report['provenance'].setdefault('reports', {})[str(path)] = sha(path)
+    return item
+
+
+def checked_array(path, expected):
+    if sha(path) != expected['sha256'] or path.stat().st_size != expected['bytes']:
+        raise ValueError('Array SHA/bytes mismatch: ' + str(path))
+    values = np.load(path, mmap_mode='r', allow_pickle=False)
+    if values.shape != (1024, 128000) or str(values.dtype) != expected['dtype']:
+        raise ValueError('Array shape/dtype mismatch: ' + str(path))
+    for first in range(0, 1024, 32):
+        if not np.isfinite(values[first:first+32]).all():
+            raise ValueError('Nonfinite array: ' + str(path))
+    return values, {'path': str(path), 'sha256': expected['sha256'], 'bytes': expected['bytes'],
+                    'shape': [1024, 128000], 'dtype': str(values.dtype), 'finite_values_checked': values.size, 'sha_verified': True}
+
+
+def checked_routes(path, expected):
+    if sha(path) != expected['sha256'] or path.stat().st_size != expected['bytes']:
+        raise ValueError('Route SHA/bytes mismatch: ' + str(path))
+    values = load_file(path)
+    if set(values) != {f'{key}.{kind}' for key in LAYERS for kind in ('ids','weights')}:
+        raise ValueError('Missing route tensor or unexpected layer')
+    result = {}
+    for key in LAYERS:
+        ids, weights = values[key+'.ids'], values[key+'.weights']
+        if ids.shape != (1024,4) or weights.shape != (1024,4) or ids.dtype != np.int64 or weights.dtype != np.float16:
+            raise ValueError('Wrong route shape/dtype')
+        if not np.isfinite(weights).all() or not ((ids >= 0) & (ids < 64)).all() or not (weights > 0).all():
+            raise ValueError('Nonfinite/out-of-range route')
+        if not (np.diff(np.sort(ids, axis=1), axis=1) > 0).all() or not (np.abs(weights.astype(np.float64).sum(1)-1) <= 0.002).all():
+            raise ValueError('Repeated experts or invalid affinity mass')
+        result[key] = (ids, weights)
+    return result, {'path':str(path), 'sha256':expected['sha256'], 'bytes':expected['bytes'], 'layers':38, 'tokens_per_layer':1024, 'top_k':4, 'values_checked':38*1024*4*2, 'sha_verified':True}
+
+
+def bitexact(a,b):
+    if a.shape != b.shape or a.dtype != b.dtype:
+        return False
+    return all(np.array_equal(a[first:first+32].view(np.uint16), b[first:first+32].view(np.uint16)) for first in range(0,len(a),32))
+
+
+def score(reference, actual, labels):
+    total, segment = np.zeros(3,dtype=np.float64), np.zeros(3,dtype=np.float64)
+    matches, segment_matches, segments = 0,0,[]
+    for index,label in enumerate(labels):
+        item = np.asarray(losses(actual[index], reference[index], label),dtype=np.float64)
+        if item.shape != (3,) or not np.isfinite(item).all() or item[2] < -1e-9:
+            raise ValueError('Invalid F64 scorer output')
+        total += item; segment += item
+        same = int(np.argmax(actual[index]) == np.argmax(reference[index]))
+        matches += same; segment_matches += same
+        if (index+1)%128 == 0:
+            mean=segment/128
+            segments.append({'first':index-127,'last':index,'positions':128,'actual_nll':float(mean[0]),'reference_nll':float(mean[1]),'mean_kl_reference_to_actual':float(mean[2]),'top1_matches':segment_matches})
+            segment.fill(0);segment_matches=0
+    mean=total/1024
+    return {'positions':1024,'vocabulary':128000,'actual_nll':float(mean[0]),'reference_nll':float(mean[1]),'actual_ppl':math.exp(mean[0]),'reference_ppl':math.exp(mean[1]),'mean_kl_reference_to_actual':float(mean[2]),'top1_matches':matches,'top1_fraction':matches/1024,'segments':segments}
+
+
+save()
+try:
+    report['provenance']['analysis_script_sha256']=sha(__file__)
+    report['provenance']['scorer_file']=str(ROOT/'benchmarks/eval_lfm25_quality.py')
+    report['provenance']['scorer_sha256']=sha(ROOT/'benchmarks/eval_lfm25_quality.py')
+    cloud=load_report('build/lfm25-routes36-cloud.json')
+    prior=load_report('build/lfm25-reference35-comparison.json')
+    source_prior=load_report('docs/measurements/quant-lfm25-v2-20261015/diagnostic23-source-comparison.json')
+    identity=load_report('build/lfm25-routes36-router-identity.json')
+    inputs=validate_plan(json.loads((ROOT/'build/diagnostic23-input.json').read_text()))['windows']
+    baseline=load_report('docs/measurements/quant-lfm25-v2-20261015/v2-quality.json')['cases']['main-8192']
+    labels_path=ROOT/'build/lfm25-v3-quality-ids/main-8192.json'
+    ids=json.loads(labels_path.read_text())
+    if len(ids)!=8193 or hashlib.sha256(np.asarray(ids,dtype='<u4').tobytes()).hexdigest()!=baseline['token_sha256']:
+        raise ValueError('Frozen labels/IDs changed')
+    report['provenance']['plan_sha256']=sha(ROOT/'build/diagnostic23-input.json')
+    report['provenance']['labels_file']={'path':str(labels_path),'sha256':sha(labels_path),'u32le_sha256':baseline['token_sha256']}
+    arms=('source','normal','own_routes','own_ids','source_ids','source_routes')
+    if set(cloud['arms'])!=set(arms) or cloud['ids_only']!='approved':
+        raise ValueError('Missing registered arm/control')
+    arrays_by_window={}; traces_by_window={};labels_by_window={}
+    for name,start in (('window1',0),('window5',4096)):
+        if inputs[name] != ids[start:start+1024]:
+            raise ValueError('Input/label misalignment')
+        labels_by_window[name]=ids[start+1:start+1025]
+        record={'positions':1024,'vocabulary':128000,'source_token_offset':start,
+                'input_u32le_sha256':hashlib.sha256(np.asarray(inputs[name],dtype='<u4').tobytes()).hexdigest(),
+                'label_u32le_sha256':hashlib.sha256(np.asarray(labels_by_window[name],dtype='<u4').tobytes()).hexdigest(),
+                'arrays':{},'route_files':{},'comparisons':{},'historical_reproduction':{},'controls':{}}
+        report['windows'][name]=record
+        arrays_by_window[name]={};traces_by_window[name]={}
+        for arm in arms:
+            report['stage']=f'{name}/validate/{arm}'
+            expected=cloud['arms'][arm][name]
+            if expected['token_sha256'] != record['input_u32le_sha256']:
+                raise ValueError('Cloud input identity mismatch')
+            path=ROOT/'build/lfm25-routes36'/f'{arm}-{name}.npy'
+            arrays_by_window[name][arm],record['arrays'][arm]=checked_array(path,expected)
+            path=path.with_suffix('.routes.safetensors')
+            traces_by_window[name][arm],record['route_files'][arm]=checked_routes(path,expected['routes'])
+            save()
+        for kind,old_kind in (('mlx','mlx'),('old_v2','v2_cuda'),('tf_prefill','tf_prefill'),('tf_decode','tf_decode')):
+            expected=prior['windows'][name]['arrays'][old_kind]
+            arrays_by_window[name][kind],record['arrays'][kind]=checked_array(Path(expected['path']),expected)
+        if record['arrays']['source']['sha256'] != prior['windows'][name]['arrays']['source_f16']['sha256']:
+            raise ValueError('Source F16 logits no longer match diagnostic23')
+        for arm in ('own_routes','own_ids'):
+            same=bitexact(arrays_by_window[name]['normal'],arrays_by_window[name][arm])
+            trace_same=all(np.array_equal(traces_by_window[name]['normal'][key][0],traces_by_window[name][arm][key][0]) and np.array_equal(traces_by_window[name]['normal'][key][1].view(np.uint16),traces_by_window[name][arm][key][1].view(np.uint16)) for key in LAYERS)
+            record['controls'][arm]={'logits_bitexact':same,'routes_and_weights_bitexact':trace_same,'positions':1024,'logit_values':131072000}
+            if not same or not trace_same:
+                raise ValueError('Actual own-route/IDs control is not bitexact')
+        source=traces_by_window[name]['source']
+        for arm in ('source_routes','source_ids'):
+            ids_same=all(np.array_equal(source[key][0],traces_by_window[name][arm][key][0]) for key in LAYERS)
+            weights_same=all(np.array_equal(source[key][1].view(np.uint16),traces_by_window[name][arm][key][1].view(np.uint16)) for key in LAYERS)
+            record['controls'][arm]={'source_ids_actually_imposed':ids_same,'source_affinities_bitexact':weights_same,'layer_token_routes':38912}
+            if not ids_same or arm=='source_routes' and not weights_same:
+                raise ValueError('Source intervention was not actually imposed')
+        save()
+    # Historical gate FIRST, before scoring any counterfactual intervention.
+    historical_passed=True
+    for name in inputs:
+        arrays=arrays_by_window[name];record=report['windows'][name];labels=labels_by_window[name]
+        for reference in ('mlx','source'):
+            key=f'{reference}_to_normal';report['stage']=f'historical/{name}/{key}'
+            observed=score(arrays[reference],arrays['normal'],labels)
+            record['comparisons'][key]=observed
+            old=prior['windows'][name]['comparisons']['mlx_to_v2_cuda']
+            expected={k:old[k] for k in ('actual_nll','reference_nll','mean_kl_reference_to_actual')}
+            if reference=='source':
+                expected['reference_nll']=math.log(source_prior['windows'][name]['source_f16_ppl'])
+                expected['mean_kl_reference_to_actual']=source_prior['windows'][name]['source_f16_to_v2_cuda_kl']
+            errors={key:abs(observed[key]-value) for key,value in expected.items()}
+            passed=all(value<=1e-6 for value in errors.values())
+            historical_passed &= passed
+            record['historical_reproduction'][key]={'tolerance_absolute':1e-6,'expected':expected,'errors':errors,'passed':passed}
+            print(json.dumps({'stage':'historical','window':name,'comparison':key,'kl':observed['mean_kl_reference_to_actual'],'nll':observed['actual_nll'],'errors':errors,'passed':passed}),flush=True)
+            save()
+        maximum=0.0; changed=0;squared=0.0;energy=0.0
+        for first in range(0,1024,32):
+            current=arrays['normal'][first:first+32].astype(np.float64);old=arrays['old_v2'][first:first+32].astype(np.float64)
+            delta=current-old;maximum=max(maximum,float(np.max(np.abs(delta))));squared+=float(np.square(delta).sum());energy+=float(np.square(old).sum())
+            changed+=int(np.count_nonzero(arrays['normal'][first:first+32].view(np.uint16)!=arrays['old_v2'][first:first+32].view(np.uint16)))
+        record['normal36_vs_old23']={'max_absolute_logit_difference':maximum,'relative_rms_difference':math.sqrt(squared/energy),'changed_fp16_values':changed,'total_values':131072000,'normal_sha256':record['arrays']['normal']['sha256'],'old_sha256':record['arrays']['old_v2']['sha256']}
+    report['historical_reproduction_passed']=historical_passed
+    report['causal_interpretation']=historical_passed
+    report['historical_decision']='passed' if historical_passed else 'failed: gate remains unchanged; remaining scores are descriptive, not validated causal attribution'
+    save()
+    print(json.dumps({'historical_gate_passed':historical_passed,'causal_interpretation':report['causal_interpretation']}),flush=True)
+    pairs=[('source',arm) for arm in ('own_routes','own_ids','source_ids','source_routes')]
+    pairs += [(reference,arm) for reference in ('mlx','tf_prefill','tf_decode') for arm in ('normal','source_ids','source_routes') if not(reference=='mlx' and arm=='normal')]
+    pairs += [('old_v2','normal')]
+    for name in inputs:
+        arrays=arrays_by_window[name];record=report['windows'][name];labels=labels_by_window[name]
+        for reference,actual in pairs:
+            key=f'{reference}_to_{actual}';report['stage']=f'{name}/{key}'
+            result=score(arrays[reference],arrays[actual],labels)
+            record['comparisons'][key]=result
+            print(json.dumps({'window':name,'comparison':key,'kl':result['mean_kl_reference_to_actual'],'nll':result['actual_nll'],'top1':result['top1_matches']}),flush=True)
+            save()
+        total_changed=0; overlaps=0; first_changed=np.full(1024,40,dtype=np.int64);layers={}
+        for number,key in enumerate(LAYERS,2):
+            source_ids,source_w=traces_by_window[name]['source'][key]
+            actual_ids,actual_w=traces_by_window[name]['normal'][key]
+            sets_differ=np.any(np.sort(source_ids,axis=1)!=np.sort(actual_ids,axis=1),axis=1)
+            changed=int(sets_differ.sum());total_changed+=changed
+            first_changed=np.where(sets_differ & (first_changed==40),number,first_changed)
+            overlap=np.sum(source_ids[:,:,None]==actual_ids[:,None,:],axis=(1,2));overlaps+=int(overlap.sum())
+            source_mass=np.zeros((1024,64),dtype=np.float64);actual_mass=np.zeros_like(source_mass)
+            np.put_along_axis(source_mass,source_ids,source_w,axis=1);np.put_along_axis(actual_mass,actual_ids,actual_w,axis=1)
+            layers[key]={'tokens':1024,'changed_top4_sets':changed,'changed_top4_fraction':changed/1024,'same_order':int(np.all(source_ids==actual_ids,axis=1).sum()),'mean_retained_experts':float(overlap.mean()),'mean_affinity_l1_by_expert':float(np.abs(source_mass-actual_mass).sum(axis=1).mean()),'max_affinity_l1_by_expert':float(np.abs(source_mass-actual_mass).sum(axis=1).max())}
+            cloud_value=cloud['arms']['normal'][name]['source_route_comparison'][key]
+            if layers[key]['changed_top4_sets'] != cloud_value['changed_top4_sets'] or layers[key]['same_order'] != cloud_value['same_order']:
+                raise ValueError('Saved route comparison does not reproduce cloud counts')
+        record['route_changes']={'layers':layers,'aggregate':{'layer_tokens':38912,'changed_top4_sets':total_changed,'changed_top4_fraction':total_changed/38912,'mean_retained_experts':overlaps/38912,'first_changed_layer_histogram':{str(layer):int((first_changed==layer).sum()) for layer in range(2,41)},'first_changed_sentinel40':'no source/normal set difference in any MoE layer'}}
+        record['descriptive_interventions']={}
+        for reference in ('source','mlx','tf_prefill','tf_decode'):
+            original=record['comparisons'][f'{reference}_to_normal']['mean_kl_reference_to_actual']
+            record['descriptive_interventions'][reference]={arm:{'normal_kl':original,'intervention_kl':record['comparisons'][f'{reference}_to_{arm}']['mean_kl_reference_to_actual'],'relative_kl_change':record['comparisons'][f'{reference}_to_{arm}']['mean_kl_reference_to_actual']/original-1} for arm in ('source_ids','source_routes')}
+        save()
+    if len(report['windows'])!=2 or any(len(v['comparisons'])!=15 for v in report['windows'].values()):
+        raise ValueError('Incomplete registered comparison matrix')
+    report.update(status='complete',stage='done',new_logit_arrays_verified=12,new_route_files_verified=12,reference_arrays_verified=8,total_comparisons=30,compared_positions=30720,
+                  controls_passed=True,source_logits_reproduce23_bitexact=True,
+                  decision='Historical gate passed: intervention attribution within registered runtime allowed' if historical_passed else 'Historical gate failed; no validated causal attribution or V3 promotion. All intervention measurements preserved for diagnosis.')
+except BaseException as error:
+    report.update(status='failed',error=f'{type(error).__name__}: {error}',causal_interpretation=False)
+    raise
+finally:
+    save()
+print(json.dumps({'status':report['status'],'historical_passed':report['historical_reproduction_passed'],'elapsed_seconds':report['elapsed_seconds'],'output':str(OUTPUT)}),flush=True)

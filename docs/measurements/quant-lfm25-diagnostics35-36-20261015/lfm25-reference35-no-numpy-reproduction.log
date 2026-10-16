@@ -1,0 +1,38 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_historical_window_validation_needs_no_numpy _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107a28bf0>
+
+    def test_historical_window_validation_needs_no_numpy(monkeypatch):
+        original_import = builtins.__import__
+    
+        def no_numpy(name, *args, **kwargs):
+            if name == "numpy" or name.startswith("numpy."):
+                raise ModuleNotFoundError("No module named 'numpy'")
+            return original_import(name, *args, **kwargs)
+    
+        monkeypatch.setattr(builtins, "__import__", no_numpy)
+        plan = frozen_plan()
+>       assert reference.validate_windows(plan) == plan["windows"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_lfm25_reference.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/diagnose_lfm25_reference.py:51: in validate_windows
+    import numpy as np
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'numpy'
+args = ({'__name__': 'diagnose_lfm25_reference', '__doc__': 'Capture official BF16 LFM2.5 logits independently of the histori...package__': '', '__loader__': <_frozen_importlib_external.SourceFileLoader object at 0x107126c90>, ...}, None, None, 0)
+kwargs = {}
+
+    def no_numpy(name, *args, **kwargs):
+        if name == "numpy" or name.startswith("numpy."):
+>           raise ModuleNotFoundError("No module named 'numpy'")
+E           ModuleNotFoundError: No module named 'numpy'
+
+tests/test_lfm25_reference.py:35: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_reference.py::test_historical_window_validation_needs_no_numpy
+1 failed in 0.05s

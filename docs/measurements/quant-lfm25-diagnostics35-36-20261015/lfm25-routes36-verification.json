@@ -1,0 +1,52 @@
+{
+  "status": "cpu_verified_gpu_not_run",
+  "files": {
+    "scripts/diagnose_lfm25_routes.py": "8d4bd7c390e25aacc1d95385184f17b1d947f9b5bf9ea0aea15c6dbb651986d1",
+    "scripts/diagnose_lfm25_routes_modal.py": "61886b7d7d4a7d23ba4cd517d7900bda36478cc775ede284ae213e8e9e194ca0",
+    "tests/test_lfm25_routes.py": "7612da7cb98429fa08d35f47850bdb383170181d4a46c6ae51b52811dcac8f73"
+  },
+  "focused_tests": {
+    "passed": 73,
+    "skipped": 0,
+    "log": "build/lfm25-routes36-focused-restored.log"
+  },
+  "mutation": {
+    "mutation": "omit forced IDs while keeping original buffer",
+    "detected": true,
+    "pytest_exit": 1,
+    "failed_cases": 2,
+    "passed_cases": 2,
+    "source_restored_byteexact": true
+  },
+  "symbolic_search": {
+    "target": "diagnose_lfm25_routes.checked_position",
+    "confirmed_postconditions": 2,
+    "tool": "CrossHair",
+    "timeout_seconds_per_condition": 20,
+    "log": "build/lfm25-routes36-crosshair.log",
+    "scope": "index return equals supplied integer and lies inside total; no GPU/tensor/I/O proof"
+  },
+  "checks": {
+    "ruff_format": "3 files already formatted",
+    "ruff_lint": "All checks passed!",
+    "compileall_exit": 0,
+    "cli_help_exit": 0,
+    "actual_frozen_plan": {
+      "frozen_windows": 2,
+      "tokens_per_window": 1024,
+      "v2_shards": 4,
+      "matches": true
+    }
+  },
+  "initial_failures": "Ruff SIM102, import sorting, and TRY004 corrected; early lint logs were overwritten, diagnostics remain in tool outputs.",
+  "unverified": [
+    "No GPU, Modal job, or new numerical model measurement launched.",
+    "Actual routing_sel_norm wheel binding and fused own-route bitexactness await H100.",
+    "CPU orchestration uses explicit fake models/caches; exact historical KL/NLL checks remain external after download.",
+    "No source-level proof of CUDA/tensors/concurrency/filesystem transport.",
+    "Full suite and CI integration left to root agent."
+  ],
+  "volume": "mlxl3-lfm25-v3-20261015",
+  "volume_revision": "Prior V2 Volume confirmed deleted; root imports byteexact V2 raw files at /data/v2/output on existing V3 Volume. Worker untouched.",
+  "previous_verification": "build/lfm25-routes36-before-volume-fix-verification.json"
+}

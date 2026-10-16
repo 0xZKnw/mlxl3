@@ -1,0 +1,23 @@
+{
+  "status": "cpu_verified_no_gpu_started",
+  "files": {
+    "scripts/diagnose_lfm25_tuning.py": "f21d4bdd85831b66e6b1629dd613794969b07a2d046e334d6ae2eae86ab099cb",
+    "tests/test_lfm25_tuning.py": "56ff6d4067730f5dc2556a1d2191f6ed248a44c07b6628d7935adbcd2f3dfd7d"
+  },
+  "legacy_byteexact_unchanged": true,
+  "tests_passed": 51,
+  "tests_skipped": 0,
+  "tests_log": "build/lfm25-tuning37-trace-tests-restored.log",
+  "mutation": {
+    "mutation": "omit faulthandler cancellation",
+    "detected": true,
+    "failed_tests": 4,
+    "source_restored_byteexact": true
+  },
+  "scope": "Only wrapper trace scheduler and finally cancellation; original numerical23/36 and timeouts/paths untouched. Mocked timer tests cover both success and error of legacy/routes branches without sleeping.",
+  "crosshair_scope": "2 unchanged cold_stage contracts, no proof of faulthandler/CUDA/I/O",
+  "unverified": [
+    "No new GPU run or real60s hang was triggered; Python stacks await root execution.",
+    "No claim about the cause of180s timeout."
+  ]
+}

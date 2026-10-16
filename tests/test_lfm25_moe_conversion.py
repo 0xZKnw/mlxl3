@@ -11,7 +11,12 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from quantize_lfm25_moe import capture_lfm_moe, expected_projections
+from quantize_lfm25_moe import (
+    capture_lfm_moe,
+    check_calibration_recipe,
+    expected_projections,
+    input_row_stride,
+)
 
 PHYSICAL = pytest.mark.skipif(
     os.environ.get("MLXL3_SKIP_METAL_CHECK") == "1", reason="requires a physical Apple GPU"
@@ -76,6 +81,44 @@ def test_bad_config_rejected(update):
         expected_projections({**config(), **update})
 
 
+@pytest.mark.parametrize("inputs, slots", [(1, 1), (3, 12), (512, 512), (10**30, 4 * 10**30)])
+def test_routed_input_alignment(inputs, slots):
+    stride = input_row_stride(inputs, slots)
+    assert stride >= 1 and inputs * stride == slots
+    assert 0 // stride == 0 and (slots - 1) // stride == inputs - 1
+
+
+@pytest.mark.parametrize("inputs, slots", [(0, 1), (1, 0), (-1, 4), (4, -1), (3, 8), (4, 2)])
+def test_routed_input_alignment_rejects_empty_or_misaligned(inputs, slots):
+    with pytest.raises(ValueError, match="align"):
+        input_row_stride(inputs, slots)
+
+
+def test_recipe_guard_refuses_mixed_modes_and_mutated_sources(tmp_path):
+    work, output = tmp_path / "work", tmp_path / "output"
+    all_tokens = {"expert_calibration": "all-experts-v1", "text": "original"}
+    routed = {"expert_calibration": "routed-switch-v1", "text": "original"}
+    marker = check_calibration_recipe(work, output, routed)
+    assert not work.exists() and not output.exists()
+    work.mkdir()
+    (work / "pipeline_request.json").write_text("{}")
+    with pytest.raises(ValueError, match="requires new"):
+        check_calibration_recipe(work, output, routed)
+    assert check_calibration_recipe(work, output, all_tokens) == marker
+    marker.write_text(json.dumps(routed))
+    assert check_calibration_recipe(work, output, routed) == marker
+    for invalid in (all_tokens, {**routed, "text": "modified"}):
+        with pytest.raises(ValueError, match="recipe changed"):
+            check_calibration_recipe(work, output, invalid)
+    marker.unlink()
+    (work / "pipeline_request.json").unlink()
+    output.mkdir()
+    (output / "weights").write_bytes(b"keep these")
+    with pytest.raises(ValueError, match="requires new"):
+        check_calibration_recipe(work, output, routed)
+    assert (output / "weights").read_bytes() == b"keep these"
+
+
 @pytest.mark.parametrize("k", range(2, 9))
 def test_uniform_plan_ignores_absent_head_but_preserves_real_heads(k):
     pytest.importorskip("ponyexl3.cli.convert")
@@ -109,19 +152,23 @@ def test_lfm_expert_groups_are_bounded_and_do_not_mix_layers(monkeypatch):
 
 
 @pytest.fixture
-def source(tmp_path):
+def source(tmp_path, request):
     mx = pytest.importorskip("mlx.core")
     from mlx.utils import tree_flatten, tree_map
     from mlx_lm.models.lfm2_moe import Model, ModelArgs
     from tokenizers import Tokenizer, models, pre_tokenizers
     from transformers import PreTrainedTokenizerFast
 
-    cfg = config()
+    cfg = {**config(), **getattr(request, "param", {})}
     mx.random.seed(57)
     model = Model(ModelArgs.from_dict(cfg))
     model.update(tree_map(lambda value: value.astype(mx.bfloat16), model.parameters()))
     for layer in model.layers[1:]:
-        layer.feed_forward.expert_bias = mx.array([0.10001, -0.050003], dtype=mx.float32)
+        layer.feed_forward.expert_bias = (
+            mx.array([0.10001, -0.050003], dtype=mx.float32)
+            if cfg["num_experts"] == 2
+            else mx.zeros(cfg["num_experts"], dtype=mx.float32)
+        )
     model.eval()
     weights = {}
     for key, value in tree_flatten(model.parameters()):
@@ -212,6 +259,255 @@ def test_layerwise_capture_matches_full_bf16_model_and_own_expert_inputs(source,
 
 
 @PHYSICAL
+@pytest.mark.parametrize("seq_len, top_k", [(16, 1), (16, 2), (129, 1), (129, 2)])
+def test_routed_capture_records_actual_switch_inputs_without_cross_expert_links(
+    source, tmp_path, monkeypatch, seq_len, top_k
+):
+    import mlx.core as mx
+    from mlx_lm.models.activations import swiglu
+    from mlx_lm.models.switch_layers import SwitchGLU
+
+    root, corpus, _model, cfg = source
+    cfg["num_experts_per_tok"] = top_k
+    (root / "config.json").write_text(json.dumps(cfg))
+    weights = mx.load(root / "model.safetensors")
+    for layer in (1, 2):
+        weights[f"model.layers.{layer}.feed_forward.expert_bias"] = mx.zeros(2, dtype=mx.float32)
+    replacement = root / "updated.safetensors"
+    mx.save_safetensors(replacement, weights)
+    replacement.replace(root / "model.safetensors")
+    corpus.write_text((" ".join(f"t{i}" for i in range(4, 128)) + " ") * 16)
+    count = 64 if seq_len == 16 else 8
+    rows = count * seq_len
+    keys = sorted(expected_projections(cfg))
+    folder = tmp_path / "capture"
+    # Reusing a legacy capture folder must break its cross-expert hard links.
+    capture_lfm_moe(root, keys, folder, text_path=corpus, rows=rows, seq_len=seq_len)
+    oracle, calls = {}, []
+    original = SwitchGLU.__call__
+
+    def observe(switch, x, ids):
+        layer = 1 + len(calls) // (count * ((seq_len + 127) // 128))
+        calls.append((x.shape, ids.shape))
+        actual_ids = np.asarray(ids).reshape(-1, top_k)
+        values = np.asarray(x.astype(mx.float16)).reshape(-1, 128)
+        assert actual_ids.shape[0] == values.shape[0] and np.isfinite(values).all()
+        for expert in range(2):
+            mask = np.any(actual_ids == expert, axis=1)
+            record = oracle.setdefault((layer, expert), {"inputs": [], "down": []})
+            record["inputs"].append(values[mask])
+            if mask.any():
+                inputs = x.reshape(-1, 128)[mx.array(np.flatnonzero(mask))]
+                down = swiglu(
+                    inputs @ switch.gate_proj.weight[expert].T,
+                    inputs @ switch.up_proj.weight[expert].T,
+                )
+                record["down"].append(np.asarray(down.astype(mx.float16)))
+        return original(switch, x, ids)
+
+    monkeypatch.setattr(SwitchGLU, "__call__", observe)
+    summary = capture_lfm_moe(
+        root,
+        keys,
+        folder,
+        text_path=corpus,
+        rows=rows,
+        seq_len=seq_len,
+        max_seqs=count,
+        routed=True,
+    )
+    assert summary.captured_count == len(keys) and not summary.expert_fallback
+    coverage = json.loads((folder / "coverage.json").read_text())
+    assert coverage["status"] == "complete" and coverage["tokens"] == rows
+    assert len(coverage["modules"]) == len(keys)
+    errors = []
+    for (layer, expert), record in oracle.items():
+        prefix = f"model.layers.{layer}.feed_forward.experts.{expert}"
+        gate, up, down = (np.load(folder / (prefix + f".w{i}.npy")) for i in (1, 3, 2))
+        expected = np.concatenate(record["inputs"])
+        expected_down = np.concatenate(record["down"])
+        assert len(expected) >= 256 and len(expected) <= rows
+        if top_k == 1:
+            assert len(expected) < rows
+        order = np.lexsort(gate.T)
+        expected_order = np.lexsort(expected.T)
+        np.testing.assert_array_equal(gate[order], expected[expected_order])
+        np.testing.assert_array_equal(up, gate)
+        assert down.shape == expected_down.shape and np.isfinite(down).all() and down.size > 0
+        relative_rms = np.sqrt(
+            np.sum(
+                (down[order].astype(np.float32) - expected_down[expected_order]) ** 2,
+                dtype=np.float64,
+            )
+            / np.sum(expected_down.astype(np.float64) ** 2)
+        )
+        assert relative_rms < 1e-4, (prefix, relative_rms)
+        errors.append(float(relative_rms))
+        paths = [folder / (prefix + f".w{i}.npy") for i in (1, 3)]
+        assert paths[0].stat().st_ino == paths[1].stat().st_ino
+        other = folder / (f"model.layers.{layer}.feed_forward.experts.{1 - expert}.w1.npy")
+        assert paths[0].stat().st_ino != other.stat().st_ino
+        assert coverage["modules"][prefix + ".w2"]["observed_rows"] == len(expected)
+    print(
+        json.dumps(
+            {
+                "routed_fixture": {
+                    "seq_len": seq_len,
+                    "top_k": top_k,
+                    "tokens": rows,
+                    "projections": len(keys),
+                    "max_down_relative_rms": max(errors),
+                    "observed_rows": {
+                        key: value["observed_rows"]
+                        for key, value in coverage["modules"].items()
+                        if key.endswith("w2") and ".experts." in key
+                    },
+                }
+            }
+        )
+    )
+
+
+@PHYSICAL
+@pytest.mark.parametrize("source", [{"num_experts": 64, "num_experts_per_tok": 4}], indirect=True)
+def test_routed_capture_64_experts_top4_covers_tail_and_all_route_slots(source, tmp_path):
+    root, corpus, _model, cfg = source
+    corpus.write_text((" ".join(f"t{i}" for i in range(4, 128)) + " ") * 32)
+    folder = tmp_path / "capture64"
+    keys = sorted(expected_projections(cfg))
+    summary = capture_lfm_moe(
+        root, keys, folder, text_path=corpus, rows=4, seq_len=129, max_seqs=16, routed=True
+    )
+    assert summary.captured_count == len(keys) == 395 and not summary.expert_fallback
+    report = json.loads((folder / "coverage.json").read_text())
+    assert report["status"] == "complete"
+    for layer in (1, 2):
+        for projection in ("w1", "w2", "w3"):
+            counts = [
+                report["modules"][
+                    f"model.layers.{layer}.feed_forward.experts.{expert}.{projection}"
+                ]["observed_rows"]
+                for expert in range(64)
+            ]
+            assert sum(counts) == 16 * 129 * 4 and min(counts) >= 4
+        for expert in (0, 31, 63):
+            values = np.load(folder / f"model.layers.{layer}.feed_forward.experts.{expert}.w2.npy")
+            assert values.shape == (4, 128) and np.isfinite(values).all()
+
+
+@PHYSICAL
+@pytest.mark.parametrize(
+    "corruption", ["nan", "finite", "empty", "width", "truncated", "coverage", "empty_file", "npz"]
+)
+def test_routed_capture_caps_rows_keeps_later_sequences_and_rejects_corrupted_resume(
+    source, tmp_path, corruption
+):
+    import mlx.core as mx
+
+    root, corpus, _, cfg = source
+    folder = tmp_path / "capture"
+    keys = sorted(expected_projections(cfg))
+    options = {"text_path": corpus, "rows": 8, "seq_len": 16, "max_seqs": 16, "routed": True}
+    summary = capture_lfm_moe(root, keys, folder, **options)
+    assert summary.seqs_run == 16
+    coverage = json.loads((folder / "coverage.json").read_text())
+    for key in keys:
+        assert np.load(folder / (key + ".npy")).shape == (8, 128)
+        assert coverage["modules"][key]["observed_rows"] >= 8
+        assert coverage["modules"][key]["stored_rows"] == 8
+    for layer in (1, 2):
+        counts = [
+            coverage["modules"][f"model.layers.{layer}.feed_forward.experts.{i}.w1"][
+                "observed_rows"
+            ]
+            for i in range(2)
+        ]
+        assert sum(counts) == 256
+    before = (folder / (keys[0] + ".npy")).stat().st_mtime_ns
+    capture_lfm_moe(root, keys, folder, **options)
+    assert (folder / (keys[0] + ".npy")).stat().st_mtime_ns == before
+    damaged = folder / (keys[0] + ".npy")
+    if corruption == "empty_file":
+        damaged.write_bytes(b"")
+    elif corruption == "npz":
+        with damaged.open("wb") as archive:
+            np.savez(archive, values=np.zeros((8, 128), dtype=np.float16))
+    elif corruption == "truncated":
+        damaged.write_bytes(b"\x93NUMPY")
+    elif corruption == "coverage":
+        (folder / "coverage.json").write_text("[]")
+    else:
+        values = np.load(damaged)
+        if corruption == "nan":
+            values[0, 0] = np.nan
+        elif corruption == "finite":
+            values[0, 0] += 1
+        elif corruption == "empty":
+            values = values[:0]
+        else:
+            values = values[:, :1]
+        np.save(damaged, values)
+    with pytest.raises((ValueError, OSError, TypeError, EOFError)):
+        capture_lfm_moe(root, keys, folder, **options)
+    assert not (folder / "complete.json").exists()
+    assert json.loads((folder / "coverage.json").read_text())["status"] == "failed"
+    mx.clear_cache()
+
+
+@PHYSICAL
+@pytest.mark.parametrize("failure", ["cold", "disk", "cancel"])
+def test_routed_capture_failure_never_borrows_expert_inputs_or_leaves_hooks(
+    source, tmp_path, monkeypatch, failure
+):
+    import mlx.core as mx
+    import quantize_ling
+    from mlx import nn
+    from mlx_lm.models.switch_layers import SwitchLinear
+    from ponyexl3.convert import cancel
+
+    root, corpus, _, cfg = source
+    folder = tmp_path / "capture"
+    linear, switch = nn.Linear.__call__, SwitchLinear.__call__
+    if failure == "cold":
+        weights = mx.load(root / "model.safetensors")
+        for layer in (1, 2):
+            weights[f"model.layers.{layer}.feed_forward.expert_bias"] = mx.array(
+                [10, -10], dtype=mx.float32
+            )
+        replacement = root / "updated.safetensors"
+        mx.save_safetensors(replacement, weights)
+        replacement.replace(root / "model.safetensors")
+    elif failure == "disk":
+
+        def fail(*args, **kwargs):
+            raise OSError("injected disk failure")
+
+        monkeypatch.setattr(quantize_ling, "save_rows", fail)
+    else:
+        cancel.request()
+    try:
+        with pytest.raises((ValueError, OSError, cancel.ConversionCancelled)):
+            capture_lfm_moe(
+                root,
+                sorted(expected_projections(cfg)),
+                folder,
+                text_path=corpus,
+                rows=8,
+                seq_len=16,
+                max_seqs=16,
+                routed=True,
+            )
+    finally:
+        cancel.clear()
+    assert nn.Linear.__call__ is linear and SwitchLinear.__call__ is switch
+    assert not (folder / "complete.json").exists()
+    report = json.loads((folder / "coverage.json").read_text())
+    assert report["status"] == ("interrupted" if failure == "cancel" else "failed")
+    if failure == "cold":
+        assert report["modules"]["model.layers.1.feed_forward.experts.1.w2"]["stored_rows"] == 0
+
+
+@PHYSICAL
 def test_capture_failure_restores_linear_hook_and_invalidates_completion(
     source, tmp_path, monkeypatch
 ):
@@ -257,12 +553,17 @@ def test_capture_rejects_invalid_or_short_inputs(source, tmp_path, options):
 
 
 @PHYSICAL
-def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(source, tmp_path):
+@pytest.mark.parametrize("routed", [False, True])
+def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(
+    source, tmp_path, routed
+):
     from safetensors import safe_open
 
     from mlxl3_quantizer import list_exl3_modules, validate_checkpoint_files
 
     root, corpus, model, cfg = source
+    if routed:
+        corpus.write_text((" ".join(f"t{i}" for i in range(4, 128)) + " ") * 32)
     output, work = tmp_path / "output", tmp_path / "work"
     command = [
         sys.executable,
@@ -278,14 +579,16 @@ def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(s
         "--calibration-text",
         str(corpus),
         "--calibration-rows",
-        "16",
+        "1024" if routed else "16",
         "--calibration-seq-len",
-        "16",
+        "129" if routed else "16",
         "--max-workers",
         "1",
         "--search-backend",
         "metal",
     ]
+    if routed:
+        command.extend(["--routed-calibration", "--calibration-max-seqs", "16"])
     env = {
         **os.environ,
         "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'references/PonyExl3'}:{ROOT / 'scripts'}",
@@ -295,6 +598,12 @@ def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(s
         command, env=env, text=True, capture_output=True, timeout=120, check=False
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    if routed:
+        captures = json.loads((work / "calibration.safetensors/coverage.json").read_text())[
+            "modules"
+        ]
+        counts = {record["stored_rows"] for key, record in captures.items() if ".experts." in key}
+        assert len(counts) > 1 and min(counts) >= 256 and max(counts) <= 1024
     validate_checkpoint_files(output)
     assert set(list_exl3_modules(output)) == expected_projections(cfg)
     measurements = json.loads((work / "measurements.json").read_text())
@@ -345,6 +654,24 @@ def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(s
         command, env=env, text=True, capture_output=True, timeout=120, check=False
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    assert hashes == {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in output.glob("model*.safetensors")
+    }
+    changed_mode = command.copy()
+    if routed:
+        changed_mode.remove("--routed-calibration")
+    else:
+        changed_mode.append("--routed-calibration")
+    result = subprocess.run(
+        changed_mode, env=env, text=True, capture_output=True, timeout=20, check=False
+    )
+    assert result.returncode != 0 and "recipe changed" in result.stderr
+    corpus.write_text(corpus.read_text() + " a")
+    result = subprocess.run(
+        command, env=env, text=True, capture_output=True, timeout=20, check=False
+    )
+    assert result.returncode != 0 and "recipe changed" in result.stderr
     assert hashes == {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest()
         for p in output.glob("model*.safetensors")

@@ -1,0 +1,220 @@
+{
+  "status": "prepared_not_executed",
+  "gpu_or_numeric_load": false,
+  "analysis_script": "build/lfm25-tuning37-analysis-command.py",
+  "analysis_script_sha256": "75bd738ddafe3c205a56342dc5a19fabaf2bc5d30e9af14a20de636f7434ade3",
+  "command": "PYTHONPATH=scripts:benchmarks OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 /Users/justin/Documents/mix-stq1_0/.venv/bin/python -u build/lfm25-tuning37-analysis-command.py",
+  "output": "build/lfm25-tuning37-comparison.json",
+  "final_success_status": "complete_capture_recovery",
+  "comparisons": 40,
+  "windows": 2,
+  "positions_each": 1024,
+  "full_vocabulary": 128000,
+  "new_arrays": 20,
+  "new_route_files": 12,
+  "reference_arrays": 10,
+  "required_files": [
+    {
+      "local": "build/lfm25-tuning37-fourth-cloud.json",
+      "description": "Failed original fourth parent report, preserved unchanged"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery-cloud.json",
+      "description": "Distinct direct-worker recovery complete report"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/report.json",
+      "cloud": "/data/diagnostic37-routes-recovery/report.json",
+      "description": "Must equal local recovery cloud response byte values after JSON parsing"
+    },
+    {
+      "local": "build/lfm25-tuning37/routes-a/capture/report.json",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/routes-a/capture/report.json",
+      "description": "Original incomplete route report; only complete source/normal evidence is considered"
+    },
+    {
+      "local": "build/lfm25-tuning37-cache-a-before-recovery.bin",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+      "description": "Original final A bytes, expected 176 / warm-A SHA"
+    },
+    {
+      "local": "build/lfm25-tuning37-cache-b-before-recovery.bin",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cache-b.bin",
+      "description": "Original B bytes, expected 176 / cold-B SHA"
+    },
+    {
+      "local": "build/lfm25-tuning37-cache-a-recovery-before.bin",
+      "description": "Downloaded immutable copy before recovery, expected original A bytes exactly"
+    },
+    {
+      "local": "build/lfm25-tuning37-cache-a-recovery-after.bin",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cache-a-recovery.bin",
+      "description": "After-recovery cache bytes, checked against recovery after snapshot and raw append records"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-a/run.json",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-a/run.json"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-a/capture/report.json",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-a/capture/report.json"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-a/capture/window1.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-a/capture/window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-a/capture/window5.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-a/capture/window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37/warm-a/run.json",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/warm-a/run.json"
+    },
+    {
+      "local": "build/lfm25-tuning37/warm-a/capture/report.json",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/warm-a/capture/report.json"
+    },
+    {
+      "local": "build/lfm25-tuning37/warm-a/capture/window1.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/warm-a/capture/window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37/warm-a/capture/window5.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/warm-a/capture/window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-b/run.json",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-b/run.json"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-b/capture/report.json",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-b/capture/report.json"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-b/capture/window1.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-b/capture/window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37/cold-b/capture/window5.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/cold-b/capture/window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37/routes-a/capture/normal-window1.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/routes-a/capture/normal-window1.npy",
+      "description": "Complete normal logits from failed original route stage, gated against cold A"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source-window1.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/source-window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source-window1.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/source-window1.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/normal-window1.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/normal-window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/normal-window1.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/normal-window1.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_routes-window1.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/own_routes-window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_routes-window1.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/own_routes-window1.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_ids-window1.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/own_ids-window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_ids-window1.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/own_ids-window1.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_ids-window1.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/source_ids-window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_ids-window1.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/source_ids-window1.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_routes-window1.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/source_routes-window1.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_routes-window1.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/source_routes-window1.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37/routes-a/capture/normal-window5.npy",
+      "cloud": "/data/diagnostic37-fixed-tune-trace/routes-a/capture/normal-window5.npy",
+      "description": "Complete normal logits from failed original route stage, gated against cold A"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source-window5.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/source-window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source-window5.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/source-window5.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/normal-window5.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/normal-window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/normal-window5.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/normal-window5.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_routes-window5.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/own_routes-window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_routes-window5.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/own_routes-window5.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_ids-window5.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/own_ids-window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/own_ids-window5.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/own_ids-window5.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_ids-window5.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/source_ids-window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_ids-window5.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/source_ids-window5.routes.safetensors"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_routes-window5.npy",
+      "cloud": "/data/diagnostic37-routes-recovery/source_routes-window5.npy"
+    },
+    {
+      "local": "build/lfm25-tuning37-routes-recovery/source_routes-window5.routes.safetensors",
+      "cloud": "/data/diagnostic37-routes-recovery/source_routes-window5.routes.safetensors"
+    }
+  ],
+  "runtime_scope": "Three complete legacy runtime dictionaries compared in full except registered cache path. Recovery has measured versions/GPU name/weight and source hashes; pinned byteexact numerical worker enforces matmul TF32False. Unmeasured recovery driver/flags/config hashes explicitly not fabricated.",
+  "causal_scope": "Only new composite protocol, conditional on repeatability, own controls, cache raw record/prefix/SHA and available runtime checks; original failed attempt and historical23/36 cache absence remain explicit.",
+  "gates": [
+    "coldA/warmA cache SHA and bytes exactly equal",
+    "recovery cache before exactly equals original finalA and warmA",
+    "raw 32-byte record prefix and existing geometries preserved; duplicate-key appends explicitly listed and disqualifying",
+    "coldA\u2192warmA, coldA\u2192original incomplete-stage normal, coldA\u2192recovery normal each KL/NLL<=1e-6, actual bitexact logits recorded",
+    "own-routes/own-IDs logits and traces bitexact; actual source IDs and affinities verified",
+    "all arrays/routes SHA, bytes, shapes, dtypes, counts and finites checked independently after GPU stop"
+  ],
+  "proof_notes": "Preparation only: stdlib AST syntax parsed; no NumPy/Torch/data loaded, no scoring, no proof or GPU launched."
+}

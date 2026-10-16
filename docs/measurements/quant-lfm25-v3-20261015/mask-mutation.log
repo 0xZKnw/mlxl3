@@ -1,0 +1,28 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_subset_scores_only_requested_positions_but_reads_the_entire_window ____
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-219/test_subset_scores_only_reques0')
+
+    def test_subset_scores_only_requested_positions_but_reads_the_entire_window(tmp_path):
+        binary = fake_native(tmp_path, "ok")
+        teacher = np.array([[math.log(3), 0], [0, 0]])
+        result = quality.native_window(
+            binary,
+            tmp_path,
+            [0, 1],
+            [1, 0],
+            teacher,
+            tmp_path / "stderr",
+            2,
+            score_first=1,
+            score_last=1,
+        )
+>       assert result["tokens"] == result["greedy_matches"] == 1
+E       assert 1 == 2
+
+tests/test_lfm25_quality.py:102: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_quality.py::test_subset_scores_only_requested_positions_but_reads_the_entire_window
+1 failed in 0.23s
+Expected mutant rejection confirmed; production file was never modified.

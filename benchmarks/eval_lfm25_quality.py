@@ -65,14 +65,37 @@ def native_logits(row, token, vocabulary):
     return values
 
 
-def native_window(binary, model, tokens, labels, teacher, stderr, timeout):
+def scored_count(total: int, first: int, last: int) -> int:
+    """Count an inclusive scoring range inside a nonempty imposed window.
+
+    raises: ValueError
+    post: 0 < __return__ <= total
+    post: first + __return__ - 1 < total
+    """
+    if total <= 0 or first < 0 or last < first or last >= total:
+        raise ValueError("invalid scoring range")
+    return last - first + 1
+
+
+def native_window(
+    binary, model, tokens, labels, teacher, stderr, timeout, *, score_first=0, score_last=None
+):
     if (
         teacher.ndim != 2
         or teacher.shape[0] != len(tokens)
         or len(labels) != len(tokens)
         or not tokens
+        or teacher.shape[1] == 0
+        or not np.issubdtype(teacher.dtype, np.floating)
+        or not np.isfinite(teacher).all()
+        or any(type(t) is not int or not 0 <= t < teacher.shape[1] for t in [*tokens, *labels])
     ):
         raise ValueError("invalid native quality window")
+    if score_last is None:
+        score_last = len(tokens) - 1
+    if type(score_first) is not int or type(score_last) is not int:
+        raise ValueError("score bounds must be integers")
+    count = scored_count(len(tokens), score_first, score_last)
     command = [str(binary), "forward", str(model), "--tokens", ",".join(map(str, tokens))]
     deadline = time.monotonic() + timeout
     total = np.zeros(3, dtype=np.float64)
@@ -80,18 +103,19 @@ def native_window(binary, model, tokens, labels, teacher, stderr, timeout):
     with stderr.open("w") as errors, JsonProcess(command, stderr=errors) as process:
         for index, token in enumerate(tokens):
             values = native_logits(process.receive(deadline), token, teacher.shape[1])
-            total += losses(values, teacher[index], labels[index])
-            matches += int(np.argmax(values) == np.argmax(teacher[index]))
+            if score_first <= index <= score_last:
+                total += losses(values, teacher[index], labels[index])
+                matches += int(np.argmax(values) == np.argmax(teacher[index]))
         if process.process.wait(timeout=min(5, timeout)) != 0:
             raise RuntimeError("native forward exited with an error")
         remaining = bytes(process.buffer) + (process.process.stdout.read() or b"")
         if remaining.strip():
             raise RuntimeError("native forward emitted more rows than requested")
     return {
-        "tokens": len(tokens),
-        "nll": total[0] / len(tokens),
-        "bf16_nll": total[1] / len(tokens),
-        "kl": total[2] / len(tokens),
+        "tokens": count,
+        "nll": total[0] / count,
+        "bf16_nll": total[1] / count,
+        "kl": total[2] / count,
         "greedy_matches": matches,
     }
 

@@ -1,0 +1,91 @@
+{
+  "status": "complete_cpu_verification",
+  "gpu_executed": false,
+  "global_suite_executed": false,
+  "tests": {
+    "passed": 54,
+    "skipped": 0,
+    "seconds": 0.46,
+    "command": "PYTHONPATH=scripts:benchmarks:src:references/PonyExl3:build/torch-check/lib/python3.12/site-packages /Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q tests/test_recalibrate_lfm25_router.py"
+  },
+  "checks": {
+    "ruff_lint": true,
+    "ruff_format": true,
+    "compileall": true,
+    "real_cli_help": true,
+    "mutants_detected": 2,
+    "source_mutated": false
+  },
+  "source_files": {
+    "scripts/recalibrate_lfm25_router.py": {
+      "bytes": 16724,
+      "sha256": "2d8b2e55f5494ece4e604085b012ea00a179ec93b4882a1732d42d1c10ddf7c4"
+    },
+    "tests/test_recalibrate_lfm25_router.py": {
+      "bytes": 19811,
+      "sha256": "488cdffde733466178772e3d70ca11df55bae5b8cf11cd8d6f6b385f803c6828"
+    }
+  },
+  "symbolic_verification": {
+    "tool": "CrossHair",
+    "properties": [
+      "checked_alpha preserves value and convex bounds",
+      "enough_samples enforces minimum expert coverage"
+    ],
+    "postconditions_confirmed": 4,
+    "per_condition_timeout_seconds": 20,
+    "scope": "pure scalar production guards only",
+    "not_proved": [
+      "tensor arithmetic",
+      "Torch solver",
+      "CUDA",
+      "large checkpoint I/O",
+      "model KL/PPL",
+      "native inference"
+    ]
+  },
+  "raw_evidence": {
+    "build/lfm25-router38-helper-tests.log": {
+      "bytes": 99,
+      "sha256": "61d1153400850a92d97802104261714339583949687f35defc205f31cbc7ff22"
+    },
+    "build/lfm25-router38-helper-ruff.log": {
+      "bytes": 45,
+      "sha256": "afa20b27dacc9bf0aba3c1d265964c21e04ab42f6e39e2dd4769718ceded003a"
+    },
+    "build/lfm25-router38-helper-cli.log": {
+      "bytes": 279,
+      "sha256": "611481f9f32bf2a64a4d200effa1c44d0bc886c00f90037adb89aa9b26bd337f"
+    },
+    "build/lfm25-router38-helper-crosshair-final.log": {
+      "bytes": 524,
+      "sha256": "7645817c06dbd129b36bd91d5752cdcbf0a8d46afd1eee5af855e2026d676691"
+    },
+    "build/lfm25-router38-helper-alpha-crosshair.log": {
+      "bytes": 262,
+      "sha256": "890ae0b0b66752def250407b23ee3df3173b00545abe9d07bf73a085c67daf7f"
+    },
+    "build/lfm25-router38-helper-samples-crosshair.log": {
+      "bytes": 262,
+      "sha256": "91f148567734f96c526ef8cde31be758037b50d58f08341a27672aedb1306782"
+    },
+    "build/lfm25-router38-helper-mutations.json": {
+      "bytes": 469,
+      "sha256": "dec8da50bb93aa89c6e75aaa46cd07a70f500eb1e33549adb55668c9e4b9befc"
+    },
+    "build/lfm25-router38-helper-mutation-rhs-sign.log": {
+      "bytes": 2678,
+      "sha256": "dcf5a3174131271865ce6a2a214f21bde3dc9b43cb1db64e4cee3d8c85c421ca"
+    },
+    "build/lfm25-router38-helper-mutation-export-readback.log": {
+      "bytes": 2580,
+      "sha256": "a0b8452075f5994520826d03387a12e94362fa94da0bfd02195b2997159109dc"
+    }
+  },
+  "archive": {
+    "build/lfm25-router38-helper-evidence.tar.gz": {
+      "bytes": 2404,
+      "sha256": "a004e342dd34ab872e1bcb39219ab03cb0caede48d0ef042e5c345de5f185665"
+    }
+  }
+}

@@ -32,6 +32,20 @@ réponses : les blocs `$$…$$` concernés ne retombent plus en texte brut. Les 
 sont dessinés avec leurs marges et conservés dans les fractions et les copies.
 Les formules invalides gardent un texte de secours lisible.
 
+## Outils de calibration et diagnostics
+
+Les [PR #37](https://github.com/0xZKnw/mlxl3/pull/37) et
+[PR #38](https://github.com/0xZKnw/mlxl3/pull/38) ajoutent au dépôt les scripts de
+conversion officielle EXL3 sur H100, la collecte facultative des entrées réellement
+routées et les diagnostics appariés BF16/EXL3. Les reprises vérifient les artefacts
+et les seuils de fidélité refusent les candidats régressifs. Ces outils Python
+restent séparés du runtime natif embarqué.
+
+Les trois candidats de recalibration du routeur n'ont pas franchi les gardes de
+qualité : **V2 reste le modèle publié**, avec ses poids inchangés. L'intégration
+n'effectue aucune nouvelle quantification et ne revendique aucune baisse KL/PPL.
+[Résultats et limites](lfm25-router38-results-2026-10-15.md).
+
 ## Performances et mémoire
 
 Un préfill MoE par microblocs est disponible en option pour la géométrie EXL3
@@ -91,7 +105,9 @@ anciens binaires de recherche ; un job interrompu n'est pas déclaré réussi.
 ## Remerciements
 
 - [@0xZKnw](https://github.com/0xZKnw), intégration et validation API/LFM/UI dans
-  [PR #39](https://github.com/0xZKnw/mlxl3/pull/39).
+  [PR #39](https://github.com/0xZKnw/mlxl3/pull/39), ainsi que les outils de
+  calibration/diagnostic des [PR #37](https://github.com/0xZKnw/mlxl3/pull/37) et
+  [PR #38](https://github.com/0xZKnw/mlxl3/pull/38).
 - [@HENK0O](https://github.com/HENK0O), fondations mémoire/contexte des
   [PR #31](https://github.com/0xZKnw/mlxl3/pull/31) et
   [PR #32](https://github.com/0xZKnw/mlxl3/pull/32).

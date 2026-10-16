@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_registered_expert_panel_keeps_the_successful_preselection ________
+
+    def test_registered_expert_panel_keeps_the_successful_preselection():
+        prior = json.loads(
+            (
+                Path(__file__).resolve().parents[1]
+                / "docs/measurements/quant-lfm25-settings30-20261015/pilot.json"
+            ).read_text()
+        )
+        assert prior["status"] == "complete" and prior["restoration_verified"]
+>       assert EXPERTS == {int(k): v["chosen"] for k, v in prior["expert_selection"].items()}
+E       assert {2: [58, 24, ... [21, 11, 18]} == {2: [58, 24, ... [21, 11, 18]}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         {20: [26, 39, 43]} != {20: [8, 39, 43]}
+E         Use -v to get more diff
+
+tests/test_lfm25_settings.py:32: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_settings.py::test_registered_expert_panel_keeps_the_successful_preselection
+1 failed in 0.41s

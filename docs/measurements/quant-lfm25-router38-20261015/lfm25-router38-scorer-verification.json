@@ -1,0 +1,92 @@
+{
+  "status": "complete",
+  "experiment": "QUANT-2026-10-15-LFM25-38",
+  "scope": "scorer CPU verification evidence archival only",
+  "archived_at_utc": "2026-10-15T17:46:42.804556+00:00",
+  "provenance": {
+    "kind": "verbatim transcription of outputs already returned in this conversation",
+    "original_stream_files": "not created by the original invocations",
+    "new_tests_or_prover_runs": false,
+    "warning": "These are preserved tool-returned output chunks, not redirected original PTY stdout/stderr files. Original individual invocation timestamps and source hashes were not recorded. Earlier failed checks are preserved rather than replaced by later successes."
+  },
+  "commands_and_outputs": "tool-output-transcripts/*.json within archive",
+  "verification": {
+    "focused_tests": {
+      "passed": 67,
+      "failed": 0,
+      "skipped": 0
+    },
+    "integration_tests": {
+      "passed": 112,
+      "failed": 0,
+      "skipped": 0,
+      "suites": [
+        "test_evaluate_lfm25_router",
+        "test_lfm25_quality",
+        "test_lfm25_candidate"
+      ]
+    },
+    "ruff_format": "passed --no-cache",
+    "ruff_lint": "passed --no-cache",
+    "source_ast": "passed",
+    "git_diff_check": "passed",
+    "actual_frozen_plan": "accepted by central validate_plan",
+    "mutation": {
+      "change": "in-memory domain_gate ignores PPL guard",
+      "oracle": "test_domain_ppl_is_exp_of_weighted_nll_not_average_perplexities",
+      "detected": true,
+      "restored": true
+    },
+    "crosshair": {
+      "classification": "symbolic counterexample search, not a deductive proof",
+      "timeout_seconds_per_condition": 20,
+      "properties": [
+        {
+          "function": "improves_kl",
+          "property": "accepted candidate has baseline>0 and0<=actual<baseline",
+          "result": "Confirmed over all paths",
+          "postconditions": 1
+        },
+        {
+          "function": "domain_gate",
+          "property": "accepted domain satisfies KL<=1.02baseline and PPL<=1.02max(baseline,teacher)",
+          "result": "Confirmed over all paths",
+          "postconditions": 1
+        }
+      ],
+      "explicit_loop_bound": null,
+      "inputs": "symbolic Python floats subject to actual validation; invalid nonfinite/negative metrics raise ValueError"
+    },
+    "failures_preserved": [
+      "initial lint/collection error",
+      "dtype mismatch regression",
+      "Ruff cache write denied by filesystem sandbox, corrected using --no-cache"
+    ]
+  },
+  "source_at_archival": {
+    "scripts/evaluate_lfm25_router.py": {
+      "sha256": "0e2d511eb10ae7c4e7b8186d8edc6d29c064d0050d6aad71d16e14a4a6a760b1",
+      "bytes": 15937,
+      "provenance": "current source snapshot at archival; original invocations did not record a source SHA"
+    },
+    "tests/test_evaluate_lfm25_router.py": {
+      "sha256": "ba0578d8cc78c04f8e83b384ba3cd2b90239646e072e04164f13cc87d1f6e737",
+      "bytes": 18340,
+      "provenance": "current source snapshot at archival; original invocations did not record a source SHA"
+    }
+  },
+  "archive": {
+    "path": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-router38-scorer-evidence.tar.gz",
+    "bytes": 12907,
+    "sha256": "6481bc8e37f33032e8c84443bf628c0c16678b7e94d87dd5f2038bc153705a95",
+    "members": 13,
+    "readback": "every member compared byte-for-byte with archived transcript/source input"
+  },
+  "not_verified": [
+    "NumPy numerical kernels and tensors",
+    "GPU/CUDA/MLX inference",
+    "file-system atomicity under arbitrary crashes",
+    "full repository suite and GitHub run, delegated to parent"
+  ],
+  "no_new_test_or_proof_execution": true
+}
