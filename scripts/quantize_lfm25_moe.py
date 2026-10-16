@@ -1,4 +1,9 @@
-"""Layerwise BF16 -> EXL3 conversion for native LFM2 MoE on small Apple GPUs."""
+"""Layerwise BF16 -> EXL3 conversion for native LFM2 MoE on small Apple GPUs.
+
+--routed-calibration records each expert's actual SwitchLinear inputs. Increase
+--calibration-max-seqs to cover cold experts; --calibration-rows caps each matrix.
+The default preserves the all-expert v1 recipe pending full-model v2 evaluation.
+"""
 
 from __future__ import annotations
 
@@ -44,6 +49,39 @@ def expected_projections(config: dict) -> set[str]:
     return keys
 
 
+def input_row_stride(input_rows: int, route_slots: int) -> int:
+    if input_rows < 1 or route_slots < 1 or route_slots % input_rows:
+        raise ValueError("Cannot align SwitchLinear inputs with expert indices")
+    return route_slots // input_rows
+
+
+def calibration_source_identity(source_dir, index, text_path):
+    return {
+        "source": str(source_dir.resolve()),
+        "config": hashlib.sha256((source_dir / "config.json").read_bytes()).hexdigest(),
+        "index": hashlib.sha256(
+            (source_dir / "model.safetensors.index.json").read_bytes()
+        ).hexdigest(),
+        "shards": {
+            name: [(source_dir / name).stat().st_size, (source_dir / name).stat().st_mtime_ns]
+            for name in sorted(set(index.weight_map.values()))
+        },
+        "text": hashlib.sha256(Path(text_path).read_bytes()).hexdigest(),
+    }
+
+
+def check_calibration_recipe(work_dir: Path, out_dir: Path, recipe: dict) -> Path:
+    marker = work_dir / "lfm_calibration_recipe.json"
+    if marker.exists():
+        if json.loads(marker.read_text()) != recipe:
+            raise ValueError("LFM calibration recipe changed; choose new --work-dir/--out-dir")
+    elif recipe["expert_calibration"] == "routed-switch-v1" and any(
+        path.exists() and any(path.iterdir()) for path in (work_dir, out_dir)
+    ):
+        raise ValueError("Routed calibration requires new --work-dir/--out-dir")
+    return marker
+
+
 def capture_lfm_moe(
     source_dir,
     module_keys,
@@ -56,6 +94,7 @@ def capture_lfm_moe(
     dtype="float16",
     progress=None,
     hidden_output=None,
+    routed=False,
 ):
     import mlx.core as mx
     import numpy as np
@@ -63,6 +102,8 @@ def capture_lfm_moe(
     from mlx_lm.models.base import create_attention_mask
     from mlx_lm.models.cache import ArraysCache, KVCache
     from mlx_lm.models.lfm2_moe import Model, ModelArgs
+    from mlx_lm.models.switch_layers import SwitchLinear
+    from ponyexl3.cli.convert import _write_json_atomic
     from ponyexl3.convert import cancel
     from ponyexl3.convert.capture import CalibrationCaptureSummary, _ActivationCollector
     from ponyexl3.convert.fixtures import SafetensorIndex
@@ -87,25 +128,63 @@ def capture_lfm_moe(
         "rows": rows,
         "seq_len": seq_len,
         "max_seqs": max_seqs,
-        "source": str(source_dir.resolve()),
-        "config": hashlib.sha256((source_dir / "config.json").read_bytes()).hexdigest(),
-        "index": hashlib.sha256(
-            (source_dir / "model.safetensors.index.json").read_bytes()
-        ).hexdigest(),
-        "shards": {
-            name: [(source_dir / name).stat().st_size, (source_dir / name).stat().st_mtime_ns]
-            for name in sorted(set(index.weight_map.values()))
-        },
-        "text": hashlib.sha256(Path(text_path).read_bytes()).hexdigest(),
+        **calibration_source_identity(source_dir, index, text_path),
     }
+    # Below 192 rows Pony changes the activation Hadamard backend.
+    expert_min_rows = min(rows, 256)
+    if routed:
+        signature.update(expert_calibration="routed-switch-v1", expert_min_rows=expert_min_rows)
     folder.mkdir(parents=True, exist_ok=True)
     complete = folder / "complete.json"
+    coverage_path = folder / "coverage.json"
     if (
         hidden_output is None
         and complete.is_file()
         and json.loads(complete.read_text()) == signature
         and all((folder / (key + ".npy")).is_file() for key in selected)
     ):
+        if routed:
+            try:
+                saved = json.loads(coverage_path.read_text())
+                if (
+                    not isinstance(saved, dict)
+                    or saved.get("status") != "complete"
+                    or saved.get("signature") != signature
+                ):
+                    raise ValueError("Invalid resumed LFM coverage")
+                records = saved.get("modules")
+                if not isinstance(records, dict) or set(records) != selected:
+                    raise ValueError("Incomplete resumed LFM coverage")
+                for key in selected:
+                    values = np.load(folder / (key + ".npy"), allow_pickle=False, mmap_mode="r")
+                    if not isinstance(values, np.ndarray):
+                        values.close()
+                        raise TypeError(f"Expected an array in LFM calibration: {key}")
+                    minimum = expert_min_rows if ".experts." in key else rows
+                    width = index.tensor_info(key + ".weight").shape[1]
+                    if (
+                        values.ndim != 2
+                        or values.shape[1] != width
+                        or not minimum <= values.shape[0] <= rows
+                        or values.dtype != np.float16
+                        or not np.isfinite(values).all()
+                        or not isinstance(records[key], dict)
+                        or records[key].get("shape") != list(values.shape)
+                        or records[key].get("sha256")
+                        != hashlib.sha256(values.tobytes()).hexdigest()
+                    ):
+                        raise ValueError(f"Invalid resumed LFM calibration: {key}")
+            except (OSError, ValueError, TypeError, EOFError) as error:
+                complete.unlink(missing_ok=True)
+                _write_json_atomic(
+                    coverage_path,
+                    {
+                        "status": "failed",
+                        "signature": signature,
+                        "error": f"{type(error).__name__}: {error}",
+                    },
+                )
+                raise
         return CalibrationCaptureSummary(
             str(folder),
             str(source_dir),
@@ -119,8 +198,18 @@ def capture_lfm_moe(
             [],
         )
     complete.unlink(missing_ok=True)
-    model = Model(ModelArgs.from_dict(config))
-    model.eval()
+    coverage = {
+        "status": "running",
+        "signature": signature,
+        "tokens": count * seq_len,
+        "expert_min_rows": expert_min_rows,
+        "row_cap": rows,
+        "modules": {},
+    }
+    if routed:
+        _write_json_atomic(coverage_path, coverage)
+    original_call = nn.Linear.__call__
+    original_switch_call = SwitchLinear.__call__
 
     def load_keys(keys):
         return model.sanitize(
@@ -132,13 +221,14 @@ def capture_lfm_moe(
             }
         )
 
-    embedding = load_keys(["model.embed_tokens.weight"])["model.embed_tokens.weight"]
-    hidden = embedding[mx.array(tokens[: count * seq_len]).reshape(count, seq_len)]
-    mx.eval(hidden)
-    del embedding
-    model.model.embed_tokens = None
-    original_call = nn.Linear.__call__
     try:
+        model = Model(ModelArgs.from_dict(config))
+        model.eval()
+        embedding = load_keys(["model.embed_tokens.weight"])["model.embed_tokens.weight"]
+        hidden = embedding[mx.array(tokens[: count * seq_len]).reshape(count, seq_len)]
+        mx.eval(hidden)
+        del embedding
+        model.model.embed_tokens = None
         for number, layer in enumerate(model.layers):
             cancel.raise_if_requested()
             prefix = f"model.layers.{number}."
@@ -148,7 +238,11 @@ def capture_lfm_moe(
             )
             mx.eval(layer.parameters())
             del weights
-            keys = [key for key in selected if key.startswith(prefix) and ".experts." not in key]
+            keys = sorted(
+                key
+                for key in selected
+                if key.startswith(prefix) and (routed or ".experts." not in key)
+            )
             collector = _ActivationCollector(keys, rows=rows, dtype=dtype)
             paths = dict(layer.named_modules())
             by_id = {
@@ -164,14 +258,55 @@ def capture_lfm_moe(
                     ]
                 ): key
                 for key in keys
+                if ".experts." not in key
             }
+            observed = dict.fromkeys(keys, 0)
 
-            def record_linear(mod, x, by_id=by_id, collector=collector):
+            def record_linear(mod, x, by_id=by_id, collector=collector, observed=observed):
                 if id(mod) in by_id:
+                    observed[by_id[id(mod)]] += x.size // x.shape[-1]
                     collector.add(by_id[id(mod)], x)
                 return original_call(mod, x)
 
             nn.Linear.__call__ = record_linear
+            switch_keys = {}
+            if routed:
+                for key in keys:
+                    if ".experts." in key:
+                        expert, projection = key.rsplit(".", 2)[-2:]
+                        name = {"w1": "gate_proj", "w2": "down_proj", "w3": "up_proj"}[projection]
+                        mod = paths["feed_forward.switch_mlp." + name]
+                        switch_keys.setdefault(id(mod), []).append((key, int(expert)))
+
+                def record_switch(
+                    mod,
+                    x,
+                    indices,
+                    sorted_indices=False,
+                    switch_keys=switch_keys,
+                    collector=collector,
+                    observed=observed,
+                ):
+                    logical = switch_keys.get(id(mod), [])
+                    if logical:
+                        flat = x.reshape(-1, x.shape[-1])
+                        ids = np.asarray(indices).reshape(-1)
+                        stride = input_row_stride(flat.shape[0], ids.size)
+                        if (
+                            ids.dtype.kind not in "iu"
+                            or np.any(ids < 0)
+                            or np.any(ids >= mod.num_experts)
+                        ):
+                            raise ValueError("Invalid routed expert indices")
+                        for key, expert in logical:
+                            positions = np.flatnonzero(ids == expert)
+                            observed[key] += positions.size
+                            need = rows - collector.counts[key]
+                            if need > 0 and positions.size:
+                                collector.add(key, flat[mx.array(positions[:need] // stride)])
+                    return original_switch_call(mod, x, indices, sorted_indices=sorted_indices)
+
+                SwitchLinear.__call__ = record_switch
             moe_inputs, next_hidden = [], []
             experts_selected = any(
                 key.startswith(prefix + "feed_forward.experts.") for key in selected
@@ -192,18 +327,53 @@ def capture_lfm_moe(
                     inputs = layer.ffn_norm(h)
                     y = h + layer.feed_forward(inputs)
                     collector.flush(y)
-                    if experts_selected:
+                    if experts_selected and not routed:
                         moe_inputs.append(np.array(inputs[0].astype(mx.float16)))
                     chunks.append(y[0])
                 next_hidden.append(mx.concatenate(chunks))
             nn.Linear.__call__ = original_call
+            SwitchLinear.__call__ = original_switch_call
             hidden = mx.stack(next_hidden)
             mx.eval(hidden)
-            captured, missing, _ = collector.arrays()
+            if routed:
+                captured, missing = {}, []
+                for key in keys:
+                    minimum = expert_min_rows if ".experts." in key else rows
+                    stored = collector.counts[key]
+                    coverage["modules"][key] = {
+                        "observed_rows": int(observed[key]),
+                        "stored_rows": stored,
+                        "required_rows": minimum,
+                    }
+                    if stored < minimum:
+                        missing.append(key)
+                    else:
+                        captured[key] = np.concatenate(collector.chunks[key])
+                _write_json_atomic(coverage_path, coverage)
+            else:
+                captured, missing, _ = collector.arrays()
             if missing:
-                raise ValueError(f"Missing LFM calibration: {missing}")
+                raise ValueError(
+                    f"Insufficient LFM calibration: {missing[:8]}; "
+                    "increase --calibration-max-seqs or supply a richer --calibration-text"
+                )
             for key, value in captured.items():
-                save_rows(folder, key, value)
+                if routed:
+                    coverage["modules"][key].update(
+                        shape=list(value.shape), sha256=hashlib.sha256(value.tobytes()).hexdigest()
+                    )
+                gate_key = key.removesuffix("w3") + "w1"
+                if routed and ".experts." in key and key.endswith("w3") and gate_key in captured:
+                    if not np.array_equal(value, captured[gate_key]):
+                        raise ValueError(f"Gate/up calibration mismatch: {key}")
+                    target = folder / (key + ".npy")
+                    target.unlink(missing_ok=True)
+                    os.link(folder / (gate_key + ".npy"), target)
+                else:
+                    if routed:
+                        # A legacy folder hard-links inputs across different experts.
+                        (folder / (key + ".npy")).unlink(missing_ok=True)
+                    save_rows(folder, key, value)
             if moe_inputs:
                 capture_experts(
                     folder,
@@ -229,6 +399,8 @@ def capture_lfm_moe(
                 branch,
                 by_id,
                 record_linear,
+                observed,
+                switch_keys,
             )
             mx.clear_cache()
             print(
@@ -238,12 +410,27 @@ def capture_lfm_moe(
             norm = load_keys(["model.embedding_norm.weight"])["model.embedding_norm.weight"]
             normalized = mx.fast.rms_norm(hidden, norm, config["norm_eps"])
             np.save(hidden_output, np.array(normalized.astype(mx.float32)))
+        missing = sorted(key for key in selected if not (folder / (key + ".npy")).is_file())
+        if missing:
+            raise ValueError(f"Incomplete LFM calibration: {missing[:8]}")
+        _write_json_atomic(complete, signature)
+        if routed:
+            coverage["status"] = "complete"
+            _write_json_atomic(coverage_path, coverage)
+    except BaseException as error:
+        complete.unlink(missing_ok=True)
+        if routed:
+            coverage["status"] = (
+                "interrupted"
+                if isinstance(error, (KeyboardInterrupt, cancel.ConversionCancelled))
+                else "failed"
+            )
+            coverage["error"] = f"{type(error).__name__}: {error}"
+            _write_json_atomic(coverage_path, coverage)
+        raise
     finally:
         nn.Linear.__call__ = original_call
-    missing = sorted(key for key in selected if not (folder / (key + ".npy")).is_file())
-    if missing:
-        raise ValueError(f"Incomplete LFM calibration: {missing[:8]}")
-    complete.write_text(json.dumps(signature))
+        SwitchLinear.__call__ = original_switch_call
     return CalibrationCaptureSummary(
         str(folder),
         str(source_dir),
@@ -263,6 +450,9 @@ def main():
     parser.add_argument("--in-dir", type=Path, required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--module-limit", type=int)
+    parser.add_argument("--work-dir", type=Path)
+    parser.add_argument("--calibration-text", type=Path)
+    parser.add_argument("--routed-calibration", action="store_true")
     args, _ = parser.parse_known_args()
     config = json.loads((args.in_dir / "config.json").read_text())
     expected = expected_projections(config)
@@ -286,12 +476,29 @@ def main():
         raise ValueError(
             f"Incomplete LFM plan: missing={sorted(expected - keys)[:8]}, extra={sorted(keys - expected)[:8]}"
         )
+    work_dir = args.work_dir or convert._default_work_dir(args.out_dir)
+    recipe = {
+        "expert_calibration": "routed-switch-v1" if args.routed_calibration else "all-experts-v1",
+        **calibration_source_identity(
+            args.in_dir,
+            SafetensorIndex(args.in_dir),
+            args.calibration_text or capture.default_calibration_text(),
+        ),
+    }
+    marker = check_calibration_recipe(work_dir, args.out_dir, recipe)
+    if args.routed_calibration:
+        sys.argv.remove("--routed-calibration")
     # The 0.908 scale belongs to Ling's measured checkpoint/recipe only.
     os.environ.pop("PONYEXL3_FIXED_EXPERT_SCALE", None)
     if "--include-routed-experts" not in sys.argv:
         sys.argv.append("--include-routed-experts")
+
+    def capture_with_recipe(*a, **kw):
+        convert._write_json_atomic(marker, recipe)
+        return capture_lfm_moe(*a, **kw, routed=args.routed_calibration)
+
     capture.capture_calibration_activations = convert.capture_calibration_activations = (
-        capture_lfm_moe
+        capture_with_recipe
     )
     metal_search.quantize_tiles_mlx = quantize_tiles_mlx
     mlx_trellis.pack_trellis_mlx = pack_trellis_mlx

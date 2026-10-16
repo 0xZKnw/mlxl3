@@ -1,0 +1,112 @@
+{
+  "version": "v2",
+  "date": "2026-10-15",
+  "source": {
+    "repo": "LiquidAI/LFM2.5-24B-A2B",
+    "revision": "1769516ac588c4c558089c94f27d96b0dc67b183",
+    "parameters": 23971587712
+  },
+  "previous_v1_revision": "07c024ce62c2f60c6b697569bfd08981838b6589",
+  "converter": {
+    "project": "turboderp-org/exllamav3",
+    "version": "1.5.4",
+    "commit": "16a49792a3c93d8432d72e6c4bce800841566577",
+    "wheel_sha256": "32b253a84612fae5bfd3787a3fc8a81450b976c59b3d6d29c2994fe5b451c2bc",
+    "hardware": "NVIDIA H100 80GB HBM3",
+    "options": [
+      "-b",
+      "4",
+      "-hb",
+      "16",
+      "-cb",
+      "mcg",
+      "--out_scales",
+      "auto",
+      "--hq",
+      "-cr",
+      "250",
+      "-cc",
+      "2048",
+      "-ss",
+      "4096",
+      "-cpi",
+      "120"
+    ],
+    "full_function_seconds": 3209.2319704359998,
+    "calibration_tokens": 512000
+  },
+  "mlxl3_executable_code_commit": "c639634fb5b30fc8c3033df109cdb4730a7d6c4d",
+  "native_engine": {
+    "version": "1.4.4",
+    "source_commit": "8386fbfc557f1e740e46a5a6ab250102b047a665",
+    "sha256": "355b52620cfcf3e8a6d3b053efc9c28eda34963d8f132406e86aa733acdc2cd8"
+  },
+  "compaction": {
+    "removed_tied_head_payload_bytes": 524288000,
+    "head_values_verified": 262144000,
+    "other_rewritten_tensors_byteexact": 782,
+    "native_logits_bitexact": 16384000
+  },
+  "weight_bytes": 12614197321,
+  "effective_bpw": 4.20971609308479,
+  "files": {
+    "LICENSE": {
+      "bytes": 10574,
+      "sha256": "4d28ca14dedc0b3d0fcc2b3339f0e79931faa33874f3d24f522183a8fc70068c"
+    },
+    "README.md": {
+      "bytes": 7406,
+      "sha256": "72283dc69fa68ee781c5b3760630a7eb2a6a042a2a2d73516c4d2e55a886d1ee"
+    },
+    "chat_template.jinja": {
+      "bytes": 5443,
+      "sha256": "ea663864491de7ade391839479860ca95541f892f72665c73251fbd4643b1bef"
+    },
+    "config.json": {
+      "bytes": 1962,
+      "sha256": "d6cb556687ddd8382a90cbb957b4fbbdf95ed607bbc4800dc85fd5e5510edade"
+    },
+    "generation_config.json": {
+      "bytes": 329,
+      "sha256": "d1ecad152cd278e57220364423f5a5b19350f1e6e230ff82281a5c23a3173f16"
+    },
+    "model-00001-of-00004.safetensors": {
+      "bytes": 4105824032,
+      "sha256": "cce3f431c4a79319bfa10952baaa6db6179971631f5e2a8d60da04bb981c7f8e"
+    },
+    "model-00002-of-00004.safetensors": {
+      "bytes": 4098373902,
+      "sha256": "3e87ad7f40ee617dce5d699bb70faaa1d78ea3cac11fd616185ca2a0ab773c77"
+    },
+    "model-00003-of-00004.safetensors": {
+      "bytes": 4093646372,
+      "sha256": "b06ea4d40f096d9bedcdc2de00e2c60685feb6da1ca89164824d937bc53576ef"
+    },
+    "model-00004-of-00004.safetensors": {
+      "bytes": 316353015,
+      "sha256": "0c2967321f556980b8556a8d6abe3f3de5ddcd6ef5899f5736d16eb0d3252e43"
+    },
+    "model.safetensors.index.json": {
+      "bytes": 2695272,
+      "sha256": "0a0dc2746c597a1d735264a9eb71f47513f8a479fb68cdf7de6700f7a49d8974"
+    },
+    "quantization_config.json": {
+      "bytes": 6863640,
+      "sha256": "1f14eebf3c583e8ce313438f9f0d00f916600dc7c120d0129f7604e7e011ef10"
+    },
+    "tokenizer.json": {
+      "bytes": 17905598,
+      "sha256": "695be7802a0e4b8a81048f0ff5ebb7fc811a0ba5a6be63dbb24deb5a81096f41"
+    },
+    "tokenizer_config.json": {
+      "bytes": 363,
+      "sha256": "11f1de897317b489dd09199284528382eeb17f566398b16e2039bb2266d26b09"
+    },
+    "v2-quality.json": {
+      "bytes": 6920,
+      "sha256": "ff485871e7ec42a6795c1dee68d0654e84428857ca595e6e89d58e85f4910b08"
+    }
+  },
+  "manifest_excludes_self": true,
+  "notice": "Source projections converted to EXL3 K4 experts/K5 dense/K6 attention+conv; redundant tied head removed losslessly; quality and limits in README.md and v2-quality.json."
+}
