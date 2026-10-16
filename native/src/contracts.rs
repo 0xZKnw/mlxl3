@@ -2,27 +2,53 @@
 
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
-    rows == 1 && (1..=64).contains(&experts) && top_k > 0 && top_k <= experts as usize
+    rows > 0
+        && (1..=64).contains(&experts)
+        && top_k > 0
+        && top_k <= experts as usize
+        && rows.checked_mul(experts).is_some()
 }
 
 #[test]
 fn biased_router_domain_covers_both_simd_halves() {
-    for rows in -1..=2 {
+    for rows in [
+        i32::MIN,
+        -1,
+        0,
+        1,
+        2,
+        3,
+        7,
+        8,
+        23,
+        24,
+        25,
+        63,
+        64,
+        65,
+        128,
+        266,
+        i32::MAX,
+    ] {
         for experts in -1..=65 {
             for top_k in 0..=65 {
                 assert_eq!(
                     biased_router_domain(rows, experts, top_k),
-                    rows == 1
+                    rows > 0
                         && experts > 0
                         && experts <= 64
                         && top_k > 0
                         && top_k <= experts as usize
+                        && i64::from(rows) * i64::from(experts) <= i64::from(i32::MAX)
                 );
             }
         }
     }
     assert!(!biased_router_domain(1, i32::MAX, usize::MAX));
     assert!(!biased_router_domain(i32::MIN, i32::MIN, 1));
+    assert!(biased_router_domain(i32::MAX, 1, 1));
+    assert!(biased_router_domain(i32::MAX / 64, 64, 64));
+    assert!(!biased_router_domain(i32::MAX / 64 + 1, 64, 64));
 }
 
 #[cfg(kani)]
@@ -34,18 +60,173 @@ fn biased_router_domain_bounds_dispatch() {
     let valid = biased_router_domain(rows, experts, top_k);
     assert_eq!(
         valid,
-        rows == 1 && experts >= 1 && experts <= 64 && top_k >= 1 && top_k <= experts as usize
+        rows > 0
+            && experts >= 1
+            && experts <= 64
+            && top_k >= 1
+            && top_k <= experts as usize
+            && i64::from(rows) * i64::from(experts) <= i64::from(i32::MAX)
     );
     if valid {
         assert!((1..=64).contains(&(top_k as i32)));
-        assert!(experts <= 2 * 32);
+        assert!(rows.checked_mul(top_k as i32).is_some());
     }
-    kani::cover!(valid && experts == 32 && top_k == 4);
-    kani::cover!(valid && experts == 33 && top_k == 33);
-    kani::cover!(valid && experts == 64 && top_k == 64);
-    kani::cover!(!valid && rows == 2);
-    kani::cover!(!valid && experts == 65);
+    kani::cover!(valid && rows == 266 && experts == 64 && top_k == 4);
+    kani::cover!(valid && rows == 2 && experts == 33 && top_k == 33);
+    kani::cover!(valid && rows == i32::MAX && experts == 1 && top_k == 1);
+    kani::cover!(!valid && rows == 0);
+    kani::cover!(!valid && rows == i32::MAX && experts == 64);
     kani::cover!(!valid && top_k == usize::MAX);
+}
+
+#[test]
+fn biased_router_offsets_cover_registered_rows_and_all_expert_widths() {
+    for experts in 1..=64 {
+        for rows in [
+            1,
+            2,
+            3,
+            7,
+            8,
+            23,
+            24,
+            25,
+            63,
+            64,
+            65,
+            128,
+            266,
+            i32::MAX / experts,
+        ] {
+            for top_k in [1, 4.min(experts as usize), experts as usize] {
+                assert!(biased_router_domain(rows, experts, top_k));
+                for row in [0, rows / 2, rows - 1] {
+                    let input = row.checked_mul(experts).unwrap();
+                    let output = row.checked_mul(top_k as i32).unwrap();
+                    assert!(
+                        i64::from(input) + i64::from(experts) - 1
+                            < i64::from(rows) * i64::from(experts)
+                    );
+                    assert!(i64::from(output) + top_k as i64 - 1 < i64::from(rows) * top_k as i64);
+                    assert!(input.checked_add(experts - 1).is_some());
+                    assert!(output.checked_add(top_k as i32 - 1).is_some());
+                }
+            }
+        }
+    }
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn lfm_moe_exact_prefill_geometry(
+    hidden: i32,
+    expert_hidden: i32,
+    experts: i32,
+    top_k: usize,
+    mapped_k4_mcg: bool,
+) -> bool {
+    hidden == 2048 && expert_hidden == 1536 && experts == 64 && top_k == 4 && mapped_k4_mcg
+}
+
+#[test]
+fn lfm_moe_exact_prefill_geometry_requires_the_qualified_projection_layout() {
+    assert!(lfm_moe_exact_prefill_geometry(2048, 1536, 64, 4, true));
+    for invalid in [i32::MIN, -1, 0, 1, 2047, 2049, i32::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(invalid, 1536, 64, 4, true));
+    }
+    for invalid in [i32::MIN, -1, 0, 1535, 1537, i32::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(2048, invalid, 64, 4, true));
+    }
+    for invalid in [i32::MIN, -1, 0, 32, 63, 65, i32::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(
+            2048, 1536, invalid, 4, true
+        ));
+    }
+    for invalid in [0, 1, 3, 5, 64, usize::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(
+            2048, 1536, 64, invalid, true
+        ));
+    }
+    assert!(!lfm_moe_exact_prefill_geometry(2048, 1536, 64, 4, false));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_moe_exact_prefill_accepts_only_the_qualified_geometry() {
+    let hidden: i32 = kani::any();
+    let expert_hidden: i32 = kani::any();
+    let experts: i32 = kani::any();
+    let top_k: usize = kani::any();
+    let mapped: bool = kani::any();
+    let eligible = lfm_moe_exact_prefill_geometry(hidden, expert_hidden, experts, top_k, mapped);
+    if eligible {
+        assert_eq!(hidden, 2048);
+        assert_eq!(expert_hidden, 1536);
+        assert_eq!(experts, 64);
+        assert_eq!(top_k, 4);
+        assert!(mapped);
+    }
+    if hidden == 2048 && expert_hidden == 1536 && experts == 64 && top_k == 4 && mapped {
+        assert!(eligible);
+    }
+    kani::cover!(eligible);
+    kani::cover!(!eligible && !mapped);
+    kani::cover!(!eligible && top_k == usize::MAX);
+}
+
+/// Validate a complete experimental prefill before mutating any recurrent state.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn lfm_prefill_end(tokens: usize, offset: i32, limit: i32) -> Option<i32> {
+    if tokens == 0 || offset < 0 || limit <= 0 {
+        return None;
+    }
+    let end = offset.checked_add(i32::try_from(tokens).ok()?)?;
+    (end <= limit).then_some(end)
+}
+
+#[test]
+fn lfm_prefill_end_rejects_empty_invalid_and_overflowing_ranges() {
+    for (tokens, offset, limit, expected) in [
+        (0, 0, 4096, None),
+        (1, -1, 4096, None),
+        (1, 0, 0, None),
+        (1, 0, 1, Some(1)),
+        (8, 4090, 4098, Some(4098)),
+        (8, 4090, 4097, None),
+        (1, i32::MAX - 1, i32::MAX, Some(i32::MAX)),
+        (1, i32::MAX, i32::MAX, None),
+        (usize::MAX, 0, i32::MAX, None),
+    ] {
+        assert_eq!(lfm_prefill_end(tokens, offset, limit), expected);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_prefill_end_preserves_context_and_all_block_positions() {
+    let tokens: usize = kani::any();
+    let offset: i32 = kani::any();
+    let limit: i32 = kani::any();
+    let expected = if tokens > 0
+        && offset >= 0
+        && limit > 0
+        && tokens as u128 + offset as u128 <= limit as u128
+    {
+        Some((tokens as u128 + offset as u128) as i32)
+    } else {
+        None
+    };
+    let end = lfm_prefill_end(tokens, offset, limit);
+    assert_eq!(end, expected);
+    if let Some(end) = end {
+        let row: usize = kani::any();
+        kani::assume(row < tokens); // A row produced by iteration over these tokens.
+        assert!(offset.checked_add(row as i32).is_some());
+        assert!(offset + (row as i32) < end);
+        kani::cover!(tokens == 266 && offset == 17 && row == 265);
+        kani::cover!(end == i32::MAX);
+    }
+    kani::cover!(tokens == 0 && end.is_none());
+    kani::cover!(tokens == usize::MAX && end.is_none());
 }
 
 /// Distinguishes every opt-in kernel combination in persisted MTP calibrations.
@@ -1168,4 +1349,91 @@ fn lfm_context_memory_small_dimensions_match_wide_oracle() {
     kani::cover!(first == 1 && second == 127 && total == i64::MAX && actual_conv.is_some());
     kani::cover!(first == 127 && second == 127 && total == i64::MAX && actual_conv.is_none());
     kani::cover!(first == i8::MIN && actual_attention.is_none() && actual_conv.is_none());
+}
+
+/// The observed terminal event, independent of token-count heuristics in clients.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GenerationStopReason {
+    Eos,
+    MaxTokens,
+    ContextFull,
+}
+
+impl GenerationStopReason {
+    pub fn from_round(eos_observed: bool, context_full: bool) -> Self {
+        if eos_observed {
+            Self::Eos
+        } else if context_full {
+            Self::ContextFull
+        } else {
+            Self::MaxTokens
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "eos" => Some(Self::Eos),
+            "max_tokens" => Some(Self::MaxTokens),
+            "context_full" => Some(Self::ContextFull),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Eos => "eos",
+            Self::MaxTokens => "max_tokens",
+            Self::ContextFull => "context_full",
+        }
+    }
+
+    pub fn openai_finish_reason(self) -> &'static str {
+        match self {
+            Self::Eos => "stop",
+            Self::MaxTokens | Self::ContextFull => "length",
+        }
+    }
+}
+
+#[test]
+fn generation_stop_reason_preserves_cause_and_openai_mapping() {
+    use GenerationStopReason::{ContextFull, Eos, MaxTokens};
+    for (eos, full, expected, finish) in [
+        (true, false, Eos, "stop"),
+        (true, true, Eos, "stop"),
+        (false, false, MaxTokens, "length"),
+        (false, true, ContextFull, "length"),
+    ] {
+        let reason = GenerationStopReason::from_round(eos, full);
+        assert_eq!(reason, expected);
+        assert_eq!(reason.openai_finish_reason(), finish);
+        assert_eq!(GenerationStopReason::parse(reason.as_str()), Some(reason));
+    }
+    for invalid in [
+        "",
+        "stop",
+        "length",
+        "EOS",
+        "max_tokens ",
+        "context_full\n",
+        "cancelled",
+        "error",
+    ] {
+        assert_eq!(GenerationStopReason::parse(invalid), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn generation_stop_reason_matches_observed_terminal_event() {
+    let eos: bool = kani::any();
+    let full: bool = kani::any();
+    let reason = GenerationStopReason::from_round(eos, full);
+    assert_eq!(reason == GenerationStopReason::Eos, eos);
+    assert_eq!(reason == GenerationStopReason::ContextFull, !eos && full);
+    assert_eq!(reason == GenerationStopReason::MaxTokens, !eos && !full);
+    kani::cover!(eos && !full);
+    kani::cover!(!eos && full);
+    kani::cover!(!eos && !full);
+    kani::cover!(eos && full);
 }

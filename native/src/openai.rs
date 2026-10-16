@@ -13,15 +13,24 @@ use std::{
     path::Path,
     sync::{
         Arc,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
-    time::{SystemTime, UNIX_EPOCH},
+    task::Poll,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    process::{ChildStdin, ChildStdout, Command},
-    sync::Mutex,
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    process::{Child, ChildStdin, ChildStdout, Command},
+    sync::{Mutex, OwnedSemaphorePermit, Semaphore, oneshot},
+    time::{Instant, timeout, timeout_at},
 };
+
+#[path = "openai_io.rs"]
+mod transport;
+
+const MAX_BODY: usize = 16 * 1024 * 1024;
+const MAX_EVENT: usize = 64 * 1024 * 1024;
+const MAX_OUTPUT: usize = 16 * 1024 * 1024;
 
 static NEXT_REQUEST: AtomicU64 = AtomicU64::new(1);
 
@@ -30,11 +39,231 @@ struct Bridge {
     stdout: BufReader<ChildStdout>,
 }
 
+#[derive(Clone, Copy)]
+struct Limits {
+    body_bytes: usize,
+    event_bytes: usize,
+    output_bytes: usize,
+    body: Duration,
+    write: Duration,
+    event: Duration,
+    generation: Duration,
+    send: Duration,
+    drain: Duration,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            body_bytes: MAX_BODY,
+            event_bytes: MAX_EVENT,
+            output_bytes: MAX_OUTPUT,
+            body: Duration::from_secs(10),
+            write: Duration::from_secs(10),
+            event: Duration::from_secs(300),
+            generation: Duration::from_secs(1800),
+            send: Duration::from_secs(10),
+            drain: Duration::from_secs(10),
+        }
+    }
+}
+
 struct State {
     model: String,
     api_key: String,
-    bridge_pid: u32,
+    bridge_info: Value,
     bridge: Mutex<Bridge>,
+    child: Arc<Mutex<Child>>,
+    admission: Arc<Semaphore>,
+    healthy: AtomicBool,
+    limits: Limits,
+}
+
+impl State {
+    async fn bridge_alive(&self) -> bool {
+        if !self.healthy.load(Ordering::Acquire) {
+            return false;
+        }
+        if !matches!(self.child.lock().await.try_wait(), Ok(None)) {
+            self.healthy.store(false, Ordering::Release);
+            return false;
+        }
+        true
+    }
+
+    async fn request_cancel(&self) {
+        // try_wait can reap a dead PID. Keep identity and signal under the same lock.
+        let mut child = self.child.lock().await;
+        if matches!(child.try_wait(), Ok(None)) {
+            if let Some(pid) = child.id() {
+                cancel(pid);
+            }
+        } else {
+            self.healthy.store(false, Ordering::Release);
+        }
+    }
+
+    async fn invalidate(&self) {
+        self.healthy.store(false, Ordering::Release);
+        if let Err(error) = cleanup_child(&self.child, self.limits.drain).await {
+            eprintln!("MLXL3 bridge cleanup failed: {error:#}");
+        }
+    }
+}
+
+fn listen_addr(host: &str, port: u16, api_key: &str) -> Result<SocketAddr> {
+    let ip = if let Some(inner) = host.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        IpAddr::V6(inner.parse().context("invalid IPv6 listen address")?)
+    } else {
+        host.parse::<IpAddr>().context("invalid listen address")?
+    };
+    if !ip.is_loopback() && api_key.is_empty() {
+        bail!("an API key is required when listening outside loopback");
+    }
+    Ok(SocketAddr::new(ip, port))
+}
+
+fn shutdown_signal() -> Result<impl std::future::Future<Output = ()>> {
+    #[cfg(unix)]
+    {
+        // Register both handlers before spawning the model process.
+        let mut terminate =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        let mut interrupt =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
+        Ok(async move {
+            tokio::select! {
+                _ = terminate.recv() => {},
+                _ = interrupt.recv() => {},
+            }
+        })
+    }
+    #[cfg(not(unix))]
+    Ok(async {
+        let _ = tokio::signal::ctrl_c().await;
+    })
+}
+
+async fn cleanup_child(child: &Mutex<Child>, wait: Duration) -> Result<()> {
+    let mut child = child.lock().await;
+    if matches!(child.try_wait(), Ok(Some(_))) {
+        return Ok(());
+    }
+    // A concurrent exit may make kill fail; wait still determines whether it was reaped.
+    let _ = child.start_kill();
+    timeout(wait, child.wait())
+        .await
+        .context("bridge cleanup timed out; child reap is unconfirmed")?
+        .context("cannot reap bridge child")?;
+    Ok(())
+}
+
+async fn serve_resident(
+    child: Arc<Mutex<Child>>,
+    listener: TcpListener,
+    model: &str,
+    api_key: &str,
+    limits: Limits,
+    startup_timeout: Duration,
+    shutdown: impl std::future::Future<Output = ()>,
+) -> Result<()> {
+    let stderr = child.lock().await.stderr.take().map(|stderr| {
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stderr);
+            let mut bytes = Vec::new();
+            loop {
+                bytes.clear();
+                match (&mut reader)
+                    .take(64 * 1024)
+                    .read_until(b'\n', &mut bytes)
+                    .await
+                {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) => eprintln!("mlxl3 bridge: {}", String::from_utf8_lossy(&bytes)),
+                }
+            }
+        })
+    });
+    let result: Result<()> = async {
+        let (stdin, stdout) = {
+            let mut process = child.lock().await;
+            (process.stdin.take().context("bridge stdin unavailable")?,
+                process.stdout.take().context("bridge stdout unavailable")?)
+        };
+        let mut stdout = BufReader::new(stdout);
+        let mut shutdown = std::pin::pin!(shutdown);
+        let ready = tokio::select! {
+            _ = &mut shutdown => return Ok(()),
+            result = timeout(startup_timeout, async {
+                let mut line = Vec::new();
+                loop {
+                    let event = read_event(&mut stdout, &mut line, limits.event_bytes)
+                        .await.map_err(anyhow::Error::msg)?;
+                    match event["type"].as_str() {
+                        Some("ready") => return Ok::<_, anyhow::Error>(event),
+                        Some("error") => bail!("{}", event["message"].as_str().unwrap_or("model load failed")),
+                        _ => {}
+                    }
+                }
+            }) => result.context("model load timed out")??,
+        };
+        let actual_port = listener.local_addr()?.port();
+        let state = Arc::new(State {
+            model: model.to_owned(),
+            api_key: api_key.to_owned(),
+            bridge_info: bridge_capabilities(&ready),
+            bridge: Mutex::new(Bridge { stdin, stdout }),
+            child: child.clone(),
+            admission: Arc::new(Semaphore::new(1)),
+            healthy: AtomicBool::new(true),
+            limits,
+        });
+        let service = make_service_fn(move |_| {
+            let state = state.clone();
+            async move { Ok::<_, Infallible>(service_fn(move |request| handle(request, state.clone()))) }
+        });
+        let server = Server::builder(transport::Incoming::new(listener, limits.send)?)
+            .http1_header_read_timeout(limits.body)
+            .serve(service);
+        println!("{}", json!({"type":"ready","model":model,"port":actual_port}));
+        use std::io::Write;
+        std::io::stdout().flush()?;
+        tokio::select! {
+            result = server => result.context("OpenAI HTTP server failed"),
+            _ = &mut shutdown => Ok(()),
+        }
+    }.await;
+    // Every startup/server exit passes here, including malformed ready and shutdown during load.
+    let cleanup = cleanup_child(&child, limits.drain).await;
+    let stderr_cleanup: Result<()> = if let Some(mut stderr) = stderr {
+        match timeout(limits.drain, &mut stderr).await {
+            Ok(result) => result.context("bridge stderr task failed"),
+            Err(_) => {
+                stderr.abort();
+                let _ = stderr.await;
+                Err(anyhow::anyhow!(
+                    "bridge stderr drainage timed out; task aborted and joined"
+                ))
+            }
+        }
+    } else {
+        Ok(())
+    };
+    if let Err(error) = cleanup {
+        eprintln!("MLXL3 bridge cleanup failed: {error:#}");
+        return Err(result
+            .err()
+            .unwrap_or(error)
+            .context("bridge cleanup was not confirmed"));
+    }
+    if let Err(error) = stderr_cleanup {
+        eprintln!("MLXL3 stderr cleanup failed: {error:#}");
+        return Err(result
+            .err()
+            .unwrap_or(error)
+            .context("bridge stderr did not drain normally"));
+    }
+    result
 }
 
 pub async fn serve(
@@ -45,24 +274,16 @@ pub async fn serve(
     api_key: &str,
     context_length: i32,
 ) -> Result<()> {
-    let addr: SocketAddr = format!("{host}:{port}")
-        .parse()
-        .context("invalid listen address")?;
-    if !matches!(addr.ip(), IpAddr::V4(ip) if ip.is_loopback())
-        && !matches!(addr.ip(), IpAddr::V6(ip) if ip.is_loopback())
-        && api_key.is_empty()
-    {
-        bail!("an API key is required when listening outside loopback");
-    }
+    let addr = listen_addr(host, port, api_key)?;
     let listener = TcpListener::bind(addr).context("cannot bind OpenAI API")?;
-    let actual_port = listener.local_addr()?.port();
-
+    listener.set_nonblocking(true)?;
+    let shutdown = shutdown_signal()?;
     let executable = std::env::current_exe()?;
     let mut command = Command::new(executable);
     if let Some(registry) = registry {
         command.arg("--registry").arg(registry);
     }
-    let mut child = command
+    let child = command
         .arg("bridge")
         .arg(model)
         .arg("--context-length")
@@ -73,75 +294,16 @@ pub async fn serve(
         .kill_on_drop(true)
         .spawn()
         .context("cannot start resident bridge")?;
-    let bridge_pid = child.id().context("bridge has no PID")?;
-    let stdin = child.stdin.take().context("bridge stdin unavailable")?;
-    let mut stdout = BufReader::new(child.stdout.take().context("bridge stdout unavailable")?);
-    if let Some(stderr) = child.stderr.take() {
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(stderr).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                eprintln!("mlxl3 bridge: {line}");
-            }
-        });
-    }
-    let ready = tokio::time::timeout(std::time::Duration::from_secs(180), async {
-        let mut line = String::new();
-        loop {
-            line.clear();
-            if stdout.read_line(&mut line).await? == 0 {
-                bail!("bridge exited before readiness");
-            }
-            let event: Value = serde_json::from_str(&line)?;
-            match event["type"].as_str() {
-                Some("ready") => return Ok::<(), anyhow::Error>(()),
-                Some("error") => bail!(
-                    "{}",
-                    event["message"].as_str().unwrap_or("model load failed")
-                ),
-                _ => {}
-            }
-        }
-    })
+    serve_resident(
+        Arc::new(Mutex::new(child)),
+        listener,
+        model,
+        api_key,
+        Limits::default(),
+        Duration::from_secs(180),
+        shutdown,
+    )
     .await
-    .context("model load timed out")?;
-    ready?;
-
-    let state = Arc::new(State {
-        model: model.to_owned(),
-        api_key: api_key.to_owned(),
-        bridge_pid,
-        bridge: Mutex::new(Bridge { stdin, stdout }),
-    });
-    let service = make_service_fn(move |_| {
-        let state = state.clone();
-        async move { Ok::<_, Infallible>(service_fn(move |request| handle(request, state.clone()))) }
-    });
-    let server = Server::from_tcp(listener)?.serve(service);
-    println!(
-        "{}",
-        json!({"type":"ready","model":model,"port":actual_port})
-    );
-    use std::io::Write;
-    std::io::stdout().flush()?;
-
-    #[cfg(unix)]
-    {
-        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-        tokio::select! {
-            result = server => result?,
-            _ = tokio::signal::ctrl_c() => {},
-            _ = term.recv() => {},
-        }
-    }
-    #[cfg(not(unix))]
-    tokio::select! {
-        result = server => result?,
-        _ = tokio::signal::ctrl_c() => {},
-    }
-    cancel(bridge_pid);
-    let _ = child.kill().await;
-    let _ = child.wait().await;
-    Ok(())
 }
 
 fn cancel(pid: u32) {
@@ -157,77 +319,278 @@ fn json_response(status: StatusCode, value: Value) -> Response<Body> {
     Response::builder()
         .status(status)
         .header("content-type", "application/json")
-        .header("access-control-allow-origin", "*")
         .body(Body::from(value.to_string()))
         .expect("valid response")
 }
 
+fn bounded_error(message: &str) -> &str {
+    let mut end = message.len().min(4096);
+    while !message.is_char_boundary(end) {
+        end -= 1;
+    }
+    &message[..end]
+}
+
 fn error(status: StatusCode, message: impl Into<String>) -> Response<Body> {
+    let message = message.into();
     json_response(
         status,
-        json!({"error":{"message":message.into(),"type":"invalid_request_error"}}),
+        json!({"error":{"message":bounded_error(&message),"type":"invalid_request_error"}}),
     )
 }
 
+fn bridge_capabilities(ready: &Value) -> Value {
+    let mut public = serde_json::Map::new();
+    for key in [
+        "mtp_supported",
+        "dflash_supported",
+        "memory_saver_supported",
+    ] {
+        if let Some(value) = ready[key].as_bool() {
+            public.insert(key.into(), json!(value));
+        }
+    }
+    for key in ["bridge_protocol", "model_context_limit"] {
+        if let Some(value) = ready[key].as_u64().filter(|n| *n <= i32::MAX as u64) {
+            public.insert(key.into(), json!(value));
+        }
+    }
+    for key in ["runtime_version", "mlx_version"] {
+        if let Some(value) = ready[key].as_str().filter(|s| {
+            !s.is_empty()
+                && s.len() <= 64
+                && s.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'+' | b'-'))
+        }) {
+            public.insert(key.into(), json!(value));
+        }
+    }
+    Value::Object(public)
+}
+
+fn api_capabilities(state: &State) -> Value {
+    json!({"schema":1,"model":state.model,
+        "api":{"chat_completions":true,"stream":true,"stream_usage":true,"text_only":true,
+            "sampling":{"temperature":true,"top_k":true,"repetition_penalty":true,
+                "top_p":false,"frequency_penalty":false,"presence_penalty":false},
+            "stop_sequences":false,"tool_calls":false,"json_schema":false,"images":false,
+            "seed":false,"logit_bias":false,"multiple_choices":false,"mtp":false,"dflash":false},
+        "bridge":state.bridge_info})
+}
+
+fn loopback_authority(authority: &str) -> bool {
+    if authority
+        .bytes()
+        .any(|b| matches!(b, b'@' | b'/' | b'?' | b'#'))
+    {
+        return false;
+    }
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let Some((host, suffix)) = rest.split_once(']') else {
+            return false;
+        };
+        if host.parse::<std::net::Ipv6Addr>().is_err() {
+            return false;
+        }
+        if suffix.is_empty() {
+            (host, None)
+        } else if let Some(port) = suffix.strip_prefix(':') {
+            (host, Some(port))
+        } else {
+            return false;
+        }
+    } else if let Some((host, port)) = authority.split_once(':') {
+        (host, Some(port))
+    } else {
+        (authority, None)
+    };
+    if port.is_some_and(|port| {
+        port.is_empty() || !port.bytes().all(|b| b.is_ascii_digit()) || port.parse::<u16>().is_err()
+    }) {
+        return false;
+    }
+    host.eq_ignore_ascii_case("localhost")
+        || host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback())
+}
+
+fn origin_allowed(origin: &str) -> bool {
+    let Some((scheme, authority)) = origin.split_once("://") else {
+        return false;
+    };
+    (scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https"))
+        && loopback_authority(authority)
+}
+
 async fn handle(request: Request<Body>, state: Arc<State>) -> Result<Response<Body>, Infallible> {
+    let hosts: Vec<_> = request.headers().get_all("host").iter().collect();
+    if hosts.len() > 1
+        || (state.api_key.is_empty()
+            && hosts
+                .first()
+                .is_some_and(|value| !value.to_str().is_ok_and(loopback_authority)))
+    {
+        return Ok(error(
+            StatusCode::FORBIDDEN,
+            "Host is not allowed without an API key",
+        ));
+    }
+    let origins: Vec<_> = request.headers().get_all("origin").iter().collect();
+    let origin = match origins.as_slice() {
+        [] => None,
+        [value] if value.to_str().is_ok_and(origin_allowed) => Some((*value).clone()),
+        _ => return Ok(error(StatusCode::FORBIDDEN, "Origin is not allowed")),
+    };
+    let mut response = handle_inner(request, state).await;
+    response
+        .headers_mut()
+        .insert("vary", hyper::header::HeaderValue::from_static("Origin"));
+    if let Some(origin) = origin {
+        response
+            .headers_mut()
+            .insert("access-control-allow-origin", origin);
+    }
+    Ok(response)
+}
+
+async fn handle_inner(request: Request<Body>, state: Arc<State>) -> Response<Body> {
+    let path = request.uri().path();
     if request.method() == hyper::Method::OPTIONS {
-        return Ok(Response::builder()
+        if !matches!(
+            path,
+            "/health" | "/ready" | "/v1/models" | "/v1/capabilities" | "/v1/chat/completions"
+        ) {
+            return error(StatusCode::NOT_FOUND, "Unsupported endpoint");
+        }
+        if request
+            .headers()
+            .get("access-control-request-method")
+            .is_some_and(|method| method != "GET" && method != "POST")
+            || request
+                .headers()
+                .get("access-control-request-headers")
+                .is_some_and(|value| {
+                    value.to_str().map_or(true, |headers| {
+                        headers.split(',').any(|name| {
+                            !matches!(
+                                name.trim().to_ascii_lowercase().as_str(),
+                                "authorization" | "content-type"
+                            )
+                        })
+                    })
+                })
+        {
+            return error(StatusCode::BAD_REQUEST, "Unsupported preflight request");
+        }
+        return Response::builder()
             .status(StatusCode::NO_CONTENT)
-            .header("access-control-allow-origin", "*")
             .header("access-control-allow-methods", "GET, POST, OPTIONS")
             .header(
                 "access-control-allow-headers",
                 "authorization, content-type",
             )
             .body(Body::empty())
-            .expect("valid preflight response"));
+            .expect("valid preflight response");
     }
-    if request.method() == hyper::Method::GET && request.uri().path() == "/health" {
-        return Ok(json_response(StatusCode::OK, json!({"status":"ok"})));
+    if request.method() == hyper::Method::GET && matches!(path, "/health" | "/ready") {
+        let healthy = state.bridge_alive().await;
+        let busy = state.admission.available_permits() == 0;
+        let ready = healthy && !busy;
+        let status = if path == "/health" || ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        };
+        return json_response(
+            status,
+            json!({"status":if path == "/health" {"ok"} else if ready {"ready"} else {"unavailable"}, "ready":ready,"busy":busy,"bridge_healthy":healthy}),
+        );
+    }
+    if !state.api_key.is_empty() && request.headers().get_all("authorization").iter().count() != 1 {
+        return error(StatusCode::UNAUTHORIZED, "Invalid API key");
     }
     if !state.api_key.is_empty()
         && request
             .headers()
             .get("authorization")
-            .and_then(|value| value.to_str().ok())
+            .and_then(|v| v.to_str().ok())
             != Some(format!("Bearer {}", state.api_key).as_str())
     {
-        return Ok(error(StatusCode::UNAUTHORIZED, "Invalid API key"));
+        return error(StatusCode::UNAUTHORIZED, "Invalid API key");
     }
-    if request.method() == hyper::Method::GET && request.uri().path() == "/v1/models" {
-        return Ok(json_response(
+    if request.method() == hyper::Method::GET && path == "/v1/capabilities" {
+        return json_response(StatusCode::OK, api_capabilities(&state));
+    }
+    if request.method() == hyper::Method::GET && path == "/v1/models" {
+        return json_response(
             StatusCode::OK,
-            json!({"object":"list","data":[
-                {"id":state.model,"object":"model","owned_by":"mlxl3"}
-            ]}),
-        ));
+            json!({"object":"list","data":[{"id":state.model,"object":"model","owned_by":"mlxl3"}]}),
+        );
     }
-    if request.method() != hyper::Method::POST || request.uri().path() != "/v1/chat/completions" {
-        return Ok(error(StatusCode::NOT_FOUND, "Unsupported endpoint"));
+    if request.method() != hyper::Method::POST || path != "/v1/chat/completions" {
+        return error(StatusCode::NOT_FOUND, "Unsupported endpoint");
+    }
+    if !state.bridge_alive().await {
+        return error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "MLXL3 bridge is unavailable",
+        );
+    }
+    let permit = match state.admission.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            let mut response = error(StatusCode::TOO_MANY_REQUESTS, "MLXL3 is busy; retry later");
+            response
+                .headers_mut()
+                .insert("retry-after", hyper::header::HeaderValue::from_static("1"));
+            return response;
+        }
+    };
+    if request.body().size_hint().lower() > state.limits.body_bytes as u64 {
+        let mut response = error(StatusCode::PAYLOAD_TOO_LARGE, "Request body exceeds 16 MiB");
+        response.headers_mut().insert(
+            "connection",
+            hyper::header::HeaderValue::from_static("close"),
+        );
+        return response;
     }
     let mut incoming = request.into_body();
-    let mut body = Vec::new();
-    while let Some(chunk) = incoming.data().await {
-        match chunk {
-            Ok(chunk) if chunk.len() <= (16 * 1024 * 1024usize).saturating_sub(body.len()) => {
-                body.extend_from_slice(&chunk)
-            }
-            Ok(_) => {
-                return Ok(error(
+    let body = timeout(state.limits.body, async {
+        let mut bytes = Vec::new();
+        while let Some(chunk) = incoming.data().await {
+            let chunk = chunk.map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
+            if chunk.len() > state.limits.body_bytes.saturating_sub(bytes.len()) {
+                return Err((
                     StatusCode::PAYLOAD_TOO_LARGE,
-                    "Request body exceeds 16 MiB",
+                    "Request body exceeds 16 MiB".into(),
                 ));
             }
-            Err(err) => return Ok(error(StatusCode::BAD_REQUEST, err.to_string())),
+            bytes.extend_from_slice(&chunk);
         }
-    }
-    let input: Value = match serde_json::from_slice(&body) {
-        Ok(input) => input,
-        Err(err) => return Ok(error(StatusCode::BAD_REQUEST, err.to_string())),
+        Ok(bytes)
+    })
+    .await;
+    let bytes = match body {
+        Ok(Ok(body)) => body,
+        other => {
+            let (status, message) = match other {
+                Ok(Err(error)) => error,
+                _ => (StatusCode::REQUEST_TIMEOUT, "Request body timed out".into()),
+            };
+            let mut response = error(status, message);
+            response.headers_mut().insert(
+                "connection",
+                hyper::header::HeaderValue::from_static("close"),
+            );
+            return response;
+        }
     };
-    let bridge_request = match bridge_request(&input, &state.model) {
+    let input: Value = match serde_json::from_slice(&bytes) {
+        Ok(input) => input,
+        Err(err) => return error(StatusCode::BAD_REQUEST, err.to_string()),
+    };
+    let request = match bridge_request(&input, &state.model) {
         Ok(request) => request,
-        Err(err) => return Ok(error(StatusCode::BAD_REQUEST, err)),
+        Err(err) => return error(StatusCode::BAD_REQUEST, err),
     };
     let id = format!(
         "chatcmpl-{}-{}",
@@ -238,68 +601,88 @@ async fn handle(request: Request<Body>, state: Arc<State>) -> Result<Response<Bo
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let stream = input["stream"].as_bool().unwrap_or(false);
-    let include_usage = input["stream_options"]["include_usage"]
-        .as_bool()
-        .unwrap_or(false);
-    if stream {
+    if input["stream"].as_bool().unwrap_or(false) {
+        let include_usage = input["stream_options"]["include_usage"]
+            .as_bool()
+            .unwrap_or(false);
         let (sender, body) = Body::channel();
         tokio::spawn(async move {
+            let _permit = permit;
             let mut sender = Some(sender);
-            let result = generate(&state, bridge_request, &id, created, &mut sender).await;
+            let result = generate(&state, request, &id, created, &mut sender, &mut None).await;
             if let Some(mut sender) = sender {
-                match result {
+                let final_value = match result {
                     Ok(output) => {
-                        let finish = if output.context_full {
-                            "length"
-                        } else {
-                            "stop"
-                        };
-                        let _ = send_sse(
-                            &mut sender,
-                            json!({"id":id,"object":"chat.completion.chunk",
-                            "created":created,"model":state.model,
-                            "choices":[{"index":0,"delta":{},"finish_reason":finish}]}),
-                        )
-                        .await;
-                        if include_usage {
-                            let _ = send_sse(&mut sender, json!({"id":id,"object":"chat.completion.chunk",
-                                "created":created,"model":state.model,"choices":[],"usage":usage(&output.stats)})).await;
+                        let value = json!({"id":id,"object":"chat.completion.chunk","created":created,"model":state.model,
+                            "choices":[{"index":0,"delta":{},"finish_reason":output.reason.openai_finish_reason()}]});
+                        if send_sse(&mut sender, value, state.limits.send)
+                            .await
+                            .is_err()
+                        {
+                            return;
                         }
-                        let _ = sender.send_data(Bytes::from("data: [DONE]\n\n")).await;
+                        if include_usage {
+                            Some(
+                                json!({"id":id,"object":"chat.completion.chunk","created":created,"model":state.model,"choices":[],"usage":usage(&output.stats)}),
+                            )
+                        } else {
+                            None
+                        }
                     }
                     Err(err) => {
-                        let _ = send_sse(
-                            &mut sender,
-                            json!({"error":{"message":err.to_string(),"type":"server_error"}}),
-                        )
-                        .await;
+                        Some(json!({"error":{"message":bounded_error(&err),"type":"server_error"}}))
                     }
+                };
+                if let Some(value) = final_value
+                    && send_sse(&mut sender, value, state.limits.send)
+                        .await
+                        .is_err()
+                {
+                    return;
                 }
+                let _ = timeout(
+                    state.limits.send,
+                    sender.send_data(Bytes::from("data: [DONE]\n\n")),
+                )
+                .await;
             }
         });
-        return Ok(Response::builder()
+        return Response::builder()
             .status(StatusCode::OK)
             .header("content-type", "text/event-stream")
             .header("cache-control", "no-cache")
-            .header("access-control-allow-origin", "*")
             .body(body)
-            .expect("valid stream response"));
+            .expect("valid stream response");
     }
-    let result = generate(&state, bridge_request, &id, created, &mut None).await;
-    Ok(match result {
-        Ok(output) => json_response(
-            StatusCode::OK,
-            json!({
-                "id":id,"object":"chat.completion","created":created,"model":state.model,
-                "choices":[{"index":0,"message":{"role":"assistant","content":output.answer,
-                    "reasoning_content":output.thinking},
-                    "finish_reason":if output.context_full {"length"} else {"stop"}}],
-                "usage":usage(&output.stats)
-            }),
+    let (reply, receiver) = oneshot::channel();
+    let worker_state = state.clone();
+    let worker_id = id.clone();
+    tokio::spawn(async move {
+        let mut reply = Some(reply);
+        let result = generate(
+            &worker_state,
+            request,
+            &worker_id,
+            created,
+            &mut None,
+            &mut reply,
+        )
+        .await;
+        if let Some(reply) = reply {
+            let _ = reply.send(result.map(|output| (output, permit)));
+        }
+    });
+    match receiver.await {
+        Ok(Ok((output, permit))) => completion_response(
+            json!({"id":id,"object":"chat.completion","created":created,"model":state.model,
+            "choices":[{"index":0,"message":{"role":"assistant","content":output.answer,"reasoning_content":output.thinking},
+                "finish_reason":output.reason.openai_finish_reason()}],"usage":usage(&output.stats)}),
+            permit,
+            state.limits.send,
         ),
-        Err(err) => error(StatusCode::BAD_GATEWAY, err.to_string()),
-    })
+        Ok(Err(err)) => error(StatusCode::BAD_GATEWAY, err),
+        Err(_) => error(StatusCode::BAD_GATEWAY, "MLXL3 generation worker stopped"),
+    }
 }
 
 fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
@@ -456,7 +839,9 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
         .as_f64()
         .or_else(|| input["repetition_penalty"].as_f64())
         .unwrap_or(1.0);
-    if !(0.0..=2.0).contains(&temperature) || penalty <= 0.0 {
+    // The bridge consumes f32: reject overflow/underflow before any prefill starts.
+    let bridge_penalty = penalty as f32;
+    if !(0.0..=2.0).contains(&temperature) || !bridge_penalty.is_finite() || bridge_penalty <= 0.0 {
         return Err("Invalid MLXL3 sampling parameters".into());
     }
     Ok(
@@ -469,14 +854,165 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
 struct Output {
     answer: String,
     thinking: String,
-    stats: Value,
-    context_full: bool,
+    stats: TokenUsage,
+    reason: mlxl3_native::GenerationStopReason,
 }
 
-async fn send_sse(sender: &mut hyper::body::Sender, value: Value) -> Result<(), hyper::Error> {
-    sender
-        .send_data(Bytes::from(format!("data: {value}\n\n")))
+struct TokenUsage {
+    prompt: u64,
+    completion: u64,
+}
+
+impl TokenUsage {
+    fn new(prompt: u64, completion: u64, maximum: Option<u64>) -> Option<Self> {
+        if prompt == 0 || maximum.is_some_and(|maximum| completion > maximum) {
+            return None;
+        }
+        Some(Self { prompt, completion })
+    }
+
+    fn parse(stats: &Value, maximum: Option<u64>) -> Option<Self> {
+        Self::new(
+            stats["prompt_tokens"].as_u64()?,
+            stats["generated_tokens"].as_u64()?,
+            maximum,
+        )
+    }
+}
+
+type Reply = oneshot::Sender<Result<(Output, OwnedSemaphorePermit), String>>;
+
+async fn send_bytes(
+    sender: &mut hyper::body::Sender,
+    bytes: &[u8],
+    wait: Duration,
+) -> Result<(), String> {
+    let deadline = Instant::now() + wait;
+    // Bound each producer-channel frame; Hyper and the socket have their own buffers.
+    for chunk in bytes.chunks(16 * 1024) {
+        if Instant::now() >= deadline {
+            return Err("HTTP client write timed out".into());
+        }
+        timeout_at(deadline, sender.send_data(Bytes::copy_from_slice(chunk)))
+            .await
+            .map_err(|_| "HTTP client write timed out".to_owned())?
+            .map_err(|err| err.to_string())?;
+    }
+    Ok(())
+}
+
+async fn send_sse(
+    sender: &mut hyper::body::Sender,
+    value: Value,
+    wait: Duration,
+) -> Result<(), String> {
+    send_bytes(sender, format!("data: {value}\n\n").as_bytes(), wait).await
+}
+
+fn completion_response(
+    value: Value,
+    permit: OwnedSemaphorePermit,
+    wait: Duration,
+) -> Response<Body> {
+    let (mut sender, body) = Body::channel();
+    tokio::spawn(async move {
+        let _permit = permit;
+        if send_bytes(&mut sender, value.to_string().as_bytes(), wait)
+            .await
+            .is_err()
+        {
+            sender.abort();
+        }
+    });
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "application/json")
+        .body(body)
+        .expect("valid completion response")
+}
+
+async fn response_closed(sender: &mut Option<hyper::body::Sender>, reply: &mut Option<Reply>) {
+    if let Some(sender) = sender {
+        // Hyper0.14 registers the close waker in poll_ready, even when writable.
+        std::future::poll_fn(|cx| match sender.poll_ready(cx) {
+            Poll::Ready(Err(_)) => Poll::Ready(()),
+            _ => Poll::Pending,
+        })
+        .await;
+    } else if let Some(reply) = reply {
+        reply.closed().await;
+    } else {
+        std::future::pending::<()>().await;
+    }
+}
+
+async fn read_event(
+    reader: &mut BufReader<ChildStdout>,
+    line: &mut Vec<u8>,
+    maximum: usize,
+) -> Result<Value, String> {
+    let remaining = maximum
+        .checked_sub(line.len())
+        .ok_or("Bridge event exceeds 64 MiB")?;
+    // read_until is cancellation safe: partial JSON survives into cancellation drainage.
+    let n = (&mut *reader)
+        .take(remaining as u64 + 1)
+        .read_until(b'\n', line)
         .await
+        .map_err(|err| err.to_string())?;
+    if n == 0 {
+        return Err("MLXL3 bridge exited during generation".into());
+    }
+    if line.len() > maximum || line.last() != Some(&b'\n') {
+        return Err("Bridge event exceeds 64 MiB or is truncated".into());
+    }
+    let event =
+        serde_json::from_slice(line).map_err(|err| format!("Invalid MLXL3 bridge event: {err}"))?;
+    line.clear();
+    Ok(event)
+}
+
+async fn cancel_and_drain(
+    state: &State,
+    bridge: &mut Bridge,
+    request_id: &Value,
+    line: &mut Vec<u8>,
+) {
+    state.request_cancel().await;
+    let deadline = Instant::now() + state.limits.drain;
+    loop {
+        if Instant::now() >= deadline {
+            state.invalidate().await;
+            return;
+        }
+        match timeout_at(
+            deadline,
+            read_event(&mut bridge.stdout, line, state.limits.event_bytes),
+        )
+        .await
+        {
+            Ok(Ok(event)) => {
+                if &event["request_id"] != request_id {
+                    continue;
+                }
+                if matches!(
+                    event["type"].as_str(),
+                    Some("complete" | "cancelled" | "error")
+                ) {
+                    return;
+                }
+                // Only this ack follows the flag reset; never flood signals while draining deltas.
+                if event["type"] == "generation_mode" {
+                    state.request_cancel().await;
+                }
+            }
+            failure => {
+                eprintln!("MLXL3 cancellation drainage failed: {failure:?}");
+                state.invalidate().await;
+                return;
+            }
+        }
+    }
 }
 
 async fn generate(
@@ -485,74 +1021,124 @@ async fn generate(
     id: &str,
     created: u64,
     sender: &mut Option<hyper::body::Sender>,
+    reply: &mut Option<Reply>,
 ) -> Result<Output, String> {
-    // The resident bridge serves one generation at a time.
     let mut bridge = state.bridge.lock().await;
-    if let Some(sender) = sender.as_mut() {
-        send_sse(sender, json!({"id":id,"object":"chat.completion.chunk","created":created,
-            "model":state.model,"choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}))
-            .await.map_err(|err| err.to_string())?;
+    if reply.as_ref().is_some_and(Reply::is_closed) {
+        return Err("HTTP client disconnected".into());
     }
-    bridge
-        .stdin
-        .write_all(format!("{request}\n").as_bytes())
-        .await
-        .map_err(|err| err.to_string())?;
-    bridge.stdin.flush().await.map_err(|err| err.to_string())?;
+    if let Some(sender) = sender.as_mut() {
+        send_sse(
+            sender,
+            json!({"id":id,"object":"chat.completion.chunk","created":created,"model":state.model,
+            "choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}),
+            state.limits.send,
+        )
+        .await?;
+    }
+    let deadline = Instant::now() + state.limits.generation;
+    let written = timeout(state.limits.write, async {
+        bridge
+            .stdin
+            .write_all(format!("{request}\n").as_bytes())
+            .await?;
+        bridge.stdin.flush().await
+    })
+    .await;
+    if !matches!(written, Ok(Ok(()))) {
+        state.invalidate().await;
+        return Err("MLXL3 bridge write failed or timed out".into());
+    }
     let mut answer = String::new();
     let mut thinking = String::new();
-    let mut line = String::new();
-    let mut disconnected = false;
+    let mut line = Vec::new();
     loop {
-        line.clear();
-        if bridge
-            .stdout
-            .read_line(&mut line)
-            .await
-            .map_err(|err| err.to_string())?
-            == 0
-        {
-            return Err("MLXL3 bridge exited during generation".into());
+        if Instant::now() >= deadline {
+            cancel_and_drain(state, &mut bridge, &request["request_id"], &mut line).await;
+            return Err("MLXL3 generation timed out".into());
         }
-        let event: Value = serde_json::from_str(&line).map_err(|err| err.to_string())?;
+        let event_deadline = (Instant::now() + state.limits.event).min(deadline);
+        let event = tokio::select! {
+            _ = response_closed(sender, reply) => {
+                cancel_and_drain(state, &mut bridge, &request["request_id"], &mut line).await;
+                return Err("HTTP client disconnected".into());
+            }
+            event = timeout_at(event_deadline, read_event(&mut bridge.stdout, &mut line, state.limits.event_bytes)) => event,
+        };
+        let event = match event {
+            Ok(Ok(event)) => event,
+            Ok(Err(err)) => {
+                state.invalidate().await;
+                return Err(err);
+            }
+            Err(_) => {
+                cancel_and_drain(state, &mut bridge, &request["request_id"], &mut line).await;
+                return Err("MLXL3 generation timed out".into());
+            }
+        };
         if event["request_id"] != request["request_id"] {
             continue;
         }
         match event["type"].as_str() {
             Some("delta") => {
-                let text = event["text"].as_str().unwrap_or("");
+                let Some(text) = event["text"].as_str() else {
+                    state.invalidate().await;
+                    return Err("Invalid bridge delta".into());
+                };
+                if text.len()
+                    > state
+                        .limits
+                        .output_bytes
+                        .saturating_sub(answer.len() + thinking.len())
+                {
+                    cancel_and_drain(state, &mut bridge, &request["request_id"], &mut line).await;
+                    return Err("MLXL3 response exceeds 16 MiB".into());
+                }
                 let is_thinking = event["phase"] == "thinking";
                 if is_thinking {
                     thinking.push_str(text);
                 } else {
                     answer.push_str(text);
                 }
-                if let Some(sender) = sender.as_mut().filter(|_| !disconnected) {
+                if let Some(sender) = sender.as_mut() {
                     let delta = if is_thinking {
                         json!({"reasoning_content":text})
                     } else {
                         json!({"content":text})
                     };
-                    if send_sse(sender, json!({"id":id,"object":"chat.completion.chunk","created":created,
-                        "model":state.model,"choices":[{"index":0,"delta":delta,"finish_reason":null}]})).await.is_err() {
-                        cancel(state.bridge_pid);
-                        disconnected = true;
+                    if let Err(err) = send_sse(sender, json!({"id":id,"object":"chat.completion.chunk","created":created,
+                        "model":state.model,"choices":[{"index":0,"delta":delta,"finish_reason":null}]}), state.limits.send).await {
+                        cancel_and_drain(state, &mut bridge, &request["request_id"], &mut line).await;
+                        return Err(err);
                     }
                 }
             }
             Some("complete") => {
+                let Some(reason) = event["stop_reason"]
+                    .as_str()
+                    .and_then(mlxl3_native::GenerationStopReason::parse)
+                else {
+                    state.invalidate().await;
+                    return Err("Missing or invalid bridge stop_reason".into());
+                };
+                let Some(stats) =
+                    TokenUsage::parse(&event["stats"], request["max_tokens"].as_u64())
+                else {
+                    state.invalidate().await;
+                    return Err("Missing or invalid bridge token usage".into());
+                };
                 return Ok(Output {
                     answer,
                     thinking,
-                    stats: event["stats"].clone(),
-                    context_full: event["context_full"].as_bool().unwrap_or(false),
+                    stats,
+                    reason,
                 });
             }
             Some("error") => {
-                return Err(event["message"]
-                    .as_str()
-                    .unwrap_or("generation failed")
-                    .into());
+                return Err(bounded_error(
+                    event["message"].as_str().unwrap_or("generation failed"),
+                )
+                .into());
             }
             Some("cancelled") => return Err("generation cancelled".into()),
             _ => {}
@@ -560,10 +1146,9 @@ async fn generate(
     }
 }
 
-fn usage(stats: &Value) -> Value {
-    let prompt = stats["prompt_tokens"].as_u64().unwrap_or(0);
-    let completion = stats["generated_tokens"].as_u64().unwrap_or(0);
-    json!({"prompt_tokens":prompt,"completion_tokens":completion,"total_tokens":total_tokens(prompt, completion)})
+fn usage(stats: &TokenUsage) -> Value {
+    json!({"prompt_tokens":stats.prompt,"completion_tokens":stats.completion,
+        "total_tokens":total_tokens(stats.prompt, stats.completion)})
 }
 
 fn total_tokens(prompt: u64, completion: u64) -> u64 {
@@ -573,6 +1158,46 @@ fn total_tokens(prompt: u64, completion: u64) -> u64 {
 #[cfg(kani)]
 mod proofs {
     use super::total_tokens;
+
+    #[kani::proof]
+    #[kani::unwind(64)]
+    fn origin_suffix_cannot_escape_loopback_authority() {
+        let first: u8 = kani::any();
+        let second: u8 = kani::any();
+        let mut bytes = *b"http://localhost00";
+        bytes[16] = first;
+        bytes[17] = second;
+        if let Ok(origin) = std::str::from_utf8(&bytes) {
+            let allowed = super::origin_allowed(origin);
+            assert_eq!(allowed, first == b':' && second.is_ascii_digit());
+            kani::cover!(first == b':' && second == b'8' && allowed);
+            kani::cover!(first == b'/' && second == b'x' && !allowed);
+        }
+    }
+
+    #[kani::proof]
+    fn validated_usage_respects_budget_without_total_overflow() {
+        let prompt: u64 = kani::any();
+        let completion: u64 = kani::any();
+        let maximum: Option<u64> = kani::any();
+        let usage = super::TokenUsage::new(prompt, completion, maximum);
+        assert_eq!(
+            usage.is_some(),
+            prompt > 0 && maximum.is_none_or(|limit| completion <= limit)
+        );
+        if let Some(usage) = usage {
+            let total = total_tokens(usage.prompt, usage.completion);
+            assert!(total >= usage.prompt && total >= usage.completion);
+            if let Some(exact) = prompt.checked_add(completion) {
+                assert_eq!(total, exact);
+            } else {
+                assert_eq!(total, u64::MAX);
+            }
+        }
+        kani::cover!(prompt > 0 && completion == 0 && maximum == Some(1));
+        kani::cover!(prompt == 0 && completion > 0);
+        kani::cover!(maximum.is_some_and(|limit| completion > limit));
+    }
 
     #[kani::proof]
     fn usage_total_never_wraps() {
@@ -590,11 +1215,15 @@ mod proofs {
 
 #[cfg(test)]
 mod tests {
-    use super::{Bridge, State, bridge_request, handle};
+    use super::{Bridge, Limits, State, bridge_request, handle};
     use hyper::{Body, Request, StatusCode, body::to_bytes};
     use serde_json::json;
-    use std::sync::Arc;
-    use tokio::{io::BufReader, process::Command, sync::Mutex};
+    use std::sync::{Arc, atomic::AtomicBool};
+    use tokio::{
+        io::BufReader,
+        process::Command,
+        sync::{Mutex, Semaphore},
+    };
 
     #[test]
     fn text_request_maps_to_bridge_and_unsupported_inputs_fail() {
@@ -666,11 +1295,16 @@ mod tests {
         let state = Arc::new(State {
             model: "small".into(),
             api_key: "secret".into(),
-            bridge_pid: child.id().unwrap(),
+            bridge_info: json!({}),
+
             bridge: Mutex::new(Bridge {
                 stdin: child.stdin.take().unwrap(),
                 stdout: BufReader::new(child.stdout.take().unwrap()),
             }),
+            child: Arc::new(Mutex::new(child)),
+            admission: Arc::new(Semaphore::new(1)),
+            healthy: AtomicBool::new(true),
+            limits: Limits::default(),
         });
         let health = handle(
             Request::builder()
@@ -686,7 +1320,7 @@ mod tests {
             Request::builder()
                 .method("OPTIONS")
                 .uri("/v1/chat/completions")
-                .header("origin", "http://tauri.localhost")
+                .header("origin", "http://localhost:3000")
                 .header(
                     "access-control-request-headers",
                     "authorization,content-type",
@@ -698,7 +1332,10 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(preflight.status(), StatusCode::NO_CONTENT);
-        assert_eq!(preflight.headers()["access-control-allow-origin"], "*");
+        assert_eq!(
+            preflight.headers()["access-control-allow-origin"],
+            "http://localhost:3000"
+        );
         assert_eq!(
             preflight.headers()["access-control-allow-headers"],
             "authorization, content-type"
@@ -733,9 +1370,48 @@ mod tests {
         );
         let invalid = handle(Request::builder().method("POST").uri("/v1/chat/completions")
             .header("authorization", "Bearer secret")
-            .body(Body::from(json!({"model":"small","messages":[{"role":"user","content":"Hi"}],"min_p":0.1}).to_string())).unwrap(), state).await.unwrap();
+            .body(Body::from(json!({"model":"small","messages":[{"role":"user","content":"Hi"}],"min_p":0.1}).to_string())).unwrap(), state.clone()).await.unwrap();
         assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
-        child.kill().await.unwrap();
-        child.wait().await.unwrap();
+        state.invalidate().await;
+    }
+
+    #[tokio::test]
+    async fn finish_reason_honors_explicit_budget() {
+        let script = r#"import json,sys
+for line in sys.stdin:
+ r=json.loads(line)
+ print(json.dumps({'type':'complete','request_id':r['request_id'],'stop_reason':'max_tokens','context_full':False,'stats':{'prompt_tokens':2,'generated_tokens':1}}),flush=True)
+"#;
+        let mut child = Command::new("python3")
+            .args(["-u", "-c", script])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap();
+        let state = Arc::new(State {
+            model: "small".into(),
+            api_key: String::new(),
+            bridge_info: json!({}),
+
+            bridge: Mutex::new(Bridge {
+                stdin: child.stdin.take().unwrap(),
+                stdout: BufReader::new(child.stdout.take().unwrap()),
+            }),
+            child: Arc::new(Mutex::new(child)),
+            admission: Arc::new(Semaphore::new(1)),
+            healthy: AtomicBool::new(true),
+            limits: Limits::default(),
+        });
+        let response = handle(Request::builder().method("POST").uri("/v1/chat/completions")
+            .body(Body::from(json!({"model":"small","messages":[{"role":"user","content":"Hi"}],"max_tokens":1}).to_string())).unwrap(),state.clone()).await.unwrap();
+        let payload: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body()).await.unwrap()).unwrap();
+        state.invalidate().await;
+        assert_eq!(payload["choices"][0]["finish_reason"], "length");
     }
 }
+
+#[cfg(test)]
+#[path = "openai_tests.rs"]
+mod transport_tests;

@@ -66,6 +66,15 @@ unsafe extern "C" {
     fn mlxl3_pack_embedding(p: *mut c_void, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_retained_bytes(p: *mut c_void, out: *mut u64) -> i32;
     fn mlxl3_array_compact_copy(p: *mut c_void, out: *mut *mut c_void) -> i32;
+    fn mlxl3_array_update_slice(
+        p: *mut c_void,
+        update: *mut c_void,
+        axis: i32,
+        start: i32,
+        end: i32,
+    ) -> i32;
+    #[cfg(test)]
+    fn mlxl3_array_storage_identity(p: *mut c_void, out: *mut u64) -> i32;
     fn mlxl3_array_affine4(
         x: *mut c_void,
         w: *mut c_void,
@@ -877,6 +886,54 @@ impl Array {
             mlxl3_array_concatenate(pointers.as_ptr(), pointers.len(), axis, out)
         })
     }
+    /// Replace this handle with an exact slice update. Existing clones keep their
+    /// previous values; MLX decides whether the backing can be donated.
+    pub(crate) fn update_slice(
+        &mut self,
+        axis: i32,
+        start: i32,
+        end: i32,
+        update: &Self,
+    ) -> Result<()> {
+        let axis = usize::try_from(axis).context("negative slice update axis")?;
+        ensure!(axis < self.shape.len(), "slice update axis outside rank");
+        ensure!(
+            start >= 0 && start < end && end <= self.shape[axis],
+            "slice update range outside storage"
+        );
+        ensure!(
+            update.dtype == self.dtype && update.shape.len() == self.shape.len(),
+            "slice update dtype or rank mismatch"
+        );
+        ensure!(
+            self.shape
+                .iter()
+                .zip(&update.shape)
+                .enumerate()
+                .all(|(i, (&a, &b))| { b == if i == axis { end - start } else { a } }),
+            "slice update shape mismatch"
+        );
+        checked(unsafe {
+            mlxl3_array_update_slice(
+                self.handle.as_ptr(),
+                update.handle.as_ptr(),
+                axis as i32,
+                start,
+                end,
+            )
+        })
+    }
+
+    /// Materializes without cloning a descriptor or shared storage owner.
+    /// An identity comparison diagnoses reuse, not allocator lifetime or RAM use.
+    #[cfg(test)]
+    pub(crate) fn storage_identity(&self) -> Result<u64> {
+        let mut identity = 0;
+        checked(unsafe { mlxl3_array_storage_identity(self.handle.as_ptr(), &mut identity) })?;
+        ensure!(identity != 0, "nonempty array has no storage identity");
+        Ok(identity)
+    }
+
     pub fn sdpa(q: &Self, k: &Self, v: &Self, scale: f32, causal: bool) -> Result<Self> {
         Self::output(|out| unsafe {
             mlxl3_array_sdpa(
@@ -981,6 +1038,154 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn slice_update_rejects_null_handles_without_gpu_dispatch() {
+        let mut identity = 0;
+        assert!(
+            checked(unsafe {
+                mlxl3_array_update_slice(std::ptr::null_mut(), std::ptr::null_mut(), 0, 0, 1)
+            })
+            .is_err()
+        );
+        assert!(
+            checked(unsafe { mlxl3_array_storage_identity(std::ptr::null_mut(), &mut identity) })
+                .is_err()
+        );
+        assert!(
+            checked(unsafe {
+                mlxl3_array_storage_identity(std::ptr::null_mut(), std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        assert_eq!(identity, 0);
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; run alone after root CPU/build/prover gate"]
+    fn slice_update_preserves_exact_bits_aliases_and_storage() -> Result<()> {
+        let shape = [2, 7, 3];
+        for dtype in [Dtype::Float16, Dtype::Float32, Dtype::UInt32] {
+            let item = dtype.item_size();
+            let input = (0..42 * item)
+                .map(|i| (i * 53 + 1) as u8)
+                .collect::<Vec<_>>();
+            for axis in 0..3 {
+                let mut storage = Array::from_bytes(&input, &shape, dtype)?;
+                storage.eval()?;
+                let saved = storage.try_clone()?;
+                let old_id = storage.storage_identity()?;
+                let mut update_shape = shape;
+                update_shape[axis] = 1;
+                let update_len = bytes_for(&update_shape, dtype)?;
+                let update = (0..update_len)
+                    .map(|i| (i * 17 + 0x81) as u8)
+                    .collect::<Vec<_>>();
+                let values = Array::from_bytes(&update, &update_shape, dtype)?;
+                let prefix = shape[..axis].iter().product::<i32>() as usize;
+                let suffix = shape[axis + 1..].iter().product::<i32>() as usize * item;
+                let mut expected = input.clone();
+                for index in 0..prefix {
+                    let dst = (index * shape[axis] as usize + 1) * suffix;
+                    expected[dst..dst + suffix]
+                        .copy_from_slice(&update[index * suffix..(index + 1) * suffix]);
+                }
+                storage.update_slice(axis as i32, 1, 2, &values)?;
+                assert_eq!(storage.shape(), shape);
+                assert_eq!(storage.dtype(), dtype);
+                assert_eq!(storage.to_bytes()?, expected);
+                assert_ne!(
+                    storage.storage_identity()?,
+                    old_id,
+                    "live clone must force COW"
+                );
+                assert_eq!(saved.to_bytes()?, input);
+                drop(saved);
+                let donated_id = storage.storage_identity()?;
+                storage.update_slice(axis as i32, 1, 2, &values)?;
+                assert_eq!(storage.to_bytes()?, expected);
+                assert_eq!(
+                    storage.storage_identity()?,
+                    donated_id,
+                    "unaliased evaluated storage was copied"
+                );
+            }
+        }
+        // Exercise every F16 bit pattern without floating point arithmetic.
+        let bits = (0..=u16::MAX).collect::<Vec<_>>();
+        let mut storage = Array::zeros_dtype(&[2, 65_536], Dtype::Float16)?;
+        storage.update_slice(0, 1, 2, &Array::from_f16_bits(&bits, &[1, 65_536])?)?;
+        assert_eq!(storage.slice(0, 1, 2)?.to_f16_bits()?, bits);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; run alone after root CPU/build/prover gate"]
+    fn slice_update_rejects_invalid_metadata_without_mutation() -> Result<()> {
+        let mut storage = Array::from_f16_bits(&[0x3c00; 24], &[1, 2, 3, 4])?;
+        let old = storage.to_bytes()?;
+        let valid = Array::from_f16_bits(&[0xbc00; 8], &[1, 2, 1, 4])?;
+        for (axis, start, end) in [
+            (-1, 0, 1),
+            (4, 0, 1),
+            (2, -1, 1),
+            (2, 0, 0),
+            (2, 2, 1),
+            (2, 2, 4),
+            (2, 0, i32::MAX),
+        ] {
+            assert!(storage.update_slice(axis, start, end, &valid).is_err());
+            assert!(
+                checked(unsafe {
+                    mlxl3_array_update_slice(
+                        storage.handle.as_ptr(),
+                        valid.handle.as_ptr(),
+                        axis,
+                        start,
+                        end,
+                    )
+                })
+                .is_err()
+            );
+            assert_eq!(storage.to_bytes()?, old);
+        }
+        for invalid in [
+            Array::zeros_dtype(&[1, 2, 1, 4], Dtype::Float32)?,
+            Array::zeros_dtype(&[2, 1, 4], Dtype::Float16)?,
+            Array::zeros_dtype(&[1, 1, 1, 4], Dtype::Float16)?,
+            Array::zeros_dtype(&[1, 2, 2, 4], Dtype::Float16)?,
+            Array::zeros_dtype(&[1, 2, 1, 1], Dtype::Float16)?,
+        ] {
+            assert!(storage.update_slice(2, 1, 2, &invalid).is_err());
+            assert!(
+                checked(unsafe {
+                    mlxl3_array_update_slice(
+                        storage.handle.as_ptr(),
+                        invalid.handle.as_ptr(),
+                        2,
+                        1,
+                        2,
+                    )
+                })
+                .is_err()
+            );
+            assert_eq!(storage.to_bytes()?, old);
+        }
+        assert!(
+            checked(unsafe {
+                mlxl3_array_update_slice(storage.handle.as_ptr(), std::ptr::null_mut(), 2, 1, 2)
+            })
+            .is_err()
+        );
+        assert!(
+            checked(unsafe {
+                mlxl3_array_storage_identity(storage.handle.as_ptr(), std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        assert_eq!(storage.to_bytes()?, old);
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical Apple GPU; run alone, compaction enabled"]
     fn compact_cache_views_preserve_all_bits_and_release_parent_storage() -> Result<()> {

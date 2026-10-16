@@ -1428,6 +1428,26 @@ impl NativeChatModel {
 
     fn forward_many(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         anyhow::ensure!(!tokens.is_empty(), "empty token batch");
+        if let Self::Lfm2(model) = self
+            && model.supports_moe_exact_prefill()
+            && std::env::var_os("MLXL3_LFM_MOE_PREFILL").is_some_and(|value| value == "1")
+        {
+            let (output, stats) = model.prefill_moe_exact(tokens)?;
+            if std::env::var_os("MLXL3_LFM_PREFILL_TRACE").is_some_and(|value| value == "1") {
+                eprintln!(
+                    "{}",
+                    json!({
+                        "type": "lfm_prefill_dispatch",
+                        "tokens": stats.tokens,
+                        "blocks": stats.blocks,
+                        "grouped_moe_calls": stats.grouped_moe_calls,
+                        "router_rows": stats.router_rows,
+                        "max_block": stats.max_block,
+                    })
+                );
+            }
+            return Ok(output);
+        }
         if tokens.len() >= 24 {
             return match self {
                 Self::Gemma4(model) if model.can_batch(tokens.len()) => {
@@ -1459,6 +1479,13 @@ impl NativeChatModel {
         match self {
             Self::Gemma4(_) => 256,
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
+            Self::Lfm2(model)
+                if model.supports_moe_exact_prefill()
+                    && std::env::var_os("MLXL3_LFM_MOE_PREFILL")
+                        .is_some_and(|value| value == "1") =>
+            {
+                8
+            }
             Self::Qwen(_) => 256,
             Self::Ling(_) => 128,
             Self::Lfm2(_) => 1,
@@ -2105,6 +2132,7 @@ impl NativeStats {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 struct RoundOutput {
+    stop_reason: mlxl3_native::GenerationStopReason,
     raw: String,
     stats: NativeStats,
     first_text_seconds: Option<f64>,
@@ -2300,6 +2328,7 @@ fn bridge_generate_round(
     let mut first_token = None;
     let mut first_visible_text = None;
     let mut dflash_next = None;
+    let mut eos_observed = false;
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
@@ -2318,6 +2347,7 @@ fn bridge_generate_round(
             )?
         };
         if tokenizer.eos_ids().contains(&next) {
+            eos_observed = true;
             break;
         }
         first_token.get_or_insert_with(|| started.elapsed().as_secs_f64());
@@ -2451,6 +2481,10 @@ fn bridge_generate_round(
         ..Default::default()
     };
     Ok(RoundOutput {
+        stop_reason: mlxl3_native::GenerationStopReason::from_round(
+            eos_observed,
+            tokens.len() + generated.len() >= context_limit,
+        ),
         raw: complete,
         stats,
         first_text_seconds: first_visible_text,
@@ -2602,6 +2636,7 @@ fn bridge_generate(
                 "assistant_context":assistant, "cache_context":output.raw,
                 "token_hash":output.token_hash,
                 "stats":stats, "round_stats":round_stats, "context_full":context_full,
+                "stop_reason":output.stop_reason.as_str(),
                 "turn_context":turn_context,
                 "elapsed_seconds":started.elapsed().as_secs_f64(),
                 "first_text_seconds":first_text,

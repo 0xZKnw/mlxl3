@@ -4,6 +4,7 @@
 use crate::{
     array::{self, Array, Dtype},
     checkpoint::{self, Checkpoint},
+    lfm_cache::KvCache,
     linear::{Exl3Group, Exl3Linear, checkpoint_array},
     moe::Exl3SwitchGlu,
     router,
@@ -60,6 +61,60 @@ fn default_rope_theta() -> f32 {
 
 fn default_routed_scaling_factor() -> f32 {
     1.0
+}
+
+fn exact_moe_prefill_config(config: &Config, attention_layers: usize, mapped_k4_mcg: bool) -> bool {
+    config.model_type == "lfm2_moe"
+        && config.vocab_size == 128000
+        && config.num_hidden_layers == 40
+        && config.num_dense_layers == 2
+        && config.num_attention_heads == 32
+        && config.num_key_value_heads == Some(8)
+        && config.conv_length == 3
+        && attention_layers == 10
+        && config.use_expert_bias
+        && config.norm_topk_prob
+        && config.routed_scaling_factor == 1.0
+        && crate::contracts::lfm_moe_exact_prefill_geometry(
+            config.hidden_size,
+            config.moe_intermediate_size,
+            config.num_experts,
+            config.num_experts_per_tok,
+            mapped_k4_mcg,
+        )
+}
+
+fn exact_moe_projection_metadata(checkpoint: &Checkpoint) -> bool {
+    (2..40).all(|layer| {
+        let prefix = format!("model.layers.{layer}.feed_forward");
+        let gate = format!("{prefix}.gate.weight");
+        !checkpoint
+            .modules
+            .iter()
+            .any(|name| name == &format!("{prefix}.gate"))
+            && checkpoint.tensors.get(&gate).is_some_and(|info| {
+                info.shape == [64, 2048] && matches!(info.dtype.as_str(), "F16" | "BF16" | "F32")
+            })
+            && (0..64).all(|expert| {
+                [
+                    ("w1", [128, 96, 64]),
+                    ("w3", [128, 96, 64]),
+                    ("w2", [96, 128, 64]),
+                ]
+                .iter()
+                .all(|(projection, expected)| {
+                    let base = format!("{prefix}.experts.{expert}.{projection}");
+                    checkpoint
+                        .tensors
+                        .get(&format!("{base}.trellis"))
+                        .is_some_and(|info| {
+                            info.shape == *expected && matches!(info.dtype.as_str(), "U16" | "I16")
+                        })
+                        && checkpoint.tensors.contains_key(&format!("{base}.mcg"))
+                        && !checkpoint.tensors.contains_key(&format!("{base}.mul1"))
+                })
+            })
+    })
 }
 
 pub(crate) fn half_weight(
@@ -323,6 +378,7 @@ struct Attention {
     theta: f32,
     keys: Option<Array>,
     values: Option<Array>,
+    capacity_cache: Option<KvCache>,
 }
 
 impl Attention {
@@ -367,6 +423,7 @@ impl Attention {
             theta,
             keys: None,
             values: None,
+            capacity_cache: None,
         })
     }
 
@@ -376,6 +433,12 @@ impl Attention {
             .get(1)
             .context("LFM2 attention input must have time")?;
         ensure!(time > 0, "empty LFM2 attention input");
+        if let Some(cache) = &self.capacity_cache {
+            ensure!(
+                cache.position() == offset,
+                "LFM2 KV capacity position mismatch"
+            );
+        }
         let projections = self.qkv.forward(x)?;
         let q = projections[0]
             .reshape(&[1, time, self.heads, self.head_dim])?
@@ -390,6 +453,21 @@ impl Attention {
         let v = projections[2]
             .reshape(&[1, time, self.kv_heads, self.head_dim])?
             .transpose(&[0, 2, 1, 3])?;
+        if let Some(cache) = &mut self.capacity_cache {
+            let views = cache.append(&k, &v)?;
+            let out = Array::sdpa(
+                &q,
+                &views[0],
+                &views[1],
+                (self.head_dim as f32).powf(-0.5),
+                time > 1,
+            )?
+            .transpose(&[0, 2, 1, 3])?
+            .reshape(&[1, time, self.heads * self.head_dim])?;
+            // Keep the logical views solely in KvCache. Extra persistent clones
+            // in keys/values would prevent donation on every subsequent append.
+            return self.output.forward(&out);
+        }
         let keys = match &self.keys {
             Some(previous) => Array::concatenate(&[previous, &k], 2)?,
             None => k,
@@ -415,6 +493,9 @@ impl Attention {
     fn reset(&mut self) {
         self.keys = None;
         self.values = None;
+        if let Some(cache) = &mut self.capacity_cache {
+            cache.reset();
+        }
     }
 }
 
@@ -565,11 +646,69 @@ impl FeedForward {
                 if let Some(scale) = scale {
                     scores = scores.mul(scale)?;
                 }
+                #[cfg(test)]
+                prefill_tests::record_routes(&selected, &scores)?;
                 experts
                     .forward(&x, &selected, &scores)?
                     .reshape(&[1, time, *dim])
             }
         }
+    }
+}
+
+impl FeedForward {
+    fn forward_prefill_rows(
+        &self,
+        values: &[Array],
+        stats: &mut PrefillStats,
+    ) -> Result<Vec<Array>> {
+        let Self::Moe {
+            gate,
+            expert_bias,
+            experts,
+            top_k,
+            normalize,
+            epsilon,
+            scale,
+            dim,
+        } = self
+        else {
+            return values.iter().map(|value| self.forward(value)).collect();
+        };
+        stats.router_rows += values.len();
+        if values.len() == 1 {
+            return values.iter().map(|value| self.forward(value)).collect();
+        }
+        ensure!(
+            (2..=8).contains(&values.len()),
+            "LFM2 exact MoE block must have 2..=8 rows"
+        );
+        let rows = i32::try_from(values.len())?;
+        // Preserve the gate's GEMV rounding; only the independent FFN rows are grouped.
+        let gates = values
+            .iter()
+            .map(|value| gate.forward(&value.reshape(&[1, *dim])?))
+            .collect::<Result<Vec<_>>>()?;
+        let probabilities = Array::concatenate(&gates.iter().collect::<Vec<_>>(), 0)?.sigmoid()?;
+        let (selected, mut scores) = match expert_bias {
+            Some(bias) => router::topk_biased(&probabilities, bias, *top_k)?,
+            None => router::topk(&probabilities, *top_k, false)?,
+        };
+        if *normalize {
+            scores = scores.div(&scores.sum(-1, true)?.add(epsilon)?)?;
+        }
+        if let Some(scale) = scale {
+            scores = scores.mul(scale)?;
+        }
+        #[cfg(test)]
+        prefill_tests::record_routes(&selected, &scores)?;
+        let batch =
+            Array::concatenate(&values.iter().collect::<Vec<_>>(), 1)?.reshape(&[rows, *dim])?;
+        let output = experts.forward(&batch, &selected, &scores)?;
+        stats.grouped_moe_calls += 1;
+        (0..rows)
+            .map(|row| output.slice(0, row, row + 1)?.reshape(&[1, 1, *dim]))
+            .collect()
     }
 }
 
@@ -689,6 +828,16 @@ impl Layer {
     }
 }
 
+/// Dispatch evidence for the explicitly requested experimental MoE prefill.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PrefillStats {
+    pub tokens: usize,
+    pub blocks: usize,
+    pub grouped_moe_calls: usize,
+    pub router_rows: usize,
+    pub max_block: usize,
+}
+
 pub struct Lfm2 {
     embeddings: Array,
     norm: Array,
@@ -696,6 +845,7 @@ pub struct Lfm2 {
     layers: Vec<Layer>,
     vocab_size: i32,
     context_limit: i32,
+    moe_exact_prefill: bool,
     eps: f32,
     offset: i32,
 }
@@ -853,22 +1003,66 @@ impl Lfm2 {
                 theta,
             )?);
         }
-        Ok(Self {
+        let moe_exact_prefill = exact_moe_prefill_config(&config, attention.len(), true)
+            && exact_moe_projection_metadata(checkpoint);
+        let flag = std::env::var_os("MLXL3_LFM_KV_CAPACITY");
+        let capacity_enabled = crate::lfm_cache::capacity_enabled(
+            flag.as_deref().map(std::ffi::OsStr::as_encoded_bytes),
+            moe_exact_prefill,
+        );
+        let mut model = Self {
             embeddings,
             norm,
             head,
             layers,
             vocab_size: config.vocab_size,
             context_limit: config.max_position_embeddings,
+            moe_exact_prefill,
             eps: config.norm_eps,
             offset: 0,
-        })
+        };
+        model.configure_capacity_cache(capacity_enabled)?;
+        Ok(model)
+    }
+
+    // Load-time choice; also used by the same-instance physical OFF/ON fixture.
+    // A reset preserves this choice, while reconfiguration clears all old state.
+    fn configure_capacity_cache(&mut self, requested: bool) -> Result<()> {
+        self.reset();
+        let enabled = requested && self.moe_exact_prefill;
+        for layer in &mut self.layers {
+            if let Operator::Attention(attention) = &mut layer.operator {
+                attention.capacity_cache = if enabled {
+                    Some(KvCache::new(
+                        attention.kv_heads,
+                        attention.head_dim,
+                        self.context_limit,
+                    )?)
+                } else {
+                    None
+                };
+            }
+        }
+        Ok(())
+    }
+
+    /// Selected experimental storage mode; this does not assert physical reuse.
+    pub fn uses_capacity_kv_cache(&self) -> bool {
+        self.layers.iter().any(|layer| matches!(
+            &layer.operator, Operator::Attention(attention) if attention.capacity_cache.is_some()
+        ))
     }
 
     pub fn supports_batched_prefill(&self) -> bool {
         self.layers
             .iter()
             .all(|layer| matches!(&layer.feed_forward, FeedForward::Dense { .. }))
+    }
+
+    /// Eligibility for the registered V2 K4/MCG geometry.
+    /// The caller must still opt in after parity and performance qualification.
+    pub fn supports_moe_exact_prefill(&self) -> bool {
+        self.moe_exact_prefill
     }
 
     /// Consumes one token for decode, or at least 24 tokens for dense TensorOps prefill.
@@ -922,17 +1116,119 @@ impl Lfm2 {
         }
     }
 
+    /// Experimental MoE prefill: recurrent operators and the final head keep M1
+    /// shapes. No caller enables this path before physical parity qualification.
+    pub fn prefill_moe_exact(&mut self, tokens: &[u32]) -> Result<(Array, PrefillStats)> {
+        ensure!(
+            self.supports_moe_exact_prefill(),
+            "experimental LFM2 prefill requires the qualified V2 K4/MCG geometry"
+        );
+        let end = crate::contracts::lfm_prefill_end(tokens.len(), self.offset, self.context_limit)
+            .context("empty, overflowing or full LFM2 experimental prefill")?;
+        ensure!(
+            tokens.iter().all(|&token| token < self.vocab_size as u32),
+            "LFM2 token is outside vocabulary"
+        );
+        let moe_layers = self
+            .layers
+            .iter()
+            .filter(|layer| matches!(layer.feed_forward, FeedForward::Moe { .. }))
+            .count();
+        ensure!(
+            moe_layers > 0,
+            "experimental LFM2 prefill requires MoE layers"
+        );
+        tokens
+            .len()
+            .checked_mul(moe_layers)
+            .context("LFM2 prefill dispatch count overflow")?;
+        let result = (|| -> Result<_> {
+            let mut stats = PrefillStats {
+                tokens: tokens.len(),
+                ..Default::default()
+            };
+            let mut last = None;
+            for block in tokens.chunks(8) {
+                let mut hidden = block
+                    .iter()
+                    .map(|&token| {
+                        let ids = Array::from_i32(&[token as i32], &[1, 1])?;
+                        self.embeddings.take(&ids, 0)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                for layer in &mut self.layers {
+                    let mut residuals = Vec::with_capacity(block.len());
+                    let mut normalized = Vec::with_capacity(block.len());
+                    for (row, value) in hidden.iter().enumerate() {
+                        let input = value.rms_norm(&layer.operator_norm, layer.eps)?;
+                        let position = self.offset + row as i32;
+                        let mixed = match &mut layer.operator {
+                            Operator::Attention(attention) => {
+                                attention.forward(&input, position)?
+                            }
+                            Operator::Conv(conv) => conv.forward(&input)?,
+                        };
+                        let residual = value.add(&mixed)?;
+                        normalized.push(residual.rms_norm(&layer.ffn_norm, layer.eps)?);
+                        residuals.push(residual);
+                    }
+                    let outputs = layer
+                        .feed_forward
+                        .forward_prefill_rows(&normalized, &mut stats)?;
+                    hidden = residuals
+                        .iter()
+                        .zip(outputs)
+                        .map(|(residual, output)| residual.add(&output))
+                        .collect::<Result<Vec<_>>>()?;
+                }
+                let value = hidden.pop().context("empty LFM2 prefill block")?;
+                // Match bridge cache evaluation without forcing discarded FFN/head outputs.
+                for (_, state) in self.state_arrays() {
+                    state.eval()?;
+                }
+                last = Some(value);
+                self.offset += block.len() as i32;
+                stats.blocks += 1;
+                stats.max_block = stats.max_block.max(block.len());
+            }
+            ensure!(self.offset == end, "LFM2 prefill position mismatch");
+            let hidden = last
+                .context("empty LFM2 prefill")?
+                .rms_norm(&self.norm, self.eps)?;
+            let logits = match &self.head {
+                Some(head) => head.forward(&hidden)?,
+                None => hidden.matmul(&self.embeddings.transpose(&[1, 0])?)?,
+            }
+            .slice(1, 0, 1)?;
+            Ok((logits, stats))
+        })();
+        match result {
+            Ok(output) => Ok(output),
+            Err(error) => {
+                self.reset();
+                Err(error.context("LFM2 experimental prefill failed; its cache was reset"))
+            }
+        }
+    }
+
     /// Read-only cache snapshots for numerical parity checks; no array is copied.
     pub fn state_arrays(&self) -> Vec<(String, &Array)> {
         let mut states = Vec::new();
         for (index, layer) in self.layers.iter().enumerate() {
             match &layer.operator {
                 Operator::Attention(attention) => {
-                    if let Some(keys) = &attention.keys {
-                        states.push((format!("model.layers.{index}.keys"), keys));
-                    }
-                    if let Some(values) = &attention.values {
-                        states.push((format!("model.layers.{index}.values"), values));
+                    if let Some(cache) = &attention.capacity_cache {
+                        if let Some(views) = cache.views() {
+                            states.push((format!("model.layers.{index}.keys"), &views[0]));
+                            states.push((format!("model.layers.{index}.values"), &views[1]));
+                        }
+                    } else {
+                        if let Some(keys) = &attention.keys {
+                            states.push((format!("model.layers.{index}.keys"), keys));
+                        }
+                        if let Some(values) = &attention.values {
+                            states.push((format!("model.layers.{index}.values"), values));
+                        }
                     }
                 }
                 Operator::Conv(conv) => {
@@ -953,8 +1249,8 @@ impl Lfm2 {
         self.context_limit
     }
 
-    /// Logical F16 context states for batch one. Views can retain larger backing
-    /// allocations; temporary activations and allocator caches are not included.
+    /// F16 state payload for batch one: logical KV in the baseline, reserved KV
+    /// in capacity mode. Backing slack, activations and allocator caches differ.
     pub fn context_memory_profile(&self) -> Result<serde_json::Value> {
         let mut profile = crate::contracts::LfmContextMemory::default();
         for layer in &self.layers {
@@ -966,7 +1262,28 @@ impl Lfm2 {
             }
             .context("invalid or overflowing LFM2 context memory profile")?;
         }
-        Ok(profile.into_json())
+        let mut profile = profile.into_json();
+        if self.uses_capacity_kv_cache() {
+            profile["layers"][0]["step"] = crate::lfm_cache::CAPACITY_STEP.into();
+            profile["layers"][0]["max_tokens"] = self.context_limit.into();
+            let (mut logical, mut reserved) = (0usize, 0usize);
+            for layer in &self.layers {
+                if let Operator::Attention(attention) = &layer.operator
+                    && let Some(cache) = &attention.capacity_cache
+                {
+                    logical = logical
+                        .checked_add(cache.logical_bytes()?)
+                        .context("KV logical payload overflow")?;
+                    reserved = reserved
+                        .checked_add(cache.reserved_bytes()?)
+                        .context("KV reserved payload overflow")?;
+                }
+            }
+            profile["kv_capacity"] = serde_json::json!({
+                "logical_bytes":logical, "reserved_payload_bytes":reserved,
+            });
+        }
+        Ok(profile)
     }
 
     pub fn reset(&mut self) {
@@ -979,3 +1296,7 @@ impl Lfm2 {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "lfm2_prefill_tests.rs"]
+mod prefill_tests;

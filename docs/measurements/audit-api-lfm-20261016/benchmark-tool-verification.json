@@ -1,0 +1,795 @@
+{
+  "status": "validated_cpu_only",
+  "full_suite_result": {
+    "passed": 110,
+    "skipped": 0
+  },
+  "affected_result": {
+    "passed": 13,
+    "deselected": 44
+  },
+  "red_result": {
+    "failed": 2,
+    "deselected": 55,
+    "driver": "isolated copy before EOF exit check",
+    "production_source_never_permuted": true
+  },
+  "records": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/pytest-eof-red",
+        "tests/test_compare_native.py",
+        "-k",
+        "valid_responses_do_not_hide_an_abnormal_bridge_exit"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/red-exit-fixture",
+      "exit": 1,
+      "timeout": false,
+      "supervision_s": 30,
+      "elapsed_s": 2.620210124994628,
+      "log": "eof-red.log"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/pytest-eof-full-suite",
+        "tests/test_compare_native.py",
+        "tests/test_native_json_process.py",
+        "tests/test_bridge_benchmark.py",
+        "tests/test_lfm25_quality.py"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 100,
+      "elapsed_s": 51.44238700007554,
+      "log": "eof-full-suite.log"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/pytest-eof-affected",
+        "tests/test_compare_native.py",
+        "-k",
+        "three_alternating_pairs or campaign_deadline or invalid_campaign or valid_responses_do_not_hide_an_abnormal_bridge_exit"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 45,
+      "elapsed_s": 14.97690666699782,
+      "log": "eof-affected.log"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "--no-cache",
+        "benchmarks/compare_native.py",
+        "tests/test_compare_native.py"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 30,
+      "elapsed_s": 0.07376004103571177,
+      "log": "eof-ruff.log"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "benchmarks/compare_native.py",
+        "tests/test_compare_native.py"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 30,
+      "elapsed_s": 0.03696529206354171,
+      "log": "eof-format.log"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "benchmarks/compare_native.py",
+        "tests/test_compare_native.py"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 30,
+      "elapsed_s": 0.03932716604322195,
+      "log": "eof-compile.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-1.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.005055958055891097,
+      "log": "workflow-native-1-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-2.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.002728082938119769,
+      "log": "workflow-native-2-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-3.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.0023194169625639915,
+      "log": "workflow-native-3-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-4.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.0023887500865384936,
+      "log": "workflow-native-4-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-5.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.0024434590013697743,
+      "log": "workflow-native-5-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-6.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.005096167093142867,
+      "log": "workflow-native-6-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-8.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.002648332971148193,
+      "log": "workflow-native-8-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-9.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.004899833002127707,
+      "log": "workflow-native-9-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-10.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.0025471249828115106,
+      "log": "workflow-native-10-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-11.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.0021422499557957053,
+      "log": "workflow-native-11-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-12.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.002421292010694742,
+      "log": "workflow-native-12-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-13.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.002313125063665211,
+      "log": "workflow-native-13-syntax.log"
+    },
+    {
+      "command": [
+        "/bin/bash",
+        "-n",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/benchmark-tool/workflow-native-14.sh"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 5,
+      "elapsed_s": 0.002381292055360973,
+      "log": "workflow-native-14-syntax.log"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "benchmarks/compare_native.py",
+        "tests/test_compare_native.py",
+        ".github/workflows/rust.yml",
+        "docs/measurements/audit-api-lfm-20261016/physical-plan.md"
+      ],
+      "cwd": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0",
+      "exit": 0,
+      "timeout": false,
+      "supervision_s": 30,
+      "elapsed_s": 0.020211916998960078,
+      "log": "eof-diff.log"
+    }
+  ],
+  "source_files": {
+    "benchmarks/compare_native.py": {
+      "sha256": "7c4e8de12e534993d22db5d8c00f2beb817726f907190802a9f39e16d5fc3572",
+      "bytes": 17610
+    },
+    "tests/test_compare_native.py": {
+      "sha256": "cc18aa902d63b0938f0f73ba591d5056fc3487ea1f65c9189d9a0f88543894fd",
+      "bytes": 20866
+    },
+    ".github/workflows/rust.yml": {
+      "sha256": "35d19ab61540c35edb86392c8a80b90436fbea7146e0357ad8edd33e4bf8798e",
+      "bytes": 8383
+    }
+  },
+  "bounded_deadline": {
+    "unchanged_byteexact": true,
+    "sha256": "bf37e534335754f149edcfcbf5fad9f451052cc079a853485a4e939e0edf33f6",
+    "reused_crosshair_report": "crosshair-deadline.json",
+    "no_new_verifier_run": true
+  },
+  "not_proved": [
+    "EOF/process lifecycle and I/O by CrossHair/Nagini",
+    "GPU",
+    "whole repository suite",
+    "GitHub exact-commit run"
+  ],
+  "all_spawned_processes_joined": true,
+  "elapsed_s": 69.28256558300927,
+  "pid_observation": {
+    "checked_fixture_child_pids": 137,
+    "live": []
+  },
+  "scope": "Benchmark driver CPU CLI/process transport and CI syntax, not a whole-repository or physical GPU qualification",
+  "prior_verification": "verification-before-eof.json",
+  "prior_results": {
+    "suite_passed": 108,
+    "affected_passed": 11,
+    "deadline_fixture_scheduling_failures": 2,
+    "deadline_mutation_detected": true
+  },
+  "crosshair": {
+    "historical_report": "crosshair-deadline.json",
+    "postconditions_analysed": 1,
+    "result": "symbolic counterexample search confirmed within CrossHair model",
+    "helper_byteidentical_sha256": "bf37e534335754f149edcfcbf5fad9f451052cc079a853485a4e939e0edf33f6",
+    "not_repeated": "helper unchanged; new EOF I/O logic is outside the practical supported pure-function subset"
+  },
+  "ci_validation": {
+    "workflow": ".github/workflows/rust.yml",
+    "yaml_loader": "PyYAML BaseLoader preserving on key",
+    "triggers": [
+      "push",
+      "pull_request"
+    ],
+    "permissions": {
+      "contents": "read"
+    },
+    "checked_kani_harness": "validated_usage_respects_budget_without_total_overflow",
+    "mlx_cpu_exact_tests": 7,
+    "nonempty_selection_required": "1 passed; 0 failed; 0 ignored;",
+    "bash_run_blocks_syntax_checked": 13,
+    "github_run": "not checked; exact future commit is parent integration work"
+  },
+  "eof_cases": [
+    {
+      "behavior": "exit_after_eof",
+      "old_driver": "exit0, complete, paritytrue; regression fails",
+      "fixed_driver": "exitnonzero, failed, paritynull, childexit1, responses retained, childjoined"
+    },
+    {
+      "behavior": "stall_after_eof",
+      "old_driver": "exit0, complete, paritytrue after cleanup termination; regression fails",
+      "fixed_driver": "exitnonzero, failed, paritynull, childSIGTERM, responses retained, childjoined"
+    }
+  ],
+  "limitations": [
+    "JsonProcess EOF grace remains0.25s before terminate1s then kill/wait5s; normal teardown taking longer than0.25s is rejected, not falsely certified",
+    "No source-level proof of I/O/child lifecycle/OS scheduling; actual CLI regression tests cover the cases exercised",
+    "No GPU work, full repository suite, GitHub run, commit/push or publication by this subtask"
+  ],
+  "archive": {
+    "path": "benchmark-tool-evidence.tar.gz",
+    "bytes": 27172,
+    "sha256": "0cb44fb17bec2be83120757b911bbcab246af0826f9c815b8aceae4a4b529752",
+    "entries": {
+      "affected-before-scheduling-repair.json": {
+        "bytes": 373,
+        "sha256": "e8891312a24d4bf0c23ceb2dbd67b1473720e5990b915b6a59ac8b65d63846c1"
+      },
+      "affected-before-scheduling-repair.log": {
+        "bytes": 3973,
+        "sha256": "ddbb10dbe881ad1bf98bacbdf06645c4e72e9df0c8faaddfa946190481cebdb8"
+      },
+      "affected-final.json": {
+        "bytes": 346,
+        "sha256": "232fb59d13c7d9e68692b437eb86aaac7b234dd65b274f56934817408e813852"
+      },
+      "affected-final.log": {
+        "bytes": 115,
+        "sha256": "7f63a128545a0963df339adf7180cb99a113e08524ca0f3321394906bdc35c7f"
+      },
+      "compare-native-before-exit-check.py": {
+        "bytes": 17355,
+        "sha256": "487d8a16882b5d7ec21ae74d6320cdae4bc042007e4565a9f81cafe8b0168d29"
+      },
+      "compare-native-before.py": {
+        "bytes": 15944,
+        "sha256": "4e0f2dd03edea7cecd8b30b555a75bddd89fb011f9bc083b2e205fc93715f1eb"
+      },
+      "compile-final.json": {
+        "bytes": 287,
+        "sha256": "2872fae1798b2ca4971b8d77c22dc753b785ef46345bf2656164d2572ee94ad6"
+      },
+      "compile-final.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "compile.json": {
+        "bytes": 297,
+        "sha256": "b5074e9b798589e077ca57a591b463cb4197c3aa04e68fdc5aa8ea7e46ad76b2"
+      },
+      "compile.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "crosshair-deadline.json": {
+        "bytes": 369,
+        "sha256": "bb67d23a3e1de5ecac402ba5aa43795ea50c11ce02304f49cbd4cc1f464cb7a8"
+      },
+      "crosshair-deadline.log": {
+        "bytes": 124,
+        "sha256": "f5b4029eb1c2daedcdec3ee0b781575f5c043c3483ee15204677812e72a8d6ea"
+      },
+      "diff-final.json": {
+        "bytes": 308,
+        "sha256": "5bd278bcb6f982314d1cf99f28ef3b5511a749daec0d5aa081f4ef6871ee1e68"
+      },
+      "diff-final.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "eof-affected.json": {
+        "bytes": 651,
+        "sha256": "44b3ba2add7daaabd05ab1551aa0be71b42b746280ad1d4ed36a6369003f7acc"
+      },
+      "eof-affected.log": {
+        "bytes": 115,
+        "sha256": "2e0f7aaa28ad5471ec094022c2c29e116feb6837cca7da1f61888d3da4d5f9de"
+      },
+      "eof-compile.json": {
+        "bytes": 372,
+        "sha256": "1c3c43d09899c6de2e918fd321d467bae25e43bfccaed6248b77295a5ddd189c"
+      },
+      "eof-compile.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "eof-diff.json": {
+        "bytes": 430,
+        "sha256": "6c5f1368c53d4f532755139ce2b0da12286f82efdb9f002136ded0cad84cc51b"
+      },
+      "eof-diff.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "eof-format.json": {
+        "bytes": 394,
+        "sha256": "c2729d72c5613b7d76fc0bc2f7f9c2fbd13c452f999d156e13465d3e0d8b44e2"
+      },
+      "eof-format.log": {
+        "bytes": 26,
+        "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+      },
+      "eof-full-suite.json": {
+        "bytes": 633,
+        "sha256": "8571adadaaf7cb39be76d254c15efee6693522dbb2cf8c388cde3988e1fa2bc4"
+      },
+      "eof-full-suite.log": {
+        "bytes": 181,
+        "sha256": "b379247b29ccb0a6f0684720c0dbbad046af299dd42f7dcff2234375d2636c41"
+      },
+      "eof-red.json": {
+        "bytes": 625,
+        "sha256": "3683c3a69ff420cd554f9c38c33b4492d6ec45b0ed6a049d129658e23ec358e3"
+      },
+      "eof-red.log": {
+        "bytes": 2311,
+        "sha256": "9e393cde00013a11e0a8d1aadb40d0e6d32e442d1b668059d5f40cd06c1ed992"
+      },
+      "eof-ruff.json": {
+        "bytes": 394,
+        "sha256": "a98ce108bff09c9d38585dfa0f2e74ae621e31a28ff3befa15dd38b616fff06d"
+      },
+      "eof-ruff.log": {
+        "bytes": 19,
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "first-after.json": {
+        "bytes": 343,
+        "sha256": "572e02e5d89dc5e546b9718ba89b3bf4ad3e5476a703e6ae37bc07eacae8730d"
+      },
+      "first-after.log": {
+        "bytes": 114,
+        "sha256": "4ce0dc564d7b2d30ee0fd364d445ec3b4a00ca5f7507f598330a7d6b23894c84"
+      },
+      "format-final.json": {
+        "bytes": 305,
+        "sha256": "22db5471baf42e8f091d997989d41d3d2cf4213073852b933629f0f6b01a9634"
+      },
+      "format-final.log": {
+        "bytes": 26,
+        "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+      },
+      "mutation-unclipped-deadline.json": {
+        "bytes": 485,
+        "sha256": "1cd3ea7459b7462a4836a24966d156d22d99bcdc7375bac871b735bd3a1c2f3f"
+      },
+      "mutation-unclipped-deadline.log": {
+        "bytes": 2287,
+        "sha256": "7a69c9c33b7ca93bdd8e7cb249916a985efb2ed863617c4ee47066f52d3d1c04"
+      },
+      "python-suite.json": {
+        "bytes": 418,
+        "sha256": "46184fbbfc1c6959943617324460207dad55f5583f69391a999c948dfdb7ca5f"
+      },
+      "python-suite.log": {
+        "bytes": 181,
+        "sha256": "5f2d4a05469e510dbfd28e55ee6b246907f411a1db8bfda81860b8cf6c99219c"
+      },
+      "red-cli.json": {
+        "bytes": 2694,
+        "sha256": "be632ab5b046528790e58f831f6bce6914d65be52370d474b6adf2d0c8ee7167"
+      },
+      "red-orders.json": {
+        "bytes": 489,
+        "sha256": "b296681537188c5fd8e906f10afa4fb3c4979084f8ba4ad8f7655d48ea32fd8a"
+      },
+      "red-orders.log": {
+        "bytes": 5085,
+        "sha256": "31c2ff85a92b884be99b5d645983651ba8ea9b43af34c3d5c6db0e8eabfc9d56"
+      },
+      "ruff-final.json": {
+        "bytes": 306,
+        "sha256": "afef749e319a43eda91068a4693d46d2ffd3e2e476e1628603895a485a120e07"
+      },
+      "ruff-final.log": {
+        "bytes": 19,
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "ruff-format.json": {
+        "bytes": 324,
+        "sha256": "fcdbbe5ed991d5a6b82d5a5c769f4fe3071cd35b5198068c09d7bf1f179f791e"
+      },
+      "ruff-format.log": {
+        "bytes": 26,
+        "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+      },
+      "ruff.json": {
+        "bytes": 319,
+        "sha256": "0741f69c5009c03ee91272904491e0e46040665db2ee009541d6bff37d5ce610"
+      },
+      "ruff.log": {
+        "bytes": 19,
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "verification-before-eof.json": {
+        "bytes": 5001,
+        "sha256": "498455bd3a3b8f860f887448d1004f6b6d037b627157d68f1fc227dc53e715ab"
+      },
+      "verification-eof.json": {
+        "bytes": 10970,
+        "sha256": "49224ed9e9a3b971a4c163824bf6fae6ea68a6f053f1025197a1b0a22f0bc760"
+      },
+      "verification-initial.json": {
+        "bytes": 5001,
+        "sha256": "498455bd3a3b8f860f887448d1004f6b6d037b627157d68f1fc227dc53e715ab"
+      },
+      "verification.json": {
+        "bytes": 13155,
+        "sha256": "69a373873ae9518bcf9120e2cbd767322837da19fe4f0530041e909553477041"
+      },
+      "workflow-native-1-syntax.json": {
+        "bytes": 375,
+        "sha256": "7e4f3773a4e7573abc3d9677d4335a371050d81973484fd23bfccc13a90f719d"
+      },
+      "workflow-native-1-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-1.sh": {
+        "bytes": 111,
+        "sha256": "7fd237c991ebf414307ac2fbca94cae1120461774efb2dc8faa5819713e2b2ad"
+      },
+      "workflow-native-10-syntax.json": {
+        "bytes": 378,
+        "sha256": "a00d478c619dd692317f4528d25acf0a078a6a287370515e2f08e3e179fa0257"
+      },
+      "workflow-native-10-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-10.sh": {
+        "bytes": 331,
+        "sha256": "6587c6bbea2ff3e1cce77ba4c7680646c1473a299e7ffa92173081d473fa2228"
+      },
+      "workflow-native-11-syntax.json": {
+        "bytes": 378,
+        "sha256": "5da20d3ae87c053057943a30cc7e2b561d9730b364f9f0eede8b62c07cf531ff"
+      },
+      "workflow-native-11-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-11.sh": {
+        "bytes": 255,
+        "sha256": "3afa8e2cabd0efa208e6f4da955abfef68d7ef7b0c69fafdfe1927bb4a9f08b4"
+      },
+      "workflow-native-12-syntax.json": {
+        "bytes": 377,
+        "sha256": "f2e3c88042d0b0365dda2e95278c1164986206fc8d32f40be20d957fd289af51"
+      },
+      "workflow-native-12-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-12.sh": {
+        "bytes": 827,
+        "sha256": "dc201608825b767f99fd13de1745b95041e9051b0200fc98e0b761e8620e089c"
+      },
+      "workflow-native-13-syntax.json": {
+        "bytes": 377,
+        "sha256": "0feed1e19cc902cd2fd864f562cfdbadf3f76a2d01335fd293cab434bbddf918"
+      },
+      "workflow-native-13-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-13.sh": {
+        "bytes": 329,
+        "sha256": "6903ccdb0c1c004bbb94b4eb9b7a3ea123801be2404041eeec5f186626a28618"
+      },
+      "workflow-native-14-syntax.json": {
+        "bytes": 377,
+        "sha256": "98ba59f67c8c963e8dccab3b9d4e42a58cf8e33dea0fdceeeea9a60583e9fe6e"
+      },
+      "workflow-native-14-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-14.sh": {
+        "bytes": 896,
+        "sha256": "1fb2f63fb678d67361928d86b7fb10ae4ca0f13128f32a949ea348816a270512"
+      },
+      "workflow-native-2-syntax.json": {
+        "bytes": 375,
+        "sha256": "c6b2b780f001e146bf2d407b6face02cdfae5335874022ad661ca216ba9d3f70"
+      },
+      "workflow-native-2-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-2.sh": {
+        "bytes": 17,
+        "sha256": "194fabc0129ce4a90d69f396041f7dfad35653be552de104cfe6bc624f183b5f"
+      },
+      "workflow-native-3-syntax.json": {
+        "bytes": 376,
+        "sha256": "d93b38a4f128b5107622baea3b85ef1ba00415e2cb11b6dbe7e9f15188c457b8"
+      },
+      "workflow-native-3-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-3.sh": {
+        "bytes": 66,
+        "sha256": "ebffcc0f257dbd874fd251466898d3cb0f3caa534128f4e551b14e4b1a3799fe"
+      },
+      "workflow-native-4-syntax.json": {
+        "bytes": 376,
+        "sha256": "5c55f9340947d9a3b3ff108a562720e5f0ffa1c2252ce7c7b0e18d1f7232a4ba"
+      },
+      "workflow-native-4-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-4.sh": {
+        "bytes": 35,
+        "sha256": "677c244d63b731c72bb937a24f188761babdbd6b6840a1559c42898eae2dab06"
+      },
+      "workflow-native-5-syntax.json": {
+        "bytes": 376,
+        "sha256": "44ab41d041202487b2c6ad50752b50eb537fc07f5aa1761bf542ffafaca43a07"
+      },
+      "workflow-native-5-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-5.sh": {
+        "bytes": 36,
+        "sha256": "0de24a470fdd4d23e50df695b2858f4c4f027c9c4cab921b753446c8917ba7f6"
+      },
+      "workflow-native-6-syntax.json": {
+        "bytes": 375,
+        "sha256": "a67797cb825895b0d919709622ef0af2c73ff3f51b43870a059c3320c4f2fd7b"
+      },
+      "workflow-native-6-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-6.sh": {
+        "bytes": 320,
+        "sha256": "52eff247692ef154462fade85114c6c426b986a7ded2bb9f441282af247efcec"
+      },
+      "workflow-native-8-syntax.json": {
+        "bytes": 375,
+        "sha256": "fc75a38b0d3ac72462fd2c503bd841ba2dda4b0ec8d8515016a941bbeb49c8f6"
+      },
+      "workflow-native-8-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-8.sh": {
+        "bytes": 80,
+        "sha256": "62905d5f5e4946854bec44ebfbdecfae919493875d0484ac9fe95059dd3640a0"
+      },
+      "workflow-native-9-syntax.json": {
+        "bytes": 375,
+        "sha256": "93f4e6d85fa9a2f3106e229e22bed6aaab88af374566658b205fa93e36c7b864"
+      },
+      "workflow-native-9-syntax.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workflow-native-9.sh": {
+        "bytes": 2359,
+        "sha256": "0551cd7905d00ed1bc94169b979d7b5d015108a8f4c47a23ed567b4580375e4b"
+      },
+      "red-exit-fixture/benchmarks/compare_native.py": {
+        "bytes": 17355,
+        "sha256": "487d8a16882b5d7ec21ae74d6320cdae4bc042007e4565a9f81cafe8b0168d29"
+      },
+      "red-exit-fixture/scripts/native_json_process.py": {
+        "bytes": 4637,
+        "sha256": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c"
+      },
+      "red-exit-fixture/tests/test_compare_native.py": {
+        "bytes": 20866,
+        "sha256": "cc18aa902d63b0938f0f73ba591d5056fc3487ea1f65c9189d9a0f88543894fd"
+      },
+      "pytest-eof-red/test_valid_responses_do_not_hi0/results/results.json": {
+        "bytes": 12834,
+        "sha256": "e60dd188f193345c83834f6ec2fe29004873b6b2b9a79fab8e5b3827422ee96e"
+      },
+      "pytest-eof-red/test_valid_responses_do_not_hi1/results/results.json": {
+        "bytes": 12832,
+        "sha256": "fc0a6092128581d9e9791f7ad3910f517bd585709e68a2142a320755f677b4b7"
+      },
+      "pytest-eof-full-suite/test_valid_responses_do_not_hi0/results/results.json": {
+        "bytes": 4225,
+        "sha256": "2b04ef67abe6aaf7689e77c4afccc7cbc4841b1b53423c401b784781530d1846"
+      },
+      "pytest-eof-full-suite/test_valid_responses_do_not_hi1/results/results.json": {
+        "bytes": 4230,
+        "sha256": "b035492b7f9b7857c90e08cb8fbab7eb1a8887d48593d250389d61dadeefaae1"
+      },
+      "pytest-eof-affected/test_valid_responses_do_not_hi0/results/results.json": {
+        "bytes": 4220,
+        "sha256": "015f4104789bbe951e298e092c37eb9f2373d18a71dfbd2f27bfafb25e2130ca"
+      },
+      "pytest-eof-affected/test_valid_responses_do_not_hi1/results/results.json": {
+        "bytes": 4226,
+        "sha256": "922ec05e25bbdddc6dd731c72a488737b9eb67163f8d96f2a9759a245ef790b0"
+      }
+    },
+    "extracted_byteexact_verified": true
+  }
+}
