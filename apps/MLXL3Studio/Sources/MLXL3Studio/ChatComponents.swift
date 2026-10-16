@@ -1,102 +1,93 @@
 import SwiftUI
 
-struct MessagesView: View {
-    let messages: [ChatMessage]
-    @State private var followsBottom = true
-    @State private var userIsScrolling = false
+struct StreamingScrollState {
+  var followsBottom = true
+  private(set) var userIsScrolling = false
+  var shouldFollow: Bool { followsBottom && !userIsScrolling }
 
-    var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 38) {
-                    ForEach(messages) { message in
-                        MessageView(message: message)
-                            .id(message.id)
-                    }
-                    Color.clear
-                        .frame(height: 4)
-                        .id("conversation-bottom")
-                }
-                .padding(.horizontal, 28)
-                .padding(.top, 38)
-                .padding(.bottom, 26)
-                .frame(maxWidth: 820)
-                .frame(maxWidth: .infinity)
-            }
-            .scrollIndicators(.never)
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .onScrollPhaseChange { _, phase in
-                userIsScrolling = phase == .interacting || phase == .decelerating
-            }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentSize.height - geometry.visibleRect.maxY < 100
-            } action: { _, nearBottom in
-                if userIsScrolling || nearBottom { followsBottom = nearBottom }
-            }
-            .onChange(of: messages.last?.id) {
-                followsBottom = true
-                Task { @MainActor in
-                    await Task.yield()
-                    var transaction = Transaction(animation: nil)
-                    transaction.disablesAnimations = true
-                    withTransaction(transaction) {
-                        proxy.scrollTo("conversation-bottom", anchor: .bottom)
-                    }
-                }
-            }
-            .overlay {
-                if let lastMessage = messages.last {
-                    StreamingScrollFollower(message: lastMessage) {
-                        guard followsBottom else { return }
-                        var transaction = Transaction(animation: nil)
-                        transaction.disablesAnimations = true
-                        withTransaction(transaction) {
-                            proxy.scrollTo("conversation-bottom", anchor: .bottom)
-                        }
-                    }
-                    .frame(width: 0, height: 0)
-                }
-            }
-            .overlay(alignment: .bottom) {
-                if !followsBottom {
-                    Button {
-                        followsBottom = true
-                        proxy.scrollTo("conversation-bottom", anchor: .bottom)
-                    } label: {
-                        Label(L("Dernier message", "Latest message"), systemImage: "arrow.down")
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 14).padding(.vertical, 9)
-                    }
-                    .buttonStyle(GlassPillButtonStyle())
-                    .padding(.bottom, 12)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
+  mutating func phaseChanged(_ phase: ScrollPhase) {
+    userIsScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
+  }
+
+  mutating func proximityChanged(_ nearBottom: Bool) {
+    if userIsScrolling || nearBottom { followsBottom = nearBottom }
+  }
 }
 
-private struct StreamingScrollFollower: View {
-    @ObservedObject var message: ChatMessage
-    let scrollToBottom: @MainActor () -> Void
-    @State private var pendingScroll: Task<Void, Never>?
+struct MessagesView: View {
+  let messages: [ChatMessage]
+  @State private var scroll = StreamingScrollState()
+  @State private var renderedHeight: CGFloat = 0
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    var body: some View {
-        Color.clear
-            .onChange(of: message.streamRevision) {
-                guard pendingScroll == nil else { return }
-                pendingScroll = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(250))
-                    guard !Task.isCancelled else { return }
-                    scrollToBottom()
-                    pendingScroll = nil
-                }
-            }
-            .onDisappear {
-                pendingScroll?.cancel()
-                pendingScroll = nil
-            }
+  var body: some View {
+    ScrollViewReader { proxy in
+      ScrollView {
+        LazyVStack(spacing: 38) {
+          ForEach(messages) { message in
+            MessageView(message: message)
+              .id(message.id)
+          }
+          Color.clear
+            .frame(height: 4)
+            .id("conversation-bottom")
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 38)
+        .padding(.bottom, 26)
+        .frame(maxWidth: 820)
+        .frame(maxWidth: .infinity)
+      }
+      .scrollIndicators(.never)
+      .defaultScrollAnchor(.bottom, for: .initialOffset)
+      .onScrollPhaseChange { _, phase in
+        scroll.phaseChanged(phase)
+      }
+      .onScrollGeometryChange(for: Bool.self) { geometry in
+        geometry.contentSize.height - geometry.visibleRect.maxY < 100
+      } action: { _, nearBottom in
+        scroll.proximityChanged(nearBottom)
+      }
+      .onScrollGeometryChange(for: CGFloat.self) { geometry in
+        geometry.contentSize.height
+      } action: { _, height in
+        renderedHeight = height
+      }
+      .task(id: renderedHeight) {
+        guard renderedHeight > 0, scroll.shouldFollow else { return }
+        await Task.yield()
+        guard !Task.isCancelled, scroll.shouldFollow else { return }
+        withAnimation(reduceMotion ? nil : .linear(duration: 0.12)) {
+          proxy.scrollTo("conversation-bottom", anchor: .bottom)
+        }
+      }
+      .task(id: messages.last?.id) {
+        scroll.followsBottom = true
+        await Task.yield()
+        guard !Task.isCancelled else { return }
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+          proxy.scrollTo("conversation-bottom", anchor: .bottom)
+        }
+      }
+      .overlay(alignment: .bottom) {
+        if !scroll.followsBottom {
+          Button {
+            scroll.followsBottom = true
+            proxy.scrollTo("conversation-bottom", anchor: .bottom)
+          } label: {
+            Label(L("Dernier message", "Latest message"), systemImage: "arrow.down")
+              .font(.system(size: 11, weight: .medium))
+              .padding(.horizontal, 14).padding(.vertical, 9)
+          }
+          .buttonStyle(GlassPillButtonStyle())
+          .padding(.bottom, 12)
+        }
+      }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
 }
 
 private struct MessageView: View {

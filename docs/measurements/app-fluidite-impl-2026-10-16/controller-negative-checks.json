@@ -1,0 +1,56 @@
+{
+  "status": "passed",
+  "positive_samples": 11,
+  "mutants": [
+    {
+      "case": "failed status",
+      "rejected": true,
+      "diagnostic": "Incomplete native report"
+    },
+    {
+      "case": "incomplete flag",
+      "rejected": true,
+      "diagnostic": "Incomplete native report"
+    },
+    {
+      "case": "missing sample",
+      "rejected": true,
+      "diagnostic": "Wrong sample count"
+    },
+    {
+      "case": "duplicate key",
+      "rejected": true,
+      "diagnostic": "Duplicate sample or missing text hash"
+    },
+    {
+      "case": "NaN CPU",
+      "rejected": true,
+      "diagnostic": "Invalid metric: cpu_seconds"
+    },
+    {
+      "case": "zero footprint",
+      "rejected": true,
+      "diagnostic": "Invalid metric: footprint_bytes"
+    },
+    {
+      "case": "partial replay",
+      "rejected": true,
+      "diagnostic": "Incomplete replay"
+    },
+    {
+      "case": "different text",
+      "rejected": true,
+      "diagnostic": "Text/count/acceptance divergence"
+    },
+    {
+      "case": "invisible window",
+      "rejected": true,
+      "diagnostic": "Duplicate sample or missing text hash"
+    },
+    {
+      "case": "missing hash",
+      "rejected": true,
+      "diagnostic": "'text_sha256'"
+    }
+  ]
+}

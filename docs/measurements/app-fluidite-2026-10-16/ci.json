@@ -1,0 +1,55 @@
+{
+  "head_sha": "1ac910d0a40efcad049c6e5a8cf081d770723465",
+  "run": 37306150549,
+  "url": "https://github.com/0xZKnw/mlxl3/actions/runs/37306150549",
+  "jobs": [
+    {
+      "id": 111750191938,
+      "name": "desktop-and-protocol",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run scripts/check-e2e.sh",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}
