@@ -48,8 +48,8 @@ Les comparaisons numériques du chemin actif passent sur la matrice historique
 continuations forcées bitidentiques, non vides et finies. Cela ne prouve ni tous
 les logits intermédiaires ni le contexte maximal131072.
 
-Les mesures de vitesse ont été interrompues par la veille puis une charge
-concurrente. **Aucun gain de vitesse n'est livré comme établi ; l'option reste
+Les deux séries finales de vitesse sont complètes, mais leurs dérives dépassent
+les seuils de stabilité ; les études antérieures interrompues sont conservées. **Aucun gain de vitesse n'est livré comme établi ; l'option reste
 OFF par défaut.** Le prototype KV à capacité a été retiré : sur son crible,
 préfill−0,479%, décodage+0,391%, aucun bénéfice utile≥3%.
 [Protocoles, sources et décisions](measurements/audit-api-lfm-20261016/lfm-final.md).
@@ -75,8 +75,9 @@ Distribution **ad-hoc, sans notarisation Apple**. L'app installée est conservé
   drainage, startup, UTF-8 et client non lecteur. Trois mutations de fermeture
   et délais sont détectées. Format et Clippy strict `chat`/`mlx,chat` passent.
 - Suite intégrée : **495 Python réussis /69 sautés**, puis Desktop complet ;
-  les changements Rust finaux ont été retestés séparément. Les sources Python/
-  Swift sont inchangées depuis ce contrôle.
+  les changements Rust finaux ont été retestés séparément. Les sources Python
+  sont inchangées ; les nouveaux correctifs LaTeX ont leurs contrôles Desktop
+  actuels, détaillés dans le changelog Desktop.
 - Kani : cause terminale **15/4**, usage API **65/3**, gardes routeur/préfill/
   géométrie **121/13**, profil mémoire **220/11** dans leurs domaines documentés.
   Sélecteur opt-in final **33 obligations/5 couvertures**, chaînes0..4 octets,

@@ -199,6 +199,17 @@ public class MTCTLineDisplay : MTDisplay {
 /// It can render itself using the draw method.
 public class MTMathListDisplay : MTDisplay {
 
+    private var frameLineWidth: CGFloat = 0
+
+    func addFrame(padding: CGFloat, lineWidth: CGFloat) {
+        let inset = padding + lineWidth
+        for display in subDisplays { display.position.x += inset }
+        width += 2 * inset
+        ascent += inset
+        descent += inset
+        frameLineWidth = lineWidth
+    }
+
     /**
           The type of position for a line, i.e. subscript/superscript or regular.
      */
@@ -247,6 +258,12 @@ public class MTMathListDisplay : MTDisplay {
     override public func draw(_ context: CGContext) {
         super.draw(context)
         context.saveGState()
+        if frameLineWidth > 0, let color = textColor {
+            context.setStrokeColor(color.cgColor)
+            context.setLineWidth(frameLineWidth)
+            context.stroke(displayBounds().insetBy(dx: frameLineWidth / 2,
+                                                  dy: frameLineWidth / 2))
+        }
         
         // Make the current position the origin as all the positions of the sub atoms are relative to the origin.
         context.translateBy(x: self.position.x, y: self.position.y)

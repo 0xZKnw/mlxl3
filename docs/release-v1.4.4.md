@@ -27,14 +27,20 @@ L'arrêt du serveur pendant le chargement termine et attend le processus moteur.
 Le packaging utilise la version Cargo du moteur, indépendamment de la version
 Desktop ; l'option explicite de version reste prioritaire.
 
+Les commandes LaTeX `\dots` et `\boxed{…}` sont maintenant rendues dans les
+réponses : les blocs `$$…$$` concernés ne retombent plus en texte brut. Les cadres
+sont dessinés avec leurs marges et conservés dans les fractions et les copies.
+Les formules invalides gardent un texte de secours lisible.
+
 ## Performances et mémoire
 
 Un préfill MoE par microblocs est disponible en option pour la géométrie EXL3
 K4/MCG qualifiée de LFM2.5-24B-A2B V2. Il conserve les formes M1 canoniques pour
 attention, convolution, normes, gates et head. Activation explicite :
 `MLXL3_LFM_MOE_PREFILL=1` dans l'environnement du moteur. **Il reste désactivé par
-défaut** : les campagnes de vitesse ont été perturbées par la veille puis une
-charge graphique concurrente. Aucun boost de vitesse n'est annoncé comme validé.
+défaut** : les deux séries finales complètes n’ont pas satisfait les seuils de
+stabilité. Les essais antérieurs interrompus sont conservés. Aucun boost de
+vitesse n’est annoncé comme validé.
 
 Les contrôles numériques du chemin actif comparent 128 000 logits F16 terminaux,
 50 états et les routes des 38 MoE, puis 17 continuations forcées. La matrice
@@ -63,9 +69,12 @@ la production des artefacts ne vaut pas remplacement dans `/Applications`.
 La source conservée passe **118 tests Rust CPU / 3 ignorés**, format et Clippy
 strict, dont **33 tests API inclus**. La suite intégrée Python/Swift passe
 **495 tests Python / 69 sautés**, puis les contrôles Desktop ; le sampling compte
-**821 assertions / 180 états**, et l'oracle mémoire 240 cas. Les sources Swift et
-Python sont inchangées depuis ce contrôle intégré ; les changements Rust finaux
-ont leurs contrôles propres.
+**821 assertions / 180 états**, et l'oracle mémoire 240 cas. Le rendu LaTeX passe neuf formules dans deux styles, les copies/roundtrips,
+les quatre côtés du cadre et ses pixels, huit combinaisons de délimiteurs et
+63 cas de préparation. Les contrôles Desktop ont été terminés en deux segments
+après correction d’un appel de constructeur interne dans le nouveau test.
+Les compilations de la reprise traitent les avertissements Swift comme des erreurs.
+Les sources Swift/AppKit restent non prouvées formellement.
 
 Kani du sélecteur opt-in : **33 obligations / 5 couvertures**, booléens symboliques
 et chaînes de 0 à 4 octets, unwind 6, sans hypothèse. Les preuves CPU ne prouvent
@@ -86,6 +95,8 @@ anciens binaires de recherche ; un job interrompu n'est pas déclaré réussi.
 - [@HENK0O](https://github.com/HENK0O), fondations mémoire/contexte des
   [PR #31](https://github.com/0xZKnw/mlxl3/pull/31) et
   [PR #32](https://github.com/0xZKnw/mlxl3/pull/32).
+- [SwiftMath](https://github.com/mgriebling/SwiftMath), moteur de rendu mathématique
+  natif embarqué, étendu ici pour les deux commandes de la capture utilisateur.
 - [MLX / mlx-lm](https://github.com/ml-explore/mlx-lm), exécution Apple Silicon
   et architecture LFM ; les autres projets amont du moteur sont crédités dans
   [son changelog](release-engine-v1.4.5.md).

@@ -1,12 +1,64 @@
 # LFM V2 : code conservé, qualité et décisions
 
+## Runtime signé et confirmation finale du 16 octobre
+
+Le runtime **3c84dda50cd1**, signé ad-hoc, SHA-256
+`f4da463b99962eb4132e78e37a8e9498b37ef77913e40e2e0eb59410d6bd2eb7`,
+a été construit par le packager avec minOS26.2 / SDK26.5 / MLX0.32.2.
+Le système observé est macOS27.2 (26B5091g), Apple M5/24Gio ;26.5 désigne le SDK.
+Il est distinct du prototype5f91 compilé avec minOS11.0. A et B utilisent ce même
+binaire, avec le seul sélecteur MoE forcé0/1 ; trace et réutilisation du cacheOFF,
+MTP/DFlashOFF, contexte4096, checkpoint V2 inchangé.
+
+Avant mesure, quatre processus CLI ont été terminés et rejoints, validation API
+et shaders Metal activée. Le défaut sériel sur huit pas reproduit byte à byte le
+dump canonique historique SHA9033cb5a. Pour65tokens imposés, ancien0beb sériel,
+nouveau0 et nouveau1 donnent les mêmes128000logitsF16 et50états nommés : tailles,
+formes, finitude et octets contrôlés. Le témoin actif compte9blocs,2470lignes de
+routeur et304appels de graphe MoE groupés. Le contrôle n’inspecte pas chaque logit
+intermédiaire du batch ; les routes/17continuations relèvent de la matrice physique
+historique du même calcul. Aucun temps sous validation Metal n’est un benchmark.
+
+Les deux séries prévues sont **terminées, non concluantes pour la vitesse** :
+256tokens de warmup puis128mesurés par prompt/passe, contrôle court27secondaire,
+3paires par ordre, pauses2s, un modèle à la fois, aucune compilation ou preuve
+locale simultanée. Caffeinate temporaire et garde murale/monotone≤5s ; budgets
+900s/ordre. Tous les textes/tokens/historiques correspondent et les processus
+sortent0. Médiane des trois rapports B/A, sans addition entre cas :
+
+| Ordre | Document | Préfill observé | Décodage observé | Dérive maximale préfill / decode | Décision |
+| --- | --- | ---: | ---: | ---: | --- |
+| ABBAAB | code266 | +107,557% | +2,037% | 30,571% /15,602% | Non concluant |
+| ABBAAB | FR600 | +101,223% | +6,521% | 3,436% /19,041% | Non concluant |
+| BAABBA | code266 | +102,319% | +0,645% | 8,736% /8,894% | Non concluant |
+| BAABBA | FR600 | +104,152% | −3,623% | 3,207% /7,131% | Non concluant |
+
+Temps actifs/muraux :489,943/489,951s et432,489/432,490s. Le jeu était absent et
+aucun autre moteur n’était chargé aux contrôles ; des processus de rendu Codex
+étaient actifs. Leur utilisation GPU n’a pas été mesurée et la cause des dérives
+reste indéterminée. Aucun avertissement thermique/performance enregistré par
+pmset ne vaut une mesure de température. Les seuils préenregistrés≤3% ne passent
+pas ; le −3,623% de décodage FR600 dépasse aussi le seuil−3%. **Aucun boost livré
+n’est donc revendiqué et le défaut reste canonique.** `MLXL3_LFM_MOE_PREFILL=1`
+reste expérimental sur la géométrie qualifiée seulement. Les deux ordres sont clos,
+sans nouvelle répétition ni sélection des passes favorables.
+
+Bruts, contrôleurs, neuf tests du calcul d’analyse et contrôles numériques sont
+conservés dans [release-qualification-evidence.tar.gz](release-qualification-evidence.tar.gz)
+et son index. Les gros dumps restent locaux ; leurs SHA sont dans les rapports.
+Les études antérieures interrompues et leurs conclusions sont conservées ci-dessous.
+
+
 État : contrôles numériques et frontières réelles réussis sur les binaires identifiés ;
 mesures de vitesse interrompues. Le chemin rapide reste **opt-in, OFF par défaut**.
 Aucune publication ni installation n'est annoncée par ce rapport de qualification.
 
 ## Modèle et sources
 
-Apple M5, 24 Gio, macOS 26.5, MLX 0.32.2. Modèle local
+Apple M5,24Gio,MLX0.32.2. Le relevé antérieur indiquait «macOS26.5» ;
+rectification du16octobre :26.5 est le SDK, le `sw_vers` observé est27.2/26B5091g.
+La version de l’hôte des campagnes historiques n’avait pas de relevé indépendant
+conservé ici ; elle n’est pas déduite du SDK. Modèle local
 `LFM2.5-24B-A2B-EXL3-4bpw-v2`, quatre shards vérifiés contre `v2-manifest.json`,
 12 614 197 321 octets. Les poids, tokenizer, précision et calibration ne changent
 pas. Le manifeste de cette copie annonce 4,21 bpw ; les anciens rapports sur une

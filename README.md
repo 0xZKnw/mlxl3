@@ -36,10 +36,11 @@ Desktop **1.4.4, build 26** bundles engine **1.4.5**. LFM models without MTP no
 longer inherit a sampling lock, and their context-memory estimate is available.
 The local HTTP API now reports explicit stop causes, rejects concurrent work,
 recovers disconnected requests and bounds transport waits. It also exposes
-readiness and capabilities.
+readiness and capabilities. Standard `\dots` and `\boxed{…}` math commands
+also render correctly instead of falling back to raw LaTeX.
 
 The numerically qualified LFM V2 microblock path remains an explicit experimental
-opt-in (`MLXL3_LFM_MOE_PREFILL=1`). Interrupted speed studies do not establish a
+opt-in (`MLXL3_LFM_MOE_PREFILL=1`). The timing studies do not meet the stability criteria for a
 release speedup; the default remains canonical. The unsuccessful capacity-cache
 prototype was removed. Model weights are unchanged.
 

@@ -1,5 +1,5 @@
 {
-  "status": "local_checks_complete_artifact_delivery_pending",
+  "status": "local_source_checks_complete_final_release_artifact_pending",
   "rust_cpu": {
     "passed": 118,
     "ignored": 3,
@@ -10,14 +10,16 @@
     "python_skipped": 69,
     "swift_sampling_assertions": 821,
     "swift_sampling_states": 180,
-    "memory_cases": 240
+    "memory_cases": 240,
+    "note": "Python unchanged; current Desktop checked in two segments after fixing test-only compile error; see latex-verification.json"
   },
   "lfm": {
     "default": "serial",
     "opt_in": "MLXL3_LFM_MOE_PREFILL=1; qualified geometry only",
     "numeric_scope": "historical32 plus retained-code5 checks; terminal full128000F16,50states,38MoE routes and17forced continuations",
-    "performance": "not_qualified_host_sleep_then_concurrent_graphics",
-    "kv_capacity": "rejected_removed"
+    "performance": "two final signed-runtime orders complete but not qualified: drift >3%; default serial",
+    "kv_capacity": "rejected_removed",
+    "signed_runtime_numeric": "3c84dda5/f4da463b: M1 eight steps matches historical bytes; batch65 old/forced0/1 full128000F16/50finite states bitexact"
   },
   "selector_kani": {
     "success": 33,
@@ -54,6 +56,28 @@
       "path": "performance-evidence.tar.gz",
       "bytes": 108697,
       "sha256": "3c477022ced6073edd78e60243788c3639931d44a1443561424af3b9f68f80fb"
+    },
+    "release-qualification": {
+      "status": "complete",
+      "archive": "release-qualification-evidence.tar.gz",
+      "bytes": 53301,
+      "sha256": "1d3ed6de95011e9b81b807fd6f3889d7e3e7665fcc3fd1a85dfc15e90045bdc0",
+      "entries": "see index",
+      "large_dumps": "local only; hashes recorded in release-numeric/report.json",
+      "performance_qualified": false,
+      "numeric_parity": true
+    },
+    "latex": {
+      "path": "latex-evidence.tar.gz",
+      "bytes": 20673,
+      "sha256": "92f11d5bb8ae794a4e2683b2e1a521f7b2e7b42bf3f176542cf85a51f2fa7d57"
     }
+  },
+  "desktop_latex": {
+    "status": "passed",
+    "formulas": 9,
+    "image_styles": 2,
+    "prepared_cases": 63,
+    "formal_proof": false
   }
 }
