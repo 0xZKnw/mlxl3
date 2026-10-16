@@ -32,6 +32,16 @@ extension UpdateManager {
 
 @main struct UpdaterApplicationCheck {
     static func main() throws {
+        // Signed Mach-O doubles exercise the real installer, without MLX or a user app.
+        let executable = URL(fileURLWithPath: CommandLine.arguments[0])
+        if executable.lastPathComponent == "mlxl3" {
+            precondition(CommandLine.arguments.dropFirst() == ["runtime-info"]
+                || CommandLine.arguments.dropFirst() == ["list", "--json"])
+            print(CommandLine.arguments[1] == "runtime-info"
+                ? #"{"bridge_protocol":1,"version":"1.4.5","mlx_enabled":true}"# : "[]")
+            return
+        }
+        if executable.lastPathComponent == "MLXL3Studio" { return }
         precondition(CommandLine.arguments.count == 2 || CommandLine.arguments.count == 4)
         let files = FileManager.default
         let root = files.temporaryDirectory.appendingPathComponent("mlxl3-app-preflight-" + UUID().uuidString)
@@ -120,11 +130,78 @@ extension UpdateManager {
             preconditionFailure("Accepted broken app signature")
         } catch UpdateError.commandFailed { checks += 1 }
         precondition(checks == 15)
+        try checkInstallerBoundaries(root: root, executable: executable)
         if CommandLine.arguments.count == 4 {
             try UpdateManager.checkDiskImagePreflight(
                 URL(fileURLWithPath: CommandLine.arguments[2]), version: CommandLine.arguments[3])
             print("Real DMG preflight passed: signature, versions, compatibility, runtime hashes/list; detached")
         }
         print("App updater preflight passed: \(checks) signed independent-version, compatibility and integrity cases")
+    }
+
+    static func checkInstallerBoundaries(root: URL, executable: URL) throws {
+        let files = FileManager.default
+        let source = root.appendingPathComponent("Fixture.app")
+        let runtime = source.appendingPathComponent("Contents/Resources/runtime")
+        let macOS = source.appendingPathComponent("Contents/MacOS")
+        try files.createDirectory(at: runtime, withIntermediateDirectories: true)
+        try files.createDirectory(at: macOS, withIntermediateDirectories: true)
+        try files.copyItem(at: executable, to: macOS.appendingPathComponent("MLXL3Studio"))
+        var records: [String: [String: Any]] = [:]
+        for name in EngineRuntimeStore.runtimeFiles.sorted() {
+            let file = runtime.appendingPathComponent(name)
+            if name == "mlx.metallib" {
+                try Data("test double; no Metal library".utf8).write(to: file)
+            } else {
+                try files.copyItem(at: executable, to: file)
+                _ = try UpdateManager.runProcess("/usr/bin/codesign", arguments: ["--force", "--sign", "-", file.path])
+            }
+            records[name] = ["size": try file.resourceValues(forKeys: [.fileSizeKey]).fileSize!,
+                             "sha256": try UpdateManager.sha256(at: file)]
+        }
+        let manifest: [String: Any] = ["schema": 1, "bridge_protocol": 1,
+            "version": "1.4.5", "architecture": "arm64", "minimum_app_version": "1.4.0",
+            "minimum_macos": "26.2.0", "files": records]
+        try JSONSerialization.data(withJSONObject: manifest).write(to: runtime.appendingPathComponent("engine.json"))
+        let archive = root.appendingPathComponent("signed-fixture.tar.gz")
+        _ = try UpdateManager.runProcess("/usr/bin/tar", arguments: ["-czf", archive.path, "-C", runtime.path]
+            + EngineRuntimeStore.runtimeFiles.sorted() + ["engine.json"])
+        let release = AppUpdateRelease(version: "1.4.5", tag: "engine-v1.4.5", title: "Fixture",
+            notes: "", pageURL: archive, asset: AppUpdateAsset(name: archive.lastPathComponent,
+                downloadURL: archive, size: Int64(try archive.resourceValues(forKeys: [.fileSizeKey]).fileSize!),
+                digest: "sha256:" + (try UpdateManager.sha256(at: archive))))
+        let store = root.appendingPathComponent("engine-store")
+        try EngineRuntimeStore.install(archive: archive, release: release, appVersion: "1.4.5", root: store)
+        precondition(EngineRuntimeStore.resolve(appVersion: "1.4.5", root: store, bundledVersion: "1.4.5") != nil)
+
+        // A distinct identity and no-op executable prevent launching the real Desktop.
+        let info: [String: Any] = ["CFBundleIdentifier": "io.mlxl3.updater-fixture",
+            "CFBundleExecutable": "MLXL3Studio", "CFBundlePackageType": "APPL",
+            "CFBundleShortVersionString": "1.4.5", "CFBundleVersion": "27", "LSUIElement": true]
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+            .write(to: source.appendingPathComponent("Contents/Info.plist"))
+        _ = try UpdateManager.runProcess("/usr/bin/codesign", arguments: ["--force", "--sign", "-", source.path])
+        let destination = root.appendingPathComponent("InstalledFixture.app")
+        try files.createDirectory(at: destination, withIntermediateDirectories: true)
+        try Data("previous app".utf8).write(to: destination.appendingPathComponent("sentinel"))
+        let script = root.appendingPathComponent("install-fixture.zsh")
+        try UpdateManager.installerScript.write(to: script, atomically: true, encoding: .utf8)
+        do {
+            _ = try UpdateManager.runProcess("/bin/zsh", arguments: [script.path, "99999999", source.path,
+                destination.path, root.path, root.appendingPathComponent("installer.log").path, "1.4.5", "27"])
+        } catch {
+            print(try String(contentsOf: root.appendingPathComponent("installer.log"), encoding: .utf8))
+            throw error
+        }
+        let installedInfo = try Data(contentsOf: destination.appendingPathComponent("Contents/Info.plist"))
+        let sourceInfo = try Data(contentsOf: source.appendingPathComponent("Contents/Info.plist"))
+        precondition(installedInfo == sourceInfo)
+        let previous = try String(contentsOf: root.appendingPathComponent("InstalledFixture.app.mlxl3-backup/sentinel"),
+            encoding: .utf8)
+        precondition(previous == "previous app")
+        precondition(!files.fileExists(atPath: script.path))
+        let remaining = try files.contentsOfDirectory(atPath: root.path)
+        precondition(remaining.allSatisfy { !$0.contains(".mlxl3-stage-") })
+        print("Installer boundaries passed: signed Mach-O engine activation and disposable app replacement/backup")
     }
 }
