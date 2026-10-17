@@ -438,6 +438,9 @@ Commands are launched directly, without a shell. Browser OAuth and legacy
 HTTP+SSE endpoints are not supported. Only configure MCP processes and remote
 servers you trust.
 
+For optional web search and page fetching without a Parallel account or API key,
+see [Parallel Search MCP setup](docs/parallel-search-mcp.md).
+
 ## How the engine is structured
 
 ```text
