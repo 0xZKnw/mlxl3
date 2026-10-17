@@ -5,10 +5,10 @@ web search and page fetching to MLXL3's existing HTTP MCP client. The anonymous
 endpoint needs no Parallel account or API key. Free-tier search uses Fast mode;
 usage is rate limited.
 
-This setup adds an optional server. Exa remains preconfigured, and MCP stays off
-until you enable it in Desktop. Inference runs locally, but tool arguments,
-including search queries and URLs to fetch, are sent to the selected remote
-server. Avoid including private information in those arguments.
+This setup adds an optional server. Exa remains preconfigured. MCP is off on first
+launch; your saved switch setting is preserved. Inference runs locally, but tool
+arguments, including search queries and URLs to fetch, are sent to the selected
+remote server. Avoid including private information in those arguments.
 
 ## Add the server
 
