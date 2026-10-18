@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/private/tmp/mlxl3-structured-live-check.py", line 123, in <module>
+    main()
+  File "/private/tmp/mlxl3-structured-live-check.py", line 69, in main
+    ready, _ = wait_for({"ready", "error"}, timeout=120)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/mlxl3-structured-live-check.py", line 53, in wait_for
+    raise AssertionError(event)
+AssertionError: {'type': 'eof'}

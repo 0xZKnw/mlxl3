@@ -254,8 +254,89 @@ pub struct Variant {
     pub id: String,
     pub label: String,
     pub size_bytes: u64,
+    pub preview: Option<ModelPreview>,
     #[serde(skip_serializing)]
     pub files: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ModelPreview {
+    pub model_type: Option<String>,
+    pub architecture_supported: bool,
+    pub maximum_context: Option<u64>,
+    pub kv_bytes_per_token: Option<u64>,
+    pub recurrent_bytes: Option<u64>,
+}
+
+pub fn kv_bytes_per_token(layers: u64, heads: u64, dimension: u64) -> Option<u64> {
+    layers
+        .checked_mul(heads)?
+        .checked_mul(dimension)?
+        .checked_mul(4)
+}
+
+fn model_preview(config: &Value) -> ModelPreview {
+    let text = config.get("text_config").unwrap_or(config);
+    let model_type = config["model_type"].as_str().map(str::to_owned);
+    let architecture_supported = matches!(
+        model_type.as_deref(),
+        Some("qwen3_5" | "qwen3_5_moe" | "lfm2" | "lfm2_moe" | "gemma4" | "bailing_hybrid")
+    );
+    let qwen_cache = || -> Option<(u64, u64)> {
+        let kinds = text["layer_types"].as_array()?;
+        if kinds.len() as u64 != text["num_hidden_layers"].as_u64()?
+            || !kinds
+                .iter()
+                .all(|kind| matches!(kind.as_str(), Some("full_attention" | "linear_attention")))
+        {
+            return None;
+        }
+        let full = kinds
+            .iter()
+            .filter(|kind| **kind == "full_attention")
+            .count() as u64;
+        let linear = kinds.len() as u64 - full;
+        let kv = kv_bytes_per_token(
+            full,
+            text["num_key_value_heads"].as_u64()?,
+            text["head_dim"].as_u64()?,
+        )?;
+        if linear == 0 {
+            return Some((kv, 0));
+        }
+        let key_heads = text["linear_num_key_heads"].as_u64()?;
+        let value_heads = text["linear_num_value_heads"].as_u64()?;
+        let key_dim = text["linear_key_head_dim"].as_u64()?;
+        let value_dim = text["linear_value_head_dim"].as_u64()?;
+        let recurrence = value_heads
+            .checked_mul(key_dim)?
+            .checked_mul(value_dim)?
+            .checked_mul(4)?;
+        let conv_dim = key_heads
+            .checked_mul(key_dim)?
+            .checked_mul(2)?
+            .checked_add(value_heads.checked_mul(value_dim)?)?;
+        let conv = text["linear_conv_kernel_dim"]
+            .as_u64()?
+            .checked_sub(1)?
+            .checked_mul(conv_dim)?
+            .checked_mul(2)?;
+        Some((kv, recurrence.checked_add(conv)?.checked_mul(linear)?))
+    };
+    let cache = if matches!(model_type.as_deref(), Some("qwen3_5" | "qwen3_5_moe")) {
+        qwen_cache()
+    } else {
+        None
+    };
+    ModelPreview {
+        model_type,
+        architecture_supported,
+        maximum_context: text["max_position_embeddings"]
+            .as_u64()
+            .filter(|value| *value > 0),
+        kv_bytes_per_token: cache.map(|value| value.0),
+        recurrent_bytes: cache.map(|value| value.1),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -897,6 +978,7 @@ pub fn variants(files: &BTreeMap<String, u64>) -> Vec<Variant> {
             }),
             size_bytes: selected.values().filter_map(|name| files.get(name)).sum(),
             files: selected,
+            preview: None,
         });
     }
     result
@@ -951,6 +1033,26 @@ pub fn details(repo: &str, revision: Option<&str>) -> Result<Details> {
             .map(|file| (file.rfilename.clone(), file.size))
             .collect();
         choices = variants(&files);
+    }
+    let mut previews = BTreeMap::new();
+    for variant in choices.iter_mut().take(8) {
+        if let Some(path) = variant.files.get("config.json") {
+            if !previews.contains_key(path) {
+                let preview = get_json::<Value>(
+                    &format!(
+                        "https://huggingface.co/{}/resolve/{}/{}",
+                        encode(repo),
+                        encode(&model.sha),
+                        encode(path)
+                    ),
+                    1024 * 1024,
+                )
+                .ok()
+                .map(|config| model_preview(&config));
+                previews.insert(path.clone(), preview);
+            }
+            variant.preview = previews.get(path).cloned().flatten();
+        }
     }
     let readme = if files
         .get("README.md")
@@ -1223,6 +1325,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn preview_reports_architecture_and_keeps_hybrid_cache_unknown() {
+        let hybrid = model_preview(
+            &serde_json::json!({"model_type":"qwen3_5_moe","text_config":{"max_position_embeddings":32768,"num_hidden_layers":40,"num_key_value_heads":4,"head_dim":128}}),
+        );
+        assert!(hybrid.architecture_supported);
+        assert_eq!(hybrid.maximum_context, Some(32768));
+        assert_eq!(hybrid.kv_bytes_per_token, None);
+        let unknown = model_preview(&serde_json::json!({"model_type":"unknown"}));
+        assert!(!unknown.architecture_supported);
+        assert_eq!(unknown.kv_bytes_per_token, None);
+        let dimensions = serde_json::json!({"model_type":"qwen3_5","text_config":{"num_hidden_layers":2,"layer_types":["full_attention","linear_attention"],"num_key_value_heads":2,"head_dim":128,"linear_num_key_heads":2,"linear_num_value_heads":4,"linear_key_head_dim":8,"linear_value_head_dim":16,"linear_conv_kernel_dim":4}});
+        let preview = model_preview(&dimensions);
+        assert_eq!(preview.kv_bytes_per_token, Some(1024));
+        assert_eq!(preview.recurrent_bytes, Some(2624));
+        assert_eq!(kv_bytes_per_token(4, 2, 128), Some(4096));
+        assert_eq!(kv_bytes_per_token(u64::MAX, 2, 128), None);
+    }
+
+    #[test]
     fn dflash_download_selects_only_pinned_draft_files() {
         let mut siblings: Vec<RepoFile> = DFLASH_FILES
             .iter()
@@ -1365,5 +1486,23 @@ mod verification {
         }
         kani::cover!(safe_file_bytes(name));
         kani::cover!(!safe_file_bytes(name));
+    }
+}
+
+#[cfg(kani)]
+mod preview_proofs {
+    #[kani::proof]
+    fn preview_cache_arithmetic() {
+        let layers = u64::from(kani::any::<u8>());
+        let heads = u64::from(kani::any::<u8>());
+        let dimension = u64::from(kani::any::<u8>());
+        let result = super::kv_bytes_per_token(layers, heads, dimension).unwrap();
+        assert_eq!(
+            u128::from(result),
+            u128::from(layers) * u128::from(heads) * u128::from(dimension) * 4
+        );
+        kani::cover!(layers == 0);
+        kani::cover!(layers == 255 && heads == 255 && dimension == 255);
+        assert_eq!(super::kv_bytes_per_token(u64::MAX, 2, 1), None);
     }
 }

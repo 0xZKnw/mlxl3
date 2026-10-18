@@ -210,6 +210,7 @@ private struct HubBrowserView: View {
                     Label(L("Télécharger", "Download"), systemImage: "arrow.down.to.line").font(.system(size: 11, weight: .medium)).padding(.horizontal, 15).padding(.vertical, 12)
                 }.buttonStyle(PrimaryGlassButtonStyle()).disabled(library.selectedVariant == nil || library.downloading != nil || library.loadingDetail)
             }.padding(14).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+            if let variant = library.selectedVariant { ModelAdviceView(sizeBytes: variant.sizeBytes, preview: variant.preview) }
             if detail.variants.isEmpty {
                 Text(L("Pas de checkpoint EXL3 complet identifié ici. Essayez une branche BPW. Les poids ambigus partageant un même descripteur ne sont pas mélangés.", "No complete EXL3 checkpoint identified here. Try a BPW branch. Ambiguous weights sharing one descriptor are not mixed."))
                     .font(.caption).foregroundStyle(.orange)

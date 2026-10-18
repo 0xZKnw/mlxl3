@@ -31,11 +31,24 @@ struct HubModel: Decodable, Identifiable, Hashable, Sendable {
     }
 }
 
+struct HubModelPreview: Decodable, Sendable, Hashable {
+    let modelType: String?
+    let architectureSupported: Bool
+    let maximumContext: UInt64?
+    let kvBytesPerToken: UInt64?
+    let recurrentBytes: UInt64?
+    enum CodingKeys: String, CodingKey {
+        case modelType = "model_type", architectureSupported = "architecture_supported"
+        case maximumContext = "maximum_context", kvBytesPerToken = "kv_bytes_per_token", recurrentBytes = "recurrent_bytes"
+    }
+}
+
 struct HubVariant: Decodable, Identifiable, Hashable, Sendable {
     let id: String
     let label: String
     let sizeBytes: Int64
-    enum CodingKeys: String, CodingKey { case id, label; case sizeBytes = "size_bytes" }
+    var preview: HubModelPreview? = nil
+    enum CodingKeys: String, CodingKey { case id, label, preview; case sizeBytes = "size_bytes" }
 }
 
 struct HubDetails: Decodable, Sendable {

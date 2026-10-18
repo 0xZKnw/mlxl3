@@ -1,7 +1,7 @@
 import Foundation
 
 struct WorkspaceSnapshot: Codable, Sendable {
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     let version: Int
     let selectedConversationID: UUID?
@@ -11,6 +11,10 @@ struct WorkspaceSnapshot: Codable, Sendable {
     let topK: Int
     let repetitionPenalty: Double
     let systemPrompt: String
+    var projects: [WorkspaceProject]? = nil
+    var profiles: [GenerationProfile]? = nil
+    var documents: [LibraryDocument]? = nil
+    var responseSchema: String? = nil
 
     init(
         selectedConversationID: UUID?,
@@ -19,7 +23,11 @@ struct WorkspaceSnapshot: Codable, Sendable {
         temperature: Double,
         topK: Int,
         repetitionPenalty: Double,
-        systemPrompt: String
+        systemPrompt: String,
+        projects: [WorkspaceProject] = [],
+        profiles: [GenerationProfile] = [],
+        documents: [LibraryDocument] = [],
+        responseSchema: String = ""
     ) {
         version = Self.currentVersion
         self.selectedConversationID = selectedConversationID
@@ -29,6 +37,10 @@ struct WorkspaceSnapshot: Codable, Sendable {
         self.topK = topK
         self.repetitionPenalty = repetitionPenalty
         self.systemPrompt = systemPrompt
+        self.projects = projects
+        self.profiles = profiles
+        self.documents = documents
+        self.responseSchema = responseSchema
     }
 }
 
@@ -38,6 +50,8 @@ struct ConversationSnapshot: Codable, Sendable {
     let messages: [ChatMessageSnapshot]
     let createdAt: Date
     var contextUsage: ContextUsage? = nil
+    var projectID: UUID? = nil
+    var parentConversationID: UUID? = nil
 }
 
 struct ChatMessageSnapshot: Codable, Sendable {
@@ -53,6 +67,7 @@ struct ChatMessageSnapshot: Codable, Sendable {
     var parts: [AssistantPart]? = nil
     var turnContext: String? = nil
     var attachments: [ChatAttachment]? = nil
+    var sources: [DocumentExcerpt]? = nil
 }
 
 final class ConversationStore: @unchecked Sendable {
@@ -82,10 +97,27 @@ final class ConversationStore: @unchecked Sendable {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
         let data = try Data(contentsOf: fileURL)
         let snapshot = try JSONDecoder.mlxl3.decode(WorkspaceSnapshot.self, from: data)
-        guard snapshot.version == WorkspaceSnapshot.currentVersion else {
+        guard (1...WorkspaceSnapshot.currentVersion).contains(snapshot.version) else {
             throw CocoaError(.fileReadCorruptFile)
         }
+        try validate(snapshot)
         return snapshot
+    }
+
+    static func validate(_ snapshot: WorkspaceSnapshot) throws {
+        let projects = snapshot.projects ?? []
+        let profiles = snapshot.profiles ?? []
+        let documents = snapshot.documents ?? []
+        let projectIDs = Set(projects.map(\.id))
+        guard projects.count <= 256, projectIDs.count == projects.count,
+            projects.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 100 }),
+            snapshot.conversations.allSatisfy({ $0.projectID == nil || projectIDs.contains($0.projectID!) }),
+            profiles.count <= 128, Set(profiles.map(\.id)).count == profiles.count,
+            documents.count <= DocumentSearch.maximumDocuments, Set(documents.map(\.id)).count == documents.count,
+            documents.allSatisfy({ projectIDs.contains($0.projectID) && $0.text.utf8.count <= ChatAttachmentImporter.maxTextBytes }),
+            documents.reduce(0, { $0 + $1.text.utf8.count }) <= DocumentSearch.maximumLibraryBytes else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
     }
 
     func save(_ snapshot: WorkspaceSnapshot, revision: Int) throws {
@@ -101,6 +133,7 @@ final class ConversationStore: @unchecked Sendable {
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
+        try validate(snapshot)
         let data = try JSONEncoder.mlxl3.encode(snapshot)
         if FileManager.default.fileExists(atPath: fileURL.path) {
             // Never overwrite unreadable history, including a future schema.

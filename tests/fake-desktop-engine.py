@@ -124,7 +124,7 @@ if model in ('mtp-memory-saver', 'dflash-memory-saver'):
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=dflash_capable, mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
      **capabilities, memory_saver_supported=model in ('mtp-memory-saver', 'dflash-memory-saver'),
-     bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
+     workspace_features=model != 'legacy-features', bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
     request = json.loads(line)
     if path := os.environ.get('MLXL3_SAMPLING_CHECK_REQUESTS'):
@@ -209,6 +209,10 @@ for line in sys.stdin:
                  best_depth=0 if model in ('mtp-baseline', 'dflash-baseline') else 2, rows=rows)
         continue
     if request['type'] != 'generate':
+        continue
+    if model == 'workspace':
+        emit('delta', request_id=request['request_id'], phase='answer', text=json.dumps(request, ensure_ascii=False))
+        emit('complete', request_id=request['request_id'])
         continue
     if model == 'context-count':
         emit('context_usage', request_id=request['request_id'], used_tokens=12, context_limit=2048)

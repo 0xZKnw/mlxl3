@@ -1,0 +1,10 @@
+#!/bin/zsh
+set -euo pipefail
+cd /private/tmp/mlxl3-features-20261018
+source_dir=apps/MLXL3Studio/Sources/MLXL3Studio
+binary_dir=apps/MLXL3Studio/.build/out/Products/Debug
+sources=("${source_dir}"/*.swift)
+sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
+mkdir -p /private/tmp/mlxl3-workspace-check-cache
+swiftc -warnings-as-errors -swift-version 6 -parse-as-library -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk -module-cache-path /private/tmp/mlxl3-workspace-check-cache -I "${binary_dir}" "${sources[@]}" "${binary_dir}/SwiftMath.o" /private/tmp/mlxl3-visual-check.swift -o /private/tmp/mlxl3-visual-check
+/private/tmp/mlxl3-visual-check "$PWD/docs/measurements/desktop-features-20261018"

@@ -222,7 +222,13 @@ struct GenerationInspector: View {
                                 .textSelection(.enabled)
                         }
 
-                        SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
+                        Button(L("Projets et profils enregistrés", "Projects and saved profiles")) { studio.showWorkspace = true }
+                    SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces") {
+                        TextEditor(text: $studio.responseSchema).font(.system(.caption, design: .monospaced)).frame(minHeight: 80)
+                        Text(L("Schéma JSON optionnel. Une réponse non conforme échoue explicitement ; le texte est livré après validation. MCP est désactivé pour cette requête. Vide = texte libre.", "Optional JSON schema. Invalid output fails explicitly; text is delivered after validation. MCP is disabled for this request. Empty = free text.")).font(.caption).foregroundStyle(.secondary)
+                        Button(L("Revenir au texte libre", "Use free text")) { studio.responseSchema = "" }
+                    }
+                    SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
                             TextEditor(text: $studio.systemPrompt)
                                 .font(.system(size: 11.5))
                                 .scrollContentBackground(.hidden)
@@ -268,7 +274,7 @@ struct GenerationInspector: View {
                             }
 
                             HStack(spacing: 8) {
-                                Button(action: studio.openMCPConfiguration) {
+                                Button(action: { studio.showMCPManager = true }) {
                                     Label(L("Configurer", "Configure"), systemImage: "doc.text")
                                         .frame(maxWidth: .infinity)
                                         .frame(height: 29)

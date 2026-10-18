@@ -266,6 +266,7 @@ async fn serve_resident(
     result
 }
 
+#[cfg_attr(not(all(feature = "mlx", feature = "chat")), allow(dead_code))]
 pub async fn serve(
     registry: Option<&Path>,
     model: &str,
@@ -767,10 +768,24 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
     {
         return Err("n is not supported by MLXL3".into());
     }
-    if input
+    let response_schema = match input
         .get("response_format")
-        .is_some_and(|value| !value.is_null() && value["type"] != "text")
-        || input.get("seed").is_some_and(|value| !value.is_null())
+        .filter(|value| !value.is_null())
+    {
+        None => None,
+        Some(format) if format["type"] == "text" => None,
+        Some(format) if format["type"] == "json_object" => Some(r#"{"type":"object"}"#.to_string()),
+        Some(format) if format["type"] == "json_schema" => {
+            let schema = format["json_schema"]
+                .get("schema")
+                .ok_or("response_format.json_schema.schema is required")?;
+            let text = serde_json::to_string(schema).map_err(|error| error.to_string())?;
+            mlxl3_native::structured::Schema::parse(&text).map_err(|error| error.to_string())?;
+            Some(text)
+        }
+        _ => return Err("Unsupported response_format".into()),
+    };
+    if input.get("seed").is_some_and(|value| !value.is_null())
         || input
             .get("logit_bias")
             .is_some_and(|value| !value.is_null())
@@ -847,7 +862,7 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
     Ok(
         json!({"type":"generate","request_id":NEXT_REQUEST.fetch_add(1, Ordering::Relaxed).to_string(),
         "messages":messages,"max_tokens":max_tokens,"temperature":temperature,
-        "top_k":top_k,"repetition_penalty":penalty}),
+        "top_k":top_k,"repetition_penalty":penalty,"response_schema":response_schema}),
     )
 }
 
@@ -1023,6 +1038,12 @@ async fn generate(
     sender: &mut Option<hyper::body::Sender>,
     reply: &mut Option<Reply>,
 ) -> Result<Output, String> {
+    let schema = request["response_schema"]
+        .as_str()
+        .map(mlxl3_native::structured::Schema::parse)
+        .transpose()
+        .map_err(|error| error.to_string())?;
+    // The resident bridge serves one generation at a time.
     let mut bridge = state.bridge.lock().await;
     if reply.as_ref().is_some_and(Reply::is_closed) {
         return Err("HTTP client disconnected".into());
@@ -1100,7 +1121,7 @@ async fn generate(
                 } else {
                     answer.push_str(text);
                 }
-                if let Some(sender) = sender.as_mut() {
+                if let Some(sender) = sender.as_mut().filter(|_| schema.is_none()) {
                     let delta = if is_thinking {
                         json!({"reasoning_content":text})
                     } else {
@@ -1127,6 +1148,17 @@ async fn generate(
                     state.invalidate().await;
                     return Err("Missing or invalid bridge token usage".into());
                 };
+                if let Some(schema) = &schema {
+                    answer = schema
+                        .validate(&answer)
+                        .map_err(|error| error.to_string())?;
+                    thinking.clear();
+                    if let Some(sender) = sender.as_mut() {
+                        send_sse(sender, json!({"id":id,"object":"chat.completion.chunk","created":created,
+                            "model":state.model,"choices":[{"index":0,"delta":{"content":answer},"finish_reason":null}]}), state.limits.send)
+                            .await.map_err(|error| error.to_string())?;
+                    }
+                }
                 return Ok(Output {
                     answer,
                     thinking,
@@ -1263,6 +1295,117 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn structured_requests_validate_schema_before_inference() {
+        let mut request = json!({"model":"small","messages":[{"role":"user","content":"Hi"}],
+            "response_format":{"type":"json_schema","json_schema":{"name":"result","strict":true,
+                "schema":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}}}});
+        let mapped = bridge_request(&request, "small").unwrap();
+        assert!(
+            mapped["response_schema"]
+                .as_str()
+                .unwrap()
+                .contains("additionalProperties")
+        );
+        request["response_format"] = json!({"type":"json_object"});
+        assert_eq!(
+            bridge_request(&request, "small").unwrap()["response_schema"],
+            r#"{"type":"object"}"#
+        );
+        for format in [
+            json!({"type":"json_schema"}),
+            json!({"type":"json_schema","json_schema":{"schema":{"$ref":"x"}}}),
+            json!({"type":"unknown"}),
+        ] {
+            request["response_format"] = format;
+            assert!(bridge_request(&request, "small").is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn structured_http_never_publishes_invalid_bridge_output() {
+        // Exercise real pipes and HTTP/SSE with a deliberately nonconforming bridge.
+        for (text, valid) in [
+            (r#"{"name":"Ada"}"#, true),
+            (r#"{"wrong":"Ada"}"#, false),
+            ("", false),
+            (r#"{"name":"Ada""#, false),
+        ] {
+            for stream in [false, true] {
+                let script = r#"import json,sys
+for line in sys.stdin:
+    request=json.loads(line)
+    print(json.dumps(dict(type='delta', request_id=request['request_id'], phase='answer', text=sys.argv[1])),flush=True)
+    print(json.dumps(dict(type='complete', request_id=request['request_id'], stop_reason='eos', stats={'prompt_tokens':2,'generated_tokens':1})),flush=True)
+"#;
+                let mut child = Command::new("python3")
+                    .arg("-u")
+                    .arg("-c")
+                    .arg(script)
+                    .arg(text)
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .kill_on_drop(true)
+                    .spawn()
+                    .unwrap();
+                let state = Arc::new(State {
+                    model: "small".into(),
+                    api_key: String::new(),
+                    bridge_info: json!({}),
+                    bridge: Mutex::new(Bridge {
+                        stdin: child.stdin.take().unwrap(),
+                        stdout: BufReader::new(child.stdout.take().unwrap()),
+                    }),
+                    child: Arc::new(Mutex::new(child)),
+                    admission: Arc::new(Semaphore::new(1)),
+                    healthy: AtomicBool::new(true),
+                    limits: Limits::default(),
+                });
+                let input = json!({"model":"small","messages":[{"role":"user","content":"Hello"}],"stream":stream,
+                    "response_format":{"type":"json_schema","json_schema":{"schema":{"type":"object","required":["name"]}}}});
+                let response = tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    handle(
+                        Request::builder()
+                            .method("POST")
+                            .uri("/v1/chat/completions")
+                            .body(Body::from(input.to_string()))
+                            .unwrap(),
+                        state.clone(),
+                    ),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                assert_eq!(
+                    response.status(),
+                    if stream || valid {
+                        StatusCode::OK
+                    } else {
+                        StatusCode::BAD_GATEWAY
+                    }
+                );
+                let body = tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    to_bytes(response.into_body()),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                let body = String::from_utf8(body.to_vec()).unwrap();
+                if valid {
+                    assert!(body.contains("Ada"));
+                } else {
+                    assert!(body.contains("error"));
+                    assert!(!body.contains("wrong"));
+                    assert!(!body.contains("Ada"));
+                    assert!(!body.contains("[DONE]"));
+                }
+                state.invalidate().await;
+            }
+        }
     }
 
     #[test]

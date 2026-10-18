@@ -38,6 +38,7 @@ pub mod registry;
 pub mod router;
 pub mod speculative;
 pub mod streaming;
+pub mod structured;
 #[cfg(feature = "chat")]
 pub mod tokenizer;
 pub mod tool_call;

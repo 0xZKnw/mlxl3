@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "transport": "local stdio",
+  "network_servers_enabled": 0,
+  "result": {
+    "errors": {},
+    "servers": 1,
+    "tools": [
+      {
+        "function": {
+          "description": "[local] Returns the provided message for a local test.",
+          "name": "local.echo",
+          "parameters": {
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  }
+}

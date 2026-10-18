@@ -116,7 +116,7 @@ private struct MessageView: View {
                     .padding(.vertical, 13)
                     .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
                 }
-                MessageCopyButton(message: message)
+                HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
             }
           }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -129,6 +129,7 @@ private struct MessageView: View {
 
 private struct AssistantMessageView: View {
     @ObservedObject var message: ChatMessage
+    @State private var citedSource: DocumentExcerpt?
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -156,6 +157,13 @@ private struct AssistantMessageView: View {
                     case .answer:
                         MarkdownResponseView(part.text, streaming: live)
                             .equatable()
+                            .environment(\.openURL, OpenURLAction { url in
+                                if url.scheme == "mlxl3-source" {
+                                    citedSource = message.sources.first { $0.id.lowercased() == url.host?.lowercased() }
+                                    return .handled
+                                }
+                                return ["http", "https"].contains(url.scheme ?? "") ? .systemAction : .discarded
+                            })
                     case .tool:
                         if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
                             MCPToolActivityRow(activity: activity)
@@ -171,15 +179,25 @@ private struct AssistantMessageView: View {
                         .foregroundStyle(Color(red: 1.0, green: 0.48, blue: 0.50))
                 }
 
+                if !message.sources.isEmpty {
+                    ScrollView(.horizontal) {
+                        HStack {
+                            ForEach(message.sources) { source in
+                                Button(source.label) { citedSource = source }.buttonStyle(.bordered).font(.caption)
+                            }
+                        }
+                    }
+                }
                 if let stats = message.stats {
                     StatsRow(stats: stats)
                 }
                 if !message.content.isEmpty {
-                    MessageCopyButton(message: message)
+                    HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .sheet(item: $citedSource) { DocumentSourceView(source: $0) }
     }
 
 }
@@ -546,6 +564,7 @@ struct ComposerView: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 12)
             }
+            ComposerVoiceControl(studio: studio, voice: studio.voice)
             HStack(alignment: .bottom, spacing: 12) {
                 TextField(L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)

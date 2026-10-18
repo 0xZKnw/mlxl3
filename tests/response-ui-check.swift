@@ -477,7 +477,7 @@ private struct ReferenceFadeRenderer: TextRenderer {
     precondition(studio.engineState.isReady)
     studio.draft = "Generate a long file"
     studio.send()
-    let host = NSHostingView(rootView: MessagesView(messages: studio.currentConversation!.messages))
+    let host = NSHostingView(rootView: MessagesView(messages: studio.currentConversation!.messages).environmentObject(studio))
     host.frame = NSRect(x: 0, y: 0, width: 900, height: 700)
     for _ in 0..<500 where studio.isGenerating {
       host.layoutSubtreeIfNeeded()

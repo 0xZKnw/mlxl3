@@ -1,0 +1,19 @@
+   Compiling mlxl3-native v1.3.0 (/private/tmp/mlxl3-features-20261018)
+error: failed to run custom build command for `mlxl3-native v1.3.0 (/private/tmp/mlxl3-features-20261018)`
+
+Caused by:
+  process didn't exit successfully: `/private/tmp/mlxl3-features-20261018/target/debug/build/mlxl3-native-a55c79145ba9aa54/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=native
+  cargo:rerun-if-changed=Cargo.toml
+  cargo:rerun-if-changed=Cargo.lock
+  cargo:rustc-env=MLXL3_BUILD_REVISION=unknown
+  cargo:rustc-env=MLXL3_BUILD_PROFILE=debug
+  cargo:rerun-if-env-changed=MLXL3_MLX_ROOT
+  cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp
+
+  --- stderr
+
+  thread 'main' (797136) panicked at build.rs:79:14:
+  set MLXL3_MLX_ROOT to the installed MLX 0.32.2 package directory
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

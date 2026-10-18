@@ -187,6 +187,15 @@ M3 branding fills the icon canvas, and whole-message copy is below each
 message. See [release notes](docs/release-v1.2.0.md) and
 [verification and limitations](docs/desktop-v1.2.0-validation.md).
 
+## Local feature development (unreleased)
+
+The isolated Desktop feature work adds editable/regenerable conversation branches,
+projects and saved profiles, project document retrieval with saved citations, an
+MCP manager with project permissions, model memory advice, validated JSON output,
+on-device dictation, reply speech and Markdown export. OCR is excluded.
+See [usage, limits and verification](docs/desktop-project-features-2026-10-18.md).
+These changes are not included in an installed or published app yet.
+
 ## Platform and model support
 
 The release build requires an **Apple Silicon Mac (M1–M5) running macOS 26.2 or

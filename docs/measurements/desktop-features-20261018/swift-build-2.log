@@ -1,0 +1,147 @@
+warning: /Users/justin/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/justin/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+Building for debugging...
+[Computing dependencies]
+[Pre-planning 1 / 66]
+[Planning deferred tasks]
+[23 / 38]
+[24 / 39] SwiftMath
+[24 / 51]
+[24 / 106]
+[34 / 150]
+[36 / 150]
+[38 / 150]
+[41 / 150]
+[46 / 150]
+[47 / 150]
+[48 / 150]
+[49 / 150]
+[53 / 150]
+[54 / 150]
+[55 / 150]
+[56 / 150]
+[57 / 150]
+[58 / 150]
+[60 / 150]
+[61 / 150]
+[65 / 150]
+[67 / 150]
+[68 / 150]
+[70 / 150]
+[71 / 150]
+[80 / 150]
+[81 / 150]
+[82 / 150]
+[84 / 150]
+[85 / 150]
+[86 / 150]
+[87 / 150]
+[94 / 150]
+[95 / 150]
+[100 / 150]
+[101 / 150]
+[102 / 150]
+[104 / 150]
+[105 / 150]
+[106 / 150]
+[107 / 150]
+[114 / 150]
+[115 / 150]
+[118 / 150]
+[119 / 150]
+[121 / 150]
+[122 / 150]
+[123 / 150]
+[124 / 150]
+[135 / 150] SwiftMath
+[136 / 150] SwiftMath
+[140 / 150] SwiftMath
+[144 / 151]
+[144 / 151] SwiftMath
+[144 / 151] MLXL3Studio-product
+[144 / 163]
+[144 / 203]
+[144 / 276]
+[148 / 286]
+[153 / 286]
+[155 / 286]
+[156 / 286]
+[156 / 286] SwiftMath
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[158 / 286] SwiftMath
+[158 / 286]
+[163 / 286]
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[168 / 286]
+[169 / 286]
+[170 / 286]
+[171 / 286]
+[175 / 286]
+[176 / 286]
+[178 / 286]
+[179 / 286]
+[180 / 286]
+[182 / 286]
+[183 / 286]
+[188 / 286]
+[190 / 286]
+[191 / 286]
+[193 / 286]
+[194 / 286]
+[203 / 286]
+[207 / 286]
+[208 / 286]
+[209 / 286]
+[212 / 286]
+[213 / 286]
+[215 / 286]
+[217 / 286]
+[218 / 286]
+[219 / 286]
+[221 / 286]
+[222 / 286]
+[229 / 286]
+[230 / 286]
+[231 / 286]
+[236 / 286]
+[237 / 286]
+[238 / 286]
+[240 / 286]
+[241 / 286]
+[242 / 286]
+[243 / 286]
+[253 / 286]
+[254 / 286]
+[255 / 286]
+[256 / 286]
+[259 / 286]
+[260 / 286]
+[263 / 286]
+[264 / 286]
+[265 / 286]
+[266 / 286]
+[267 / 286]
+[268 / 286]
+[270 / 286]
+[281 / 286] MLXL3Studio-product
+[282 / 286] MLXL3Studio-product
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[284 / 286] MLXL3Studio-product
+Build complete! (360,35 secs)
