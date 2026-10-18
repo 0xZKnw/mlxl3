@@ -18,8 +18,8 @@ private enum PerformanceError: Error {
 }
 
 @main struct StreamingPerformance {
-  @MainActor private static func window(_ message: ChatMessage) -> NSWindow {
-    let host = NSHostingView(rootView: MessagesView(messages: [message]))
+  @MainActor private static func window(_ message: ChatMessage, studio: StudioModel) -> NSWindow {
+    let host = NSHostingView(rootView: MessagesView(messages: [message]).environmentObject(studio))
     let window = NSWindow(
       contentRect: NSRect(x: 80, y: 80, width: 900, height: 700),
       styleMask: [.titled], backing: .buffered, defer: false)
@@ -90,6 +90,14 @@ private enum PerformanceError: Error {
     }
     save("running")
     do {
+      let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-streaming-" + UUID().uuidString)
+      let suite = "io.mlxl3.streaming-check." + UUID().uuidString
+      let prefs = UserDefaults(suiteName: suite)!
+      defer {
+        prefs.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: root)
+      }
+      let studio = StudioModel(conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true, preferences: prefs)
       if CommandLine.arguments[1] == "--ui" {
         for size in [65_536, 262_144, 1_048_576] {
           for kind in ["prose", "code", "thinking"] {
@@ -103,7 +111,7 @@ private enum PerformanceError: Error {
               let message = ChatMessage(
                 role: .assistant, content: kind == "thinking" ? "" : source,
                 thinking: kind == "thinking" ? source : "", isStreaming: true)
-              let host = window(message)
+              let host = window(message, studio: studio)
               defer { host.orderOut(nil) }
               try await Task.sleep(for: .milliseconds(400))
               for _ in 0..<6 {
@@ -167,7 +175,7 @@ private enum PerformanceError: Error {
           role: .assistant,
           content: String(repeating: "A previous paragraph with **Markdown**.\n\n", count: 1_700),
           isStreaming: true)
-        let host = window(message)
+        let host = window(message, studio: studio)
         defer { host.orderOut(nil) }
         var ready = false
         var completed = false

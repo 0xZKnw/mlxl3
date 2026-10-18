@@ -48,7 +48,15 @@ private struct ReferenceFadeRenderer: TextRenderer {
       content: String(
         repeating: "A paragraph with enough words to wrap onto another line.\n\n", count: 40),
       isStreaming: true)
-    let host = NSHostingView(rootView: MessagesView(messages: [message]))
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-scroll-" + UUID().uuidString)
+    let suite = "io.mlxl3.scroll-check." + UUID().uuidString
+    let prefs = UserDefaults(suiteName: suite)!
+    defer {
+      prefs.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: root)
+    }
+    let studio = StudioModel(conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true, preferences: prefs)
+    let host = NSHostingView(rootView: MessagesView(messages: [message]).environmentObject(studio))
     let window = NSWindow(
       contentRect: NSRect(x: 80, y: 80, width: 700, height: 400),
       styleMask: [.titled], backing: .buffered, defer: false)
