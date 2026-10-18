@@ -3611,6 +3611,7 @@ mod tests {
                 &mut cache,
                 "lookup",
                 false,
+                false,
             )?;
             assert!(!baseline.raw.is_empty());
             assert!(
@@ -3640,6 +3641,7 @@ mod tests {
                         &mut cache,
                         "lookup",
                         true,
+                        false,
                     )?;
                     assert_eq!(actual.raw, baseline.raw);
                     assert_eq!(actual.token_hash, baseline.token_hash);
@@ -3682,6 +3684,7 @@ mod tests {
                 1,
                 &mut cache,
                 "lookup",
+                false,
                 false,
             )
         };
@@ -3846,6 +3849,7 @@ mod tests {
                 &mut cache,
                 "dflash-copy",
                 false,
+                false,
             )?;
             assert!(
                 !reference.raw.is_empty()
@@ -3875,6 +3879,7 @@ mod tests {
                         &mut cache,
                         "dflash-copy",
                         true,
+                        false,
                     )?;
                     assert_eq!(actual.raw, reference.raw);
                     assert_eq!(actual.token_hash, reference.token_hash);
