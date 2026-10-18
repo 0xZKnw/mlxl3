@@ -30,6 +30,21 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
+## Desktop 1.5.0
+
+Desktop **1.5.0, build 30** adds conversation editing, regeneration and branches;
+projects and saved profiles; local text/PDF retrieval with citations; a graphical
+MCP manager with project permissions; validated JSON output; on-device dictation,
+reply speech and Markdown export. The new panels have opaque dark backgrounds.
+OCR is excluded. The bundle includes **engine 1.5.0**; the independent engine
+release channel remains at 1.4.8.
+
+Apple Silicon and **macOS 26.2+** are required. Existing history migrates to
+format 2, which older Desktop versions cannot read: keep a separate copy of
+format 1 before updating if you need to roll back. No new speed or memory gain
+is claimed. See the [release notes](docs/release-v1.5.0.md) and
+[verification, test counts and limits](docs/desktop-v1.5.0-verification.md).
+
 ## Desktop 1.4.8
 
 Desktop **1.4.8, build 29** adds a continuous 120 ms token fade and smooth
@@ -186,15 +201,6 @@ older Desktop versions keep receiving app DMGs from GitHub's latest endpoint.
 M3 branding fills the icon canvas, and whole-message copy is below each
 message. See [release notes](docs/release-v1.2.0.md) and
 [verification and limitations](docs/desktop-v1.2.0-validation.md).
-
-## Local feature development (unreleased)
-
-The isolated Desktop feature work adds editable/regenerable conversation branches,
-projects and saved profiles, project document retrieval with saved citations, an
-MCP manager with project permissions, model memory advice, validated JSON output,
-on-device dictation, reply speech and Markdown export. OCR is excluded.
-See [usage, limits and verification](docs/desktop-project-features-2026-10-18.md).
-These changes are not included in an installed or published app yet.
 
 ## Platform and model support
 

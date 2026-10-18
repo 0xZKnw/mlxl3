@@ -30,11 +30,28 @@ L'historique version 1 est lisible et migre vers le format 2. Les anciens Deskto
 
 Les résultats de cette intégration et du paquet final sont consignés dans [le rapport de vérification](desktop-v1.5.0-verification.md). Les premiers contrôles de fonctionnalités sur la base 1.3.0 sont conservés séparément dans [le rapport initial](desktop-project-features-2026-10-18.md) ; ils ne valident pas à eux seuls le paquet 1.5.0.
 
+Contrôles locaux : **167 tests Rust CPU et 192 MLX**, **840 tests Python**, **219 contrôles** des nouvelles fonctions et les parcours Desktop concernés réussis. Restent ignorés : 3 tests CPU, 85 MLX et 115 Python. Le vrai updater accepte le DMG ; signature, intégrité, moteur relocalisé et repli sont vérifiés. Génération JSON réelle Qwen3.6 EXL3 conforme à `jsonschema` avec budget 1024 (372 tokens), rejet du budget 1 et annulation/reprise vérifiés. Le budget 256 n'a pas suffi et l'échec explicite est conservé.
+
+Kani : nouveau contrat de budget (57 obligations/3 covers) réussi ; suite bibliothèque (70 harnais réussis et **23 timeouts non vérifiés**) ; contrat d'usage HTTP (65 obligations/3 covers par cible), deux cibles réussies. Ces vérifications bornées ne prouvent pas toute l'application. CI du SHA exact : [conversion EXL3](https://github.com/0xZKnw/mlxl3/actions/runs/39151944365), [jobs Rust Linux/macOS](https://github.com/0xZKnw/mlxl3/actions/runs/39151944315) et [suite Desktop complète](https://github.com/0xZKnw/mlxl3/actions/runs/39151944336) réussis. Le job Kani de la bibliothèque est encore en cours au relevé de publication ; aucun succès global de ce workflow n'est revendiqué.
+
+Source du paquet : `eaf296468c7ea4d92edab9e656bf749ac71f3a36`, checkout propre au build. Le moteur 1.5.0 est embarqué ; aucune release moteur indépendante n'est publiée.
+
 Le schéma JSON implémente un sous-ensemble explicite : types, objets/tableaux, propriétés requises, bornes, alternatives, `enum`, `const` et unicité. Les références, expressions régulières et formats non implémentés sont refusés. La recherche et les citations restent à vérifier dans les réponses du modèle. Microphone, qualité de dictée/lecture et services MCP distants ne sont pas qualifiés par les tests automatisés. Les vérifications Kani sont bornées et ne prouvent ni SwiftUI, ni MLX/Metal, ni toute la génération ; les échecs ou interruptions restent indiqués dans le rapport.
+
+## Fichiers publiés
+
+| Fichier | Octets | SHA-256 |
+| --- | ---: | --- |
+| `MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmg` | 73805588 | `590003037dbd8daa7ee6bc32f7cb530846cc72c33768ebd458e0cb628113208d` |
+| `MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmg.sha256` | 109 | `8f7e094b96ad9faf427a5a1ec5d632eb1ee8b0d2e677437abe6115ae31efc8d0` |
+| `MLXL3-Desktop-v1.5.0-b30-validation.json` | 6523 | `dc9e3c5b70d5f94998b8e0f79b216e19a18f0431db636a022adb4f8419e8467a` |
+
+Les trois téléchargements publics ont été contrôlés. L'updater réel sélectionne Desktop1.5.0/build30 ; le canal moteur indépendant reste à1.4.8. L'app installée n'a pas été remplacée.
 
 ## Remerciements
 
 - [@0xZKnw](https://github.com/0xZKnw), demandes produit, intégration et validation sur Mac.
 - [MLX](https://github.com/ml-explore/mlx), calcul local sur Apple Silicon ; [SwiftMath](https://github.com/mgriebling/SwiftMath), rendu mathématique conservé.
+- [MTPLX](https://github.com/youssofal/mtplx), base des fonctions MTP conservées avec leurs attributions d'origine.
 - [Qwen](https://github.com/QwenLM), modèles des contrôles locaux ; [Model Context Protocol](https://github.com/modelcontextprotocol), protocole des outils.
 - [Kani](https://github.com/model-checking/kani), vérification bornée des contrats CPU. Les licences et autres attributions du moteur sont conservées dans le dépôt.

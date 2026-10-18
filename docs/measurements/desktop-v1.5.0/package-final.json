@@ -1,0 +1,130 @@
+{
+  "status": "package_checks_passed",
+  "source": "eaf296468c7ea4d92edab9e656bf749ac71f3a36",
+  "version": "1.5.0",
+  "build": 30,
+  "app_installed": false,
+  "publication": "blocked_pending_human_authorization",
+  "notarized": false,
+  "artifacts": {
+    "MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmg": {
+      "size": 73805588,
+      "sha256": "590003037dbd8daa7ee6bc32f7cb530846cc72c33768ebd458e0cb628113208d"
+    },
+    "MLXL3-Engine-v1.5.0-arm64.tar.gz": {
+      "size": 66984710,
+      "sha256": "be58705754b90e5b5321349a57950d16fa6e5b6f313d8cbc72461985e7a674dd"
+    }
+  },
+  "build_info": {
+    "version": "1.5.0",
+    "build": "30",
+    "commit": "eaf296468c7ea4d92edab9e656bf749ac71f3a36",
+    "tracked_changes": false,
+    "runtime": "Rust + MLX 0.32.2",
+    "signing": "ad-hoc; not notarized",
+    "swift_sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+  },
+  "runtime_info": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "eaf296468c7e",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.5.0"
+  },
+  "engine_files": {
+    "libjaccl.dylib": {
+      "sha256": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3",
+      "size": 1546672
+    },
+    "libmlx.dylib": {
+      "sha256": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2",
+      "size": 21815104
+    },
+    "mlx.metallib": {
+      "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed",
+      "size": 182351120
+    },
+    "mlxl3": {
+      "sha256": "99b598f51fe693ea39b5d1f4d30e404ed93b84440fdf6feb60d743cf497d2110",
+      "size": 10014032
+    }
+  },
+  "architectures": {
+    "Contents/MacOS/MLXL3Studio": "arm64",
+    "Contents/Resources/runtime/mlxl3": "arm64",
+    "Contents/Resources/runtime/libmlx.dylib": "arm64",
+    "Contents/Resources/runtime/libjaccl.dylib": "arm64"
+  },
+  "swift_sources_sha256": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppDelegate.swift": "961708be4ff661a3cd2bb0985c184173eb284deed32196356fad0de5f0bb2708",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "7811e4731dde57ab30c1161687f969174f09dda1562949878181005c19ef2362",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.swift": "fcaa2a7c7a1e7ab2e3c164093485682474f1d3b15d46a92353723e781e71bd03",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ChatAttachment.swift": "8b22e3730e283ad9676e2e7a0009078c25889536782c003b81cbf98ea7a0d54e",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ChatComponents.swift": "0c2af8d841dd6917cd69eab6df926a218e65bdf237baa44dcd556779b9d83440",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ChatTimelineCheck.swift": "629cb8c4477a16695ab449a73f45cc1cd965888e0af1ecff9fdda9fa26c2bedc",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ContextMemoryProfile.swift": "107d60998094373b9f9fe98cd11fbb816875bcd5f387da31ab31408f789daa81",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ConversationStore.swift": "04b80356bc5649d6c54cdb761f3e6204177ca536a81cd79476475d4965376a92",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift": "e2e8a5085e85de65d38134f8529500bfb15ad58959f52b6f1a7c3a85658d13ac",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/DownloadProgressCard.swift": "bcdf8e525d3e8c3eec31b9bc8445bf0d74944fa52ebf7d1770913d23025b9bbf",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift": "2ce4a89713870368ef3cba86411f71d0bf80f660f9b4e8d271b003c899f643f2",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift": "47fe9e6b52f03e03f948f0d69b7bbca1dc7857110c59ab94e096a8d809c69e31",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift": "da7ebdfafbfa72f20d1d7da8173086ac218743eb877843ee553e4e3ff6c57178",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfiguration.swift": "2caaaaa33e763a4276d1de956b60f9c0d896fcc8354b3f3417f0630df92f6052",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPManager.swift": "7d40d3d29fdf38e61807f76fc3308b076dfa221d41510791e3265bd1a14e6534",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPManagerView.swift": "3a41f3b5248fef037163234d187d662eeaf9480a70d820a52537af74acd0fd0a",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift": "3d339855cde10a5050e77a5733eafa910b3397806f1e6095aade3c4b66dde4f3",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": "39b9f2d8092060b53c821b8e10209d4c74e9b05b3b078099ee54266bff31f1ed",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3StudioApp.swift": "7ece8c220211d021eb8076217d734949d06ab649f3d12b5c92f560f362c0e0be",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuning.swift": "acf9fd671ded10b5b78e0b4c9da2b743bfb76d29ae0a1ebc4ce443534977f96f",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift": "1a380790ebad2b4f59446e63903a794d220eae5f4fce65e20c8e5a10e7763c50",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift": "657949273ad4eeded977cafdb25c1ea249557e44f7d0f049b144789faeeaae82",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MenuBarPanel.swift": "445cd8a1fad9726fea4169524f616294fa6fffee33fd51d53a3c560a7c83351a",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MessageActionsView.swift": "19a8e149b71f1b80c36680e9102364ffb37d49c7d25580a910e73facb0d23a8f",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MessageCopyButton.swift": "395b04f5d34d5994b831489ea0bf819449c1774cd91adf7b2e0915bb410ad686",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift": "f82cb6c630013a192169e1a80fddca60679a4e53e56ad36618bfa7f1c5c69cbd",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelIdleUnload.swift": "0e140a4c12c74c47ef8142fe618dd4e1b134584723f7c312fa8469af80698856",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelLibrary.swift": "3603ec6e6988424be884d62a05ab444ad8b7a53a900992a615739c2bbe57e920",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelManager.swift": "09aa54213d28b864518ea70d4b0c20ac419199edac7a1083dbb3279e7bd84f39",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/SidebarUpdateBadge.swift": "9651b5f29cbaee0d35e0d36ad6a6b315b41b70632c658c49a906ffe4c2857973",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "12b755363140973625595406794497f33a284acfe02d9109cfbc26af5bd543bf",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift": "16b3b6a319c5a678612c3055435ba3cf7f6910eb72814da04c9b0fd7f8df4470",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift": "280daac798233e07b578fdcb178dd70a56c4201da21be8de37f99f1f130f297f",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/UIPreview.swift": "3942489ca6f8c3339fae0bf4cb5da722c8f193b4531c66bfeaaba975ecf30a5b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift": "28f0e587a5e0ec2f875583575b8f8a80987c8fecfe437649153e25d9a17b391e",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/VoiceController.swift": "c96b7d90777d9ebb38a0380a25b62e9b5e111c2d1d9dfc3292a71565c901b831",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/WorkspaceFeatures.swift": "cf2126fb6b674a89ab5ce8a8497ca296ce1bab996694484da025fe2f618d2905",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/WorkspaceManagerView.swift": "66253660cbe47cb2e06c05a17819c3a2338d6e706699f2007dd6f3eec15ac287"
+  },
+  "checks": [
+    "actual updater DMG preflight and 15 signed cases",
+    "signed engine relocation, execution and fallback",
+    "deep strict app signature",
+    "hdiutil image checksum",
+    "Info.plist and clean source identity",
+    "four runtime sizes and SHA-256 hashes",
+    "archive and bundled runtime byte identity",
+    "arm64 Mach-O architecture",
+    "UI sources identical to four inspected offscreen renders"
+  ],
+  "mach_o_build_versions": {
+    "Contents/MacOS/MLXL3Studio": {
+      "minimum_os": "26.0",
+      "sdk": "26.0"
+    },
+    "Contents/Resources/runtime/mlxl3": {
+      "minimum_os": "26.2",
+      "sdk": "26.5"
+    },
+    "Contents/Resources/runtime/libmlx.dylib": {
+      "minimum_os": "26.2",
+      "sdk": "26.5"
+    },
+    "Contents/Resources/runtime/libjaccl.dylib": {
+      "minimum_os": "26.2",
+      "sdk": "26.5"
+    }
+  }
+}

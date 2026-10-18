@@ -1,0 +1,757 @@
+{
+  "status": "partial_verification_with_timeouts",
+  "process_exit_code": 1,
+  "passed": 70,
+  "timeouts": 23,
+  "harnesses": 93,
+  "checks_in_concluded_harnesses": 9555,
+  "unreachable": 160,
+  "covers_satisfied": 202,
+  "harness_timeout": "60s",
+  "harness_results": [
+    {
+      "name": "codec::verification::exl3_permutation_and_inverse_are_bijections",
+      "result": "passed",
+      "checks": 192,
+      "unreachable": 1,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+      "result": "passed",
+      "checks": 81,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+      "result": "passed",
+      "checks": 76,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+      "result": "passed",
+      "checks": 56,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "contracts::exl3_lane_order_preserves_shape_and_large_m_fallback",
+      "result": "passed",
+      "checks": 68,
+      "unreachable": 0,
+      "covers_satisfied": 6,
+      "covers_total": 6
+    },
+    {
+      "name": "contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+      "result": "passed",
+      "checks": 9,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "contracts::exl3_lane_layout_key_distinguishes_options",
+      "result": "passed",
+      "checks": 2,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "contracts::exl3_lane_order_default_and_bounded_explicit_values",
+      "result": "passed",
+      "checks": 204,
+      "unreachable": 7,
+      "covers_satisfied": 6,
+      "covers_total": 6
+    },
+    {
+      "name": "contracts::generation_stop_reason_matches_observed_terminal_event",
+      "result": "passed",
+      "checks": 15,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::lfm_context_memory_small_dimensions_match_wide_oracle",
+      "result": "passed",
+      "checks": 96,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::lfm_context_conv_matches_f16_history_and_rejects_overflow",
+      "result": "passed",
+      "checks": 63,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::lfm_context_attention_matches_f16_shapes_and_rejects_overflow",
+      "result": "passed",
+      "checks": 61,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "contracts::memory_saver_releases_every_unused_buffer",
+      "result": "passed",
+      "checks": 3,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::idle_cache_release_preserves_small_working_sets",
+      "result": "passed",
+      "checks": 4,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::verification::qmv_shape_matches_wide_arithmetic",
+      "result": "passed",
+      "checks": 180,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+      "result": "passed",
+      "checks": 192,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+      "result": "passed",
+      "checks": 5,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+      "result": "passed",
+      "checks": 352,
+      "unreachable": 1,
+      "covers_satisfied": 1,
+      "covers_total": 1
+    },
+    {
+      "name": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "result": "passed",
+      "checks": 330,
+      "unreachable": 5,
+      "covers_satisfied": 1,
+      "covers_total": 1
+    },
+    {
+      "name": "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+      "result": "passed",
+      "checks": 97,
+      "unreachable": 1,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+      "result": "passed",
+      "checks": 11,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+      "result": "passed",
+      "checks": 12,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+      "result": "passed",
+      "checks": 66,
+      "unreachable": 0,
+      "covers_satisfied": 5,
+      "covers_total": 5
+    },
+    {
+      "name": "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+      "result": "passed",
+      "checks": 2,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+      "result": "passed",
+      "checks": 85,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "contracts::grouped_mb3_preserves_rows_and_all_fallbacks",
+      "result": "passed",
+      "checks": 164,
+      "unreachable": 0,
+      "covers_satisfied": 6,
+      "covers_total": 6
+    },
+    {
+      "name": "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+      "result": "passed",
+      "checks": 61,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+      "result": "passed",
+      "checks": 7,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "contracts::mtp_add_norm_launch_bounds",
+      "result": "passed",
+      "checks": 109,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "contracts::pipeline_layer_has_no_final_or_outside_submission",
+      "result": "passed",
+      "checks": 13,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+      "result": "passed",
+      "checks": 1,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::dense_mlp_batch_stays_within_supported_domain",
+      "result": "passed",
+      "checks": 6,
+      "unreachable": 0,
+      "covers_satisfied": 6,
+      "covers_total": 6
+    },
+    {
+      "name": "contracts::smallm_kernel_key_is_injective",
+      "result": "passed",
+      "checks": 3,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::lfm_prefill_end_preserves_context_and_all_block_positions",
+      "result": "passed",
+      "checks": 49,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "contracts::lfm_moe_exact_prefill_accepts_only_the_qualified_geometry",
+      "result": "passed",
+      "checks": 6,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "contracts::lfm_moe_prefill_selection_respects_qualification_and_override",
+      "result": "passed",
+      "checks": 33,
+      "unreachable": 0,
+      "covers_satisfied": 5,
+      "covers_total": 5
+    },
+    {
+      "name": "contracts::biased_router_domain_bounds_dispatch",
+      "result": "passed",
+      "checks": 66,
+      "unreachable": 0,
+      "covers_satisfied": 6,
+      "covers_total": 6
+    },
+    {
+      "name": "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+      "result": "passed",
+      "checks": 49,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+      "result": "passed",
+      "checks": 11,
+      "unreachable": 0,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+      "result": "passed",
+      "checks": 34,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "dflash::dflash_layouts_have_bounded_published_geometry",
+      "result": "passed",
+      "checks": 30,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "hub::preview_proofs::preview_cache_arithmetic",
+      "result": "passed",
+      "checks": 41,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "result": "passed",
+      "checks": 493,
+      "unreachable": 13,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "result": "passed",
+      "checks": 338,
+      "unreachable": 13,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "result": "passed",
+      "checks": 232,
+      "unreachable": 13,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "memory_policy::verification::adaptive_choice_is_bounded_and_preserves_hysteresis",
+      "result": "passed",
+      "checks": 157,
+      "unreachable": 1,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "memory_policy::verification::cache_budget_never_accepts_an_overflow_or_excess",
+      "result": "passed",
+      "checks": 145,
+      "unreachable": 1,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "memory_policy::verification::adaptive_next_is_bounded_and_resets_only_on_switch",
+      "result": "passed",
+      "checks": 190,
+      "unreachable": 1,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "memory_policy::verification::adaptive_observation_is_bounded_and_ignores_invalid_samples",
+      "result": "passed",
+      "checks": 160,
+      "unreachable": 1,
+      "covers_satisfied": 1,
+      "covers_total": 1
+    },
+    {
+      "name": "memory_policy::verification::cache_mib_budget_is_bounded",
+      "result": "passed",
+      "checks": 19,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "memory_policy::verification::capture_selection_matches_bounded_symbolic_ids",
+      "result": "passed",
+      "checks": 79,
+      "unreachable": 1,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "memory_policy::verification::compaction_requires_large_real_waste_without_overflow",
+      "result": "passed",
+      "checks": 6,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "memory_policy::verification::allocator_tuning_key_is_bounded_and_injective",
+      "result": "passed",
+      "checks": 68,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary",
+      "result": "passed",
+      "checks": 247,
+      "unreachable": 1,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "mtp::draft_projection_verification::optional_projection_guards_dimensions_and_quantization",
+      "result": "passed",
+      "checks": 69,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "mtp::managed_mtp_never_crosses_architectures",
+      "result": "passed",
+      "checks": 181,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "result": "passed",
+      "checks": 235,
+      "unreachable": 13,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix",
+      "result": "passed",
+      "checks": 216,
+      "unreachable": 1,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "speculative::verification::adaptive_work_never_exceeds_the_existing_budget",
+      "result": "passed",
+      "checks": 34,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "speculative::verification::speculative_work_reserves_target_within_both_budgets",
+      "result": "passed",
+      "checks": 28,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "result": "passed",
+      "checks": 220,
+      "unreachable": 1,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::mtp_all_depths_commit_target_prefix_within_budgets",
+      "result": "passed",
+      "checks": 274,
+      "unreachable": 1,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "speculative::verification::tuning_requires_parity_and_nonzero_acceptance",
+      "result": "passed",
+      "checks": 17,
+      "unreachable": 0,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_disabled_copy_never_proposes",
+      "result": "passed",
+      "checks": 305,
+      "unreachable": 14,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_3",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_8",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_6",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_7",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_2",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_19",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_13",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_0",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_1",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_9",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_4",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_5",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_15",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_17",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_18",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_10",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_12",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_16",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_20",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_14",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::verification::dflash_copy_len_11",
+      "result": "timeout",
+      "checks": null,
+      "unreachable": null,
+      "covers_satisfied": 0,
+      "covers_total": 0
+    },
+    {
+      "name": "speculative::dflash_modes_preserve_context_and_output_budgets",
+      "result": "passed",
+      "checks": 114,
+      "unreachable": 0,
+      "covers_satisfied": 4,
+      "covers_total": 4
+    },
+    {
+      "name": "structured::proofs::project_permission_boundary",
+      "result": "passed",
+      "checks": 318,
+      "unreachable": 4,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "structured::proofs::structured_length_bounds",
+      "result": "passed",
+      "checks": 18,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "structured::proofs::boolean_schema_contract",
+      "result": "passed",
+      "checks": 2228,
+      "unreachable": 65,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    },
+    {
+      "name": "structured::proofs::structured_retry_budget_never_restarts_or_wraps",
+      "result": "passed",
+      "checks": 57,
+      "unreachable": 0,
+      "covers_satisfied": 3,
+      "covers_total": 3
+    },
+    {
+      "name": "tool_call::verification::marker_suffix_is_the_longest_possible_prefix",
+      "result": "passed",
+      "checks": 162,
+      "unreachable": 1,
+      "covers_satisfied": 2,
+      "covers_total": 2
+    }
+  ]
+}
