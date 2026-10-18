@@ -631,7 +631,13 @@ async fn handle_inner(request: Request<Body>, state: Arc<State>) -> Response<Bod
                         }
                     }
                     Err(err) => {
-                        Some(json!({"error":{"message":bounded_error(&err),"type":"server_error"}}))
+                        let _ = send_sse(
+                            &mut sender,
+                            json!({"error":{"message":bounded_error(&err),"type":"server_error"}}),
+                            state.limits.send,
+                        )
+                        .await;
+                        return;
                     }
                 };
                 if let Some(value) = final_value
