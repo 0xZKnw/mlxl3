@@ -11119,7 +11119,7 @@ Demande « regarde ça », document MLXL3_PR34_LES_AUDIT_RECHERCHE_2026-10-19.md
 - **40 revue documentaire terminée — aucun essai matériel lancé** : lecture de l’audit fourni et recoupement des trois mécanismes prioritaires surHEAD174e50df. LES-01 confirmé : `ssd_moe.rs:327–330` évalue selected/prédiction ensemble ; MLX0.32.2 `transforms.cpp` attache un événement commun par stream puis le signale à l’épilogue, et le readback ajoute unContiguous. La disponibilité CPU des routes attend ainsi le travail facultatif de cette soumission. LES-02 confirmé : gatesDense F16, entréesHC F32, `Projection::forward` générique (`lfm2.rs:175–209`), `ops.cpp` matmul promeut au type commun et AsType GPU matérialise la conversion. 47×512×2560×4=235Mio de sorties FP32 cumulées par pasT1, pas235Mio de RAM permanente ni une durée mesurée. PERF-09 confirmé : `SsdMoe::calculate` valide les slotsCPU et les convertit enArray ; deux `expert_slots` par cohorte relisent leursIDs via `to_u32` (`linear.rs:1082–1088`), bridgeContiguous/eval (`mlx_bridge.cpp:403–408`). 96–192appels structurels par pas48couches selonhot/cold, pas96–192attentes longues démontrées. Sources primairesMLXpin1f8e74e3 : transforms.cpp, ops.cpp, backend/gpu/primitives.cpp ; copies39 de transforms etarray réutilisées, aucune compilation/exécutionGPU.
 - **40 portée et décision** : l’audit établit mieux ces coûts que mes revues37/39, qui ne couvraient pas ces dépendances. Le témoin39A0 dans le même binaire et le découplageLFU/LRU/LES restent manquants ; le crible39Ainterrompu n’attribue pas causalement un coût au seul prédicteur. Les235Mio sont un volume logique cumulé ; les vieux taux d’utilisation34 ne décrivent pas le cacheGPU39A. Réserve surPERF-07 : dans `_qmv_mapped_tile_kernel.metal:20–29,65–105`, NT traite les tuiles de sortie, MB les lignes d’entrée ; testerNT2slots n’équivaut pas à partager un expert entredeux tokens/MB2. Les optimisations de préfill visentTTFT, pas un gain dedecode implicite. Ordre de travail retenu seulement comme proposition : contrôlecausal minimal, readbacksSlots+ordonnancement, puis gateprédictivepeucoûteuse ; file8 conditionnéeauxtraces. Aucun code moteur modifié, test/build/benchmark relancé, nouvelle mesure, preuveformelle oupush ; journal local seul. Les recommandations du document ne sont pas exécutées sans nouvelle demande. Aucun gain ni15tok/s validé par cette lecture.
 
-### FLASHSSD-2026-10-19-41 — slots validés, calendrier LES et gate prédictive FP16 — préenregistré
+### FLASHSSD-2026-10-19-41 — slots validés, calendrier LES et gate prédictive FP16 — qualité validée, aucun gain de débit confirmé
 
 Nouvelle demande « vas y test ça » après audit40 : reprise explicitement autorisée des essais arrêtés39A. Base174e50df, aucun essai39A interrompu rejoué pour bruit ; nouveau code ciblant LES-01/LES-02/PERF-09, et nouveau protocole causal. Plan complet avant prototype dans `docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/plan.json`. Garder4272banques/5331507264octets, cache5Gio89, allocator512Mio, readers4/globaljobs4, overlap1, checkpoint65c89531EXL32,05, MLX0.32.2/M5/24Gio/secteur/apps ouvertes. Aucun lot8, nouveau signalHC ou changement du routeur réel. Réutiliser la structure des routes typées existantes : indicesCPU validés une fois, capacité vérifiée contre les banques, pas de lectureGPU de ces mêmesindices. Lire les routes réelles avant de soumettre le prédicteur ; lancer chaud/prédiction pendant la lecture de demande, ne lire les candidats qu’ensuite. Comparer un castFP16 de la seule entrée prédictive àF32 ; aucune grande copie de gates persistante.
 
@@ -11267,8 +11267,60 @@ Aprèsqualification/sourcefigée, OFFpuisMTP : MAIN/HOLD×[R0,C0LFU,C0LRU,C4F32L
 
 - **41 publicationprêteàlademandeutilisateur** : GPUarrêtéavantgit ; superviseurseulpaused, driverHOLD-2-C0-LRUterminéetrapport128validéavantpublication,sajonctionparentsuitàlareprise. Écartobserverpendantpause40.737s, deltaSwapoutsmonotone+0 surl’intervalle ; consigné, criblepréliminairediagnosticseulement, confirmationfuturedoitrestersanspause. Qualitécomplète32physiques+3bridgesvalidée, aucun gain41confirmé/15tok/snonatteint, débitMTPpasencorelancé. Poussermaintenantcode/tests/preuves/étatpartielpuisreprendrelesmêmesbinairesetbrasrestants.
 
-### FLASHSSD-2026-10-19-42 — revuecomplémentaire aprèscorrections41 — en cours
+### FLASHSSD-2026-10-19-42 — revue complémentaire après corrections41 — terminée, coûts non mesurés
 
 Nouvelleconsigne«ildoitresterencoredesproblèmes,vasvoir». Périmètre : dépendancesGPUencorebloquantes(routes,Hot/Cold,prédictions,drain), prioritésdemande/prélecture, éligibilitéLRU/LFU etsignalHC/MTP. Sourcescourantes41figéesa3fd917d, auditexterne40/rapport37–39. LectureinitialedeSsdMoe/ReaderPoolréaliséeavantcetteentrée : **écartdepréenregistrementdelecture**, aucunessai42/prototype/build/GPUlancé ; nepasprétendrelecontraire. Avanttouteanalysesupplémentaire, cetteentréeestdésormaisactive. Revuelectureseulependant41, distinguerconstatsconnus,hypothèsesetnouveauxbugs ; pasdechangementdubinairetesté, pasdecomparaisonmatérielle42sansprotocoleàpart. Publication41prioritaireexplicitementdemandée. État : en cours, aucun nouveauconstat42validé.
 
 - **41 publiéàlademandeexplicite,pascommegaindeperformancesconfirmé** : commit `e64d1d439a798887bf955ada27c99d789684df32` poussévers[PR34](https://github.com/0xZKnw/mlxl3/pull/34).32testsphysiques+3bridgequalifiés,défauts/mutationset2arrêts5Gioconservés. CribleOFFpartiel8brasjoints+1driverterminéavantpause, MAINFP1610,289vsLFU9,474maisR0derive9,045→9,870 ; pasdeconfirmation,pasdedébitMTP,pasde15tok/s. Reprendrelesbrasrestantsaprèsgitaveclesmêmesbinairesa3fd917d, aucuneinstallation/merge/release. CI ducommitexactàconsulter.
+
+- 41 baseline/screen HOLD-2-C0-LRU : **validated**, 9.33084475814487tok/s, pic8223775392octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen HOLD-3-C4-F32-LRU : **validated**, 9.783138829243224tok/s, pic8221891232octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen HOLD-4-C4-F16-LRU : **validated**, 9.890477629145598tok/s, pic8218352288octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen HOLD-5-R0 : **validated**, 9.451409265809147tok/s, pic8211356296octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- **41 baseline/screen terminé : screen_complete**, 12/12bras ; result.json, sélection{'common': False, 'les': 'C4-F16-LRU', 'ratios': {'common': [0.959948756339273, 1.0034624589911583], 'C4-F32-LRU': [0.9464972595885891, 1.0052605610565084], 'C4-F16-LRU': [1.0425089734632393, 1.016290095043132]}}.
+
+- **41 cribleOFF4Gio terminé** :12bras/36réponses128exactes/swapouts0,pics≈8,21–8,23Go. Commonnonéligible(MAINC0LFU9,474vsR0rapide9,870) ; F16seuléligiblefaceauplusrapideR0/C0LFU/C0LRU :+4,2509%MAIN/+1,6290%HOLD. PausepublicationuniquementsurHOLD-LRU9,3308, dontledébitnefixepaslemaximum9,7319 ; larègleéligibilitédonnelemêmerésultatenexcluantcetémoinaucomportementobserverdéviant. **Pasdegainconfirmé**. LancerconfirmationLESOFF8braspréenregistrésréférenceC0LFU/candidatC4F16LRU, observer2scontinu,128warm+3mesures128,toutes4paires≥1%/étendue≤3points/prompt ; commonconfirmationnonlancée(nonéligible).
+
+- 41 baseline/confirm-les MAIN-1-H-C0-LFU : **validated**, 10.110099212076113tok/s, pic8219056752octets, swapouts+0octets ; opt-41/baseline/confirm-les/execution.json.
+
+- 41 baseline/confirm-les MAIN-1-C-C4-F16-LRU : **validated**, 9.833681251711898tok/s, pic8218467000octets, swapouts+0octets ; opt-41/baseline/confirm-les/execution.json.
+
+- **41 baseline/confirm-les terminé : rejected**, 2/8bras ; result.json, sélectionNone.
+
+- **41 confirmation LES OFF rejetée** : première paire MAIN, témoin C0-LFU = 10,110099 tok/s, C4-F16-LRU = 9,833681 tok/s, soit −2,73408 %. Deux bras complets, huit réponses de 128 tokens exactes, pics 8 219 056 752 / 8 218 467 000 octets, swapouts +0 chacun. Arrêt anticipé conservateur prévu : 6/8 bras non lancés, matrice globale incomplète (`parity_complete: false`), aucune relance pour bruit. Le signal favorable du crible OFF ne constitue donc **aucun gain confirmé**. Résultats : `docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/baseline/confirm-les/result.json`. Lancer maintenant le crible MTP préenregistré : mêmes contrôles et candidats, cache 4 Gio, 128 warm + 2×128 mesurés, secteurs/applications inchangés, aucun changement de sources ou de binaire.
+
+- **42 revue terminée, sans changement exécutable ni nouvelle mesure** : [rapport](docs/flash-les-followup-review-2026-10-19.md), identités dans `docs/measurements/flash-next-ssd-impl/opt-42-followup-review/identity.json`. Confirmés par code : deux routages génériques séparés par paire MTP ; deux évaluations bloquantes de la tête vocabulaire ; protection jusqu’à 32 candidats contre 4 jobs admis ; soumission GPU possible avec zéro admission ; duplication possible des demandes tardives ; pool spéculatif indépendant des lecteurs de demande, sans priorité. Coûts temporels et attribution causale **non mesurés**. Hypothèses de réouverture par expert et de promotion FP32 du grand head écartées ; caches de factories déjà présents et essais PERF-06/33 rejetés, aucune répétition. Aucun nouveau bug numérique reproduit, aucun gain 42, aucune activation par défaut ; profil léger requis avant prototype suivant. Écart initial de préenregistrement de lecture conservé. Campagne 41 MTP reste distincte et en cours.
+
+- 41 mtp/screen MAIN-0-R0 : **validated**, 9.820682982393343tok/s, pic9277281608octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen MAIN-1-C0-LFU : **validated**, 10.222442455502197tok/s, pic9006505232octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen MAIN-2-C0-LRU : **validated**, 9.862713624582288tok/s, pic9004555440octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen MAIN-3-C4-F32-LRU : **validated**, 9.863487153968538tok/s, pic9008618864octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen MAIN-4-C4-F16-LRU : **validated**, 10.127524966551963tok/s, pic9005768048octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen MAIN-5-R0 : **validated**, 10.128651693278133tok/s, pic9007045904octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- **41 crible MTP MAIN complet (HOLD encore en cours)** : R0 9,820683 → 10,128652 tok/s ; C0-LFU 10,222442, C0-LRU 9,862714, C4-F32-LRU 9,863487, C4-F16-LRU 10,127525 tok/s. Common = +0.925995 % face au R0 le plus rapide, sous le seuil 1 % ; les deux LES sont sous C0-LFU. Aucun candidat ne pourra donc être éligible à une confirmation MTP sur les deux prompts selon le plan 41. Terminer les six bras HOLD pour conserver la matrice, les contrôles et les métriques mémoire ; pas de relance pour bruit. Les 6 bras MAIN complets ont des sorties exactes et swapouts +0 ; leurs pics sont dans execution.json.
+
+- 41 mtp/screen HOLD-0-R0 : **validated**, 9.38472645627106tok/s, pic9000983800octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen HOLD-1-C0-LFU : **validated**, 9.796802927709713tok/s, pic8998788344octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen HOLD-2-C0-LRU : **validated**, 9.309497467183709tok/s, pic9000770784octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen HOLD-3-C4-F32-LRU : **validated**, 9.443396600074813tok/s, pic9005686104octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen HOLD-4-C4-F16-LRU : **validated**, 9.604047375047976tok/s, pic9000607088octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- 41 mtp/screen HOLD-5-R0 : **validated**, 9.420227298251344tok/s, pic9000721632octets, swapouts+0octets ; opt-41/mtp/screen/execution.json.
+
+- **41 mtp/screen terminé : screen_complete**, 12/12bras ; result.json, sélection{'common': False, 'les': None, 'ratios': {'common': [1.0092599454561468, 1.0399752168961223], 'C4-F32-LRU': [0.9648855639837374, 0.9639263614627472], 'C4-F16-LRU': [0.9907147935179479, 0.9803246473279014]}}.
+
+- **41 campagne terminée : qualité validée, aucun gain de débit confirmé**. Cribles OFF et MTP complets : 24 bras ; confirmation OFF rejetée à la première paire, 2 bras complets / 6 non lancés. Au total 80 générations de 128 tokens contrôlées et exactes sur les bras terminés, 26 processus joints, swapouts +0 dans cette campagne 4 Gio. Pics OFF 8 210 750 040–8 227 445 432 octets ; MTP 8 998 788 344–9 277 281 608 octets. MTP MAIN : C0-LFU 10,222442 tok/s contre R0 final 10,128652 (+0,925995 %, seuil 1 % manqué) ; HOLD 9,796803 contre R0 final 9,420227 (+3,997522 %). LES F16 10,127525 / 9,604047 et F32 9,863487 / 9,443397 restent sous C0-LFU sur les deux prompts. Aucune confirmation MTP éligible, aucune relance pour bruit ; aucun 15 tok/s ni défaut expérimental activé. Compteurs MTP identiques aux références : MAIN 54/72 propositions acceptées, HOLD 48/78. Ce ne sont pas des mesures du coût de vérification. Résultats/identités/limites dans `docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/summary.json` et chaque execution/result.json. Deux arrêts mémoire initiaux à 5 Gio et échecs/mutations/oracle insuffisant restent conservés. Revue42 close, aucun essai encore en cours ; publier ces résultats et le rapport à la demande explicite de l’utilisateur, puis vérifier la tête et la CI exactes.
