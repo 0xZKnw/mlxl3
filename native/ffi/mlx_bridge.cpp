@@ -116,6 +116,10 @@ std::vector<std::string> strings(const char* const* p, size_t n) {
   for (size_t i = 0; i < n; ++i) result.emplace_back(p[i]);
   return result;
 }
+struct PreparedDiskRead {
+  std::vector<mx::array> owners;
+  std::vector<mlxl3::DiskRead> reads;
+};
 }
 
 extern "C" {
@@ -287,6 +291,58 @@ int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
       reads.push_back(std::move(read));
     }
     mlxl3::read_disk_records(reads, workers);
+  });
+}
+int mlxl3_disk_read_prepare(int fd, uint64_t offset, void* const* buffers, size_t buffer_count,
+                            const size_t* indices, const size_t* starts, const size_t* lengths,
+                            size_t segments, void** out) noexcept {
+  return protect([&] {
+    if (!buffers || !buffer_count || !indices || !starts || !lengths || !out ||
+        !segments || segments > 64)
+      throw std::invalid_argument("invalid persistent disk read");
+    auto prepared = std::make_unique<PreparedDiskRead>();
+    prepared->owners = arrays(buffers, buffer_count);
+    mlxl3::DiskRead read{fd, offset, {}};
+    for (size_t i = 0; i < segments; ++i) {
+      if (indices[i] >= buffer_count) throw std::invalid_argument("invalid persistent disk bank");
+      auto& a = prepared->owners[indices[i]];
+      a.eval();
+      if (!a.flags().row_contiguous || starts[i] > a.nbytes() || lengths[i] > a.nbytes() - starts[i])
+        throw std::invalid_argument("invalid persistent disk range");
+      read.destinations.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
+    }
+    prepared->reads.push_back(std::move(read));
+    mlxl3::validate_disk_reads(prepared->reads);
+    *out = prepared.release();
+  });
+}
+// The main thread retains/frees the owners; this worker entry only touches OS buffers.
+int mlxl3_disk_read_run(void* opaque, uint64_t* bytes) noexcept {
+  if (!opaque || !bytes) return -1;
+  auto& read = static_cast<PreparedDiskRead*>(opaque)->reads.front();
+  const auto status = protect([&] { mlxl3::read_disk_record(read); });
+  *bytes = read.bytes_read;
+  return status;
+}
+void mlxl3_disk_read_free(void* opaque) noexcept {
+  delete static_cast<PreparedDiskRead*>(opaque);
+}
+int mlxl3_arrays_copy_record(const uint8_t* bytes, size_t count, void* const* buffers,
+                            size_t buffer_count, const size_t* indices, const size_t* starts,
+                            const size_t* lengths, size_t segments) noexcept {
+  return protect([&] {
+    if (!bytes || !count || !buffers || !indices || !starts || !lengths || !segments || segments > 64)
+      throw std::invalid_argument("invalid staging metadata");
+    std::vector<iovec> destinations;
+    for (size_t i = 0; i < segments; ++i) {
+      if (indices[i] >= buffer_count) throw std::invalid_argument("invalid staging bank");
+      auto& a = arr(buffers[indices[i]]);
+      a.eval();
+      if (!a.flags().row_contiguous || starts[i] > a.nbytes() || lengths[i] > a.nbytes() - starts[i])
+        throw std::invalid_argument("invalid staging range");
+      destinations.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
+    }
+    mlxl3::copy_disk_record(bytes, count, destinations);
   });
 }
 int mlxl3_array_async_eval(void* p) noexcept {

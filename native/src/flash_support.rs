@@ -139,9 +139,14 @@ pub fn segment_tokens(current: u32, previous: [u32; 2], eos: u32) -> [u32; 3] {
 /// A failed read must invalidate its reservation before it can become a hit.
 pub struct ExpertCache {
     keys: Vec<Option<u32>>,
+    pending: Vec<Option<u32>>,
+    prefetched: Vec<bool>,
+    predicted: [bool; 512],
+    predictive_lru: bool,
     counts: [u32; 512],
     ages: Vec<u64>,
     clock: u64,
+    pub prefetch_hits: u64,
 }
 
 impl ExpertCache {
@@ -151,9 +156,14 @@ impl ExpertCache {
         }
         Ok(Self {
             keys: vec![None; slots],
+            pending: vec![None; slots],
+            prefetched: vec![false; slots],
+            predicted: [false; 512],
+            predictive_lru: false,
             counts: [0; 512],
             ages: vec![0; slots],
             clock: 0,
+            prefetch_hits: 0,
         })
     }
 
@@ -171,7 +181,7 @@ impl ExpertCache {
                 unique.insert(position, id);
             }
         }
-        if unique.len() > self.keys.len() {
+        if unique.len() > self.pending.iter().filter(|p| p.is_none()).count() {
             return Err(CacheError::Capacity);
         }
         self.clock = self.clock.checked_add(1).ok_or(CacheError::Clock)?;
@@ -185,17 +195,12 @@ impl ExpertCache {
             let present = self.keys.iter().position(|&key| key == Some(id));
             let slot = match present {
                 Some(slot) => slot,
-                None => (0..self.keys.len())
-                    .filter(|&i| self.keys[i].is_none_or(|key| !unique.contains(&key)))
-                    .min_by_key(|&i| {
-                        (
-                            self.keys[i].map_or(0, |key| self.counts[key as usize]),
-                            self.ages[i],
-                            i,
-                        )
-                    })
-                    .ok_or(CacheError::NoSlot)?,
+                None => self.victim(&unique).ok_or(CacheError::NoSlot)?,
             };
+            if present.is_some() && self.prefetched[slot] {
+                self.prefetch_hits = self.prefetch_hits.saturating_add(1);
+            }
+            self.prefetched[slot] = false;
             self.keys[slot] = Some(id);
             self.counts[id as usize] = self.counts[id as usize].saturating_add(1);
             self.ages[slot] = self.clock;
@@ -213,8 +218,89 @@ impl ExpertCache {
             .collect())
     }
 
+    pub fn contains(&self, id: u32) -> bool {
+        self.keys.contains(&Some(id))
+    }
+
+    fn victim(&self, routed: &[u32]) -> Option<usize> {
+        (0..self.keys.len())
+            .filter(|&i| {
+                self.pending[i].is_none() && self.keys[i].is_none_or(|key| !routed.contains(&key))
+            })
+            .min_by_key(|&i| {
+                (
+                    u8::from(self.keys[i].is_some()),
+                    u8::from(self.keys[i].is_some_and(|key| self.predicted[key as usize])),
+                    if self.predictive_lru {
+                        0
+                    } else {
+                        self.keys[i].map_or(0, |key| self.counts[key as usize])
+                    },
+                    self.ages[i],
+                    i,
+                )
+            })
+    }
+
+    pub(crate) fn enable_predictive_lru(&mut self) {
+        // Unused prefetches need a lifetime without inventing demand frequency.
+        self.predictive_lru = true;
+    }
+
+    pub fn protect_predictions(&mut self, ids: &[u32]) -> Result<(), CacheError> {
+        if ids.len() > 32 || ids.iter().any(|&id| id >= 512) {
+            return Err(CacheError::InvalidIds);
+        }
+        self.predicted.fill(false);
+        self.enable_predictive_lru();
+        for &id in ids {
+            self.predicted[id as usize] = true;
+        }
+        Ok(())
+    }
+
+    /// Leave enough non-pending slots for the next actual one/two-row cohort.
+    pub fn claim_prefetch(&mut self, id: u32) -> Result<Option<usize>, CacheError> {
+        if id >= 512 {
+            return Err(CacheError::InvalidIds);
+        }
+        let pending = self.pending.iter().filter(|p| p.is_some()).count();
+        let cohort = if self.capacity() >= 20 { 20 } else { 10 };
+        if self.contains(id)
+            || self.pending.contains(&Some(id))
+            || self.capacity() - pending <= cohort
+        {
+            return Ok(None);
+        }
+        let slot = self.victim(&[]).ok_or(CacheError::NoSlot)?;
+        self.keys[slot] = None;
+        self.prefetched[slot] = false;
+        self.pending[slot] = Some(id);
+        Ok(Some(slot))
+    }
+
+    /// Only the inference thread publishes a completed write. Demand may have won.
+    pub fn publish_prefetch(&mut self, slot: usize, id: u32, valid: bool) -> bool {
+        if self.pending.get(slot) != Some(&Some(id)) {
+            return false;
+        }
+        self.pending[slot] = None;
+        if !valid || self.contains(id) {
+            return false;
+        }
+        let Some(clock) = self.clock.checked_add(1) else {
+            return false;
+        };
+        self.clock = clock;
+        self.keys[slot] = Some(id);
+        self.prefetched[slot] = true;
+        self.ages[slot] = self.clock;
+        true
+    }
+
     pub fn invalidate(&mut self) {
         self.keys.fill(None);
+        self.prefetched.fill(false);
     }
     pub fn capacity(&self) -> usize {
         self.keys.len()
@@ -393,6 +479,319 @@ mod tests {
     }
 
     #[test]
+    fn pending_records_never_hit_alias_or_publish_over_a_demand() -> Result<()> {
+        let mut cache = ExpertCache::new(24)?;
+        let slot = cache.claim_prefetch(511)?.unwrap();
+        assert!(!cache.contains(511));
+        assert_eq!(cache.claim_prefetch(511)?, None);
+        cache.invalidate();
+        let routes = cache.reserve(&[511, 511, 1])?;
+        assert!(routes.iter().all(|&(s, hit)| s != slot && !hit));
+        assert!(!cache.publish_prefetch(slot, 510, true));
+        assert_eq!(cache.pending[slot], Some(511));
+        assert!(!cache.publish_prefetch(slot, 511, true));
+        assert_eq!(cache.keys.iter().filter(|&&k| k == Some(511)).count(), 1);
+        let other = cache.claim_prefetch(510)?.unwrap();
+        assert!(!cache.publish_prefetch(other, 510, false));
+        assert!(!cache.contains(510));
+        let other = cache.claim_prefetch(510)?.unwrap();
+        assert!(cache.publish_prefetch(other, 510, true));
+        assert!(cache.contains(510));
+        assert_eq!(cache.reserve(&[510, 510])?, [(other, true); 2]);
+        assert_eq!(cache.prefetch_hits, 1);
+        assert!(cache.reserve(&[510])?[0].1);
+        assert_eq!(cache.prefetch_hits, 1);
+        assert!(!cache.publish_prefetch(usize::MAX, 0, true));
+        assert!(cache.claim_prefetch(512).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn predictions_protect_victims_without_inventing_frequency_or_blocking_demand() -> Result<()> {
+        let mut cache = ExpertCache::new(10)?;
+        cache.reserve(&(0..10).collect::<Vec<_>>())?;
+        cache.protect_predictions(&[0])?;
+        let counts = cache.counts;
+        let clock = cache.clock;
+        assert!(cache.protect_predictions(&[512]).is_err());
+        assert!(cache.protect_predictions(&[0; 33]).is_err());
+        assert_eq!(cache.counts, counts);
+        assert_eq!(cache.clock, clock);
+        assert_eq!(cache.reserve(&[511])?, [(1, false)]);
+        assert!(cache.contains(0));
+        cache.protect_predictions(&(0..10).chain([511]).collect::<Vec<_>>())?;
+        assert!(cache.reserve(&[510])?.iter().all(|&(_, hit)| !hit));
+        // All slots protected still permits a real route through the bounded fallback.
+        assert!(cache.contains(510));
+        Ok(())
+    }
+
+    #[test]
+    fn predictive_victims_replay_symbolic_case_and_all_protection_masks() -> Result<()> {
+        let mut cache = ExpertCache::new(10)?;
+        let values = [
+            (7, 3, true, true),
+            (7, 3, true, false),
+            (7, 2, false, true),
+            (7, 2, true, true),
+            (7, 2, true, true),
+            (7, 3, false, true),
+            (2, 3, false, true),
+            (7, 1, true, true),
+            (2, 2, false, true),
+            (2, 3, false, false),
+        ];
+        for (i, &(count, age, predicted, pending)) in values.iter().enumerate() {
+            cache.keys[i] = Some(i as u32);
+            cache.counts[i] = count;
+            cache.ages[i] = age;
+            cache.predicted[i] = predicted;
+            cache.pending[i] = pending.then_some(511);
+        }
+        assert_eq!(cache.victim(&[5, 4]), Some(9));
+        for mask in 0..1024_u16 {
+            for i in 0..10 {
+                cache.predicted[i] = mask & (1 << i) != 0;
+                cache.pending[i] = None;
+                cache.counts[i] = if i % 2 == 0 { u32::MAX } else { 0 };
+                cache.ages[i] = if i % 3 == 0 { u64::MAX } else { 0 };
+            }
+            let slot = cache.victim(&[0, 9]).unwrap();
+            assert!((1..9).contains(&slot));
+            assert_eq!(cache.predicted[slot], (1..9).all(|i| cache.predicted[i]));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn les_admission_retains_recent_unused_records_without_inventing_frequency() -> Result<()> {
+        for capacity in [24, 89] {
+            for demanded in [false, true] {
+                let mut cache = ExpertCache::new(capacity)?;
+                for first in (0..capacity).step_by(10) {
+                    let ids = (0..10)
+                        .map(|i| ((first + i) % capacity) as u32)
+                        .collect::<Vec<_>>();
+                    cache.reserve(&ids)?;
+                }
+                assert!(!cache.predictive_lru);
+                assert!(cache.protect_predictions(&[512]).is_err());
+                assert!(!cache.predictive_lru);
+                cache.protect_predictions(&[511])?;
+                let first = cache.claim_prefetch(511)?.unwrap();
+                let clock = cache.clock;
+                assert!(cache.publish_prefetch(first, 511, true));
+                assert_eq!(cache.counts[511], 0);
+                assert_eq!(cache.ages[first], clock + 1);
+                if demanded {
+                    assert!(cache.reserve(&[511])?[0].1);
+                }
+                cache.protect_predictions(&[510])?;
+                let second = cache.claim_prefetch(510)?.unwrap();
+                assert_ne!(first, second, "new prefetch evicted before older records");
+                assert!(cache.publish_prefetch(second, 510, true));
+                assert!(cache.contains(511));
+                assert_eq!(cache.counts[511], u32::from(demanded));
+            }
+        }
+        let mut cache = ExpertCache::new(10)?;
+        cache.reserve(&(0..10).collect::<Vec<_>>())?;
+        for _ in 0..3 {
+            cache.reserve(&[0])?;
+        }
+        cache.reserve(&(1..10).collect::<Vec<_>>())?;
+        assert_eq!(cache.victim(&[]), Some(1), "ordinary cache must retain LFU");
+        cache.protect_predictions(&[])?;
+        assert_eq!(cache.victim(&[]), Some(0), "LES window must use recency");
+        Ok(())
+    }
+
+    #[test]
+    fn publication_clock_exhaustion_frees_pending_without_a_false_hit() -> Result<()> {
+        let mut cache = ExpertCache::new(24)?;
+        cache.protect_predictions(&[511])?;
+        let slot = cache.claim_prefetch(511)?.unwrap();
+        cache.clock = u64::MAX;
+        assert!(!cache.publish_prefetch(slot, 511, true));
+        assert!(!cache.contains(511));
+        assert_eq!(cache.pending[slot], None);
+        assert_eq!(cache.clock, u64::MAX);
+        assert_eq!(cache.reserve(&[511]), Err(CacheError::Clock));
+        Ok(())
+    }
+
+    #[test]
+    fn free_slots_precede_evictions_through_failed_and_duplicate_publications() -> Result<()> {
+        #[derive(Clone, Copy, PartialEq)]
+        enum Slot {
+            Empty,
+            Ready(u32),
+            Pending(u32),
+        }
+        for capacity in [24, 89] {
+            let mut cache = ExpertCache::new(capacity)?;
+            let mut slots = vec![Slot::Empty; capacity];
+            let mut seed = 39_u64;
+            let mut random = || {
+                seed ^= seed << 13;
+                seed ^= seed >> 7;
+                seed ^= seed << 17;
+                seed
+            };
+            for step in 0..10_000 {
+                match random() % 5 {
+                    0 | 1 => {
+                        let ids = (0..10).map(|_| (random() % 128) as u32).collect::<Vec<_>>();
+                        let routes = cache.reserve(&ids)?;
+                        for (&id, &(slot, hit)) in ids.iter().zip(&routes) {
+                            if hit {
+                                assert!(slots[slot] == Slot::Ready(id));
+                            }
+                            assert!(!matches!(slots[slot], Slot::Pending(_)));
+                            slots[slot] = Slot::Ready(id);
+                        }
+                    }
+                    2 => {
+                        let ids = (0..16).map(|_| (random() % 128) as u32).collect::<Vec<_>>();
+                        cache.protect_predictions(&ids)?;
+                    }
+                    3 if slots
+                        .iter()
+                        .filter(|s| matches!(s, Slot::Pending(_)))
+                        .count()
+                        < 4 =>
+                    {
+                        let id = (random() % 128) as u32;
+                        let free = slots.contains(&Slot::Empty);
+                        if let Some(slot) = cache.claim_prefetch(id)? {
+                            assert!(
+                                !(free && matches!(slots[slot], Slot::Ready(_))),
+                                "free slot ignored: capacity={capacity}, step={step}"
+                            );
+                            assert!(!matches!(slots[slot], Slot::Pending(_)));
+                            slots[slot] = Slot::Pending(id);
+                        }
+                    }
+                    4 => {
+                        let choices = slots
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(i, s)| matches!(s, Slot::Pending(_)).then_some(i))
+                            .collect::<Vec<_>>();
+                        if !choices.is_empty() {
+                            let slot = choices[random() as usize % choices.len()];
+                            let Slot::Pending(id) = slots[slot] else {
+                                unreachable!()
+                            };
+                            let valid = random() % 4 != 0;
+                            let duplicate = slots.contains(&Slot::Ready(id));
+                            let published = cache.publish_prefetch(slot, id, valid);
+                            assert_eq!(published, valid && !duplicate);
+                            slots[slot] = if published {
+                                Slot::Ready(id)
+                            } else {
+                                Slot::Empty
+                            };
+                        }
+                    }
+                    _ => {}
+                }
+                for slot in &slots {
+                    if let Slot::Ready(id) = slot {
+                        assert!(cache.contains(*id));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn speculative_admission_preserves_actual_cohort_space_and_failed_reservations() -> Result<()> {
+        for capacity in [10, 11, 19, 20, 21, 24, 89, 512] {
+            let mut cache = ExpertCache::new(capacity)?;
+            let cohort = if capacity >= 20 { 20 } else { 10 };
+            for id in 0..512 {
+                cache.claim_prefetch(id)?;
+            }
+            let pending = cache.pending.clone();
+            assert_eq!(
+                pending.iter().filter(|p| p.is_some()).count(),
+                capacity - cohort
+            );
+            let ids = (512 - cohort as u32..512).collect::<Vec<_>>();
+            let routes = cache.reserve(&ids)?;
+            assert!(
+                routes
+                    .iter()
+                    .all(|&(slot, hit)| pending[slot].is_none() && !hit)
+            );
+            let old = (cache.keys.clone(), cache.clock, cache.counts);
+            assert!(
+                cache
+                    .reserve(&(0..cohort as u32 + 1).collect::<Vec<_>>())
+                    .is_err()
+            );
+            assert_eq!((cache.keys.clone(), cache.clock, cache.counts), old);
+            cache.invalidate();
+            assert_eq!(cache.pending, pending);
+            for (slot, &id) in pending.iter().enumerate() {
+                if let Some(id) = id {
+                    cache.publish_prefetch(slot, id, true);
+                }
+            }
+            assert!(cache.pending.iter().all(Option::is_none));
+            cache.clock = u64::MAX;
+            let keys = cache.keys.clone();
+            assert_eq!(cache.reserve(&[511]), Err(CacheError::Clock));
+            assert_eq!(cache.keys, keys);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn persistent_prefetch_sequences_preserve_cache_invariants() -> Result<()> {
+        for capacity in [10, 20, 24, 89] {
+            let mut cache = ExpertCache::new(capacity)?;
+            let mut rng = 0x83a2_5417_u64;
+            for step in 0..256 {
+                rng ^= rng << 13;
+                rng ^= rng >> 7;
+                rng ^= rng << 17;
+                let ids = (0..20)
+                    .map(|i| ((rng + i * 13) % 512) as u32)
+                    .collect::<Vec<_>>();
+                cache.protect_predictions(&ids)?;
+                for &id in &ids[..4] {
+                    cache.claim_prefetch(id)?;
+                }
+                if step % 7 == 0 {
+                    cache.invalidate();
+                }
+                let pending = cache.pending.clone();
+                let routes = cache.reserve(&ids[..if capacity >= 20 { 20 } else { 10 }])?;
+                for (i, &(slot, _)) in routes.iter().enumerate() {
+                    assert!(pending[slot].is_none());
+                    assert_eq!(cache.keys[slot], Some(ids[i]));
+                }
+                for (slot, id) in pending.into_iter().enumerate() {
+                    if let Some(id) = id {
+                        cache.publish_prefetch(slot, id, step % 3 != 0);
+                    }
+                }
+                for (slot, &key) in cache.keys.iter().enumerate() {
+                    assert!(key.is_none() || cache.pending[slot].is_none());
+                    if let Some(key) = key {
+                        assert!(key < 512);
+                        assert!(!cache.keys[slot + 1..].contains(&Some(key)));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     fn seeded_cache_cohorts_survive_evictions_aging_and_read_failures() -> Result<()> {
         for slots in [10, 20, 64, 512] {
             let mut cache = ExpertCache::new(slots)?;
@@ -434,6 +833,158 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(12)]
+    fn predictive_victims_exclude_pending_and_fall_back_only_when_needed() {
+        let mut cache = ExpertCache::new(10).unwrap();
+        cache.predictive_lru = kani::any();
+        for i in 0..10 {
+            cache.keys[i] = Some(i as u32);
+            cache.counts[i] = kani::any();
+            cache.ages[i] = kani::any();
+            cache.predicted[i] = kani::any();
+            cache.pending[i] = if kani::any() { Some(511) } else { None };
+        }
+        let routed: [u32; 2] = kani::any();
+        let eligible = |i: usize| cache.pending[i].is_none() && !routed.contains(&(i as u32));
+        let available = (0..10).any(eligible);
+        let unpredicted = (0..10).any(|i| eligible(i) && !cache.predicted[i]);
+        let victim = cache.victim(&routed);
+        assert_eq!(victim.is_some(), available);
+        if let Some(slot) = victim {
+            assert!(slot < 10 && eligible(slot));
+            assert_eq!(cache.predicted[slot], !unpredicted);
+            kani::cover!(unpredicted);
+            kani::cover!(!unpredicted);
+        }
+        kani::cover!(!available);
+        kani::cover!(cache.predictive_lru && available);
+        kani::cover!(!cache.predictive_lru && available);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(12)]
+    fn free_slots_precede_all_ready_victims_in_both_policies() {
+        let mut cache = ExpertCache::new(10).unwrap();
+        cache.predictive_lru = kani::any();
+        for i in 0..10 {
+            cache.keys[i] = if kani::any() { Some(i as u32) } else { None };
+            cache.pending[i] = if cache.keys[i].is_none() && kani::any() {
+                Some(511)
+            } else {
+                None
+            };
+            cache.counts[i] = kani::any();
+            cache.ages[i] = kani::any();
+            cache.predicted[i] = kani::any();
+        }
+        let routed: [u32; 2] = kani::any();
+        let free = (0..10).any(|i| cache.keys[i].is_none() && cache.pending[i].is_none());
+        let victim = cache.victim(&routed);
+        if free {
+            let slot = victim.unwrap();
+            assert!(slot < 10 && cache.keys[slot].is_none() && cache.pending[slot].is_none());
+            kani::cover!(cache.predictive_lru);
+            kani::cover!(!cache.predictive_lru);
+        }
+        if let Some(slot) = victim {
+            assert!(cache.pending[slot].is_none());
+            kani::cover!(!free && cache.keys[slot].is_some());
+        }
+    }
+
+    #[kani::proof]
+    #[kani::unwind(12)]
+    fn les_lru_uses_age_without_penalizing_zero_frequency_prefetches() {
+        let mut cache = ExpertCache::new(10).unwrap();
+        cache.predictive_lru = true;
+        for i in 0..10 {
+            cache.keys[i] = Some(i as u32);
+            cache.counts[i] = kani::any();
+            cache.ages[i] = kani::any();
+            cache.predicted[i] = kani::any();
+        }
+        let routed: [u32; 2] = kani::any();
+        let slot = cache.victim(&routed).unwrap();
+        assert!(slot < 10 && !routed.contains(&(slot as u32)));
+        for i in 0..10 {
+            if !routed.contains(&(i as u32)) {
+                assert!(!cache.predicted[slot] || cache.predicted[i]);
+                if cache.predicted[slot] == cache.predicted[i] {
+                    assert!(cache.ages[slot] <= cache.ages[i]);
+                    if cache.ages[slot] == cache.ages[i] {
+                        assert!(slot <= i);
+                    }
+                }
+            }
+        }
+        kani::cover!(cache.predicted[slot]);
+        kani::cover!(!cache.predicted[slot]);
+        kani::cover!(cache.counts[slot] == 0 && cache.ages[slot] == 0);
+        kani::cover!(cache.counts[slot] == u32::MAX && cache.ages[slot] == 0);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(25)]
+    fn pending_publish_rejects_stale_failed_and_duplicate_records() {
+        let mut cache = ExpertCache::new(24).unwrap();
+        let slot: usize = kani::any();
+        let id: u32 = kani::any();
+        kani::assume(slot < 24 && id < 512);
+        cache.pending[slot] = Some(id);
+        let duplicate: bool = kani::any();
+        if duplicate {
+            cache.keys[(slot + 1) % 24] = Some(id);
+        }
+        let received: u32 = kani::any();
+        let valid: bool = kani::any();
+        let clock: u64 = kani::any();
+        cache.clock = clock;
+        let published = cache.publish_prefetch(slot, received, valid);
+        assert_eq!(
+            published,
+            received == id && valid && !duplicate && clock < u64::MAX
+        );
+        assert_eq!(cache.pending[slot].is_none(), received == id);
+        assert_eq!(cache.keys[slot] == Some(id), published);
+        assert_eq!(cache.prefetched[slot], published);
+        if published {
+            assert_eq!(cache.clock, clock + 1);
+            assert_eq!(cache.ages[slot], cache.clock);
+        } else {
+            assert_eq!(cache.clock, clock);
+        }
+        kani::cover!(published);
+        kani::cover!(received == id && !valid);
+        kani::cover!(received == id && valid && duplicate);
+        kani::cover!(received != id);
+        kani::cover!(received == id && valid && !duplicate && clock == u64::MAX);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(25)]
+    fn speculative_claim_excludes_pending_and_preserves_pair_space() {
+        let mut cache = ExpertCache::new(24).unwrap();
+        cache.predictive_lru = kani::any();
+        let id: u32 = kani::any();
+        let pending: u8 = kani::any();
+        kani::assume(pending <= 4);
+        for i in 0..usize::from(pending) {
+            cache.pending[i] = Some(i as u32);
+        }
+        let claimed = cache.claim_prefetch(id);
+        if let Ok(Some(slot)) = claimed {
+            assert!(id < 512 && pending < 4 && id >= u32::from(pending));
+            assert!(slot >= usize::from(pending) && slot < 24);
+            assert_eq!(cache.pending[slot], Some(id));
+            assert_eq!(cache.keys[slot], None);
+            kani::cover!(pending == 3);
+        }
+        if pending == 4 && id < 512 {
+            assert_eq!(claimed, Ok(None));
+        }
+        kani::cover!(id >= 512 && claimed == Err(CacheError::InvalidIds));
+    }
     #[kani::proof]
     fn disk_destinations_cannot_wrap_or_exceed_owned_storage() {
         let start: usize = kani::any();

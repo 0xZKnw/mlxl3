@@ -8,15 +8,19 @@ use crate::{
     lfm2::{Projection, half_weight},
     linear::checkpoint_array,
     ssd_moe::SsdMoe,
+    ssd_prefetch::ReaderPool,
 };
 use anyhow::{Context, Result, ensure};
 use half::f16;
 use serde_json::Value;
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, VecDeque},
     fs::File,
     os::unix::fs::FileExt,
     path::PathBuf,
+    rc::Rc,
+    sync::atomic::Ordering,
 };
 
 const H: i32 = 2560;
@@ -816,8 +820,17 @@ impl Layer {
         })
     }
     fn forward(&mut self, streams: &Array, token: u32) -> Result<Array> {
+        self.forward_lookahead(streams, token, None, 0)
+    }
+    fn forward_lookahead(
+        &mut self,
+        streams: &Array,
+        token: u32,
+        next: Option<&mut SsdMoe>,
+        depth: usize,
+    ) -> Result<Array> {
         let (streams, mixed, gate) = self.prepare(streams, token)?;
-        let output = self.moe.forward(&mixed)?;
+        let output = self.moe.forward_lookahead(&mixed, next, depth)?;
         #[cfg(test)]
         self.stages.push(("moe".into(), output.try_clone()?));
         Hc::write(&streams, &output, &gate)
@@ -896,13 +909,15 @@ impl Layer {
         &mut self,
         streams: &[Array; 2],
         tokens: [u32; 2],
+        next: Option<&mut SsdMoe>,
+        depth: usize,
     ) -> Result<([Array; 2], LayerState)> {
         let a = self.prepare(&streams[0], tokens[0])?;
         let first = self.snapshot()?;
         let b = self.prepare(&streams[1], tokens[1])?;
-        let output = self
-            .moe
-            .forward_many(&Array::concatenate(&[&a.1, &b.1], 0)?)?;
+        let output =
+            self.moe
+                .forward_lookahead(&Array::concatenate(&[&a.1, &b.1], 0)?, next, depth)?;
         Ok((
             [
                 Hc::write(&a.0, &output.slice(0, 0, 1)?, &a.2)?,
@@ -932,6 +947,8 @@ pub struct FlashNext {
     context: i32,
     pub last_hidden: Option<Array>,
     verification: Option<PairState>,
+    lookahead_depth: usize,
+    lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
 }
 struct PairState {
     base: i32,
@@ -941,6 +958,17 @@ struct PairState {
 impl FlashNext {
     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
         ensure!(c.model_type == "qwen4_exp", "expected qwen4_exp");
+        let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
+            Ok(value) => value
+                .parse::<usize>()
+                .context("invalid SSD lookahead depth")?,
+            Err(std::env::VarError::NotPresent) => 0,
+            Err(error) => return Err(error.into()),
+        };
+        ensure!(
+            lookahead_depth <= 10,
+            "SSD lookahead depth must be in 0..=10"
+        );
         let root: Value = serde_json::from_reader(File::open(c.path.join("config.json"))?)?;
         let t = &root["text_config"];
         for (key, value) in [
@@ -1081,6 +1109,15 @@ impl FlashNext {
                 overlap,
             )?);
         }
+        let lookahead_pool = if lookahead_depth > 0 {
+            let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+            for (index, layer) in layers.iter_mut().enumerate() {
+                layer.moe.prefetcher = Some((index, Rc::clone(&pool)));
+            }
+            Some(pool)
+        } else {
+            None
+        };
         let mixer = Hc::load(c, "model.language_model.hyper_connection_mixer", eps, false)?;
         let head = Projection::load(c, "lm_head", H, 248320, false)?;
         Ok(Self {
@@ -1093,6 +1130,8 @@ impl FlashNext {
             context,
             last_hidden: None,
             verification: None,
+            lookahead_depth,
+            lookahead_pool,
         })
     }
     pub fn embedding(&self, token: u32) -> Result<Array> {
@@ -1120,8 +1159,13 @@ impl FlashNext {
         ensure!(self.offset < self.context, "Flash context exhausted");
         let mut trace = Vec::new();
         let mut streams = self.streams(token)?;
-        for (i, layer) in self.layers.iter_mut().enumerate() {
-            streams = layer.forward(&streams, token)?;
+        for i in 0..self.layers.len() {
+            let (current, rest) = self.layers.split_at_mut(i + 1);
+            let layer = &mut current[i];
+            let next = (self.lookahead_depth > 0)
+                .then(|| rest.first_mut().map(|l| &mut l.moe))
+                .flatten();
+            streams = layer.forward_lookahead(&streams, token, next, self.lookahead_depth)?;
             if capture {
                 trace.push((format!("layer_{i}"), streams.try_clone()?));
                 if let Attention::Gdn(gdn) = &layer.attention
@@ -1180,8 +1224,13 @@ impl FlashNext {
         let base = self.offset;
         let mut streams = [self.streams(tokens[0])?, self.streams(tokens[1])?];
         let mut states = Vec::with_capacity(self.layers.len());
-        for layer in &mut self.layers {
-            let (output, first) = layer.forward_pair(&streams, tokens)?;
+        for i in 0..self.layers.len() {
+            let (current, rest) = self.layers.split_at_mut(i + 1);
+            let next = (self.lookahead_depth > 0)
+                .then(|| rest.first_mut().map(|l| &mut l.moe))
+                .flatten();
+            let (output, first) =
+                current[i].forward_pair(&streams, tokens, next, self.lookahead_depth)?;
             streams = output;
             states.push(first);
         }
@@ -1251,8 +1300,16 @@ impl FlashNext {
         self.offset
     }
     pub fn io_stats(&self) -> (u64, u64, u64) {
-        self.layers.iter().fold((0, 0, 0), |(h, m, b), l| {
-            (h + l.moe.hits, m + l.moe.misses, b + l.moe.read_bytes)
+        let bytes = self
+            .lookahead_pool
+            .as_ref()
+            .map_or(0, |p| p.borrow().counters.bytes.load(Ordering::Relaxed));
+        self.layers.iter().fold((0, 0, bytes), |(h, m, b), l| {
+            (
+                h + l.moe.hits,
+                m + l.moe.misses,
+                b.saturating_add(l.moe.read_bytes),
+            )
         })
     }
 }
@@ -1535,6 +1592,93 @@ mod tests {
         }
         Ok(result)
     }
+    #[test]
+    #[ignore = "physical Apple GPU and Flash checkpoint; LES full logits, states and commits"]
+    fn flash_lookahead_preserves_full_logits_states_and_pair_commits() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut model = FlashNext::from_checkpoint(&c)?;
+        let tokens = [EOS, 78768, 11, 7, 5, 19];
+        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+        for (index, layer) in model.layers.iter_mut().enumerate() {
+            layer.moe.prefetcher = Some((index, Rc::clone(&pool)));
+        }
+        model.lookahead_pool = Some(Rc::clone(&pool));
+        model.lookahead_depth = 0;
+        let mut logits = Vec::new();
+        let mut states = Vec::new();
+        for token in tokens {
+            let value = model.forward(token)?;
+            ensure!(value.shape() == [1, 248320]);
+            let host = value.to_f32()?;
+            ensure!(host.len() == 248320 && host.iter().all(|v| v.is_finite()));
+            logits.push(value.to_bytes()?);
+            states.push(state_bytes(&model)?);
+        }
+        for depth in [0, 2, 4, 8, 10] {
+            for retained in [1, 2] {
+                model.reset();
+                model.lookahead_depth = depth;
+                for layer in &mut model.layers {
+                    layer.moe.cache_for_test_invalidate();
+                }
+                let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+                for step in 0..3 {
+                    ensure!(model.forward(tokens[step])?.to_bytes()? == logits[step]);
+                    ensure!(state_bytes(&model)? == states[step]);
+                }
+                let (pair, _) = model.verify_pair([tokens[3], tokens[4]])?;
+                let mut expected = logits[3].clone();
+                expected.extend(&logits[4]);
+                ensure!(pair.shape() == [2, 248320] && pair.to_bytes()? == expected);
+                ensure!(state_bytes(&model)? == states[4]);
+                model.commit_pair(retained)?;
+                ensure!(state_bytes(&model)? == states[2 + retained as usize]);
+                let next = 3 + retained as usize;
+                ensure!(model.forward(tokens[next])?.to_bytes()? == logits[next]);
+                ensure!(state_bytes(&model)? == states[next]);
+                let after = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+                ensure!(if depth > 0 {
+                    after > before
+                } else {
+                    after == before
+                });
+                pool.borrow_mut().wait_for_test()?;
+                pool.borrow_mut().poll();
+                let pool = pool.borrow();
+                let counts = &pool.counters;
+                eprintln!(
+                    "LES32_DIAGNOSTIC {}",
+                    serde_json::json!({
+                        "depth":depth,"commit":retained,"submitted":counts.submitted.load(Ordering::Relaxed),
+                        "completed":counts.completed.load(Ordering::Relaxed),"used":counts.used.load(Ordering::Relaxed),
+                        "discarded":counts.discarded.load(Ordering::Relaxed),"late_needed":counts.late_needed.load(Ordering::Relaxed),
+                        "failed":counts.failed.load(Ordering::Relaxed),"read_bytes":counts.bytes.load(Ordering::Relaxed)
+                    })
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_lookahead_model_path_checks_tokens_and_output_shape() {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL").unwrap()))
+            .unwrap();
+        let mut model = FlashNext::from_checkpoint(&c).unwrap();
+        model.lookahead_depth = if kani::any::<bool>() { 2 } else { 4 };
+        let token = kani::any::<u32>();
+        match model.forward(token) {
+            Ok(logits) => {
+                assert!(token < 248320);
+                assert_eq!(logits.shape(), [1, 248320]);
+                kani::cover!(token == 0);
+            }
+            Err(_) => {
+                kani::cover!(token >= 248320);
+            }
+        }
+    }
     fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
         let mut bytes = vec![qsa.offset.to_le_bytes().to_vec()];
         for value in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks] {
@@ -1557,6 +1701,172 @@ mod tests {
         }
         Ok(bytes)
     }
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical Apple GPU; isolated natural decode diagnostic, not release throughput"]
+    fn flash_light_profile_preserves_natural_decode() -> Result<()> {
+        use std::time::Instant;
+        let mtp = match std::env::var("MLXL3_FLASH_PROFILE_MTP")?.as_str() {
+            "0" => false,
+            "1" => true,
+            _ => anyhow::bail!("invalid profile mode"),
+        };
+        let label = std::env::var("MLXL3_FLASH_PROFILE_PROMPT")?;
+        let prompt = match label.as_str() {
+            "MAIN" => {
+                "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE."
+            }
+            "HOLD" => {
+                "Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple."
+            }
+            _ => anyhow::bail!("invalid profile prompt"),
+        };
+        let path = std::env::var("MLXL3_FLASH_MODEL")?;
+        let c = crate::checkpoint::inspect(Path::new(&path))?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(Path::new(&path))?;
+        let tokens = tokenizer.encode(&tokenizer.render(&[crate::tokenizer::Message {
+            role: "user".into(),
+            content: prompt.into(),
+        }])?)?;
+        let mut target = FlashNext::from_checkpoint(&c)?;
+        let mut head = if mtp {
+            Some(FlashMtpHead::load(&c, &target)?)
+        } else {
+            None
+        };
+        ensure!(!tokens.is_empty() && tokens.len() + 64 <= target.context_limit() as usize);
+        for phase in ["warmup", "measured"] {
+            target.reset();
+            if let Some(head) = &mut head {
+                head.reset();
+            }
+            let mut logits = None;
+            for &token in &tokens {
+                if let (Some(head), Some(hidden)) = (&mut head, &target.last_hidden) {
+                    head.extend_cache(&target, hidden, token)?;
+                }
+                logits = Some(target.forward(token)?);
+            }
+            let mut anchor = logits.context("empty prefill")?.chat_greedy_ids()?[0];
+            if let Some(pool) = &target.lookahead_pool {
+                let mut pool = pool.borrow_mut();
+                pool.wait_for_test()?;
+                pool.poll();
+                let c = &pool.counters;
+                for counter in [
+                    &c.submitted,
+                    &c.completed,
+                    &c.used,
+                    &c.discarded,
+                    &c.failed,
+                    &c.late_needed,
+                    &c.bytes,
+                ] {
+                    counter.store(0, Ordering::Relaxed);
+                }
+            }
+            for layer in &mut target.layers {
+                let moe = &mut layer.moe;
+                moe.profile_seconds = [0.0; 2];
+                moe.prefetch_profile = [0; 4];
+                moe.import_seconds = 0.0;
+                moe.overlap_hot_rows = 0;
+                moe.prefetched = 0;
+                moe.hits = 0;
+                moe.misses = 0;
+                moe.read_bytes = 0;
+            }
+            let mut session = FlashMtpSession::default();
+            let mut output = vec![anchor];
+            let start = Instant::now();
+            for step in 1..64 {
+                anchor = if let Some(head) = &mut head {
+                    session.advance(&mut target, head, anchor, tokens.len() + 63, 64 - step)?
+                } else {
+                    target.forward(anchor)?.chat_greedy_ids()?[0]
+                };
+                output.push(anchor);
+            }
+            target.drain()?;
+            let decode_seconds = start.elapsed().as_secs_f64();
+            ensure!(output.len() == 64 && output.iter().all(|&id| id < 248320));
+            ensure!(session.pending.is_empty() && target.offset() as usize == tokens.len() + 63);
+            if let Some(head) = &head {
+                ensure!(head.offset() == target.offset() - 1);
+            }
+            let logits = target.logits(
+                target
+                    .last_hidden
+                    .as_ref()
+                    .context("missing final hidden")?,
+            )?;
+            ensure!(logits.shape() == [1, 248320]);
+            let host = logits.to_f32()?;
+            ensure!(host.len() == 248320 && host.iter().all(|v| v.is_finite()));
+            let prefetch = if let Some(pool) = &target.lookahead_pool {
+                let mut pool = pool.borrow_mut();
+                pool.wait_for_test()?;
+                let c = &pool.counters;
+                Some(serde_json::json!({
+                    "submitted":c.submitted.load(Ordering::Relaxed), "completed":c.completed.load(Ordering::Relaxed),
+                    "used":c.used.load(Ordering::Relaxed), "discarded":c.discarded.load(Ordering::Relaxed),
+                    "failed":c.failed.load(Ordering::Relaxed), "late_needed":c.late_needed.load(Ordering::Relaxed),
+                    "read_bytes":c.bytes.load(Ordering::Relaxed)
+                }))
+            } else {
+                None
+            };
+            let (hits, misses, bytes) = target.io_stats();
+            let mut counts = [0u64; 6];
+            let mut clocks = [0.0f64; 3];
+            for layer in &target.layers {
+                let moe = &layer.moe;
+                for (sum, v) in counts.iter_mut().zip(
+                    moe.prefetch_profile
+                        .into_iter()
+                        .chain([moe.prefetched, moe.overlap_hot_rows]),
+                ) {
+                    *sum += v;
+                }
+                for (sum, v) in clocks
+                    .iter_mut()
+                    .zip(moe.profile_seconds.into_iter().chain([moe.import_seconds]))
+                {
+                    *sum += v;
+                }
+            }
+            ensure!(
+                decode_seconds.is_finite()
+                    && decode_seconds > 0.0
+                    && clocks
+                        .iter()
+                        .chain(&session.profile_seconds)
+                        .all(|v| v.is_finite() && *v >= 0.0)
+            );
+            println!(
+                "SSD_LIGHT_PROFILE {}",
+                serde_json::json!({
+                    "status":"completed_diagnostic_awaiting_external_oracle", "phase":phase, "prompt":label, "mtp":mtp,
+                    "lookahead_depth":target.lookahead_depth, "tokens":output, "text":tokenizer.decode(&output)?,
+                    "logit_count":host.len(), "logits_finite":true, "prompt_tokens":tokens.len(),
+                    "mtp_proposed_tokens":session.proposed, "mtp_accepted_tokens":session.accepted, "mtp_blocks":session.blocks,
+                    "hits":hits, "misses":misses, "total_read_bytes":bytes, "prefetch":prefetch,
+                    "candidate_scanned_hot_admitted_imported_overlap_rows":counts,
+                    "route_fill_import_seconds":clocks, "mtp_head_verify_repair_total_seconds":session.profile_seconds,
+                    "decode_seconds":decode_seconds, "memory":crate::array::memory_stats(false)?,
+                    "limits":"test clocks; one prompt/mode per process; no full-state copies; external H20 hash/text oracle required; not release throughput"
+                })
+            );
+        }
+        Ok(())
+    }
+
+    #[cfg(all(kani, feature = "chat"))]
+    #[kani::proof]
+    fn physical_light_profile_preserves_real_path() {
+        flash_light_profile_preserves_natural_decode().unwrap();
+    }
+
     #[cfg(feature = "chat")]
     #[test]
     #[ignore = "physical Apple GPU; intrusive diagnostic, not a throughput benchmark"]

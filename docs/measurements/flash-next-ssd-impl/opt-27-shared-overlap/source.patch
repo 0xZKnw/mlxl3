@@ -1,0 +1,153 @@
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index cb63ad50..3f25caf9 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -311,6 +311,22 @@ impl SsdMoe {
+                 self.misses = self.misses.saturating_add(1);
+             }
+         }
++        let mut shared_rows = Vec::new();
++        for row in 0..rows {
++            let x = x.slice(0, row, row + 1)?;
++            let shared = self
++                .shared_down
++                .forward(
++                    &self
++                        .shared_gate
++                        .forward(&x)?
++                        .astype(Dtype::Float16)?
++                        .swiglu(&self.shared_up.forward(&x)?.astype(Dtype::Float16)?)?,
++                )?
++                .astype(x.dtype())?;
++            shared_rows.push(shared.mul(&self.multiplier.forward(&x)?.sigmoid()?)?);
++        }
++        let shared = Array::concatenate(&shared_rows.iter().collect::<Vec<_>>(), 0)?;
+         let hot_output = if self.overlap && !hot.is_empty() && !cold.is_empty() {
+             let value = self.calculate(
+                 &routed_x.take(
+@@ -322,11 +338,17 @@ impl SsdMoe {
+                 )?,
+                 &hot.iter().map(|p| p.1).collect::<Vec<_>>(),
+             )?;
+-            value.async_eval()?;
+             Some(value)
+         } else {
+             None
+         };
++        let submitted = self.overlap && !cold.is_empty();
++        if submitted {
++            // The shared expert uses resident weights while cold slots are filled.
++            let mut outputs = vec![&shared];
++            outputs.extend(hot_output.iter());
++            Array::async_eval_all(&outputs)?;
++        }
+         let mut filled = BTreeSet::new();
+         #[cfg(test)]
+         let read_start = std::time::Instant::now();
+@@ -336,8 +358,14 @@ impl SsdMoe {
+             .collect::<Vec<_>>();
+         if let Err(error) = self.fill_many(&jobs) {
+             self.cache.invalidate();
+-            if let Some(hot) = &hot_output {
+-                hot.eval()?;
++            if submitted {
++                // Join every submitted output even if one reports an evaluation error.
++                let shared_result = shared.eval();
++                let hot_result = hot_output.as_ref().map(Array::eval).transpose();
++                shared_result
++                    .with_context(|| format!("joining shared work after SSD failure: {error:#}"))?;
++                hot_result
++                    .with_context(|| format!("joining hot work after SSD failure: {error:#}"))?;
+             }
+             return Err(error.context("loading cold EXL3 experts"));
+         }
+@@ -374,25 +402,7 @@ impl SsdMoe {
+             .mul(&weights.reshape(&[rows * 10, 1])?)?
+             .reshape(&[rows, 10, H])?
+             .sum(1, false)?;
+-        let mut shared_rows = Vec::new();
+-        for row in 0..rows {
+-            let x = x.slice(0, row, row + 1)?;
+-            let shared = self
+-                .shared_down
+-                .forward(
+-                    &self
+-                        .shared_gate
+-                        .forward(&x)?
+-                        .astype(Dtype::Float16)?
+-                        .swiglu(&self.shared_up.forward(&x)?.astype(Dtype::Float16)?)?,
+-                )?
+-                .astype(x.dtype())?;
+-            shared_rows.push(shared.mul(&self.multiplier.forward(&x)?.sigmoid()?)?);
+-        }
+-        let output = routed.add(&Array::concatenate(
+-            &shared_rows.iter().collect::<Vec<_>>(),
+-            0,
+-        )?)?;
++        let output = routed.add(&shared)?;
+         self.last = Some(output.try_clone()?);
+         Ok(output)
+     }
+@@ -509,10 +519,62 @@ mod tests {
+                     "retry after failed read diverged"
+                 );
+                 moe.drain()?;
++                moe.cache.invalidate();
++                ensure!(moe.forward(&inputs[0])?.to_bytes()? == expected[0]);
++                let warm = moe.route(&inputs[0])?.0.to_u32()?;
++                let next = moe.route(&inputs[1])?.0.to_u32()?;
++                ensure!(
++                    next.iter().any(|id| warm.contains(id)),
++                    "fixture has no hit"
++                );
++                let missing = *next
++                    .iter()
++                    .find(|id| !warm.contains(id))
++                    .context("fixture has no miss")? as usize;
++                let saved = moe.records[missing].data_offsets;
++                moe.records[missing].data_offsets[0] = u64::MAX;
++                let failure = moe
++                    .forward(&inputs[1])
++                    .err()
++                    .context("mixed read accepted")?;
++                ensure!(format!("{failure:#}").contains("loading cold EXL3 experts"));
++                ensure!(moe.cache.reserve(&next)?.iter().all(|p| !p.1));
++                moe.records[missing].data_offsets = saved;
++                moe.cache.invalidate();
++                ensure!(
++                    moe.forward(&inputs[1])?.to_bytes()? == expected[1],
++                    "mixed hot/cold failure recovery diverged"
++                );
++                moe.drain()?;
+             }
+         }
+         Ok(())
+     }
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_shared_overlap_matches_deferred() {
++        use super::*;
++        let rows = if kani::any::<bool>() { 1 } else { 2 };
++        let value = f32::from(kani::any::<i8>()) / 128.0;
++        kani::cover!(rows == 1);
++        kani::cover!(rows == 2);
++        kani::cover!(value < 0.0);
++        kani::cover!(value >= 0.0);
++        let checkpoint = crate::checkpoint::inspect(std::path::Path::new(
++            &std::env::var("MLXL3_FLASH_MODEL").unwrap(),
++        ))
++        .unwrap();
++        let x = Array::from_f32(&vec![value; rows * H as usize], &[rows as i32, H]).unwrap();
++        let mut moe =
++            SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 20, false).unwrap();
++        let expected = moe.forward_many(&x).unwrap().to_bytes().unwrap();
++        moe.drain().unwrap();
++        moe.cache.invalidate();
++        moe.overlap = true;
++        let actual = moe.forward_many(&x).unwrap().to_bytes().unwrap();
++        assert_eq!(actual.len(), rows * H as usize * 4);
++        assert_eq!(actual, expected);
++    }
+     #[test]
+     #[ignore = "physical Apple GPU; direct disk read into evaluated shared buffers"]
+     fn disk_records_fill_only_owned_ranges_and_reject_bad_sources() -> anyhow::Result<()> {

@@ -1,0 +1,7 @@
+{
+  "status": "failed_audit_assertion",
+  "gpu_measurements_added": 0,
+  "assertion": "decode_seconds exactly equals outer elapsed_seconds minus outer ttft_seconds at rel_tol1e-12",
+  "reason": "native main.rs bridge_generate replaces outer elapsed after round completion; finalization adds10.667/10.417microseconds; decode uses inner round clock",
+  "correction": "keep exact127/decode equality; outer elapsed difference must be nonnegative and less1ms for these existing records"
+}

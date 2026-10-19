@@ -1,0 +1,119 @@
+[
+  {
+    "name": "final-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.23942916699888883,
+    "reaped": true
+  },
+  {
+    "name": "final-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.544031624995114,
+    "reaped": true
+  },
+  {
+    "name": "final-cpu-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.6702881250021164,
+    "reaped": true
+  },
+  {
+    "name": "final-cpu-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.90366133399948,
+    "reaped": true
+  },
+  {
+    "name": "final-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 42.576091374998214,
+    "reaped": true
+  },
+  {
+    "name": "final-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 32.33561091699812,
+    "reaped": true
+  },
+  {
+    "name": "kani-order",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "prediction_order_preserves_all_values_within_two_rows"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "error": "TimeoutExpired(['cargo', 'kani', '--lib', '--no-default-features', '--harness', 'prediction_order_preserves_all_values_within_two_rows'], 120)",
+    "seconds": 120.00683029200445,
+    "reaped": true
+  }
+]

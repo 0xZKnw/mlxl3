@@ -39,6 +39,8 @@ pub mod router;
 pub mod speculative;
 #[cfg(feature = "mlx")]
 pub mod ssd_moe;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod ssd_prefetch;
 pub mod streaming;
 #[cfg(feature = "chat")]
 pub mod tokenizer;

@@ -1,0 +1,395 @@
+--- C34/native/src/qwen4.rs
++++ unfinished36B/native/src/qwen4.rs
+@@ -1702,10 +1702,41 @@
+         Ok(bytes)
+     }
+     #[cfg(feature = "chat")]
++    fn profile_digest(parts: impl IntoIterator<Item = Vec<u8>>) -> Result<String> {
++        use std::{io::Write, process::{Command, Stdio}};
++        let mut child = Command::new("/usr/bin/shasum").args(["-a", "256"])
++            .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
++        let written = (|| -> Result<()> {
++            let mut input = child.stdin.take().context("missing digest pipe")?;
++            for bytes in parts {
++                input.write_all(&(bytes.len() as u64).to_le_bytes())?;
++                input.write_all(&bytes)?;
++            }
++            Ok(())
++        })();
++        if let Err(error) = written {
++            let _ = child.kill(); let _ = child.wait();
++            return Err(error);
++        }
++        // The physical-test supervisor bounds and joins this entire process group.
++        let output = child.wait_with_output()?;
++        ensure!(output.status.success(), "state digest failed");
++        let stdout = String::from_utf8(output.stdout)?;
++        let digest = stdout.split_whitespace().next().context("empty state digest")?;
++        ensure!(digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()), "invalid digest");
++        Ok(digest.into())
++    }
++
++    #[cfg(feature = "chat")]
+     #[test]
+     #[ignore = "physical Apple GPU; isolated natural decode diagnostic, not release throughput"]
+     fn flash_light_profile_preserves_natural_decode() -> Result<()> {
+         use std::time::Instant;
++        use crate::ssd_prefetch::{PredictionPoint, PredictionTrace};
++        let ablation = std::env::var("MLXL3_FLASH_LES_ABLATION").ok();
++        ensure!(ablation.as_deref().is_none_or(|s| matches!(s, "off" | "predict" | "io" | "full")), "invalid LES ablation");
++        let trace_dir = std::env::var("MLXL3_FLASH_TRACE_DIR").ok();
++        ensure!(ablation.is_none() || trace_dir.is_some(), "missing trace directory");
+         let mtp = match std::env::var("MLXL3_FLASH_PROFILE_MTP")?.as_str() {
+             "0" => false,
+             "1" => true,
+@@ -1729,6 +1760,7 @@
+             content: prompt.into(),
+         }])?)?;
+         let mut target = FlashNext::from_checkpoint(&c)?;
++        ensure!(ablation.as_deref().is_none_or(|a| (a == "off") == (target.lookahead_depth == 0)), "ablation depth differs");
+         let mut head = if mtp {
+             Some(FlashMtpHead::load(&c, &target)?)
+         } else {
+@@ -1736,11 +1768,31 @@
+         };
+         ensure!(!tokens.is_empty() && tokens.len() + 64 <= target.context_limit() as usize);
+         for phase in ["warmup", "measured"] {
++            if let Some(ablation) = &ablation {
++                let replay = if ablation == "io" {
++                    let path = Path::new(trace_dir.as_ref().context("missing traces")?).join(format!("{phase}.json"));
++                    ensure!(std::fs::metadata(&path)?.len() <= 8 << 20, "trace file too large");
++                    let trace: Value = serde_json::from_reader(File::open(path)?)?;
++                    ensure!(trace["version"] == 1 && trace["checkpoint"] == "65c89531" && trace["mtp"] == mtp && trace["prompt"] == label && trace["phase"] == phase, "trace metadata mismatch");
++                    let layers: Vec<Vec<PredictionPoint>> = serde_json::from_value(trace["layers"].clone())?;
++                    ensure!(layers.len() == target.layers.len() && layers.iter().all(|p| !p.is_empty() && p.len() <= 512 && p.iter().all(PredictionPoint::valid)), "invalid trace shape or values");
++                    Some(layers)
++                } else { None };
++                for (index, layer) in target.layers.iter_mut().enumerate() {
++                    layer.moe.test_prediction_only = ablation == "predict";
++                    layer.moe.test_trace = Some(match &replay {
++                        Some(layers) => PredictionTrace::Replay(layers[index].clone().into()),
++                        None => PredictionTrace::Capture(Vec::new()),
++                    });
++                }
++            }
+             target.reset();
+             if let Some(head) = &mut head {
+                 head.reset();
+             }
+             let mut logits = None;
++            let before_prefill = target.io_stats();
++            let prefill_start = Instant::now();
+             for &token in &tokens {
+                 if let (Some(head), Some(hidden)) = (&mut head, &target.last_hidden) {
+                     head.extend_cache(&target, hidden, token)?;
+@@ -1748,6 +1800,10 @@
+                 logits = Some(target.forward(token)?);
+             }
+             let mut anchor = logits.context("empty prefill")?.chat_greedy_ids()?[0];
++            let prefill_seconds = prefill_start.elapsed().as_secs_f64();
++            if let Some(pool) = &target.lookahead_pool { pool.borrow_mut().wait_for_test()?; }
++            let after_prefill = target.io_stats();
++            let prefill_expert_bytes = after_prefill.2.checked_sub(before_prefill.2).context("prefill byte counter reversed")?;
+             if let Some(pool) = &target.lookahead_pool {
+                 let mut pool = pool.borrow_mut();
+                 pool.wait_for_test()?;
+@@ -1817,6 +1873,29 @@
+                 None
+             };
+             let (hits, misses, bytes) = target.io_stats();
++            let (logit_digest, state_digest, state_size) = if ablation.is_some() {
++                let digest = profile_digest([logits.to_bytes()?])?;
++                let states = state_bytes(&target)?;
++                let size = states.iter().map(Vec::len).sum::<usize>();
++                ensure!(states.len() > 48 && size > 1 << 20, "empty final state oracle");
++                (Some(digest), Some(profile_digest(states)?), size)
++            } else { (None, None, 0) };
++            if let Some(ablation) = &ablation {
++                if ablation == "io" {
++                    ensure!(target.layers.iter().all(|l| matches!(&l.moe.test_trace, Some(PredictionTrace::Replay(q)) if q.is_empty())), "unused replay points");
++                } else {
++                    let layers = target.layers.iter().map(|l| match &l.moe.test_trace {
++                        Some(PredictionTrace::Capture(p)) => Ok(p), _ => anyhow::bail!("missing captured points"),
++                    }).collect::<Result<Vec<_>>>()?;
++                    let trace = serde_json::to_vec(&serde_json::json!({"version":1,"checkpoint":"65c89531","mtp":mtp,"prompt":label,"phase":phase,"layers":layers}))?;
++                    ensure!(trace.len() <= 8 << 20, "captured trace too large");
++                    std::fs::write(Path::new(trace_dir.as_ref().context("missing traces")?).join(format!("{phase}.json")), trace)?;
++                }
++            }
++            let per_layer = target.layers.iter().map(|layer| {
++                let m = &layer.moe;
++                serde_json::json!({"hits":m.hits,"misses":m.misses,"direct_read_bytes":m.read_bytes,"prefetched_records":m.prefetched,"route_fill_import_seconds":[m.profile_seconds[0],m.profile_seconds[1],m.import_seconds],"prediction_counts":m.prefetch_profile})
++            }).collect::<Vec<_>>();
+             let mut counts = [0u64; 6];
+             let mut clocks = [0.0f64; 3];
+             for layer in &target.layers {
+@@ -1847,14 +1926,16 @@
+                 "SSD_LIGHT_PROFILE {}",
+                 serde_json::json!({
+                     "status":"completed_diagnostic_awaiting_external_oracle", "phase":phase, "prompt":label, "mtp":mtp,
+-                    "lookahead_depth":target.lookahead_depth, "tokens":output, "text":tokenizer.decode(&output)?,
++                    "lookahead_depth":target.lookahead_depth, "tokens":output, "text":tokenizer.decode(&output)?, "ablation":ablation,
+                     "logit_count":host.len(), "logits_finite":true, "prompt_tokens":tokens.len(),
+                     "mtp_proposed_tokens":session.proposed, "mtp_accepted_tokens":session.accepted, "mtp_blocks":session.blocks,
+                     "hits":hits, "misses":misses, "total_read_bytes":bytes, "prefetch":prefetch,
+                     "candidate_scanned_hot_admitted_imported_overlap_rows":counts,
+                     "route_fill_import_seconds":clocks, "mtp_head_verify_repair_total_seconds":session.profile_seconds,
+-                    "decode_seconds":decode_seconds, "memory":crate::array::memory_stats(false)?,
+-                    "limits":"test clocks; one prompt/mode per process; no full-state copies; external H20 hash/text oracle required; not release throughput"
++                    "decode_seconds":decode_seconds, "prefill_seconds":prefill_seconds,"prefill_expert_bytes":prefill_expert_bytes,
++                    "logit_sha256":logit_digest,"state_sha256":state_digest,"state_bytes":state_size,"per_layer":per_layer,
++                    "memory":crate::array::memory_stats(false)?,
++                    "limits":"test clocks; one prompt/mode per process; one transient final state snapshot; external H20 oracle required; ablations are diagnostics, not release throughput"
+                 })
+             );
+         }
+--- C34/native/src/ssd_moe.rs
++++ unfinished36B/native/src/ssd_moe.rs
+@@ -10,6 +10,8 @@
+ };
+ use anyhow::{Context, Result, ensure};
+ use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
++#[cfg(test)]
++use crate::ssd_prefetch::{PredictionPoint, PredictionTrace};
+ 
+ const H: i32 = 2560;
+ const I: i32 = 640;
+@@ -43,6 +45,10 @@
+     pub(crate) overlap_hot_rows: u64,
+     #[cfg(test)]
+     pub(crate) import_seconds: f64,
++    #[cfg(test)]
++    pub(crate) test_trace: Option<PredictionTrace>,
++    #[cfg(test)]
++    pub(crate) test_prediction_only: bool,
+ }
+ 
+ impl SsdMoe {
+@@ -147,6 +153,10 @@
+             overlap_hot_rows: 0,
+             #[cfg(test)]
+             import_seconds: 0.0,
++            #[cfg(test)]
++            test_trace: None,
++            #[cfg(test)]
++            test_prediction_only: false,
+         })
+     }
+ 
+@@ -347,7 +357,21 @@
+         }
+         #[cfg(test)]
+         let route_start = std::time::Instant::now();
+-        let prediction = if depth > 0 {
++        #[cfg(test)]
++        let replay = match &mut self.test_trace {
++            Some(PredictionTrace::Replay(points)) => {
++                let point = points.pop_front().context("prediction replay exhausted")?;
++                ensure!(point.valid(), "invalid prediction replay point");
++                ensure!(point.predicted.is_some() == (depth > 0 && next.is_some()), "prediction replay caller differs");
++                Some(point)
++            }
++            _ => None,
++        };
++        #[cfg(test)]
++        let predict_live = replay.is_none();
++        #[cfg(not(test))]
++        let predict_live = true;
++        let prediction = if depth > 0 && predict_live {
+             next.as_ref().map(|next| next.predict(x)).transpose()?
+         } else {
+             None
+@@ -375,6 +399,21 @@
+         {
+             self.profile_seconds[0] += route_start.elapsed().as_secs_f64();
+         }
++        #[cfg(test)]
++        let predicted_ids = if self.test_trace.is_some() {
++            let mut cold = ids.iter().copied().filter(|&id| !self.cache.contains(id)).collect::<Vec<_>>();
++            cold.sort_unstable(); cold.dedup();
++            if let Some(point) = replay {
++                ensure!(point.actual == ids && point.cold == cold, "prediction replay routing or cache differs");
++                point.predicted
++            } else {
++                if let Some(PredictionTrace::Capture(points)) = &mut self.test_trace {
++                    ensure!(points.len() < 512, "prediction trace capacity exhausted");
++                    points.push(PredictionPoint { actual: ids.clone(), cold, predicted: predicted_ids.clone() });
++                }
++                predicted_ids
++            }
++        } else { predicted_ids };
+         #[cfg(test)]
+         {
+             self.route_ids.clone_from(&ids);
+@@ -554,6 +593,10 @@
+                 }
+             }
+             let mut pool = pool.borrow_mut();
++            #[cfg(test)]
++            if self.test_prediction_only {
++                return Ok(());
++            }
+             pool.reclaim(*layer, &cold);
+             let mut admitted = 0;
+             for id in cold {
+@@ -614,6 +657,46 @@
+             Array::from_bytes(&input, &[1, super::H], Dtype::Float32)?,
+             expected,
+         ))
++    }
++
++    #[test]
++    #[ignore = "physical Apple GPU; prediction capture/replay and pre-write failure recovery"]
++    fn traced_prefetch_matches_real_routes_and_rejects_misalignment_before_writes() -> anyhow::Result<()> {
++        use super::*;
++        use std::sync::atomic::Ordering;
++        let (checkpoint, input, expected) = admission_fixture()?;
++        let mut current = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
++        let mut next = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
++        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
++        next.prefetcher = Some((1, Rc::clone(&pool)));
++        next.test_prediction_only = true;
++        current.test_trace = Some(PredictionTrace::Capture(Vec::new()));
++        ensure!(current.forward_lookahead(&input, Some(&mut next), 4)?.to_bytes()? == expected);
++        ensure!(pool.borrow().counters.submitted.load(Ordering::Relaxed) == 0);
++        let Some(PredictionTrace::Capture(points)) = current.test_trace.take() else { anyhow::bail!("missing trace"); };
++        ensure!(points.len() == 1 && points[0].valid() && points[0].predicted.as_ref().is_some_and(|p| p.len() == 16));
++        current.cache.invalidate();
++        current.test_trace = Some(PredictionTrace::Replay(points.clone().into()));
++        next.test_prediction_only = false;
++        ensure!(current.forward_lookahead(&input, Some(&mut next), 4)?.to_bytes()? == expected);
++        ensure!(pool.borrow().counters.submitted.load(Ordering::Relaxed) > 0);
++        pool.borrow_mut().wait_for_test()?;
++        ensure!(next.forward(&input)?.to_bytes()? == expected && next.prefetched > 0);
++        let mut bad = points[0].clone();
++        bad.actual[0] = (bad.actual[0] + 1) % 512;
++        bad.cold.clear();
++        ensure!(bad.valid());
++        for trace in [PredictionTrace::Replay(vec![bad].into()), PredictionTrace::Replay(Vec::new().into()), PredictionTrace::Capture(vec![points[0].clone(); 512])] {
++            current.cache.invalidate();
++            current.test_trace = Some(trace);
++            let counters = (current.hits, current.misses, current.read_bytes);
++            ensure!(current.forward_lookahead(&input, Some(&mut next), 4).is_err());
++            ensure!((current.hits, current.misses, current.read_bytes) == counters);
++            ensure!(points[0].actual.iter().all(|&id| !current.cache.contains(id)));
++        }
++        current.test_trace = None;
++        ensure!(current.forward(&input)?.to_bytes()? == expected);
++        Ok(())
+     }
+ 
+     #[test]
+--- C34/native/src/ssd_prefetch.rs
++++ unfinished36B/native/src/ssd_prefetch.rs
+@@ -12,6 +12,37 @@
+ };
+ 
+ pub(crate) const PREDICTION_RANKS: usize = 16;
++
++#[cfg(any(test, kani))]
++#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
++#[serde(deny_unknown_fields)]
++pub(crate) struct PredictionPoint {
++    pub actual: Vec<u32>,
++    pub cold: Vec<u32>,
++    pub predicted: Option<Vec<u32>>,
++}
++
++#[cfg(any(test, kani))]
++impl PredictionPoint {
++    pub fn valid(&self) -> bool {
++        matches!(self.actual.len(), 10 | 20)
++            && self.actual.iter().all(|&id| id < 512)
++            && self.cold.len() <= self.actual.len()
++            && self.cold.iter().enumerate().all(|(i, id)| {
++                self.actual.contains(id) && !self.cold[i + 1..].contains(id)
++            })
++            && self.predicted.as_ref().is_none_or(|ids| {
++                ids.len() == self.actual.len() / 10 * PREDICTION_RANKS
++                    && ids.iter().all(|&id| id < 512)
++            })
++    }
++}
++
++#[cfg(all(test, feature = "mlx"))]
++pub(crate) enum PredictionTrace {
++    Capture(Vec<PredictionPoint>),
++    Replay(std::collections::VecDeque<PredictionPoint>),
++}
+ 
+ /// Strongest rank first, alternating target rows before using the next rank.
+ pub(crate) fn order_predictions(ids: &mut [u32], rows: usize) -> bool {
+@@ -258,6 +289,40 @@
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++    #[test]
++    fn replay_points_require_nonempty_shapes_valid_ids_and_unique_cold_subsets() {
++        for rows in [1, 2] {
++            let point = PredictionPoint {
++                actual: (0..rows * 10).collect(),
++                cold: vec![0, 9],
++                predicted: Some(vec![3; rows as usize * PREDICTION_RANKS]),
++            };
++            assert!(point.valid());
++            let mut changed = point.clone();
++            changed.actual.clear();
++            assert!(!changed.valid());
++            changed = point.clone(); changed.actual[0] = 512;
++            assert!(!changed.valid());
++            changed = point.clone(); changed.cold = vec![511];
++            assert!(!changed.valid());
++            changed = point.clone(); changed.cold = vec![0, 0];
++            assert!(!changed.valid());
++            for length in [0, 1, 15, 17, 31, 33] {
++                changed = point.clone(); changed.predicted = Some(vec![3; length]);
++                assert!(!changed.valid());
++            }
++            changed = point.clone(); changed.predicted.as_mut().unwrap()[0] = 512;
++            assert!(!changed.valid());
++            changed = point.clone(); changed.predicted = None;
++            assert!(changed.valid());
++            changed = point.clone(); changed.cold.clear();
++            assert!(changed.valid());
++            let json = serde_json::to_vec(&point).unwrap();
++            assert_eq!(serde_json::from_slice::<PredictionPoint>(&json).unwrap(), point);
++            assert!(serde_json::from_slice::<PredictionPoint>(&json[..json.len()-1]).is_err());
++            assert!(serde_json::from_str::<PredictionPoint>("{}").is_err());
++        }
++    }
+     use anyhow::Context;
+     use std::{
+         fs,
+@@ -409,6 +474,32 @@
+     use super::*;
+     #[kani::proof]
+     #[kani::unwind(33)]
++    fn replay_points_cannot_admit_empty_invalid_or_unrelated_experts() {
++        let actual: [u32; 20] = kani::any();
++        let predicted: [u32; 32] = kani::any();
++        let cold: [u32; 20] = kani::any();
++        let n = usize::from(kani::any::<u8>()).min(20);
++        let p = usize::from(kani::any::<u8>()).min(32);
++        let c = usize::from(kani::any::<u8>()).min(20);
++        let point = PredictionPoint {
++            actual: actual[..n].to_vec(), cold: cold[..c].to_vec(),
++            predicted: kani::any::<bool>().then(|| predicted[..p].to_vec()),
++        };
++        if point.valid() {
++            assert!(n == 10 || n == 20);
++            assert!(point.actual.iter().all(|&id| id < 512));
++            assert!(point.cold.iter().all(|id| point.actual.contains(id)));
++            if let Some(ids) = &point.predicted {
++                assert!(ids.len() == n / 10 * 16);
++                assert!(ids.iter().all(|&id| id < 512));
++            }
++            kani::cover!(n == 10 && point.predicted.is_some());
++            kani::cover!(n == 20 && point.predicted.is_some());
++            kani::cover!(point.predicted.is_none());
++        } else { kani::cover!(n == 0); kani::cover!(c > 0); }
++    }
++    #[kani::proof]
++    #[kani::unwind(33)]
+     fn prediction_order_preserves_all_values_within_two_rows() {
+         let ids: [u32; 32] = kani::any();
+         let length = usize::from(kani::any::<u8>()).min(32);

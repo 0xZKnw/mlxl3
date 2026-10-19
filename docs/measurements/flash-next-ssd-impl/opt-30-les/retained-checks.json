@@ -1,0 +1,101 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.4986564580030972
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 3.8593950829963433
+  },
+  {
+    "name": "cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 3.5815830409992486
+  },
+  {
+    "name": "release-suite",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 56.48603962500056
+  },
+  {
+    "name": "build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 41.84149412500119
+  },
+  {
+    "name": "kani-mlx",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_lookahead_model_path_checks_tokens_and_output_shape"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 1,
+    "status": "unverified",
+    "reaped": true,
+    "seconds": 4.256861792004202
+  }
+]

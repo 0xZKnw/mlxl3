@@ -128,6 +128,30 @@ unsafe extern "C" {
         segments: usize,
         workers: usize,
     ) -> i32;
+    fn mlxl3_disk_read_prepare(
+        fd: i32,
+        offset: u64,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        segments: usize,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_disk_read_run(handle: *mut c_void, bytes: *mut u64) -> i32;
+    fn mlxl3_disk_read_free(handle: *mut c_void);
+    #[cfg(test)]
+    fn mlxl3_arrays_copy_record(
+        bytes: *const u8,
+        count: usize,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        segments: usize,
+    ) -> i32;
     fn mlxl3_arrays_async_eval(inputs: *const *mut c_void, count: usize) -> i32;
     fn mlxl3_array_copy_bytes(p: *mut c_void, out: *mut u8, count: usize) -> i32;
     fn mlxl3_array_unary(
@@ -406,6 +430,31 @@ pub struct Array {
     dtype: Dtype,
     // MLX graph handles stay on the creating thread; no unverified Send/Sync.
     _thread: PhantomData<Rc<()>>,
+}
+
+/// Allocations and file stay on the inference thread until the worker is joined.
+pub(crate) struct PreparedRead {
+    handle: NonNull<c_void>,
+    _file: File,
+    _not_send: PhantomData<Rc<()>>,
+}
+impl PreparedRead {
+    pub(crate) fn token(&self) -> usize {
+        self.handle.as_ptr() as usize
+    }
+
+    /// # Safety
+    /// Keep the owning lease alive until return; run once with exclusive destinations.
+    pub(crate) unsafe fn run(token: usize) -> (bool, u64) {
+        let mut bytes = 0;
+        let status = unsafe { mlxl3_disk_read_run(token as *mut c_void, &mut bytes) };
+        (status == 0, bytes)
+    }
+}
+impl Drop for PreparedRead {
+    fn drop(&mut self) {
+        unsafe { mlxl3_disk_read_free(self.handle.as_ptr()) };
+    }
 }
 impl Drop for Array {
     fn drop(&mut self) {
@@ -707,6 +756,122 @@ impl Array {
                 lengths.as_ptr(),
                 segments,
                 workers,
+            )
+        })
+    }
+    /// Caller drains prior consumers and excludes these slots until publication.
+    pub(crate) fn prepare_read(
+        file: &File,
+        offset: u64,
+        buffers: &mut [Self],
+        destinations: &[(usize, usize, usize)],
+    ) -> Result<PreparedRead> {
+        ensure!(
+            (1..=64).contains(&destinations.len()),
+            "invalid persistent disk segments"
+        );
+        let mut total = 0u64;
+        for &(index, start, length) in destinations {
+            ensure!(
+                crate::flash_support::disk_destination_fits(
+                    start,
+                    length,
+                    buffers
+                        .get(index)
+                        .context("invalid persistent bank")?
+                        .byte_len()?
+                ),
+                "invalid persistent disk destination"
+            );
+            total = total
+                .checked_add(length as u64)
+                .context("persistent record overflow")?;
+        }
+        let file = file.try_clone()?;
+        let length = file.metadata()?.len();
+        ensure!(
+            offset
+                .checked_add(total)
+                .is_some_and(|end| end <= i64::MAX as u64 && end <= length),
+            "invalid persistent disk source"
+        );
+        let pointers = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let indices = destinations.iter().map(|d| d.0).collect::<Vec<_>>();
+        let starts = destinations.iter().map(|d| d.1).collect::<Vec<_>>();
+        let lengths = destinations.iter().map(|d| d.2).collect::<Vec<_>>();
+        let mut handle = std::ptr::null_mut();
+        checked(unsafe {
+            mlxl3_disk_read_prepare(
+                file.as_raw_fd(),
+                offset,
+                pointers.as_ptr(),
+                pointers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                destinations.len(),
+                &mut handle,
+            )
+        })?;
+        Ok(PreparedRead {
+            handle: NonNull::new(handle).context("missing persistent disk read")?,
+            _file: file,
+            _not_send: PhantomData,
+        })
+    }
+
+    /// Copy a completed CPU record into disjoint cold slots; the caller drains consumers first.
+    #[cfg(test)]
+    pub(crate) fn write_record(
+        bytes: &[u8],
+        buffers: &mut [Self],
+        destinations: &[(usize, usize, usize)],
+    ) -> Result<()> {
+        ensure!(
+            (1..=64).contains(&destinations.len()),
+            "invalid staged record segments"
+        );
+        let mut total = 0usize;
+        for &(index, start, length) in destinations {
+            ensure!(
+                crate::flash_support::disk_destination_fits(
+                    start,
+                    length,
+                    buffers
+                        .get(index)
+                        .context("invalid staging bank")?
+                        .byte_len()?
+                ),
+                "invalid staged destination"
+            );
+            total = total
+                .checked_add(length)
+                .context("staged record overflow")?;
+        }
+        ensure!(
+            total == bytes.len() && total > 0,
+            "invalid staged record size"
+        );
+        let pointers = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let indices = destinations.iter().map(|d| d.0).collect::<Vec<_>>();
+        let starts = destinations.iter().map(|d| d.1).collect::<Vec<_>>();
+        let lengths = destinations.iter().map(|d| d.2).collect::<Vec<_>>();
+        checked(unsafe {
+            mlxl3_arrays_copy_record(
+                bytes.as_ptr(),
+                bytes.len(),
+                pointers.as_ptr(),
+                pointers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                destinations.len(),
             )
         })
     }
@@ -1115,6 +1280,33 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "physical Apple GPU; exact staged copies and atomic invalid inputs"]
+    fn staged_records_copy_exact_disjoint_bytes_and_reject_invalid_ranges() -> Result<()> {
+        let mut banks = [Array::from_bytes(&[0xa5; 32], &[32], Dtype::UInt8)?];
+        let data = [1, 2, 3, 4, 5, 6, 7, 8];
+        Array::write_record(&data, &mut banks, &[(0, 2, 3), (0, 17, 5)])?;
+        let mut expected = vec![0xa5; 32];
+        expected[2..5].copy_from_slice(&data[..3]);
+        expected[17..22].copy_from_slice(&data[3..]);
+        ensure!(banks[0].to_bytes()? == expected);
+        for ranges in [
+            vec![],
+            vec![(1, 0, 8)],
+            vec![(0, 0, 0)],
+            vec![(0, 31, 8)],
+            vec![(0, usize::MAX, 8)],
+            vec![(0, 0, 7)],
+            vec![(0, 0, 5), (0, 4, 3)],
+        ] {
+            ensure!(Array::write_record(&data, &mut banks, &ranges).is_err());
+            ensure!(
+                banks[0].to_bytes()? == expected,
+                "invalid copy changed bank"
+            );
+        }
+        Ok(())
+    }
     #[test]
     #[ignore = "physical Apple GPU; run alone, compaction enabled"]
     fn compact_cache_views_preserve_all_bits_and_release_parent_storage() -> Result<()> {

@@ -52,6 +52,17 @@ from `mtplx/qwen_row_owned_router.py` to FP16 monotone keys, legacy tie order
 and half accumulation. Copyright MTPLX contributors; Apache-2.0. The small
 EXL3 verify batching uses MLXL3's own trellis kernels and arithmetic.
 
+## OpenBMB LES
+
+Source: <https://github.com/OpenBMB/llama.cpp-omni>, revision
+`a64932ec615e1463158129feaf2f0752d0c07a2e`, especially
+`docs/les/lookahead-expert-scheduling.md`, `src/models/qwen35moe.cpp`, and
+`src/llama-moe-slot.cpp`. Cross-layer routing prediction and expert loading
+overlapped with current-layer computation informed MLXL3's independent
+experimental Rust implementation. It uses the existing EXL3 banks and
+checked readers, preserving actual routing and reduction order. OpenBMB's
+quantization and DSpark results are separate from MLXL3 measurements.
+
 ## TensorFold
 
 Source: <https://github.com/ashhart/TensorFold>, revision

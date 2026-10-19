@@ -1,0 +1,75 @@
+{
+  "decision": "rejected",
+  "inspected_responses": 32,
+  "all_executed_responses_exact": true,
+  "planned_campaign_complete": false,
+  "source_and_binary_hashes_unchanged": true,
+  "all_reaped": true,
+  "pairs": [
+    {
+      "repeat": 1,
+      "mode": "baseline",
+      "prompt": "MAIN",
+      "H_tps": 9.53957094886844,
+      "C_tps": 9.331523058223162,
+      "gain_percent": -2.1808935827449916,
+      "extra_peak_bytes": -24084480
+    },
+    {
+      "repeat": 1,
+      "mode": "baseline",
+      "prompt": "HOLD",
+      "H_tps": 9.191632085533893,
+      "C_tps": 9.02867251305265,
+      "gain_percent": -1.7729122637285988,
+      "extra_peak_bytes": -17661952
+    },
+    {
+      "repeat": 1,
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "H_tps": 9.644333314386396,
+      "C_tps": 9.484284382085148,
+      "gain_percent": -1.65951265975538,
+      "extra_peak_bytes": -217464880
+    },
+    {
+      "repeat": 1,
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "H_tps": 8.88032451621885,
+      "C_tps": 9.041888238167608,
+      "gain_percent": 1.8193447959439002,
+      "extra_peak_bytes": 4505648
+    }
+  ],
+  "max_swapout_bytes": 168493056,
+  "mtp_counters": {
+    "MAIN": {
+      "mtp_accepted_tokens": 54,
+      "mtp_blocks": 72,
+      "mtp_depth_blocks": [
+        0,
+        72,
+        0,
+        0
+      ],
+      "mtp_lookup_blocks": 0,
+      "mtp_proposed_tokens": 72
+    },
+    "HOLD": {
+      "mtp_accepted_tokens": 48,
+      "mtp_blocks": 78,
+      "mtp_depth_blocks": [
+        0,
+        78,
+        0,
+        0
+      ],
+      "mtp_lookup_blocks": 0,
+      "mtp_proposed_tokens": 78
+    }
+  },
+  "integration": "prototype archived then removed; retained HC20 source",
+  "inspection_note": "first inspection expected a nested mtp field and failed before writes; corrected to actual flat mtp_* fields; all counters compared"
+}

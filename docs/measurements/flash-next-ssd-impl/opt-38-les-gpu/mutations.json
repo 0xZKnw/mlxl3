@@ -1,0 +1,74 @@
+[
+  {
+    "name": "pending-false-hit",
+    "command": [
+      "cargo",
+      "test",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "detected_by_assertion": true,
+    "joined": true
+  },
+  {
+    "name": "ignore-predictions",
+    "command": [
+      "cargo",
+      "test",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "flash_support::tests::predictions_protect_victims_without_inventing_frequency_or_blocking_demand",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "detected_by_assertion": true,
+    "joined": true
+  },
+  {
+    "name": "publish-duplicate",
+    "command": [
+      "cargo",
+      "test",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "detected_by_assertion": true,
+    "joined": true
+  },
+  {
+    "name": "exhaust-demand-slots",
+    "command": [
+      "cargo",
+      "test",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "flash_support::tests::speculative_admission_preserves_actual_cohort_space_and_failed_reservations",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "detected_by_assertion": false,
+    "joined": true
+  }
+]

@@ -6,9 +6,10 @@ use crate::{
     flash_support::{EXPERT_BYTES, ExpertCache},
     lfm2::Projection,
     linear, router,
+    ssd_prefetch::{PREDICTION_RANKS, ReaderPool, order_predictions},
 };
 use anyhow::{Context, Result, ensure};
-use std::collections::BTreeSet;
+use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
 
 const H: i32 = 2560;
 const I: i32 = 640;
@@ -22,17 +23,26 @@ pub struct SsdMoe {
     multiplier: Projection,
     records: Vec<TensorInfo>,
     banks: Vec<Array>,
-    cache: ExpertCache,
+    cache: Rc<RefCell<ExpertCache>>,
     last: Option<Array>,
     pub hits: u64,
     pub misses: u64,
     pub read_bytes: u64,
     overlap: bool,
     readers: usize,
+    pub(crate) prefetcher: Option<(usize, Rc<RefCell<ReaderPool>>)>,
     #[cfg(test)]
     pub(crate) route_ids: Vec<u32>,
     #[cfg(test)]
     pub(crate) profile_seconds: [f64; 2],
+    #[cfg(test)]
+    pub(crate) prefetched: u64,
+    #[cfg(test)]
+    pub(crate) prefetch_profile: [u64; 4],
+    #[cfg(test)]
+    pub(crate) overlap_hot_rows: u64,
+    #[cfg(test)]
+    pub(crate) import_seconds: f64,
 }
 
 impl SsdMoe {
@@ -90,7 +100,7 @@ impl SsdMoe {
             records.push(first);
         }
         let s = i32::try_from(slots)?;
-        let cache = ExpertCache::new(slots)?;
+        let cache = Rc::new(RefCell::new(ExpertCache::new(slots)?));
         let banks = [
             (vec![s, 2, 160, 40, 32], Dtype::UInt16), // gate/up trellises
             (vec![s, 1, 40, 160, 32], Dtype::UInt16), // down trellis
@@ -124,10 +134,19 @@ impl SsdMoe {
             read_bytes: 0,
             overlap,
             readers,
+            prefetcher: None,
             #[cfg(test)]
             route_ids: Vec::new(),
             #[cfg(test)]
             profile_seconds: [0.0; 2],
+            #[cfg(test)]
+            prefetched: 0,
+            #[cfg(test)]
+            prefetch_profile: [0; 4],
+            #[cfg(test)]
+            overlap_hot_rows: 0,
+            #[cfg(test)]
+            import_seconds: 0.0,
         })
     }
 
@@ -183,7 +202,9 @@ impl SsdMoe {
         ensure!(
             n > 0
                 && x.shape() == [n, H]
-                && slots.iter().all(|&s| (s as usize) < self.cache.capacity()),
+                && slots
+                    .iter()
+                    .all(|&s| (s as usize) < self.cache.borrow().capacity()),
             "invalid expert slot mapping"
         );
         let indices = Array::from_u32(slots, &[n])?;
@@ -235,6 +256,12 @@ impl SsdMoe {
             router::topk(&probabilities, 10, true)
         }
     }
+    fn predict(&self, x: &Array) -> Result<Array> {
+        self.gate
+            .forward(x)?
+            .argsort()?
+            .slice(1, 512 - PREDICTION_RANKS as i32, 512)
+    }
     pub fn forward(&mut self, x: &Array) -> Result<Array> {
         self.forward_many(x)
     }
@@ -242,24 +269,34 @@ impl SsdMoe {
     pub(crate) fn warm_all(&mut self) -> Result<()> {
         self.drain()?;
         ensure!(
-            self.cache.capacity() == 512,
+            self.cache.borrow().capacity() == 512,
             "resident draft requires all expert slots"
         );
         let ids = (0..512u32).collect::<Vec<_>>();
-        let routes = self.cache.reserve(&ids)?;
+        let routes = self.cache.borrow_mut().reserve(&ids)?;
         let jobs = ids
             .iter()
             .zip(&routes)
             .filter_map(|(&id, &(slot, hit))| (!hit).then_some((id, slot)))
             .collect::<Vec<_>>();
         if let Err(error) = self.fill_many(&jobs) {
-            self.cache.invalidate();
+            self.cache.borrow_mut().invalidate();
             return Err(error);
         }
         Ok(())
     }
 
     pub(crate) fn forward_many(&mut self, x: &Array) -> Result<Array> {
+        self.forward_lookahead(x, None, 0)
+    }
+
+    pub(crate) fn forward_lookahead(
+        &mut self,
+        x: &Array,
+        next: Option<&mut Self>,
+        depth: usize,
+    ) -> Result<Array> {
+        ensure!(depth <= 10, "lookahead depth must be in 0..=10");
         ensure!(
             x.shape().len() == 2
                 && (1..=2).contains(&x.shape()[0])
@@ -268,19 +305,37 @@ impl SsdMoe {
             "streamed MoE expects one or two route rows"
         );
         let rows = x.shape()[0];
-        if rows == 2 && self.cache.capacity() < 20 {
+        if rows == 2 && self.cache.borrow().capacity() < 20 {
             let a = self.forward(&x.slice(0, 0, 1)?)?;
             let b = self.forward(&x.slice(0, 1, 2)?)?;
             return Array::concatenate(&[&a, &b], 0);
         }
         #[cfg(test)]
         let route_start = std::time::Instant::now();
+        let prediction = if depth > 0 {
+            next.as_ref().map(|next| next.predict(x)).transpose()?
+        } else {
+            None
+        };
         let pairs = (0..rows)
             .map(|row| self.route(&x.slice(0, row, row + 1)?))
             .collect::<Result<Vec<_>>>()?;
         let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
         let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
+        if let Some(prediction) = &prediction {
+            Array::async_eval_all(&[&selected, prediction])?;
+        }
         let ids = selected.to_u32()?;
+        let predicted_ids = prediction
+            .map(|p| -> Result<Vec<u32>> {
+                let mut ids = p.to_u32()?;
+                ensure!(
+                    order_predictions(&mut ids, rows as usize),
+                    "invalid lookahead prediction shape or IDs"
+                );
+                Ok(ids)
+            })
+            .transpose()?;
         #[cfg(test)]
         {
             self.profile_seconds[0] += route_start.elapsed().as_secs_f64();
@@ -298,17 +353,41 @@ impl SsdMoe {
         if let Some(last) = self.last.take() {
             last.eval()?;
         }
-        let routes = self.cache.reserve(&ids)?;
+        #[cfg(test)]
+        let import_start = std::time::Instant::now();
+        if let Some((layer, pool)) = &self.prefetcher {
+            self.cache.borrow_mut().enable_predictive_lru();
+            let mut pool = pool.borrow_mut();
+            pool.poll();
+            pool.note_late(*layer, &ids);
+        }
+        let before = self.cache.borrow().prefetch_hits;
+        let routes = self.cache.borrow_mut().reserve(&ids)?;
+        let used = self.cache.borrow().prefetch_hits - before;
+        if let Some((_, pool)) = &self.prefetcher {
+            pool.borrow()
+                .counters
+                .used
+                .fetch_add(used, std::sync::atomic::Ordering::Relaxed);
+        }
+        #[cfg(test)]
+        {
+            self.prefetched += used;
+            self.import_seconds += import_start.elapsed().as_secs_f64();
+        }
         let mut hot = Vec::new();
         let mut cold = Vec::new();
         let mut order = Vec::new();
         for (i, &(slot, hit)) in routes.iter().enumerate() {
             if hit {
-                hot.push((i, slot as u32));
                 self.hits = self.hits.saturating_add(1);
             } else {
-                cold.push((i, slot as u32));
                 self.misses = self.misses.saturating_add(1);
+            }
+            if hit {
+                hot.push((i, slot as u32));
+            } else {
+                cold.push((i, slot as u32));
             }
         }
         let hot_output = if self.overlap && !hot.is_empty() && !cold.is_empty() {
@@ -323,6 +402,10 @@ impl SsdMoe {
                 &hot.iter().map(|p| p.1).collect::<Vec<_>>(),
             )?;
             value.async_eval()?;
+            #[cfg(test)]
+            {
+                self.overlap_hot_rows += hot.len() as u64;
+            }
             Some(value)
         } else {
             None
@@ -335,7 +418,7 @@ impl SsdMoe {
             .filter_map(|&(i, slot)| filled.insert(slot).then_some((ids[i], slot as usize)))
             .collect::<Vec<_>>();
         if let Err(error) = self.fill_many(&jobs) {
-            self.cache.invalidate();
+            self.cache.borrow_mut().invalidate();
             if let Some(hot) = &hot_output {
                 hot.eval()?;
             }
@@ -394,7 +477,81 @@ impl SsdMoe {
             0,
         )?)?;
         self.last = Some(output.try_clone()?);
+        if let (Some(next), Some(ids)) = (next, predicted_ids) {
+            if ids.iter().any(|&id| !next.cache.borrow().contains(id)) {
+                output.async_eval()?;
+            }
+            next.prefetch(&ids, depth)?;
+        }
         Ok(output)
+    }
+
+    fn prefetch(&mut self, ids: &[u32], budget: usize) -> Result<()> {
+        ensure!(
+            !ids.is_empty() && ids.len() <= 2 * PREDICTION_RANKS && ids.iter().all(|&id| id < 512),
+            "invalid predicted experts"
+        );
+        let Some((layer, pool)) = self.prefetcher.as_ref().map(|(l, p)| (*l, Rc::clone(p))) else {
+            return Ok(());
+        };
+        let mut pool = pool.borrow_mut();
+        pool.poll();
+        self.cache.borrow_mut().protect_predictions(ids)?;
+        let mut cold = Vec::new();
+        #[cfg(test)]
+        {
+            self.prefetch_profile[0] += ids.len() as u64;
+        }
+        for &id in ids {
+            #[cfg(test)]
+            {
+                self.prefetch_profile[1] += 1;
+            }
+            if self.cache.borrow().contains(id) {
+                #[cfg(test)]
+                {
+                    self.prefetch_profile[2] += 1;
+                }
+            } else if !cold.contains(&id) {
+                cold.push(id);
+            }
+        }
+        if cold.is_empty() || budget == 0 || !pool.has_room() {
+            return Ok(());
+        }
+        self.drain()?;
+        let mut admitted = 0;
+        for id in cold {
+            if admitted == budget.min(4) || !pool.has_room() {
+                break;
+            }
+            let Some(slot) = self.cache.borrow_mut().claim_prefetch(id)? else {
+                continue;
+            };
+            let read = self.records[id as usize]
+                .source()
+                .and_then(|(file, offset)| {
+                    Array::prepare_read(file, offset, &mut self.banks, &Self::destinations(slot))
+                });
+            let read = match read {
+                Ok(read) => read,
+                Err(_) => {
+                    self.cache.borrow_mut().publish_prefetch(slot, id, false);
+                    pool.counters
+                        .failed
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    continue;
+                }
+            };
+            if pool.submit(layer, id, slot, Rc::clone(&self.cache), read) {
+                admitted += 1;
+                #[cfg(test)]
+                {
+                    self.prefetch_profile[3] += 1;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn drain(&mut self) -> Result<()> {
@@ -403,10 +560,461 @@ impl SsdMoe {
         }
         Ok(())
     }
+
+    #[cfg(test)]
+    pub(crate) fn cache_for_test_invalidate(&mut self) {
+        self.cache.borrow_mut().invalidate();
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    fn admission_fixture()
+    -> anyhow::Result<(crate::checkpoint::Checkpoint, crate::array::Array, Vec<u8>)> {
+        use crate::array::{Array, Dtype};
+        use anyhow::{Context, ensure};
+        use std::path::Path;
+        let root = std::env::var("MLXL3_FLASH_REFERENCE")?;
+        let root = Path::new(&root);
+        let reference: serde_json::Value =
+            serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
+        let fixture = &reference["steps"][0]["components"][0]["mlp"];
+        let input =
+            std::fs::read(root.join(fixture["input"]["file"].as_str().context("missing input")?))?;
+        let expected = std::fs::read(
+            root.join(
+                fixture["output"]["file"]
+                    .as_str()
+                    .context("missing output")?,
+            ),
+        )?;
+        ensure!(input.len() == super::H as usize * 4 && expected.len() == input.len());
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        Ok((
+            checkpoint,
+            Array::from_bytes(&input, &[1, super::H], Dtype::Float32)?,
+            expected,
+        ))
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; first-layer LES must use LRU without incoming predictions"]
+    fn attached_pool_enables_lru_without_an_incoming_prediction() -> anyhow::Result<()> {
+        use super::*;
+        let (checkpoint, input, expected) = admission_fixture()?;
+        let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+        let selected = moe.route(&input)?.0.to_u32()?;
+        ensure!(
+            selected.len() == 10 && selected.iter().copied().collect::<BTreeSet<_>>().len() == 10
+        );
+        ensure!(selected.iter().any(|&id| id >= 89));
+        let marker = (0..89u32)
+            .find(|id| !selected.contains(id))
+            .context("fixture needs an unrouted old expert")?;
+        let ids = (0..89u32).collect::<Vec<_>>();
+        let routes = moe.cache.borrow_mut().reserve(&ids)?;
+        let jobs = ids
+            .iter()
+            .zip(routes)
+            .map(|(&id, (slot, _))| (id, slot))
+            .collect::<Vec<_>>();
+        moe.fill_many(&jobs)?;
+        for _ in 0..3 {
+            moe.cache.borrow_mut().reserve(&[marker])?;
+        }
+        let others = ids
+            .into_iter()
+            .filter(|&id| id != marker)
+            .collect::<Vec<_>>();
+        for offset in (0..90).step_by(10) {
+            let cohort = (offset..offset + 10)
+                .map(|i| others[i % others.len()])
+                .collect::<Vec<_>>();
+            moe.cache.borrow_mut().reserve(&cohort)?;
+        }
+        ensure!(moe.cache.borrow().contains(marker));
+        moe.prefetcher = Some((0, Rc::new(RefCell::new(ReaderPool::new()?))));
+        ensure!(
+            moe.forward(&input)?.to_bytes()? == expected,
+            "independent MoE oracle differs"
+        );
+        ensure!(
+            !moe.cache.borrow().contains(marker),
+            "attached first-layer LES pool retained the old LFU policy"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; persistent routed experts must overlap remaining SSD reads"]
+    fn completed_prefetches_compute_while_other_experts_are_read() -> anyhow::Result<()> {
+        use super::*;
+        let (checkpoint, input, expected) = admission_fixture()?;
+        let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+        let selected = moe.route(&input)?.0.to_u32()?;
+        ensure!(
+            selected.len() == 10 && selected.iter().copied().collect::<BTreeSet<_>>().len() == 10
+        );
+        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+        moe.prefetcher = Some((0, Rc::clone(&pool)));
+        moe.prefetch(&selected, 4)?;
+        pool.borrow_mut().wait_for_test()?;
+        ensure!(
+            moe.forward(&input)?.to_bytes()? == expected,
+            "independent MoE oracle differs"
+        );
+        ensure!(moe.hits == 4 && moe.misses == 6 && moe.prefetched == 4);
+        ensure!(moe.read_bytes == 6 * EXPERT_BYTES);
+        ensure!(
+            moe.overlap_hot_rows == 4,
+            "completed prefetches still wait for cold SSD reads"
+        );
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn ready_experts_overlap_real_ssd_path() {
+        completed_prefetches_compute_while_other_experts_are_read().unwrap();
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; completed late results must release admission capacity"]
+    fn completed_previous_layer_reads_do_not_block_next_prefetch_cohort() -> anyhow::Result<()> {
+        use super::*;
+        use std::sync::atomic::Ordering;
+        let (checkpoint, input, expected) = admission_fixture()?;
+        let mut next = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+        next.prefetcher = Some((1, Rc::clone(&pool)));
+        let mut previous =
+            SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+        previous.prefetcher = Some((0, Rc::clone(&pool)));
+        previous.prefetch(&[0, 1, 2, 3], 4)?;
+        pool.borrow_mut().wait_for_test()?;
+        ensure!(pool.borrow().counters.completed.load(Ordering::Relaxed) == 4);
+        let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+        next.prefetch(&[511], 4)?;
+        ensure!(
+            pool.borrow().counters.submitted.load(Ordering::Relaxed) == before + 1,
+            "completed previous-layer results still block the next cohort"
+        );
+        pool.borrow_mut().wait_for_test()?;
+        ensure!(next.forward(&input)?.to_bytes()? == expected);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; cached strongest predictions must not consume the read budget"]
+    fn cached_top_four_predictions_do_not_starve_useful_cold_prefetches() -> anyhow::Result<()> {
+        use super::*;
+        use std::sync::atomic::Ordering;
+        let (checkpoint, input, expected) = admission_fixture()?;
+        let mut current = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+        let mut next = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+        let hot = router::topk(&next.gate.forward(&input)?, 4, false)?
+            .0
+            .to_u32()?;
+        ensure!(hot.len() == 4);
+        let sorted_hot = next
+            .gate
+            .forward(&input)?
+            .argsort()?
+            .slice(1, 508, 512)?
+            .to_u32()?;
+        ensure!(
+            hot.iter().copied().collect::<BTreeSet<_>>()
+                == sorted_hot.into_iter().collect::<BTreeSet<_>>(),
+            "fixture must warm the strongest four under both selectors"
+        );
+        let routes = next.cache.borrow_mut().reserve(&hot)?;
+        let jobs = hot
+            .iter()
+            .zip(routes)
+            .map(|(&id, (slot, _))| (id, slot))
+            .collect::<Vec<_>>();
+        next.fill_many(&jobs)?;
+        ensure!(hot.iter().all(|&id| next.cache.borrow().contains(id)));
+        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+        next.prefetcher = Some((1, Rc::clone(&pool)));
+        let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+        ensure!(
+            current
+                .forward_lookahead(&input, Some(&mut next), 4)?
+                .to_bytes()?
+                == expected
+        );
+        ensure!(
+            pool.borrow().counters.submitted.load(Ordering::Relaxed) > before,
+            "cached top four starve lower-ranked cold experts"
+        );
+        pool.borrow_mut().wait_for_test()?;
+        ensure!(next.forward(&input)?.to_bytes()? == expected && next.prefetched > 0);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; independent CPU sort oracle for one/two prediction rows"]
+    fn batched_prediction_selects_top_sixteen_values_without_changing_real_routing()
+    -> anyhow::Result<()> {
+        use super::*;
+        let (checkpoint, input, expected) = admission_fixture()?;
+        let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+        for dtype in [Dtype::Float16, Dtype::Float32] {
+            for rows in [1, 2] {
+                let x = if rows == 1 {
+                    input.try_clone()?
+                } else {
+                    Array::concatenate(&[&input, &input.scalar_mul(0.875)?], 0)?
+                }
+                .astype(dtype)?;
+                let values = moe.gate.forward(&x)?.astype(Dtype::Float32)?.to_f32()?;
+                ensure!(
+                    values.len() == rows as usize * 512 && values.iter().all(|v| v.is_finite())
+                );
+                let prediction = moe.predict(&x)?;
+                ensure!(prediction.shape() == [rows, PREDICTION_RANKS as i32]);
+                let ids = prediction.to_u32()?;
+                ensure!(ids.len() == rows as usize * PREDICTION_RANKS);
+                for row in 0..rows as usize {
+                    let ids = &ids[row * PREDICTION_RANKS..(row + 1) * PREDICTION_RANKS];
+                    ensure!(
+                        ids.iter().all(|&id| id < 512)
+                            && ids.iter().copied().collect::<BTreeSet<_>>().len()
+                                == PREDICTION_RANKS
+                    );
+                    let mut oracle = values[row * 512..(row + 1) * 512].to_vec();
+                    oracle.sort_by(f32::total_cmp);
+                    let mut selected = ids
+                        .iter()
+                        .map(|&id| values[row * 512 + id as usize])
+                        .collect::<Vec<_>>();
+                    selected.sort_by(f32::total_cmp);
+                    ensure!(
+                        selected == oracle[512 - PREDICTION_RANKS..],
+                        "prediction differs from independent CPU sort"
+                    );
+                }
+                let mut ordered = ids;
+                ensure!(order_predictions(&mut ordered, rows as usize));
+            }
+        }
+        ensure!(moe.forward(&input)?.to_bytes()? == expected);
+        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+        moe.prefetcher = Some((0, Rc::clone(&pool)));
+        moe.cache.borrow_mut().invalidate();
+        moe.prefetch(&[0, 0, 1, 2, 511], 0)?;
+        ensure!(moe.prefetch(&[0; 33], 4).is_err());
+        ensure!(
+            pool.borrow()
+                .counters
+                .submitted
+                .load(std::sync::atomic::Ordering::Relaxed)
+                == 0
+        );
+        moe.prefetch(&[0, 0, 1, 2, 511], 2)?;
+        ensure!(
+            pool.borrow()
+                .counters
+                .submitted
+                .load(std::sync::atomic::Ordering::Relaxed)
+                == 2
+        );
+        pool.borrow_mut().wait_for_test()?;
+        moe.prefetch(&[0, 0, 1, 2, 511], 4)?;
+        ensure!(
+            pool.borrow()
+                .counters
+                .submitted
+                .load(std::sync::atomic::Ordering::Relaxed)
+                == 4
+        );
+        pool.borrow_mut().wait_for_test()?;
+        ensure!(moe.forward(&input)?.to_bytes()? == expected);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU and Flash fixtures; speculative fills and recovery"]
+    fn lookahead_preserves_exact_routes_and_invalidates_failed_predictions() -> anyhow::Result<()> {
+        use super::*;
+        use std::path::Path;
+        let root = std::env::var("MLXL3_FLASH_REFERENCE")?;
+        let root = Path::new(&root);
+        let reference: serde_json::Value =
+            serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
+        let fixture = &reference["steps"][0]["components"][0]["mlp"];
+        let bytes =
+            std::fs::read(root.join(fixture["input"]["file"].as_str().context("missing input")?))?;
+        let expected = std::fs::read(
+            root.join(
+                fixture["output"]["file"]
+                    .as_str()
+                    .context("missing output")?,
+            ),
+        )?;
+        ensure!(bytes.len() == H as usize * 4 && expected.len() == bytes.len());
+        let input = Array::from_bytes(&bytes, &[1, H], Dtype::Float32)?;
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        for slots in [10, 20, 24, 89] {
+            let mut current = SsdMoe::load(
+                &checkpoint,
+                "model.language_model.layers.0.mlp",
+                slots,
+                true,
+            )?;
+            let mut next = SsdMoe::load(
+                &checkpoint,
+                "model.language_model.layers.0.mlp",
+                slots,
+                true,
+            )?;
+            let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+            next.prefetcher = Some((1, Rc::clone(&pool)));
+            for rows in [1, 2] {
+                for depth in [0, 2, 4, 8, 10] {
+                    pool.borrow_mut().wait_for_test()?;
+                    pool.borrow_mut().poll();
+                    next.cache.borrow_mut().invalidate();
+                    let x = if rows == 1 {
+                        input.try_clone()?
+                    } else {
+                        Array::concatenate(&[&input, &input], 0)?
+                    };
+                    let before = pool
+                        .borrow()
+                        .counters
+                        .submitted
+                        .load(std::sync::atomic::Ordering::Relaxed);
+                    let output = current.forward_lookahead(&x, Some(&mut next), depth)?;
+                    ensure!(
+                        output.shape() == [rows, H]
+                            && output.to_bytes()? == expected.repeat(rows as usize),
+                        "lookahead changed MoE output"
+                    );
+                    let after = pool
+                        .borrow()
+                        .counters
+                        .submitted
+                        .load(std::sync::atomic::Ordering::Relaxed);
+                    if depth > 0 && slots > 20 {
+                        ensure!(after > before, "test did not submit predictions");
+                    } else {
+                        ensure!(
+                            after == before,
+                            "minimum cache must preserve demand capacity"
+                        );
+                    }
+                    pool.borrow_mut().wait_for_test()?;
+                    ensure!(
+                        next.forward(&input)?.to_bytes()? == expected,
+                        "prefetched weights differ"
+                    );
+                }
+            }
+            pool.borrow_mut().wait_for_test()?;
+            pool.borrow_mut().poll();
+            next.cache.borrow_mut().invalidate();
+            let selected = next.route(&input)?.0.to_u32()?;
+            let before = next.prefetched;
+            next.prefetch(&selected, 4)?;
+            pool.borrow_mut().wait_for_test()?;
+            ensure!(next.forward(&input)?.to_bytes()? == expected);
+            ensure!(
+                if slots > 20 {
+                    next.prefetched > before
+                } else {
+                    next.prefetched == before
+                },
+                "persistent admission or minimum-cache fallback was not exercised"
+            );
+            next.cache.borrow_mut().invalidate();
+            let wrong = (0..512)
+                .filter(|id| !selected.contains(id))
+                .take(8)
+                .collect::<Vec<_>>();
+            ensure!(wrong.len() == 8);
+            next.prefetch(&wrong, 4)?;
+            let before = next.prefetched;
+            pool.borrow_mut().wait_for_test()?;
+            let ready = wrong
+                .iter()
+                .copied()
+                .filter(|&id| next.cache.borrow().contains(id))
+                .collect::<Vec<_>>();
+            ensure!(ready.len() == if slots > 20 { 4 } else { 0 });
+            ensure!(
+                next.forward(&input)?.to_bytes()? == expected && next.prefetched == before,
+                "wrong predictions changed real routing"
+            );
+            ensure!(
+                ready.iter().all(|&id| next.cache.borrow().contains(id)),
+                "unused records did not persist across a real forward"
+            );
+            let submitted = pool
+                .borrow()
+                .counters
+                .submitted
+                .load(std::sync::atomic::Ordering::Relaxed);
+            if !ready.is_empty() {
+                next.prefetch(&ready, 4)?;
+                ensure!(
+                    submitted
+                        == pool
+                            .borrow()
+                            .counters
+                            .submitted
+                            .load(std::sync::atomic::Ordering::Relaxed),
+                    "cached records were read twice"
+                );
+            }
+            next.cache.borrow_mut().invalidate();
+            next.prefetch(&[0, 511, 0], 4)?;
+            let count = pool
+                .borrow()
+                .counters
+                .submitted
+                .load(std::sync::atomic::Ordering::Relaxed);
+            next.prefetch(&[0, 511, 0], 4)?;
+            ensure!(
+                pool.borrow()
+                    .counters
+                    .submitted
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                    == count,
+                "duplicate speculative read"
+            );
+            pool.borrow_mut().wait_for_test()?;
+            pool.borrow_mut().poll();
+            ensure!(next.prefetch(&[512], 4).is_err() && next.prefetch(&[], 4).is_err());
+            next.cache.borrow_mut().invalidate();
+            let saved = next.records[0].data_offsets;
+            next.records[0].data_offsets[0] = u64::MAX;
+            next.prefetch(&[0, 511], 4)?;
+            pool.borrow_mut().wait_for_test()?;
+            ensure!(
+                !next.cache.borrow_mut().reserve(&[0])?[0].1,
+                "failed prediction left a false hit"
+            );
+            next.cache.borrow_mut().invalidate();
+            next.records[0].data_offsets = saved;
+            ensure!(
+                next.forward(&input)?.to_bytes()? == expected,
+                "prediction failure recovery differs"
+            );
+            ensure!(
+                current
+                    .forward_lookahead(&input, Some(&mut next), 11)
+                    .is_err()
+            );
+            current.drain()?;
+            next.drain()?;
+        }
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical Apple GPU and independent Flash MoE inputs"]
     fn two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads()
@@ -446,7 +1054,7 @@ mod tests {
             inputs.push(Array::from_bytes(&read("input")?, &[1, H], Dtype::Float32)?);
             expected.push(read("output")?);
         }
-        for slots in [10, 20, 143] {
+        for slots in [10, 20, 24, 89] {
             for (overlap, readers) in [
                 (false, 1),
                 (true, 1),
@@ -489,7 +1097,7 @@ mod tests {
                     "invalid shape changed cache counters"
                 );
                 moe.drain()?;
-                moe.cache.invalidate();
+                moe.cache.borrow_mut().invalidate();
                 let expert = moe.route(&inputs[0])?.0.to_u32()?[0] as usize;
                 let original = moe.records[expert].data_offsets;
                 moe.records[expert].data_offsets[0] = u64::MAX;
@@ -499,10 +1107,10 @@ mod tests {
                 );
                 let ids = moe.route(&inputs[0])?.0.to_u32()?;
                 ensure!(
-                    moe.cache.reserve(&ids)?.iter().all(|p| !p.1),
+                    moe.cache.borrow_mut().reserve(&ids)?.iter().all(|p| !p.1),
                     "failed read left valid reservations"
                 );
-                moe.cache.invalidate();
+                moe.cache.borrow_mut().invalidate();
                 moe.records[expert].data_offsets = original;
                 ensure!(
                     moe.forward(&inputs[0])?.to_bytes()? == expected[0],

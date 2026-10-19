@@ -19,10 +19,41 @@ struct DiskRead {
   int fd;
   uint64_t offset;
   std::vector<iovec> destinations;
+  uint64_t bytes_read = 0;
 };
+
+inline void copy_disk_record(const uint8_t* source, size_t size, const std::vector<iovec>& destinations) {
+  if (!source || !size || destinations.empty() || destinations.size() > 64)
+    throw std::invalid_argument("invalid staged record");
+  const auto source_start = reinterpret_cast<uintptr_t>(source);
+  if (size > std::numeric_limits<uintptr_t>::max() - source_start)
+    throw std::invalid_argument("invalid staged source interval");
+  std::vector<std::pair<uintptr_t, uintptr_t>> ranges;
+  size_t total = 0;
+  for (const auto& v : destinations) {
+    auto start = reinterpret_cast<uintptr_t>(v.iov_base);
+    if (!start || !v.iov_len || v.iov_len > std::numeric_limits<uintptr_t>::max() - start ||
+        v.iov_len > size - total ||
+        (start < source_start + size && source_start < start + v.iov_len))
+      throw std::invalid_argument("invalid staged destination interval");
+    total += v.iov_len;
+    ranges.emplace_back(start, start + v.iov_len);
+  }
+  if (total != size) throw std::invalid_argument("incomplete staged record");
+  std::sort(ranges.begin(), ranges.end());
+  for (size_t i = 1; i < ranges.size(); ++i)
+    if (ranges[i].first < ranges[i - 1].second)
+      throw std::invalid_argument("overlapping staged destinations");
+  size_t offset = 0;
+  for (const auto& v : destinations) {
+    std::memcpy(v.iov_base, source + offset, v.iov_len);
+    offset += v.iov_len;
+  }
+}
 
 inline void read_disk_record(DiskRead& read) {
   size_t index = 0, done = 0;
+  read.bytes_read = 0;
   while (index < read.destinations.size()) {
     auto* vectors = read.destinations.data();
     auto n = ::preadv(read.fd, vectors + index,
@@ -37,6 +68,7 @@ inline void read_disk_record(DiskRead& read) {
     }
     if (n == 0) throw std::runtime_error("checkpoint truncated during disk record read");
     done += size_t(n);
+    read.bytes_read += uint64_t(n);
     auto remaining = size_t(n);
     while (remaining && index < read.destinations.size()) {
       auto consumed = std::min(remaining, vectors[index].iov_len);
@@ -48,9 +80,8 @@ inline void read_disk_record(DiskRead& read) {
   }
 }
 
-// Destinations must remain owned until this synchronous call returns, including on error.
-inline void read_disk_records(std::vector<DiskRead>& reads, size_t workers) {
-  if (reads.empty() || reads.size() > 512 || !workers || workers > 4)
+inline void validate_disk_reads(const std::vector<DiskRead>& reads) {
+  if (reads.empty() || reads.size() > 512)
     throw std::invalid_argument("invalid disk reader batch");
   std::vector<std::pair<uintptr_t, uintptr_t>> ranges;
   for (const auto& read : reads) {
@@ -72,7 +103,12 @@ inline void read_disk_records(std::vector<DiskRead>& reads, size_t workers) {
   for (size_t i = 1; i < ranges.size(); ++i)
     if (ranges[i].first < ranges[i - 1].second)
       throw std::invalid_argument("overlapping disk destinations");
+}
 
+// Destinations must remain owned until this synchronous call returns, including on error.
+inline void read_disk_records(std::vector<DiskRead>& reads, size_t workers) {
+  if (!workers || workers > 4) throw std::invalid_argument("invalid disk worker count");
+  validate_disk_reads(reads);
   workers = std::min(workers, reads.size());
   std::vector<std::exception_ptr> errors(reads.size());
   struct Work {

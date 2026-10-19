@@ -1,0 +1,64 @@
+{
+  "status": "reproduced_policy_mismatch",
+  "commands": [
+    {
+      "command": [
+        "/Users/justin/.cargo/bin/rustc",
+        "--edition",
+        "2024",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39/cache-admission-audit.rs",
+        "--extern",
+        "mlxl3_native=/Users/justin/Documents/mix-stq1_0/target/debug/deps/libmlxl3_native-801d26388bcc8880.rlib",
+        "-L",
+        "dependency=/Users/justin/Documents/mix-stq1_0/target/debug/deps",
+        "-o",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39/cache-admission-audit"
+      ],
+      "exit_code": 0,
+      "joined": true
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-39/cache-admission-audit"
+      ],
+      "exit_code": 101,
+      "joined": true
+    }
+  ],
+  "library": {
+    "path": "/Users/justin/Documents/mix-stq1_0/target/debug/deps/libmlxl3_native-801d26388bcc8880.rlib",
+    "sha256": "4f2d039da0870a06466ecd5e02382868b1c994571f5ac402d196c4caf09ee838"
+  },
+  "source_sha256": "18864a8e560388cb1f24c03631c7723ef449a51edddc3cf090d709dc470a140f",
+  "observed": [
+    {
+      "capacity": 24,
+      "demanded": false,
+      "first_slot": 6,
+      "second_slot": 6,
+      "retained_recent_prefetch": false
+    },
+    {
+      "capacity": 24,
+      "demanded": true,
+      "first_slot": 6,
+      "second_slot": 7,
+      "retained_recent_prefetch": true
+    },
+    {
+      "capacity": 89,
+      "demanded": false,
+      "first_slot": 1,
+      "second_slot": 1,
+      "retained_recent_prefetch": false
+    },
+    {
+      "capacity": 89,
+      "demanded": true,
+      "first_slot": 1,
+      "second_slot": 2,
+      "retained_recent_prefetch": true
+    }
+  ],
+  "scope": "four deterministic CPU cases; not numeric model divergence or throughput proof"
+}

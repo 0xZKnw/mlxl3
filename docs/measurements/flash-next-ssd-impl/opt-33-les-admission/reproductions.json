@@ -1,0 +1,34 @@
+[
+  {
+    "name": "completed_previous_layer_reads_do_not_block_next_prefetch_cohort",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-33/reproduction/mlxl3_native-28585053ede733ec",
+      "ssd_moe::tests::completed_previous_layer_reads_do_not_block_next_prefetch_cohort",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "expected_failure": "completed previous-layer results still block the next cohort",
+    "exit_code": 101,
+    "status": "reproduced",
+    "reaped": true,
+    "seconds": 1.412099125001987
+  },
+  {
+    "name": "cached_top_four_predictions_do_not_starve_useful_cold_prefetches",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-33/reproduction/mlxl3_native-28585053ede733ec",
+      "ssd_moe::tests::cached_top_four_predictions_do_not_starve_useful_cold_prefetches",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "expected_failure": "cached top four starve lower-ranked cold experts",
+    "exit_code": 101,
+    "status": "reproduced",
+    "reaped": true,
+    "seconds": 1.4651696250002715
+  }
+]

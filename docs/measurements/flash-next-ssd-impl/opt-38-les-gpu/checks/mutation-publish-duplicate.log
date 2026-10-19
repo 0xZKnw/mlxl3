@@ -1,0 +1,19 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-e6d055582b363ce4)
+
+running 1 test
+
+thread 'flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand' (1810910) panicked at native/src/flash_support.rs:475:9:
+assertion failed: !cache.publish_prefetch(slot, 511, true)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand ... FAILED
+
+failures:
+
+failures:
+    flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 78 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

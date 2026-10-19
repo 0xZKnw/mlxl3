@@ -1,0 +1,193 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.2835715839974,
+    "reaped": true
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.2849550419996376,
+    "reaped": true
+  },
+  {
+    "name": "cpu-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.2025962499974412,
+    "reaped": true
+  },
+  {
+    "name": "cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.124587333004456,
+    "reaped": true
+  },
+  {
+    "name": "release-suite",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib"
+    ],
+    "timeout_seconds": 240,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 31.818953207999584,
+    "reaped": true
+  },
+  {
+    "name": "build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 33.00812762500573,
+    "reaped": true
+  },
+  {
+    "name": "cpp-asan-build",
+    "command": [
+      "c++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader.cpp",
+      "-o",
+      "docs/measurements/flash-next-ssd-impl/opt-32-les-async/disk-reader-asan"
+    ],
+    "timeout_seconds": 60,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.106486374999804,
+    "reaped": true
+  },
+  {
+    "name": "cpp-asan",
+    "command": [
+      "docs/measurements/flash-next-ssd-impl/opt-32-les-async/disk-reader-asan"
+    ],
+    "timeout_seconds": 45,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.4479540829997859,
+    "reaped": true
+  },
+  {
+    "name": "cpp-tsan-build",
+    "command": [
+      "c++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=thread",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader.cpp",
+      "-o",
+      "docs/measurements/flash-next-ssd-impl/opt-32-les-async/disk-reader-tsan"
+    ],
+    "timeout_seconds": 60,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.5086109170006239,
+    "reaped": true
+  },
+  {
+    "name": "cpp-tsan",
+    "command": [
+      "docs/measurements/flash-next-ssd-impl/opt-32-les-async/disk-reader-tsan"
+    ],
+    "timeout_seconds": 45,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.4940246250043856,
+    "reaped": true
+  },
+  {
+    "name": "cpp-proof-syntax",
+    "command": [
+      "c++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I",
+      "native/ffi",
+      "-fsyntax-only",
+      "native/tests/disk_reader_proof.cpp"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.2318639590012026,
+    "reaped": true
+  }
+]

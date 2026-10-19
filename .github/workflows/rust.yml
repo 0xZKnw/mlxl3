@@ -27,6 +27,11 @@ jobs:
             --harness pair_commit_preserves_exact_valid_prefix_without_overflow
             --harness tensor_source_interval_is_ordered_and_cannot_wrap
             --harness disk_destinations_cannot_wrap_or_exceed_owned_storage
+            --harness pending_publish_rejects_stale_failed_and_duplicate_records
+            --harness speculative_claim_excludes_pending_and_preserves_pair_space
+            --harness predictive_victims_exclude_pending_and_fall_back_only_when_needed
+            --harness free_slots_precede_all_ready_victims_in_both_policies
+            --harness les_lru_uses_age_without_penalizing_zero_frequency_prefetches
             --harness reference_partition
             --harness automatic_cache_cannot_spend_reserved_memory
             --harness automatic_cache_is_monotone
@@ -68,7 +73,7 @@ jobs:
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
           build/ci/kernel-cache-key
           c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
-      - name: Check synchronous SSD readers and failure draining
+      - name: Check SSD ranges, actual I/O bytes and failure draining
         if: matrix.os == 'macos-26'
         run: |
           c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader
@@ -82,6 +87,13 @@ jobs:
       - run: python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
       - name: Lint native verification scripts and regressions
         run: |
+          for verification_source in docs/measurements/flash-next-ssd-impl/opt-30-les/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-32-les-async/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-33-les-admission/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-34-les-ready/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/*supervisor.txt; do
+            ruff format --check --stdin-filename flash-les-verification.py < "$verification_source"
+            ruff check --select F,E9 --stdin-filename flash-les-verification.py < "$verification_source"
+          done
+          python < docs/measurements/flash-next-ssd-impl/opt-34-les-ready/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/guards-supervisor.txt
           ruff check --select F,E9 tests/fake-desktop-engine.py
           python -m py_compile tests/fake-desktop-engine.py
           ruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py

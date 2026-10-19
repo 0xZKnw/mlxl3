@@ -1,0 +1,111 @@
+[
+  {
+    "name": "final-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 30120,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.2512740410020342
+  },
+  {
+    "name": "final-mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 30123,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 2.5448503749939846
+  },
+  {
+    "name": "final-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 30189,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 41.36225162500341
+  },
+  {
+    "name": "final-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 30318,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 32.04453666700283
+  },
+  {
+    "name": "kani-victim",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "predictive_victims_exclude_pending_and_fall_back_only_when_needed"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 30406,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 17.63295079198724
+  },
+  {
+    "name": "cbmc-bundled",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/tests/disk_reader_proof.cpp",
+      "-I",
+      "native/ffi",
+      "--cpp11",
+      "--function",
+      "persistent_prepare_proof",
+      "--bounds-check",
+      "--pointer-check",
+      "--unwind",
+      "17",
+      "--unwinding-assertions"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 30535,
+    "exit_code": 6,
+    "joined": true,
+    "elapsed_seconds": 0.08099158298864495
+  }
+]
