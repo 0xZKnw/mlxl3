@@ -1,0 +1,154 @@
+import json
+import os
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+w = Path.cwd()
+p = w / "docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path"
+env = {
+    **os.environ,
+    "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+    "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+}
+commands = [
+    ("fmt", ["cargo", "fmt", "--all", "--check"], 30, False),
+    (
+        "cpu-clippy",
+        [
+            "cargo",
+            "clippy",
+            "--locked",
+            "--no-default-features",
+            "--all-targets",
+            "--features",
+            "chat",
+            "--",
+            "-D",
+            "warnings",
+        ],
+        180,
+        False,
+    ),
+    (
+        "cpu-full",
+        ["cargo", "test", "--locked", "--no-default-features", "--features", "chat"],
+        180,
+        False,
+    ),
+    (
+        "mlx-clippy",
+        [
+            "cargo",
+            "clippy",
+            "--locked",
+            "--all-targets",
+            "--features",
+            "mlx,chat",
+            "--",
+            "-D",
+            "warnings",
+        ],
+        180,
+        False,
+    ),
+    (
+        "release-full",
+        ["cargo", "test", "--locked", "--release", "--features", "mlx,chat"],
+        300,
+        False,
+    ),
+    (
+        "release-build",
+        ["cargo", "build", "--locked", "--release", "--features", "mlx,chat"],
+        300,
+        False,
+    ),
+    (
+        "kani-slots",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "cpu_slot_validation_preserves_bounds_for_real_route_widths",
+        ],
+        120,
+        True,
+    ),
+    (
+        "kani-controls",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "les_control_parsers_accept_only_the_documented_literals",
+        ],
+        120,
+        True,
+    ),
+    (
+        "kani-actual-mlx",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--features",
+            "mlx,chat",
+            "--harness",
+            "actual_slot_dispatch_and_optional_prediction_schedule",
+        ],
+        120,
+        True,
+    ),
+    (
+        "python",
+        [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_flash_benchmark.py",
+            "tests/test_flash_memory.py",
+            "tests/test_mtp_bridge.py",
+            "tests/test_native_json_process.py",
+        ],
+        180,
+        False,
+    ),
+]
+records = []
+for name, command, limit, proof in commands:
+    r = {"name": name, "command": command, "timeout_seconds": limit, "status": "running"}
+    records.append(r)
+    child = None
+    started = time.monotonic()
+    try:
+        with (p / "checks" / (name + ".log")).open("w") as log:
+            child = subprocess.Popen(
+                command, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+            )
+            r["pid"] = child.pid
+            r["exit_code"] = child.wait(timeout=limit)
+        r["status"] = "passed" if r["exit_code"] == 0 else ("unverified" if proof else "failed")
+    except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt) as e:
+        r["status"] = "unverified" if proof else "failed"
+        r["error"] = repr(e)
+    finally:
+        if child is not None:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.wait(timeout=10)
+            r["joined"] = True
+        r["elapsed_seconds"] = time.monotonic() - started
+        (p / "checks.json").write_text(json.dumps(records, indent=2) + "\n")
+    print(name, r["status"], flush=True)
+    if r["status"] == "failed":
+        raise SystemExit(1)

@@ -1,0 +1,887 @@
+diff --git a/native/ffi/mlx_bridge.cpp b/native/ffi/mlx_bridge.cpp
+index cafda218..98208906 100644
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -393,6 +393,12 @@ int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) no
+     *out = new mx::array(mx::zeros(s, dtype(type))); });
+ }
+ int mlxl3_array_eval(void* p) noexcept { return protect([&] { arr(p).eval(); }); }
++int mlxl3_array_is_available(void* p, int* out) noexcept {
++  return protect([&] {
++    if (!out) throw std::invalid_argument("null availability output");
++    *out = arr(p).is_available() ? 1 : 0;
++  });
++}
+ int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
+   return protect([&] {
+     if (!count) return;
+diff --git a/native/src/array.rs b/native/src/array.rs
+index d123ab04..144858aa 100644
+--- a/native/src/array.rs
++++ b/native/src/array.rs
+@@ -11,6 +11,11 @@ use std::{
+     sync::OnceLock,
+ };
+ 
++#[cfg(test)]
++thread_local! {
++    static HOST_READBACKS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
++}
++
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ #[repr(i32)]
+ pub enum Dtype {
+@@ -115,6 +120,8 @@ unsafe extern "C" {
+     ) -> i32;
+     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
+     fn mlxl3_array_eval(p: *mut c_void) -> i32;
++    #[cfg(test)]
++    fn mlxl3_array_is_available(p: *mut c_void, out: *mut i32) -> i32;
+     fn mlxl3_array_async_eval(p: *mut c_void) -> i32;
+     fn mlxl3_arrays_preadv(
+         fds: *const i32,
+@@ -885,11 +892,23 @@ impl Array {
+     }
+     pub fn to_bytes(&self) -> Result<Vec<u8>> {
+         let mut bytes = vec![0; bytes_for(&self.shape, self.dtype)?];
++        #[cfg(test)]
++        HOST_READBACKS.set(HOST_READBACKS.get().saturating_add(1));
+         checked(unsafe {
+             mlxl3_array_copy_bytes(self.handle.as_ptr(), bytes.as_mut_ptr(), bytes.len())
+         })?;
+         Ok(bytes)
+     }
++    #[cfg(test)]
++    pub(crate) fn host_readbacks_for_test() -> u64 {
++        HOST_READBACKS.get()
++    }
++    #[cfg(test)]
++    pub(crate) fn is_available_for_test(&self) -> Result<bool> {
++        let mut ready = 0;
++        checked(unsafe { mlxl3_array_is_available(self.handle.as_ptr(), &mut ready) })?;
++        Ok(ready != 0)
++    }
+     pub fn to_f32(&self) -> Result<Vec<f32>> {
+         let bytes = if self.dtype == Dtype::Float32 {
+             self.to_bytes()?
+@@ -1279,6 +1298,25 @@ pub fn metal_kernel(
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    #[ignore = "physical Apple GPU; nonblocking availability probe and host readback accounting"]
++    fn availability_probe_does_not_submit_a_host_readback() -> anyhow::Result<()> {
++        use super::*;
++        let array = Array::from_u32(&[7], &[1])?;
++        let before = Array::host_readbacks_for_test();
++        assert!(array.is_available_for_test()?);
++        assert!(
++            checked(unsafe {
++                mlxl3_array_is_available(array.handle.as_ptr(), std::ptr::null_mut())
++            })
++            .is_err()
++        );
++        assert_eq!(Array::host_readbacks_for_test(), before);
++        assert_eq!(array.to_u32()?, [7]);
++        assert_eq!(Array::host_readbacks_for_test(), before + 1);
++        Ok(())
++    }
++
+     use super::*;
+     #[test]
+     #[ignore = "physical Apple GPU; exact staged copies and atomic invalid inputs"]
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e27467cd..3c674ed9 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -24,6 +24,32 @@ pub const EXPERT_BYTES: u64 = 1_248_012;
+ pub const NGRAM_DIM: usize = 160;
+ pub const NGRAM_WORDS: usize = 41;
+ 
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn slots_fit(ids: &[u32], capacity: i32) -> bool {
++    !ids.is_empty()
++        && ids.len() <= i32::MAX as usize
++        && capacity > 0
++        && ids.iter().all(|&id| id < capacity as u32)
++}
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn parse_lru_override(value: &str) -> Option<bool> {
++    match value {
++        "auto" => Some(false),
++        "lru" => Some(true),
++        _ => None,
++    }
++}
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn parse_predictor_half(value: &str) -> Option<bool> {
++    match value {
++        "f32" => Some(false),
++        "f16" => Some(true),
++        _ => None,
++    }
++}
++
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn disk_destination_fits(start: usize, length: usize, capacity: usize) -> bool {
+     length > 0 && start.checked_add(length).is_some_and(|end| end <= capacity)
+@@ -310,6 +336,26 @@ impl ExpertCache {
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++    #[test]
++    fn slot_validation_and_les_controls_reject_invalid_inputs() {
++        for capacity in [-1, 0, 1, 3, 10, 20, 89, 512, i32::MAX] {
++            assert!(!slots_fit(&[], capacity));
++            for ids in [vec![0], vec![1, 1, 0], vec![88, 89], vec![u32::MAX]] {
++                let expected =
++                    capacity > 0 && ids.iter().all(|&id| i64::from(id) < i64::from(capacity));
++                assert_eq!(slots_fit(&ids, capacity), expected);
++            }
++        }
++        assert_eq!(parse_lru_override("auto"), Some(false));
++        assert_eq!(parse_lru_override("lru"), Some(true));
++        assert_eq!(parse_predictor_half("f32"), Some(false));
++        assert_eq!(parse_predictor_half("f16"), Some(true));
++        for invalid in ["", "0", "1", "LFU", "LRU", " lru", "f32\n", "f64", "é"] {
++            assert_eq!(parse_lru_override(invalid), None);
++            assert_eq!(parse_predictor_half(invalid), None);
++        }
++    }
++
+     #[test]
+     fn disk_ranges_reject_empty_overflow_and_out_of_bounds() {
+         assert!(disk_destination_fits(0, 1, 1));
+@@ -833,6 +879,47 @@ mod tests {
+ #[cfg(kani)]
+ mod verification {
+     use super::*;
++    #[kani::proof]
++    #[kani::unwind(22)]
++    fn cpu_slot_validation_preserves_bounds_for_real_route_widths() {
++        let ids: [u32; 20] = kani::any();
++        let len: usize = kani::any();
++        kani::assume(len <= 20);
++        let capacity: i32 = kani::any();
++        let valid = slots_fit(&ids[..len], capacity);
++        let mut expected = len != 0 && capacity > 0;
++        for &id in &ids[..len] {
++            expected &= i64::from(id) < i64::from(capacity);
++        }
++        assert_eq!(valid, expected);
++        kani::cover!(valid && len == 20);
++        kani::cover!(valid && len == 10);
++        kani::cover!(!valid && len == 0);
++        kani::cover!(!valid && capacity <= 0 && len > 0);
++        kani::cover!(!valid && ids[0] == u32::MAX && len > 0);
++    }
++
++    #[kani::proof]
++    #[kani::unwind(7)]
++    fn les_control_parsers_accept_only_the_documented_literals() {
++        let bytes: [u8; 5] = kani::any();
++        let len: usize = kani::any();
++        kani::assume(len <= 5);
++        if let Ok(value) = std::str::from_utf8(&bytes[..len]) {
++            let lru = parse_lru_override(value);
++            let half = parse_predictor_half(value);
++            assert_eq!(lru.is_some(), value == "auto" || value == "lru");
++            assert_eq!(half.is_some(), value == "f32" || value == "f16");
++            assert_eq!(lru == Some(true), value == "lru");
++            assert_eq!(half == Some(true), value == "f16");
++            kani::cover!(lru == Some(false));
++            kani::cover!(lru == Some(true));
++            kani::cover!(half == Some(false));
++            kani::cover!(half == Some(true));
++            kani::cover!(lru.is_none() && half.is_none());
++        }
++    }
++
+     #[kani::proof]
+     #[kani::unwind(12)]
+     fn predictive_victims_exclude_pending_and_fall_back_only_when_needed() {
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 2266a955..6e523f43 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1067,33 +1067,51 @@ pub fn expert_mapped(
+     )
+ }
+ 
++/// CPU-origin indices validated once, before any expert graph is submitted.
++pub(crate) struct ExpertSlots {
++    indices: Array,
++    capacity: i32,
++}
++
++impl ExpertSlots {
++    pub(crate) fn new(ids: &[u32], capacity: i32) -> Result<Self> {
++        ensure!(
++            crate::flash_support::slots_fit(ids, capacity),
++            "expert slot outside bank"
++        );
++        Ok(Self {
++            indices: Array::from_u32(ids, &[i32::try_from(ids.len())?])?,
++            capacity,
++        })
++    }
++
++    pub(crate) fn indices(&self) -> &Array {
++        &self.indices
++    }
++}
++
+ #[allow(clippy::too_many_arguments)]
+ pub(crate) fn expert_slots(
+     x: &Array,
+     trellis: &Array,
+     suh: &Array,
+     svh: &Array,
+-    selected: &Array,
++    selected: &ExpertSlots,
+     output_dims: i32,
+     projections_per_route: i32,
+     k: usize,
+     cb: Codebook,
+ ) -> Result<Array> {
+     ensure!(
+-        trellis.shape().len() == 5
+-            && selected.dtype() == Dtype::UInt32
+-            && selected
+-                .to_u32()?
+-                .iter()
+-                .all(|&slot| slot < trellis.shape()[0] as u32),
+-        "expert slot outside bank"
++        trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
++        "expert slots were validated for a different bank capacity"
+     );
+     expert_mapped_layout(
+         x,
+         trellis,
+         Some(suh),
+         Some(svh),
+-        selected,
++        selected.indices(),
+         output_dims,
+         projections_per_route,
+         0,
+@@ -1329,18 +1347,24 @@ mod tests {
+             let scales = vec![half::f16::from_f32(0.5).to_bits(); rows as usize * width];
+             let suh = Array::from_f16_bits(&scales, &[rows, 128])?;
+             let svh = Array::from_f16_bits(&scales, &[rows, 128])?;
++            let before = Array::host_readbacks_for_test();
+             let actual = expert_slots(
+                 &x,
+                 &bank,
+                 &suh,
+                 &svh,
+-                &Array::from_u32(&routes, &[routes.len() as i32])?,
++                &ExpertSlots::new(&routes, 3)?,
+                 128,
+                 2,
+                 k,
+                 Codebook::Mul1,
+-            )?
+-            .to_f16_bits()?;
++            )?;
++            assert_eq!(
++                Array::host_readbacks_for_test(),
++                before,
++                "validated slots were read back from MLX"
++            );
++            let actual = actual.to_f16_bits()?;
+             assert_eq!(actual.len(), rows as usize * width);
+             for (route, &slot) in routes.iter().enumerate() {
+                 for projection in 0..projections {
+@@ -1370,13 +1394,21 @@ mod tests {
+         }
+         let x = Array::from_f16_bits(&input.repeat(2), &[2, 128])?;
+         let scales = Array::from_f16_bits(&vec![half::f16::ONE.to_bits(); 256], &[2, 128])?;
++        for (ids, capacity) in [
++            (&[][..], 3),
++            (&[3][..], 3),
++            (&[u32::MAX][..], 3),
++            (&[0][..], 0),
++        ] {
++            assert!(ExpertSlots::new(ids, capacity).is_err());
++        }
+         assert!(
+             expert_slots(
+                 &x,
+                 &bank,
+                 &scales,
+                 &scales,
+-                &Array::from_u32(&[3], &[1])?,
++                &ExpertSlots::new(&[0], 2)?,
+                 128,
+                 2,
+                 k,
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 497cc0f7..0085ace5 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -1614,47 +1614,50 @@ mod tests {
+             logits.push(value.to_bytes()?);
+             states.push(state_bytes(&model)?);
+         }
+-        for depth in [0, 2, 4, 8, 10] {
+-            for retained in [1, 2] {
+-                model.reset();
+-                model.lookahead_depth = depth;
+-                for layer in &mut model.layers {
+-                    layer.moe.cache_for_test_invalidate();
+-                }
+-                let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+-                for step in 0..3 {
+-                    ensure!(model.forward(tokens[step])?.to_bytes()? == logits[step]);
+-                    ensure!(state_bytes(&model)? == states[step]);
++        for half in [false, true] {
++            for depth in [0, 2, 4, 8, 10] {
++                for retained in [1, 2] {
++                    model.reset();
++                    model.lookahead_depth = depth;
++                    for layer in &mut model.layers {
++                        layer.moe.cache_for_test_invalidate();
++                        layer.moe.predictor_half = half;
++                    }
++                    let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
++                    for step in 0..3 {
++                        ensure!(model.forward(tokens[step])?.to_bytes()? == logits[step]);
++                        ensure!(state_bytes(&model)? == states[step]);
++                    }
++                    let (pair, _) = model.verify_pair([tokens[3], tokens[4]])?;
++                    let mut expected = logits[3].clone();
++                    expected.extend(&logits[4]);
++                    ensure!(pair.shape() == [2, 248320] && pair.to_bytes()? == expected);
++                    ensure!(state_bytes(&model)? == states[4]);
++                    model.commit_pair(retained)?;
++                    ensure!(state_bytes(&model)? == states[2 + retained as usize]);
++                    let next = 3 + retained as usize;
++                    ensure!(model.forward(tokens[next])?.to_bytes()? == logits[next]);
++                    ensure!(state_bytes(&model)? == states[next]);
++                    let after = pool.borrow().counters.submitted.load(Ordering::Relaxed);
++                    ensure!(if depth > 0 {
++                        after > before
++                    } else {
++                        after == before
++                    });
++                    pool.borrow_mut().wait_for_test()?;
++                    pool.borrow_mut().poll();
++                    let pool = pool.borrow();
++                    let counts = &pool.counters;
++                    eprintln!(
++                        "LES41_DIAGNOSTIC {}",
++                        serde_json::json!({
++                            "predictor_half":half,"depth":depth,"commit":retained,"submitted":counts.submitted.load(Ordering::Relaxed),
++                            "completed":counts.completed.load(Ordering::Relaxed),"used":counts.used.load(Ordering::Relaxed),
++                            "discarded":counts.discarded.load(Ordering::Relaxed),"late_needed":counts.late_needed.load(Ordering::Relaxed),
++                            "failed":counts.failed.load(Ordering::Relaxed),"read_bytes":counts.bytes.load(Ordering::Relaxed)
++                        })
++                    );
+                 }
+-                let (pair, _) = model.verify_pair([tokens[3], tokens[4]])?;
+-                let mut expected = logits[3].clone();
+-                expected.extend(&logits[4]);
+-                ensure!(pair.shape() == [2, 248320] && pair.to_bytes()? == expected);
+-                ensure!(state_bytes(&model)? == states[4]);
+-                model.commit_pair(retained)?;
+-                ensure!(state_bytes(&model)? == states[2 + retained as usize]);
+-                let next = 3 + retained as usize;
+-                ensure!(model.forward(tokens[next])?.to_bytes()? == logits[next]);
+-                ensure!(state_bytes(&model)? == states[next]);
+-                let after = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+-                ensure!(if depth > 0 {
+-                    after > before
+-                } else {
+-                    after == before
+-                });
+-                pool.borrow_mut().wait_for_test()?;
+-                pool.borrow_mut().poll();
+-                let pool = pool.borrow();
+-                let counts = &pool.counters;
+-                eprintln!(
+-                    "LES32_DIAGNOSTIC {}",
+-                    serde_json::json!({
+-                        "depth":depth,"commit":retained,"submitted":counts.submitted.load(Ordering::Relaxed),
+-                        "completed":counts.completed.load(Ordering::Relaxed),"used":counts.used.load(Ordering::Relaxed),
+-                        "discarded":counts.discarded.load(Ordering::Relaxed),"late_needed":counts.late_needed.load(Ordering::Relaxed),
+-                        "failed":counts.failed.load(Ordering::Relaxed),"read_bytes":counts.bytes.load(Ordering::Relaxed)
+-                    })
+-                );
+             }
+         }
+         Ok(())
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index c1379500..246f599b 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -30,6 +30,7 @@ pub struct SsdMoe {
+     pub read_bytes: u64,
+     overlap: bool,
+     readers: usize,
++    pub(crate) predictor_half: bool,
+     pub(crate) prefetcher: Option<(usize, Rc<RefCell<ReaderPool>>)>,
+     #[cfg(test)]
+     pub(crate) route_ids: Vec<u32>,
+@@ -43,10 +44,31 @@ pub struct SsdMoe {
+     pub(crate) overlap_hot_rows: u64,
+     #[cfg(test)]
+     pub(crate) import_seconds: f64,
++    #[cfg(test)]
++    schedule_events: Vec<(&'static str, f64)>,
++    #[cfg(test)]
++    prediction_ready_at_demand: Option<bool>,
++    #[cfg(test)]
++    slow_prediction_for_test: bool,
+ }
+ 
+ impl SsdMoe {
+     pub fn load(c: &Checkpoint, prefix: &str, slots: usize, overlap: bool) -> Result<Self> {
++        let control = |name, default: &str| -> Result<String> {
++            match std::env::var(name) {
++                Ok(value) => Ok(value),
++                Err(std::env::VarError::NotPresent) => Ok(default.into()),
++                Err(error) => Err(error.into()),
++            }
++        };
++        let force_lru =
++            crate::flash_support::parse_lru_override(&control("MLXL3_SSD_CACHE_POLICY", "auto")?)
++                .context("MLXL3_SSD_CACHE_POLICY must be auto or lru")?;
++        let predictor_half = crate::flash_support::parse_predictor_half(&control(
++            "MLXL3_SSD_PREDICTOR_DTYPE",
++            "f32",
++        )?)
++        .context("MLXL3_SSD_PREDICTOR_DTYPE must be f32 or f16")?;
+         let readers = std::env::var("MLXL3_SSD_READERS")
+             .unwrap_or_else(|_| "4".into())
+             .parse::<usize>()
+@@ -101,6 +123,9 @@ impl SsdMoe {
+         }
+         let s = i32::try_from(slots)?;
+         let cache = Rc::new(RefCell::new(ExpertCache::new(slots)?));
++        if force_lru {
++            cache.borrow_mut().enable_predictive_lru();
++        }
+         let banks = [
+             (vec![s, 2, 160, 40, 32], Dtype::UInt16), // gate/up trellises
+             (vec![s, 1, 40, 160, 32], Dtype::UInt16), // down trellis
+@@ -134,6 +159,7 @@ impl SsdMoe {
+             read_bytes: 0,
+             overlap,
+             readers,
++            predictor_half,
+             prefetcher: None,
+             #[cfg(test)]
+             route_ids: Vec::new(),
+@@ -147,6 +173,12 @@ impl SsdMoe {
+             overlap_hot_rows: 0,
+             #[cfg(test)]
+             import_seconds: 0.0,
++            #[cfg(test)]
++            schedule_events: Vec::with_capacity(8),
++            #[cfg(test)]
++            prediction_ready_at_demand: None,
++            #[cfg(test)]
++            slow_prediction_for_test: false,
+         })
+     }
+ 
+@@ -199,27 +231,21 @@ impl SsdMoe {
+ 
+     fn calculate(&self, x: &Array, slots: &[u32]) -> Result<Array> {
+         let n = i32::try_from(slots.len())?;
+-        ensure!(
+-            n > 0
+-                && x.shape() == [n, H]
+-                && slots
+-                    .iter()
+-                    .all(|&s| (s as usize) < self.cache.borrow().capacity()),
+-            "invalid expert slot mapping"
+-        );
+-        let indices = Array::from_u32(slots, &[n])?;
++        ensure!(n > 0 && x.shape() == [n, H], "invalid expert slot mapping");
++        let slots = linear::ExpertSlots::new(slots, self.banks[0].shape()[0])?;
++        let indices = slots.indices();
+         let expanded = x
+             .reshape(&[n, 1, H])?
+             .broadcast_to(&[n, 2, H])?
+             .reshape(&[n * 2, H])?;
+-        let suh = self.banks[2].take(&indices, 0)?.reshape(&[n * 2, H])?;
+-        let svh = self.banks[3].take(&indices, 0)?.reshape(&[n * 2, I])?;
++        let suh = self.banks[2].take(indices, 0)?.reshape(&[n * 2, H])?;
++        let svh = self.banks[3].take(indices, 0)?.reshape(&[n * 2, I])?;
+         let gu = linear::expert_slots(
+             &expanded,
+             &self.banks[0],
+             &suh,
+             &svh,
+-            &indices,
++            &slots,
+             I,
+             2,
+             2,
+@@ -233,9 +259,9 @@ impl SsdMoe {
+         linear::expert_slots(
+             &activated,
+             &self.banks[1],
+-            &self.banks[4].take(&indices, 0)?.reshape(&[n, I])?,
+-            &self.banks[5].take(&indices, 0)?.reshape(&[n, H])?,
+-            &indices,
++            &self.banks[4].take(indices, 0)?.reshape(&[n, I])?,
++            &self.banks[5].take(indices, 0)?.reshape(&[n, H])?,
++            &slots,
+             H,
+             1,
+             2,
+@@ -257,8 +283,25 @@ impl SsdMoe {
+         }
+     }
+     fn predict(&self, x: &Array) -> Result<Array> {
+-        self.gate
+-            .forward(x)?
++        let x = if self.predictor_half {
++            x.astype(Dtype::Float16)?
++        } else {
++            x.try_clone()?
++        };
++        let scores = self.gate.forward(&x)?;
++        #[cfg(test)]
++        let scores = if self.slow_prediction_for_test {
++            crate::array::metal_kernel(
++                "mlxl3_test_slow_prediction",
++                &["scores"], &["out"], "",
++                "uint i=thread_position_in_grid.x; float v=float(scores[i]); for(uint j=0;j<1000000u;++j) v=fma(v,0.99999f,0.0001f); out[i]=v;",
++                &[&scores], &[scores.shape().to_vec()], &[Dtype::Float32],
++                [512, 1, 1], [128, 1, 1],
++            )?.remove(0)
++        } else {
++            scores
++        };
++        scores
+             .argsort()?
+             .slice(1, 512 - PREDICTION_RANKS as i32, 512)
+     }
+@@ -312,33 +355,22 @@ impl SsdMoe {
+         }
+         #[cfg(test)]
+         let route_start = std::time::Instant::now();
+-        let prediction = if depth > 0 {
+-            next.as_ref().map(|next| next.predict(x)).transpose()?
+-        } else {
+-            None
+-        };
++        #[cfg(test)]
++        {
++            self.schedule_events.clear();
++            self.prediction_ready_at_demand = None;
++        }
+         let pairs = (0..rows)
+             .map(|row| self.route(&x.slice(0, row, row + 1)?))
+             .collect::<Result<Vec<_>>>()?;
+         let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+         let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
+-        if let Some(prediction) = &prediction {
+-            Array::async_eval_all(&[&selected, prediction])?;
+-        }
+         let ids = selected.to_u32()?;
+-        let predicted_ids = prediction
+-            .map(|p| -> Result<Vec<u32>> {
+-                let mut ids = p.to_u32()?;
+-                ensure!(
+-                    order_predictions(&mut ids, rows as usize),
+-                    "invalid lookahead prediction shape or IDs"
+-                );
+-                Ok(ids)
+-            })
+-            .transpose()?;
+         #[cfg(test)]
+         {
+             self.profile_seconds[0] += route_start.elapsed().as_secs_f64();
++            self.schedule_events
++                .push(("routes_cpu", route_start.elapsed().as_secs_f64()));
+         }
+         #[cfg(test)]
+         {
+@@ -410,6 +442,31 @@ impl SsdMoe {
+         } else {
+             None
+         };
++        let prediction = (|| -> Result<Option<Array>> {
++            let prediction = if depth > 0 {
++                next.as_ref().map(|next| next.predict(x)).transpose()?
++            } else {
++                None
++            };
++            if let Some(prediction) = &prediction {
++                prediction.async_eval()?;
++                #[cfg(test)]
++                self.schedule_events
++                    .push(("prediction_submitted", route_start.elapsed().as_secs_f64()));
++            }
++            Ok(prediction)
++        })();
++        let prediction = match prediction {
++            Ok(prediction) => prediction,
++            Err(error) => {
++                // Reserved cold routes have no weights until fill_many succeeds.
++                self.cache.borrow_mut().invalidate();
++                if let Some(hot) = &hot_output {
++                    hot.eval()?;
++                }
++                return Err(error.context("preparing optional expert prediction"));
++            }
++        };
+         let mut filled = BTreeSet::new();
+         #[cfg(test)]
+         let read_start = std::time::Instant::now();
+@@ -417,6 +474,15 @@ impl SsdMoe {
+             .iter()
+             .filter_map(|&(i, slot)| filled.insert(slot).then_some((ids[i], slot as usize)))
+             .collect::<Vec<_>>();
++        #[cfg(test)]
++        if !jobs.is_empty() {
++            self.prediction_ready_at_demand = prediction
++                .as_ref()
++                .map(Array::is_available_for_test)
++                .transpose()?;
++            self.schedule_events
++                .push(("demand_begin", route_start.elapsed().as_secs_f64()));
++        }
+         if let Err(error) = self.fill_many(&jobs) {
+             self.cache.borrow_mut().invalidate();
+             if let Some(hot) = &hot_output {
+@@ -427,6 +493,10 @@ impl SsdMoe {
+         #[cfg(test)]
+         {
+             self.profile_seconds[1] += read_start.elapsed().as_secs_f64();
++            if !jobs.is_empty() {
++                self.schedule_events
++                    .push(("demand_end", route_start.elapsed().as_secs_f64()));
++            }
+         }
+         let values = if let Some(hot_output) = hot_output {
+             let cold_output = self.calculate(
+@@ -477,6 +547,19 @@ impl SsdMoe {
+             0,
+         )?)?;
+         self.last = Some(output.try_clone()?);
++        let predicted_ids = prediction
++            .map(|p| -> Result<Vec<u32>> {
++                let mut ids = p.to_u32()?;
++                ensure!(
++                    order_predictions(&mut ids, rows as usize),
++                    "invalid lookahead prediction shape or IDs"
++                );
++                #[cfg(test)]
++                self.schedule_events
++                    .push(("prediction_cpu", route_start.elapsed().as_secs_f64()));
++                Ok(ids)
++            })
++            .transpose()?;
+         if let (Some(next), Some(ids)) = (next, predicted_ids) {
+             if ids.iter().any(|&id| !next.cache.borrow().contains(id)) {
+                 output.async_eval()?;
+@@ -598,6 +681,111 @@ mod tests {
+         ))
+     }
+ 
++    #[test]
++    #[ignore = "physical Apple GPU; demanded reads must not wait for a slow predictor"]
++    fn demanded_reads_start_before_the_optional_prediction_finishes() -> anyhow::Result<()> {
++        use super::*;
++        let (checkpoint, input, expected) = admission_fixture()?;
++        let mut current = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
++        let mut next = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
++        next.slow_prediction_for_test = true;
++        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
++        next.prefetcher = Some((1, Rc::clone(&pool)));
++        let actual = current.forward_lookahead(&input, Some(&mut next), 4)?;
++        println!(
++            "SSD_SCHEDULE_TRACE {}",
++            serde_json::json!({
++                "clock_domain":"cpu_monotonic_seconds", "events":current.schedule_events,
++                "prediction_ready_at_first_demand":current.prediction_ready_at_demand,
++                "demand_records":current.read_bytes / EXPERT_BYTES,
++                "test_only_slow_prediction":true,
++            })
++        );
++        ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
++        ensure!(current.read_bytes == 10 * EXPERT_BYTES);
++        ensure!(
++            current.prediction_ready_at_demand == Some(false),
++            "demand waited for optional prediction"
++        );
++        let names = current
++            .schedule_events
++            .iter()
++            .map(|e| e.0)
++            .collect::<Vec<_>>();
++        ensure!(
++            names
++                == [
++                    "routes_cpu",
++                    "prediction_submitted",
++                    "demand_begin",
++                    "demand_end",
++                    "prediction_cpu"
++                ]
++        );
++        ensure!(
++            current
++                .schedule_events
++                .windows(2)
++                .all(|p| p[0].1.is_finite() && p[0].1 <= p[1].1)
++        );
++        pool.borrow_mut().wait_for_test()?;
++        next.slow_prediction_for_test = false;
++        ensure!(next.forward(&input)?.to_bytes()? == expected);
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "physical Apple GPU; failed prediction must invalidate unfilled routes and recover"]
++    fn failed_prediction_invalidates_reserved_routes_and_recovers() -> anyhow::Result<()> {
++        use super::*;
++        let (checkpoint, input, expected) = admission_fixture()?;
++        let mut current = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
++        let mut next = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
++        let ids = current.route(&input)?.0.to_u32()?;
++        ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
++        let warm = current.cache.borrow_mut().reserve(&ids[..5])?;
++        let jobs = ids[..5]
++            .iter()
++            .zip(warm)
++            .map(|(&id, (slot, _))| (id, slot))
++            .collect::<Vec<_>>();
++        current.fill_many(&jobs)?;
++        std::mem::swap(&mut next.gate, &mut next.shared_down);
++        let error = current
++            .forward_lookahead(&input, Some(&mut next), 4)
++            .err()
++            .context("invalid prediction unexpectedly succeeded")?;
++        ensure!(error.chain().any(|error| {
++            error
++                .to_string()
++                .contains("projection expects 640 logical inputs")
++        }));
++        ensure!(
++            current.read_bytes == 5 * EXPERT_BYTES,
++            "prediction did not fail before cold reads"
++        );
++        ensure!(current.overlap_hot_rows == 5 && current.misses == 5);
++        ensure!(
++            ids.iter().all(|&id| !current.cache.borrow().contains(id)),
++            "failed prediction left unfilled routes cached"
++        );
++        std::mem::swap(&mut next.gate, &mut next.shared_down);
++        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
++        next.prefetcher = Some((1, Rc::clone(&pool)));
++        let actual = current.forward_lookahead(&input, Some(&mut next), 4)?;
++        ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
++        pool.borrow_mut().wait_for_test()?;
++        ensure!(next.forward(&input)?.to_bytes()? == expected);
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_slot_dispatch_and_optional_prediction_schedule() {
++        demanded_reads_start_before_the_optional_prediction_finishes().unwrap();
++        failed_prediction_invalidates_reserved_routes_and_recovers().unwrap();
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU; first-layer LES must use LRU without incoming predictions"]
+     fn attached_pool_enables_lru_without_an_incoming_prediction() -> anyhow::Result<()> {
+@@ -761,43 +949,55 @@ mod tests {
+         use super::*;
+         let (checkpoint, input, expected) = admission_fixture()?;
+         let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 89, true)?;
+-        for dtype in [Dtype::Float16, Dtype::Float32] {
+-            for rows in [1, 2] {
+-                let x = if rows == 1 {
+-                    input.try_clone()?
+-                } else {
+-                    Array::concatenate(&[&input, &input.scalar_mul(0.875)?], 0)?
+-                }
+-                .astype(dtype)?;
+-                let values = moe.gate.forward(&x)?.astype(Dtype::Float32)?.to_f32()?;
+-                ensure!(
+-                    values.len() == rows as usize * 512 && values.iter().all(|v| v.is_finite())
+-                );
+-                let prediction = moe.predict(&x)?;
+-                ensure!(prediction.shape() == [rows, PREDICTION_RANKS as i32]);
+-                let ids = prediction.to_u32()?;
+-                ensure!(ids.len() == rows as usize * PREDICTION_RANKS);
+-                for row in 0..rows as usize {
+-                    let ids = &ids[row * PREDICTION_RANKS..(row + 1) * PREDICTION_RANKS];
+-                    ensure!(
+-                        ids.iter().all(|&id| id < 512)
+-                            && ids.iter().copied().collect::<BTreeSet<_>>().len()
+-                                == PREDICTION_RANKS
+-                    );
+-                    let mut oracle = values[row * 512..(row + 1) * 512].to_vec();
+-                    oracle.sort_by(f32::total_cmp);
+-                    let mut selected = ids
+-                        .iter()
+-                        .map(|&id| values[row * 512 + id as usize])
+-                        .collect::<Vec<_>>();
+-                    selected.sort_by(f32::total_cmp);
++        for half in [false, true] {
++            moe.predictor_half = half;
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                for rows in [1, 2] {
++                    let x = if rows == 1 {
++                        input.try_clone()?
++                    } else {
++                        Array::concatenate(&[&input, &input.scalar_mul(0.875)?], 0)?
++                    }
++                    .astype(dtype)?;
++                    let gate_input = if half {
++                        x.astype(Dtype::Float16)?
++                    } else {
++                        x.try_clone()?
++                    };
++                    let values = moe
++                        .gate
++                        .forward(&gate_input)?
++                        .astype(Dtype::Float32)?
++                        .to_f32()?;
+                     ensure!(
+-                        selected == oracle[512 - PREDICTION_RANKS..],
+-                        "prediction differs from independent CPU sort"
++                        values.len() == rows as usize * 512 && values.iter().all(|v| v.is_finite())
+                     );
++                    let prediction = moe.predict(&x)?;
++                    ensure!(prediction.shape() == [rows, PREDICTION_RANKS as i32]);
++                    let ids = prediction.to_u32()?;
++                    ensure!(ids.len() == rows as usize * PREDICTION_RANKS);
++                    for row in 0..rows as usize {
++                        let ids = &ids[row * PREDICTION_RANKS..(row + 1) * PREDICTION_RANKS];
++                        ensure!(
++                            ids.iter().all(|&id| id < 512)
++                                && ids.iter().copied().collect::<BTreeSet<_>>().len()
++                                    == PREDICTION_RANKS
++                        );
++                        let mut oracle = values[row * 512..(row + 1) * 512].to_vec();
++                        oracle.sort_by(f32::total_cmp);
++                        let mut selected = ids
++                            .iter()
++                            .map(|&id| values[row * 512 + id as usize])
++                            .collect::<Vec<_>>();
++                        selected.sort_by(f32::total_cmp);
++                        ensure!(
++                            selected == oracle[512 - PREDICTION_RANKS..],
++                            "prediction differs from independent CPU sort"
++                        );
++                    }
++                    let mut ordered = ids;
++                    ensure!(order_predictions(&mut ordered, rows as usize));
+                 }
+-                let mut ordered = ids;
+-                ensure!(order_predictions(&mut ordered, rows as usize));
+             }
+         }
+         ensure!(moe.forward(&input)?.to_bytes()? == expected);

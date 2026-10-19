@@ -393,6 +393,12 @@ int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) no
     *out = new mx::array(mx::zeros(s, dtype(type))); });
 }
 int mlxl3_array_eval(void* p) noexcept { return protect([&] { arr(p).eval(); }); }
+int mlxl3_array_is_available(void* p, int* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null availability output");
+    *out = arr(p).is_available() ? 1 : 0;
+  });
+}
 int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
   return protect([&] {
     if (!count) return;

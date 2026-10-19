@@ -1,0 +1,23 @@
+{
+  "source": "../opt-39a-les-lru/reused-cpp-verification.json",
+  "unchanged_reader_hashes": {
+    "native/ffi/disk_reader.h": "75155e20a8f4b6b625f807593cf9b1bfb7b5094e4612b7eb593310e542712f1a",
+    "native/tests/disk_reader.cpp": "582e0293fe1ad36c84890d5fa357c86ec3e204062357b7746bf46268eb43325b",
+    "native/tests/disk_reader_proof.cpp": "c8b3b0a00f64889e9328b78100ac9b28e3fe3e4e6217e4683e0afae2ad294523"
+  },
+  "earlier_evidence": {
+    "status": "reused_unchanged",
+    "files": {
+      "native/ffi/disk_reader.h": "75155e20a8f4b6b625f807593cf9b1bfb7b5094e4612b7eb593310e542712f1a",
+      "native/ffi/mlx_bridge.cpp": "8cb5b1509661fa1f6843308e223df133cda1c6c924ee7d192649f1ec07b6df01",
+      "native/src/array.rs": "39a4307b5aac29568231c61df16f246c3868a919ec2174d7d5c8e6602c6141ac",
+      "native/tests/disk_reader.cpp": "582e0293fe1ad36c84890d5fa357c86ec3e204062357b7746bf46268eb43325b",
+      "native/tests/disk_reader_proof.cpp": "c8b3b0a00f64889e9328b78100ac9b28e3fe3e4e6217e4683e0afae2ad294523"
+    },
+    "asan_ubsan": "../opt-38-les-gpu/checks/cpp-asan.log (235 cases)",
+    "tsan": "../opt-38-les-gpu/checks/cpp-tsan.log (235 cases)",
+    "CBMC": "../opt-38-les-gpu/checks/cbmc-bundled.log (SDK parsing failure, unverified)",
+    "Kani_MLX": "../opt-38-les-gpu/checks/kani-owned.log (compiler ICE, unverified)"
+  },
+  "availability_probe": "new; real C++20 clang syntax/build passed; CBMC6.11 SDK parsing unsupported, no proof"
+}

@@ -1,0 +1,48 @@
+import json
+import runpy
+from pathlib import Path
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path")
+runpy.run_path(str(p / "quality-final2/quality-supervisor.txt"))
+records = {}
+for sub in ["quality-initial.json", "quality-remaining/quality.json"]:
+    for r in json.loads((p / sub).read_text()):
+        if r["status"] == "passed":
+            records[r["name"]] = dict(
+                r, evidence_directory=str(Path(sub).parent), phase="unchangedcomponent"
+            )
+les = next(
+    r
+    for r in json.loads((p / "quality-final/quality.json").read_text())
+    if r["name"] == "les-full-state"
+)
+assert les["status"] == "passed" and les["reaped"]
+records[les["name"]] = dict(
+    les, evidence_directory="quality-final", phase="identicalproductionengine_and_testbody"
+)
+for r in json.loads((p / "quality-final2/quality.json").read_text()):
+    records[r["name"]] = dict(r, evidence_directory="quality-final2", phase="final4GiB")
+assert len(records) == 25 and all(r["status"] == "passed" and r["reaped"] for r in records.values())
+assert sum(r["observed_tests"] for r in records.values() if "observed_tests" in r) == 32
+(p / "quality.json").write_text(json.dumps(list(records.values()), indent=2) + "\n")
+mutation = json.loads((p / "mutation/result.json").read_text())
+ident = json.loads((p / "identity.json").read_text())
+assert (
+    mutation["status"] == "expected_regressions_detected_source_restored" and mutation["restored"]
+)
+assert mutation["restored_source_hashes"] == ident["files"]
+assert len(mutation["tests"]) == 3 and all(
+    r["status"] == "expected_regression_detected" and r["exit_code"] == 101 and r["reaped"]
+    for r in mutation["tests"]
+)
+assert records["slots"]["status"] == "passed" and records["ssd"]["observed_tests"] == 11
+mutation.update(
+    status="detected_and_restored",
+    positive_evidence="quality-final2/slots.log and ssd.log;32physicaltests+3bridges",
+    final_identity="identity.json",
+)
+(p / "mutation/result.json").write_text(json.dumps(mutation, indent=2) + "\n")
+print(
+    "25qualityprocessespassed;32physicalRusttestsand3productionbridges;3mutantsdetectedandrestorevalidated",
+    flush=True,
+)

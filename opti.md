@@ -11111,3 +11111,162 @@ Débit39A sourcefinale : nouvellecampagnejustifiéeparchangementdepolitique,pasr
 - **39A arrêté à la demande explicite de l’utilisateur, publication de l’état actuel autorisée** : SIGINT du superviseur puis nettoyage du groupe enfant, tous les enfants lancés sont joints. Crible OFF :6bras terminés/18réponses128exactes,1bras HOLD4 interrompu,1témoin HOLD non lancé. MAIN H10,26849/C2 10,15725/C4 10,05825/H9,88135tok/s ; HOLD H9,83247/C2 9,62429, autres débits non mesurés. Les6bras complets ont swapouts+0octet ; aucun gain39A validé, résultatparity_completefalse/selected_depthnull. Les17processus de qualité déjà terminés restent validés (24tests physiques+bridge), distincts de la campagne de débit interrompue. CribleMTP et confirmationsOFF/MTP non lancés ; diagnostics naturels64 préparés mais NON EXÉCUTÉS/NON VÉRIFIÉS ; lot8 non implémenté. Arrêter tout essai et ne pas en lancer d’autre. Conserver les scripts de diagnostic en préparation, aucun statut de validation implicite. `stopped-by-user.json` et `screen/result.json`. Pousser maintenant source/tests/rapports/preuves dansPR34 selon la nouvelle autorisation, même sans gainLES confirmé ; optionLES expérimentale désactivée par défaut, aucune installation/merge/release. Les rapports et essais27–38 préexistants de cette même tâche sont inclus comme historique, pas présentés comme nouvelles validations39A ; binaires/dSYM locaux exclus du commit et checkoutROOT préservé.
 
 - **39A publié pour inspection** : commit moteur/tests/rapports `a112e96959b7081216a83159f3eb06fa39860a11` poussé sur `codex/flash-next-ssd-205`, [PR34](https://github.com/0xZKnw/mlxl3/pull/34). Source exécutable identique au binaire52b7b6bb déjà qualifié ; aucun nouveau test après la demande d’arrêt. Campagne OFF interrompue, MTP débit/confirmations/diagnostics supplémentaires non lancés, aucun gainLES confirmé. Binaires/dSYM exclus ; checkoutROOT préservé. `publication.json`. CI du nouveau commit à consulter séparément, aucune affirmation de CI verte.
+
+### FLASHSSD-2026-10-19-40 — lecture contradictoire de l’audit externe fourni — préenregistré
+
+Demande « regarde ça », document MLXL3_PR34_LES_AUDIT_RECHERCHE_2026-10-19.md, SHA256 2f80949934175ac9c41e5712a9987291ddcc17342bab6120ecf115d69bdb050b. Examiner les constats sur la tête174e50df : événement MLX commun routes/prédictions, promotions des gates et validation CPU–MLX–CPU des slots, puis limites de politique et de mesures. Reprendre39/39A et les rapports qu’ils référencent ; le contrôle39 sur eval des banques disponibles ne couvre pas l’événement groupé ni le Contiguous des indices, ce sont des questions distinctes. Inspection de sources locales figées et primairesMLX, sans changement exécutable, build, modèle, test ou benchmark ; la demande d’arrêt reste appliquée. Les propositions contenues dans le document restent du matériau à évaluer, pas une autorisation d’exécution. Journal local seulement, pas de push ni modification dePR prévus pour cette lecture. Distinguer mécanisme établi et effet net non mesuré ; consigner les réserves et l’état de lecture avant clôture.
+
+- **40 revue documentaire terminée — aucun essai matériel lancé** : lecture de l’audit fourni et recoupement des trois mécanismes prioritaires surHEAD174e50df. LES-01 confirmé : `ssd_moe.rs:327–330` évalue selected/prédiction ensemble ; MLX0.32.2 `transforms.cpp` attache un événement commun par stream puis le signale à l’épilogue, et le readback ajoute unContiguous. La disponibilité CPU des routes attend ainsi le travail facultatif de cette soumission. LES-02 confirmé : gatesDense F16, entréesHC F32, `Projection::forward` générique (`lfm2.rs:175–209`), `ops.cpp` matmul promeut au type commun et AsType GPU matérialise la conversion. 47×512×2560×4=235Mio de sorties FP32 cumulées par pasT1, pas235Mio de RAM permanente ni une durée mesurée. PERF-09 confirmé : `SsdMoe::calculate` valide les slotsCPU et les convertit enArray ; deux `expert_slots` par cohorte relisent leursIDs via `to_u32` (`linear.rs:1082–1088`), bridgeContiguous/eval (`mlx_bridge.cpp:403–408`). 96–192appels structurels par pas48couches selonhot/cold, pas96–192attentes longues démontrées. Sources primairesMLXpin1f8e74e3 : transforms.cpp, ops.cpp, backend/gpu/primitives.cpp ; copies39 de transforms etarray réutilisées, aucune compilation/exécutionGPU.
+- **40 portée et décision** : l’audit établit mieux ces coûts que mes revues37/39, qui ne couvraient pas ces dépendances. Le témoin39A0 dans le même binaire et le découplageLFU/LRU/LES restent manquants ; le crible39Ainterrompu n’attribue pas causalement un coût au seul prédicteur. Les235Mio sont un volume logique cumulé ; les vieux taux d’utilisation34 ne décrivent pas le cacheGPU39A. Réserve surPERF-07 : dans `_qmv_mapped_tile_kernel.metal:20–29,65–105`, NT traite les tuiles de sortie, MB les lignes d’entrée ; testerNT2slots n’équivaut pas à partager un expert entredeux tokens/MB2. Les optimisations de préfill visentTTFT, pas un gain dedecode implicite. Ordre de travail retenu seulement comme proposition : contrôlecausal minimal, readbacksSlots+ordonnancement, puis gateprédictivepeucoûteuse ; file8 conditionnéeauxtraces. Aucun code moteur modifié, test/build/benchmark relancé, nouvelle mesure, preuveformelle oupush ; journal local seul. Les recommandations du document ne sont pas exécutées sans nouvelle demande. Aucun gain ni15tok/s validé par cette lecture.
+
+### FLASHSSD-2026-10-19-41 — slots validés, calendrier LES et gate prédictive FP16 — préenregistré
+
+Nouvelle demande « vas y test ça » après audit40 : reprise explicitement autorisée des essais arrêtés39A. Base174e50df, aucun essai39A interrompu rejoué pour bruit ; nouveau code ciblant LES-01/LES-02/PERF-09, et nouveau protocole causal. Plan complet avant prototype dans `docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/plan.json`. Garder4272banques/5331507264octets, cache5Gio89, allocator512Mio, readers4/globaljobs4, overlap1, checkpoint65c89531EXL32,05, MLX0.32.2/M5/24Gio/secteur/apps ouvertes. Aucun lot8, nouveau signalHC ou changement du routeur réel. Réutiliser la structure des routes typées existantes : indicesCPU validés une fois, capacité vérifiée contre les banques, pas de lectureGPU de ces mêmesindices. Lire les routes réelles avant de soumettre le prédicteur ; lancer chaud/prédiction pendant la lecture de demande, ne lire les candidats qu’ensuite. Comparer un castFP16 de la seule entrée prédictive àF32 ; aucune grande copie de gates persistante.
+
+Contrôles minimaux explicites (auto|lru pourcache, f32|f16 pourprédicteur) : defaultauto/F32 préserve le réglage existant ; forceLRU permet une baseline sans prédiction. Avantvitesse : testsCPU des bornes/parsers etKani effectif ; testphysique de dispatch sansreadback, événementsCPU/readinessGPU non bloquante et prédicteur artificiellement lent limité au test pour vérifier demande avant finprédiction. Le mutant ancienreadbackdoitéchouer puisrestauration ; logits/états/MTP/CLI indépendants bitexact, dtypesprédictifs etLRU-only contrôlés. Format/ClippyCPU+mlxchat/suites/buildlivré, Python/erreursdesgardes. TentativesKani/CBMC120s surimplémentationsréelles ; timeouts/ICE/SDKunsupported nonvalidés. Une preuveCPU n’est pas une preuveGPU/concurrence. Aucun modèleGPU pendant builds/proveurs.
+
+Aprèsqualification/sourcefigée, OFFpuisMTP : MAIN/HOLD×[R0,C0LFU,C0LRU,C4F32LRU,C4F16LRU,R0] =12bras/mode. R0=39A52b7b6bbdepth0, témoinscandidats dansunmêmebinaire. Chauffe128+2mesures128/127decode, sorties128H20/préfixes64/compteursMTPexacts, dérivetémoins≤10%/intra≤1,25, surpluspicprocessus/deltaswapout≤256Mio, vm_stat2s,360s/enfantsjoints. C0LFUéligible≥1%faceplusrapideR0 surles2prompts ; LESéligible≥1%face max(R0rapide,C0LFU,C0LRU) surles2prompts ; meilleur ratio géométrique, F32préféré enégalité. Confirmationseulementmodedegainéligible :2pairesH-C/C-H parprompt/8bras,128warm+3mesures128,toutespaires≥1%/étendue≤3points,pasderelancepourbruit. PushdansPR34dèsgainconfirmé, flags/modes explicites, aucuneinstallation/merge/release. Préparationsnaturelles39A restent archivéesnonexécutées ; aucun gain41 encoremesuré.
+
+- **41 vérification CPU initiale** : format, Clippy strict CPU/MLXchat, build livré passent ; 97 tests CPU/2 ignorés, 117 release/110 ignorés et100Python passent. Kani slots0..20/capacitéi32/IDsu32 :101obligations,0échec,1inatteignable et5/5covers ; parseurs UTF8≤5octets :228obligations,0échec,7inatteignables et5/5covers. Unwinding conservé22/7. TentativeMLX initiale sans `--tests` ne sélectionne aucunharnais : **non vérifiée**, pasuneICE niunepreuve ; relanceravecla sélectioncorrecte,120s,log initial conservé. Aucun modèleGPU ou débit41 lancé.
+
+- **41 source initiale figée pour qualité** : moteur d61261c1dd28567c6ca941df993d65d2aeb5381ac8f3e281da6f7aeee2fc9e50 et tests ed5efeb5712fc99453530945dae3193737ba8332942b64803e3b1d63b4052cb0 ; identité, patch et sources dansopt-41. TentativeKaniMLX corrigéeavec `--tests` atteintuneICEcompilerintrinsics.rs243, **non vérifiée** ; harnaisC++20réelcompilemaisCBMC6.11échoueàparserlibc++SDK, **non vérifié** (logs conservés). RéutilisationASan/UBSan/TSandulecteurinchangéparSHA, pasuneextensionàlaFFInouvelle. Qualité25processus/31testsRustphysiques+3bridgepréparée etfigée, avecLRU-only etF16 ; aucun débit41.
+
+- 41 qualité slots : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité availability : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité owned-persistent-ffi : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité staged-ffi : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité les-full-state : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité ssd : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité flash_attention_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité flash_components_match_reference_on_identical_inputs : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité flash_hc_write_matches_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité flash_matches_independent_reference_states_and_logits : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité flash_mtp_head_matches_reference_and_cache_only : **passed**, swapouts+26214400octets ; quality.json/log.
+
+- 41 qualité flash_mtp_session_preserves_greedy_sequence_target_and_head_states : **failed**, swapouts+non mesuréoctets ; quality.json/log.
+
+- **41 qualité initiale interrompue par garde mémoire** :11processus passent, puis sessionMTP arrêtée/jointe surdeltaSwapouts>256Mio ; sesrésultats partiels nevalidentpasMTP. Logits/états completsF32+F16/commits1,2 et10testsSSD passent, nouveauprédicteurlent encorepending audébutdelademande ettestslotssansreadback passent. TêteMTP précédente+25MioSwapouts ; snapshotaprèsarrêtconservé. Aucun débit lancé ; diagnostiquerpressionRAM avantrepriseaffectée, pas derelance silencieuse.
+
+- **41 diagnosticmémoirepréenregistré aprèsstop** : répéteruniquementlasessionMTPtouchée dansR0figé puisC41figé, mêmeenv5Gio89/readers4/depth4/F32/secteur/apps, `time -l` pourpicRSSenplusduguardvm_stat256Mio,180s/processus. Questionnouvelle : pressionreproductibleduruntimeoucondition/harnalsexcessif ? Aucun débit ; unR0passantaprèsleswapC neprouvepasàlui seuluneabsence derégression. Unnouveaudépassementarrêtelacampagneet imposeunbudgetMTPpluspetitaveccontrôlesneufs, pasunplafondswaprelevé. Résultatsinitiauxconservés ; comparerRSS/préciserlimites.
+
+- 41 diagnostic mémoire R0-mtp-pressure : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 diagnostic mémoire C41-mtp-pressure : **passed**, swapouts+0octets ; quality.json/log.
+
+- **41 diagnosticpression terminé** : R0 etC41 sessionMTP réelle passent avecswapouts+0 chacun ; picfootprint `time -l` R0=10311835856octets/C41=10311344408octets, RSS6134923264/6295797760 distinctdufootprint. Pasd’augmentationfootprintconstatée, causeprécisedupremier508887040octetsdeswapoutsnonattribuée. RéutilisercecontrôleC41commevalidationdelaseulesessionaffectée,puisexécuteruniquementles13processusqualiténonlancés. Budget5Gioinchangé ; échecinitialconservédansquality-initial.json/log, aucunesuppressionniassouplissementdeslimites.
+
+- 41 qualité restante flash_norms_match_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité restante flash_pair_verification_preserves_serial_logits_and_all_states : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité restante flash_ple_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité restante flash_projections_match_upstream_rounding : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité restante flash_qsa_stages_match_upstream : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité restante held : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité restante bridge : **failed**, swapouts+non mesuréoctets ; quality.json/log.
+
+- **41 révisionprotocole AVANT toutevitesse : cache4Gio**. Bridgeproduction5Gio arrêté/joint sur671612928octets swapouts, pic10349647152octets(10,35Go) ; secondstopmémoire, aucungainmesuré. Garderceséchecs, nepasrelancer5pourbruit. Réduireà4Gio/71slotsparcouche/3408slots/4253224896octets surTOUSlestémoins/candidatsOFF/MTP ; mêmes4readers/512Mio/limite256Mio etoracles. Source/binaireinchangés. Revaliderles13processusqualitéchargeantlemodèlecomplet(ycomprislogits/MTP/CLI), réutiliseruniquement12contrôlescomposantsindépendantsdubudget avecpreuveenv5explicite. identity-5gib etquality-matrix-5gib conservés, plan réviséavantvitesse ; pasdedébit5Gioàadditionnerà4Gio.
+
+- 41 qualité4Gio les-full-state : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité4Gio flash_matches_independent_reference_states_and_logits : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité4Gio flash_mtp_head_matches_reference_and_cache_only : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité4Gio flash_mtp_session_preserves_greedy_sequence_target_and_head_states : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité4Gio flash_pair_verification_preserves_serial_logits_and_all_states : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité4Gio held : **passed**, swapouts+0octets ; quality.json/log.
+
+- **41 contrôleerreurnouveaupréenregistré avantprototype** : revueappelsdétecteunrisqueintroduitparledécalageprédictionaprèsreserve : silagatefacultativeéchoue, desroutesfroidespeuventrestermarquéesReady avantremplissageetunlotchauddéjàsoumisn’estpasdrainé. Aucun débitlancé. Ajoutertestphysiquemixte5chauds/5froids(recordsréels), gateprédictivevolontairementincompatible, exigeréchecexplicite/cacheinvalidé puisrécupérationoracleexact. Reproduiresur41initialfigéaveclenouveautest, puis gérerleretourd’erreuravecdrain/invalidationsansmodifierlecalculnormal. Réutiliserqualitéssuccèspreuvephasesinitiales, requalifierSSD etparcoursmodèle/bridgeducandidatfinal ; conserverl’échecpréfixeetles2arrêtsmémoire.
+
+- 41 qualité4Gio bridge : **interrupted**, swapouts+non mesuréoctets ; quality.json/log.
+
+- **41 qualité4Gio phaseinitiale arrêtée pourcorrigerlecheminerreur découvert** :6processusmodèlepassent/swapouts0 ; bridgeencours interrompu/joint volontairementà131,7s, aucunvitesse. Lesrèglesswapinchangées. Nouveauharnais mixte5chauds/5froidsdansl’implémentationréelle, construirelétatnoncorrigépourrepro bornéeavantcorrectif ; toutepreuvephaseinitialegardesonbinaire/sourcefigés.
+
+- 41 qualité prediction-error-before : **expected_regression_detected**, swapouts+0octets ; quality.json/log.
+
+- **41 cheminerreur reproduit puiscorrectiflocal** : nouveau testmixte5chauds/5froidssurcodeinitialéchoue précisément«failedpredictionleftunfilledroutescached», exit101/1testéchouéattendu, swapouts0 ; source/binaire/logdanserror-before. Invalidercacheetdrainerhotencasd’erreurpréparation/soumissionprédicteur ; mêmegestionquela lecturefroide, aucunmathsuccèsmodifié. VérifierlerétablissementbitexactetrelancercontrôlesMLX/build/qualitéSSD11+modèlefinal4Gioavantvitesse.
+
+- **41 candidatfinalfigéavantrequalification** : moteura3fd917d625c20e4dd4e4144a84fcca5fe37ff0262c67caf4598f53e4597c59d / tests8635254e0e21e9dccfc71c345488ba0c8f0cead8b230df9eaa8124ae4a7d9042 dansfinal-critical-path ; anciensbinairescritical-path conservés. Format/ClippyMLXstrict/suite{'passed': 117, 'ignored': 111}/buildpassent. CPU97/2 etKani329obligations/10coversréutiliséshashinchangé ; tentativeréelleKaniMLXfinaleICE, CrossHairabsent, CBMClibc++unsupported restentnonvérifiés.14processusaffectés(SSD11+13modèle/bridge)préparésà4Gio,11composantsinchangésréutilisésavecleursidentités. Aucun débit41lancé.
+
+- 41 qualité finale les-full-state : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale ssd : **failed**, swapouts+non mesuréoctets ; quality.json/log.
+
+- **41 révisionoracleerreur** : qualité-final ssd10passent/1échoue ; inspectionmontrequeleswapgate/shared_gate640produisaitdesIDsprédictifshorsbornesAPRÈSremplissage, doncl’assertioncachevideneprouvaitpaslesroutesnonremplies. Laréproerror-before initialeestun**oracleinsuffisant**, conclusionsurlestaded’échec corrigéeici, logsconservés. Remplacerpargate/shared_downquiattend640entréescontre2560 ; exigerchaîned’erreur«projectionexpects640logicalinputs»etl’octetageencore5recordsavantsuite. Reproduirel’absenced’invalidationsurproduction41initialeisolée, puisrestaurerleguarddéjàajouté. Aucun débitlancé, aucunsuccèsnumériquedes10autrestestsretiré.
+
+- **41 mutations expected_regressions_detected_source_restored** : anciensreadbacksdeslots etattenteprédictiveprécoce réintroduitsdélibérémentdansbinaireisolé, sourcefinalerestauréebitàbitavanttests ; mutation/result.json etlogs.
+
+- **41 mutations causales terminées/source restaurée** :3testsphysiquesisoléséchouentexactementattendus(exit101/1testnonvidechacun), swapouts0 : readbackslots, attenteprécoceetvraieerreurprédictionavantleslecturesfroides(projection640vs2560etread_bytes=5records). Ledernierconfirmelecasnoncouvertparlepremieroracleinsuffisant ; sonnettoyageestbiennécessaire. MutantcompileavantGPU, sourceguardéefinalerestauréebitàbitavanttests, aucunbinairemutantutilisépourvitesse. Statutintermédiaireexpected_regressions_detected_source_restored, validationrestaurationpositiveàterminersurcandidatfinal ; mutation/result.json.
+
+- **41 sourcefinale2 figée** : testsc0d08d9308ad2f247494d2e1b71546cca7aba010d7286fc65a724b5a32f853f8 ; moteur **bitidentiquea3fd917d** malgrélaréparationdutestseul. ClippystrictMLX/117release111ignorés/buildpassent ; préfixeproductionsddbitidentiqueàversionguardéeprécédente. Requalifier14processus(SSD11,slots1,12modèle/bridge) ; conserverles-full-state1pass24saucandidatguardé: productionettestqwenbitidentiques, moteurbitidentique.10autrescomposantsinchangésréutilisés,32testsphysiquesdistincts+3bridgeau total. Validationpositivemutationsattendueaprèscescontrôles ; pasdedébit41.
+
+- 41 qualité finale2 slots : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 ssd : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 flash_matches_independent_reference_states_and_logits : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 flash_mtp_head_matches_reference_and_cache_only : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 flash_mtp_session_preserves_greedy_sequence_target_and_head_states : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 flash_pair_verification_preserves_serial_logits_and_all_states : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 held : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 bridge : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 f16-main : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 f16-held : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 f16-mtp-session : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 lru-only-main : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 bridge-f16 : **passed**, swapouts+0octets ; quality.json/log.
+
+- 41 qualité finale2 bridge-lru-only : **passed**, swapouts+0octets ; quality.json/log.
+
+- **41 qualité complète validée avantvitesse4Gio** :25processusqualifiésjoints/32testsRustphysiquesdistincts+3bridgeproduction passent, swapouts+0 pourchaqueprocessusqualifié.3mutationsdétectées(exit101attendus)etrestaurationpositivevalidées ; oracleerreurcorrigéconfirmepréparationavant5lecturesfroidesetrécupérationbitexact. Moteura3fd917d necontientnilekernellentnilatracetest. Les2arrêtsmémoire5Gio, premieroracleinsuffisantetphase4interrompuerestentconservés ; pasdevalidationglobaledeleursétatspartiels. LancermaintenantcribleOFF12braspréenregistréà4Gio,mêmesconditions, puisMTP/confirmationséligibles ; compilateurs/proveursarrêtés.
+
+- 41 baseline/screen MAIN-0-R0 : **validated**, 9.04466874476117tok/s, pic8212781680octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen MAIN-1-C0-LFU : **validated**, 9.474236225629664tok/s, pic8219105928octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen MAIN-2-C0-LRU : **validated**, 9.105400450848517tok/s, pic8227445432octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen MAIN-3-C4-F32-LRU : **validated**, 9.341476370520036tok/s, pic8222481056octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen MAIN-4-C4-F16-LRU : **validated**, 10.289066178485275tok/s, pic8217631368octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen MAIN-5-R0 : **validated**, 9.869522891783612tok/s, pic8212847240octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen HOLD-0-R0 : **validated**, 9.698363162336545tok/s, pic8210750040octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- 41 baseline/screen HOLD-1-C0-LFU : **validated**, 9.731943347067494tok/s, pic8222612056octets, swapouts+0octets ; opt-41/baseline/screen/execution.json.
+
+- **41 pausepublication autoriséeencours** : nouvelleinstruction«etpushdejàcequet’asfait». Suspendreuniquementlesuperviseurentredeuxlancements(ledernierdrivercontinuejusqu’àsafinavecsurveillanceswap2s), attendreGPUarrêtéavantgitpack/commit/push ; reprendreensuitelesmêmesbinaires/brasrestants,sansrejouerlesréponsesmesurées. Publicationétatpartieletqualitévalidée, **aucungain41confirmé**. publication-pause.json ; revuecomplémentairedemandéeenattente(rechercheàpréenregistreravantanalyse).
+
+- **41 publicationprêteàlademandeutilisateur** : GPUarrêtéavantgit ; superviseurseulpaused, driverHOLD-2-C0-LRUterminéetrapport128validéavantpublication,sajonctionparentsuitàlareprise. Écartobserverpendantpause40.737s, deltaSwapoutsmonotone+0 surl’intervalle ; consigné, criblepréliminairediagnosticseulement, confirmationfuturedoitrestersanspause. Qualitécomplète32physiques+3bridgesvalidée, aucun gain41confirmé/15tok/snonatteint, débitMTPpasencorelancé. Poussermaintenantcode/tests/preuves/étatpartielpuisreprendrelesmêmesbinairesetbrasrestants.
+
+### FLASHSSD-2026-10-19-42 — revuecomplémentaire aprèscorrections41 — en cours
+
+Nouvelleconsigne«ildoitresterencoredesproblèmes,vasvoir». Périmètre : dépendancesGPUencorebloquantes(routes,Hot/Cold,prédictions,drain), prioritésdemande/prélecture, éligibilitéLRU/LFU etsignalHC/MTP. Sourcescourantes41figéesa3fd917d, auditexterne40/rapport37–39. LectureinitialedeSsdMoe/ReaderPoolréaliséeavantcetteentrée : **écartdepréenregistrementdelecture**, aucunessai42/prototype/build/GPUlancé ; nepasprétendrelecontraire. Avanttouteanalysesupplémentaire, cetteentréeestdésormaisactive. Revuelectureseulependant41, distinguerconstatsconnus,hypothèsesetnouveauxbugs ; pasdechangementdubinairetesté, pasdecomparaisonmatérielle42sansprotocoleàpart. Publication41prioritaireexplicitementdemandée. État : en cours, aucun nouveauconstat42validé.

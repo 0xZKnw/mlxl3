@@ -1,0 +1,180 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 41472,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.2358707080129534
+  },
+  {
+    "name": "cpu-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 41475,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 1.355276332993526
+  },
+  {
+    "name": "cpu-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 41547,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.5987165840051603
+  },
+  {
+    "name": "mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 41642,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.2258713749906747
+  },
+  {
+    "name": "release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 41698,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 40.24164466699585
+  },
+  {
+    "name": "release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 41842,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.18752883400884457
+  },
+  {
+    "name": "kani-slots",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "cpu_slot_validation_preserves_bounds_for_real_route_widths"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 41845,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 11.482560250005918
+  },
+  {
+    "name": "kani-controls",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "les_control_parsers_accept_only_the_documented_literals"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 41936,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 7.004645124994568
+  },
+  {
+    "name": "kani-actual-mlx",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_slot_dispatch_and_optional_prediction_schedule"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 41980,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 3.439281667000614
+  },
+  {
+    "name": "python",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_flash_benchmark.py",
+      "tests/test_flash_memory.py",
+      "tests/test_mtp_bridge.py",
+      "tests/test_native_json_process.py"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 42047,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 16.38745537500654
+  }
+]

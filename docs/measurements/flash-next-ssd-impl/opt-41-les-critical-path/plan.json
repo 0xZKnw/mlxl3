@@ -1,0 +1,87 @@
+{
+  "status": "preregistered",
+  "source_head": "174e50df4587a23b0e2d28f9d4eb68da519e0b2c",
+  "prior_review": "40",
+  "scope": [
+    "validated CPU slot indices carried into expert dispatch without host readback",
+    "actual routes read before optional prediction submission; hot work and prediction overlap demanded reads",
+    "optional prediction-only FP16 input; true routing and expert math unchanged",
+    "explicit LRU-only control with no LES"
+  ],
+  "unchanged": {
+    "checkpoint_revision": "65c895314393431c09050b2e04e250836b3a6eb4",
+    "quantization": "EXL3 2.05bpw",
+    "cache_gib": 5,
+    "slots_per_layer": 89,
+    "weight_slot_bytes": 5331507264,
+    "readers": 4,
+    "global_speculative_jobs": 4,
+    "allocator_mib": 512,
+    "context_limit": 4096,
+    "installed_app": "unchanged"
+  },
+  "controls": {
+    "cache_policy": "MLXL3_SSD_CACHE_POLICY=auto|lru (auto preserves original LFU without LES and LRU with LES)",
+    "prediction_dtype": "MLXL3_SSD_PREDICTOR_DTYPE=f32|f16 (default f32; only predictions may change)"
+  },
+  "correctness_before_speed": {
+    "cpu": "slot bounds/empty/overflow, literal control parsers, Kani actual functions with 0..20 symbolic slots, full i32 capacity/u32 IDs; parsers arbitrary bytes length<=5",
+    "gpu": "independent MoE/complete logits248320 and states16+held, MTP head and pair/session, real bridge budgets1/2/3/17/rejection/cancel/recovery, both predictor dtypes and LRU-only control",
+    "mechanism": "test-only host-readback counter; readiness query for GPU arrays; bounded CPU event timestamps. Deliberately slow test-only prediction must still be unfinished at first demanded read. Regression/mutation restores old early readback and must fail. No long GPU-delay kernel in throughput runs.",
+    "checks": "fmt, strict CPU/MLX-chat Clippy, CPU/release suites, shipped build, relevant Python suite/guard failures; Kani targeted120s then relevant suite, actual MLX path attempt120s. CBMC real bridge attempt120s; unsupported paths remain unverified."
+  },
+  "screen": {
+    "modes_in_order": [
+      "OFF",
+      "MTP1"
+    ],
+    "prompts": [
+      "MAIN",
+      "HOLD"
+    ],
+    "arms_per_prompt": [
+      "R0",
+      "C0-LFU",
+      "C0-LRU",
+      "C4-F32-LRU",
+      "C4-F16-LRU",
+      "R0"
+    ],
+    "reference": "immutable 39A binary52b7b6bb, depth0 default LFU",
+    "candidate": "one final frozen binary, all four candidate arms",
+    "warmup_tokens": 128,
+    "measured_repeats": 2,
+    "generated_tokens": 128,
+    "timed_decode_tokens": 127,
+    "power": "AC (currently100%)",
+    "applications": "left open",
+    "maximum_control_max_min_ratio": 1.1,
+    "maximum_within_arm_max_min_ratio": 1.25,
+    "maximum_extra_process_peak_bytes": 268435456,
+    "maximum_system_swapout_bytes_per_arm": 268435456,
+    "live_vm_stat_interval_seconds": 2,
+    "timeout_seconds_per_arm": 360,
+    "parity": "all128 IDs/hash/text equal archived H20 oracle; prefix64 and MTP counters exact",
+    "selection": "C0-LFU qualifies common-path gain if >=1% above faster R0 in both prompts. A LES arm qualifies only if >=1% above max(faster R0,C0-LFU,C0-LRU) in both prompts. Select eligible LES arm with highest geometric ratio, prefer f32 on tie. Screen is not gain confirmation."
+  },
+  "confirmation": {
+    "when": "only eligible common-path and/or LES mode; no reruns for noise",
+    "reference_common": "R0",
+    "candidate_common": "C0-LFU",
+    "reference_les": "C0-LFU same candidate binary",
+    "candidate_les": "selected C4 dtype, explicit LRU",
+    "per_mode": "two H-C/C-H paired blocks per MAIN/HOLD (8arms), one128warm and three128measured per arm",
+    "criteria": "all four paired gains>=1%, range<=3percentagepoints per prompt, same power/parity/memory limits. Stop conservatively if required condition becomes impossible.",
+    "publication": "push to PR34 once a gain is actually confirmed; identify runtime flags and mode. No merge/release/install."
+  },
+  "source_freeze": "runtime hashes, binaries and exact command/env matrices before first physical run; no compiler/prover/other GPU model during GPU measurements",
+  "created_at": 1792427771.702187,
+  "revision_before_speed": {
+    "reason": "Two5GiB qualityprocesses stopped at508887040 and671612928bytes system swapouts; no41speed run started",
+    "cache_gib": 4,
+    "slots_per_layer": 71,
+    "weight_slot_bytes": 4253224896,
+    "scope": "bothOFFandMTP, allR0andcandidatearms, newqualityfull-modelpaths4GiB; thresholdsunchanged",
+    "source_and_binaries": "unchangedfrominitialfreeze"
+  }
+}

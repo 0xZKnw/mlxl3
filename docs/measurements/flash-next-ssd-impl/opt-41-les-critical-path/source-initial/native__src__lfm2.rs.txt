@@ -1,0 +1,1209 @@
+//! Batch-one, token-by-token LFM2 dense/MoE inference using MLX arrays.
+//! Weights and operation order follow mlx-lm's `lfm2` implementations.
+// Architecture adapted from mlx-lm, Copyright © 2025 Apple Inc. (MIT).
+use crate::{
+    array::{self, Array, Dtype},
+    checkpoint::{self, Checkpoint},
+    linear::{Exl3Group, Exl3Linear, checkpoint_array},
+    moe::Exl3SwitchGlu,
+    router,
+};
+use anyhow::{Context, Result, ensure};
+use half::f16;
+use serde::Deserialize;
+use std::{collections::BTreeSet, fs::File, path::Path};
+
+#[derive(Deserialize)]
+struct Config {
+    model_type: String,
+    vocab_size: i32,
+    hidden_size: i32,
+    max_position_embeddings: i32,
+    num_hidden_layers: usize,
+    num_attention_heads: i32,
+    num_key_value_heads: Option<i32>,
+    norm_eps: f32,
+    conv_bias: bool,
+    #[serde(rename = "conv_L_cache")]
+    conv_length: i32,
+    block_dim: Option<i32>,
+    block_ff_dim: Option<i32>,
+    intermediate_size: Option<i32>,
+    block_multiple_of: Option<i32>,
+    #[serde(default)]
+    block_auto_adjust_ff_dim: bool,
+    block_ffn_dim_multiplier: Option<f64>,
+    #[serde(default)]
+    moe_intermediate_size: i32,
+    #[serde(default)]
+    num_experts: i32,
+    #[serde(default)]
+    num_experts_per_tok: usize,
+    #[serde(default)]
+    num_dense_layers: usize,
+    #[serde(default)]
+    norm_topk_prob: bool,
+    #[serde(default)]
+    use_expert_bias: bool,
+    #[serde(default = "default_routed_scaling_factor")]
+    routed_scaling_factor: f32,
+    #[serde(default = "default_rope_theta")]
+    rope_theta: f32,
+    rope_parameters: Option<serde_json::Value>,
+    full_attn_idxs: Option<Vec<usize>>,
+    layer_types: Option<Vec<String>>,
+}
+
+fn default_rope_theta() -> f32 {
+    1_000_000.0
+}
+
+fn default_routed_scaling_factor() -> f32 {
+    1.0
+}
+
+pub(crate) fn half_weight(
+    checkpoint: &Checkpoint,
+    name: &str,
+    expected: Option<&[i32]>,
+) -> Result<Array> {
+    let weight = checkpoint_array(checkpoint, name)?;
+    ensure!(
+        matches!(
+            weight.dtype(),
+            Dtype::Float16 | Dtype::Float32 | Dtype::BFloat16
+        ),
+        "{name}: expected floating-point weights"
+    );
+    if let Some(shape) = expected {
+        ensure!(
+            weight.shape() == shape,
+            "{name}: shape {:?}, expected {shape:?}",
+            weight.shape()
+        );
+    }
+    let weight = weight.astype(Dtype::Float16)?;
+    weight.eval()?;
+    Ok(weight)
+}
+
+enum ProjectionWeights {
+    Exl3(Exl3Linear),
+    Affine(crate::affine::AffineLinear),
+    Dense(Array),
+}
+
+pub(crate) struct Projection {
+    weights: ProjectionWeights,
+    bias: Option<Array>,
+    logical_input: i32,
+    logical_output: i32,
+}
+
+impl Projection {
+    pub(crate) fn is_exl3(&self) -> bool {
+        matches!(self.weights, ProjectionWeights::Exl3(_))
+    }
+
+    pub(crate) fn load(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        input: i32,
+        output: i32,
+        bias: bool,
+    ) -> Result<Self> {
+        Self::load_logical(checkpoint, prefix, input, output, bias)
+    }
+
+    pub(crate) fn load_logical(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        input: i32,
+        output: i32,
+        bias: bool,
+    ) -> Result<Self> {
+        let is_exl3 = checkpoint
+            .tensors
+            .contains_key(&format!("{prefix}.trellis"));
+        if bias {
+            ensure!(
+                checkpoint.tensors.contains_key(&format!("{prefix}.bias")),
+                "{prefix}: missing projection bias"
+            );
+        }
+        let weights = if is_exl3 {
+            let quantized = Exl3Linear::from_checkpoint(checkpoint, prefix)?;
+            ensure!(
+                quantized.input_dims() >= input
+                    && quantized.input_dims() - input < 128
+                    && quantized.output_dims() >= output
+                    && quantized.output_dims() - output < 128,
+                "{prefix}: invalid EXL3 projection dimensions"
+            );
+            ProjectionWeights::Exl3(quantized)
+        } else if checkpoint.model_type == "qwen3_5_mtp"
+            && checkpoint.tensors.contains_key(&format!("{prefix}.scales"))
+        {
+            ProjectionWeights::Affine(crate::affine::AffineLinear::load(
+                checkpoint, prefix, input, output, None,
+            )?)
+        } else {
+            ProjectionWeights::Dense(half_weight(
+                checkpoint,
+                &format!("{prefix}.weight"),
+                Some(&[output, input]),
+            )?)
+        };
+        // Exl3Linear applies its checkpoint bias itself.
+        let bias = if bias && !is_exl3 {
+            Some(half_weight(
+                checkpoint,
+                &format!("{prefix}.bias"),
+                Some(&[output]),
+            )?)
+        } else {
+            None
+        };
+        Ok(Self {
+            weights,
+            bias,
+            logical_input: input,
+            logical_output: output,
+        })
+    }
+
+    pub(crate) fn forward(&self, x: &Array) -> Result<Array> {
+        ensure!(
+            x.shape().last() == Some(&self.logical_input),
+            "projection expects {} logical inputs",
+            self.logical_input
+        );
+        let value = match &self.weights {
+            ProjectionWeights::Affine(linear) => linear.forward(x)?,
+            ProjectionWeights::Exl3(linear) => {
+                let padded = if linear.input_dims() == self.logical_input {
+                    x.try_clone()?
+                } else {
+                    let mut shape = x.shape().to_vec();
+                    *shape
+                        .last_mut()
+                        .context("projection input must have rank")? =
+                        linear.input_dims() - self.logical_input;
+                    let zeros = Array::zeros_dtype(&shape, x.dtype())?;
+                    Array::concatenate(&[x, &zeros], x.shape().len() as i32 - 1)?
+                };
+                let value = linear.forward(&padded)?;
+                if linear.output_dims() == self.logical_output {
+                    value
+                } else {
+                    value.slice(value.shape().len() as i32 - 1, 0, self.logical_output)?
+                }
+            }
+            ProjectionWeights::Dense(weight) => x.matmul(&weight.transpose(&[1, 0])?)?,
+        };
+        match &self.bias {
+            Some(bias) => value.add(bias),
+            None => Ok(value),
+        }
+    }
+
+    pub(crate) fn forward_flash_hc(&self, x: &Array) -> Result<Array> {
+        let ProjectionWeights::Dense(weight) = &self.weights else {
+            return self.forward(x);
+        };
+        let (bm, bn) = match (self.logical_input, self.logical_output) {
+            (10240, 320 | 4) => (1, 8),
+            (320, 10240) => (8, 1),
+            _ => return self.forward(x),
+        };
+        if self.bias.is_some()
+            || x.dtype() != Dtype::Float32
+            || !matches!(x.shape(), [1, k] | [1, 1, k] if *k == self.logical_input)
+        {
+            return self.forward(x);
+        }
+        // Read half weights directly while retaining MLX 0.32.2's FP32 GEMV order.
+        let mut shape = x.shape().to_vec();
+        *shape.last_mut().expect("validated HC rank") = self.logical_output;
+        Ok(array::metal_kernel(
+            &format!(
+                "mlxl3_flash_hc_gemv_{}_{}",
+                self.logical_input, self.logical_output
+            ),
+            &["x", "weight"],
+            &["out"],
+            &format!(
+                "#define K {}\n#define N {}\n#define BM {bm}\n#define BN {bn}\n",
+                self.logical_input, self.logical_output
+            ),
+            include_str!("../shaders/flash_hc_gemv.metal"),
+            &[x, weight],
+            &[shape],
+            &[Dtype::Float32],
+            [(self.logical_output / (bm * 4)) * (bm * bn * 32), 1, 1],
+            [bm * bn * 32, 1, 1],
+        )?
+        .remove(0))
+    }
+
+    pub(crate) fn forward_dense_rows_exact(&self, x: &Array) -> Result<Array> {
+        let ProjectionWeights::Dense(weight) = &self.weights else {
+            anyhow::bail!("exact dense rows require dense projection weights");
+        };
+        ensure!(
+            self.bias.is_none()
+                && x.shape().len() == 2
+                && (2..=8).contains(&x.shape()[0])
+                && x.shape()[1] == self.logical_input
+                && self.logical_input % 128 == 0
+                && self.logical_output % 16 == 0,
+            "invalid exact dense row input"
+        );
+        let rows = x.shape()[0];
+        let source = format!(
+            r#"
+                constexpr uint INPUT_DIMS = {input}u;
+                constexpr uint OUTPUT_DIMS = {output}u;
+                uint output = threadgroup_position_in_grid.x * 16u
+                    + simdgroup_index_in_threadgroup * 4u;
+                uint row = threadgroup_position_in_grid.y;
+                uint lane = thread_index_in_simdgroup;
+                float result[4] = {{0.0f, 0.0f, 0.0f, 0.0f}};
+                uint k = lane * 4u;
+                for (uint block = 0u; block < INPUT_DIMS / 128u; ++block) {{
+                    float coeff[4];
+                    for (uint n = 0u; n < 4u; ++n) {{
+                        coeff[n] = float(x[row * INPUT_DIMS + k + n]);
+                    }}
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        for (uint n = 0u; n < 4u; ++n) {{
+                            result[m] += float(weight[(output + m) * INPUT_DIMS + k + n])
+                                * coeff[n];
+                        }}
+                    }}
+                    k += 128u;
+                }}
+                for (ushort offset = 16u; offset >= 1u; offset >>= 1u) {{
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        result[m] += simd_shuffle_down(result[m], offset);
+                    }}
+                }}
+                if (lane == 0u) {{
+                    for (uint m = 0u; m < 4u; ++m) {{
+                        y[row * OUTPUT_DIMS + output + m] = half(result[m]);
+                    }}
+                }}
+            "#,
+            input = self.logical_input,
+            output = self.logical_output,
+        );
+        Ok(array::metal_kernel(
+            &format!(
+                "mlxl3_rs_dense_rows_exact_{}_{}_v1",
+                self.logical_input, self.logical_output
+            ),
+            &["x", "weight"],
+            &["y"],
+            "",
+            &source,
+            &[x, weight],
+            &[vec![rows, self.logical_output]],
+            &[Dtype::Float16],
+            [(self.logical_output / 16) * 128, rows, 1],
+            [128, 1, 1],
+        )?
+        .remove(0))
+    }
+}
+
+enum Qkv {
+    Separate(Box<[Projection; 3]>),
+    Grouped(Box<Exl3Group>),
+}
+
+impl Qkv {
+    fn new(projections: [Projection; 3]) -> Result<Self> {
+        let linears: Vec<_> = projections
+            .iter()
+            .filter_map(|p| match &p.weights {
+                ProjectionWeights::Exl3(l) => Some(l),
+                _ => None,
+            })
+            .collect();
+        if linears.len() == 3 && Exl3Group::compatible(&linears) {
+            let linears = projections
+                .into_iter()
+                .map(|p| match p.weights {
+                    ProjectionWeights::Exl3(l) => l,
+                    _ => unreachable!(),
+                })
+                .collect();
+            Ok(Self::Grouped(Box::new(Exl3Group::new(linears)?)))
+        } else {
+            Ok(Self::Separate(Box::new(projections)))
+        }
+    }
+
+    fn forward(&self, x: &Array) -> Result<Vec<Array>> {
+        match self {
+            Self::Grouped(g) => g.forward(x),
+            Self::Separate(p) => p.iter().map(|p| p.forward(x)).collect(),
+        }
+    }
+}
+
+struct Attention {
+    qkv: Qkv,
+    output: Projection,
+    q_norm: Array,
+    k_norm: Array,
+    heads: i32,
+    kv_heads: i32,
+    head_dim: i32,
+    eps: f32,
+    theta: f32,
+    keys: Option<Array>,
+    values: Option<Array>,
+}
+
+impl Attention {
+    fn load(checkpoint: &Checkpoint, prefix: &str, config: &Config, theta: f32) -> Result<Self> {
+        let dim = config.hidden_size;
+        let heads = config.num_attention_heads;
+        let kv_heads = config.num_key_value_heads.unwrap_or(heads);
+        let head_dim = dim / heads;
+        Ok(Self {
+            qkv: Qkv::new([
+                Projection::load(checkpoint, &format!("{prefix}.q_proj"), dim, dim, false)?,
+                Projection::load(
+                    checkpoint,
+                    &format!("{prefix}.k_proj"),
+                    dim,
+                    kv_heads * head_dim,
+                    false,
+                )?,
+                Projection::load(
+                    checkpoint,
+                    &format!("{prefix}.v_proj"),
+                    dim,
+                    kv_heads * head_dim,
+                    false,
+                )?,
+            ])?,
+            output: Projection::load(checkpoint, &format!("{prefix}.out_proj"), dim, dim, false)?,
+            q_norm: half_weight(
+                checkpoint,
+                &format!("{prefix}.q_layernorm.weight"),
+                Some(&[head_dim]),
+            )?,
+            k_norm: half_weight(
+                checkpoint,
+                &format!("{prefix}.k_layernorm.weight"),
+                Some(&[head_dim]),
+            )?,
+            heads,
+            kv_heads,
+            head_dim,
+            eps: config.norm_eps,
+            theta,
+            keys: None,
+            values: None,
+        })
+    }
+
+    fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("LFM2 attention input must have time")?;
+        ensure!(time > 0, "empty LFM2 attention input");
+        let projections = self.qkv.forward(x)?;
+        let q = projections[0]
+            .reshape(&[1, time, self.heads, self.head_dim])?
+            .rms_norm(&self.q_norm, self.eps)?
+            .transpose(&[0, 2, 1, 3])?
+            .rope(self.head_dim, self.theta, offset)?;
+        let k = projections[1]
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
+            .rms_norm(&self.k_norm, self.eps)?
+            .transpose(&[0, 2, 1, 3])?
+            .rope(self.head_dim, self.theta, offset)?;
+        let v = projections[2]
+            .reshape(&[1, time, self.kv_heads, self.head_dim])?
+            .transpose(&[0, 2, 1, 3])?;
+        let keys = match &self.keys {
+            Some(previous) => Array::concatenate(&[previous, &k], 2)?,
+            None => k,
+        };
+        let values = match &self.values {
+            Some(previous) => Array::concatenate(&[previous, &v], 2)?,
+            None => v,
+        };
+        let out = Array::sdpa(
+            &q,
+            &keys,
+            &values,
+            (self.head_dim as f32).powf(-0.5),
+            time > 1,
+        )?
+        .transpose(&[0, 2, 1, 3])?
+        .reshape(&[1, time, self.heads * self.head_dim])?;
+        self.keys = Some(keys);
+        self.values = Some(values);
+        self.output.forward(&out)
+    }
+
+    fn reset(&mut self) {
+        self.keys = None;
+        self.values = None;
+    }
+}
+
+struct ShortConv {
+    input: Projection,
+    output: Projection,
+    weight: Array,
+    bias: Option<Array>,
+    state: Option<Array>,
+    dim: i32,
+    length: i32,
+}
+
+impl ShortConv {
+    fn load(checkpoint: &Checkpoint, prefix: &str, config: &Config) -> Result<Self> {
+        let dim = config.hidden_size;
+        let length = config.conv_length;
+        let mut weight = half_weight(checkpoint, &format!("{prefix}.conv.weight"), None)?;
+        ensure!(
+            weight.shape().len() == 3,
+            "{prefix}: convolution weight must have rank 3"
+        );
+        // Hugging Face stores [channels, 1, kernel]; MLX uses [channels, kernel, 1].
+        if weight.shape()[2] > weight.shape()[1] {
+            weight = weight.transpose(&[0, 2, 1])?;
+        }
+        ensure!(
+            weight.shape() == [dim, length, 1],
+            "{prefix}: invalid convolution weight shape"
+        );
+        Ok(Self {
+            input: Projection::load(
+                checkpoint,
+                &format!("{prefix}.in_proj"),
+                dim,
+                3 * dim,
+                config.conv_bias,
+            )?,
+            output: Projection::load(
+                checkpoint,
+                &format!("{prefix}.out_proj"),
+                dim,
+                dim,
+                config.conv_bias,
+            )?,
+            weight,
+            bias: if config.conv_bias {
+                Some(half_weight(
+                    checkpoint,
+                    &format!("{prefix}.conv.bias"),
+                    Some(&[dim]),
+                )?)
+            } else {
+                None
+            },
+            state: None,
+            dim,
+            length,
+        })
+    }
+
+    fn forward(&mut self, x: &Array) -> Result<Array> {
+        let time = *x
+            .shape()
+            .get(1)
+            .context("LFM2 convolution input must have time")?;
+        ensure!(time > 0, "empty LFM2 convolution input");
+        let bcx = self.input.forward(x)?;
+        let b = bcx.slice(2, 0, self.dim)?;
+        let c = bcx.slice(2, self.dim, 2 * self.dim)?;
+        let projected_x = bcx.slice(2, 2 * self.dim, 3 * self.dim)?;
+        let bx = b.mul(&projected_x)?;
+        let state = match &self.state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(&[1, self.length - 1, self.dim], bx.dtype())?,
+        };
+        let bx = Array::concatenate(&[&state, &bx], 1)?;
+        let mut conv = bx.conv1d(&self.weight, self.dim)?;
+        if let Some(bias) = &self.bias {
+            conv = conv.add(bias)?;
+        }
+        self.state = Some(bx.slice(1, time, time + self.length - 1)?);
+        self.output.forward(&c.mul(&conv)?)
+    }
+}
+
+// Stored once per layer; boxing only trades a few KB for extra allocations.
+#[allow(clippy::large_enum_variant)]
+enum Operator {
+    Attention(Attention),
+    Conv(ShortConv),
+}
+
+struct Layer {
+    operator_norm: Array,
+    ffn_norm: Array,
+    operator: Operator,
+    feed_forward: FeedForward,
+    eps: f32,
+}
+
+enum FeedForward {
+    Dense {
+        w1: Projection,
+        w3: Projection,
+        w2: Projection,
+    },
+    Moe {
+        gate: Projection,
+        expert_bias: Option<Array>,
+        experts: Exl3SwitchGlu,
+        top_k: usize,
+        normalize: bool,
+        epsilon: Array,
+        scale: Option<Array>,
+        dim: i32,
+    },
+}
+
+impl FeedForward {
+    fn forward(&self, x: &Array) -> Result<Array> {
+        match self {
+            Self::Dense { w1, w3, w2 } => {
+                let gate = w1.forward(x)?;
+                let up = w3.forward(x)?;
+                w2.forward(&gate.swiglu(&up)?)
+            }
+            Self::Moe {
+                gate,
+                expert_bias,
+                experts,
+                top_k,
+                normalize,
+                epsilon,
+                scale,
+                dim,
+            } => {
+                let time = *x.shape().get(1).context("LFM2 MoE input must have time")?;
+                let x = x.reshape(&[time, *dim])?;
+                let probabilities = gate.forward(&x)?.sigmoid()?;
+                let (selected, mut scores) = match expert_bias {
+                    Some(bias) => router::topk_biased(&probabilities, bias, *top_k)?,
+                    None => router::topk(&probabilities, *top_k, false)?,
+                };
+                if *normalize {
+                    scores = scores.div(&scores.sum(-1, true)?.add(epsilon)?)?;
+                }
+                if let Some(scale) = scale {
+                    scores = scores.mul(scale)?;
+                }
+                experts
+                    .forward(&x, &selected, &scores)?
+                    .reshape(&[1, time, *dim])
+            }
+        }
+    }
+}
+
+impl Layer {
+    fn load(
+        checkpoint: &Checkpoint,
+        index: usize,
+        config: &Config,
+        attention: bool,
+        ff_dim: i32,
+        theta: f32,
+    ) -> Result<Self> {
+        let prefix = format!("model.layers.{index}");
+        let dim = config.hidden_size;
+        Ok(Self {
+            operator_norm: half_weight(
+                checkpoint,
+                &format!("{prefix}.operator_norm.weight"),
+                Some(&[dim]),
+            )?,
+            ffn_norm: half_weight(
+                checkpoint,
+                &format!("{prefix}.ffn_norm.weight"),
+                Some(&[dim]),
+            )?,
+            operator: if attention {
+                Operator::Attention(Attention::load(
+                    checkpoint,
+                    &format!("{prefix}.self_attn"),
+                    config,
+                    theta,
+                )?)
+            } else {
+                Operator::Conv(ShortConv::load(
+                    checkpoint,
+                    &format!("{prefix}.conv"),
+                    config,
+                )?)
+            },
+            feed_forward: if config.model_type == "lfm2_moe" && index >= config.num_dense_layers {
+                let ffn = format!("{prefix}.feed_forward");
+                FeedForward::Moe {
+                    gate: Projection::load(
+                        checkpoint,
+                        &format!("{ffn}.gate"),
+                        dim,
+                        config.num_experts,
+                        false,
+                    )?,
+                    expert_bias: config
+                        .use_expert_bias
+                        .then(|| {
+                            half_weight(
+                                checkpoint,
+                                &format!("{ffn}.expert_bias"),
+                                Some(&[config.num_experts]),
+                            )
+                        })
+                        .transpose()?,
+                    experts: Exl3SwitchGlu::from_lfm_checkpoint(
+                        checkpoint,
+                        &format!("{ffn}.experts"),
+                        config.num_experts,
+                        config.num_experts_per_tok as i32,
+                    )?,
+                    top_k: config.num_experts_per_tok,
+                    normalize: config.norm_topk_prob,
+                    epsilon: Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()], &[])?,
+                    scale: (config.routed_scaling_factor != 1.0)
+                        .then(|| {
+                            Array::from_f16_bits(
+                                &[f16::from_f32(config.routed_scaling_factor).to_bits()],
+                                &[],
+                            )
+                        })
+                        .transpose()?,
+                    dim,
+                }
+            } else {
+                FeedForward::Dense {
+                    w1: Projection::load(
+                        checkpoint,
+                        &format!("{prefix}.feed_forward.w1"),
+                        dim,
+                        ff_dim,
+                        false,
+                    )?,
+                    w3: Projection::load(
+                        checkpoint,
+                        &format!("{prefix}.feed_forward.w3"),
+                        dim,
+                        ff_dim,
+                        false,
+                    )?,
+                    w2: Projection::load(
+                        checkpoint,
+                        &format!("{prefix}.feed_forward.w2"),
+                        ff_dim,
+                        dim,
+                        false,
+                    )?,
+                }
+            },
+            eps: config.norm_eps,
+        })
+    }
+
+    fn forward(&mut self, x: &Array, offset: i32) -> Result<Array> {
+        let normalized = x.rms_norm(&self.operator_norm, self.eps)?;
+        let mixed = match &mut self.operator {
+            Operator::Attention(attention) => attention.forward(&normalized, offset)?,
+            Operator::Conv(conv) => conv.forward(&normalized)?,
+        };
+        let h = x.add(&mixed)?;
+        let normalized = h.rms_norm(&self.ffn_norm, self.eps)?;
+        h.add(&self.feed_forward.forward(&normalized)?)
+    }
+}
+
+pub struct Lfm2 {
+    embeddings: Array,
+    norm: Array,
+    head: Option<Projection>,
+    layers: Vec<Layer>,
+    vocab_size: i32,
+    context_limit: i32,
+    eps: f32,
+    offset: i32,
+}
+
+impl Lfm2 {
+    pub fn load(path: &Path) -> Result<Self> {
+        let checkpoint = checkpoint::inspect(path)?;
+        Self::from_checkpoint(&checkpoint)
+    }
+
+    pub fn from_checkpoint(checkpoint: &Checkpoint) -> Result<Self> {
+        let path = &checkpoint.path;
+        let config: Config = serde_json::from_reader(File::open(path.join("config.json"))?)?;
+        ensure!(
+            config.model_type == "lfm2" || config.model_type == "lfm2_moe",
+            "expected LFM2, got {}",
+            config.model_type
+        );
+        ensure!(
+            config.hidden_size > 0
+                && config.hidden_size <= i32::MAX / 3
+                && config.vocab_size > 0
+                && config.max_position_embeddings > 0
+                && config.num_hidden_layers > 0
+                && config.num_attention_heads > 0,
+            "invalid LFM2 dimensions"
+        );
+        ensure!(
+            config.hidden_size % config.num_attention_heads == 0,
+            "LFM2 head dimensions do not divide hidden size"
+        );
+        ensure!(
+            (config.hidden_size / config.num_attention_heads) % 2 == 0,
+            "LFM2 rotary head dimensions must be even"
+        );
+        let kv_heads = config
+            .num_key_value_heads
+            .unwrap_or(config.num_attention_heads);
+        ensure!(
+            kv_heads > 0 && config.num_attention_heads % kv_heads == 0,
+            "invalid LFM2 KV head count"
+        );
+        ensure!(config.conv_length > 0, "invalid LFM2 convolution length");
+        if config.model_type == "lfm2" {
+            ensure!(
+                config.block_dim == Some(config.hidden_size),
+                "invalid LFM2 block dimensions"
+            );
+        } else {
+            ensure!(
+                config.moe_intermediate_size > 0
+                    && config.num_experts > 0
+                    && config.num_experts_per_tok > 0
+                    && config.num_experts_per_tok <= config.num_experts as usize
+                    && config.num_dense_layers <= config.num_hidden_layers
+                    && config.routed_scaling_factor.is_finite()
+                    && config.routed_scaling_factor > 0.,
+                "invalid LFM2 MoE dimensions"
+            );
+        }
+        ensure!(
+            config.norm_eps.is_finite() && config.norm_eps > 0.,
+            "invalid LFM2 norm epsilon"
+        );
+        let theta = config
+            .rope_parameters
+            .as_ref()
+            .and_then(|v| v.get("rope_theta"))
+            .and_then(serde_json::Value::as_f64)
+            .map(|v| v as f32)
+            .unwrap_or(config.rope_theta);
+        ensure!(theta.is_finite() && theta > 0., "invalid LFM2 RoPE theta");
+        let mut ff_dim = i64::from(
+            config
+                .block_ff_dim
+                .or(config.intermediate_size)
+                .context("missing LFM2 feed-forward size")?,
+        );
+        ensure!(ff_dim > 0, "invalid LFM2 feed-forward size");
+        if config.block_auto_adjust_ff_dim {
+            ff_dim = 2 * ff_dim / 3;
+            if let Some(multiplier) = config.block_ffn_dim_multiplier {
+                ensure!(
+                    multiplier.is_finite()
+                        && multiplier > 0.
+                        && multiplier * (ff_dim as f64) <= i32::MAX as f64,
+                    "invalid LFM2 feed-forward multiplier"
+                );
+                ff_dim = (multiplier * ff_dim as f64) as i64;
+            }
+            ensure!(
+                config.block_multiple_of.is_some_and(|value| value > 0),
+                "invalid LFM2 feed-forward multiple"
+            );
+            let multiple = i64::from(config.block_multiple_of.expect("checked above"));
+            ff_dim = multiple * ((ff_dim + multiple - 1) / multiple);
+        }
+        let ff_dim = i32::try_from(ff_dim).context("LFM2 feed-forward size overflow")?;
+        ensure!(ff_dim > 0, "invalid adjusted LFM2 feed-forward size");
+        let attention: BTreeSet<usize> = if let Some(indices) = &config.full_attn_idxs {
+            indices.iter().copied().collect()
+        } else {
+            let types = config
+                .layer_types
+                .as_ref()
+                .context("missing LFM2 layer types")?;
+            ensure!(
+                types.len() == config.num_hidden_layers,
+                "LFM2 layer types count mismatch"
+            );
+            ensure!(
+                types
+                    .iter()
+                    .all(|kind| kind == "full_attention" || kind == "conv" || kind == "short_conv"),
+                "unsupported LFM2 layer type"
+            );
+            types
+                .iter()
+                .enumerate()
+                .filter_map(|(i, kind)| (kind == "full_attention").then_some(i))
+                .collect()
+        };
+        ensure!(
+            attention.iter().all(|&i| i < config.num_hidden_layers),
+            "invalid LFM2 attention index"
+        );
+        let dim = config.hidden_size;
+        let embeddings = half_weight(
+            checkpoint,
+            "model.embed_tokens.weight",
+            Some(&[config.vocab_size, dim]),
+        )?;
+        let norm = half_weight(checkpoint, "model.embedding_norm.weight", Some(&[dim]))?;
+        let head = if checkpoint.modules.iter().any(|name| name == "lm_head")
+            || checkpoint.tensors.contains_key("lm_head.weight")
+        {
+            Some(Projection::load(
+                checkpoint,
+                "lm_head",
+                dim,
+                config.vocab_size,
+                false,
+            )?)
+        } else {
+            None
+        };
+        let mut layers = Vec::with_capacity(config.num_hidden_layers);
+        for index in 0..config.num_hidden_layers {
+            layers.push(Layer::load(
+                checkpoint,
+                index,
+                &config,
+                attention.contains(&index),
+                ff_dim,
+                theta,
+            )?);
+        }
+        Ok(Self {
+            embeddings,
+            norm,
+            head,
+            layers,
+            vocab_size: config.vocab_size,
+            context_limit: config.max_position_embeddings,
+            eps: config.norm_eps,
+            offset: 0,
+        })
+    }
+
+    pub fn supports_batched_prefill(&self) -> bool {
+        self.layers
+            .iter()
+            .all(|layer| matches!(&layer.feed_forward, FeedForward::Dense { .. }))
+    }
+
+    /// Consumes one token for decode, or at least 24 tokens for dense TensorOps prefill.
+    pub fn forward(&mut self, tokens: &[u32]) -> Result<Array> {
+        ensure!(
+            tokens.len() == 1 || tokens.len() >= 24,
+            "LFM2 batches must contain one token or at least 24 tokens"
+        );
+        ensure!(
+            tokens.len() == 1 || self.supports_batched_prefill(),
+            "batched LFM2 prefill currently requires dense feed-forward layers"
+        );
+        ensure!(
+            tokens.iter().all(|&token| token < self.vocab_size as u32),
+            "LFM2 token is outside vocabulary"
+        );
+        let time = i32::try_from(tokens.len()).context("LFM2 batch is too large")?;
+        ensure!(
+            self.offset <= self.context_limit - time,
+            "LFM2 context is full ({} tokens); reset the model cache before continuing",
+            self.context_limit
+        );
+        let result = (|| -> Result<Array> {
+            let next_offset = self
+                .offset
+                .checked_add(time)
+                .context("LFM2 position overflow")?;
+            let ids = Array::from_i32(
+                &tokens.iter().map(|&token| token as i32).collect::<Vec<_>>(),
+                &[1, time],
+            )?;
+            let mut hidden = self.embeddings.take(&ids, 0)?;
+            for layer in &mut self.layers {
+                hidden = layer.forward(&hidden, self.offset)?;
+            }
+            let hidden = hidden.rms_norm(&self.norm, self.eps)?;
+            let logits = match &self.head {
+                Some(head) => head.forward(&hidden)?,
+                None => hidden.matmul(&self.embeddings.transpose(&[1, 0])?)?,
+            }
+            .slice(1, time - 1, time)?;
+            self.offset = next_offset;
+            Ok(logits)
+        })();
+        match result {
+            Ok(logits) => Ok(logits),
+            Err(error) => {
+                self.reset();
+                Err(error.context("LFM2 forward failed; its cache was reset"))
+            }
+        }
+    }
+
+    /// Read-only cache snapshots for numerical parity checks; no array is copied.
+    pub fn state_arrays(&self) -> Vec<(String, &Array)> {
+        let mut states = Vec::new();
+        for (index, layer) in self.layers.iter().enumerate() {
+            match &layer.operator {
+                Operator::Attention(attention) => {
+                    if let Some(keys) = &attention.keys {
+                        states.push((format!("model.layers.{index}.keys"), keys));
+                    }
+                    if let Some(values) = &attention.values {
+                        states.push((format!("model.layers.{index}.values"), values));
+                    }
+                }
+                Operator::Conv(conv) => {
+                    if let Some(state) = &conv.state {
+                        states.push((format!("model.layers.{index}.conv_state"), state));
+                    }
+                }
+            }
+        }
+        states
+    }
+
+    pub fn position(&self) -> i32 {
+        self.offset
+    }
+
+    pub fn context_limit(&self) -> i32 {
+        self.context_limit
+    }
+
+    pub fn reset(&mut self) {
+        self.offset = 0;
+        for layer in &mut self.layers {
+            match &mut layer.operator {
+                Operator::Attention(attention) => attention.reset(),
+                Operator::Conv(conv) => conv.state = None,
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod flash_hc_tests {
+    use super::*;
+
+    fn projection(weight: Array) -> Projection {
+        Projection {
+            logical_input: weight.shape()[1],
+            logical_output: weight.shape()[0],
+            weights: ProjectionWeights::Dense(weight),
+            bias: None,
+        }
+    }
+
+    fn check(p: &Projection, x: &Array) -> Result<Vec<f32>> {
+        let expected = p.forward(x)?;
+        let actual = p.forward_flash_hc(x)?;
+        let values = actual.astype(Dtype::Float32)?.to_f32()?;
+        ensure!(
+            actual.shape() == expected.shape()
+                && actual.dtype() == expected.dtype()
+                && !values.is_empty()
+                && values.iter().all(|v| v.is_finite()),
+            "invalid mixed GEMV output"
+        );
+        ensure!(
+            actual.to_bytes()? == expected.to_bytes()?,
+            "mixed GEMV differs: {}→{}, input {:?}/{:?}",
+            p.logical_input,
+            p.logical_output,
+            x.shape(),
+            x.dtype()
+        );
+        Ok(values)
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; exact mixed HC GEMV and fallback contracts"]
+    fn mixed_gemv_matches_mlx_cpu_and_fallbacks() -> Result<()> {
+        let mut checked = 0;
+        for (k, n) in [(10240, 320), (320, 10240), (10240, 4)] {
+            let weights: Vec<f32> = (0..k * n)
+                .map(|i| ((i * 7 % 15) - 7) as f32 / 16.)
+                .collect();
+            let p = projection(Array::from_f32(&weights, &[n, k])?.astype(Dtype::Float16)?);
+            let values: Vec<f32> = (0..k).map(|i| ((i * 11 % 31) - 15) as f32 / 32.).collect();
+            let input = Array::from_f32(&values, &[1, 1, k])?;
+            let out = check(&p, &input)?;
+            for (row, &actual) in out.iter().enumerate() {
+                // These dyadic products and sums are exactly representable in FP32.
+                let reference: f64 = weights[row * k as usize..(row + 1) * k as usize]
+                    .iter()
+                    .zip(&values)
+                    .map(|(&w, &x)| f64::from(w) * f64::from(x))
+                    .sum();
+                ensure!(
+                    actual == reference as f32,
+                    "CPU dyadic oracle differs at {row}"
+                );
+            }
+            checked += out.len();
+            check(&p, &input.astype(Dtype::Float16)?)?;
+            check(&p, &Array::zeros(&[1, k])?)?;
+            check(&p, &input.reshape(&[1, k])?.broadcast_to(&[2, k])?)?;
+            ensure!(
+                p.forward_flash_hc(&Array::zeros(&[1, k - 1])?).is_err(),
+                "wrong width accepted"
+            );
+
+            let arbitrary: Vec<f32> = (0..2 * k)
+                .map(|i| {
+                    let bits = (i as u32).wrapping_mul(747796405).wrapping_add(2891336453);
+                    (bits as i32 as f32 / i32::MAX as f32) * 7.31
+                })
+                .collect();
+            let strided = Array::from_f32(&arbitrary, &[k, 2])?
+                .transpose(&[1, 0])?
+                .slice(0, 0, 1)?;
+            checked += check(&p, &strided)?.len();
+            let mut biased = p;
+            biased.bias =
+                Some(Array::from_f32(&vec![0.25; n as usize], &[n])?.astype(Dtype::Float16)?);
+            check(&biased, &input)?;
+        }
+        let p = projection(Array::from_f32(&vec![0.25; 96 * 8], &[8, 96])?.astype(Dtype::Float16)?);
+        check(&p, &Array::from_f32(&vec![0.5; 96], &[1, 96])?)?;
+        ensure!(checked == 21128, "coverage changed");
+        println!(
+            "mixed HC GEMV: {checked} FP32 values plus half/batch/bias/shape fallbacks and CPU oracle"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU and Flash checkpoint; all real HC weights"]
+    fn mixed_gemv_matches_every_flash_hc_weight() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut matrices = 0;
+        let mut values = 0;
+        for (name, tensor) in &c.tensors {
+            if ![
+                "input_mix_weight_down.weight",
+                "input_mix_weight_up.weight",
+                "block_inject_weight.weight",
+            ]
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
+            {
+                continue;
+            }
+            let k = tensor.shape[1] as i32;
+            let n = tensor.shape[0] as i32;
+            let p = Projection::load(
+                &c,
+                name.strip_suffix(".weight").expect("weight suffix"),
+                k,
+                n,
+                false,
+            )?;
+            let input: Vec<f32> = (0..k)
+                .map(|i| {
+                    ((i as u32).wrapping_mul(1664525).wrapping_add(1013904223) as i32) as f32
+                        / 1073741824.
+                })
+                .collect();
+            values += check(&p, &Array::from_f32(&input, &[1, 1, k])?)?.len();
+            matrices += 1;
+        }
+        ensure!(
+            matrices == 298 && values > 1_000_000,
+            "incomplete HC census: {matrices}/{values}"
+        );
+        println!("mixed HC GEMV: {matrices} real matrices, {values} bit-exact finite values");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU and Flash checkpoint; microbenchmark, not model throughput"]
+    fn mixed_gemv_micro() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        for (name, k, n) in [
+            ("input_mix_weight_down", 10240, 320),
+            ("input_mix_weight_up", 320, 10240),
+            ("block_inject_weight", 10240, 4),
+        ] {
+            let p = Projection::load(
+                &c,
+                &format!("model.language_model.layers.0.attn_hyper_connection.{name}"),
+                k,
+                n,
+                false,
+            )?;
+            let x = Array::from_f32(
+                &(0..k).map(|i| (i as f32 * 0.173).sin()).collect::<Vec<_>>(),
+                &[1, 1, k],
+            )?;
+            check(&p, &x)?;
+            for _ in 0..8 {
+                p.forward(&x)?.eval()?;
+                p.forward_flash_hc(&x)?.eval()?;
+            }
+            for repeat in 0..5 {
+                let mut seconds = [0.; 2];
+                for arm in if repeat % 2 == 0 { [0, 1] } else { [1, 0] } {
+                    let start = std::time::Instant::now();
+                    for _ in 0..32 {
+                        if arm == 0 {
+                            p.forward(&x)?.eval()?;
+                        } else {
+                            p.forward_flash_hc(&x)?.eval()?;
+                        }
+                    }
+                    seconds[arm] = start.elapsed().as_secs_f64();
+                }
+                println!(
+                    "HC_GEMV_MICRO {}",
+                    serde_json::json!({"shape":[k,n],"repeat":repeat,"iterations":32,"seconds":seconds})
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_mixed_hc_path_matches_mlx() {
+        let x = f32::from(kani::any::<i8>());
+        let w = f32::from(kani::any::<i8>());
+        let weight = Array::from_f32(&[w], &[1, 1])
+            .unwrap()
+            .astype(Dtype::Float16)
+            .unwrap()
+            .broadcast_to(&[320, 10240])
+            .unwrap();
+        let input = Array::from_f32(&[x], &[1, 1])
+            .unwrap()
+            .broadcast_to(&[1, 10240])
+            .unwrap();
+        check(&projection(weight), &input).unwrap();
+    }
+}

@@ -11,6 +11,11 @@ use std::{
     sync::OnceLock,
 };
 
+#[cfg(test)]
+thread_local! {
+    static HOST_READBACKS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Dtype {
@@ -115,6 +120,8 @@ unsafe extern "C" {
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
+    #[cfg(test)]
+    fn mlxl3_array_is_available(p: *mut c_void, out: *mut i32) -> i32;
     fn mlxl3_array_async_eval(p: *mut c_void) -> i32;
     fn mlxl3_arrays_preadv(
         fds: *const i32,
@@ -885,10 +892,22 @@ impl Array {
     }
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         let mut bytes = vec![0; bytes_for(&self.shape, self.dtype)?];
+        #[cfg(test)]
+        HOST_READBACKS.set(HOST_READBACKS.get().saturating_add(1));
         checked(unsafe {
             mlxl3_array_copy_bytes(self.handle.as_ptr(), bytes.as_mut_ptr(), bytes.len())
         })?;
         Ok(bytes)
+    }
+    #[cfg(test)]
+    pub(crate) fn host_readbacks_for_test() -> u64 {
+        HOST_READBACKS.get()
+    }
+    #[cfg(test)]
+    pub(crate) fn is_available_for_test(&self) -> Result<bool> {
+        let mut ready = 0;
+        checked(unsafe { mlxl3_array_is_available(self.handle.as_ptr(), &mut ready) })?;
+        Ok(ready != 0)
     }
     pub fn to_f32(&self) -> Result<Vec<f32>> {
         let bytes = if self.dtype == Dtype::Float32 {
@@ -1279,6 +1298,25 @@ pub fn metal_kernel(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore = "physical Apple GPU; nonblocking availability probe and host readback accounting"]
+    fn availability_probe_does_not_submit_a_host_readback() -> anyhow::Result<()> {
+        use super::*;
+        let array = Array::from_u32(&[7], &[1])?;
+        let before = Array::host_readbacks_for_test();
+        assert!(array.is_available_for_test()?);
+        assert!(
+            checked(unsafe {
+                mlxl3_array_is_available(array.handle.as_ptr(), std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        assert_eq!(Array::host_readbacks_for_test(), before);
+        assert_eq!(array.to_u32()?, [7]);
+        assert_eq!(Array::host_readbacks_for_test(), before + 1);
+        Ok(())
+    }
+
     use super::*;
     #[test]
     #[ignore = "physical Apple GPU; exact staged copies and atomic invalid inputs"]

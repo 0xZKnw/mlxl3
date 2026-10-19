@@ -1067,33 +1067,51 @@ pub fn expert_mapped(
     )
 }
 
+/// CPU-origin indices validated once, before any expert graph is submitted.
+pub(crate) struct ExpertSlots {
+    indices: Array,
+    capacity: i32,
+}
+
+impl ExpertSlots {
+    pub(crate) fn new(ids: &[u32], capacity: i32) -> Result<Self> {
+        ensure!(
+            crate::flash_support::slots_fit(ids, capacity),
+            "expert slot outside bank"
+        );
+        Ok(Self {
+            indices: Array::from_u32(ids, &[i32::try_from(ids.len())?])?,
+            capacity,
+        })
+    }
+
+    pub(crate) fn indices(&self) -> &Array {
+        &self.indices
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn expert_slots(
     x: &Array,
     trellis: &Array,
     suh: &Array,
     svh: &Array,
-    selected: &Array,
+    selected: &ExpertSlots,
     output_dims: i32,
     projections_per_route: i32,
     k: usize,
     cb: Codebook,
 ) -> Result<Array> {
     ensure!(
-        trellis.shape().len() == 5
-            && selected.dtype() == Dtype::UInt32
-            && selected
-                .to_u32()?
-                .iter()
-                .all(|&slot| slot < trellis.shape()[0] as u32),
-        "expert slot outside bank"
+        trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
+        "expert slots were validated for a different bank capacity"
     );
     expert_mapped_layout(
         x,
         trellis,
         Some(suh),
         Some(svh),
-        selected,
+        selected.indices(),
         output_dims,
         projections_per_route,
         0,
@@ -1329,18 +1347,24 @@ mod tests {
             let scales = vec![half::f16::from_f32(0.5).to_bits(); rows as usize * width];
             let suh = Array::from_f16_bits(&scales, &[rows, 128])?;
             let svh = Array::from_f16_bits(&scales, &[rows, 128])?;
+            let before = Array::host_readbacks_for_test();
             let actual = expert_slots(
                 &x,
                 &bank,
                 &suh,
                 &svh,
-                &Array::from_u32(&routes, &[routes.len() as i32])?,
+                &ExpertSlots::new(&routes, 3)?,
                 128,
                 2,
                 k,
                 Codebook::Mul1,
-            )?
-            .to_f16_bits()?;
+            )?;
+            assert_eq!(
+                Array::host_readbacks_for_test(),
+                before,
+                "validated slots were read back from MLX"
+            );
+            let actual = actual.to_f16_bits()?;
             assert_eq!(actual.len(), rows as usize * width);
             for (route, &slot) in routes.iter().enumerate() {
                 for projection in 0..projections {
@@ -1370,13 +1394,21 @@ mod tests {
         }
         let x = Array::from_f16_bits(&input.repeat(2), &[2, 128])?;
         let scales = Array::from_f16_bits(&vec![half::f16::ONE.to_bits(); 256], &[2, 128])?;
+        for (ids, capacity) in [
+            (&[][..], 3),
+            (&[3][..], 3),
+            (&[u32::MAX][..], 3),
+            (&[0][..], 0),
+        ] {
+            assert!(ExpertSlots::new(ids, capacity).is_err());
+        }
         assert!(
             expert_slots(
                 &x,
                 &bank,
                 &scales,
                 &scales,
-                &Array::from_u32(&[3], &[1])?,
+                &ExpertSlots::new(&[0], 2)?,
                 128,
                 2,
                 k,

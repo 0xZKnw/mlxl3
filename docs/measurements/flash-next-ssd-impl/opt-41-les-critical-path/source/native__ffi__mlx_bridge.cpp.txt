@@ -1,0 +1,618 @@
+// Thin, exception-contained C ABI over the same MLX backend as the reference.
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <vector>
+#include <unistd.h>
+#include <libproc.h>
+#include <sys/resource.h>
+#include <sys/uio.h>
+#include "kernel_cache_key.h"
+#include "disk_reader.h"
+#include "mlx/array.h"
+#include "mlx/backend/metal/metal.h"
+#include "mlx/compile.h"
+#include "mlx/device.h"
+#include "mlx/fast.h"
+#include "mlx/ops.h"
+#include "mlx/transforms.h"
+#include "mlx/memory.h"
+#include "mlx/version.h"
+
+namespace mx = mlx::core;
+static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_PATCH == 2,
+              "MLXL3 native requires MLX headers 0.32.2");
+namespace {
+thread_local std::array<char, 2048> last_error{};
+template<class F> int protect(F&& f) noexcept {
+  last_error[0] = 0;
+  try { f(); return 0; }
+  catch (const std::exception& e) {
+    std::strncpy(last_error.data(), e.what(), last_error.size() - 1);
+  } catch (...) {
+    std::strncpy(last_error.data(), "unknown MLX exception", last_error.size() - 1);
+  }
+  last_error.back() = 0;
+  return -1;
+}
+mx::array& arr(void* p) {
+  if (!p) throw std::invalid_argument("null array handle");
+  return *static_cast<mx::array*>(p);
+}
+mx::Dtype dtype(int code) {
+  switch (code) {
+    case 0: return mx::bool_; case 1: return mx::uint8; case 2: return mx::uint16;
+    case 3: return mx::uint32; case 4: return mx::uint64; case 5: return mx::int8;
+    case 6: return mx::int16; case 7: return mx::int32; case 8: return mx::int64;
+    case 9: return mx::float16; case 10: return mx::float32; case 11: return mx::float64;
+    case 12: return mx::bfloat16; case 13: return mx::complex64;
+    default: throw std::invalid_argument("invalid dtype");
+  }
+}
+mx::Shape shape(const int32_t* p, size_t n) {
+  if (!n) return {};
+  if (!p) throw std::invalid_argument("null shape");
+  return mx::Shape(p, p + n);
+}
+size_t byte_count(const mx::Shape& s, mx::Dtype dt) {
+  size_t bytes = dt.size();
+  for (auto dim : s) {
+    if (dim < 0) throw std::invalid_argument("negative tensor dimension");
+    if (dim && bytes > std::numeric_limits<size_t>::max() / size_t(dim))
+      throw std::overflow_error("tensor size overflow");
+    bytes *= size_t(dim);
+  }
+  return bytes;
+}
+std::unique_ptr<mx::array> allocated_array(mx::Shape s, mx::Dtype dt) {
+  auto buffer = mx::allocator::malloc(byte_count(s, dt));
+  try {
+    return std::make_unique<mx::array>(buffer, std::move(s), dt);
+  } catch (...) {
+    mx::allocator::free(buffer);
+    throw;
+  }
+}
+void pread_exact(int fd, uint64_t offset, mx::array& output) {
+  auto count = output.nbytes();
+  auto max_offset = uint64_t(std::numeric_limits<off_t>::max());
+  if (offset > max_offset || count > max_offset - offset)
+    throw std::overflow_error("tensor file offset overflow");
+  size_t done = 0;
+  while (done < count) {
+    // Darwin rejects nbyte > INT_MAX rather than returning a partial read.
+    // Keep large embeddings in the final MLX buffer without a CPU staging copy.
+    constexpr size_t read_chunk_bytes = 64 * 1024 * 1024;
+    auto read = ::pread(fd, output.data<uint8_t>() + done,
+                        std::min(count - done, read_chunk_bytes),
+                        off_t(offset + done));
+    if (read < 0 && errno == EINTR) continue;
+    if (read < 0)
+      throw std::runtime_error(std::string("pread failed: ") + std::strerror(errno));
+    if (read == 0)
+      throw std::runtime_error("checkpoint was truncated during tensor read");
+    done += size_t(read);
+  }
+}
+std::vector<mx::array> arrays(void* const* p, size_t n) {
+  std::vector<mx::array> result;
+  result.reserve(n);
+  for (size_t i = 0; i < n; ++i) result.push_back(arr(p[i]));
+  return result;
+}
+std::vector<std::string> strings(const char* const* p, size_t n) {
+  std::vector<std::string> result;
+  for (size_t i = 0; i < n; ++i) result.emplace_back(p[i]);
+  return result;
+}
+struct PreparedDiskRead {
+  std::vector<mx::array> owners;
+  std::vector<mlxl3::DiskRead> reads;
+};
+}
+
+extern "C" {
+const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_synchronize() noexcept {
+  return protect([] { mx::synchronize(); });
+}
+int mlxl3_clear_cache() noexcept {
+  return protect([] { mx::clear_cache(); });
+}
+int mlxl3_set_cache_limit(uint64_t bytes) noexcept {
+  return protect([&] { mx::set_cache_limit(bytes); });
+}
+int mlxl3_start_capture(const char* path) noexcept {
+  return protect([&] {
+    if (!path || !*path) throw std::invalid_argument("empty Metal capture path");
+    mx::metal::start_capture(path);
+  });
+}
+int mlxl3_stop_capture() noexcept {
+  return protect([] { mx::metal::stop_capture(); });
+}
+int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null memory statistics output");
+    if (reset_peak) mx::reset_peak_memory();
+    out[0] = mx::get_active_memory();
+    out[1] = mx::get_cache_memory();
+    out[2] = std::max(out[0], uint64_t(mx::get_peak_memory()));
+    rusage_info_v4 usage{};
+    const auto ok = proc_pid_rusage(getpid(), RUSAGE_INFO_V4,
+                                   reinterpret_cast<rusage_info_t*>(&usage)) == 0;
+    out[3] = ok ? usage.ri_phys_footprint : 0;
+    out[4] = ok ? usage.ri_lifetime_max_phys_footprint : 0;
+  });
+}
+int mlxl3_mlx_init(const char* metallib) noexcept {
+  return protect([&] {
+    static std::once_flag initialized;
+    std::call_once(initialized, [&] {
+      if (std::string(mx::version()) != "0.32.2")
+        throw std::runtime_error("loaded MLX library is not version 0.32.2");
+      mx::metal::set_metallib_path(metallib);
+    });
+    mx::set_default_device(mx::Device(mx::Device::gpu));
+  });
+}
+void mlxl3_array_free(void* p) noexcept { delete static_cast<mx::array*>(p); }
+int mlxl3_array_clone(void* p, void** out) noexcept {
+  return protect([&] { *out = new mx::array(arr(p)); });
+}
+int mlxl3_array_compact_copy(void* p, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null compact output");
+    auto source = mx::contiguous(arr(p));
+    mx::eval(source);
+    auto output = allocated_array(source.shape(), source.dtype());
+    if (output->nbytes()) std::memcpy(output->data<uint8_t>(), source.data<uint8_t>(), output->nbytes());
+    *out = output.release();
+  });
+}
+int mlxl3_array_retained_bytes(void* p, uint64_t* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null retained size output");
+    auto& a = arr(p);
+    mx::eval(a);
+    *out = a.size() ? a.buffer_size() : 0;
+  });
+}
+// Lossless F16 bit packing. No arithmetic/quantization on the stored values.
+int mlxl3_pack_embedding(void* p, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null packed embedding output");
+    auto& a = arr(p);
+    if (a.dtype() != mx::float16 || a.ndim() != 2 || a.shape(0) <= 0 ||
+        a.shape(1) <= 0 || a.shape(1) % 128 != 0)
+      throw std::invalid_argument("packed embedding requires F16 [vocab, width divisible by128]");
+    mx::eval(a);
+    if (!a.flags().row_contiguous) throw std::invalid_argument("embedding must be contiguous");
+    const size_t count = a.size(), blocks = count / 128;
+    if (count > size_t(INT32_MAX) * 32 / 13 || blocks > size_t(UINT32_MAX) / 12)
+      throw std::invalid_argument("packed embedding too large");
+    auto offsets = allocated_array({int32_t(blocks)}, mx::uint32);
+    auto* positions = offsets->data<uint32_t>();
+    const auto* input = a.data<uint16_t>();
+    size_t tail_words = 0;
+    for (size_t block = 0; block < blocks; ++block) {
+      bool has_low = false;
+      for (size_t i = 0; i < 128; ++i) has_low |= (input[block * 128 + i] & 7) != 0;
+      positions[block] = has_low ? uint32_t(tail_words) : UINT32_MAX;
+      if (has_low) tail_words += 12;
+    }
+    const size_t main_words = (count * 13 + 31) / 32;
+    auto main = allocated_array({int32_t(main_words)}, mx::uint32);
+    auto tail = allocated_array({int32_t(std::max(size_t(1), tail_words))}, mx::uint32);
+    auto* hi = main->data<uint32_t>();
+    auto* lo = tail->data<uint32_t>();
+    std::memset(hi, 0, main->nbytes()); std::memset(lo, 0, tail->nbytes());
+    for (size_t i = 0; i < count; ++i) {
+      const size_t bit = i * 13, word = bit / 32, shift = bit % 32;
+      const uint32_t value = input[i] >> 3;
+      hi[word] |= value << shift;
+      if (shift > 19) hi[word + 1] |= value >> (32 - shift);
+      const auto base = positions[i / 128];
+      if (base != UINT32_MAX) {
+        const size_t low_bit = (i % 128) * 3, low_word = base + low_bit / 32, low_shift = low_bit % 32;
+        const uint32_t low = input[i] & 7;
+        lo[low_word] |= low << low_shift;
+        if (low_shift > 29) lo[low_word + 1] |= low >> (32 - low_shift);
+      }
+    }
+    out[0] = main.release(); out[1] = offsets.release(); out[2] = tail.release();
+  });
+}
+int mlxl3_array_metadata(void* p, size_t* rank, const int32_t** dims, int* type) noexcept {
+  return protect([&] {
+    auto& a = arr(p); *rank = a.ndim(); *dims = a.shape().data();
+    *type = static_cast<int>(a.dtype().val());
+  });
+}
+int mlxl3_array_from_bytes(const uint8_t* bytes, size_t count, const int32_t* dims,
+                          size_t rank, int type, void** out) noexcept {
+  return protect([&] {
+    auto s = shape(dims, rank); auto dt = dtype(type);
+    if (byte_count(s, dt) != count) throw std::invalid_argument("tensor byte count mismatch");
+    auto output = allocated_array(std::move(s), dt);
+    if (count) std::memcpy(output->data<uint8_t>(), bytes, count);
+    *out = output.release();
+  });
+}
+int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
+                         size_t rank, int type, void** out) noexcept {
+  return protect([&] {
+    auto output = allocated_array(shape(dims, rank), dtype(type));
+    pread_exact(fd, offset, *output);
+    *out = output.release();
+  });
+}
+int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
+                        void* const* buffers, size_t buffer_count,
+                        const size_t* indices, const size_t* starts,
+                        const size_t* lengths, size_t segments, size_t workers) noexcept {
+  return protect([&] {
+    if (!fds || !offsets || !buffers || !indices || !starts || !lengths ||
+        !records || records > 512 || !segments || segments > 64 || !workers || workers > 4)
+      throw std::invalid_argument("invalid disk reader metadata");
+    std::vector<uint8_t*> pointers;
+    std::vector<size_t> capacities;
+    for (size_t i = 0; i < buffer_count; ++i) {
+      auto& a = arr(buffers[i]);
+      a.eval();
+      if (!a.flags().row_contiguous) throw std::invalid_argument("noncontiguous disk buffer");
+      pointers.push_back(a.data<uint8_t>());
+      capacities.push_back(a.nbytes());
+    }
+    std::vector<mlxl3::DiskRead> reads;
+    reads.reserve(records);
+    for (size_t r = 0; r < records; ++r) {
+      mlxl3::DiskRead read{fds[r], offsets[r], {}};
+      read.destinations.reserve(segments);
+      for (size_t s = 0; s < segments; ++s) {
+        auto i = r * segments + s;
+        auto bank = indices[i];
+        if (bank >= buffer_count || starts[i] > capacities[bank] ||
+            lengths[i] > capacities[bank] - starts[i])
+          throw std::invalid_argument("invalid disk destination range");
+        read.destinations.push_back({pointers[bank] + starts[i], lengths[i]});
+      }
+      reads.push_back(std::move(read));
+    }
+    mlxl3::read_disk_records(reads, workers);
+  });
+}
+int mlxl3_disk_read_prepare(int fd, uint64_t offset, void* const* buffers, size_t buffer_count,
+                            const size_t* indices, const size_t* starts, const size_t* lengths,
+                            size_t segments, void** out) noexcept {
+  return protect([&] {
+    if (!buffers || !buffer_count || !indices || !starts || !lengths || !out ||
+        !segments || segments > 64)
+      throw std::invalid_argument("invalid persistent disk read");
+    auto prepared = std::make_unique<PreparedDiskRead>();
+    prepared->owners = arrays(buffers, buffer_count);
+    mlxl3::DiskRead read{fd, offset, {}};
+    for (size_t i = 0; i < segments; ++i) {
+      if (indices[i] >= buffer_count) throw std::invalid_argument("invalid persistent disk bank");
+      auto& a = prepared->owners[indices[i]];
+      a.eval();
+      if (!a.flags().row_contiguous || starts[i] > a.nbytes() || lengths[i] > a.nbytes() - starts[i])
+        throw std::invalid_argument("invalid persistent disk range");
+      read.destinations.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
+    }
+    prepared->reads.push_back(std::move(read));
+    mlxl3::validate_disk_reads(prepared->reads);
+    *out = prepared.release();
+  });
+}
+// The main thread retains/frees the owners; this worker entry only touches OS buffers.
+int mlxl3_disk_read_run(void* opaque, uint64_t* bytes) noexcept {
+  if (!opaque || !bytes) return -1;
+  auto& read = static_cast<PreparedDiskRead*>(opaque)->reads.front();
+  const auto status = protect([&] { mlxl3::read_disk_record(read); });
+  *bytes = read.bytes_read;
+  return status;
+}
+void mlxl3_disk_read_free(void* opaque) noexcept {
+  delete static_cast<PreparedDiskRead*>(opaque);
+}
+int mlxl3_arrays_copy_record(const uint8_t* bytes, size_t count, void* const* buffers,
+                            size_t buffer_count, const size_t* indices, const size_t* starts,
+                            const size_t* lengths, size_t segments) noexcept {
+  return protect([&] {
+    if (!bytes || !count || !buffers || !indices || !starts || !lengths || !segments || segments > 64)
+      throw std::invalid_argument("invalid staging metadata");
+    std::vector<iovec> destinations;
+    for (size_t i = 0; i < segments; ++i) {
+      if (indices[i] >= buffer_count) throw std::invalid_argument("invalid staging bank");
+      auto& a = arr(buffers[indices[i]]);
+      a.eval();
+      if (!a.flags().row_contiguous || starts[i] > a.nbytes() || lengths[i] > a.nbytes() - starts[i])
+        throw std::invalid_argument("invalid staging range");
+      destinations.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
+    }
+    mlxl3::copy_disk_record(bytes, count, destinations);
+  });
+}
+int mlxl3_array_async_eval(void* p) noexcept {
+  return protect([&] { mx::async_eval({arr(p)}); });
+}
+int mlxl3_arrays_from_files(const int* fds, const uint64_t* offsets,
+                            const int32_t* dims, const size_t* ranks,
+                            const int* types, size_t count, size_t workers,
+                            void** out) noexcept {
+  return protect([&] {
+    if ((!fds || !offsets || !ranks || !types || !out) && count)
+      throw std::invalid_argument("null batched tensor metadata");
+    std::vector<std::unique_ptr<mx::array>> outputs;
+    outputs.reserve(count);
+    size_t dim_offset = 0;
+    for (size_t i = 0; i < count; ++i) {
+      outputs.push_back(allocated_array(shape(dims + dim_offset, ranks[i]), dtype(types[i])));
+      dim_offset += ranks[i];
+    }
+    std::atomic<size_t> next{0};
+    std::atomic<bool> stopped{false};
+    std::mutex error_mutex;
+    std::exception_ptr error;
+    auto read_next = [&] {
+      while (!stopped.load(std::memory_order_relaxed)) {
+        auto i = next.fetch_add(1, std::memory_order_relaxed);
+        if (i >= count) return;
+        try {
+          pread_exact(fds[i], offsets[i], *outputs[i]);
+        } catch (...) {
+          stopped.store(true, std::memory_order_relaxed);
+          std::lock_guard lock(error_mutex);
+          if (!error) error = std::current_exception();
+        }
+      }
+    };
+    auto thread_count = std::min(count, std::max<size_t>(1, workers));
+    std::vector<std::jthread> threads;
+    threads.reserve(thread_count);
+    for (size_t i = 0; i < thread_count; ++i) threads.emplace_back(read_next);
+    threads.clear();
+    if (error) std::rethrow_exception(error);
+    for (size_t i = 0; i < count; ++i) out[i] = outputs[i].release();
+  });
+}
+int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) noexcept {
+  return protect([&] { auto s = shape(dims, rank); byte_count(s, dtype(type));
+    *out = new mx::array(mx::zeros(s, dtype(type))); });
+}
+int mlxl3_array_eval(void* p) noexcept { return protect([&] { arr(p).eval(); }); }
+int mlxl3_array_is_available(void* p, int* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null availability output");
+    *out = arr(p).is_available() ? 1 : 0;
+  });
+}
+int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
+  return protect([&] {
+    if (!count) return;
+    if (!inputs) throw std::invalid_argument("null async array list");
+    mx::async_eval(arrays(inputs, count));
+  });
+}
+int mlxl3_array_copy_bytes(void* p, uint8_t* out, size_t count) noexcept {
+  return protect([&] {
+    auto a = mx::contiguous(arr(p));
+    if (a.nbytes() != count) throw std::invalid_argument("output byte count mismatch");
+    a.eval(); if (count) std::memcpy(out, a.data<uint8_t>(), count);
+  });
+}
+// Opcodes stay private to array.rs; every operation returns a fresh owned handle.
+int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
+                     float scalar, int flag, void** out) noexcept {
+  return protect([&] {
+    auto& a = arr(p);
+    auto run = [&]() -> mx::array {
+      switch (operation) {
+        case 0: return mx::reshape(a, shape(args, nargs));
+        case 1: return mx::transpose(a, std::vector<int>(args, args + nargs));
+        case 2: {
+          if (nargs != 3) throw std::invalid_argument("invalid slice arguments");
+          int axis = args[0]; if (axis < 0) axis += a.ndim();
+          if (axis < 0 || size_t(axis) >= a.ndim()) throw std::invalid_argument("slice axis out of bounds");
+          auto start = a.shape(), stop = a.shape(); std::fill(start.begin(), start.end(), 0);
+          start[axis] = args[1]; stop[axis] = args[2]; return mx::slice(a, start, stop);
+        }
+        case 3: return mx::astype(a, dtype(flag));
+        case 4: return mx::hadamard_transform(a, flag ? std::optional<float>(scalar) : std::nullopt);
+        case 5: return mx::sigmoid(a);
+        case 6: if (nargs == 1) return mx::sum(a, args[0], bool(flag)); break;
+        case 7: return mx::view(a, dtype(flag));
+        case 8: if (nargs == 2) return mx::fast::rope(a, args[0], false, scalar, 1.0f, args[1]); break;
+        case 9: return mx::subtract(a, mx::logsumexp(a, -1, true));
+        case 10: return mx::softmax(a, -1, true);
+        case 11: return mx::negative(a);
+        case 12: return mx::exp(a);
+        case 13: return mx::fast::rms_norm(a, std::nullopt, scalar);
+        case 14: return mx::multiply(a, mx::sigmoid(a));
+        case 15: return mx::tanh(a);
+        case 16: return mx::multiply(a, mx::array(scalar, a.dtype()));
+        case 17: return mx::softmax(a, -1, false);
+        case 18: {
+          thread_local auto softcap = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(mx::tanh(mx::divide(x[0], x[1])), x[1])};
+          }, true);
+          return softcap({a, mx::array(scalar, a.dtype())})[0];
+        }
+        case 19: return mx::argmax(a, -1, false);
+        case 20: return mx::broadcast_to(a, shape(args, nargs));
+        case 21: return mx::argsort(a, -1);
+        case 22: return mx::rsqrt(a);
+        case 23: {
+          thread_local auto activate = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::divide(x[0], mx::array(4.0f, x[0].dtype()));
+            return std::vector<mx::array>{mx::multiply(y, mx::sigmoid(y))};
+          }, false);
+          return activate({a})[0];
+        }
+        case 24: {
+          thread_local auto gate = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(mx::array(2.0f, x[0].dtype()), mx::sigmoid(mx::divide(x[0], mx::array(4.0f, x[0].dtype()))))};
+          }, false);
+          return gate({a})[0];
+        }
+        case 25: {
+          auto magnitude = mx::sqrt(mx::maximum(mx::abs(a), mx::array(1e-6f)));
+          return mx::sigmoid(mx::multiply(mx::sign(a), magnitude));
+        }
+        case 26: {
+          thread_local auto silu = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(x[0], mx::sigmoid(x[0]))};
+          }, true);
+          return silu({a})[0];
+        }
+      }
+      throw std::invalid_argument("invalid unary operation");
+    };
+    *out = new mx::array(run());
+  });
+}
+int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
+                      float scalar, void** out) noexcept {
+  return protect([&] {
+    auto& a = arr(lhs); auto& b = arr(rhs);
+    auto run = [&]() -> mx::array {
+      switch (operation) {
+        case 0: return mx::add(a, b);
+        case 1: return mx::multiply(a, b);
+        case 2: return mx::matmul(a, b);
+        case 3: return mx::take(a, b, arg);
+        case 4: return mx::fast::rms_norm(a, b, scalar);
+        case 5: return mx::conv1d(a, b, 1, 0, 1, arg);
+        case 6: {
+          thread_local auto swiglu = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(mx::multiply(x[0], mx::sigmoid(x[0])), x[1])};
+          }, true);
+          return swiglu({a, b})[0];
+        }
+        case 7: return mx::logaddexp(a, b);
+        case 8: {
+          thread_local auto silu = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(x[0], mx::sigmoid(x[0]))};
+          }, true);
+          auto gate = silu({mx::astype(a, mx::float32)})[0];
+          auto value = mx::astype(b, mx::float32);
+          return mx::astype(mx::multiply(gate, value), a.dtype());
+        }
+        case 9: return mx::divide(a, b);
+        case 10: {
+          thread_local auto geglu = mx::compile([](const std::vector<mx::array>& x) {
+            auto gate = x[0];
+            auto dtype = gate.dtype();
+            auto cube = mx::power(gate, mx::array(3, dtype));
+            auto inner = mx::multiply(mx::array(0.7978845608028654f, dtype),
+              mx::add(gate, mx::multiply(mx::array(0.044715f, dtype), cube)));
+            auto gelu = mx::multiply(mx::multiply(mx::array(0.5f, dtype), gate),
+              mx::add(mx::array(1.0f, dtype), mx::tanh(inner)));
+            return std::vector<mx::array>{mx::multiply(gelu, x[1])};
+          }, true);
+          return geglu({a, b})[0];
+        }
+        case 11: {
+          thread_local auto normalize = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::astype(x[0], mx::float32);
+            y = mx::multiply(y, mx::rsqrt(mx::add(mx::mean(mx::square(y), -1, true), x[2])));
+            y = mx::multiply(y, mx::add(mx::array(1.0f), mx::astype(x[1], mx::float32)));
+            return std::vector<mx::array>{mx::astype(y, x[0].dtype())};
+          }, false);
+          return normalize({a, b, mx::array(scalar, mx::float32)})[0];
+        }
+        case 12: {
+          thread_local auto mix = mx::compile([](const std::vector<mx::array>& x) {
+            auto dims = x[0].shape();
+            dims.back() /= 4;
+            dims.insert(dims.end() - 1, 4);
+            return std::vector<mx::array>{mx::mean(mx::multiply(mx::reshape(mx::sigmoid(x[0]), dims), mx::reshape(x[1], dims)), -2, false)};
+          }, false);
+          return mix({a, b})[0];
+        }
+        case 13: return mx::power(a, b);
+      }
+      throw std::invalid_argument("invalid binary operation");
+    };
+    *out = new mx::array(run());
+  });
+}
+int mlxl3_array_concatenate(void* const* inputs, size_t count, int axis, void** out) noexcept {
+  return protect([&] { *out = new mx::array(mx::concatenate(arrays(inputs, count), axis)); });
+}
+int mlxl3_array_affine4(void* x, void* w, void* scales, void* biases,
+                        void* indices, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null affine output");
+    auto result = indices
+      ? mx::gather_qmm(arr(x), arr(w), arr(scales), arr(biases),
+                       std::nullopt, arr(indices), true, 64, 4, "affine", false)
+      : mx::quantized_matmul(arr(x), arr(w), arr(scales), arr(biases), true, 64, 4, "affine");
+    *out = new mx::array(std::move(result));
+  });
+}
+int mlxl3_array_sdpa(void* q, void* k, void* v, float scale, int causal, void** out) noexcept {
+  return protect([&] { *out = new mx::array(mx::fast::scaled_dot_product_attention(
+    arr(q), arr(k), arr(v), scale, causal ? "causal" : "")); });
+}
+int mlxl3_array_sdpa_mask(void* q, void* k, void* v, void* mask, float scale,
+                          void** out) noexcept {
+  return protect([&] { *out = new mx::array(mx::fast::scaled_dot_product_attention(
+    arr(q), arr(k), arr(v), scale, "", arr(mask))); });
+}
+int mlxl3_array_rope_freqs(void* input, void* freqs, int dims, int offset,
+                           void** out) noexcept {
+  return protect([&] { *out = new mx::array(mx::fast::rope(
+    arr(input), dims, false, std::nullopt, 1.0f, offset, arr(freqs))); });
+}
+int mlxl3_metal_kernel(const char* name, const char* const* input_names,
+                      const char* const* output_names, const char* header, const char* source,
+                      void* const* inputs, size_t ninputs, const int32_t* output_dims,
+                      const size_t* output_ranks, const int32_t* output_types, size_t noutputs,
+                      const int32_t* grid, const int32_t* threadgroup, void** outputs) noexcept {
+  return protect([&] {
+    if (!name || !header || !source || (ninputs && !input_names) || (noutputs && !output_names))
+      throw std::invalid_argument("null Metal kernel metadata");
+    for (size_t i = 0; i < ninputs; ++i)
+      if (!input_names[i]) throw std::invalid_argument("null Metal input name");
+    for (size_t i = 0; i < noutputs; ++i)
+      if (!output_names[i]) throw std::invalid_argument("null Metal output name");
+    thread_local std::map<mlxl3::OwnedKernelKey, mx::fast::CustomKernelFunction,
+                          mlxl3::KernelKeyOrder> cache;
+    mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
+    auto found = cache.find(key);
+    if (found == cache.end()) {
+      // ponytail: bounded key-ordered eviction; use LRU only if dynamic factories churn.
+      if (cache.size() >= 128) cache.erase(cache.begin());
+      mlxl3::OwnedKernelKey owned{name, strings(input_names, ninputs),
+                                  strings(output_names, noutputs), header, source};
+      auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
+                                             source, header, true, false, mx::CompileOptions{});
+      found = cache.emplace(std::move(owned), std::move(function)).first;
+    }
+    std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
+    for (size_t i = 0; i < noutputs; ++i) {
+      shapes.push_back(shape(output_dims + offset, output_ranks[i])); offset += output_ranks[i];
+      types.push_back(dtype(output_types[i])); byte_count(shapes.back(), types.back());
+    }
+    auto result = found->second(arrays(inputs, ninputs), shapes, types,
+      {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {}, std::nullopt, false, {});
+    if (result.size() != noutputs) throw std::runtime_error("custom kernel output count mismatch");
+    std::vector<std::unique_ptr<mx::array>> owned; owned.reserve(noutputs);
+    for (auto& value : result) owned.push_back(std::make_unique<mx::array>(std::move(value)));
+    for (size_t i = 0; i < noutputs; ++i) outputs[i] = owned[i].release();
+  });
+}
+}

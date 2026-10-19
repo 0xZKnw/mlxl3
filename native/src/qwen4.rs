@@ -1614,47 +1614,50 @@ mod tests {
             logits.push(value.to_bytes()?);
             states.push(state_bytes(&model)?);
         }
-        for depth in [0, 2, 4, 8, 10] {
-            for retained in [1, 2] {
-                model.reset();
-                model.lookahead_depth = depth;
-                for layer in &mut model.layers {
-                    layer.moe.cache_for_test_invalidate();
+        for half in [false, true] {
+            for depth in [0, 2, 4, 8, 10] {
+                for retained in [1, 2] {
+                    model.reset();
+                    model.lookahead_depth = depth;
+                    for layer in &mut model.layers {
+                        layer.moe.cache_for_test_invalidate();
+                        layer.moe.predictor_half = half;
+                    }
+                    let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+                    for step in 0..3 {
+                        ensure!(model.forward(tokens[step])?.to_bytes()? == logits[step]);
+                        ensure!(state_bytes(&model)? == states[step]);
+                    }
+                    let (pair, _) = model.verify_pair([tokens[3], tokens[4]])?;
+                    let mut expected = logits[3].clone();
+                    expected.extend(&logits[4]);
+                    ensure!(pair.shape() == [2, 248320] && pair.to_bytes()? == expected);
+                    ensure!(state_bytes(&model)? == states[4]);
+                    model.commit_pair(retained)?;
+                    ensure!(state_bytes(&model)? == states[2 + retained as usize]);
+                    let next = 3 + retained as usize;
+                    ensure!(model.forward(tokens[next])?.to_bytes()? == logits[next]);
+                    ensure!(state_bytes(&model)? == states[next]);
+                    let after = pool.borrow().counters.submitted.load(Ordering::Relaxed);
+                    ensure!(if depth > 0 {
+                        after > before
+                    } else {
+                        after == before
+                    });
+                    pool.borrow_mut().wait_for_test()?;
+                    pool.borrow_mut().poll();
+                    let pool = pool.borrow();
+                    let counts = &pool.counters;
+                    eprintln!(
+                        "LES41_DIAGNOSTIC {}",
+                        serde_json::json!({
+                            "predictor_half":half,"depth":depth,"commit":retained,"submitted":counts.submitted.load(Ordering::Relaxed),
+                            "completed":counts.completed.load(Ordering::Relaxed),"used":counts.used.load(Ordering::Relaxed),
+                            "discarded":counts.discarded.load(Ordering::Relaxed),"late_needed":counts.late_needed.load(Ordering::Relaxed),
+                            "failed":counts.failed.load(Ordering::Relaxed),"read_bytes":counts.bytes.load(Ordering::Relaxed)
+                        })
+                    );
                 }
-                let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
-                for step in 0..3 {
-                    ensure!(model.forward(tokens[step])?.to_bytes()? == logits[step]);
-                    ensure!(state_bytes(&model)? == states[step]);
-                }
-                let (pair, _) = model.verify_pair([tokens[3], tokens[4]])?;
-                let mut expected = logits[3].clone();
-                expected.extend(&logits[4]);
-                ensure!(pair.shape() == [2, 248320] && pair.to_bytes()? == expected);
-                ensure!(state_bytes(&model)? == states[4]);
-                model.commit_pair(retained)?;
-                ensure!(state_bytes(&model)? == states[2 + retained as usize]);
-                let next = 3 + retained as usize;
-                ensure!(model.forward(tokens[next])?.to_bytes()? == logits[next]);
-                ensure!(state_bytes(&model)? == states[next]);
-                let after = pool.borrow().counters.submitted.load(Ordering::Relaxed);
-                ensure!(if depth > 0 {
-                    after > before
-                } else {
-                    after == before
-                });
-                pool.borrow_mut().wait_for_test()?;
-                pool.borrow_mut().poll();
-                let pool = pool.borrow();
-                let counts = &pool.counters;
-                eprintln!(
-                    "LES32_DIAGNOSTIC {}",
-                    serde_json::json!({
-                        "depth":depth,"commit":retained,"submitted":counts.submitted.load(Ordering::Relaxed),
-                        "completed":counts.completed.load(Ordering::Relaxed),"used":counts.used.load(Ordering::Relaxed),
-                        "discarded":counts.discarded.load(Ordering::Relaxed),"late_needed":counts.late_needed.load(Ordering::Relaxed),
-                        "failed":counts.failed.load(Ordering::Relaxed),"read_bytes":counts.bytes.load(Ordering::Relaxed)
-                    })
-                );
             }
         }
         Ok(())

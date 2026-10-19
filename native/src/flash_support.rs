@@ -25,6 +25,32 @@ pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
 
 #[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn slots_fit(ids: &[u32], capacity: i32) -> bool {
+    !ids.is_empty()
+        && ids.len() <= i32::MAX as usize
+        && capacity > 0
+        && ids.iter().all(|&id| id < capacity as u32)
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn parse_lru_override(value: &str) -> Option<bool> {
+    match value {
+        "auto" => Some(false),
+        "lru" => Some(true),
+        _ => None,
+    }
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn parse_predictor_half(value: &str) -> Option<bool> {
+    match value {
+        "f32" => Some(false),
+        "f16" => Some(true),
+        _ => None,
+    }
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn disk_destination_fits(start: usize, length: usize, capacity: usize) -> bool {
     length > 0 && start.checked_add(length).is_some_and(|end| end <= capacity)
 }
@@ -310,6 +336,26 @@ impl ExpertCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn slot_validation_and_les_controls_reject_invalid_inputs() {
+        for capacity in [-1, 0, 1, 3, 10, 20, 89, 512, i32::MAX] {
+            assert!(!slots_fit(&[], capacity));
+            for ids in [vec![0], vec![1, 1, 0], vec![88, 89], vec![u32::MAX]] {
+                let expected =
+                    capacity > 0 && ids.iter().all(|&id| i64::from(id) < i64::from(capacity));
+                assert_eq!(slots_fit(&ids, capacity), expected);
+            }
+        }
+        assert_eq!(parse_lru_override("auto"), Some(false));
+        assert_eq!(parse_lru_override("lru"), Some(true));
+        assert_eq!(parse_predictor_half("f32"), Some(false));
+        assert_eq!(parse_predictor_half("f16"), Some(true));
+        for invalid in ["", "0", "1", "LFU", "LRU", " lru", "f32\n", "f64", "é"] {
+            assert_eq!(parse_lru_override(invalid), None);
+            assert_eq!(parse_predictor_half(invalid), None);
+        }
+    }
+
     #[test]
     fn disk_ranges_reject_empty_overflow_and_out_of_bounds() {
         assert!(disk_destination_fits(0, 1, 1));
@@ -833,6 +879,47 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(22)]
+    fn cpu_slot_validation_preserves_bounds_for_real_route_widths() {
+        let ids: [u32; 20] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= 20);
+        let capacity: i32 = kani::any();
+        let valid = slots_fit(&ids[..len], capacity);
+        let mut expected = len != 0 && capacity > 0;
+        for &id in &ids[..len] {
+            expected &= i64::from(id) < i64::from(capacity);
+        }
+        assert_eq!(valid, expected);
+        kani::cover!(valid && len == 20);
+        kani::cover!(valid && len == 10);
+        kani::cover!(!valid && len == 0);
+        kani::cover!(!valid && capacity <= 0 && len > 0);
+        kani::cover!(!valid && ids[0] == u32::MAX && len > 0);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(7)]
+    fn les_control_parsers_accept_only_the_documented_literals() {
+        let bytes: [u8; 5] = kani::any();
+        let len: usize = kani::any();
+        kani::assume(len <= 5);
+        if let Ok(value) = std::str::from_utf8(&bytes[..len]) {
+            let lru = parse_lru_override(value);
+            let half = parse_predictor_half(value);
+            assert_eq!(lru.is_some(), value == "auto" || value == "lru");
+            assert_eq!(half.is_some(), value == "f32" || value == "f16");
+            assert_eq!(lru == Some(true), value == "lru");
+            assert_eq!(half == Some(true), value == "f16");
+            kani::cover!(lru == Some(false));
+            kani::cover!(lru == Some(true));
+            kani::cover!(half == Some(false));
+            kani::cover!(half == Some(true));
+            kani::cover!(lru.is_none() && half.is_none());
+        }
+    }
+
     #[kani::proof]
     #[kani::unwind(12)]
     fn predictive_victims_exclude_pending_and_fall_back_only_when_needed() {

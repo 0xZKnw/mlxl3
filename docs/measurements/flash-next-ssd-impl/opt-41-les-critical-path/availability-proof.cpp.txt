@@ -1,0 +1,10 @@
+#include "mlx_bridge.cpp"
+#include <cassert>
+extern bool nondet_bool();
+void availability_probe_proof() {
+  mx::array value(uint32_t(7));
+  int ready = -1;
+  bool null_output = nondet_bool();
+  int status = mlxl3_array_is_available(&value, null_output ? nullptr : &ready);
+  assert(null_output ? status != 0 : status == 0 && ready == 1);
+}
