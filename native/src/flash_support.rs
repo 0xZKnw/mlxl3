@@ -536,6 +536,23 @@ impl ExpertCache {
         self.keys.contains(&Some(id))
     }
 
+    /// Snapshot after completed demand fills; pending writes never become GPU hits.
+    #[cfg(any(feature = "mlx", test, kani))]
+    pub(crate) fn resident_slot_map(&self) -> Result<[u32; 512], CacheError> {
+        let mut map = [u32::MAX; 512];
+        for (slot, (key, pending)) in self.keys.iter().zip(&self.pending).enumerate() {
+            if pending.is_none()
+                && let Some(id) = key
+            {
+                let entry = map.get_mut(*id as usize).ok_or(CacheError::InvalidIds)?;
+                if *entry == u32::MAX {
+                    *entry = slot as u32;
+                }
+            }
+        }
+        Ok(map)
+    }
+
     fn victim(&self, routed: &[u32]) -> Option<usize> {
         (0..self.keys.len())
             .filter(|&i| {
@@ -738,6 +755,61 @@ mod tests {
             assert_eq!(parse_lru_override(invalid), None);
             assert_eq!(parse_predictor_half(invalid), None);
         }
+    }
+
+    #[test]
+    fn resident_slot_snapshot_is_read_only_and_excludes_pending_writes() {
+        for capacity in [10, 20, 53, 512] {
+            let mut cache = ExpertCache::new(capacity).unwrap();
+            let mut control = ExpertCache::new(capacity).unwrap();
+            assert!(
+                cache
+                    .resident_slot_map()
+                    .unwrap()
+                    .iter()
+                    .all(|&slot| slot == u32::MAX)
+            );
+            for round in 0..80u32 {
+                let ids = (0..10)
+                    .map(|i| (round * 37 + i * 13) % 512)
+                    .collect::<Vec<_>>();
+                assert_eq!(cache.reserve(&ids), control.reserve(&ids));
+                let map = cache.resident_slot_map().unwrap();
+                for id in 0..512u32 {
+                    let expected = cache
+                        .keys
+                        .iter()
+                        .position(|&key| key == Some(id))
+                        .map_or(u32::MAX, |slot| slot as u32);
+                    assert_eq!(map[id as usize], expected);
+                }
+                assert_eq!((cache.clock, cache.counts), (control.clock, control.counts));
+                assert_eq!(cache.ages, control.ages);
+            }
+        }
+        let mut cache = ExpertCache::new(24).unwrap();
+        cache.reserve(&[511]).unwrap();
+        assert_ne!(cache.resident_slot_map().unwrap()[511], u32::MAX);
+        let slot = cache.claim_prefetch(510).unwrap().unwrap();
+        assert_eq!(cache.resident_slot_map().unwrap()[510], u32::MAX);
+        cache.keys[slot] = Some(510);
+        assert_eq!(cache.resident_slot_map().unwrap()[510], u32::MAX);
+        cache.keys[slot] = None;
+        assert!(!cache.publish_prefetch(slot, 510, false));
+        assert_eq!(cache.resident_slot_map().unwrap()[510], u32::MAX);
+        let slot = cache.claim_prefetch(510).unwrap().unwrap();
+        assert!(cache.publish_prefetch(slot, 510, true));
+        assert_eq!(cache.resident_slot_map().unwrap()[510], slot as u32);
+        cache.invalidate();
+        assert!(
+            cache
+                .resident_slot_map()
+                .unwrap()
+                .iter()
+                .all(|&slot| slot == u32::MAX)
+        );
+        cache.keys[0] = Some(512);
+        assert_eq!(cache.resident_slot_map(), Err(CacheError::InvalidIds));
     }
 
     #[test]
@@ -1263,6 +1335,33 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(513)]
+    fn resident_slot_snapshot_excludes_pending_and_preserves_lfu() {
+        let mut cache = ExpertCache::new(20).unwrap();
+        for slot in 0..20 {
+            let id: u32 = kani::any();
+            kani::assume(id < 512);
+            cache.keys[slot] = if kani::any() { Some(id) } else { None };
+            cache.pending[slot] = if kani::any() { Some(id) } else { None };
+        }
+        let query: u32 = kani::any();
+        kani::assume(query < 512);
+        let expected = cache
+            .keys
+            .iter()
+            .zip(&cache.pending)
+            .position(|(&key, pending)| key == Some(query) && pending.is_none())
+            .map_or(u32::MAX, |slot| slot as u32);
+        let map = cache.resident_slot_map().unwrap();
+        assert_eq!(map[query as usize], expected);
+        assert_eq!(cache.clock, 0);
+        assert!(cache.counts.iter().all(|&count| count == 0));
+        kani::cover!(query == 511 && expected == 19);
+        kani::cover!(expected == u32::MAX && cache.pending[0].is_some());
+        kani::cover!(expected == 0);
+    }
+
     #[kani::proof]
     #[kani::unwind(49)]
     fn layer_slot_budget_is_exact_and_cannot_overflow() {

@@ -63,6 +63,19 @@ experimental Rust implementation. It uses the existing EXL3 banks and
 checked readers, preserving actual routing and reduction order. OpenBMB's
 quantization and DSpark results are separate from MLXL3 measurements.
 
+## Strata
+
+Sources: <https://github.com/Niko1221/Strata>, revision
+`cbfd5b926b794b356195d3cb600191b0c3567540`, and the distinct MLX project
+<https://github.com/yibie/strata-mlx>, revision
+`295c96594dd79cbd080052da8740b1a8e44d7d76`.
+Their GPU expert planning, grouped weight reuse, streamed-cache scheduling
+and host/GPU overlap informed the independently implemented Flash Next
+resident-routing experiment. The comparison of implemented and outstanding
+mechanisms is recorded in `docs/flash-next-ssd-strata-56-2026-10-20.md`.
+MLXL3 preserves its EXL3 arithmetic and routing contract; Strata's source
+and performance results are references, not bundled kernels or local timings.
+
 ## TensorFold
 
 Source: <https://github.com/ashhart/TensorFold>, revision

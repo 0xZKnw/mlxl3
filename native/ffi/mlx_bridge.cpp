@@ -423,8 +423,16 @@ int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
 }
 int mlxl3_array_copy_bytes(void* p, uint8_t* out, size_t count) noexcept {
   return protect([&] {
-    auto a = mx::contiguous(arr(p));
-    if (a.nbytes() != count) throw std::invalid_argument("output byte count mismatch");
+    auto& source = arr(p);
+    if (source.nbytes() != count) throw std::invalid_argument("output byte count mismatch");
+    if (count && !out) throw std::invalid_argument("null byte output");
+    // A new Contiguous primitive would wait behind unrelated work submitted later.
+    if (source.status() != mx::array::Status::unscheduled && source.flags().row_contiguous) {
+      source.eval();
+      if (count) std::memcpy(out, source.data<uint8_t>(), count);
+      return;
+    }
+    auto a = mx::contiguous(source);
     a.eval(); if (count) std::memcpy(out, a.data<uint8_t>(), count);
   });
 }

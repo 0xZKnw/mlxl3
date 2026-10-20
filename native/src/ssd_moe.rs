@@ -31,6 +31,15 @@ pub struct SsdMoe {
     pub read_bytes: u64,
     overlap: bool,
     readers: usize,
+    gpu_hot: bool,
+    #[cfg(test)]
+    hybrid_submissions: u64,
+    #[cfg(test)]
+    slow_hot_for_test: bool,
+    #[cfg(test)]
+    hot_ready_at_routes: Option<bool>,
+    #[cfg(test)]
+    hot_ready_at_demand: Option<bool>,
     pub(crate) predictor_half: bool,
     pub(crate) prefetcher: Option<(usize, Rc<RefCell<ReaderPool>>)>,
     #[cfg(test)]
@@ -74,6 +83,11 @@ impl SsdMoe {
             "0" => false,
             "1" => true,
             _ => anyhow::bail!("MLXL3_SSD_RESIDENT_GATES must be 0 or 1"),
+        };
+        let gpu_hot = match control("MLXL3_SSD_GPU_HOT", "0")?.as_str() {
+            "0" => false,
+            "1" => prefix.starts_with("model.language_model.layers."),
+            _ => anyhow::bail!("MLXL3_SSD_GPU_HOT must be 0 or 1"),
         };
         let readers = std::env::var("MLXL3_SSD_READERS")
             .unwrap_or_else(|_| "4".into())
@@ -171,6 +185,15 @@ impl SsdMoe {
             None
         };
         Ok(Self {
+            gpu_hot,
+            #[cfg(test)]
+            hybrid_submissions: 0,
+            #[cfg(test)]
+            slow_hot_for_test: false,
+            #[cfg(test)]
+            hot_ready_at_routes: None,
+            #[cfg(test)]
+            hot_ready_at_demand: None,
             gate: projection("gate", H, 512)?,
             resident_gate,
             shared_gate: projection("shared_expert.gate_proj", H, I)?,
@@ -266,28 +289,33 @@ impl SsdMoe {
     }
 
     fn calculate(&self, x: &Array, slots: &[u32]) -> Result<Array> {
+        self.calculate_slots(
+            x,
+            &linear::ExpertSlots::new(slots, self.banks[0].shape()[0])?,
+        )
+    }
+
+    fn calculate_slots(&self, x: &Array, slots: &linear::ExpertSlots) -> Result<Array> {
+        let n = slots.indices().shape()[0];
         #[cfg(test)]
         let profile = crate::flash_profile::span("expert_calculate_build");
         #[cfg(test)]
         if let Some(profile) = &profile {
-            profile.data(serde_json::json!({"rows":slots.len()}));
+            profile.data(serde_json::json!({"rows":n}));
         }
-        let n = i32::try_from(slots.len())?;
         ensure!(n > 0 && x.shape() == [n, H], "invalid expert slot mapping");
-        let slots = linear::ExpertSlots::new(slots, self.banks[0].shape()[0])?;
-        let indices = slots.indices();
         let expanded = x
             .reshape(&[n, 1, H])?
             .broadcast_to(&[n, 2, H])?
             .reshape(&[n * 2, H])?;
-        let suh = self.banks[2].take(indices, 0)?.reshape(&[n * 2, H])?;
-        let svh = self.banks[3].take(indices, 0)?.reshape(&[n * 2, I])?;
+        let suh = slots.gather_scales(&self.banks[2])?.reshape(&[n * 2, H])?;
+        let svh = slots.gather_scales(&self.banks[3])?.reshape(&[n * 2, I])?;
         let gu = linear::expert_slots(
             &expanded,
             &self.banks[0],
             &suh,
             &svh,
-            &slots,
+            slots,
             I,
             2,
             2,
@@ -305,9 +333,9 @@ impl SsdMoe {
         let down = linear::expert_slots(
             &activated,
             &self.banks[1],
-            &self.banks[4].take(indices, 0)?.reshape(&[n, I])?,
-            &self.banks[5].take(indices, 0)?.reshape(&[n, H])?,
-            &slots,
+            &slots.gather_scales(&self.banks[4])?.reshape(&[n, I])?,
+            &slots.gather_scales(&self.banks[5])?.reshape(&[n, H])?,
+            slots,
             H,
             1,
             2,
@@ -441,6 +469,8 @@ impl SsdMoe {
         {
             self.schedule_events.clear();
             self.prediction_ready_at_demand = None;
+            self.hot_ready_at_routes = None;
+            self.hot_ready_at_demand = None;
         }
         #[cfg(test)]
         let routing = crate::flash_profile::span("router_build_and_wait_inclusive");
@@ -449,6 +479,51 @@ impl SsdMoe {
             .collect::<Result<Vec<_>>>()?;
         let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
         let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
+        let routed_input = || {
+            let row_indices = (0..rows as u32)
+                .flat_map(|row| std::iter::repeat_n(row, 10))
+                .collect::<Vec<_>>();
+            x.take(&Array::from_u32(&row_indices, &[rows * 10])?, 0)?
+                .astype(Dtype::Float16)
+        };
+        let hybrid =
+            self.gpu_hot && self.overlap && rows <= 2 && depth == 0 && self.prefetcher.is_none();
+        let map = if hybrid {
+            if let Some(last) = self.last.take() {
+                last.eval()?;
+            }
+            Some(self.cache.borrow().resident_slot_map()?)
+        } else {
+            None
+        };
+        let early_input = map
+            .as_ref()
+            .filter(|map| map.iter().any(|&slot| slot != u32::MAX))
+            .map(|_| routed_input())
+            .transpose()?;
+        let gpu_hot = if let (Some(map), Some(input)) = (&map, &early_input) {
+            #[cfg(test)]
+            let _prepare = crate::flash_profile::span("gpu_resident_hot_prepare");
+            let slots = linear::ExpertSlots::residents(&selected, map, self.banks[0].shape()[0])?;
+            slots.indices().async_eval()?;
+            let value = self.calculate_slots(input, &slots)?;
+            #[cfg(test)]
+            let value = if self.slow_hot_for_test {
+                hybrid_tests::delay(&value)?
+            } else {
+                value
+            };
+            self.last = Some(value.try_clone()?);
+            value.async_eval()?;
+            #[cfg(test)]
+            {
+                self.hybrid_submissions += 1;
+            }
+            Some(value)
+        } else {
+            None
+        };
+        let early_hot = gpu_hot.is_some();
         #[cfg(test)]
         let readback = crate::flash_profile::span("route_readback_inclusive");
         let ids = selected.to_u32()?;
@@ -466,14 +541,16 @@ impl SsdMoe {
         #[cfg(test)]
         {
             self.route_ids.clone_from(&ids);
+            self.hot_ready_at_routes = gpu_hot
+                .as_ref()
+                .map(Array::is_available_for_test)
+                .transpose()?;
         }
-        let row_indices = (0..rows as u32)
-            .flat_map(|row| std::iter::repeat_n(row, 10))
-            .collect::<Vec<_>>();
-        let routed_x = x
-            .take(&Array::from_u32(&row_indices, &[rows * 10])?, 0)?
-            .astype(Dtype::Float16)?;
-        if let Some(last) = self.last.take() {
+        let routed_x = match early_input {
+            Some(value) => value,
+            None => routed_input()?,
+        };
+        if !early_hot && let Some(last) = self.last.take() {
             #[cfg(test)]
             let _profile = crate::flash_profile::span("previous_bank_users_wait");
             last.eval()?;
@@ -520,7 +597,13 @@ impl SsdMoe {
         if let Some(profile) = &profile {
             profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hot.len(),"cold_rows":cold.len(),"capacity":self.cache.borrow().capacity()}));
         }
-        let hot_output = if self.overlap && !hot.is_empty() && !cold.is_empty() {
+        let hot_output = if early_hot {
+            #[cfg(test)]
+            {
+                self.overlap_hot_rows += hot.len() as u64;
+            }
+            gpu_hot
+        } else if self.overlap && !hot.is_empty() && !cold.is_empty() {
             let value = self.calculate(
                 &routed_x.take(
                     &Array::from_u32(
@@ -574,6 +657,10 @@ impl SsdMoe {
             .collect::<Vec<_>>();
         #[cfg(test)]
         if !jobs.is_empty() {
+            self.hot_ready_at_demand = hot_output
+                .as_ref()
+                .map(Array::is_available_for_test)
+                .transpose()?;
             self.prediction_ready_at_demand = prediction
                 .as_ref()
                 .map(Array::is_available_for_test)
@@ -597,23 +684,33 @@ impl SsdMoe {
             }
         }
         let values = if let Some(hot_output) = hot_output {
-            let cold_output = self.calculate(
-                &routed_x.take(
-                    &Array::from_u32(
-                        &cold.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
-                        &[cold.len() as i32],
+            if cold.is_empty() {
+                hot_output
+            } else {
+                let cold_output = self.calculate(
+                    &routed_x.take(
+                        &Array::from_u32(
+                            &cold.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
+                            &[cold.len() as i32],
+                        )?,
+                        0,
                     )?,
-                    0,
-                )?,
-                &cold.iter().map(|p| p.1).collect::<Vec<_>>(),
-            )?;
-            let combined = Array::concatenate(&[&hot_output, &cold_output], 0)?;
-            for i in 0..ids.len() {
-                order.push(hot.iter().position(|p| p.0 == i).unwrap_or_else(|| {
-                    hot.len() + cold.iter().position(|p| p.0 == i).expect("cold route")
-                }) as u32);
+                    &cold.iter().map(|p| p.1).collect::<Vec<_>>(),
+                )?;
+                let combined = Array::concatenate(&[&hot_output, &cold_output], 0)?;
+                for (i, &(_, hit)) in routes.iter().enumerate() {
+                    let index = if early_hot && hit {
+                        i
+                    } else if !early_hot && hit {
+                        hot.iter().position(|p| p.0 == i).expect("hot route")
+                    } else {
+                        (if early_hot { ids.len() } else { hot.len() })
+                            + cold.iter().position(|p| p.0 == i).expect("cold route")
+                    };
+                    order.push(index as u32);
+                }
+                combined.take(&Array::from_u32(&order, &[order.len() as i32])?, 0)?
             }
-            combined.take(&Array::from_u32(&order, &[order.len() as i32])?, 0)?
         } else {
             self.calculate(
                 &routed_x,
@@ -768,6 +865,10 @@ impl SsdMoe {
         &self.gate
     }
 }
+
+#[cfg(test)]
+#[path = "ssd_moe/hybrid_tests.rs"]
+mod hybrid_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1004,7 +1105,7 @@ mod tests {
         Ok(())
     }
 
-    fn admission_fixture()
+    pub(super) fn admission_fixture()
     -> anyhow::Result<(crate::checkpoint::Checkpoint, crate::array::Array, Vec<u8>)> {
         use crate::array::{Array, Dtype};
         use anyhow::{Context, ensure};
@@ -1144,6 +1245,8 @@ mod tests {
         use super::*;
         let (checkpoint, input, expected) = admission_fixture()?;
         let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+        // Exercise the existing transaction after CPU reservation; the hybrid early failure has its own check.
+        moe.gpu_hot = false;
         let ids = moe.route(&input)?.0.to_u32()?;
         ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
         let warm = moe.cache.borrow_mut().reserve(&ids[..5])?;
@@ -1656,7 +1759,7 @@ mod tests {
             inputs.push(Array::from_bytes(&read("input")?, &[1, H], Dtype::Float32)?);
             expected.push(read("output")?);
         }
-        for slots in [10, 19, 20, 24, 71, 89] {
+        for slots in [10, 19, 20, 24, 53, 71, 89] {
             for (overlap, readers) in [
                 (false, 1),
                 (true, 1),

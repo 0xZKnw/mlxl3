@@ -1,0 +1,66 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+___ test_qualification_requires_both_pairs_on_both_prompts[nogain-baseline] ____
+
+mode = 'baseline', case = 'nogain'
+
+    @pytest.mark.parametrize("mode", ["baseline", "mtp"])
+    @pytest.mark.parametrize("case", ["eligible", "nogain", "drift", "spread"])
+    def test_qualification_requires_both_pairs_on_both_prompts(mode, case):
+        data = records(mode)
+        if case == "nogain":
+            data[1]["tps"] = 10.0
+        elif case == "drift":
+            data[0]["tps"] = 9.4
+        elif case == "spread":
+            data[1]["tps"] = 10.6
+        result = API["qualify"](data, mode)
+>       assert (
+            result["status"]
+            == {
+                "eligible": "validated_gain",
+                "nogain": "rejected_gain",
+                "drift": "inconclusive_drift",
+                "spread": "inconclusive_drift",
+            }[case]
+        )
+E       AssertionError: assert 'validated_gain' == 'rejected_gain'
+E         
+E         - rejected_gain
+E         + validated_gain
+
+tests/test_flash_hybrid56.py:51: AssertionError
+______ test_qualification_requires_both_pairs_on_both_prompts[nogain-mtp] ______
+
+mode = 'mtp', case = 'nogain'
+
+    @pytest.mark.parametrize("mode", ["baseline", "mtp"])
+    @pytest.mark.parametrize("case", ["eligible", "nogain", "drift", "spread"])
+    def test_qualification_requires_both_pairs_on_both_prompts(mode, case):
+        data = records(mode)
+        if case == "nogain":
+            data[1]["tps"] = 10.0
+        elif case == "drift":
+            data[0]["tps"] = 9.4
+        elif case == "spread":
+            data[1]["tps"] = 10.6
+        result = API["qualify"](data, mode)
+>       assert (
+            result["status"]
+            == {
+                "eligible": "validated_gain",
+                "nogain": "rejected_gain",
+                "drift": "inconclusive_drift",
+                "spread": "inconclusive_drift",
+            }[case]
+        )
+E       AssertionError: assert 'validated_gain' == 'rejected_gain'
+E         
+E         - rejected_gain
+E         + validated_gain
+
+tests/test_flash_hybrid56.py:51: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_hybrid56.py::test_qualification_requires_both_pairs_on_both_prompts[nogain-baseline]
+FAILED tests/test_flash_hybrid56.py::test_qualification_requires_both_pairs_on_both_prompts[nogain-mtp]
+2 failed, 36 deselected in 0.03s

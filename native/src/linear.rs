@@ -1064,6 +1064,7 @@ pub fn expert_mapped(
         input_pretransformed,
         return_raw,
         false,
+        false,
     )
 }
 
@@ -1071,6 +1072,7 @@ pub fn expert_mapped(
 pub(crate) struct ExpertSlots {
     indices: Array,
     capacity: i32,
+    masked: bool,
 }
 
 impl ExpertSlots {
@@ -1082,11 +1084,64 @@ impl ExpertSlots {
         Ok(Self {
             indices: Array::from_u32(ids, &[i32::try_from(ids.len())?])?,
             capacity,
+            masked: false,
         })
     }
 
     pub(crate) fn indices(&self) -> &Array {
         &self.indices
+    }
+
+    pub(crate) fn residents(selected: &Array, map: &[u32; 512], capacity: i32) -> Result<Self> {
+        let rows = selected
+            .shape()
+            .iter()
+            .try_fold(1i32, |n, &s| n.checked_mul(s))
+            .context("resident route shape overflow")?;
+        ensure!(selected.dtype() == Dtype::UInt32 && (1..=20).contains(&rows));
+        ensure!(
+            (1..=512).contains(&capacity)
+                && map.iter().all(|&s| s == u32::MAX || s < capacity as u32),
+            "invalid resident slot map"
+        );
+        let indices = array::metal_kernel(
+            "mlxl3_resident_slots", &["ids", "slot_map"], &["slots"], "",
+            "uint i=thread_position_in_grid.x; if(i>=uint(ids_shape[0])) return; uint id=ids[i]; slots[i]=id<512u ? slot_map[id] : 0xffffffffu;",
+            &[&selected.reshape(&[-1])?, &Array::from_u32(map, &[512])?],
+            &[vec![rows]], &[Dtype::UInt32], [rows,1,1], [32,1,1],
+        )?.remove(0);
+        Ok(Self {
+            indices,
+            capacity,
+            masked: true,
+        })
+    }
+
+    pub(crate) fn gather_scales(&self, bank: &Array) -> Result<Array> {
+        ensure!(
+            bank.shape().len() == 3
+                && bank.shape()[0] == self.capacity
+                && bank.dtype() == Dtype::Float16,
+            "invalid expert scale bank"
+        );
+        if !self.masked {
+            return bank.take(&self.indices, 0);
+        }
+        let shape = bank.shape();
+        let width = shape[1]
+            .checked_mul(shape[2])
+            .filter(|&n| n > 0)
+            .context("invalid expert scale width")?;
+        let count = self.indices.shape()[0]
+            .checked_mul(width)
+            .context("expert scale grid overflow")?;
+        Ok(array::metal_kernel(
+            "mlxl3_resident_scales", &["bank", "slots"], &["out"],
+            &format!("#define WIDTH {width}u\n#define CAPACITY {}u\n", self.capacity),
+            "uint i=thread_position_in_grid.x; if(i>=uint(slots_shape[0])*WIDTH) return; uint slot=slots[i/WIDTH]; if(slot<CAPACITY) out[i]=bank[slot*WIDTH+i%WIDTH]; else out[i]=half(0);",
+            &[&bank.reshape(&[-1])?, &self.indices],
+            &[vec![self.indices.shape()[0],shape[1],shape[2]]], &[Dtype::Float16], [count,1,1], [128,1,1],
+        )?.remove(0))
     }
 }
 
@@ -1120,6 +1175,7 @@ pub(crate) fn expert_slots(
         false,
         false,
         true,
+        selected.masked,
     )
 }
 
@@ -1138,6 +1194,7 @@ fn expert_mapped_layout(
     input_pretransformed: bool,
     return_raw: bool,
     slot_major: bool,
+    masked: bool,
 ) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
@@ -1233,7 +1290,20 @@ fn expert_mapped_layout(
     } else {
         4
     };
+    ensure!(
+        !masked || slot_major,
+        "masked experts require slot-major banks"
+    );
+    let masked_header = if masked {
+        format!(
+            "\n#define MLXL3_MASKED_SLOTS 1\n#define MLXL3_SLOT_CAPACITY {}u\n",
+            shape[0]
+        )
+    } else {
+        String::new()
+    };
     let header = codebook_header(cb)
+        + &masked_header
         + &reference_reduction_header(slot_major)
         + &format!(
             "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n#define MLXL3_SLOT_MAJOR {}\n",
@@ -1248,7 +1318,7 @@ fn expert_mapped_layout(
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
     let partials = array::metal_kernel(
         &format!(
-            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}",
+            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}{}",
             input_dims,
             output_dims,
             k,
@@ -1256,7 +1326,12 @@ fn expert_mapped_layout(
             nt,
             simdgroups,
             splits,
-            u8::from(slot_major)
+            u8::from(slot_major),
+            if masked {
+                format!("_resident{}", shape[0])
+            } else {
+                String::new()
+            },
         ),
         &["xhat", "trellis", "tile_map", "tile_sub"],
         &["yhat"],
@@ -1351,6 +1426,7 @@ mod tests {
             (0..20).map(|i| i % 10).collect(),
         ];
         let mut checked = 0;
+        let mut masked_checked = 0;
         for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
             let words = input / 16 * (output / 16) * 32;
             let packed = (0..10 * projections * words)
@@ -1449,6 +1525,53 @@ mod tests {
                                 );
                             }
                         }
+                        let ordinary = actual.to_bytes()?;
+                        let row_bytes = ordinary.len() / rows;
+                        for mask in 0..3 {
+                            let mut map = [u32::MAX; 512];
+                            for id in 0..10u32 {
+                                if mask == 2 || (mask == 1 && id % 2 == 0) {
+                                    map[id as usize] = id;
+                                }
+                            }
+                            let slots = ExpertSlots::residents(
+                                &Array::from_u32(routes, &[routes.len() as i32])?,
+                                &map,
+                                10,
+                            )?;
+                            let masked = expert_slots(
+                                &x,
+                                &bank,
+                                &suh,
+                                &svh,
+                                &slots,
+                                output as i32,
+                                projections as i32,
+                                2,
+                                Codebook::Mul1,
+                            )?;
+                            assert_eq!(masked.shape(), actual.shape());
+                            let values = masked.to_f32()?;
+                            let bytes = masked.to_bytes()?;
+                            assert_eq!(values.len(), rows * output);
+                            assert!(values.iter().all(|v| v.is_finite()));
+                            for row in 0..rows {
+                                if map[routes[row / projections] as usize] == u32::MAX {
+                                    assert!(
+                                        values[row * output..(row + 1) * output]
+                                            .iter()
+                                            .all(|&v| v == 0.)
+                                    );
+                                } else {
+                                    assert_eq!(
+                                        bytes[row * row_bytes..(row + 1) * row_bytes],
+                                        ordinary[row * row_bytes..(row + 1) * row_bytes],
+                                        "resident row differs: mask={mask},row={row}"
+                                    );
+                                }
+                            }
+                            masked_checked += 1;
+                        }
                         if routes.len() == 1 {
                             let wrong = expert_slots(
                                 &x,
@@ -1473,7 +1596,110 @@ mod tests {
             }
         }
         assert_eq!(checked, 40);
+        assert_eq!(masked_checked, 120);
         println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=8 parity=byte_exact");
+        println!(
+            "FLASH_MASKED_SLOT_SHAPES cases={masked_checked} masks=all_cold,mixed,all_hot parity=byte_exact"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; resident lookup must not gather missing or invalid experts"]
+    fn gpu_resident_plans_and_scale_gathers_preserve_bounds_and_strides() -> anyhow::Result<()> {
+        use super::*;
+        let mut map = [u32::MAX; 512];
+        for (id, slot) in map.iter_mut().enumerate() {
+            if id % 17 == 0 {
+                *slot = (id * 7 % 10) as u32;
+            }
+        }
+        map[511] = 9;
+        let bits = (0..10 * 2 * 128)
+            .map(|i| half::f16::from_f32((i as f32 - 300.) / 1024.).to_bits())
+            .collect::<Vec<_>>();
+        let all_ids = (0..512u32).chain([512, u32::MAX]).collect::<Vec<_>>();
+        let mut cases = 0;
+        for strided_bank in [false, true] {
+            let bank = if strided_bank {
+                let storage = bits
+                    .iter()
+                    .flat_map(|&b| [b, half::f16::NAN.to_bits()])
+                    .collect::<Vec<_>>();
+                Array::from_f16_bits(&storage, &[10, 2, 128, 2])?
+                    .slice(3, 0, 1)?
+                    .reshape(&[10, 2, 128])?
+            } else {
+                Array::from_f16_bits(&bits, &[10, 2, 128])?
+            };
+            for strided_ids in [false, true] {
+                for ids in all_ids.chunks(20) {
+                    let selected = if strided_ids {
+                        let storage = ids
+                            .iter()
+                            .flat_map(|&id| [id, u32::MAX])
+                            .collect::<Vec<_>>();
+                        Array::from_u32(&storage, &[ids.len() as i32, 2])?
+                            .slice(1, 0, 1)?
+                            .reshape(&[-1])?
+                    } else {
+                        Array::from_u32(ids, &[ids.len() as i32])?
+                    };
+                    let before = Array::host_readbacks_for_test();
+                    let slots = ExpertSlots::residents(&selected, &map, 10)?;
+                    let scales = slots.gather_scales(&bank)?;
+                    assert_eq!(Array::host_readbacks_for_test(), before);
+                    let expected = ids
+                        .iter()
+                        .map(|&id| map.get(id as usize).copied().unwrap_or(u32::MAX))
+                        .collect::<Vec<_>>();
+                    assert_eq!(slots.indices().to_u32()?, expected);
+                    let bytes = scales.to_bytes()?;
+                    assert_eq!(scales.shape(), [ids.len() as i32, 2, 128]);
+                    assert_eq!(bytes.len(), ids.len() * 256 * 2);
+                    assert!(scales.to_f32()?.iter().all(|v| v.is_finite()));
+                    let expected_bits = expected
+                        .iter()
+                        .flat_map(|&slot| {
+                            if slot == u32::MAX {
+                                vec![0u16; 256]
+                            } else {
+                                bits[slot as usize * 256..(slot as usize + 1) * 256].to_vec()
+                            }
+                        })
+                        .flat_map(u16::to_le_bytes)
+                        .collect::<Vec<_>>();
+                    assert_eq!(bytes, expected_bits);
+                    cases += 1;
+                }
+            }
+        }
+        let selected = Array::from_u32(&[511], &[1])?;
+        for cap in [0, 513] {
+            assert!(ExpertSlots::residents(&selected, &map, cap).is_err());
+        }
+        let mut invalid = map;
+        invalid[511] = 10;
+        assert!(ExpertSlots::residents(&selected, &invalid, 10).is_err());
+        for n in [0, 21] {
+            assert!(
+                ExpertSlots::residents(&Array::from_u32(&vec![0; n], &[n as i32])?, &map, 10)
+                    .is_err()
+            );
+        }
+        assert!(ExpertSlots::residents(&selected.astype(Dtype::Int32)?, &map, 10).is_err());
+        let mut wrong = map;
+        wrong[511] = 0;
+        assert_ne!(
+            ExpertSlots::residents(&selected, &wrong, 10)?
+                .indices()
+                .to_u32()?,
+            vec![9]
+        );
+        assert_eq!(cases, 104);
+        println!(
+            "FLASH_GPU_RESIDENT_PLAN cases={cases} ids=514 invalid_controls=6 wrong_map=true parity=byte_exact"
+        );
         Ok(())
     }
 

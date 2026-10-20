@@ -96,6 +96,14 @@
                         IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
                 }
             }
+#if MLXL3_MASKED_SLOTS
+            if (tile_map[sub / uint(ROUTING_REPEAT)] >= uint(MLXL3_SLOT_CAPACITY)) {
+                if (tid < 16u * MLXL3_QMV_NT) {
+                    yhat[split * uint(LOCAL_OUTPUT_DIMS) + local_tile * 16u + tid] = 0.0f;
+                }
+                return;
+            }
+#endif
             for (
                 uint tile_k = tile_begin + simd;
                 tile_k < tile_end;

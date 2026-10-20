@@ -1,0 +1,16 @@
+{'name': '56-lookup', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 0.6487736249982845, 'swapouts_bytes': 0}
+{'name': '56-masked-slots', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 1.5120415830169804, 'swapouts_bytes': 0}
+{'name': '56-early-error', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 1.342229915986536, 'swapouts_bytes': 0}
+{'name': '56-overlap', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 1.189811832999112, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py", line 422, in <module>
+    run_sampler(Path(sys.argv[2]), baseline)
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py", line 375, in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 63, in main
+    assert record["exit_code"] == item["expected_exit"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

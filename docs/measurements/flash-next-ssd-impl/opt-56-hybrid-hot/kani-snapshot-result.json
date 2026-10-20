@@ -1,0 +1,9 @@
+{
+  "status": "timeout_not_verified",
+  "exit_code": 124,
+  "timeout_seconds": 120,
+  "command": "cargo kani --lib --no-default-features --harness resident_slot_snapshot_excludes_pending_and_preserves_lfu",
+  "domain": "20 slots, arbitrary optional ready keys and pending keys, IDs/query in 0..512, first ready slot, clock/counts unchanged",
+  "unwind": 513,
+  "log": "kani-snapshot.log"
+}

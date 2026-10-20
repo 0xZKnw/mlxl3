@@ -1318,6 +1318,140 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     #[test]
+    #[ignore = "physical Apple GPU; readback must wait only for the scheduled source event"]
+    fn scheduled_route_readback_does_not_wait_for_later_gpu_work() -> anyhow::Result<()> {
+        use super::*;
+        let expected = [0, 511, 7, u32::MAX];
+        let ids = metal_kernel(
+            "mlxl3_test_scheduled_route_ids",
+            &["ids"],
+            &["out"],
+            "",
+            "uint i=thread_position_in_grid.x; out[i]=ids[i];",
+            &[&Array::from_u32(&expected, &[4])?],
+            &[vec![4]],
+            &[Dtype::UInt32],
+            [4, 1, 1],
+            [32, 1, 1],
+        )?
+        .remove(0);
+        ids.async_eval()?;
+        let slow = metal_kernel(
+            "mlxl3_test_later_gpu_work", &["seed"], &["out"], "",
+            "uint i=thread_position_in_grid.x; uint v=seed[0]+i+1u; for(uint j=0;j<4000000u;++j) { v^=v<<13; v^=v>>17; v^=v<<5; } out[i]=v;",
+            &[&Array::from_u32(&[19],&[1])?], &[vec![512]], &[Dtype::UInt32],
+            [512,1,1], [128,1,1],
+        )?.remove(0);
+        slow.async_eval()?;
+        let actual = ids.to_u32()?;
+        let pending = !slow.is_available_for_test()?;
+        slow.eval()?;
+        assert_eq!(actual, expected);
+        assert!(pending, "contiguous readback waited for later GPU work");
+        println!("MLX_SCHEDULED_READBACK later_gpu_pending=true ids=4 parity=byte_exact");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; raw readback layouts, bits, empty buffers and errors"]
+    fn scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges() -> anyhow::Result<()>
+    {
+        use super::*;
+        let mut checked_cases = 0;
+        for dtype in [
+            Dtype::UInt8,
+            Dtype::Bool,
+            Dtype::Int8,
+            Dtype::Int16,
+            Dtype::UInt16,
+            Dtype::Int32,
+            Dtype::UInt32,
+            Dtype::UInt64,
+            Dtype::Int64,
+            Dtype::Float16,
+            Dtype::BFloat16,
+            Dtype::Float32,
+            Dtype::Complex64,
+        ] {
+            let width = bytes_for(&[1], dtype)?;
+            for n in [0usize, 1, 6] {
+                let bytes = (0..n * width)
+                    .map(|i| {
+                        if dtype == Dtype::Bool {
+                            (i % 2) as u8
+                        } else {
+                            (i * 37 + 129) as u8
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let array = Array::from_bytes(&bytes, &[n as i32], dtype)?;
+                assert_eq!(array.to_bytes()?, bytes);
+                if n == 1 {
+                    assert_eq!(Array::from_bytes(&bytes, &[], dtype)?.to_bytes()?, bytes);
+                }
+                let copied = array.take(
+                    &Array::from_u32(&(0..n as u32).collect::<Vec<_>>(), &[n as i32])?,
+                    0,
+                )?;
+                copied.async_eval()?;
+                assert_eq!(copied.to_bytes()?, bytes);
+                if n > 0 {
+                    if n == 6 {
+                        let transposed = array.reshape(&[2, 3])?.transpose(&[1, 0])?;
+                        transposed.async_eval()?;
+                        let oracle = [0usize, 3, 1, 4, 2, 5]
+                            .iter()
+                            .flat_map(|&i| bytes[i * width..(i + 1) * width].iter().copied())
+                            .collect::<Vec<_>>();
+                        assert_eq!(transposed.to_bytes()?, oracle);
+                    }
+                    let offset = array.slice(0, n as i32 - 1, n as i32)?;
+                    offset.async_eval()?;
+                    assert_eq!(offset.to_bytes()?, bytes[(n - 1) * width..]);
+                    assert!(
+                        checked(unsafe {
+                            mlxl3_array_copy_bytes(
+                                array.handle.as_ptr(),
+                                std::ptr::null_mut(),
+                                bytes.len(),
+                            )
+                        })
+                        .is_err()
+                    );
+                }
+                let mut out = vec![0u8; bytes.len() + 1];
+                assert!(
+                    checked(unsafe {
+                        mlxl3_array_copy_bytes(array.handle.as_ptr(), out.as_mut_ptr(), out.len())
+                    })
+                    .is_err()
+                );
+                checked_cases += 1;
+            }
+        }
+        assert_eq!(checked_cases, 39);
+        // Float64 has no Metal execution path; its already available raw buffers are supported.
+        for n in [0usize, 1, 6] {
+            let bytes = (0..n * 8).map(|i| (i * 19 + 128) as u8).collect::<Vec<_>>();
+            assert_eq!(
+                Array::from_bytes(&bytes, &[n as i32], Dtype::Float64)?.to_bytes()?,
+                bytes
+            );
+        }
+        println!(
+            "MLX_READBACK_BITS cases={checked_cases} gpu_dtypes=13 cpu_float64_cases=3 strided=true offset=true errors=true parity=byte_exact"
+        );
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_scheduled_raw_readback_preserves_bytes_and_source_event() {
+        scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges().unwrap();
+        scheduled_route_readback_does_not_wait_for_later_gpu_work().unwrap();
+    }
+
+    #[test]
     #[ignore = "physical Apple GPU; nonblocking availability probe and host readback accounting"]
     fn availability_probe_does_not_submit_a_host_readback() -> anyhow::Result<()> {
         use super::*;
