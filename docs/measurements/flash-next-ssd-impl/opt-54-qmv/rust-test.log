@@ -1,0 +1,227 @@
+
+running 222 tests
+test affine::tests::routed_gather_matches_checked_and_rejects_wrong_experts ... ignored, physical Apple GPU
+test array::tests::allocator_cache_limit_preserves_live_arrays ... ignored, physical Apple GPU; run alone with MLXL3_ALLOCATOR_CACHE_MIB=0 or 1
+test array::tests::async_group_retains_parents_and_rejects_null ... ignored, requires physical Apple GPU; run alone
+test array::tests::availability_probe_does_not_submit_a_host_readback ... ignored, physical Apple GPU; nonblocking availability probe and host readback accounting
+test array::tests::capture_guard_closes_success_and_drop_without_overwriting ... ignored, physical Apple GPU; run alone with MTL_CAPTURE_ENABLED=1
+test array::tests::checkpoint_reads_larger_than_darwin_syscall_limit ... ignored, requires Apple GPU and a temporary 2 GiB allocation
+test array::tests::clear_cache_preserves_live_arrays_and_releases_unused_buffers ... ignored, requires physical Apple GPU; run alone (global allocator cache)
+test array::tests::compact_cache_views_preserve_all_bits_and_release_parent_storage ... ignored, physical Apple GPU; run alone, compaction enabled
+test array::tests::fused_mtp_norm_matches_stock_outputs_and_fallbacks ... ignored, physical Apple GPU; run alone, optional MLXL3_NORM_BENCH=1 after parity
+test array::tests::metal_cache_full_key_and_eviction_preserve_outputs ... ignored, requires physical Apple GPU; cache collision and eviction regression, run alone
+test array::tests::model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays ... ignored, physical Apple GPU; run alone without MLXL3_ALLOCATOR_CACHE_MIB
+test array::tests::native_array_and_kernel_smoke ... ignored, requires Apple GPU; run explicitly outside sandbox
+test array::tests::retained_bytes_include_storage_outside_view ... ignored, physical Apple GPU; run alone
+test array::tests::staged_records_copy_exact_disjoint_bytes_and_reject_invalid_ranges ... ignored, physical Apple GPU; exact staged copies and atomic invalid inputs
+test codec::tests::permutation_is_bijective ... ok
+test array::tests::validates_before_entering_mlx ... ok
+test contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles ... ok
+test contracts::dense_mlp_batch_requires_supported_weights_and_rows ... ok
+test codec::tests::codebooks_are_finite_exhaustively ... ok
+test contracts::dense_qmm_large_tile_preserves_ragged_and_small_fallbacks ... ok
+test contracts::gdn_tape_requires_a_valid_commit ... ok
+test contracts::gdn_history_capacity_covers_partial_commits ... ok
+test contracts::grouped_mb3_requires_opt_in_and_measured_shape ... ok
+test contracts::idle_cache_policy_boundaries ... ok
+test contracts::mtp_cache_append_checks_empty_negative_and_overflowing_positions ... ok
+test codec::tests::pack_tail_biting_all_bitrates ... ok
+test contracts::mtp_pipeline_default_requires_measured_geometry ... ok
+test contracts::older_gpus_never_select_tensor_ops ... ok
+test contracts::pipeline_layer_stays_inside_model ... ok
+test array::tests::metal_cache_rejects_null_key_metadata_before_gpu_dispatch ... ok
+test contracts::qmv_pair_layout_covers_rows_and_bounds_padding ... ok
+test contracts::smallm_kernel_key_distinguishes_all_options ... ok
+test dflash::tests::benchmarks_dflash_convolution_kernels ... ignored, requires Apple M5
+test dflash::tests::benchmarks_dflash_end_to_end_greedy ... ignored, requires Apple M5 plus the local Qwen target and DFlash package
+test dflash::tests::benchmarks_real_q4_qkv_kernels ... ignored, requires Apple M5 and the downloaded DFlash package
+test dflash::tests::benchmarks_the_six_layer_draft_graph ... ignored, requires Apple M5 and the downloaded DFlash package
+test dflash::tests::current_draft_rows_attend_each_other ... ignored, requires Apple GPU
+test dflash::tests::draft_cache_preserves_window_across_append_partitions ... ignored, physical GPU and MLXL3_DFLASH_TEST_DRAFT; run alone
+test dflash::tests::dense_layout_and_convolution_boundaries ... ok
+test dflash::tests::draft_prefill_suffix_matches_full_cache_exactly ... ignored, requires local DFlash checkpoint and Apple GPU
+test dflash::tests::draft_capture_window_keeps_the_checkpoint_and_prompt_suffix ... ok
+test dflash::tests::draft_prefix_cache_clone_keeps_all_kv_bytes ... ignored, requires local DFlash checkpoint and Apple GPU
+test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+test dflash::tests::loads_the_complete_real_draft_weights ... ignored, requires Apple M5 and the downloaded DFlash package
+test dflash::tests::plans_match_the_published_splash_layout ... ok
+test embedding::tests::packed_embeddings_preserve_all_f16_patterns_and_permutations ... ignored, physical Apple GPU; run alone
+test flash_cache_profile::tests::replay_physical_trace_and_allocate_fixed_expert_budget ... ignored, offline experiment47; requires a complete physical calibration trace, no GPU work
+test flash_support::draft_contract_tests::draft_commits_match_independent_wide_arithmetic_and_reject_stale_tapes ... ok
+test flash_support::draft_contract_tests::draft_prefix_rejects_invalid_profiles_and_prefers_shorter_ties ... ok
+test flash_support::draft_contract_tests::draft_prefix_matches_exhaustive_quarter_probability_outcomes ... ok
+test flash_support::draft_contract_tests::expert_cohorts_fit_even_the_smallest_streaming_cache ... ok
+test flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded ... ok
+test flash_profile::nested_intervals_are_complete_and_disabled_is_a_noop ... ok
+test flash_support::tests::available_memory_accepts_older_complete_revisions ... ok
+test flash_support::tests::available_memory_query_returns_a_positive_snapshot ... ok
+test flash_support::tests::available_memory_rejects_truncated_and_oversized_snapshots ... ok
+test flash_cache_profile::tests::allocation_matches_exhaustive_assignments_and_rejects_invalid_budgets ... ok
+test flash_support::tests::disk_offsets_reject_boundaries_and_overflow ... ok
+test flash_support::tests::complete_cohorts_protect_hits_and_have_unique_slots ... ok
+test flash_support::tests::disk_ranges_reject_empty_overflow_and_out_of_bounds ... ok
+test flash_support::tests::hashes_use_signed_remainder_and_eos_segments ... ok
+test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+test flash_support::tests::pair_commits_reject_stale_invalid_and_overflowing_positions ... ok
+test flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand ... ok
+test flash_support::tests::predictions_protect_victims_without_inventing_frequency_or_blocking_demand ... ok
+test flash_support::tests::fill_reservation_preserves_ready_weights_only_on_commit_and_keeps_pending ... ok
+test flash_support::tests::les_admission_retains_recent_unused_records_without_inventing_frequency ... ok
+test flash_support::tests::publication_clock_exhaustion_frees_pending_without_a_false_hit ... ok
+test flash_support::tests::reference_partition_covers_real_shapes_and_extremes ... ok
+test flash_support::tests::predictive_victims_replay_symbolic_case_and_all_protection_masks ... ok
+test flash_support::tests::slot_validation_and_les_controls_reject_invalid_inputs ... ok
+test gated_delta::tests::compact_gate_history_matches_every_serial_prefix ... ignored, requires Apple GPU
+test gated_delta::tests::packed_step_with_gates_matches_graph ... ignored, requires Apple GPU
+test gated_delta::tests::tape_replay_matches_every_serial_prefix ... ignored, requires Apple GPU
+test gated_delta::tests::vector_batch_matches_serial_steps ... ignored, requires Apple GPU
+test gated_delta::tests::vector_step_matches_one_hot_update ... ignored, requires Apple GPU
+test gated_delta::tests::vector_step_with_beta_matches_graph ... ignored, requires Apple GPU
+test gpu::tests::metal_codec_matches_cpu ... ignored, requires physical Apple GPU; run cargo test -- --ignored
+test gemma4::tests::parses_gemma_rope_defaults ... ok
+test hub::tests::both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test lfm2::flash_hc_tests::mixed_gemv_matches_every_flash_hc_weight ... ignored, physical Apple GPU and Flash checkpoint; all real HC weights
+test lfm2::flash_hc_tests::mixed_gemv_matches_mlx_cpu_and_fallbacks ... ignored, physical Apple GPU; exact mixed HC GEMV and fallback contracts
+test lfm2::flash_hc_tests::mixed_gemv_micro ... ignored, physical Apple GPU and Flash checkpoint; microbenchmark, not model throughput
+test linear::tests::batch_grouped_qmv_shared_rows_match_serial ... ignored, requires local Qwen checkpoint and Apple M5 GPU
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test linear::tests::batch_qmv_eight_rows_matches_serial ... ignored, requires local Qwen checkpoint and Apple M5 GPU
+test linear::tests::flash_slot_shapes_match_resident_reference_for_every_route ... ignored, physical Apple GPU; real Flash slot shapes, dtypes, strides and wrong-slot oracle
+test linear::tests::grouped_mb3_override_restores_and_stays_thread_local ... ok
+test linear::tests::dense_decode_test_override_restores_and_stays_thread_local ... ok
+test linear::tests::q4_draft_matches_exl3_rotation_reference ... ignored, requires disposable draft Q4 projection and physical Apple GPU
+test linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes ... ignored, physical Apple GPU; exact SSD slot layout versus resident EXL3
+test ling::tests::batched_prefill_matches_serial_state ... ignored, requires local Ling checkpoint and Apple GPU
+test ling::tests::ling_serial_prefill_skips_only_unused_heads ... ignored, requires local Ling checkpoint and Apple GPU
+test ling::tests::parses_ling_tiny_config ... ok
+test ling::tests::profile_batched_prefill_layers ... ignored, requires local Ling checkpoint and Apple GPU
+test ling::tests::profile_decode_components ... ignored, requires local Ling checkpoint and Apple GPU
+test ling::tests::profile_decode_moe ... ignored, requires local Ling checkpoint and Apple GPU
+test mcp::tests::parses_json_and_sse_responses ... ok
+test memory_policy::tests::adaptive_excludes_two_cold_samples_and_rejects_invalid_samples ... ok
+test dflash::tests::inspects_published_dense_geometry_without_target_weights ... ok
+test memory_policy::tests::adaptive_uses_costs_hysteresis_and_reprobes ... ok
+test memory_policy::tests::budget_includes_draft_logits_history_and_backing_without_overflow ... ok
+test memory_policy::tests::capture_selects_only_the_named_request_once ... ok
+test memory_policy::tests::compact_view_requires_material_waste_without_overflow ... ok
+test moe::tests::small_routed_input_matches_array_reference ... ignored, requires an Apple GPU
+test memory_policy::tests::allocator_tuning_keys_distinguish_default_and_all_valid_limits ... ok
+test memory_policy::tests::mib_limits_reject_invalid_and_overflowing_values ... ok
+test mtp::draft_projection_tests::compact_rows_are_nonempty_ordered_unique_and_in_target_vocab ... ok
+test mtp::draft_projection_tests::optional_projection_must_match_target_and_affine_contract ... ok
+test mtp::native::cache_tests::cache_only_matches_full_head_and_next_prediction ... ignored, requires local Qwen/MTP checkpoints and physical Apple GPU
+test mtp::native::cache_tests::lookup_history_is_bounded_and_disabled_until_seeded ... ok
+test flash_support::tests::speculative_admission_preserves_actual_cohort_space_and_failed_reservations ... ok
+test qwen35::memory_feature_tests::compact_prefill_snapshot_preserves_logits_states_and_budget ... ignored, local Qwen checkpoint and physical Apple GPU; run alone
+test qwen35::memory_feature_tests::packed_embedding_model_logits_states_and_memory_are_qualified ... ignored, local Qwen checkpoint and physical Apple GPU; run alone
+test qwen35::tests::captured_prefill_keeps_uncaptured_target_state ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::checkpoint_dense_decode_tiles_paired ... ignored, physical GPU, MLXL3_QWEN_TEST_MODEL; run alone, no concurrent builds
+test qwen35::tests::checkpoint_grouped_mb3_verify_paired ... ignored, physical GPU, MLXL3_QWEN_TEST_MODEL; run alone, no concurrent builds
+test qwen35::tests::checkpoint_optimization_matches_saved_logits_and_states ... ignored, requires MLXL3_QWEN_TEST_MODEL, reference directory and physical Apple GPU
+test qwen35::tests::deferred_target_verification_matches_sequential ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::dense_gate_rows_match_serial ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::dense_mlp_batch_matches_serial_layers ... ignored, physical GPU, MLXL3_QWEN_TEST_MODEL; run alone
+test qwen35::tests::dense_mlp_batch_override_restores_after_panic ... ok
+test qwen35::tests::dense_resident_sessions_paired ... ignored, physical GPU/model/head, writes MLXL3_DENSE_RESIDENT_REPORT; run alone
+test qwen35::tests::dense_smallm_dispatch_matches_serial_prefixes ... ignored, physical GPU, MLXL3_QWEN_TEST_MODEL; run alone
+test qwen35::tests::dflash_capture_verification_and_commits_match_serial_states ... ignored, physical GPU and MLXL3_QWEN_TEST_MODEL; run alone
+test qwen35::tests::dflash_limited_head_matches_full_rows ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::fused_gdn_preparation_matches_mlx ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::layer_pipeline_matches_unscheduled_logits_and_states ... ignored, requires local Qwen checkpoint and physical Apple GPU; run alone
+test qwen35::tests::long_prefix_verification_keeps_exact_state ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::long_prompt_dflash_capture_keeps_target_exact ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::mtp_lookup_accepts_rejects_and_repairs_exact_caches ... ignored, requires local Qwen/MTP checkpoints and physical Apple GPU
+test qwen35::tests::mtp_prefill_verification_and_rollback_match_target ... ignored, requires local Qwen checkpoint and physical Apple GPU
+test qwen35::tests::mtp_recursive_sessions_match_greedy_and_exact_caches ... ignored, requires local Qwen/MTP checkpoints and physical Apple GPU
+test qwen35::tests::qwen_serial_prefill_skips_only_unused_heads ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::selective_dflash_commit_matches_exact_prefix ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::snapshot_restore_replays_logits_and_state_exactly ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen35::tests::verification_widths_match_token_major ... ignored, requires local Qwen checkpoint and Apple GPU
+test qwen4::draft::draft_shapes_keep_anchor_conventions_and_reject_unknown_modes ... ok
+test qwen4::draft::flash_draft_calibration_arm ... ignored, physical Apple GPU; profile draft B1..B4 using separate calibration prompts; run alone
+test qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial ... ignored, physical Apple GPU and independent Flash draft capture fixture; full prefix tape; run alone
+test qwen4::draft::flash_draft_greedy_generation_matches_tokens_and_states ... ignored, physical Apple GPU, target and pinned draft; genuine greedy generation; run alone
+test qwen4::draft::flash_draft_matches_numpy_backbone_cache_and_selector ... ignored, physical Apple GPU, pinned Flash draft and independent NumPy fixture; run alone
+test qwen4::draft::flash_draft_speed_arm ... ignored, physical Apple GPU; prototype throughput only after numerical qualification; run alone
+test qwen4::draft::flash_prefix_policies_preserve_real_tokens_and_states ... ignored, physical Apple GPU and pinned DSpark; all prefix policies against serial target; run alone
+test qwen4::draft::flash_real_prompt_modes_match_template_and_preserve_default ... ignored, installed pinned Flash tokenizer; no GPU; run with model fixture
+test qwen4::draft::flash_residual_norm_matches_independent_counterexample ... ignored, physical Apple GPU; independent BF16 residual-norm counterexample; run alone
+test qwen4::draft::prefix_profiles_reject_foreign_incomplete_and_invalid_calibration ... ok
+test flash_support::tests::per_layer_slots_preserve_budget_and_reject_malformed_profiles ... ok
+test qwen4::profile::flash_detailed_profile_preserves_full_outputs_and_states ... ignored, physical Apple GPU, full Flash checkpoint; isolated diagnostic, not release throughput
+test qwen4::tests::flash_attention_stages_match_upstream ... ignored, physical Apple GPU and independent attention-stage fixture
+test qwen4::tests::flash_cache_calibration_captures_prefill_decode_and_identical_states ... ignored, physical Apple GPU; experiment47 cold/warm route capture, not throughput
+test qwen4::tests::flash_components_match_reference_on_identical_inputs ... ignored, physical M5 and independent per-component Flash fixture
+test qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states ... ignored, physical Apple GPU; intrusive diagnostic, not a throughput benchmark
+test qwen4::tests::flash_hc_write_matches_upstream_rounding ... ignored, physical Apple GPU and independent upstream HC fixture
+test qwen4::tests::flash_light_profile_preserves_natural_decode ... ignored, physical Apple GPU; isolated natural decode diagnostic, not release throughput
+test qwen4::tests::flash_lookahead_preserves_full_logits_states_and_pair_commits ... ignored, physical Apple GPU and Flash checkpoint; LES full logits, states and commits
+test qwen4::tests::flash_matches_independent_reference_states_and_logits ... ignored, physical M5, full pinned checkpoint and independent mlx-vlm/PonyExl3 fixture
+test qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config ... ok
+test qwen4::tests::flash_mtp_head_matches_reference_and_cache_only ... ignored, physical Apple GPU and independent Flash MTP fixture
+test qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states ... ignored, physical Apple GPU and full Flash checkpoint; greedy session and cache boundaries
+test qwen4::tests::flash_norms_match_upstream_rounding ... ignored, physical Apple GPU and independent upstream norm fixture
+test qwen4::tests::flash_pair_verification_preserves_serial_logits_and_all_states ... ignored, physical Apple GPU and full Flash checkpoint; exact two-token transactions
+test qwen4::tests::flash_ple_stages_match_upstream ... ignored, physical Apple GPU and independent PLE-stage fixture
+test qwen4::tests::flash_projections_match_upstream_rounding ... ignored, physical Apple GPU and independent Pony projection fixture
+test qwen4::tests::flash_qsa_stages_match_upstream ... ignored, physical Apple GPU and independent QSA-stage fixture
+test qwen4::tests::flash_repeated_main_exposes_cache_and_timing_variance ... ignored, physical Apple GPU; experiment49D repeated MAIN cache/I/O diagnostic, not throughput
+test qwen4::tests::flash_route_head_component_profile ... ignored, physical Apple GPU; original route/head component profile, not release throughput
+test router::tests::float_router_preserves_precision_ties_and_boundaries ... ignored, physical Apple GPU; Flash router must preserve FP32 rank differences
+test router::tests::grouped_router_batch_matches_serial ... ignored, requires Apple GPU
+test router::tests::grouped_router_masks_unselected_groups ... ignored, requires Apple GPU
+test router::tests::simd_top8_matches_legacy_bits_and_profiles_small_rows ... ignored, physical Apple GPU, preregistered MTP-05 router trial
+test speculative::tests::adapts_only_after_sustained_low_acceptance ... ok
+test speculative::tests::dflash_copy_remembers_only_commits_and_stops_after_total_refusal ... ok
+test speculative::tests::dflash_copy_bounds_prompt_and_committed_history ... ok
+test speculative::tests::dflash_modes_bound_every_small_budget_and_reject_unknown_modes ... ok
+test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+test speculative::tests::lookup_uses_latest_known_continuation_and_respects_limits ... ok
+test speculative::tests::mtp_depths_budgets_and_invalid_depths ... ok
+test speculative::tests::speculative_work_stays_inside_both_budgets ... ok
+test speculative::tests::tuning_excludes_collapsed_acceptance_divergence_and_invalid_rates ... ok
+test speculative::tests::tuning_requires_valid_baseline_and_selects_eligible_gain ... ok
+test ssd_moe::qmv_micro::hot_moe_preserves_outputs ... ignored, physical M5; experiment54 exact isolated hot MoE, not tokens/sec
+test ssd_moe::tests::attached_pool_enables_lru_without_an_incoming_prediction ... ignored, physical Apple GPU; first-layer LES must use LRU without incoming predictions
+test ssd_moe::tests::batched_prediction_selects_top_sixteen_values_without_changing_real_routing ... ignored, physical Apple GPU; independent CPU sort oracle for one/two prediction rows
+test ssd_moe::tests::cached_top_four_predictions_do_not_starve_useful_cold_prefetches ... ignored, physical Apple GPU; cached strongest predictions must not consume the read budget
+test ssd_moe::tests::completed_prefetches_compute_while_other_experts_are_read ... ignored, physical Apple GPU; persistent routed experts must overlap remaining SSD reads
+test mtp::tests::canonical_dense_and_moe_checkpoints_are_inspected_without_gpu ... ok
+test ssd_moe::tests::completed_previous_layer_reads_do_not_block_next_prefetch_cohort ... ignored, physical Apple GPU; completed late results must release admission capacity
+test ssd_moe::tests::demanded_reads_start_before_the_optional_prediction_finishes ... ignored, physical Apple GPU; demanded reads must not wait for a slow predictor
+test ssd_moe::tests::disk_batches_reject_aliases_and_validate_every_record_before_writing ... ignored, physical Apple GPU; concurrent disk reads into shared buffers
+test ssd_moe::tests::disk_records_fill_only_owned_ranges_and_reject_bad_sources ... ignored, physical Apple GPU; direct disk read into evaluated shared buffers
+test ssd_moe::tests::failed_hot_compute_invalidates_reserved_routes_and_recovers ... ignored, physical Apple GPU; hot failure must invalidate unfilled routes before retry
+test ssd_moe::tests::failed_prediction_invalidates_reserved_routes_and_recovers ... ignored, physical Apple GPU; failed prediction must invalidate unfilled routes and recover
+test ssd_moe::tests::lookahead_preserves_exact_routes_and_invalidates_failed_predictions ... ignored, physical Apple GPU and Flash fixtures; speculative fills and recovery
+test ssd_moe::tests::resident_gate_component_microbench ... ignored, physical Apple GPU; experiment49 resident gate component timing only
+test ssd_moe::tests::resident_gate_logits_probabilities_and_routes_match_original ... ignored, physical Apple GPU; experiment49 all dense gates, strides and fallback
+test ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads ... ignored, physical Apple GPU and independent Flash MoE inputs
+test ssd_prefetch::tests::candidates_interleave_strongest_ranks_and_reject_invalid_shapes ... ok
+test ssd_prefetch::tests::persistent_reads_keep_owners_publish_once_and_join_before_drop ... ignored, physical Apple GPU; owned direct reads, partial I/O and destruction
+test streaming::tests::markers_split_at_every_character ... ok
+test streaming::tests::prefilled_and_incomplete_markers ... ok
+test streaming::tests::unfinished_cr_is_preserved ... ok
+test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+test mtp::tests::managed_head_uses_target_geometry_and_rejects_unknown_variants ... ok
+test tokenizer::tests::explicit_thinking_preserves_undefined_default_and_other_context ... ok
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+test flash_cache_profile::tests::trace_validation_and_real_cache_replay_cover_cold_warm_and_corruption ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+test flash_support::tests::persistent_prefetch_sequences_preserve_cache_invariants ... ok
+test speculative::tests::dflash_copy_transitions_match_bounded_stream_over_long_sequences ... ok
+test mtp::tests::incompatible_or_incomplete_heads_fail_before_gpu_loading ... ok
+test flash_support::tests::seeded_cache_cohorts_survive_evictions_aging_and_read_failures ... ok
+test flash_support::tests::free_slots_precede_evictions_through_failed_and_duplicate_publications ... ok
+test flash_cache_profile::tests::allocation_files_reject_partial_false_counts_and_overwrite ... ok
+
+test result: ok. 103 passed; 0 failed; 119 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
