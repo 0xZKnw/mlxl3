@@ -1,0 +1,69 @@
+{
+  "status": "completed_expected_outcomes_not_speed",
+  "source_sha256": "b8cf0affcd5d0fd0cb1b375001e89eec234ca9e2ace431379516336d0b1ec503",
+  "matrix_sha256": "aa8a2cc1baf5b81f3e196d24153d5d2575e0dc4695e81d63fa637c4ae8b65a3f",
+  "commands": [
+    {
+      "name": "speed-0-baseline-MAIN-C",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-46/candidate/mlxl3-rs",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-baseline-MAIN-C-bridge",
+        "baseline",
+        "MAIN"
+      ],
+      "expected_exit": 0,
+      "env": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+      },
+      "required_text": [
+        "\"repeat\": 2"
+      ],
+      "status": "completed_expected_outcome",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   433405.\nPages active:                                 350420.\nPages inactive:                               371480.\nPages speculative:                               149.\nPages throttled:                                   0.\nPages wired down:                             177129.\nPages purgeable:                                   2.\n\"Translation faults\":                     1101922757.\nPages copy-on-write:                        34932753.\nPages zero filled:                        1338159692.\nPages reactivated:                         111357527.\nPages purged:                               12249881.\nFile-backed pages:                            472679.\nAnonymous pages:                              249370.\nPages stored in compressor:                   387651.\nPages occupied by compressor:                 186115.\nDecompressions:                            314152203.\nCompressions:                              370019917.\nPageins:                                  1104041510.\nPageouts:                                     165332.\nSwapins:                                     4188859.\nSwapouts:                                    5304370.\nPages tagged:                                  94728.\nPages tagged resident:                         68325.\nPages tagged compressed:                       26403.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3971.\nPages tag-storage free:                          727.\nPages tag-storage non-tag pageable:            44258.\nPages tag-storage non-tag wired:                  82.\nBytes of compressed tags:                    4346240.\nTagged compressions:                         5287785.\nTagged decompressions:                       5042584.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 6144.00M  used = 5066.56M  free = 1077.44M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 7100907520,
+          "File-backed pages": 7744372736,
+          "Pages occupied by compressor": 3049308160,
+          "Swapins": 68630265856,
+          "Swapouts": 86906798080
+        }
+      },
+      "executable_sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+      "pid": 40959,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 327680,
+      "exit_code": 0,
+      "after": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   435134.\nPages active:                                 352029.\nPages inactive:                               367752.\nPages speculative:                               104.\nPages throttled:                                   0.\nPages wired down:                             176721.\nPages purgeable:                                   2.\n\"Translation faults\":                     1102556608.\nPages copy-on-write:                        34950379.\nPages zero filled:                        1338674225.\nPages reactivated:                         111392191.\nPages purged:                               12253631.\nFile-backed pages:                            472556.\nAnonymous pages:                              247329.\nPages stored in compressor:                   388475.\nPages occupied by compressor:                 186958.\nDecompressions:                            314362362.\nCompressions:                              370242530.\nPageins:                                  1108006304.\nPageouts:                                     165530.\nSwapins:                                     4188879.\nSwapouts:                                    5304370.\nPages tagged:                                  94707.\nPages tagged resident:                         69763.\nPages tagged compressed:                       24944.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3969.\nPages tag-storage free:                         1093.\nPages tag-storage non-tag pageable:            43921.\nPages tag-storage non-tag wired:                  82.\nBytes of compressed tags:                    4060096.\nTagged compressions:                         5288130.\nTagged decompressions:                       5044379.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 6144.00M  used = 5066.56M  free = 1077.44M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 7129235456,
+          "File-backed pages": 7742357504,
+          "Pages occupied by compressor": 3063119872,
+          "Swapins": 68630593536,
+          "Swapouts": 86906798080
+        }
+      },
+      "children_maximum_rss_bytes": 3554738176,
+      "swapins_bytes": 327680,
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "seconds": 65.92788154201116
+    }
+  ]
+}

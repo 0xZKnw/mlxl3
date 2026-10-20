@@ -1,0 +1,962 @@
+FF.FFFFFF.FFFFFF................                                         [100%]
+=================================== FAILURES ===================================
+_____________ test_real_report_validation_and_statistics[baseline] _____________
+
+mode = 'baseline'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e82210>
+
+    @pytest.mark.parametrize("mode", ["baseline", "mtp"])
+    def test_real_report_validation_and_statistics(mode, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        data = report(mode)
+        before = copy.deepcopy(data)
+>       result = API["check_report"](data, item(mode), {"text": "known prefix"})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_slot_benchmark.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'baseline', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+_______________ test_real_report_validation_and_statistics[mtp] ________________
+
+mode = 'mtp'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e07380>
+
+    @pytest.mark.parametrize("mode", ["baseline", "mtp"])
+    def test_real_report_validation_and_statistics(mode, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        data = report(mode)
+        before = copy.deepcopy(data)
+>       result = API["check_report"](data, item(mode), {"text": "known prefix"})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_slot_benchmark.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[empty] ___________
+
+bad = 'empty'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e829c0>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[warmup] __________
+
+bad = 'warmup'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e82cc0>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[repeat] __________
+
+bad = 'repeat'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e83fe0>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+___________ test_report_rejects_invalid_or_incomplete_evidence[hash] ___________
+
+bad = 'hash'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e7b7d0>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+___________ test_report_rejects_invalid_or_incomplete_evidence[text] ___________
+
+bad = 'text'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e78380>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[prefix] __________
+
+bad = 'prefix'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e82a80>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': ''}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[memory] __________
+
+bad = 'memory'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e82de0>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+___________ test_report_rejects_invalid_or_incomplete_evidence[nan] ____________
+
+bad = 'nan'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e52fc0>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[timing] __________
+
+bad = 'timing'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e7b560>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[drift] ___________
+
+bad = 'drift'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e7b3b0>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+________ test_report_rejects_invalid_or_incomplete_evidence[warm_drift] ________
+
+bad = 'warm_drift'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e78680>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+__________ test_report_rejects_invalid_or_incomplete_evidence[counts] __________
+
+bad = 'counts'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106e83950>
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "empty",
+            "warmup",
+            "repeat",
+            "hash",
+            "text",
+            "prefix",
+            "binary",
+            "memory",
+            "nan",
+            "timing",
+            "drift",
+            "warm_drift",
+            "counts",
+        ],
+    )
+    def test_report_rejects_invalid_or_incomplete_evidence(bad, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d = report("mtp")
+        oracle = {"text": "known prefix"}
+        if bad == "partial":
+            d["status"] = "incomplete"
+        elif bad == "empty":
+            d["runs"] = []
+        elif bad == "warmup":
+            d["warmup"] = []
+        elif bad == "repeat":
+            d["runs"][1]["repeat"] = 1
+        elif bad == "hash":
+            d["runs"][0]["token_hash"] = "foo"
+        elif bad == "text":
+            d["runs"][1]["text"] += " divergence"
+        elif bad == "prefix":
+            oracle["text"] = ""
+        elif bad == "binary":
+            d["binary_sha256"] = "2" * 64
+        elif bad == "memory":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] = (10 << 30) + 1
+        elif bad == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif bad == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif bad in ("drift", "warm_drift"):
+            row = d["warmup"][0] if bad == "warm_drift" else d["runs"][1]
+            row["stats"]["decode_tps"] = 7.0 if bad == "warm_drift" else 10.6
+            row["stats"]["decode_seconds"] = 127 / row["stats"]["decode_tps"]
+        else:
+            d["runs"][1]["stats"]["mtp_accepted_tokens"] = 56
+        with pytest.raises((AssertionError, ValueError)):
+>           API["check_report"](d, item("mtp"), oracle)
+
+tests/test_flash_slot_benchmark.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = {'status': 'validated', 'tokens': 128, 'repeats': 2, 'engine': '/engine', ...}
+item = {'stage': 0, 'mode': 'mtp', 'prompt': 'MAIN', 'label': 'H', ...}
+oracle = {'text': 'known prefix'}
+
+    def check_report(data, item, oracle):
+        assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 2
+        assert data["binary_sha256"] == item["binary_sha256"] and data["expert_cache_gib"] == 3
+>       assert data["engine"] == item["engine"] and data["model"] == item["model"]
+                                 ^^^^^^^^^^^^^^
+E       KeyError: 'engine'
+
+docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-supervisor.txt:18: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_flash_slot_benchmark.py::test_real_report_validation_and_statistics[baseline]
+FAILED tests/test_flash_slot_benchmark.py::test_real_report_validation_and_statistics[mtp]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[empty]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[warmup]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[repeat]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[hash]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[text]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[prefix]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[memory]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[nan]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[timing]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[drift]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[warm_drift]
+FAILED tests/test_flash_slot_benchmark.py::test_report_rejects_invalid_or_incomplete_evidence[counts]
+14 failed, 18 passed in 0.11s

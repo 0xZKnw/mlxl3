@@ -1330,6 +1330,149 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
 #[cfg(test)]
 mod tests {
     #[test]
+    #[ignore = "physical Apple GPU; real Flash slot shapes, dtypes, strides and wrong-slot oracle"]
+    fn flash_slot_shapes_match_resident_reference_for_every_route() -> anyhow::Result<()> {
+        use super::*;
+        let cases = [
+            vec![2u32],
+            vec![0, 2],
+            (0..10).map(|i| i % 3).collect(),
+            (0..20).map(|i| (i * 2 + 1) % 3).collect(),
+        ];
+        let mut checked = 0;
+        for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
+            let words = input / 16 * (output / 16) * 32;
+            let packed = (0..3 * projections * words)
+                .map(|i| (i as u16).wrapping_mul(1777))
+                .collect::<Vec<_>>();
+            let bank = Array::from_u16(
+                &packed,
+                &[
+                    3,
+                    projections as i32,
+                    (input / 16) as i32,
+                    (output / 16) as i32,
+                    32,
+                ],
+            )?;
+            for dtype in [Dtype::Float16, Dtype::Float32] {
+                for strided in [false, true] {
+                    for routes in &cases {
+                        let rows = routes.len() * projections;
+                        let value = |row: usize, col: usize| {
+                            ((row * 37 + col * 13) % 997) as f32 / 1024. - 0.5
+                        };
+                        let values = (0..rows)
+                            .flat_map(|r| (0..input).map(move |c| value(r, c)))
+                            .collect::<Vec<_>>();
+                        let x = if strided {
+                            let transposed = (0..input)
+                                .flat_map(|c| (0..rows).map(move |r| value(r, c)))
+                                .collect::<Vec<_>>();
+                            Array::from_f32(&transposed, &[input as i32, rows as i32])?
+                                .astype(dtype)?
+                                .transpose(&[1, 0])?
+                        } else {
+                            Array::from_f32(&values, &[rows as i32, input as i32])?.astype(dtype)?
+                        };
+                        let scales = |width: usize| {
+                            (0..rows * width)
+                                .map(|i| half::f16::from_f32(0.5 + (i % 11) as f32 / 32.).to_bits())
+                                .collect::<Vec<_>>()
+                        };
+                        let su = scales(input);
+                        let sv = scales(output);
+                        let suh = Array::from_f16_bits(&su, &[rows as i32, input as i32])?;
+                        let svh = Array::from_f16_bits(&sv, &[rows as i32, output as i32])?;
+                        let before = Array::host_readbacks_for_test();
+                        let actual = expert_slots(
+                            &x,
+                            &bank,
+                            &suh,
+                            &svh,
+                            &ExpertSlots::new(routes, 3)?,
+                            output as i32,
+                            projections as i32,
+                            2,
+                            Codebook::Mul1,
+                        )?;
+                        assert_eq!(Array::host_readbacks_for_test(), before);
+                        assert_eq!(actual.shape(), [rows as i32, output as i32]);
+                        let host = actual.to_f32()?;
+                        assert_eq!(host.len(), rows * output);
+                        assert!(host.iter().all(|v| v.is_finite()));
+                        for (route, &slot) in routes.iter().enumerate() {
+                            for projection in 0..projections {
+                                let row = route * projections + projection;
+                                let index = slot as usize * projections + projection;
+                                let mut reference = Exl3Linear::new(
+                                    Array::from_u16(
+                                        &packed[index * words..(index + 1) * words],
+                                        &[(input / 16) as i32, (output / 16) as i32, 32],
+                                    )?,
+                                    Array::from_f16_bits(
+                                        &su[row * input..(row + 1) * input],
+                                        &[input as i32],
+                                    )?,
+                                    Array::from_f16_bits(
+                                        &sv[row * output..(row + 1) * output],
+                                        &[output as i32],
+                                    )?,
+                                    None,
+                                    2,
+                                    Codebook::Mul1,
+                                )?;
+                                reference.simdgroups = 4;
+                                reference.reference_accumulation = true;
+                                let expected = reference.forward(
+                                    &Array::from_f32(
+                                        &values[row * input..(row + 1) * input],
+                                        &[1, input as i32],
+                                    )?
+                                    .astype(dtype)?,
+                                )?;
+                                assert_eq!(
+                                    actual.slice(0, row as i32, row as i32 + 1)?.to_bytes()?,
+                                    expected.to_bytes()?,
+                                    "input={input},output={output},dtype={dtype:?},strided={strided},row={row},slot={slot}"
+                                );
+                            }
+                        }
+                        if routes.len() == 1 {
+                            let wrong = expert_slots(
+                                &x,
+                                &bank,
+                                &suh,
+                                &svh,
+                                &ExpertSlots::new(&[0], 3)?,
+                                output as i32,
+                                projections as i32,
+                                2,
+                                Codebook::Mul1,
+                            )?;
+                            assert_ne!(
+                                actual.to_bytes()?,
+                                wrong.to_bytes()?,
+                                "wrong-slot control was not detected"
+                            );
+                        }
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(checked, 32);
+        println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=8 parity=byte_exact");
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_flash_slots_preserve_reference_outputs() {
+        flash_slot_shapes_match_resident_reference_for_every_route().unwrap();
+    }
+
+    #[test]
     #[ignore = "physical Apple GPU; exact SSD slot layout versus resident EXL3"]
     fn streamed_slots_match_resident_exl3_and_reject_invalid_routes() -> anyhow::Result<()> {
         use super::*;

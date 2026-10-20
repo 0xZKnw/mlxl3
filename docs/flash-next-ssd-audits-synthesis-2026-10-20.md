@@ -233,3 +233,45 @@ leurs propositions sont conservées comme pistes attribuées, pas comme résulta
 reproduits. Aucun nouveau kernel, entraînement, contexte long ou correctif de
 production n'a été testé. Les prototypes restent `cfg(test)`, absents du flux
 public DF2/DSpark ; l'application installée est inchangée.
+
+## Vérification complémentaire46 : NT2 slots non retenu
+
+L'essai46 a exécuté la piste29/35 jusque dans le vrai bridge. NT2 traite deux
+tuiles de sortie ; il ne partage pas le décodage d'un expert entre deux tokens.
+Les32cas physiques couvrent les formes2560→640×2 et640→2560, F16/F32,
+strides,1/2/10/20routes et huit contrôles de mauvais slot. Ils sont exacts
+contre le chemin résident indépendant. Les13processus de qualité passent,
+dont logits/états cible, paire et MTP, drafts et bridge avec annulations.
+
+Secteur, cache3Gio/53slots, un warmup et deux mesures128tokens par bras :
+
+| Mode/prompt | NT1 tok/s | NT2 tok/s | Écart descriptif |
+| --- | ---: | ---: | ---: |
+| OFF MAIN |10,3923|10,4467|+0,523%|
+| OFF HOLD |10,2426|10,1773|−0,637%|
+| MTP MAIN |8,7421|9,0182|+3,158%|
+| MTP HOLD |8,3348|7,8700|invalide : dérive interne16,06%|
+
+**Aucun gain confirmé.** OFF manque le seuil1% sur les deux prompts ; le dernier
+bras MTP dépasse la dérive5% autorisée. Pas de confirmation inversée ni de
+répétition pour bruit. Huit processus terminés/joints, sorties128 identiques,
+zéro nouveau swapout ; pics maximums7 146 608 544octets OFF et8 198 837 528MTP.
+Le dispatch NT2, sa garde et son harnais ont été retirés après archivage ;
+l'oracle des formes réelles et les contrôles du banc restent conservés.
+La première tentative arrêtée après échec Ruff reste archivée séparément.
+
+La preuve Kani de la garde retirée passe18obligations et6covers ; elle ne
+prouve pas le kernel. La tentative du vrai test MLX s'arrête sur une ICE,
+et CrossHair n'est pas installé. Les métadonnées et sources exactes sont
+conservées dans [closure.json](measurements/flash-next-ssd-impl/opt-46-slot-nt2/closure.json),
+[la fenêtre complète](measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-result-0.json)
+et [le patch retiré](measurements/flash-next-ssd-impl/opt-46-slot-nt2/retired-nt2-source/candidate.patch).
+
+L'avis complémentaire reçu sur45-P est cohérent : les~94% incluent la cible
+nécessaire. Sur MAIN, atteindre15tok/s à même acceptation exige1,7599s de moins,
+soit31,38% de la vérification actuelle. Les10 810misses par occurrence deviennent
+9 893jobs experts après déduplication ; les12 346 582 716octets comptés sont
+logiques, sans mesure du trafic NVMe physique. Le cache uniforme et le partage
+du décodage entre occurrences restent des pistes distinctes. La coalescence
+avec une prélecture pending manque, mais ne s'applique pas au témoin LES0.
+Le regroupement de tête43B reste rejeté ; ne pas refaire ce même mécanisme.
