@@ -440,3 +440,55 @@ rencontre une ICE ; CrossHair est absent. Aucun gain global supplémentaire éta
 [Analyse49D](measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/analysis.json) ·
 [trace](measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/trace.json) ·
 [observations système](measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/system-samples.json).
+
+## Cache plus grand50 et lecture du nouvel audit51R
+
+Le plafond autorisé est12 000 000 000octets de footprint processus. Les paliers
+4/5/6Gio passent l’oracle indépendant ;6Gio fournit107slots par couche,
+6 409 789 632octets d’experts. PaireMTP/commits/états/session et vrai bridge
+budgets1/2/3/17+annulation/reprise passent. Six processus joints/Swapouts0,
+pic du bridge11 651 556 160octets. Le moteur49 reste inchangé, gatesFP32à0.
+
+Le nouveau protocole repart d’un moteur neuf pour chaque bras, une chauffe128
+puis une seule mesure128. Cela fixe l’historiqueLFU avant chaque mesure ;
+aucun reset du cache de l’application n’est ajouté. Pour chaque prompt/mode,
+deux pairesH-C/C-H, H=3Gio53slots/C=6Gio107, seize bras au total.
+
+| Mode/prompt | Première paire, tok/s H→C | Paire inverse, tok/s H→C | Gains appariés descriptifs |
+| --- | ---: | ---: | ---: |
+| OFF MAIN |10,248→10,233|9,938→10,243|−0,15/+3,08%|
+| OFF HOLD |9,660→9,960|9,703→9,895|+3,11/+1,98%|
+| MTP MAIN |10,054→10,626|9,745→10,298|+5,69/+5,67%|
+| MTP HOLD |8,986→9,508|9,518→10,003|+5,81/+5,09%|
+
+Les32réponses128tokens sont exactes et les16processus joints/Swapouts0.
+Pics mesurésC :10,380Go OFF/11,428Go MTP. Aucun gain global confirmé selon
+les règles prospectives : OFF MAIN étendue des gains3,222points>3 ; MTP HOLD
+dérive témoins5,917%>5. Les quatre pairesMTP favorables sont conservées comme
+signal, sans relance pour bruit ni assouplissement après résultats.
+
+Les compteurs système déjà capturés montrent beaucoup de compression et de
+décompression, davantage sur6Gio. Leur fenêtre inclut chargement, prefill,
+chauffe et mesure : ils ne permettent pas d’attribuer le phénomène aux seules
+pages du modèle ni au seul decode. Zéro Swapout ne prouve pas une absence de
+pression mémoire. Les jobsSSD par génération release et le tempsGPU exclusif
+restent nonmesurés ; la cause initiale49 n’est toujours pas précisément attribuée.
+
+Le nouvel audit utilisateur,1717lignes/SHA8d4cf718, est lu intégralement et
+recoupé avec le code : réductionEXL3 exacte par rangement du scratch, découpage
+B4parunion, traitement séparé singles/paires48 et garde de calibration des
+prompts sont des pistes distinctes. Le tableau de cohortes et les densités48
+sont recalculés depuis les vraies archives. Aucun prototype issu du rapport
+n’est lancé pendant les mesures. La résidenceMLX fait l’objet de la revue52D,
+avec l’antécédent denseQwen27-05 négatif explicitement conservé.
+
+45nouveaux tests du banc et160Python pertinents passent, y compris vrais
+processus factices frais, mauvaise sortie, mémoire, silence, interruption et
+jonction. Mutation du plafond mémoire détectée puis restauration byte exacte.
+Ruff/format etYAML passent ; sourceRust/Metal/FFI inchangée, binaires49 réutilisés
+par empreintes104. CrossHair absent, aucune nouvelle preuve formelle revendiquée.
+
+[OFF50](measurements/flash-next-ssd-impl/opt-50-larger-cache/baseline-closure.json) ·
+[MTP50](measurements/flash-next-ssd-impl/opt-50-larger-cache/mtp-closure.json) ·
+[compression](measurements/flash-next-ssd-impl/opt-50-larger-cache/compression-observations.json) ·
+[revue51R](measurements/flash-next-ssd-impl/opt-51-audit-review/review.json).

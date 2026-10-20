@@ -1,0 +1,46 @@
+{
+  "status": "inconclusive_drift",
+  "confirmed_gain": false,
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "H_tps": 10.054402796494797,
+      "C_tps": 10.626022751918322,
+      "gain_percent": 5.685270095035433
+    },
+    {
+      "prompt": "MAIN",
+      "H_tps": 9.745400236332753,
+      "C_tps": 10.29765315775051,
+      "gain_percent": 5.666805959993826
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 8.986405566897275,
+      "C_tps": 9.508115488278213,
+      "gain_percent": 5.805546138522066
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 9.51814574529517,
+      "C_tps": 10.00274642336837,
+      "gain_percent": 5.091334920068213
+    }
+  ],
+  "drifts": {
+    "MAIN": {
+      "control_percent": 3.170752895402096,
+      "gain_spread_points": 0.018464135041607044
+    },
+    "HOLD": {
+      "control_percent": 5.917162033690504,
+      "gain_spread_points": 0.7142112184538529
+    }
+  },
+  "new_swapout_bytes": 0,
+  "peak_by_cache_bytes": {
+    "3": 8200049992,
+    "6": 11428107568
+  },
+  "qualification_limit": "HOLD control drift 5.917162% > preregistered5%; all four pairs positive but no confirmed mode gain; no repeat for noise"
+}

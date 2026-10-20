@@ -1,0 +1,153 @@
+{
+  "status": "validated",
+  "mode": "mtp",
+  "engine": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-49/mlxl3-rs",
+  "binary_sha256": "eed886583c50d089a1a31c9f49fc8872d17bf7c037970d447cc36685614b78e6",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "tokens": 128,
+  "repeats": 1,
+  "expert_cache_gib": 3,
+  "prompts": {
+    "MAIN": "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE."
+  },
+  "runs": [
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "repeat": 1,
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'outils externes. Il faut peut-être mentionner MoE (Mixture of Experts), experts stockés sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fréquemment utilisés, évite chargements SSD. Exemple concret: router sélectionne experts selon tokens, certains experts chaud",
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 215,
+        "decode_seconds": 13.031789041000001,
+        "decode_tokens": 127,
+        "decode_tps": 9.745400236332753,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 22.916951084,
+        "end_to_end_ttft_seconds": 9.885156834,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 128,
+        "memory": {
+          "mlx_active_bytes": 7294079200,
+          "mlx_cache_bytes": 202724936,
+          "mlx_peak_bytes": 7436105496,
+          "process_footprint_bytes": 7920278008,
+          "process_lifetime_peak_bytes": 7927993648
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": 54,
+        "mtp_blocks": 72,
+        "mtp_depth_blocks": [
+          0,
+          72,
+          0,
+          0
+        ],
+        "mtp_lookup_blocks": 0,
+        "mtp_proposed_tokens": 72,
+        "prefill_seconds": 9.884398375,
+        "prefill_tps": 8.801749656311278,
+        "prepare_seconds": 0.00023125,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 9.885151708999999
+      }
+    }
+  ],
+  "warmup": [
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "repeat": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'outils externes. Il faut peut-être mentionner MoE (Mixture of Experts), experts stockés sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fréquemment utilisés, évite chargements SSD. Exemple concret: router sélectionne experts selon tokens, certains experts chaud",
+      "stats": {
+        "cached_prompt_tokens": 0,
+        "context_limit": 4096,
+        "context_used": 215,
+        "decode_seconds": 13.211307917000001,
+        "decode_tokens": 127,
+        "decode_tps": 9.612977064638647,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 1.012332042,
+        "elapsed_seconds": 24.459412958,
+        "end_to_end_ttft_seconds": 11.248112375,
+        "evaluated_prompt_tokens": 87,
+        "generated_tokens": 128,
+        "memory": {
+          "mlx_active_bytes": 7294079200,
+          "mlx_cache_bytes": 202643016,
+          "mlx_peak_bytes": 7436056344,
+          "process_footprint_bytes": 7919819256,
+          "process_lifetime_peak_bytes": 7927993648
+        },
+        "model_size_gb": 62.815131785,
+        "mtp_accepted_tokens": 54,
+        "mtp_blocks": 72,
+        "mtp_depth_blocks": [
+          0,
+          72,
+          0,
+          0
+        ],
+        "mtp_lookup_blocks": 0,
+        "mtp_proposed_tokens": 72,
+        "prefill_seconds": 10.234113208,
+        "prefill_tps": 8.500980811116312,
+        "prepare_seconds": 0.000465167,
+        "prompt_tokens": 87,
+        "round_count": 1,
+        "tool_rounds": 0,
+        "tool_seconds": 0.0,
+        "ttft_seconds": 11.248093665999999
+      }
+    }
+  ],
+  "runtime": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": null,
+    "dflash_configure_supported": true,
+    "dflash_family": null,
+    "dflash_supported": false,
+    "dflash_tune_supported": false,
+    "dflash_tuning_key": "d6c73ad963bf3f23:1.4.3:6a05b0744237-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=513:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+    "load_seconds": 1.2432205,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "model_context_limit": 262144,
+    "modules": 74041,
+    "mtp_auto_download_supported": false,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 1,
+    "mtp_supported": true,
+    "mtp_tune_supported": false,
+    "mtp_tuning_key": "d6c73ad963bf3f23:1.4.3:6a05b0744237-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=513:lookup=0:smallm-v1=0",
+    "resident_gb": 62.815131785,
+    "runtime_commit": "6a05b0744237-dirty",
+    "runtime_executable": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-49/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.3",
+    "type": "ready"
+  },
+  "median_decode_tps": {
+    "MAIN": 9.745400236332753
+  }
+}
