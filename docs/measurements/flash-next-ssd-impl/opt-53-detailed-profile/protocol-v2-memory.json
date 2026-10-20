@@ -1,0 +1,15 @@
+{
+  "status": "preregistered_before_guard_code_or_resumed_models",
+  "reason": "new global Swapout245104640B in OFF6GiB HOLD control; stop remaining6GiB, preserve failed original orchestration and interrupted natural case",
+  "scope": "complete remaining3GiB cells only; first valid OFF3MAIN not repeated; original6GiB coverage incomplete explicitly",
+  "swap_guard": "same2s monitor, cumulative Swapins/Swapouts from start of original campaign, total cap268435456B each, before/after per-case snapshots preserved",
+  "original_vm_baseline": {
+    "Swapins": 80913039360,
+    "Swapouts": 114516393984
+  },
+  "remaining_swapout_bytes": 23330816,
+  "implementation": "wrap reused43 monitor in isolated runpy namespaces, temporarily adjust only its guard baseline and restore original per-case before snapshot in finally; no historical source changes, no engine changes",
+  "verification": "focused deterministic Python guard tests for cumulative baseline/invalid future baseline/restoration on error/loader isolation, existing201suite; CrossHair absent attempt recorded; no new Rust/C++code or rebuild",
+  "ordering": "remaining natural3G OFFHOLD, MTPMAIN, MTPHOLD each preceded by fresh releasecontrol; then fenced3G OFFMAIN/OFFHOLD/MTPMAIN/MTPHOLD; no retries for noise",
+  "limits": "12e9B process footprint, oneGPU/no build/proof, AC, originalcase maxdeadline; threshold exceed aborts all further models"
+}

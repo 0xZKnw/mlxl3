@@ -295,3 +295,69 @@ def test_summary_rejects_divergence_incomplete_nonfinite_and_memory_overrun(faul
         API["validate_summary"](
             data, "quality", {"cache_context": "known prefix continued"}, oracle
         )
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_cumulative_guard_uses_campaign_vm_but_restores_per_case_snapshot(fails):
+    before = {"Swapins": 200, "Swapouts": 300, "other": 7}
+    record = {"before": {"vm_bytes": before}}
+    baseline = {"Swapins": 20, "Swapouts": 30}
+
+    def monitor(child, record, parse):
+        assert record["before"]["vm_bytes"] == {"Swapins": 20, "Swapouts": 30, "other": 7}
+        if fails:
+            raise TimeoutError("guard exceeded")
+        return 0
+
+    wrapped = API["cumulative_monitor"](monitor, baseline)
+    baseline["Swapouts"] = 999
+    if fails:
+        with pytest.raises(TimeoutError):
+            wrapped(None, record, None)
+    else:
+        assert wrapped(None, record, None) == 0
+    assert before == {"Swapins": 200, "Swapouts": 300, "other": 7}
+    assert record["live_guard_basis"]["Swapouts"] == 30
+
+
+@pytest.mark.parametrize(
+    "baseline",
+    [{}, {"Swapouts": 0}, {"Swapins": True, "Swapouts": 0}, {"Swapins": -1, "Swapouts": 0}],
+)
+def test_cumulative_guard_rejects_invalid_baselines(baseline):
+    with pytest.raises(AssertionError):
+        API["cumulative_monitor"](lambda *_: 0, baseline)
+
+
+def test_future_vm_baseline_rejected_without_mutation():
+    record = {"before": {"vm_bytes": {"Swapins": 1, "Swapouts": 1}}}
+    with pytest.raises(AssertionError):
+        API["cumulative_monitor"](lambda *_: 0, {"Swapins": 2, "Swapouts": 0})(None, record, None)
+    assert record["before"]["vm_bytes"] == {"Swapins": 1, "Swapouts": 1}
+
+
+def test_loader_intercepts_actual_monitor_without_mutating_global_runpy(tmp_path):
+    api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+    g = api["run_sampler"].__globals__
+    g["ROOT"] = tmp_path
+    base = tmp_path / "docs/measurements/flash-next-ssd-impl"
+    sample = base / "opt-49-variance-diagnostic/sample-system.txt"
+    supervisor = base / "opt-45-audit-prerequisites/run-supervisor.txt"
+    monitor = base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt"
+    for p in [sample, supervisor, monitor]:
+        p.parent.mkdir(parents=True, exist_ok=True)
+    sample.write_text(
+        f"import runpy\ndef main(plan):return runpy.run_path({str(supervisor)!r})['main'](plan)\n"
+    )
+    supervisor.write_text(
+        f"import runpy\ndef main(plan):return runpy.run_path({str(monitor)!r})['monitor'](None,plan,None)\n"
+    )
+    monitor.write_text(
+        "def monitor(child,record,parse):return record['before']['vm_bytes'].copy()\n"
+    )
+    original = runpy.run_path
+    before = {"Swapins": 100, "Swapouts": 200}
+    r = {"before": {"vm_bytes": before}}
+    out = api["run_sampler"](r, {"Swapins": 10, "Swapouts": 20})
+    assert out == {"Swapins": 10, "Swapouts": 20} and before == {"Swapins": 100, "Swapouts": 200}
+    assert runpy.run_path is original and monitor.read_text().startswith("def monitor")

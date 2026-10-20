@@ -10,6 +10,7 @@ import runpy
 import sys
 from collections import defaultdict
 from pathlib import Path
+from types import SimpleNamespace
 
 EXPERT_BYTES = 1_248_012
 ROOT = Path(__file__).resolve().parents[1]
@@ -327,7 +328,54 @@ def compress(path):
     path.unlink()
 
 
-def main(plan):
+def cumulative_monitor(monitor, baseline):
+    assert set(baseline) == {"Swapins", "Swapouts"}
+    assert all(type(n) is int and n >= 0 for n in baseline.values())
+    baseline = baseline.copy()
+
+    def guarded(child, record, parse_vm):
+        before = record["before"]["vm_bytes"]
+        saved = {key: before[key] for key in baseline}
+        assert all(baseline[key] <= saved[key] for key in baseline), "future VM baseline"
+        record["live_guard_basis"] = {"scope": "cumulative_campaign", **baseline}
+        before.update(baseline)
+        try:
+            return monitor(child, record, parse_vm)
+        finally:
+            before.update(saved)
+
+    return guarded
+
+
+def run_sampler(plan, baseline=None):
+    sampler_path = (
+        ROOT / "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt"
+    )
+    if baseline is None:
+        return runpy.run_path(str(sampler_path))["main"](plan)
+    # Isolated namespaces keep historical scripts and the global runpy module intact.
+    supervisor_path = (
+        ROOT / "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt"
+    )
+    monitor_path = (
+        ROOT
+        / "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt"
+    )
+    cumulative_monitor(lambda *_: None, baseline)
+
+    def load(path):
+        namespace = runpy.run_path(str(path))
+        selected = Path(path).resolve()
+        if selected == monitor_path.resolve():
+            namespace["monitor"] = cumulative_monitor(namespace["monitor"], baseline)
+        if selected in {sampler_path.resolve(), supervisor_path.resolve()}:
+            namespace["main"].__globals__["runpy"] = SimpleNamespace(run_path=load)
+        return namespace
+
+    return load(sampler_path)["main"](plan)
+
+
+def main(plan, baseline=None):
     data = json.loads(plan.read_text())
     result_path = plan.parent / "dataset-result.json"
     assert not result_path.exists()
@@ -340,13 +388,7 @@ def main(plan):
         assert data and any(item.get("profile_directory") for item in data), (
             "no profile cases selected"
         )
-        sampler = runpy.run_path(
-            str(
-                ROOT
-                / "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt"
-            )
-        )
-        sampler["main"](plan)
+        run_sampler(plan, baseline)
         for item in data:
             if not item.get("profile_directory"):
                 continue
@@ -375,4 +417,13 @@ def main(plan):
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]))
+    if sys.argv[1] == "--control":
+        baseline = json.loads(Path(sys.argv[3]).read_text())["original_vm_baseline"]
+        run_sampler(Path(sys.argv[2]), baseline)
+    else:
+        baseline = (
+            json.loads(Path(sys.argv[2]).read_text())["original_vm_baseline"]
+            if len(sys.argv) == 3
+            else None
+        )
+        main(Path(sys.argv[1]), baseline)
