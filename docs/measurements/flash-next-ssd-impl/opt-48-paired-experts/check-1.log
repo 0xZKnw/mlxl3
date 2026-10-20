@@ -1,0 +1,15 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: called `expect` on `paired.pairs` after checking its variant with `is_some`
+    --> native/src/linear.rs:1521:45
+     |
+1496 |                         if paired.pairs.is_some() {
+     |                         ------------------------- help: try: `if let Some(<item>) = &mut paired.pairs`
+...
+1521 |                                 let pairs = paired.pairs.as_mut().expect("shared plan");
+     |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unnecessary_unwrap
+     = note: `-D clippy::unnecessary-unwrap` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::unnecessary_unwrap)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

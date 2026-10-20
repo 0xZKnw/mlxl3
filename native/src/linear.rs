@@ -1334,21 +1334,22 @@ mod tests {
     fn flash_slot_shapes_match_resident_reference_for_every_route() -> anyhow::Result<()> {
         use super::*;
         let cases = [
-            vec![2u32],
-            vec![0, 2],
-            (0..10).map(|i| i % 3).collect(),
-            (0..20).map(|i| (i * 2 + 1) % 3).collect(),
+            vec![9u32],
+            vec![0, 1],
+            vec![0, 1, 0, 2],
+            (0..10).map(|i| i % 5).collect(),
+            (0..20).map(|i| i % 10).collect(),
         ];
         let mut checked = 0;
         for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
             let words = input / 16 * (output / 16) * 32;
-            let packed = (0..3 * projections * words)
+            let packed = (0..10 * projections * words)
                 .map(|i| (i as u16).wrapping_mul(1777))
                 .collect::<Vec<_>>();
             let bank = Array::from_u16(
                 &packed,
                 &[
-                    3,
+                    10,
                     projections as i32,
                     (input / 16) as i32,
                     (output / 16) as i32,
@@ -1390,7 +1391,7 @@ mod tests {
                             &bank,
                             &suh,
                             &svh,
-                            &ExpertSlots::new(routes, 3)?,
+                            &ExpertSlots::new(routes, 10)?,
                             output as i32,
                             projections as i32,
                             2,
@@ -1444,7 +1445,7 @@ mod tests {
                                 &bank,
                                 &suh,
                                 &svh,
-                                &ExpertSlots::new(&[0], 3)?,
+                                &ExpertSlots::new(&[0], 10)?,
                                 output as i32,
                                 projections as i32,
                                 2,
@@ -1461,7 +1462,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(checked, 32);
+        assert_eq!(checked, 40);
         println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=8 parity=byte_exact");
         Ok(())
     }

@@ -334,3 +334,35 @@ repassée produit le JSON intégral byte-identique. Le moteur release reconstrui
 est bit-identique au binaire mesuré. Cette dernière capture qualité observe
 1,0625Mio de nouveaux Swapouts système, sous la garde qualité256Mio ; elle
 n’est pas une mesure de débit et ne change pas les zéro Swapout des huit bras47R.
+
+
+## Experts partagés48 : correction validée, débit non qualifié, kernel retiré
+
+Un prototype décode une tuile EXL3 une seule fois pour deux occurrences du même
+expert et écrit les deux accumulations aux positions originales. Les24cas
+partagés passent bit à bit, avec8mauvaises cartes et8mauvais slots détectés.
+Le MoE réel froid/chaud/petits caches et erreurs/reprise passe aussi, sans
+nouveau swapout. Kani sur20slots symboliques expire120s et le vrai MLX rencontre
+une ICE ; aucun de ces chemins n’est présenté comme une preuve.
+
+Le crible isolé0/23/47, B1/B2,48échantillons de16forwards, est non concluant :
+dérive jusqu’à106,88%, y compris dans le contrôle B1 au code identique. Les
+médianes B2 sont négatives sur les trois couches ; elles ne qualifient pas une
+régression fiable. Aucun benchmark complet OFF/MTP lancé et aucune répétition
+pour bruit. Processus joint en2,49s, zéro nouveau swapout, sorties exactes et
+aucune lecture d’expert chronométrée.
+
+Le prototype est retiré du moteur. Ses sources exactes et mesures restent
+archivées ; l’oracle NT1 conservé couvre désormais40cas et8mauvais slots.
+130Rust passent/124ignorés,87Python ciblés, format/Clippy/build mlx,chat passent.
+L’oracle40cas repasse sur l’unité finale, joint/Swapouts0. Le code de production
+est inchangé ; le binaire release porte une nouvelle identité Git et n’est pas
+bit-identique au moteur47. Aucun gain global ni15tok/s atteint.
+
+Le premier contrôle négatif48 échangeait seulement l’ordre des deux occurrences
+du même expert, une permutation équivalente ; cet échec du banc est conservé.
+Le contrôle corrigé échange des lignes de groupes différents et est détecté.
+
+[Décision48](measurements/flash-next-ssd-impl/opt-48-paired-experts/closure.json) ·
+[mesures brutes](measurements/flash-next-ssd-impl/opt-48-paired-experts/micro-raw.json) ·
+[identité finale](measurements/flash-next-ssd-impl/opt-48-paired-experts/retained-runtime-info.json).
