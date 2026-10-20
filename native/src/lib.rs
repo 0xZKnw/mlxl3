@@ -12,6 +12,8 @@ pub mod dflash;
 pub(crate) mod embedding;
 #[cfg(any(test, kani))]
 mod flash_cache_profile;
+#[cfg(test)]
+pub(crate) mod flash_profile;
 pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;

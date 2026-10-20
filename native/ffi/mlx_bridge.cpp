@@ -35,6 +35,8 @@ static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_P
               "MLXL3 native requires MLX headers 0.32.2");
 namespace {
 thread_local std::array<char, 2048> last_error{};
+thread_local bool disk_profile_enabled = false;
+thread_local std::vector<mlxl3::DiskTiming> disk_profile;
 template<class F> int protect(F&& f) noexcept {
   last_error[0] = 0;
   try { f(); return 0; }
@@ -258,11 +260,24 @@ int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
     *out = output.release();
   });
 }
+void mlxl3_disk_profile_enable(bool enabled) noexcept {
+  disk_profile_enabled = enabled;
+  disk_profile.clear();
+}
+size_t mlxl3_disk_profile_copy(uint64_t* output, size_t capacity) noexcept {
+  const auto count = disk_profile.size() * 6;
+  if (!output || capacity < count) return count;
+  size_t i = 0;
+  for (const auto& t : disk_profile)
+    for (auto v : {t.job, t.worker, t.start_ns, t.end_ns, t.bytes, t.failed}) output[i++] = v;
+  return count;
+}
 int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
                         void* const* buffers, size_t buffer_count,
                         const size_t* indices, const size_t* starts,
                         const size_t* lengths, size_t segments, size_t workers) noexcept {
   return protect([&] {
+    disk_profile.clear();
     if (!fds || !offsets || !buffers || !indices || !starts || !lengths ||
         !records || records > 512 || !segments || segments > 64 || !workers || workers > 4)
       throw std::invalid_argument("invalid disk reader metadata");
@@ -290,7 +305,7 @@ int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
       }
       reads.push_back(std::move(read));
     }
-    mlxl3::read_disk_records(reads, workers);
+    mlxl3::read_disk_records(reads, workers, disk_profile_enabled ? &disk_profile : nullptr);
   });
 }
 int mlxl3_disk_read_prepare(int fd, uint64_t offset, void* const* buffers, size_t buffer_count,

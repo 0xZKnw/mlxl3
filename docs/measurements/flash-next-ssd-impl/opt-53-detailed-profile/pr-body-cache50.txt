@@ -1,0 +1,38 @@
+Qwen3.8 Flash Next EXL3 2,05bpw fonctionne avec des banques d’experts persistantes, des lectures SSD bornées et l’overlap GPU/I/O sur M5 24Gio. Tous les experts routés sont calculés. MTP1 greedy est disponible ; MTP OFF et LFU restent les défauts. Une réservation interrompue invalide les poids non remplis et permet une reprise contrôlée après erreur.
+
+LES reste expérimental. DFlash2/DSpark sont des prototypes cfg(test), absents du bridge public. L’application installée n’est pas remplacée.
+
+### Performances et réglages
+
+Aucun nouveau gain global confirmé ; objectif15tok/s non atteint. Les prototypes NT2 et partage du décodage EXL3 multiligne sont retirés après résultats négatifs ou non concluants. Le moteur garde NT1.
+
+- `MLXL3_SSD_LAYER_SLOTS` accepte48capacités20..512, avec somme égale au budget courant. Absent par défaut : cache uniforme. Le profil47 réduit de5,02% les chargements logiques de sa calibration indépendante, sans gain global confirmé. Le +15,44% observé sur un seul couple MTP HOLD n’est pas confirmé.
+- `MLXL3_SSD_RESIDENT_GATES=1` conserve les poids FP32 transposés des48routeurs cible :240Mio supplémentaires, défaut0.384cas contrôlent196608logits, probabilités,3840routes/poids bit à bit. Le micro routage48paires passe de19,506 à14,892ms (+30,99% composant) ; ce chiffre ne mesure pas un gain de tokens/s.
+- Le crible release49 s’arrête avant le premier candidat : deux répétitions du même témoin OFF passent de9,391 à7,618tok/s,127tokens en13,523 puis16,670s. IDs/texte identiques, RAM~7,14Go, zéro nouveau Swapout. Baseline instable, aucun test candidat49 ni débit MTP49 qualifié.
+
+### Diagnostic de la variation49D
+
+Trois générations128tokens conservent exactement les routes/logits/états et reproduisent tous les compteurs dans le vrai cache CPU. Le LFU conserve son historique. Entre les deux dernières générations, les misses baissent18401→18212 alors que la durée observée augmente15,663→16,583s. La frontière d’attente des routesGPU sur CPU passe9,469→10,540s ; le fill baisse3,794→3,725s. Ces horloges inclusives se recouvrent et ne s’additionnent pas.
+
+52échantillons AGX/CPU/disque sont valides : Device/Renderer52–64% avant modèle,50–59% après. Une concurrence graphique est plausible ; ces compteurs globaux ne désignent aucune application responsable. La capture49 initiale n’a pas de compteurs contemporains permettant une attribution précise. Diagnostic instrumenté, aucun nouveau TPS release revendiqué. Un processus joint, zéro nouveau Swapout, pic7,431Go.
+
+### Vérification et limites
+
+-130tests Rust release passent/127ignorés ;113Python ciblés passent, dont8cas d’erreur/nettoyage du sampler. `cargo fmt --all -- --check`, Clippy strict et build release `mlx,chat` passent. La capture physique49D passe explicitement en plus des tests normalement ignorés.
+- Qualité49 :17processus attendus passent/joints, zéro nouveau Swapout. Cible16positions/logits/états, verify_pair et commits1/2, tête/session MTP, budgets/politiques drafts, bridge budgets1/2/3/17 et annulation/reprise, trois refus CLI et défaut absent.
+- Kani du validateur de budget réel :48usize+budgetusize arbitraires, sans assume/unwind49,143obligations/4covers ; obligation std::fmt inatteignable inspectée. Parser timeout120s, DP timeout180s ; vrai parcours MLX en ICE intrinsics.rs:243. CrossHair absent. GPU/Metal/concurrence non prouvés.
+- CI8884 inspectée : natifs Linux/macOS et contrats Flash ciblés réussis ; Kani global affiche une étape annulée et régression encore en cours au relevé. Les runs du nouveau commit sont suivis séparément ; aucune CI globale verte revendiquée.
+
+[Synthèse](https://github.com/0xZKnw/mlxl3/blob/cefa2defe223909f50b9382748cb1f1d60cdcc6e/docs/flash-next-ssd-audits-synthesis-2026-10-20.md) · [analyse49D](https://github.com/0xZKnw/mlxl3/blob/cefa2defe223909f50b9382748cb1f1d60cdcc6e/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/analysis.json) · [journal](https://github.com/0xZKnw/mlxl3/blob/cefa2defe223909f50b9382748cb1f1d60cdcc6e/opti.md) · [attribution amont](https://github.com/0xZKnw/mlxl3/blob/cefa2defe223909f50b9382748cb1f1d60cdcc6e/THIRD_PARTY_NOTICES.md).
+
+
+<!-- cache50-audit51 -->
+### Cache augmenté et nouvel audit50/51
+
+Le budget utilisateur passe à12 000 000 000octets de footprint processus. Cache3Gio/53slots par couche comparé à6Gio/107slots, même binaire49,16bras OFF puisMTP/MAIN-HOLD/HCCH,128tokens avec warmup, tous joints et zéro nouveauSwapout ;32réponses exactes. Pic6Gio :10,380Go OFF,11,428Go MTP. Les oracles complets et le vrai bridge valident le budget6Gio.
+
+Les quatre paires MTP indiquent+5,09 à+5,81%, mais le témoinHOLD dérive de5,917% au-delà du seuil5% préenregistré : **non concluant, aucun gain global confirmé**. OFF est aussi non concluant. Aucune relance pour sélectionner du bruit, aucune modification des seuils. Les compteurs système montrent compression/décompression importantes même sansSwapout ; leurs fenêtres incluent chargement, prefill et génération, sans attribution au seul modèle.
+
+Les1717lignes du nouvel audit ont été lues et contre-vérifiées : layout de réduction EXL3 distinct des anciensNT2/MB2, union de cohortes utile surtoutB3/B4, répartition I/O statique et limite de distribution des prompts en calibration. Revue statique seulement, aucun nouveau kernel validé. Voir `opt-50-larger-cache/` et `opt-51-audit-review/review.json` dans les mesures.
+
+À la demande actuelle, priorité à une campagne de profilage détaillée, avec et sansMTP, caches3/6Gio et traces naturelles/synchronisées séparées. Les nouvelles optimisations de résidence et kernels attendent les données ; aucun débit15tok/s annoncé.

@@ -1197,6 +1197,8 @@ fn expert_mapped_layout(
             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
             .reshape(&[-1])?
     };
+    #[cfg(test)]
+    crate::flash_profile::stage("exl3_input_scale_hadamard", &xhat)?;
     let output_tiles = output_dims / 16;
     let local_tiles = rows
         .checked_mul(output_tiles)
@@ -1273,20 +1275,28 @@ fn expert_mapped_layout(
         [simdgroups * 32, 1, 1],
     )?
     .remove(0);
+    #[cfg(test)]
+    crate::flash_profile::stage("exl3_trellis_qmv", &partials)?;
     let yhat = if splits == 1 {
         partials.reshape(&[rows, output_dims])?
     } else {
         partials.sum(0, false)?
     };
+    #[cfg(test)]
+    crate::flash_profile::stage("exl3_split_reduce", &yhat)?;
     if return_raw {
         return Ok(yhat);
     }
-    yhat.astype(Dtype::Float16)?
+    let output = yhat
+        .astype(Dtype::Float16)?
         .reshape(&[rows, output_dims / 128, 128])?
         .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
         .reshape(&[rows, output_dims])?
         .mul(svh.expect("validated output scales"))?
-        .astype(x.dtype())
+        .astype(x.dtype())?;
+    #[cfg(test)]
+    crate::flash_profile::stage("exl3_output_hadamard_scale", &output)?;
+    Ok(output)
 }
 
 fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {

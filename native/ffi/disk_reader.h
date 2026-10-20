@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <dispatch/dispatch.h>
@@ -20,6 +21,9 @@ struct DiskRead {
   uint64_t offset;
   std::vector<iovec> destinations;
   uint64_t bytes_read = 0;
+};
+struct DiskTiming {
+  uint64_t job = 0, worker = 0, start_ns = 0, end_ns = 0, bytes = 0, failed = 0;
 };
 
 inline void copy_disk_record(const uint8_t* source, size_t size, const std::vector<iovec>& destinations) {
@@ -106,21 +110,33 @@ inline void validate_disk_reads(const std::vector<DiskRead>& reads) {
 }
 
 // Destinations must remain owned until this synchronous call returns, including on error.
-inline void read_disk_records(std::vector<DiskRead>& reads, size_t workers) {
+inline void read_disk_records(std::vector<DiskRead>& reads, size_t workers,
+                              std::vector<DiskTiming>* timings = nullptr) {
   if (!workers || workers > 4) throw std::invalid_argument("invalid disk worker count");
   validate_disk_reads(reads);
   workers = std::min(workers, reads.size());
+  const auto epoch = timings ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+  if (timings) timings->assign(reads.size(), {});
   std::vector<std::exception_ptr> errors(reads.size());
   struct Work {
     std::vector<DiskRead>& reads;
     std::vector<std::exception_ptr>& errors;
     size_t workers;
-  } context{reads, errors, workers};
+    std::vector<DiskTiming>* timings;
+    std::chrono::steady_clock::time_point epoch;
+  } context{reads, errors, workers, timings, epoch};
   auto apply = [](void* opaque, size_t worker) noexcept {
     auto& work = *static_cast<Work*>(opaque);
     for (size_t i = worker; i < work.reads.size(); i += work.workers) {
+      auto ns = [&] { return uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::steady_clock::now() - work.epoch).count()); };
+      if (work.timings) (*work.timings)[i] = {i, worker, ns(), 0, 0, 0};
       try { read_disk_record(work.reads[i]); }
       catch (...) { work.errors[i] = std::current_exception(); }
+      if (work.timings) {
+        auto& t = (*work.timings)[i];
+        t.end_ns = ns(); t.bytes = work.reads[i].bytes_read; t.failed = bool(work.errors[i]);
+      }
     }
   };
   if (workers == 1) apply(&context, 0);

@@ -59,7 +59,15 @@ int main() {
       std::vector<mlxl3::DiskRead> reads;
       for (size_t i = 0; i < count; ++i)
         reads.push_back({fd, i * 32, {{banks[i].data() + 2, 9}, {banks[i].data() + 17, 7}}});
-      mlxl3::read_disk_records(reads, workers);
+      std::vector<mlxl3::DiskTiming> timings;
+      mlxl3::read_disk_records(reads, workers, &timings);
+      assert(timings.size() == count);
+      for (size_t i = 0; i < count; ++i) {
+        const auto& t = timings[i];
+        assert(t.job == i && t.worker == i % std::min(workers, count));
+        assert(t.end_ns >= t.start_ns && t.bytes == 16 && !t.failed);
+        if (i >= workers) assert(t.start_ns >= timings[i - workers].end_ns);
+      }
       for (const auto& read : reads) assert(read.bytes_read == 16);
       for (size_t i = 0; i < count; ++i)
         for (size_t j = 0; j < 32; ++j) {
@@ -101,9 +109,15 @@ int main() {
                          i == 0 && truncated ? source.size() - 1 : i * 32,
                          {{bank.data() + i * 2, 2}}});
       bool failed = false;
-      try { mlxl3::read_disk_records(reads, workers); }
+      std::vector<mlxl3::DiskTiming> timings;
+      try { mlxl3::read_disk_records(reads, workers, &timings); }
       catch (const std::runtime_error&) { failed = true; }
-      assert(failed);
+      assert(failed && timings.size() == reads.size());
+      for (size_t i = 0; i < timings.size(); ++i) {
+        assert(timings[i].job == i && timings[i].worker == i % workers);
+        assert(timings[i].end_ns >= timings[i].start_ns);
+        assert(timings[i].bytes == reads[i].bytes_read && timings[i].failed == (i == 0));
+      }
       assert(reads[0].bytes_read == (truncated ? 1 : 0));
       for (size_t i = 1; i < 8; ++i) {
         assert(reads[i].bytes_read == 2);

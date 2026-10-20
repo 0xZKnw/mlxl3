@@ -230,6 +230,8 @@ impl SsdMoe {
         if jobs.is_empty() {
             return Ok(());
         }
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("fill_prepare_and_read");
         let sources = jobs
             .iter()
             .map(|&(expert, _)| {
@@ -251,12 +253,25 @@ impl SsdMoe {
             .checked_mul(jobs.len() as u64)
             .and_then(|n| self.read_bytes.checked_add(n))
             .context("SSD byte counter exhausted")?;
-        Array::read_records(&sources, &mut self.banks, &views, self.readers)?;
+        #[cfg(test)]
+        let read_profile = crate::flash_profile::span("disk_read_batch");
+        let result = Array::read_records(&sources, &mut self.banks, &views, self.readers);
+        #[cfg(test)]
+        if let Some(profile) = &read_profile {
+            profile.data(serde_json::json!({"jobs":jobs,"workers":self.readers,"timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,"ok":result.is_ok()}));
+        }
+        result?;
         self.read_bytes = bytes;
         Ok(())
     }
 
     fn calculate(&self, x: &Array, slots: &[u32]) -> Result<Array> {
+        #[cfg(test)]
+        let profile = crate::flash_profile::span("expert_calculate_build");
+        #[cfg(test)]
+        if let Some(profile) = &profile {
+            profile.data(serde_json::json!({"rows":slots.len()}));
+        }
         let n = i32::try_from(slots.len())?;
         ensure!(n > 0 && x.shape() == [n, H], "invalid expert slot mapping");
         let slots = linear::ExpertSlots::new(slots, self.banks[0].shape()[0])?;
@@ -279,11 +294,15 @@ impl SsdMoe {
             Codebook::Mul1,
         )?
         .reshape(&[n, 2, I])?;
+        #[cfg(test)]
+        crate::flash_profile::stage("expert_gate_up_completion", &gu)?;
         let activated = gu
             .slice(1, 0, 1)?
             .reshape(&[n, I])?
             .swiglu(&gu.slice(1, 1, 2)?.reshape(&[n, I])?)?;
-        linear::expert_slots(
+        #[cfg(test)]
+        crate::flash_profile::stage("expert_swiglu_completion", &activated)?;
+        let down = linear::expert_slots(
             &activated,
             &self.banks[1],
             &self.banks[4].take(indices, 0)?.reshape(&[n, I])?,
@@ -293,7 +312,10 @@ impl SsdMoe {
             1,
             2,
             Codebook::Mul1,
-        )
+        )?;
+        #[cfg(test)]
+        crate::flash_profile::stage("expert_down_completion", &down)?;
+        Ok(down)
     }
 
     fn gate_logits(&self, x: &Array) -> Result<Array> {
@@ -396,6 +418,8 @@ impl SsdMoe {
                 && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
             "streamed MoE expects one or two route rows"
         );
+        #[cfg(test)]
+        let profile = crate::flash_profile::span("moe_forward_rows");
         let rows = x.shape()[0];
         if self.cache.borrow().capacity() < rows as usize * 10 {
             let cohort = crate::flash_support::expert_cohort_rows(self.cache.borrow().capacity())
@@ -418,12 +442,21 @@ impl SsdMoe {
             self.schedule_events.clear();
             self.prediction_ready_at_demand = None;
         }
+        #[cfg(test)]
+        let routing = crate::flash_profile::span("router_build_and_wait_inclusive");
         let pairs = (0..rows)
             .map(|row| self.route(&x.slice(0, row, row + 1)?))
             .collect::<Result<Vec<_>>>()?;
         let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
         let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
+        #[cfg(test)]
+        let readback = crate::flash_profile::span("route_readback_inclusive");
         let ids = selected.to_u32()?;
+        #[cfg(test)]
+        {
+            drop(readback);
+            drop(routing);
+        }
         #[cfg(test)]
         {
             self.profile_seconds[0] += route_start.elapsed().as_secs_f64();
@@ -441,6 +474,8 @@ impl SsdMoe {
             .take(&Array::from_u32(&row_indices, &[rows * 10])?, 0)?
             .astype(Dtype::Float16)?;
         if let Some(last) = self.last.take() {
+            #[cfg(test)]
+            let _profile = crate::flash_profile::span("previous_bank_users_wait");
             last.eval()?;
         }
         #[cfg(test)]
@@ -480,6 +515,10 @@ impl SsdMoe {
             } else {
                 cold.push((i, slot as u32));
             }
+        }
+        #[cfg(test)]
+        if let Some(profile) = &profile {
+            profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hot.len(),"cold_rows":cold.len(),"capacity":self.cache.borrow().capacity()}));
         }
         let hot_output = if self.overlap && !hot.is_empty() && !cold.is_empty() {
             let value = self.calculate(
@@ -586,25 +625,34 @@ impl SsdMoe {
             .mul(&weights.reshape(&[rows * 10, 1])?)?
             .reshape(&[rows, 10, H])?
             .sum(1, false)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("routed_reduction_completion", &routed)?;
         let mut shared_rows = Vec::new();
         for row in 0..rows {
             let x = x.slice(0, row, row + 1)?;
-            let shared = self
-                .shared_down
-                .forward(
-                    &self
-                        .shared_gate
-                        .forward(&x)?
-                        .astype(Dtype::Float16)?
-                        .swiglu(&self.shared_up.forward(&x)?.astype(Dtype::Float16)?)?,
-                )?
-                .astype(x.dtype())?;
-            shared_rows.push(shared.mul(&self.multiplier.forward(&x)?.sigmoid()?)?);
+            let gate = self.shared_gate.forward(&x)?.astype(Dtype::Float16)?;
+            #[cfg(test)]
+            crate::flash_profile::stage("shared_gate_projection", &gate)?;
+            let up = self.shared_up.forward(&x)?.astype(Dtype::Float16)?;
+            #[cfg(test)]
+            crate::flash_profile::stage("shared_up_projection", &up)?;
+            let activated = gate.swiglu(&up)?;
+            #[cfg(test)]
+            crate::flash_profile::stage("shared_swiglu", &activated)?;
+            let shared = self.shared_down.forward(&activated)?.astype(x.dtype())?;
+            #[cfg(test)]
+            crate::flash_profile::stage("shared_down_projection", &shared)?;
+            let shared = shared.mul(&self.multiplier.forward(&x)?.sigmoid()?)?;
+            #[cfg(test)]
+            crate::flash_profile::stage("shared_expert_completion", &shared)?;
+            shared_rows.push(shared);
         }
         let output = routed.add(&Array::concatenate(
             &shared_rows.iter().collect::<Vec<_>>(),
             0,
         )?)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("moe_add_completion", &output)?;
         self.last = Some(output.try_clone()?);
         let predicted_ids = prediction
             .map(|p| -> Result<Vec<u32>> {

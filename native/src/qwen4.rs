@@ -183,7 +183,10 @@ impl Gdn {
         macro_rules! stage {
             ($name:expr, $value:expr) => {
                 #[cfg(test)]
-                self.stages.push(($name.into(), $value.try_clone()?));
+                {
+                    crate::flash_profile::stage($name, &$value)?;
+                    self.stages.push(($name.into(), $value.try_clone()?));
+                }
             };
         }
         let half_input = x.astype(Dtype::Float16)?;
@@ -415,7 +418,10 @@ impl Qsa {
         macro_rules! stage {
             ($name:expr, $value:expr) => {
                 #[cfg(test)]
-                self.stages.push(($name.into(), $value.try_clone()?));
+                {
+                    crate::flash_profile::stage($name, &$value)?;
+                    self.stages.push(($name.into(), $value.try_clone()?));
+                }
             };
         }
         let offset = self.offset;
@@ -480,7 +486,10 @@ impl Qsa {
         macro_rules! stage {
             ($name:expr, $value:expr) => {
                 #[cfg(test)]
-                self.stages.push(($name.into(), $value.try_clone()?));
+                {
+                    crate::flash_profile::stage($name, &$value)?;
+                    self.stages.push(($name.into(), $value.try_clone()?));
+                }
             };
         }
         let qk = self
@@ -714,7 +723,10 @@ impl Ple {
         macro_rules! stage {
             ($name:expr, $value:expr) => {
                 #[cfg(test)]
-                self.stages.push(($name.into(), $value.try_clone()?));
+                {
+                    crate::flash_profile::stage($name, &$value)?;
+                    self.stages.push(($name.into(), $value.try_clone()?));
+                }
             };
         }
         let embedding = self.rows.forward(token)?;
@@ -837,16 +849,28 @@ impl Layer {
         let output = self.moe.forward_lookahead(&mixed, next, depth)?;
         #[cfg(test)]
         self.stages.push(("moe".into(), output.try_clone()?));
-        Hc::write(&streams, &output, &gate)
+        let written = Hc::write(&streams, &output, &gate)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("mlp_hc_write", &written)?;
+        Ok(written)
     }
     fn prepare(&mut self, streams: &Array, token: u32) -> Result<(Array, Array, Array)> {
+        #[cfg(test)]
+        let _prepare_profile = crate::flash_profile::span("prepare");
         #[cfg(test)]
         self.stages.clear();
         let streams = match &mut self.ple {
             Some(ple) => ple.forward(streams, token)?,
             None => streams.try_clone()?,
         };
+        #[cfg(test)]
+        crate::flash_profile::stage("ple_output", &streams)?;
         let (mixed, gate) = self.attn_hc.read(&streams)?;
+        #[cfg(test)]
+        {
+            crate::flash_profile::stage("attn_hc_read", &mixed)?;
+            crate::flash_profile::stage("attn_hc_gate", gate.as_ref().context("missing gate")?)?;
+        }
         #[cfg(test)]
         {
             self.stages.push(("attn_mixed".into(), mixed.try_clone()?));
@@ -859,6 +883,8 @@ impl Layer {
             Attention::Gdn(gdn) => gdn.forward(&mixed)?,
             Attention::Qsa(qsa) => qsa.forward(&mixed)?,
         };
+        #[cfg(test)]
+        crate::flash_profile::stage("attention_out_projection", &branch)?;
         let streams = Hc::write(
             &streams,
             &branch,
@@ -866,7 +892,14 @@ impl Layer {
         )?;
         #[cfg(test)]
         self.stages.push(("attention".into(), branch.try_clone()?));
+        #[cfg(test)]
+        crate::flash_profile::stage("attn_hc_write", &streams)?;
         let (mixed, gate) = self.mlp_hc.read(&streams)?;
+        #[cfg(test)]
+        {
+            crate::flash_profile::stage("mlp_hc_read", &mixed)?;
+            crate::flash_profile::stage("mlp_hc_gate", gate.as_ref().context("missing gate")?)?;
+        }
         #[cfg(test)]
         {
             self.stages.push(("mlp_mixed".into(), mixed.try_clone()?));
@@ -916,19 +949,23 @@ impl Layer {
         next: Option<&mut SsdMoe>,
         depth: usize,
     ) -> Result<([Array; 2], LayerState)> {
+        #[cfg(test)]
+        let _pair_profile = crate::flash_profile::span("forward_pair");
         let a = self.prepare(&streams[0], tokens[0])?;
         let first = self.snapshot()?;
         let b = self.prepare(&streams[1], tokens[1])?;
         let output =
             self.moe
                 .forward_lookahead(&Array::concatenate(&[&a.1, &b.1], 0)?, next, depth)?;
-        Ok((
-            [
-                Hc::write(&a.0, &output.slice(0, 0, 1)?, &a.2)?,
-                Hc::write(&b.0, &output.slice(0, 1, 2)?, &b.2)?,
-            ],
-            first,
-        ))
+        let result = [
+            Hc::write(&a.0, &output.slice(0, 0, 1)?, &a.2)?,
+            Hc::write(&b.0, &output.slice(0, 1, 2)?, &b.2)?,
+        ];
+        #[cfg(test)]
+        for value in &result {
+            crate::flash_profile::stage("mlp_hc_write", value)?;
+        }
+        Ok((result, first))
     }
     fn reset(&mut self) {
         match &mut self.attention {
@@ -1172,7 +1209,11 @@ impl FlashNext {
         ensure!(self.offset < self.context, "Flash context exhausted");
         let mut trace = Vec::new();
         let mut streams = self.streams(token)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("embedding_streams", &streams)?;
         for i in 0..self.layers.len() {
+            #[cfg(test)]
+            let _layer_profile = crate::flash_profile::span(&format!("layer_{i}"));
             let (current, rest) = self.layers.split_at_mut(i + 1);
             let layer = &mut current[i];
             let next = (self.lookahead_depth > 0)
@@ -1202,12 +1243,20 @@ impl FlashNext {
             .reshape(&[1, WIDTH])
     }
     fn logits(&self, streams: &Array) -> Result<Array> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("logits");
         let (mixed, _) = self.mixer.read(streams)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("final_hc_read", &mixed)?;
         let logits = self.head.forward(&mixed.astype(Dtype::Float16)?)?;
+        #[cfg(test)]
+        let _eval = crate::flash_profile::span("lm_head_eval_inclusive");
         logits.eval()?;
         Ok(logits)
     }
     fn drain(&mut self) -> Result<()> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("drain");
         for layer in &mut self.layers {
             layer.moe.drain()?;
             match &layer.attention {
@@ -1226,6 +1275,8 @@ impl FlashNext {
         Ok(())
     }
     pub fn verify_pair(&mut self, tokens: [u32; 2]) -> Result<(Array, Array)> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("verify_pair");
         ensure!(
             self.verification.is_none(),
             "uncommitted Flash verification"
@@ -1238,6 +1289,8 @@ impl FlashNext {
         let mut streams = [self.streams(tokens[0])?, self.streams(tokens[1])?];
         let mut states = Vec::with_capacity(self.layers.len());
         for i in 0..self.layers.len() {
+            #[cfg(test)]
+            let _layer_profile = crate::flash_profile::span(&format!("layer_{i}"));
             let (current, rest) = self.layers.split_at_mut(i + 1);
             let next = (self.lookahead_depth > 0)
                 .then(|| rest.first_mut().map(|l| &mut l.moe))
@@ -1261,6 +1314,8 @@ impl FlashNext {
         Ok((logits, hidden))
     }
     pub fn commit_pair(&mut self, retained: i32) -> Result<()> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("commit_pair");
         ensure!(
             crate::contracts::gdn_tape_prefix(2, retained).is_some(),
             "invalid Flash verification commit"
@@ -1500,6 +1555,8 @@ impl FlashMtpSession {
             .context("Flash MTP needs a prefilled target")?
             .try_clone()?;
         if width == 0 {
+            #[cfg(test)]
+            let _profile = crate::flash_profile::span("mtp_tail_fallback");
             head.extend_cache(target, &hidden, anchor)?;
             return target
                 .forward(anchor)?
@@ -1510,12 +1567,16 @@ impl FlashMtpSession {
         }
         #[cfg(test)]
         let head_start = std::time::Instant::now();
+        #[cfg(test)]
+        let head_profile = crate::flash_profile::span("mtp_head_proposal");
         let proposal = head
             .forward(target, &hidden, anchor)?
             .chat_greedy_ids()?
             .first()
             .copied()
             .context("missing Flash MTP proposal")?;
+        #[cfg(test)]
+        drop(head_profile);
         #[cfg(test)]
         {
             self.profile_seconds[0] += head_start.elapsed().as_secs_f64();
@@ -1535,6 +1596,8 @@ impl FlashMtpSession {
         let accepted = acceptance.accepted_draft_tokens;
         target.commit_pair(1 + accepted as i32)?;
         if accepted > 0 {
+            #[cfg(test)]
+            let _profile = crate::flash_profile::span("mtp_head_cache_extend");
             head.extend_cache(target, &hidden.slice(0, 0, 1)?, proposal)?;
         }
         #[cfg(test)]
@@ -1720,7 +1783,7 @@ mod tests {
             }
         }
     }
-    fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
+    pub(super) fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
         let mut bytes = vec![qsa.offset.to_le_bytes().to_vec()];
         for value in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks] {
             let mut item = vec![u8::from(value.is_some())];
@@ -3491,3 +3554,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(all(test, feature = "chat"))]
+mod profile;

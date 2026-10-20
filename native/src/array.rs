@@ -65,6 +65,10 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    #[cfg(test)]
+    fn mlxl3_disk_profile_enable(enabled: bool);
+    #[cfg(test)]
+    fn mlxl3_disk_profile_copy(output: *mut u64, capacity: usize) -> usize;
     fn mlxl3_start_capture(path: *const c_char) -> i32;
     fn mlxl3_stop_capture() -> i32;
     fn mlxl3_set_cache_limit(bytes: u64) -> i32;
@@ -223,6 +227,21 @@ unsafe extern "C" {
         threadgroup: *const i32,
         outputs: *mut *mut c_void,
     ) -> i32;
+}
+
+#[cfg(test)]
+pub(crate) fn disk_profile_enable(enabled: bool) {
+    unsafe { mlxl3_disk_profile_enable(enabled) };
+}
+#[cfg(test)]
+pub(crate) fn disk_profile() -> Result<Vec<[u64; 6]>> {
+    let mut values = [0u64; 512 * 6];
+    let count = unsafe { mlxl3_disk_profile_copy(values.as_mut_ptr(), values.len()) };
+    ensure!(
+        count <= values.len() && count.is_multiple_of(6),
+        "invalid disk profile length"
+    );
+    Ok(values[..count].as_chunks::<6>().0.to_vec())
 }
 
 fn checked(status: i32) -> Result<()> {

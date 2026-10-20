@@ -1,0 +1,114 @@
+[
+  {
+    "name": "clippy-v3",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 3.139212750014849
+  },
+  {
+    "name": "rust-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--features",
+      "chat"
+    ],
+    "exit_code": 0,
+    "seconds": 10.153685124998447
+  },
+  {
+    "name": "mlx-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--lib",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 38.96931308400235
+  },
+  {
+    "name": "release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 30.333937874995172
+  },
+  {
+    "name": "disk-asan-build",
+    "command": [
+      "c++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader.cpp",
+      "-o",
+      "/Users/justin/Documents/mix-stq1_0/build/flash53-disk-asan"
+    ],
+    "exit_code": 0,
+    "seconds": 1.0001675419916864
+  },
+  {
+    "name": "disk-asan",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash53-disk-asan"
+    ],
+    "exit_code": 0,
+    "seconds": 0.401186333008809
+  },
+  {
+    "name": "disk-tsan-build",
+    "command": [
+      "c++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=thread",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader.cpp",
+      "-o",
+      "/Users/justin/Documents/mix-stq1_0/build/flash53-disk-tsan"
+    ],
+    "exit_code": 0,
+    "seconds": 0.5066497920197435
+  },
+  {
+    "name": "disk-tsan",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash53-disk-tsan"
+    ],
+    "exit_code": 0,
+    "seconds": 2.293123209004989
+  }
+]
