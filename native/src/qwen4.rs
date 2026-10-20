@@ -2060,6 +2060,214 @@ mod tests {
         flash_cache_calibration_captures_prefill_decode_and_identical_states().unwrap();
     }
 
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical Apple GPU; experiment49D repeated MAIN cache/I/O diagnostic, not throughput"]
+    fn flash_repeated_main_exposes_cache_and_timing_variance() -> Result<()> {
+        use crate::flash_support::{EXPERT_BYTES, ExpertCache};
+        use std::time::{Instant, SystemTime, UNIX_EPOCH};
+        fn counts(target: &FlashNext) -> Vec<[u64; 3]> {
+            target
+                .layers
+                .iter()
+                .map(|l| [l.moe.hits, l.moe.misses, l.moe.read_bytes])
+                .collect()
+        }
+        fn clocks(target: &FlashNext) -> [f64; 3] {
+            let mut out = [0.; 3];
+            for layer in &target.layers {
+                out[0] += layer.moe.profile_seconds[0];
+                out[1] += layer.moe.profile_seconds[1];
+                out[2] += layer.moe.import_seconds;
+            }
+            out
+        }
+        fn difference(a: &[[u64; 3]], b: &[[u64; 3]]) -> Result<Vec<[u64; 3]>> {
+            a.iter()
+                .zip(b)
+                .map(|(a, b)| {
+                    Ok([
+                        a[0].checked_sub(b[0]).context("backward hit count")?,
+                        a[1].checked_sub(b[1]).context("backward miss count")?,
+                        a[2].checked_sub(b[2]).context("backward byte count")?,
+                    ])
+                })
+                .collect()
+        }
+        fn routes(target: &FlashNext) -> Result<Vec<Vec<u32>>> {
+            target
+                .layers
+                .iter()
+                .map(|layer| {
+                    let ids = layer.moe.route_ids.clone();
+                    ensure!(ids.len() == 10 && ids.iter().all(|&i| i < 512));
+                    let unique = ids
+                        .iter()
+                        .copied()
+                        .collect::<std::collections::BTreeSet<_>>();
+                    ensure!(unique.len() == 10);
+                    Ok(ids)
+                })
+                .collect()
+        }
+        ensure!(std::env::var("MLXL3_SSD_CACHE_GIB")? == "3");
+        ensure!(std::env::var("MLXL3_SSD_RESIDENT_GATES")? == "0");
+        ensure!(
+            std::env::var("MLXL3_SSD_CACHE_POLICY")? == "auto"
+                && std::env::var_os("MLXL3_SSD_LAYER_SLOTS").is_none()
+        );
+        let output = std::env::var("MLXL3_FLASH_VARIANCE_TRACE")?;
+        serde_json::to_writer(
+            File::create_new(&output)?,
+            &serde_json::json!({"status":"incomplete"}),
+        )?;
+        let reference: Value = serde_json::from_reader(File::open(std::env::var(
+            "MLXL3_FLASH_VARIANCE_REFERENCE",
+        )?)?)?;
+        ensure!(
+            reference["status"] == "validated"
+                && reference["mode"] == "baseline"
+                && reference["tokens"] == 128
+                && reference["repeats"] == 2
+                && reference["expert_cache_gib"] == 3
+        );
+        let prompt = reference["prompts"]["MAIN"]
+            .as_str()
+            .context("missing MAIN prompt")?;
+        let path = std::env::var("MLXL3_FLASH_MODEL")?;
+        let c = crate::checkpoint::inspect(Path::new(&path))?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(Path::new(&path))?;
+        let prompt_ids = tokenizer.encode(&tokenizer.render(&[crate::tokenizer::Message {
+            role: "user".into(),
+            content: prompt.into(),
+        }])?)?;
+        ensure!(!prompt_ids.is_empty());
+        let mut target = FlashNext::from_checkpoint(&c)?;
+        ensure!(
+            target.lookahead_depth == 0
+                && target.layers.iter().all(|l| l.moe.slots_for_test() == 53)
+        );
+        let mut phases = Vec::new();
+        let mut first_state = None;
+        let mut first_logits = None;
+        let mut all_routes = Vec::new();
+        let mut all_counts = Vec::new();
+        for phase in 0..3 {
+            target.reset();
+            let before = counts(&target);
+            let mut trace = Vec::new();
+            let mut logits = None;
+            for &token in &prompt_ids {
+                logits = Some(target.forward(token)?);
+                trace.push(routes(&target)?);
+            }
+            let pref = counts(&target);
+            let before_clocks = clocks(&target);
+            let mut anchor = logits.context("empty prefill")?.chat_greedy_ids()?[0];
+            let mut tokens = vec![anchor];
+            let mut steps = Vec::new();
+            let start = Instant::now();
+            for step in 1..128 {
+                let c0 = counts(&target);
+                let t0 = clocks(&target);
+                let epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
+                let token_start = Instant::now();
+                anchor = target.forward(anchor)?.chat_greedy_ids()?[0];
+                let seconds = token_start.elapsed().as_secs_f64();
+                ensure!(seconds.is_finite() && seconds > 0.);
+                let c1 = counts(&target);
+                let t1 = clocks(&target);
+                let delta = difference(&c1, &c0)?;
+                let sum: [u64; 3] = std::array::from_fn(|i| delta.iter().map(|d| d[i]).sum());
+                steps.push(serde_json::json!({"step":step,"epoch":epoch,"seconds":seconds,"hits_misses_bytes":sum,"route_fill_import_seconds":std::array::from_fn::<_,3,_>(|i| t1[i]-t0[i])}));
+                tokens.push(anchor);
+                trace.push(routes(&target)?);
+            }
+            target.drain()?;
+            let seconds = start.elapsed().as_secs_f64();
+            ensure!(tokens.len() == 128 && target.offset() as usize == prompt_ids.len() + 127);
+            let hash = tokens
+                .iter()
+                .flat_map(|t| t.to_le_bytes())
+                .fold(0xcbf29ce484222325u64, |h, b| {
+                    (h ^ u64::from(b)).wrapping_mul(0x100000001b3)
+                });
+            let text = tokenizer.decode(&tokens)?;
+            let expected = if phase == 0 {
+                &reference["warmup"][0]
+            } else {
+                &reference["runs"][phase - 1]
+            };
+            ensure!(
+                !text.is_empty()
+                    && expected["text"] == text
+                    && expected["token_hash"] == format!("{hash:016x}")
+            );
+            let logits = target.logits(target.last_hidden.as_ref().context("missing hidden")?)?;
+            ensure!(logits.shape() == [1, 248320]);
+            let values = logits.to_f32()?;
+            ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
+            let bytes = logits.to_bytes()?;
+            let state = state_bytes(&target)?;
+            ensure!(state.len() > 100 && state.iter().all(|v| !v.is_empty()));
+            if let (Some(old_state), Some(old_logits)) = (&first_state, &first_logits) {
+                ensure!(
+                    state == *old_state && bytes == *old_logits,
+                    "repeated cache changed states/logits"
+                );
+            } else {
+                first_state = Some(state);
+                first_logits = Some(bytes);
+            }
+            let after = counts(&target);
+            let t1 = clocks(&target);
+            let decode = difference(&after, &pref)?;
+            let prefill = difference(&pref, &before)?;
+            phases.push(serde_json::json!({"phase":phase,"tokens":tokens,"token_hash":format!("{hash:016x}"),"text":text,"prefill_counts":prefill,"decode_counts":decode,"phase_wall_seconds":seconds,"route_fill_import_seconds":std::array::from_fn::<_,3,_>(|i|t1[i]-before_clocks[i]),"steps":steps,"memory":crate::array::memory_stats(false)?}));
+            all_counts.push([prefill, decode]);
+            all_routes.push(trace);
+        }
+        ensure!(
+            all_routes[0] == all_routes[1] && all_routes[1] == all_routes[2],
+            "same tokens changed route trace"
+        );
+        let mut replay = (0..48)
+            .map(|_| ExpertCache::new(53))
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        for phase in 0..3 {
+            let mut expected = [vec![[0u64; 3]; 48], vec![[0u64; 3]; 48]];
+            ensure!(all_routes[phase].len() == prompt_ids.len() + 127);
+            for (step, layers) in all_routes[phase].iter().enumerate() {
+                ensure!(layers.len() == 48);
+                for (layer, ids) in layers.iter().enumerate() {
+                    let routes = replay[layer].reserve(ids)?;
+                    let misses = routes.iter().filter(|(_, hit)| !hit).count() as u64;
+                    let stats = &mut expected[usize::from(step >= prompt_ids.len())][layer];
+                    stats[0] += 10 - misses;
+                    stats[1] += misses;
+                    stats[2] += misses * EXPERT_BYTES;
+                }
+            }
+            ensure!(expected == all_counts[phase], "CPU cache replay differs");
+        }
+        std::fs::write(
+            output,
+            serde_json::to_vec_pretty(
+                &serde_json::json!({"status":"complete_diagnostic_not_release_throughput","prompt_ids":prompt_ids,"phases":phases,"routes":all_routes,"cpu_cache_replay_exact":true,"logit_count":248320,"states_logits_byte_exact":true,"limits":"inclusive route/fill/import clocks overlap; original release run lacks contemporaneous I/O counters"}),
+            )?,
+        )?;
+        println!(
+            "FLASH_VARIANCE_TRACE phases=3 tokens=128 routes=identical cpu_replay=exact states_logits=byte_exact status=complete"
+        );
+        Ok(())
+    }
+
+    #[cfg(all(kani, feature = "chat"))]
+    #[kani::proof]
+    fn actual_repeated_flash_profile_preserves_routes_and_states() {
+        flash_repeated_main_exposes_cache_and_timing_variance().unwrap();
+    }
+
     #[test]
     #[ignore = "physical Apple GPU; isolated natural decode diagnostic, not release throughput"]
     fn flash_light_profile_preserves_natural_decode() -> Result<()> {

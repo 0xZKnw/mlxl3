@@ -400,3 +400,43 @@ sans changer rétroactivement les critères49.
 [micro](measurements/flash-next-ssd-impl/opt-49-resident-gates/micro-result-v2.json) ·
 [qualité](measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-summary.json) ·
 [témoin invalide](measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/speed-result-0.json).
+
+## Diagnostic49D : la variation se concentre à la frontière des routes
+
+Les9,3911 et7,6184tok/s viennent de deux répétitions du même témoin release,
+sans MTP ni gates résidentes. Les127tokens prennent13,5234 puis16,6702s,
+soit18,88% de débit en moins et23,27% de temps en plus. La sortie reste exacte,
+la RAM autour de7,14Go et les nouveaux Swapouts à zéro. Les compteurs par
+génération manquent dans cette capture ; sa cause précise reste inconnue.
+
+Une capture native distincte de trois générations identiques observe le cache,
+les attentes existantes et l’activité système, sans ajouter d’évaluationGPU dans
+le chronomètre. Elle conserve les limites : diagnostic instrumenté, pas un
+nouveau benchmark release. Les routes,248320logits finis et les états complets
+restent bit identiques ; le vrai cache CPU reproduit tous les compteurs.
+
+| Decode | Misses experts | Durée observée | Frontière routes, inclusive | Fill, inclusif |
+| --- | ---: | ---: | ---: | ---: |
+| Phase0 |18315|15,351s|9,233s|3,699s|
+| Phase1 |18401|15,663s|9,469s|3,794s|
+| Phase2 |18212|16,583s|10,540s|3,725s|
+
+Le cache LFU conserve bien son historique entre générations. Il fait varier les
+misses à routes identiques, mais la dernière phase ralentit avec moins de misses.
+La frontière qui attend les routesGPU sur CPU augmente de1,071s ; le fill baisse
+de0,069s. Ces horloges incluent du travail en attente et se recouvrent : elles
+ne mesurent pas séparément le routeur, les kernels experts et le SSD.
+
+Les52échantillons système sont valides. Le GPU AGX affiche52–64% Device/Renderer
+avant modèle,50–59% après. Pendant les trois decode, Renderer médian34/36,5/41%.
+Une concurrence graphique est plausible ; aucun compteur ne désigne une app
+responsable, ne mesure la fréquenceGPU ou ne prouve rétrospectivement la cause49.
+Un processus85,15s joint, zéro nouveau Swapout, pic7,431Go,66identités inchangées.
+
+130tests Rust passent/127ignorés et113Python ciblés passent, dont8cas d’erreur et
+nettoyage du sampler ; fmt/Clippy strict/buildmlxchat passent. Le vrai KaniMLX
+rencontre une ICE ; CrossHair est absent. Aucun gain global supplémentaire établi.
+
+[Analyse49D](measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/analysis.json) ·
+[trace](measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/trace.json) ·
+[observations système](measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/system-samples.json).

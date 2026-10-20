@@ -1,0 +1,112 @@
+"""Concurrent system observations for49D; not exclusive model GPU/I/O timings."""
+
+import json
+import math
+import re
+import runpy
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+
+def snapshot(read=subprocess.check_output):
+    result = {"epoch": time.time(), "errors": []}
+    commands = {
+        "cpu": ["ps", "-axo", "pid=,%cpu=,rss=,comm=", "-r"],
+        "disk": ["iostat", "-Id", "disk0"],
+        "gpu": ["ioreg", "-r", "-c", "AGXAccelerator", "-l", "-d", "1", "-w", "0"],
+    }
+    for kind, command in commands.items():
+        try:
+            text = read(command, text=True, timeout=5)
+            if kind == "cpu":
+                rows = [line.split(None, 3) for line in text.splitlines()[:10]]
+                result[kind] = [
+                    {
+                        "pid": int(pid),
+                        "cpu_percent": float(cpu),
+                        "rss_kib": int(rss),
+                        "name": Path(name).name,
+                    }
+                    for pid, cpu, rss, name in rows
+                ]
+                assert rows and all(
+                    r["pid"] > 0
+                    and math.isfinite(r["cpu_percent"])
+                    and r["cpu_percent"] >= 0
+                    and r["rss_kib"] >= 0
+                    for r in result[kind]
+                )
+            elif kind == "disk":
+                numbers = text.splitlines()[-1].split()
+                assert len(numbers) == 3
+                result[kind] = {
+                    "kb_per_transfer": float(numbers[0]),
+                    "transfers_total": int(numbers[1]),
+                    "mb_total": float(numbers[2]),
+                }
+                assert result[kind]["transfers_total"] >= 0 and all(
+                    math.isfinite(result[kind][key]) and result[kind][key] >= 0
+                    for key in ["kb_per_transfer", "mb_total"]
+                )
+            else:
+                fields = re.findall(r'"((?:Device|Renderer|Tiler) Utilization %)"=(\d+)', text)
+                assert len(fields) == 3
+                result[kind] = {key: int(value) for key, value in fields}
+                assert all(0 <= n <= 100 for n in result[kind].values())
+        except (
+            AssertionError,
+            ValueError,
+            IndexError,
+            OSError,
+            subprocess.SubprocessError,
+        ) as error:
+            result[kind] = None
+            result["errors"].append({"kind": kind, "error": repr(error)})
+    return result
+
+
+def main(plan):
+    output = plan.parent / "system-samples.json"
+    assert not output.exists(), "refusing to overwrite observations"
+    result = {
+        "status": "incomplete",
+        "samples": [],
+        "scope": "system CPU/GPU/disk; not per-model physical I/O",
+    }
+    stop = threading.Event()
+
+    def observe():
+        while not stop.is_set():
+            result["samples"].append(snapshot())
+            stop.wait(2)
+
+    worker = threading.Thread(target=observe, daemon=True)
+    started = False
+    try:
+        worker.start()
+        started = True
+        stop.wait(10)
+        runpy.run_path(
+            "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt"
+        )["main"](plan)
+        stop.wait(10)
+        result["status"] = "completed_observations_not_attribution"
+    except BaseException as error:
+        result.update(status="failed_or_interrupted", error=repr(error))
+        raise
+    finally:
+        stop.set()
+        if started:
+            worker.join(timeout=20)
+        result["sampler_joined"] = not worker.is_alive()
+        if not result["sampler_joined"]:
+            result["status"] = "failed_sampler_join"
+        output.write_text(json.dumps(result, indent=2) + "\n")
+        assert result["sampler_joined"], "sampler did not stop"
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1]))
