@@ -1,5 +1,30 @@
 # Flash Next SSD : synthèse des deux audits et des mesures 44
 
+**Suivi45, après autorisation d'implémentation.** Les deux préalables ci-dessous
+sont maintenant fermés sur les fixtures réelles. Une erreur hot après réservation
+laissait des experts non remplis dans le cache : reproduite avant correctif,
+elle invalide désormais les réservations tout en conservant les leases pending.
+La reprise relit les poids et restitue exactement la sortie indépendante.
+
+L'oracle reçoit maintenant le même hidden natif :744960 logits par draft,
+RMSErelative DF2=0,0000994933 / DSpark=0,0000908974, propositions exactes et
+écart maximal des trois confidencesDS=3,63512e-8. Une mutation de confidence
+seule est rejetée, puis les données originales sont restaurées et recontrôlées.
+Les15 processus de qualité passent, bridge réel et annulation inclus, avec
+zéro nouveau Swapout. Pic d'empreinte processus du bridge :8 370 559 480 octets.
+Ces contrôles ne mesurent aucun gain de débit.
+
+ValidationCPU :126 tests Rust passés/121 ignorés,570 Python passés, puis15cas
+ciblés du superviseur étendu (sous-ensemble, pas585 tests distincts). Fmt,
+Clippy strict `mlx,chat`, Ruff et build release passent. Kani vérifie le vrai
+garde sur24 slots arbitraires, unwind27 :1247 obligations,12 inatteignables
+dans std/modèles seulement,2covers atteints. La tentative réserve/publication
+expire à180s ; MLX avec `--tests` rencontre une ICE ; CrossHair absent.
+Ni GPU ni concurrence ne sont prouvés. Sources/binaires/fixtures :125empreintes
+revérifiées après la campagne. [Preuves45 et limites](measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/summary.json).
+Le profilage45-P reste à faire ; les conclusions historiques44 sont conservées.
+L'application installée n'est pas remplacée.
+
 Revue demandée le 20 octobre 2026, sur `1f38776f64e917e699e3554a97ce3caae78a222a`,
 Qwen3.8-Flash-Next EXL3 2,05 bpw, M5/24 Gio. Le moteur est inchangé pendant
 ce croisement. Les propositions ci-dessous restent des hypothèses à tester.

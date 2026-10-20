@@ -1,5 +1,7 @@
 //! CPU contracts for Flash Next's disk rows and exact expert cache.
 use anyhow::Result;
+#[cfg(any(feature = "mlx", test, kani))]
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CacheError {
@@ -407,6 +409,35 @@ pub struct ExpertCache {
     pub prefetch_hits: u64,
 }
 
+/// Unfilled demand reservations must never survive an error or unwind.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) struct ExpertFill {
+    cache: Rc<RefCell<ExpertCache>>,
+    complete: bool,
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+impl ExpertFill {
+    pub(crate) fn new(cache: &Rc<RefCell<ExpertCache>>) -> Self {
+        Self {
+            cache: Rc::clone(cache),
+            complete: false,
+        }
+    }
+    pub(crate) fn commit(mut self) {
+        self.complete = true;
+    }
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+impl Drop for ExpertFill {
+    fn drop(&mut self) {
+        if !self.complete {
+            self.cache.borrow_mut().invalidate();
+        }
+    }
+}
+
 impl ExpertCache {
     pub fn new(slots: usize) -> Result<Self, CacheError> {
         if !(10..=512).contains(&slots) {
@@ -568,6 +599,43 @@ impl ExpertCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn fill_reservation_preserves_ready_weights_only_on_commit_and_keeps_pending() {
+        for complete in [false, true] {
+            let cache = Rc::new(RefCell::new(ExpertCache::new(24).unwrap()));
+            let pending = cache.borrow_mut().claim_prefetch(511).unwrap().unwrap();
+            cache.borrow_mut().reserve(&[7, 8]).unwrap();
+            {
+                let fill = ExpertFill::new(&cache);
+                cache.borrow_mut().reserve(&[9, 10]).unwrap();
+                if complete {
+                    fill.commit();
+                }
+            }
+            assert!(
+                [7, 8, 9, 10]
+                    .iter()
+                    .all(|&id| cache.borrow().contains(id) == complete)
+            );
+            assert_eq!(cache.borrow().pending[pending], Some(511));
+            assert!(cache.borrow_mut().publish_prefetch(pending, 511, true));
+        }
+        let cache = Rc::new(RefCell::new(ExpertCache::new(10).unwrap()));
+        cache.borrow_mut().reserve(&[7]).unwrap();
+        let result = (|| -> Result<(), CacheError> {
+            let _fill = ExpertFill::new(&cache);
+            cache.borrow_mut().reserve(&[512])?;
+            Ok(())
+        })();
+        assert!(result.is_err() && !cache.borrow().contains(7));
+        cache.borrow_mut().reserve(&[7]).unwrap();
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _fill = ExpertFill::new(&cache);
+            cache.borrow_mut().reserve(&[8]).unwrap();
+            panic!("injected reservation unwind");
+        }));
+        assert!(unwind.is_err() && !cache.borrow().contains(7) && !cache.borrow().contains(8));
+    }
     #[test]
     fn slot_validation_and_les_controls_reject_invalid_inputs() {
         for capacity in [-1, 0, 1, 3, 10, 20, 89, 512, i32::MAX] {
@@ -1111,6 +1179,35 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(27)]
+    fn failed_fill_invalidates_ready_keys_without_releasing_pending_slots() {
+        let keys: [Option<u32>; 24] = kani::any();
+        let pending: [Option<u32>; 24] = kani::any();
+        let prefetched: [bool; 24] = kani::any();
+        let complete: bool = kani::any();
+        let cache = Rc::new(RefCell::new(ExpertCache::new(24).unwrap()));
+        {
+            let mut state = cache.borrow_mut();
+            state.keys.copy_from_slice(&keys);
+            state.pending.copy_from_slice(&pending);
+            state.prefetched.copy_from_slice(&prefetched);
+        }
+        {
+            let fill = ExpertFill::new(&cache);
+            if complete {
+                fill.commit();
+            }
+        }
+        let state = cache.borrow();
+        for i in 0..24 {
+            assert_eq!(state.keys[i], if complete { keys[i] } else { None });
+            assert_eq!(state.prefetched[i], complete && prefetched[i]);
+            assert_eq!(state.pending[i], pending[i]);
+        }
+        kani::cover!(complete);
+        kani::cover!(!complete);
+    }
     #[kani::proof]
     #[kani::unwind(22)]
     fn cpu_slot_validation_preserves_bounds_for_real_route_widths() {

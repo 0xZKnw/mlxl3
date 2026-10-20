@@ -440,6 +440,81 @@ def select_cpu(weights, kind, hidden, logits, anchor):
     return tokens, confidence
 
 
+def check_native_chain(root, data, reference_logits, reference_tokens, reference_confidence):
+    """Compare a real native probe against the independent head on the same hidden."""
+    kind, count = data.get("kind"), data.get("proposals")
+    if (
+        data.get("status") != "complete_native_probe"
+        or kind not in REVISION
+        or data.get("revision") != REVISION[kind]
+        or type(count) is not int
+        or not 1 <= count <= 7
+        or reference_logits.shape != (count, 248320)
+        or not np.isfinite(reference_logits).all()
+    ):
+        raise ValueError("invalid native chain identity or reference")
+    entry = data["arrays"]["native_logits"]
+    filename = entry["file"]
+    if (
+        type(filename) is not str
+        or Path(filename).name != filename
+        or entry.get("shape") != [count, 248320]
+        or entry.get("count") != count * 248320
+    ):
+        raise ValueError("invalid native logits metadata")
+    with (root / filename).open("rb") as stream:
+        payload = stream.read(count * 248320 * 4 + 1)
+    if len(payload) != count * 248320 * 4 or hashlib.sha256(payload).hexdigest() != entry["sha256"]:
+        raise ValueError("incomplete or changed native logits")
+    actual = np.frombuffer(payload, dtype="<f4").reshape(reference_logits.shape)
+    if not np.isfinite(actual).all():
+        raise ValueError("nonfinite native logits")
+    reference = reference_logits.astype(np.float64)
+    difference = actual.astype(np.float64) - reference
+    error = math.sqrt(
+        float(np.sum(difference * difference)) / max(float(np.sum(reference * reference)), 1e-30)
+    )
+    if not math.isfinite(error) or error > 0.004:
+        raise ValueError("native hidden head logits diverged")
+    tokens, confidence = data["native"]["tokens"], data["native"]["confidence"]
+    if (
+        type(tokens) is not list
+        or len(tokens) != count
+        or any(type(token) is not int or not 0 <= token < 248320 for token in tokens)
+        or tokens != reference_tokens
+        or len(reference_tokens) != count
+    ):
+        raise ValueError("native hidden proposals diverged")
+    length = count if kind == "dspark" else 0
+    if (
+        type(confidence) is not list
+        or len(confidence) != length
+        or len(reference_confidence) != length
+    ):
+        raise ValueError("incomplete native confidence comparison")
+    maximum = 0.0
+    for actual, expected in zip(confidence, reference_confidence):
+        if any(
+            type(v) not in (int, float) or not math.isfinite(v) or not 0 <= v <= 1
+            for v in (actual, expected)
+        ):
+            raise ValueError("invalid native confidence")
+        maximum = max(maximum, abs(actual - expected))
+    if maximum > 1e-4:
+        raise ValueError("native hidden confidence diverged")
+    return {
+        "status": "passed_native_chain",
+        "hidden_sha256": data["arrays"]["hidden"]["sha256"],
+        "logit_count": count * 248320,
+        "relative_rmse": error,
+        "logit_tolerance": 0.004,
+        "tokens": tokens,
+        "confidence_count": length,
+        "maximum_confidence_error": maximum,
+        "confidence_tolerance": 1e-4,
+    }
+
+
 def selector_fixture(weights, kind, rows):
     """Choose nontrivial logits that expose legacy scaling or a stale Markov predecessor."""
     hidden = bf16(((np.arange(rows * 2560, dtype=np.float32) % 127) - 63).reshape(rows, 2560) / 64)

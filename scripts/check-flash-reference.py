@@ -132,11 +132,21 @@ def probe_input(root: Path, entry: dict, width: int) -> np.ndarray:
 
 def draft_head_input(root: Path):
     """Read the bounded real backbone fixture before loading the independent head."""
-    data = json.loads((root / "oracle.json").read_text())
+    candidates = [
+        path for path in (root / "oracle.json", root / "native-probe.json") if path.exists()
+    ]
+    if len(candidates) != 1:
+        raise ValueError("missing or ambiguous draft head input")
+    data = json.loads(candidates[0].read_text())
     kind = data.get("kind")
     count = data.get("proposals")
     if (
-        data.get("status") != "complete_cpu_oracle"
+        data.get("status")
+        != (
+            "complete_native_probe"
+            if candidates[0].name == "native-probe.json"
+            else "complete_cpu_oracle"
+        )
         or kind not in ("dflash2", "dspark")
         or type(count) is not int
         or not 1 <= count <= 7
@@ -160,6 +170,8 @@ def draft_head_input(root: Path):
     hidden = np.frombuffer(payload, dtype="<f4").reshape(rows, 2560)
     if not np.isfinite(hidden).all():
         raise ValueError("nonfinite draft hidden")
+    if data["status"] == "complete_native_probe" and np.any(hidden.view("<u4") & 0xFFFF):
+        raise ValueError("native hidden was not exported exactly from BF16")
     return data, hidden[int(kind == "dflash2") :]
 
 
@@ -439,7 +451,7 @@ def main():
     try:
         save_report()
         if args.draft_head_only is not None:
-            from check_flash_drafts import Weights, bf16, select_cpu
+            from check_flash_drafts import Weights, bf16, check_native_chain, select_cpu
 
             draft_data, hidden = draft_head_input(args.draft_head_only)
             lm_head = Packed("lm_head", 248320)
@@ -453,6 +465,10 @@ def main():
                 logits_cpu,
                 7,
             )
+            if draft_data["status"] == "complete_native_probe":
+                report["native_chain"] = check_native_chain(
+                    args.draft_head_only, draft_data, logits_cpu, selected, confidence
+                )
             report["draft_head"] = {
                 "kind": draft_data["kind"],
                 "revision": draft_data["revision"],

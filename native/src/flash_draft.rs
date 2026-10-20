@@ -1250,6 +1250,50 @@ fn compare_oracle(
     )
 }
 
+fn export_native_probe(
+    root: &Path,
+    oracle: &Value,
+    hidden: &Array,
+    logits: &Array,
+    tokens: &[u32],
+    confidence: &[f32],
+) -> Result<()> {
+    std::fs::create_dir(root)?;
+    let path = root.join("native-probe.json");
+    std::fs::write(&path, b"{\"status\":\"incomplete\"}\n")?;
+    let save = |name: &str, value: &Array| -> Result<Value> {
+        let values = value.astype(Dtype::Float32)?.to_f32()?;
+        ensure!(!values.is_empty() && values.iter().all(|v| v.is_finite()));
+        let file = root.join(format!("{name}.f32"));
+        let bytes = values
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect::<Vec<_>>();
+        std::fs::write(&file, &bytes)?;
+        let digest = std::process::Command::new("/usr/bin/shasum")
+            .args(["-a", "256"])
+            .arg(&file)
+            .output()?;
+        ensure!(digest.status.success(), "cannot fingerprint native probe");
+        let output = String::from_utf8(digest.stdout)?;
+        let sha = output
+            .split_whitespace()
+            .next()
+            .context("missing native probe hash")?;
+        ensure!(sha.len() == 64 && sha.bytes().all(|v| v.is_ascii_hexdigit()));
+        Ok(
+            serde_json::json!({"file":format!("{name}.f32"),"shape":value.shape(),"count":values.len(),"sha256":sha}),
+        )
+    };
+    let arrays = serde_json::json!({"hidden":save("hidden", hidden)?,"native_logits":save("native_logits", logits)?});
+    let mut report = oracle.clone();
+    report["arrays"] = arrays;
+    report["native"] = serde_json::json!({"tokens":tokens,"confidence":confidence});
+    report["status"] = "complete_native_probe".into();
+    std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}
+
 #[test]
 fn draft_shapes_keep_anchor_conventions_and_reject_unknown_modes() -> Result<()> {
     for count in 1..=7 {
@@ -1436,6 +1480,19 @@ fn flash_draft_matches_numpy_backbone_cache_and_selector() -> Result<()> {
     let head_check = compare_oracle(coupled_root, &head_oracle, "coupled_logits", &logits, 0.004)?;
     let (cpu_hidden_tokens, cpu_hidden_confidence) = draft.select(&head, &cpu_hidden, count, 7)?;
     let (actual_tokens, actual_confidence) = draft.select(&head, &hidden, count, 7)?;
+    if let Some(path) = std::env::var_os("MLXL3_FLASH_DRAFT_EXPORT") {
+        let actual_logits = head
+            .forward(&hidden.slice(0, first, rows)?.astype(Dtype::Float16)?)?
+            .astype(Dtype::BFloat16)?;
+        export_native_probe(
+            Path::new(&path),
+            &data,
+            &hidden,
+            &actual_logits,
+            &actual_tokens,
+            &actual_confidence,
+        )?;
+    }
     ensure!(
         serde_json::json!(cpu_hidden_tokens) == coupled["draft_head"]["tokens"],
         "selector differs on real independent backbone input: actual={cpu_hidden_tokens:?}, expected={}",

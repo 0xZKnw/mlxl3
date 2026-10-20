@@ -1,6 +1,7 @@
 """CPU contracts for the independent Flash draft oracle; no model download."""
 
 import copy
+import hashlib
 import json
 import struct
 import sys
@@ -17,10 +18,101 @@ from check_flash_drafts import (
     Weights,
     bf16,
     capture,
+    check_native_chain,
     rope,
     save_array,
     select_cpu,
 )
+
+
+def native_chain_fixture(tmp_path, kind="dspark", count=1):
+    logits = np.ones((count, 248320), dtype="<f4")
+    entry = save_array(tmp_path, "native_logits", logits)
+    return {
+        "status": "complete_native_probe",
+        "kind": kind,
+        "revision": check_flash_drafts.REVISION[kind],
+        "proposals": count,
+        "arrays": {"native_logits": entry, "hidden": {"sha256": "a" * 64}},
+        "native": {"tokens": [42] * count, "confidence": [0.5] * count if kind == "dspark" else []},
+    }, logits
+
+
+@pytest.mark.parametrize("kind,count", [("dflash2", 1), ("dspark", 1), ("dspark", 7)])
+def test_native_chain_compares_all_logits_and_real_confidences(tmp_path, kind, count):
+    data, logits = native_chain_fixture(tmp_path, kind, count)
+    confidence = [0.5] * count if kind == "dspark" else []
+    checked = check_native_chain(tmp_path, data, logits, [42] * count, confidence)
+    assert checked["status"] == "passed_native_chain"
+    assert checked["logit_count"] == count * 248320 and checked["relative_rmse"] == 0
+    assert checked["confidence_count"] == len(confidence)
+    if confidence:
+        data["native"]["confidence"][0] = 0.5001
+        check_native_chain(tmp_path, data, logits, [42] * count, confidence)
+        data["native"]["confidence"][0] = 0.500101
+        with pytest.raises(ValueError, match="confidence diverged"):
+            check_native_chain(tmp_path, data, logits, [42] * count, confidence)
+
+
+@pytest.mark.parametrize(
+    "corrupt",
+    [
+        "status",
+        "revision",
+        "count",
+        "shape",
+        "values",
+        "hash",
+        "short",
+        "extra",
+        "path",
+        "nan",
+        "logits",
+        "token",
+        "bool",
+        "empty",
+        "confidence",
+        "nonfinite",
+        "range",
+    ],
+)
+def test_native_chain_rejects_partial_or_divergent_real_outputs(tmp_path, corrupt):
+    data, logits = native_chain_fixture(tmp_path)
+    entry = data["arrays"]["native_logits"]
+    path = tmp_path / entry["file"]
+    if corrupt == "status":
+        data["status"] = "incomplete"
+    elif corrupt == "revision":
+        data["revision"] = "foreign"
+    elif corrupt == "count":
+        data["proposals"] = 0
+    elif corrupt == "shape":
+        entry["shape"] = [248320]
+    elif corrupt == "values":
+        entry["count"] = 0
+    elif corrupt == "hash":
+        entry["sha256"] = "b" * 64
+    elif corrupt in ("short", "extra"):
+        payload = path.read_bytes()
+        path.write_bytes(payload[:-1] if corrupt == "short" else payload + b"x")
+    elif corrupt == "path":
+        entry["file"] = "../native_logits.f32"
+    elif corrupt in ("nan", "logits"):
+        payload = np.full_like(logits, np.nan if corrupt == "nan" else 1.01).tobytes()
+        path.write_bytes(payload)
+        entry["sha256"] = hashlib.sha256(payload).hexdigest()
+    elif corrupt in ("token", "bool"):
+        data["native"]["tokens"] = [43 if corrupt == "token" else True]
+    elif corrupt == "empty":
+        data["native"]["confidence"] = []
+    elif corrupt == "confidence":
+        data["native"]["confidence"] = [0.25]
+    elif corrupt == "nonfinite":
+        data["native"]["confidence"] = [float("nan")]
+    else:
+        data["native"]["confidence"] = [-0.1]
+    with pytest.raises(ValueError):
+        check_native_chain(tmp_path, data, logits, [42], [0.5])
 
 
 def test_bf16_rounding_ties_even_signed_zero_and_idempotence():

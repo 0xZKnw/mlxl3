@@ -3,7 +3,7 @@ use crate::{
     array::{Array, Dtype},
     checkpoint::{Checkpoint, TensorInfo},
     codec::Codebook,
-    flash_support::{EXPERT_BYTES, ExpertCache},
+    flash_support::{EXPERT_BYTES, ExpertCache, ExpertFill},
     lfm2::Projection,
     linear, router,
     ssd_prefetch::{PREDICTION_RANKS, ReaderPool, order_predictions},
@@ -418,6 +418,7 @@ impl SsdMoe {
             pool.note_late(*layer, &ids);
         }
         let before = self.cache.borrow().prefetch_hits;
+        let fill = ExpertFill::new(&self.cache);
         let routes = self.cache.borrow_mut().reserve(&ids)?;
         let used = self.cache.borrow().prefetch_hits - before;
         if let Some((_, pool)) = &self.prefetcher {
@@ -457,6 +458,8 @@ impl SsdMoe {
                 )?,
                 &hot.iter().map(|p| p.1).collect::<Vec<_>>(),
             )?;
+            // Retain submitted reads of the banks even if a later operation fails.
+            self.last = Some(value.try_clone()?);
             value.async_eval()?;
             #[cfg(test)]
             {
@@ -483,8 +486,6 @@ impl SsdMoe {
         let prediction = match prediction {
             Ok(prediction) => prediction,
             Err(error) => {
-                // Reserved cold routes have no weights until fill_many succeeds.
-                self.cache.borrow_mut().invalidate();
                 if let Some(hot) = &hot_output {
                     hot.eval()?;
                 }
@@ -508,12 +509,12 @@ impl SsdMoe {
                 .push(("demand_begin", route_start.elapsed().as_secs_f64()));
         }
         if let Err(error) = self.fill_many(&jobs) {
-            self.cache.borrow_mut().invalidate();
             if let Some(hot) = &hot_output {
                 hot.eval()?;
             }
             return Err(error.context("loading cold EXL3 experts"));
         }
+        fill.commit();
         #[cfg(test)]
         {
             self.profile_seconds[1] += read_start.elapsed().as_secs_f64();
@@ -813,6 +814,56 @@ mod tests {
     fn actual_slot_dispatch_and_optional_prediction_schedule() {
         demanded_reads_start_before_the_optional_prediction_finishes().unwrap();
         failed_prediction_invalidates_reserved_routes_and_recovers().unwrap();
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; hot failure must invalidate unfilled routes before retry"]
+    fn failed_hot_compute_invalidates_reserved_routes_and_recovers() -> anyhow::Result<()> {
+        use super::*;
+        let (checkpoint, input, expected) = admission_fixture()?;
+        let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+        let ids = moe.route(&input)?.0.to_u32()?;
+        ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
+        let warm = moe.cache.borrow_mut().reserve(&ids[..5])?;
+        let jobs = ids[..5]
+            .iter()
+            .zip(warm)
+            .map(|(&id, (slot, _))| (id, slot))
+            .collect::<Vec<_>>();
+        moe.fill_many(&jobs)?;
+        // Same storage, invalid layout: fail the real hot calculation before any cold read.
+        let invalid = moe.banks[0].reshape(&[24, -1])?;
+        let bank = std::mem::replace(&mut moe.banks[0], invalid);
+        let error = moe
+            .forward(&input)
+            .err()
+            .context("invalid hot bank unexpectedly succeeded")?;
+        moe.banks[0] = bank;
+        ensure!(
+            error
+                .to_string()
+                .contains("expert slots were validated for a different bank capacity"),
+            "{error:#}"
+        );
+        ensure!(moe.read_bytes == 5 * EXPERT_BYTES && moe.misses == 5);
+        ensure!(
+            ids.iter().all(|&id| !moe.cache.borrow().contains(id)),
+            "unfilled routes cached after hot failure"
+        );
+        let actual = moe.forward(&input)?;
+        ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
+        ensure!(
+            moe.read_bytes == 15 * EXPERT_BYTES,
+            "retry did not reload every route"
+        );
+        moe.drain()?;
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_hot_failure_recovers_reserved_routes() {
+        failed_hot_compute_invalidates_reserved_routes_and_recovers().unwrap();
     }
 
     #[test]

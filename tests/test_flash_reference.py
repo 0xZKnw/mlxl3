@@ -46,6 +46,29 @@ def test_draft_head_input_preserves_real_rows_and_dflash_anchor_offset(tmp_path)
     assert hidden.shape == (4, 2560)
 
 
+def test_native_draft_head_input_preserves_bf16_and_rejects_ambiguous_or_rounded_input(tmp_path):
+    data = draft_fixture(tmp_path)
+    data["status"] = "complete_native_probe"
+    (tmp_path / "oracle.json").unlink()
+    path = tmp_path / "native-probe.json"
+    path.write_text(json.dumps(data))
+    _, hidden = oracle.draft_head_input(tmp_path)
+    assert hidden.shape == (3, 2560) and np.array_equal(hidden, np.ones((3, 2560)))
+    (tmp_path / "oracle.json").write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="ambiguous"):
+        oracle.draft_head_input(tmp_path)
+    (tmp_path / "oracle.json").unlink()
+    payload = np.full((4, 2560), 1.0001, dtype="<f4").tobytes()
+    (tmp_path / "hidden.f32").write_bytes(payload)
+    data["arrays"]["hidden"]["sha256"] = hashlib.sha256(payload).hexdigest()
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="BF16"):
+        oracle.draft_head_input(tmp_path)
+    path.unlink()
+    with pytest.raises(ValueError, match="missing"):
+        oracle.draft_head_input(tmp_path)
+
+
 @pytest.mark.parametrize("corrupt", ["hash", "size", "empty", "shape", "path", "old_norm", "nan"])
 def test_draft_head_input_rejects_corruption_and_incomplete_chain(tmp_path, corrupt):
     data = draft_fixture(tmp_path)

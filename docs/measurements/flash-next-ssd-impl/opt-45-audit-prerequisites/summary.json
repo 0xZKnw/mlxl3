@@ -1,0 +1,217 @@
+{
+  "status": "validated_quality_not_throughput",
+  "source_head": "be1ff1c3d2024abae28a2759c8fe84283260cb66",
+  "local_changes": true,
+  "identity_unchanged": {
+    "files": 125,
+    "all_match": true
+  },
+  "quality_processes": [
+    {
+      "name": "quality-0-failed_hot_compute_invalidates_reserved_routes_and_recovers",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 1.3509074999892619,
+      "swapins_bytes": 131072,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 699842560
+    },
+    {
+      "name": "quality-1-failed_prediction_invalidates_reserved_routes_and_recovers",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 1.1312121670052875,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 719486976
+    },
+    {
+      "name": "quality-2-two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 3.1509522499982268,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 870252544
+    },
+    {
+      "name": "dflash2-native-export",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 1.4129883749992587,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 2227535872
+    },
+    {
+      "name": "dflash2-native-independent",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 1.8232562089979183,
+      "swapins_bytes": 9175040,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 2227535872
+    },
+    {
+      "name": "dspark-native-export",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 1.1107439170009457,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 2348597248
+    },
+    {
+      "name": "dspark-native-independent",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 1.4629728749860078,
+      "swapins_bytes": 2490368,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 2348597248
+    },
+    {
+      "name": "quality-3-flash_matches_independent_reference_states_and_logits",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 3.745914917002665,
+      "swapins_bytes": 327680,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 2901327872
+    },
+    {
+      "name": "quality-4-flash_pair_verification_preserves_serial_logits_and_all_states",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 11.843907707981998,
+      "swapins_bytes": 458752,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 6623068160
+    },
+    {
+      "name": "quality-5-flash_mtp_head_matches_reference_and_cache_only",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 2.165175791014917,
+      "swapins_bytes": 835584,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 6623068160
+    },
+    {
+      "name": "quality-6-flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 10.643486666987883,
+      "swapins_bytes": 11075584,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 7513292800
+    },
+    {
+      "name": "dflash2-greedy",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 129.3412607080245,
+      "swapins_bytes": 11141120,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 7513292800
+    },
+    {
+      "name": "dspark-greedy",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 84.32980066601885,
+      "swapins_bytes": 2162688,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 7513292800
+    },
+    {
+      "name": "dspark-policies",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 60.93747687499854,
+      "swapins_bytes": 3080192,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 7513292800
+    },
+    {
+      "name": "bridge-release45",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "seconds": 209.28245587501442,
+      "swapins_bytes": 8699904,
+      "swapouts_bytes": 0,
+      "children_maximum_rss_bytes": 7513292800
+    }
+  ],
+  "same_native_input_oracles": {
+    "dflash2": {
+      "status": "passed_native_chain",
+      "hidden_sha256": "cce207be528e08f3e1951b34d3c42c180b4341436767facfc6d6424bb470326b",
+      "logit_count": 744960,
+      "relative_rmse": 9.949326724158797e-05,
+      "logit_tolerance": 0.004,
+      "tokens": [
+        42,
+        91,
+        42
+      ],
+      "confidence_count": 0,
+      "maximum_confidence_error": 0.0,
+      "confidence_tolerance": 0.0001
+    },
+    "dspark": {
+      "status": "passed_native_chain",
+      "hidden_sha256": "3e5c6f6d89a92d0d0190b6248d7b1f5d9d9032aa9c11e0d7dc11f40572b85e05",
+      "logit_count": 744960,
+      "relative_rmse": 9.089743249735647e-05,
+      "logit_tolerance": 0.004,
+      "tokens": [
+        16,
+        15,
+        11007
+      ],
+      "confidence_count": 3,
+      "maximum_confidence_error": 3.635116951894446e-08,
+      "confidence_tolerance": 0.0001
+    }
+  },
+  "bridge": {
+    "final_status": {
+      "status": "validated",
+      "budgets": [
+        1,
+        2,
+        3,
+        17
+      ],
+      "cancel_checked": true
+    },
+    "maximum_process_lifetime_peak_bytes": 8370559480,
+    "seconds": 209.28245587501442
+  },
+  "cpu": {
+    "rust_passed": 126,
+    "rust_ignored": 121,
+    "python_full_passed": 570,
+    "python_full_ignored": 0,
+    "supervisor_after_extension_passed": 15,
+    "overlap_note": "15 focused cases extend the supervisor subset; not 585 distinct full-suite tests"
+  },
+  "verification": {
+    "kani_guard": {
+      "status": "bounded_success",
+      "slots": 24,
+      "unwind": 27,
+      "checks": 1247,
+      "unreachable_std_only": 12,
+      "covers": 2,
+      "source_detail": "kani-fill-inspection.json"
+    },
+    "kani_reserve": "timeout180s, not verified",
+    "kani_actual_mlx": "compiler ICE intrinsics.rs:243 with --tests, not verified",
+    "crosshair": "absent, not verified"
+  },
+  "binary_inputs_not_published": "Native .f32 payloads and independent Pony .f32 output remain in ignored build/flash-opt-45, their hashes and metadata are archived in native-chain; model weights are not in Git",
+  "throughput": "not measured",
+  "integration": "local engine/tests; publish to PR34, installed app unchanged"
+}
