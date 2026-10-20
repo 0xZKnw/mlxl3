@@ -1,5 +1,8 @@
 //! Offline experiment47; no runtime cache policy is selected here.
 
+#[path = "flash_cache_profile/profile53.rs"]
+mod profile53;
+
 fn allocate_levels(costs: &[Vec<u32>], budget: usize) -> Option<Vec<usize>> {
     let layers = costs.len();
     let levels = costs.first()?.len();
