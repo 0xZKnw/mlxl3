@@ -1,0 +1,34 @@
+{'name': '56B-mtp-MAIN-0-H', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 2.0093769159866497, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 45, in monitor
+    return child.wait(timeout=min(2, remaining))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 2045, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12', '/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-56-hybrid-hot/bench.py', 'generate', '/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v1/mlxl3-rs', '/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531', '/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-56-hybrid-hot/56B-mtp-MAIN-0-H/report', 'mtp', 'MAIN', '/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/confirmation/reference128-MAIN.json']' timed out after 2 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-56-hybrid-hot/bench.py", line 168, in <module>
+    main(sys.argv[1])
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-56-hybrid-hot/bench.py", line 119, in main
+    PROFILE["run_sampler"](plan, baseline)
+  File "scripts/profile_flash.py", line 375, in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 61, in main
+    record["exit_code"] = previous["monitor"](child, record, parse_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/profile_flash.py", line 343, in guarded
+    return monitor(child, record, parse_vm)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 50, in monitor
+    assert 0 <= delta <= LIMIT, "live swap limit exceeded"
+           ^^^^^^^^^^^^^^^^^^^
+AssertionError: live swap limit exceeded

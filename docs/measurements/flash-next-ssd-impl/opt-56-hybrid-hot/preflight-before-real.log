@@ -1,0 +1,98 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[268435457-Swapouts] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-96/test_real_sampler_rejects_exha0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b0ca4b0>
+counter = 'Swapouts', delta = 268435457
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+            "bridge": Path("scripts/benchmark-flash-bridge.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+>           with pytest.raises((AssertionError, KeyError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (AssertionError, KeyError)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: Failed
+----------------------------- Captured stdout call -----------------------------
+{'name': 'preflight', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 0.07947441600845195, 'swapouts_bytes': 0}
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[268435457-Swapouts]
+1 failed, 60 deselected in 0.15s

@@ -347,6 +347,27 @@ def cumulative_monitor(monitor, baseline):
     return guarded
 
 
+def cumulative_preflight(record, baseline, limit):
+    assert set(baseline) == {"Swapins", "Swapouts"}
+    assert all(type(n) is int and n >= 0 for n in baseline.values())
+    assert type(limit) is int and limit >= 0
+    guard = {
+        "status": "failed",
+        "scope": "cumulative_campaign",
+        "baseline": baseline.copy(),
+        "limit_bytes": limit,
+        "deltas": {},
+    }
+    record["preflight_guard"] = guard
+    for key, start in baseline.items():
+        current = record["before"]["vm_bytes"][key]
+        assert type(current) is int and current >= 0, "invalid VM counter before launch"
+        delta = current - start
+        guard["deltas"][key] = delta
+        assert 0 <= delta <= limit, f"campaign {key} limit exceeded before launch"
+    guard["status"] = "passed"
+
+
 def run_sampler(plan, baseline=None):
     sampler_path = (
         ROOT / "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt"
@@ -368,6 +389,9 @@ def run_sampler(plan, baseline=None):
         selected = Path(path).resolve()
         if selected == monitor_path.resolve():
             namespace["monitor"] = cumulative_monitor(namespace["monitor"], baseline)
+            namespace["before_launch"] = lambda record: cumulative_preflight(
+                record, baseline, namespace["LIMIT"]
+            )
         if selected in {sampler_path.resolve(), supervisor_path.resolve()}:
             namespace["main"].__globals__["runpy"] = SimpleNamespace(run_path=load)
         return namespace

@@ -44,6 +44,8 @@ def main(path):
                     record["before"]["pmset -g batt"].splitlines()[0]
                     == "Now drawing from 'AC Power'"
                 )
+                if "before_launch" in previous:
+                    previous["before_launch"](record)
                 binary = Path(item["command"][0])
                 record["executable_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
                 save()

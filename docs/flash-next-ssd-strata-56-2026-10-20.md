@@ -147,3 +147,65 @@ détectées par les régressions, puis restaurées. Les commandes/diagnostics de
 preuve restent dans les fichiers `kani-*-result.json` et
 `formal-readback-result.json` ; leurs timeouts/erreurs ne constituent pas une
 preuve. [Bilan local](measurements/flash-next-ssd-impl/opt-56-hybrid-hot/final-local-checks.json).
+
+## Interruption de la première tentative MTP et relance56M
+
+La campagne56 d’origine est close : avant le premier témoin MTP, le compteur
+Swapout avait déjà augmenté de3 965 779 968 octets depuis la fin du dernier
+brasOFF. Le témoin a été arrêté et joint après2,009s, avant tout débit.
+L’utilisateur indique avoir lancé puis fermé une autre instance MLXL3 et
+demande une relance. Cette information explique le changement de contexte ;
+les compteurs globaux ne permettent pas une attribution physique par processus.
+
+Les huit brasOFF restent sans nouveau Swapout dans leur fenêtre. Ils ne
+prouvent pas l’absence de swap dans l’intervalle qui suit. L’échec initial
+et son origine cumulative sont conservés dans
+[memory-interruption.json](measurements/flash-next-ssd-impl/opt-56-hybrid-hot/memory-interruption.json).
+
+Le superviseur56G refuse désormais le lancement si le budget cumulatif est
+déjà dépassé. Douze cas d’intégration exercent les vrais scripts et un enfant
+jetable ; l’ancien code démarre cet enfant malgré le budget épuisé, le nouveau
+le refuse avant `Popen`. Frontières à256Mio, compteurs manquants/booléens/en
+recul, grands entiers et erreurs sont couverts. La suite affectée passe206
+cas ; CrossHair est absent, donc cette propriété n’est pas formellement prouvée.
+
+La relance56M réutilise exactement les binaires et oracles56, après20s de VM
+stable et vérification d’absence d’autre moteur. Son compteur est distinct,
+avec le delta de l’ancienne campagne conservé. Un contrôle30s après le dernier
+modèle recherche aussi les écritures différées. Le protocole est consigné
+avant lancement ; aucun chiffre MTP n’est encore publié à cette étape.
+
+## Résultats MTP1 après fermeture de l’autre instance
+
+| Prompt | Témoins H (tok/s) | Candidats C (tok/s) | Gains appariés |
+| --- | --- | --- | --- |
+| MAIN | 10,073 ; 9,884 | 10,551 ; 10,221 | +4,74 % ; +3,41 % |
+| HOLD | 9,535 ; 9,507 | 9,707 ; 9,748 | +1,80 % ; +2,54 % |
+
+Les quatre couples satisfont cette fois les critères d’origine : gain au
+moins1 % partout, dérives des témoins1,912/0,302 % et étendues1,336/0,743
+point. Statut **validated_gain**, sans dérogation nécessaire pour le MTP.
+Les réponses128 sorties sont exactes,127 tokens de decode chronométrés.
+MAIN conserve72 propositions/54 acceptées/72 blocs, HOLD78/48/78, identiques
+sur tous les warmups et bras de chaque prompt.
+
+Huit processus joints ; pic natif total8 177 751 296 octets, candidat au
+plus8 128 828 744 octets. La campagne entière et les30s après le dernier
+modèle conservent **0 octet de nouveau Swapout** ; Swapin cumulé80 855 040
+octets, sous256Mio. Ces observations ont une durée bornée, pas une garantie
+sur les usages futurs. Les132 identités sont inchangées ; aucun binaire
+natif n’a été reconstruit entre la qualité56 et cette campagne56M.
+
+[Qualification et contrôle postflight](measurements/flash-next-ssd-impl/opt-56m-mtp-after-app-close/publication-status.json),
+[mesures brutes](measurements/flash-next-ssd-impl/opt-56m-mtp-after-app-close/mtp-result.json),
+[VM après30s](measurements/flash-next-ssd-impl/opt-56m-mtp-after-app-close/stability-after.json).
+Les gains OFF et MTP sont propres à leurs comparaisons ; ils ne s’additionnent
+pas. L’objectif15tok/s n’est pas encore atteint. L’option reste explicite
+`MLXL3_SSD_GPU_HOT=1`, sans remplacement de l’app installée.
+
+La suite demandée est : plan compact et dispatch indirect Strata, partage
+EXL3 des vrais doublons, puis fusion des prélectures/demandes urgentes.
+La [conception57C](measurements/flash-next-ssd-impl/opt-57-compact-plan/design.json)
+distingue le dispatch natif de Strata, la grille fixe de l’API MLX installée
+et une primitive à examiner avec des frontières d’événements explicites.
+Cette primitive n’est encore ni implémentée ni mesurée.
