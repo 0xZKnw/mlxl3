@@ -17,6 +17,7 @@ const TRELLIS: usize = 409600;
 
 pub struct SsdMoe {
     gate: Projection,
+    resident_gate: Option<Array>,
     shared_gate: Projection,
     shared_up: Projection,
     shared_down: Projection,
@@ -69,6 +70,11 @@ impl SsdMoe {
             "f32",
         )?)
         .context("MLXL3_SSD_PREDICTOR_DTYPE must be f32 or f16")?;
+        let resident_gates = match control("MLXL3_SSD_RESIDENT_GATES", "0")?.as_str() {
+            "0" => false,
+            "1" => true,
+            _ => anyhow::bail!("MLXL3_SSD_RESIDENT_GATES must be 0 or 1"),
+        };
         let readers = std::env::var("MLXL3_SSD_READERS")
             .unwrap_or_else(|_| "4".into())
             .parse::<usize>()
@@ -144,8 +150,29 @@ impl SsdMoe {
         let projection = |suffix: &str, input, output| {
             Projection::load(c, &format!("{prefix}.{suffix}"), input, output, false)
         };
+        let resident_gate = if resident_gates && prefix.starts_with("model.language_model.layers.")
+        {
+            let name = format!("{prefix}.gate.weight");
+            let info = c.tensors.get(&name).context("missing dense Flash gate")?;
+            ensure!(
+                info.shape == [512, H as usize]
+                    && matches!(info.dtype.as_str(), "F16" | "BF16" | "F32")
+                    && !c.tensors.contains_key(&format!("{prefix}.gate.bias")),
+                "resident Flash gate must be dense 512x2560 without bias"
+            );
+            // Match MLX matmul's transpose-then-promote order, once at load.
+            let weight = linear::checkpoint_array(c, &name)?
+                .astype(Dtype::Float16)?
+                .transpose(&[1, 0])?
+                .astype(Dtype::Float32)?;
+            weight.eval()?;
+            Some(weight)
+        } else {
+            None
+        };
         Ok(Self {
             gate: projection("gate", H, 512)?,
+            resident_gate,
             shared_gate: projection("shared_expert.gate_proj", H, I)?,
             shared_up: projection("shared_expert.up_proj", H, I)?,
             shared_down: projection("shared_expert.down_proj", I, H)?,
@@ -269,12 +296,19 @@ impl SsdMoe {
         )
     }
 
+    fn gate_logits(&self, x: &Array) -> Result<Array> {
+        match &self.resident_gate {
+            Some(weight) if x.dtype() == Dtype::Float32 => x.matmul(weight),
+            _ => self.gate.forward(x),
+        }
+    }
+
     pub(crate) fn route(&self, x: &Array) -> Result<(Array, Array)> {
         ensure!(
             x.shape() == [1, H] && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
             "streamed MoE expects one exact route row"
         );
-        let probabilities = self.gate.forward(x)?.softmax_precise()?;
+        let probabilities = self.gate_logits(x)?.softmax_precise()?;
         if x.dtype() == Dtype::Float16 {
             let (indices, scores) = router::topk(&probabilities, 10, false)?;
             Ok((indices, scores.div(&scores.sum(1, true)?)?))
@@ -689,6 +723,239 @@ impl SsdMoe {
 
 #[cfg(test)]
 mod tests {
+    fn resident_gate_fixture() -> anyhow::Result<Vec<(super::SsdMoe, [crate::array::Array; 2])>> {
+        use super::*;
+        use serde_json::Value;
+        use std::{fs::File, path::Path};
+        ensure!(std::env::var("MLXL3_SSD_RESIDENT_GATES")? == "1");
+        let root = std::env::var("MLXL3_FLASH_REFERENCE")?;
+        let root = Path::new(&root);
+        let reference: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(reference["status"] == "complete" && reference["mode"] == "eval");
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        crate::array::set_default_cache_limit(512 << 20)?;
+        (0..48)
+            .map(|layer| {
+                let mut inputs = Vec::new();
+                for step in [0, 1] {
+                    let components = reference["steps"][step]["components"]
+                        .as_array()
+                        .context("missing components")?;
+                    ensure!(components.len() == 48);
+                    let entry = &components[layer]["mlp"]["input"];
+                    ensure!(entry["count"] == H);
+                    let bytes = std::fs::read(
+                        root.join(entry["file"].as_str().context("missing fixture")?),
+                    )?;
+                    ensure!(
+                        bytes.len() == H as usize * 4
+                            && bytes
+                                .as_chunks::<4>()
+                                .0
+                                .iter()
+                                .all(|&b| f32::from_le_bytes(b).is_finite())
+                    );
+                    let x = Array::from_bytes(&bytes, &[1, H], Dtype::Float32)?;
+                    x.eval()?;
+                    inputs.push(x);
+                }
+                let moe = SsdMoe::load(
+                    &checkpoint,
+                    &format!("model.language_model.layers.{layer}.mlp"),
+                    20,
+                    true,
+                )?;
+                let weight = moe
+                    .resident_gate
+                    .as_ref()
+                    .context("missing resident gate")?;
+                ensure!(weight.shape() == [H, 512] && weight.dtype() == Dtype::Float32);
+                ensure!(weight.retained_bytes()? == H as usize * 512 * 4);
+                Ok((
+                    moe,
+                    inputs
+                        .try_into()
+                        .map_err(|_| anyhow::anyhow!("invalid fixture count"))?,
+                ))
+            })
+            .collect()
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; experiment49 all dense gates, strides and fallback"]
+    fn resident_gate_logits_probabilities_and_routes_match_original() -> anyhow::Result<()> {
+        use super::*;
+        let mut cases = 0;
+        for (layer, (mut moe, inputs)) in resident_gate_fixture()?.into_iter().enumerate() {
+            for input in inputs {
+                for dtype in [Dtype::Float32, Dtype::Float16] {
+                    for strided in [false, true] {
+                        let x = if strided {
+                            let values = input
+                                .to_f32()?
+                                .into_iter()
+                                .flat_map(|v| [v, v * 0.5 + 0.125])
+                                .collect::<Vec<_>>();
+                            Array::from_f32(&values, &[H, 2])?
+                                .astype(dtype)?
+                                .transpose(&[1, 0])?
+                                .slice(0, 0, 1)?
+                        } else {
+                            input.astype(dtype)?
+                        };
+                        let original = moe.gate.forward(&x)?;
+                        let cached = moe.gate_logits(&x)?;
+                        ensure!(original.shape() == [1, 512] && cached.shape() == [1, 512]);
+                        let values = cached.to_f32()?;
+                        ensure!(values.len() == 512 && values.iter().all(|v| v.is_finite()));
+                        ensure!(
+                            cached.to_bytes()? == original.to_bytes()?,
+                            "resident gate logits differ at layer{layer}, dtype{dtype:?}, stride{strided}"
+                        );
+                        let original_p = original.softmax_precise()?;
+                        let cached_p = cached.softmax_precise()?;
+                        ensure!(original_p.to_bytes()? == cached_p.to_bytes()?);
+                        let probabilities = original_p.to_f32()?;
+                        ensure!(
+                            probabilities.len() == 512
+                                && probabilities.iter().all(|v| v.is_finite())
+                        );
+                        let actual = moe.route(&x)?;
+                        let weight = moe.resident_gate.take().context("missing weight")?;
+                        let expected = moe.route(&x)?;
+                        moe.resident_gate = Some(weight);
+                        ensure!(actual.0.shape() == [1, 10] && actual.1.shape() == [1, 10]);
+                        ensure!(
+                            actual.0.to_bytes()? == expected.0.to_bytes()?
+                                && actual.1.to_bytes()? == expected.1.to_bytes()?
+                        );
+                        let ids = actual.0.to_u32()?;
+                        let mut sorted = (0..512u32).collect::<Vec<_>>();
+                        sorted.sort_by(|&a, &b| {
+                            probabilities[a as usize]
+                                .total_cmp(&probabilities[b as usize])
+                                .then(a.cmp(&b))
+                        });
+                        ensure!(ids == sorted[502..], "independent route order differs");
+                        let scores = actual.1.to_f32()?;
+                        ensure!(
+                            scores.len() == 10
+                                && scores.iter().all(|v| v.is_finite())
+                                && (scores.iter().sum::<f32>() - 1.).abs() < 0.002
+                        );
+                        if layer == 0 && dtype == Dtype::Float32 && !strided {
+                            let weight = moe.resident_gate.take().context("missing weight")?;
+                            moe.resident_gate = Some(weight.scalar_mul(0.5)?);
+                            ensure!(
+                                moe.gate_logits(&x)?.to_bytes()? != original.to_bytes()?,
+                                "bad gate mutation escaped oracle"
+                            );
+                            moe.resident_gate = Some(weight);
+                            ensure!(moe.gate_logits(&x)?.to_bytes()? == original.to_bytes()?);
+                        }
+                        cases += 1;
+                    }
+                }
+            }
+        }
+        ensure!(cases == 384);
+        println!(
+            "FLASH_RESIDENT_GATE cases=384 logits=196608 routes=3840 mutation=detected_restored parity=byte_exact"
+        );
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_resident_gate_preserves_original_routes() {
+        resident_gate_logits_probabilities_and_routes_match_original().unwrap();
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; experiment49 resident gate component timing only"]
+    fn resident_gate_component_microbench() -> anyhow::Result<()> {
+        use super::*;
+        use std::{fs::File, time::Instant};
+        fn select(
+            models: &mut [(SsdMoe, [Array; 2])],
+            saved: &mut [Option<Array>],
+            candidate: bool,
+        ) {
+            for ((moe, _), cache) in models.iter_mut().zip(saved) {
+                if candidate != moe.resident_gate.is_some() {
+                    std::mem::swap(&mut moe.resident_gate, cache);
+                }
+                assert_eq!(moe.resident_gate.is_some(), candidate);
+                assert_ne!(moe.resident_gate.is_some(), cache.is_some());
+            }
+        }
+        fn sweep(models: &[(SsdMoe, [Array; 2])]) -> Result<Vec<u32>> {
+            let mut ids = Vec::with_capacity(960);
+            for (moe, inputs) in models {
+                let a = moe.route(&inputs[0])?;
+                let b = moe.route(&inputs[1])?;
+                ids.extend(Array::concatenate(&[&a.0, &b.0], 0)?.to_u32()?);
+            }
+            ensure!(ids.len() == 960);
+            Ok(ids)
+        }
+        let output = std::env::var("MLXL3_FLASH_GATE_MICRO")?;
+        serde_json::to_writer(
+            File::create_new(&output)?,
+            &serde_json::json!({"status":"incomplete"}),
+        )?;
+        let mut models = resident_gate_fixture()?;
+        let mut saved = (0..48).map(|_| None).collect::<Vec<_>>();
+        select(&mut models, &mut saved, false);
+        let oracle = sweep(&models)?;
+        select(&mut models, &mut saved, true);
+        ensure!(sweep(&models)? == oracle);
+        let warmup = Instant::now();
+        let mut warmup_sweeps = 0;
+        while warmup.elapsed().as_secs_f64() < 2. {
+            for candidate in [false, true] {
+                select(&mut models, &mut saved, candidate);
+                ensure!(sweep(&models)? == oracle);
+                warmup_sweeps += 1;
+            }
+        }
+        let warmup_seconds = warmup.elapsed().as_secs_f64();
+        let mut samples = Vec::new();
+        for pair in 0..5 {
+            for candidate in if pair % 2 == 0 {
+                [false, true]
+            } else {
+                [true, false]
+            } {
+                select(&mut models, &mut saved, candidate);
+                let start = Instant::now();
+                let mut last = Vec::new();
+                for _ in 0..32 {
+                    last = sweep(&models)?;
+                }
+                let seconds = start.elapsed().as_secs_f64() / 32.;
+                ensure!(seconds.is_finite() && seconds > 0. && last == oracle);
+                samples
+                    .push(serde_json::json!({"pair":pair,"candidate":candidate,"seconds":seconds}));
+            }
+        }
+        ensure!(models.iter().all(|(moe, _)| moe.read_bytes == 0));
+        std::fs::write(
+            output,
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "status":"complete","layers":48,"route_rows":2,"route_count":960,
+                "resident_gate_bytes":48usize*512*H as usize*4,"warmup_sweeps":warmup_sweeps,
+                "warmup_seconds":warmup_seconds,"sweeps_per_sample":32,"parity":"exact_route_ids",
+                "no_expert_io":true,"samples":samples
+            }))?,
+        )?;
+        println!(
+            "FLASH_GATE_MICRO layers=48 rows=2 samples=10 sweeps=32 parity=exact_route_ids no_expert_io=true"
+        );
+        Ok(())
+    }
+
     fn admission_fixture()
     -> anyhow::Result<(crate::checkpoint::Checkpoint, crate::array::Array, Vec<u8>)> {
         use crate::array::{Array, Dtype};

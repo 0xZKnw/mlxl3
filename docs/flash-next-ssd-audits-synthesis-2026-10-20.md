@@ -366,3 +366,37 @@ Le contrôle corrigé échange des lignes de groupes différents et est détect�
 [Décision48](measurements/flash-next-ssd-impl/opt-48-paired-experts/closure.json) ·
 [mesures brutes](measurements/flash-next-ssd-impl/opt-48-paired-experts/micro-raw.json) ·
 [identité finale](measurements/flash-next-ssd-impl/opt-48-paired-experts/retained-runtime-info.json).
+
+
+## Gates FP32 résidentes49 : gain composant, débit complet non concluant
+
+L’option `MLXL3_SSD_RESIDENT_GATES=1` matérialise une fois les poids FP32
+transposés des48routeurs cible (240Mio), conserve le chemin FP16 et laisse
+la tête MTP inchangée. Elle est désactivée par défaut.
+
+384cas/196608logits, probabilités,3840routes/poids passent bit à bit, y compris
+FP16 et strides. La mutation de poids est détectée puis restaurée. Le micro
+48paires donne19,506→14,892ms (gain composant30,99%,4,615ms économisées), avec
+dérive0,40/1,63%, zéro Swapout et un processus joint. Un premier post-traitement
+Python3.9 échoue sur zip(strict=True) ; le même raw est traité avec Python3.12,
+sans relance matérielle ni changement de critères. Les17contrôles complets du
+modèle/états/MTP/drafts/bridge/refus/default passent, tous joints/Swapouts0.
+
+Le débit complet reste non concluant : le premier témoin OFFMAIN varie de
+9,3911 à7,6184tok/s, soit23,27% de dérive, avant le premier candidat. Les127tokens
+prennent13,5234 puis16,6702s. Le crible s’arrête ; aucun C/MTP vitesse ni nouvelle
+confirmation. Mêmes IDs/texte, pic témoin7 140 693 944octets et zéro Swapout ;
+les stats ne donnent pas les compteurs SSD par génération. Le relevé CPU fait
+après ne permet pas d’accuser une application ou de conclure à une limitation
+thermique. Le diagnostic49D est préenregistré pour isoler cache/lectures/attentes.
+
+130Rust passent/126ignorés,105Python ciblés ; format/Clippy/buildmlxchat passent.
+Kani du vrai parcours MLX rencontre une ICE et CrossHair est absent : nonvérifiés.
+Aucun gain global ni15tok/s livré ; option conservée pour analyse. L’utilisateur
+autorise ensuite jusqu’à12Go processus pour les futurs caches plus grands,
+sans changer rétroactivement les critères49.
+
+[Décision49](measurements/flash-next-ssd-impl/opt-49-resident-gates/closure.json) ·
+[micro](measurements/flash-next-ssd-impl/opt-49-resident-gates/micro-result-v2.json) ·
+[qualité](measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-summary.json) ·
+[témoin invalide](measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/speed-result-0.json).

@@ -12135,3 +12135,67 @@ Pendant le diagnostic47 figé, tracer seulement SsdMoe::calculate → expert_slo
 - 45-Q/R processus 48-retained-nt1-slots : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-48-paired-experts/retained-quality-plan-result.json.
 
 - **48R code conservé requalifié** : prototypeproductionretiré, codeproduction inchangé, seule identitéGit embarquée diffère dans le release. Fmt/Clippy/build mlx,chat,130Rust/124ignorés et87Pythonciblés passent ; vraie tentativeKaniMLX ICE reste nonvérifiée. OracleNT1 élargi40cas/8mauvaisslots repassé surunitéfinale, processusjoint ; retained-quality-plan-result.json préciseVM. Préprocess162configurations concerne shadercandidatearchivé, pas unnouveaukernel livré. Essai48 clos, aucunmodèle/build/prover encoreactif, aucun nouveaugainqualifié.
+
+- **49 source etcontrôles avantGPU** : cacheF32 optionnel limité48gatescibles,240Mio attendus, MTPhead/F16/prédiction inchangés ; transpose/cast évaluéunefois commeMLXoriginal. Fmt/Clippy strict/buildmlxchat et130Rust/126ignorés passent,105Pythonciblés passent ; sources/binaires/plans figés quality-identity.json, copies aprèstousbuilds. TentativeKani survraiSsdMoe/oracle ICEintrinsics243 (nonvérifié), CrossHair absent ; aucune preuveMLX/mémoirephysique. Inspection du sélecteur microavantlancement : basculesH/C idempotentes avecassertionune-seulecopieactive ougardée, ycomprisC-C/H-H entrecouples ; pas de mesurepréalable. Prochainoracle384cas/196608logits avanttoutevitesse49.
+
+- 45-Q/R processus 49-resident-gate-quality : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/quality-plan-result.json.
+
+- **49 oracle physique validé avantmicro** :384cas/196608logits512 etprobas,3840routes/poids, F32+fallbackF16/strides, bitàbitcontreProjectionoriginale ettriCPUindépendant. Mutationpoids×0,5 détectée puisrestaurationexacte ;48allocationsgate5Mio contrôlées. Processusjoint2,54s/Swapouts0. Empreintesinchangées, lancermicro10échantillons/32sweeps/48paires/2swarmupfixes ; aucun modèlecomplet niTPS mesuré àcestade.
+
+- 45-Q/R processus 49-resident-gate-micro : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/micro-plan-result.json.
+
+- **49 qualificateurmicroéchoué** :TypeError('zip() takes no keyword arguments') ; pas de gainqualifié.
+
+- **49 correction du post-traitement, aucun essai GPU relancé** : parent lancé avec Python système3.9, incompatible zip(strict=True), alors que tests/bancGPU utilisent .venv Python3.12. Le premier micro-result.json garde failed_or_interrupted ; rawcomplet10samples etsuperviseur8,84s/joint/Swapouts0 restent intacts. Relire exactement ces données avec Python3.12 et mêmequalificateur/critères inchangés, résultat micro-result-v2.json :{"status": "eligible_component_only", "full_model_eligible": true, "throughput_gain_confirmed": false, "gain_percent": 30.98949528332009, "drift_percent": [0.3969063583406651, 1.6297902295824063], "median_sweep_seconds": [0.01950631771875, 0.014891513], "reaped": true, "system_swapout_bytes": 0}. Sources/binaires/plans inchangés ; pas de nouveau résultat matériel, pas de gainTPS.
+
+- **49Q/R préenregistrement modèle/bridge etvitesse aprèscalibrationéligible** : micro31%routecomposantseulement (19,506→14,892ms, écart4,615ms), dérives0,397/1,630%, joint/Swapouts0 ; aucunTPS. À source49inchangée/unité/moteurfixés, exécuter13contrôles47adaptésauflag global1/cacheuniforme53 (répétitionrequise : nouvellechargegate affecte le routeur cible, la mémoire globale et doit préserver aussiMTPhead etlesdrafts), troisrefusCLIflags2/true/vide puisoraclecible par défautflagabsent. Même indépendance/logits/états/budgets/annulation que47 ; nativeoracle40cas gardé. Qualité avantvitesse.
+- **49 vitesse figéeavantpremierbras** : runtime/speed-matrix.json16bras,0=H/C OFFMAIN,OFFHOLD,MTPMAIN,MTPHOLD ;1=inverseC/H seulement si quatre gains>=1%.128tokens127decode,1warm+2mesures chaque, thinkingdéfaut/context4096, mêmebinaireflag0/1,3Gio/2544slots/poids inchangés, alloc512/readers4/overlap1/LES0/LFU/F32/secteur/appsouvertes. ZéroSwapout et<=256Mioswapin, pic10Gio etsurplusC<=256Mio. Contrôleur47copiébitidentique (46qualification et45VM/réaputilisés), vérification48couches53slots annoncées, hash/texte128etpréfixeH20, MTPcomptesinchangés ; dériveinterne5%, warm25%, confirmationH5% etécartsdegain<=3pp, aucunereprisebruit niadditionauxgainsanciens. Chaquecontrôleetbrasrésultatsarchivésimmédiatement. Source/binaire/options/scripts figés runtime/quality-identity.json ; speed-identity seraétendu aveclesrésultatsqualité avantlancement.49R en cours, aucun bras vitesse release lancé.
+
+- 45-Q/R processus real-slot-shapes : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus legacy-slot-shapes : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-quality-0-failed_hot_compute_invalidates_reserved_routes_and_recovers : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-quality-1-failed_prediction_invalidates_reserved_routes_and_recovers : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-quality-2-two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-quality-3-flash_matches_independent_reference_states_and_logits : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-quality-4-flash_pair_verification_preserves_serial_logits_and_all_states : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-quality-5-flash_mtp_head_matches_reference_and_cache_only : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-quality-6-flash_mtp_session_preserves_greedy_sequence_target_and_head_states : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-dflash2-greedy : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-dspark-greedy : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-dspark-policies : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-bridge-release45 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/quality-plan-result.json.
+
+- 45-Q/R processus 49-reject-resident-0 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/rejection-plan-result.json.
+
+- 45-Q/R processus 49-reject-resident-1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/rejection-plan-result.json.
+
+- 45-Q/R processus 49-reject-resident-2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/rejection-plan-result.json.
+
+- 45-Q/R processus 49-default-target : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/default-plan-result.json.
+
+- **49Q qualitémodèle/bridge terminée** :17processus attendus passent etjoints, tousSwapouts0 : cible16positions/logits/états, verify_pair commits1/2, têteMTP, séquencegreedy/budgets, DF/DS/politiques, bridge réelbudgets1/2/3/17+annulation/reprise,3refusflags etdéfautabsent. Bridge198,93s, picprocessusobservé~8,48Go ; pas de gainsTPSdéduits decescontrôles. Toutesempreintesinchangées ; speed-identity.json étendversrésultatsqualité. Débutducrible49Rpréenregistré,8bras OFFpuisMTP/mêmebinaireflag0/1, aucunbuild/prover enparallèle.
+
+- 45-Q/R processus 49-speed-0-baseline-MAIN-H : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/speed-0-baseline-MAIN-H-plan-result.json.
+
+- 46 vitesse fenêtre0: **failed_or_interrupted**, gain confirmé=False; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/speed-result-0.json.
+
+- **49R clos nonconcluant, témoin invalide avantcandidat** : H OFFMAIN complet/joint76,52s/Swapouts0,128IDs/texteexacts3générations, maismesures9,391118 et7,618372tok/s (decode13,523416 et16,670227s pour127tokens), dérive23,26935%>5%. Warm8,998297tok/s. CriblearrêtéavantC etMTP, aucuneconfirmation ni relancepourbruit ; résultatfailed_or_interrupted conservé, aucun gainréelglobalaffirmé. Qualité17+oracle384cas restentvalidées ; routecomposant19,506→14,892ms/−4,615ms ne prouvepasTPS. Source49 conservéeopt-in défaut0 pouranalyse, codeproduction/binairesinchangésdepuisqualité.
+- **Nouveaubudget utilisateur après49** : utilisateurautorise10–12GoRAMprocessus pourplusdeTPS. Prochainsessais plafond12 000 000 000octets, gardesVMetabsenceSwapoutqualifiantconservées ; pas derelâchementrétroactifdescritères49. Cacheexpertsplusgrand àpréenregistreraprèsdiagnosticdela dérive, aucun nouveauchargementmodèle àcestade.
+
+### FLASHSSD-2026-10-20-49D — expliquer la dérive de9,39 à7,62, diagnostic causal — préenregistré avant instrumentation
+
+- Demandecouranteutilisateur :pourquoilatemêmebaselinea-t-ellevarié ? Établi :mêmebinaire/paramètres/prompt/128tokens ettexte,0Swapout ; secteursansmodebasseconso ni avertissementthermique. Métadonnées49 necontiennentpaslectures/hits pargénération, aucunéchantillonCPU/GPU/SSDcontemporain ; le ps effectuéaprèsneprouvepaslacause. Le LFU conserve fréquences/âges/poids entreresets, et leslecturespeuventchangersanschangerletexte. Ne pasattribuerauxapps/thermique/SSD sanspreuves. Lecturecode/statshistoriqueinitiale effectuée pourrépondre, aucunessai49D encorelancé.
+- Plan : ajoutcfg(test)seulement d’unecaptureMAIN troisgénérations128, cible/cache53LFU inchangés, MTP0/résidentgates0, readers4/overlap1/LES0/alloc512/secteur. Mêmeparcoursforward+greedy, aucuneévaluationGPUadditionnelledansl’horloge. Capturerdurée/horodatagepartoken, routes480ids, hits/misses/octets ethorlogesroute/fill/import déjàexistantes ; phasesprefill/décode distinguées, étatscomplets/logitsfinis bitidentiquesentrephases ethash/textecontreles3runsréels49. RejouerlesmêmesroutesdanslevraiExpertCache CPUdepuisvide, vérifiercompteurschaquephase ; celapeutétablirun effetcache, pas prouverrétroactivementlacauseexacte49. ÉchantillonsVM/puissance etactivitéCPU/disquesystèmedansundiagnosticdistinct, pasunbenchmarkrelease niunretourpourchercherungain. Préserverlatrace49sanslacorriger.
+- VérificationavantGPU : source deproduction byteidentique, oracle/cfgtest etKaniMLXréelàtenter, fmt/Clippy/build/suites ; freezerunité/source/options/superviseur. Arrêt360s/256MioVM, unGPUàlafois, aucunecompilation/proofsimultanée ; nouveauplafond12Goautorisé pourlesessaisfuturs, diagnostic3Gio devraitresterdansancienneenveloppe10Gio. État49Dpréenregistréseulement. Prioritérépondreàlacauseavantoptimisationmémoire50.
