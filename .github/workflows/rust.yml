@@ -110,6 +110,14 @@ jobs:
           python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/guards-supervisor.txt
           python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/guards-supervisor.txt
           python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts-speed/guards-supervisor.txt
+          for verification_source in docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/quality1/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/calibration-off/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/mutations/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-*/*supervisor.txt; do
+            ruff format --check --stdin-filename flash-draft-verification.py < "$verification_source"
+            ruff check --select F,E9 --stdin-filename flash-draft-verification.py < "$verification_source"
+          done
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/quality1/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/calibration-off/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-off/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-on/guards-supervisor.txt
           ruff check --select F,E9 tests/fake-desktop-engine.py
           python -m py_compile tests/fake-desktop-engine.py
           ruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py

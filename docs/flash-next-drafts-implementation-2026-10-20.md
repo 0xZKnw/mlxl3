@@ -5,6 +5,27 @@ Ce point de contrôle publie les essais43 et le prototype44 demandé après
 **Aucun gain de débit44 n’est encore validé.** Les prototypes DFlash2/DSpark
 restent dans les tests natifs ; ils ne sont pas activés dans le bridge ou l’app.
 
+## Suivi après le point de contrôle `1f38776f`
+
+La [synthèse des deux audits et des mesures44](flash-next-ssd-audits-synthesis-2026-10-20.md)
+décrit l'état le plus récent. Les sections suivantes conservent le point
+initial publié avant GPU, avec ses contrôles CPU et ses limites à cette date.
+
+Depuis, dix processus de qualité affectée, la mutation de l'ancien résidu,
+le bridge release et les quatre bras de calibration DSpark sont terminés.
+La campagne non-thinking16/16 garde48 générations128IDs exactes et zéro nouveau
+Swapout, mais aucun gain global ne satisfait les critères. Les drafts dépassent
+aussi le surcoût de pic autorisé face à OFF. La campagne thinking est arrêtée
+après2/12bras, le MTP suivant ayant dépassé la garde de swap système ; tous
+les processus sont joints. Aucun résultat15tok/s ni gain livré n'est établi.
+
+La revue confirme une **couverture numérique incomplète des confidences du
+hidden natif** : le contrôle complet de tête/confidence indépendant utilise
+le hidden CPU de référence. Les vrais IDs proposés et les états contrôlés
+restent exacts, mais cela ne remplace pas l'oracle de probabilité manquant.
+Les résultats bruts et cette restriction sont conservés dans la synthèse ;
+aucune nouvelle optimisation n'est implantée à partir des audits.
+
 ## Code à examiner
 
 - `native/src/flash_draft.rs` : backbone BF16, capture et vérification de blocs,

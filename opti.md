@@ -11653,7 +11653,7 @@ Protocole commun prévu : modèle65c89531 EXL3 2,05 bpw, M5/24 Gio, secteur si t
 
   Sur les deux mesures existantes MAIN1/MAIN2 : vérification avec entretien KV =93,3 % DF2 /92,0 % DSpark. À vérification et acceptation inchangées, supprimer idéalement tout le draft donnerait8,56/6,29 tok/s seulement ; ce sont des bornes arithmétiques, **pas des benchmarks**. Atteindre15 avec l’acceptation actuelle demanderait environ47/61 % de temps total en moins. Ordre proposé : oracle couplé/arrondis, courbe B2/B3/B4 et survie sur modes appariés, vérification/I/O de décodage, calibration/choix de préfixe puis sélecteurs sur GPU. Aucune extrapolation de gain, aucun essai7 lancé. Le source draft garde SHA `f8c9bbaf`, aucun changement exécutable pendant cette revue, pas d’inférence active ni nouveau gain à publier ; V reste **interrompu 9/16**, non validé globalement.
 
-### FLASHSSD-2026-10-20-44 — fidélité et ordonnanceur des drafts Flash Next — en cours
+### FLASHSSD-2026-10-20-44 — fidélité et ordonnanceur des drafts Flash Next — campagnes closes sans gain, oracle confidence à compléter
 
 - Demande humaine : « implémente ça », suite à l’audit R2. Réutiliser le port test 43, aucune modification LFM2. Baseline conservée : source draft `f8c9bbaf`, unité phase4 `c918e6e1`, moteur `1dfba263`, HEAD615b local modifié. Les essais 43-V interrompus restent conservés et ne valident pas le scheduler complet.
 - **44-N, préenregistrement avant code** : corriger la variance du résidu suivant le vrai kernel SGLang `3c560089` (somme FP32 pour variance, résidu BF16 conservé). Réutiliser les opérations Array, sans nouveau shader initial. Ajouter un oracle NumPy de cette sémantique, une régression issue du contre-exemple R2a et un contrôle GPU des sorties normées/résidus. Compléter la chaîne captures → backbone → vraie tête EXL3 Pony indépendante → sélecteur/propositions/confidences ; contrôler les logits complets, formes/finitude/comptes et IDs réels, pas seulement le texte cible. Mutation de l’ancien arrondi requise avant qualification.
@@ -11671,3 +11671,116 @@ Protocole commun prévu : modèle65c89531 EXL3 2,05 bpw, M5/24 Gio, secteur si t
 - **44 vérification CPU/build terminée avant publication** : `cargo fmt --all --check`, Clippy strict `--all-targets --features mlx,chat`, `cargo test --locked --release --features mlx,chat` et build release passent : **125 tests Rust passés,120 ignorés**, dont les tests physiques non lancés. Suite Python pertinente **475 passés/0 ignoré,77,98s** ; les88 tests ciblés antérieurs sont un sous-ensemble, pas un total additionnel. Ruff format/lint strict des six fichiers Python modifiés passe. Commandes, premières erreurs et relances dans `opt-44-draft-scheduler/checks{1,2,3}/` ; le premier échec d’attendu Jinja reste conservé.
 - **44 vérification source, limites explicites** : Kani sur le vrai helper `draft_prefix`, longueur symbolique0..3, probabilités/coûts f64 symboliques, unwind5 : **216 obligations réussies,2 couvertures atteintes** (bornes du préfixe et refus des valeurs/profils invalides). Cela ne prouve ni l’optimalité générale ni MLX/Metal. Tentatives Kani sur norm/sélecteur MLX et rendu tokenizer arrêtées par ICE `intrinsics.rs:243` ; CrossHair absent ; CBMC6.11 lancé avec son chemin réel refuse le type `.metal`, shader **non vérifié**. Première tentative CBMC hors PATH également conservée. Aucun résultat de ces échecs transformé en preuve.
 - **44 état exact avant push pour analyse humaine** : `phase1-identity.json` fige les74 sources pertinentes et les binaires locaux : unité `74fc95a49823d7f793ea685933a7fe51c749ff85d50707b323eff985b4f12bc2`, moteur `25b1f44a19bcec5dfd154c09074de151282273e664b2ebcf2dd9436d3c8ffe46`, compilés mais non exécutés sur GPU44. Hashes modèles réutilisés de43 explicitement identifiés, pas de nouvelle vérification intégrale des poids. Statut : **code à analyser, qualité GPU/calibration/vitesse non mesurées, aucun gain44 validé**. Les mesures43 interrompues9/16 et les essais négatifs restent publiés. À la demande humaine, publier ce point dans PR34 avant toute nouvelle mesure, puis reprendre qualité GPU et vitesse avec protocole enregistré ; aucun remplacement de l’app installée.
+
+- **44-Q reprise préenregistrée après push `1f38776f`** : l’utilisateur autorise la poursuite des tests de vitesse après publication. Secteur100% constaté, binaires phase1 inchangés. Requalifier les seuls chemins affectés44 : contre-exemple résidu2560 valeurs/320 différences anciennes, template réel on/off, deux nouveaux oracles NumPy de variance corrigée, vraie tête EXL3 Pony et propositions couplées pour les deux drafts, générations greedy/états et six politiques de préfixe DSpark. Les engagements43 sur captures/commit/MoE inchangés restent réutilisés avec leurs conditions explicites ; contrôler MTP natif et bridge moteur44 puisque le tokenizer/moteur a changé. Aucun TPS avant réussite des contrôles affectés ; mutation de l’ancien arrondi à détecter/restaurer, contrôles positifs ensuite. Pas de nouvelle tentative des optimisations A/B rejetées.
+  Contrôleur borné réutilisant les validateurs43/44 : sorties complètes, exactement un test physique sélectionné, compteurs/logits finis et non vides ; contrôles factices succès/erreur/silence/interruption et jonction avant premier modèle. Matrices et SHA figés avant chaque phase, aucune réécriture des anciennes preuves. Un seul processus modèle, cache3Gio/53slots/allocateur512Mio/4lecteurs/overlap1/LES0 ; puissance constante, surveillance2s, Swapin/out<=256Mio et pic<=10Gio. Pas de build/proveur pendant GPU. Calibration DSpark d’abord non-thinking, prompts CAL distincts des prompts MAIN/HOLD ; profil et matrice de vitesse seront préenregistrés séparément avant mesures. Statut **en cours**, aucune vitesse44 mesurée.
+
+- **44-Q oracle NumPy dflash2 : passed**, commandes et sorties dans `opt-44-draft-scheduler/numpy-oracles.json` et log ; GPU non exécuté.
+
+- **44-Q oracle NumPy dspark : passed**, commandes et sorties dans `opt-44-draft-scheduler/numpy-oracles.json` et log ; GPU non exécuté.
+
+- **44-Q avant premier GPU** : deux oracles CPU corrigés passent,20 arrays complets chacun,603065600/664569857 paramètres BF16 finis. Contrôleur43 réutilisé avec destination44, validation couplée et diagnostics norm/politiques ; Ruff passe, gardes144 diagnostics/12VM/31composants/17têtes/18processus factices + nouveaux diagnostics et49régressions passent, enfants joints. Matrice10 séquentielle figée dans `quality1/`, identité phase1 inchangée ; commencer template/résidu puis les deux chaînes couplées avant générations longues. Aucun TPS44 lancé.
+
+- **44-C préenregistrement avant calibration locale** : après qualité44-Q et mutation résidu restaurée, contrôler d’abord le vrai bridge moteur44 en3Gio aux budgets1/2/3/17 et annulation. Puis profiler DSpark **non-thinking** à largeur draft3, préfixes vérifiés forcés dans l’ordre0/3/1/2 (B1/B4/B2/B3), sans changement de kernel. Pour chaque préfixe, deux prompts CAL_ARITH/CAL_CODE distincts de MAIN/HOLD, référence série64tokens et états, warmup16 puis deux répétitions64 ; seules les répétitions mesurées/fullwidth3 alimentent STS et coûts. Le temps par bloc comprend draft, capture, vérification et entretien des caches ; relevés I/O de décodage distincts du prefill. Minimum32blocs de calibration,16observations/coût,2prompts ; grille T0.25..8 et ECE10bins déjà testées, pas d’ajustement au vu des futurs TPS. Ordonnanceur greedy seulement. Écrire les quatre sorties complètes et leurs SHA, fitter le profil avec le calibrateur testé, garder séparés ECE d’ajustement et gain tenu à l’écart. Même binaire phase1, secteur/cache3Gio/512Mio, gardes256Mio/10Gio/2s,360s/processus. Aucune compilation/autre inférence pendant cette matrice de coûts. Nouveauté justifiant les essais : aucun profil de coûts ni STS n’existait dans43 ; les anciens TPS statiques ne seront pas utilisés comme témoins temporels. Statut **préparé, non lancé**.
+
+- 44-Q profil prompt-modes : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil residual-norm : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil dflash2-pony-head : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil dflash2-coupled : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil dspark-pony-head : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil dspark-coupled : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil dflash2-greedy : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil dspark-greedy : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil dspark-policies : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil mtp-session : **passed**, swapouts+0octets ; quality.json/log.
+
+- **44-Q qualité affectée passe** :10processus joints, dont8tests natifs explicitement sélectionnés et2têtes Pony indépendantes ; les deux chaînes ont744960logits comparés chacune (RMSErelative0.00011287/0.00009761, seuil0.004) et propositions réelles exactes. Résidu2560valeurs/320différences de l’ancien arrondi, modes réels on/off, greedy DF2on/DSoff budgets1/2/3/17/64 tokens+états exacts,6politiques DSoff et MTPsession passent. NouveauxSwapouts0octets, Swapinsglobaux133939200octets ; pics génération{"dflash2-greedy": 8941853920, "dspark-greedy": 9028508992}. `quality1/summary.json`, oracles et logs. AucunTPS44 ; bridge/mutation/calibration restent à faire.
+
+- **44-M préenregistrement avant mutation réelle** : remplacer temporairement dans `residual_norm` la variance sur sommeFP32 par celle de la somme arrondie BF16, compiler uniquement le test natif release, figer le mutant puis restaurer les bytes/SHA du source même sur erreur. Le test physique du contre-exemple doit échouer exactement pour divergence de norme (1test échoué, pas de chargement/compilation accepté), puis le binaire positif phase1 doit repasser. Aucun autre modèle pendant build ou GPU ; délais180s build/30s norme, alimentation et VM avant/après. Aucun gain/TPS issu de cette mutation.
+
+- **44-M detected_restored_and_positive_rechecked** : source restauré=True ; `opt-44-draft-scheduler/mutations/result.json` et logs, aucun TPS.
+
+- **44-C prêt après44-Q/M** : ancienne variance mutée détectée sur le vrai test physique (1échec attendu), source restauré SHA8ce58d70 et positif phase1 repassé. Aucun modèle/compilateur restant. Gardes du contrôleur de calibration passent (18processus factices joints,21nouveauxdiagnostics,13cas frontière tête indépendante,49régressions). Matrice5 en secteur3Gio figée ; lancer bridge44 puis quatre coûts DSoff0/3/1/2, aucun autre calcul lourd.
+
+- **44-V préenregistrement de vitesse avant création du contrôleur** : après44-Q/M/C complets et profil STS figé, comparer le même binaire prototype phase1 sur M5/24Gio/secteur, cible2.05bpw pinned, cache3Gio/53slots/512Mio/4lecteurs/overlap1/LES0/contexte4096. Deux campagnes séparées et témoins frais : **non-thinking** MAIN puis HOLD, ordre OFF/DSpark-fixe/DSpark-adaptatif/MTP/MTP/DSpark-adaptatif/DSpark-fixe/OFF (16bras) ; **thinking** mêmes prompts, OFF/DFlash2/MTP/MTP/DFlash2/OFF (12bras). DSpark est ainsi évalué dans son mode d’entraînement ; DFlash2 garde son mode officiel thinking, sans comparaison croisée de débits entre templates. Largeur draft3, warmup128 puis2x128tokens par bras (127décodés), pas de compilation/proveur/autre modèle pendant les mesures.
+  Comparer les128IDs complets au premier témoin série courant, répétitions identiques, vérifier l’ancien hash indépendant MAIN/HOLD et les compteurs MTP lorsqu’ils existent pour thinking. La nouvelle référence non-thinking est celle du parcours série actuel déjà qualifié numériquement ; ne pas la présenter comme128tokens calculés par une seconde implémentation. Profils : seulement temps scalaires additionnés, histogrammes de préfixe/coûts et I/O de décodage validés séparément (les anciens validateurs43 additionnaient seulement deux champs scalaires et doivent être adaptés aux champs structurés44).
+  Gardes2s, alimentation stable, Swapin/out<=256Mio/processus et zéro nouveauSwapout pour qualifier, pic<=10Gio, surcoût<=1Gio MTP/1.5Gio drafts, timeout360s/bras. Dérive intra-bras<=25%, entre témoins d’un même prompt<=10%. Gain prototype seulement si toutes les paires sont>=1 et moyenne géométrique>=1.01 sur chacun des2prompts, avec parité complète ; sinon rejet/nonconcluant selon cause. Comparer aussi DSadaptatif/DSfixe avec ces critères, sans convertir ce ratio en gain vsOFF. Arrêt sur erreur de qualité/garde, conserver bras partiels et jonction ; aucune relance pour bruit. Matrices/profil/identités figés avant premier bras. Aucun gain livré/app ni15tok/s présumé. Statut **préparé, non lancé**.
+
+- 44-Q profil bridge : **passed**, swapouts+5570560octets ; quality.json/log.
+
+- 44-Q profil calibration-prefix-0 : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil calibration-prefix-3 : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil calibration-prefix-1 : **passed**, swapouts+0octets ; quality.json/log.
+
+- 44-Q profil calibration-prefix-2 : **passed**, swapouts+0octets ; quality.json/log.
+
+- **44-C terminé, profil calibré avant validation vitesse** : bridge3Gio budgets1/2/3/17+annulation passe en212,03s, Swapouts globaux+5570560octets (qualité sous garde256Mio, pas un gain TPS). Quatre bras DSoff0/3/1/2 passent, tokens et états série64 exacts, tous joints, **Swapouts0 sur chaque bras de coûts**. Profil STS : T=[0.75, 0.5, 0.5], coûtsB1..B4=[0.1468871703291667, 0.2363450463055556, 0.31001176462280705, 0.39329593311538463]secondes, observations=[240, 144, 114, 104], blocsfull3=104. Deux prompts de calibration distincts des futurs MAIN/HOLD ; ECE dans `calibration-off/prefix-profile.json` est un ajustement, pas une validation tenue à l’écart. Identités et SHA des quatre entrées conservés ; aucunTPS44 mesuré encore.
+
+- **44-V figé avant premier bras** :16bras non-thinking puis12thinking préparés, même unité74fc95a4 et profil local SHAa7406c806981dd58d369ac3dc827a54b170bb77bc4c406938ed5ffb69a07372a. Gardes de chaque contrôleur :41mutations/diagnostics,9qualifications,7décisions passent ; monitor2s inchangé de43 (8cas précédemment qualifiés), source/SHA lié. Ruff des9superviseurs concernés et YAMLCI passent ; aucun envMLXL3 hérité. ECE calibration du troisième préfixe passe de0.05339 brut à0.07618 après calibration séquentielle : dégradation conservée, aucun réglage ultérieur aux prompts de validation. Tous coûts ont zéro nouveauSwapout ; bridge qualité a+5.31Mio globaux, sous garde qualité mais pas présenté comme gain. Lancer OFFnon-thinking en premier, puis variantes/ordre inverse, un seul modèle GPU, sansbuild/proof ; aucune comparaison inter-template ni gain livré présumé.
+
+- 44-V brasprototype {"name": "MAIN-0-off", "status": "validated", "tps": 9.331664035189409, "peak_bytes": 7134025608, "swapout_bytes": 0, "swapin_bytes": 6619136} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-1-dspark-fixed", "status": "validated", "tps": 5.492432105381361, "peak_bytes": 8977865664, "swapout_bytes": 0, "swapin_bytes": 9568256} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-2-dspark-adaptive", "status": "validated", "tps": 3.946381311930956, "peak_bytes": 8936512424, "swapout_bytes": 0, "swapin_bytes": 127401984} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-3-mtp", "status": "validated", "tps": 8.210665481372772, "peak_bytes": 7997905376, "swapout_bytes": 0, "swapin_bytes": 10289152} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-4-mtp", "status": "validated", "tps": 8.591528192388342, "peak_bytes": 8001640904, "swapout_bytes": 0, "swapin_bytes": 11075584} ; speed-off/execution.json.
+
+- **44-V observation de dérive conservée, campagne inchangée** : MAIN2DSadaptatif warmup6.9363 puis mesures3.8974/3.9954tok/s, histogramme72préfixes0/12préfixes1/9préfixes2/1préfixe3 et128IDs identiques. Les deux mesures sont proches mais éloignées du warmup ; aucun gain ni régression causale n’en est déduit. Swapouts0, Swapinsglobaux127401984octets, aucune alerte thermique rapportée parpmset ; processus UI actifs observés, causalité non établie. Attendre témoins retour, aucun paramètre changé ni répétition pour bruit. `speed-off/drift-observation.json`.
+
+- 44-V brasprototype {"name": "MAIN-5-dspark-adaptive", "status": "validated", "tps": 7.782997655621908, "peak_bytes": 8938511248, "swapout_bytes": 0, "swapin_bytes": 8323072} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-6-dspark-fixed", "status": "validated", "tps": 5.164948614837037, "peak_bytes": 8977357712, "swapout_bytes": 0, "swapin_bytes": 8650752} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-7-off", "status": "validated", "tps": 8.731999300704638, "peak_bytes": 7125456824, "swapout_bytes": 0, "swapin_bytes": 7798784} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-0-off", "status": "validated", "tps": 8.834197213299724, "peak_bytes": 7137220512, "swapout_bytes": 0, "swapin_bytes": 6553600} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-1-dspark-fixed", "status": "validated", "tps": 7.666814010808654, "peak_bytes": 8974588912, "swapout_bytes": 0, "swapin_bytes": 35520512} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-2-dspark-adaptive", "status": "validated", "tps": 8.831385792472231, "peak_bytes": 8967855040, "swapout_bytes": 0, "swapin_bytes": 13238272} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-3-mtp", "status": "validated", "tps": 9.815074313214838, "peak_bytes": 8004671992, "swapout_bytes": 0, "swapin_bytes": 6946816} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-4-mtp", "status": "validated", "tps": 9.476244157068368, "peak_bytes": 8018582032, "swapout_bytes": 0, "swapin_bytes": 7602176} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-5-dspark-adaptive", "status": "validated", "tps": 9.212343553004757, "peak_bytes": 8964135920, "swapout_bytes": 0, "swapin_bytes": 7651328} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-6-dspark-fixed", "status": "validated", "tps": 7.782225372008036, "peak_bytes": 8968149952, "swapout_bytes": 0, "swapin_bytes": 11337728} ; speed-off/execution.json.
+
+- 44-V brasprototype {"name": "HOLD-7-off", "status": "validated", "tps": 9.491611974717568, "peak_bytes": 7137466296, "swapout_bytes": 0, "swapin_bytes": 6422528} ; speed-off/execution.json.
+
+- **44-V termine completed_prototype_comparison**, 16/16bras ; speed-off/result.json.
+
+- **44-V non-thinking terminé16/16** :48générations128IDs exactes,32mesurées+16warmups, tous processus joints ; Swapouts0 sur les16bras, picmax8977865664octets. OFFMAIN9.331664/8.731999,HOLD8.834197/9.491612tok/s ; MTPMAIN8.210665/8.591528,HOLD9.815074/9.476244 ; DSfixeMAIN5.492432/5.164949,HOLD7.666814/7.782225 ; DSadaptatifMAIN3.946381/7.782998,HOLD8.831386/9.212344. Témoins dérivent6.87/7.44%, sous10%, mais la forte dérive interne warmup/mesuresMAIN2 reste signalée. Aucune configuration ne satisfait tous critères préenregistrés sur les deux prompts ; surplus des drafts~1.80–1.85Go dépasse aussi la limite1.5Gio vsOFF, même si pic absolu<10Gio et zéro Swapout. Adaptatif/fixe améliore HOLD sur les deux paires, pas MAIN ; pas de gain global validé. Rapport `speed-off/summary.json`, protocole inchangé. Passer maintenant aux12bras thinking OFF/DFlash2/MTP, même binaire/secteur/budgets avec témoins frais.
+
+- 44-V brasprototype {"name": "MAIN-0-off", "status": "validated", "tps": 7.927442030289645, "peak_bytes": 7149098936, "swapout_bytes": 0, "swapin_bytes": 68206592} ; speed-on/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-1-dflash2", "status": "validated", "tps": 7.772361985344668, "peak_bytes": 8887229304, "swapout_bytes": 0, "swapin_bytes": 2490368} ; speed-on/execution.json.
+
+- 44-V brasprototype {"name": "MAIN-2-mtp", "status": "failed"} ; speed-on/execution.json.
+
+- **44-V termine failed**, 2/12bras ; speed-on/result.json.
+
+- **44-V thinking arrêté sur garde mémoire, avant toute relance** : deux bras complets (MAIN OFF7.927442 / DFlash2 7.772362tok/s), puis MAIN2MTP arrêté et joint après74.68s : hausse globale maximale Swapouts469221376octets (>256Mio), Swapins18939904octets. Ce sont des compteurs système, l'attribution au seul moteur n'est pas établie. Neuf bras non lancés ; parité globale incomplète, aucun gain thinking qualifié. Aucun modèle ne doit être relancé pour contourner cette garde ; conserver `speed-on/result.json`, `execution.json` et le log interrompu. Campagne **bloquée/interrompue sur pression mémoire**, pas une validation de débit MTP.
+
+- **44-R3 — croisement des deux audits demandé, préenregistré avant contrôles supplémentaires** : lire l'audit fourni `MLXL3_PR34_FLASH_NEXT_SSD_DFLASH2_DSPARK_RECHERCHE_2026-10-20.md` (SHA256 `412c4898b7805442e581b95b57eb9c07b93b9b2fc069704064a439c765bd5337`, commit audité1f38776f), puis `MLXL3_FLASH_NEXT_SSD_DECODE_AUDIT_2026-10-20.md`, et rapprocher les propositions des sources actuelles et des essais historiques. Lecture seule du moteur ; aucun nouveau prototype, benchmark GPU, compilation ou réglage tiré des documents n'est autorisé par leur seul contenu. Vérifier notamment la couverture des confidences issues du hidden natif, l'entretien KV, les snapshots GDN, le calcul multilignes réel et les I/O critiques. Pour la lacune de confidence, comparer seulement les vecteurs existants (comptes/finitude/max écart et sources exactes) : des hiddens différents ne permettent pas d'isoler une erreur de sélecteur, ni de fixer une tolérance a posteriori. Les nouvelles mesures44 sont postérieures à l'état publié étudié par les audits ; ne pas recycler leurs anciens TPS comme témoins actuels. Faire une synthèse commune : faits vérifiés, hypothèses, antécédents négatifs et ordre d'essais proposé. Statut **en cours**, vitesse44 arrêtée, aucun gain nouveau revendiqué.
+
+- **44-R3 terminé — synthèse commune, aucune implémentation supplémentaire** : [rapport](docs/flash-next-ssd-audits-synthesis-2026-10-20.md), [comparaison et identités](docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/review-r3/comparison.json). Second document SHA256 `3ca99fa4c1a70ac6476e2875156060d7ac4e9f17292b7bff4b326ffae756b742`. Confirmés dans les appelants réels : scalarisation EXL3 de référence, préparation par position hors MoE, MTP512experts déjà résidents utilisant encore réserve/readback SSD, lookup raccordé à Qwen mais pas Flash, append KV par concaténations/évaluations et snapshots GDN Flash sans le journal Qwen. Apports à conserver : chemin MTP résident, lookup, multiplicité GPU par expert, PLE et préfixe décroissant exploratoire. Le second audit sous-estime l'antécédent exactMB2 :15/15B a déjà été testé/retiré, partagé anticipé27 et regroupements43A/B aussi ; pas de relance à l'identique.
+  Restriction du résumé44-Q : les744960logits/tête et confidences numériques sont comparés sur **hiddenCPU**, les IDs sur les deux hiddens, mais pas les logits/confidences complets du **hiddennatif**. Vecteurs DSpark existants non vides/finis (3valeurs chacun), maxécart0.0015378269638336162, mêmes3propositions ; hiddens différents, donc ni oracle de même entrée ni divergence de sélecteur démontrée. Aucun seuil ajouté a posteriori. Le manifeste indépendant est archivé dans `review-r3/reference-dspark.json`. Le risque de réservation cold après échec hot reste confirmé par lecture mais **non reproduit**.
+  Sources primaires MLX KV/lazy, AppleM5 et README Strata relues seulement ; mécanismes et limites de précision/mémoire, aucun multiplicateur transféré. Priorité proposée : oracle/erreurs, attribution cible/commit/KV/I/O, MTP résident/lookup et KV/GDN, puis EXL3 ciblé si profil dominant, Q8/parking/cache ; QSA2052 et prefill séparés. Aucun modèle/build/proveur supplémentaire pour R3, moteur inchangé. **44 clos** : N/M contrôles physiques et mutation passés dans leur domaine ; S/P couverture confidence incomplète ; C calibré sur deux prompts sans généralisation prouvée ; Voff non concluant sans gain et Von bloqué/interrompu sur garde mémoire. Aucun essai encore actif, application inchangée.
+
+- **44-R3 contrôle documentaire avant publication des preuves** :37JSON lus,7empreintes source inchangées, manifeste indépendant archivé byte-identique,7liens locaux du rapport résolus, tous processus des16bras OFF et des3bras thinking tentés joints ; gardes CPU antérieures conservées comme telles, pas relancées pour les documents. YAML workflow et `git diff --check` passent ; `native/scripts/tests` identiques à1f38776f. CI de1f à cet instant : régression réussie ; native Linux/macOS et contrats Flash réussis ; job Kani global encore en cours. Aucun succès global inventé. Publication des résultats44 et du rapport dans PR34 selon les demandes persistantes de push ; fichiers ASan/TSan préexistants opt32 exclus. Les nouveaux contrôleurs et leur CI sont ceux qualifiés avant les campagnes, aucune optimisation du moteur ajoutée par R3.

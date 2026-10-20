@@ -1,0 +1,133 @@
+import contextlib
+import copy
+import hashlib
+import io
+import json
+import runpy
+from pathlib import Path
+
+P = Path("docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-off")
+
+
+def hash_file(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def main():
+    path = P / "guard-checks.json"
+    result = {
+        "status": "incomplete",
+        "source_hashes": {
+            name: hash_file(P / name) for name in ["bench-supervisor.txt", "guards-supervisor.txt"]
+        },
+    }
+    path.write_text(json.dumps(result, indent=2) + "\n")
+    namespace = runpy.run_path(str(P / "bench-supervisor.txt"))
+    try:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            namespace["self_test"]()
+        result["diagnostics"] = json.loads(output.getvalue())
+        assert result["diagnostics"]["status"] == "passed"
+        quality = [{"status": "passed", "reaped": True} for _ in range(10)]
+        mutation = {
+            "status": "detected_restored_and_positive_rechecked",
+            "restored": True,
+            "source_before_sha256": "a" * 64,
+            "source_after_sha256": "a" * 64,
+            "commands": [
+                {"name": "build-mutant", "status": "completed", "reaped": True, "exit_code": 0},
+                {
+                    "name": "negative",
+                    "status": "passed_expected_result",
+                    "reaped": True,
+                    "exit_code": 101,
+                },
+                {
+                    "name": "positive",
+                    "status": "passed_expected_result",
+                    "reaped": True,
+                    "exit_code": 0,
+                },
+            ],
+        }
+        namespace["qualified"](quality, mutation)
+        for key, value in [
+            ("status", "failed"),
+            ("restored", False),
+            ("source_after_sha256", "b" * 64),
+            ("commands", []),
+        ]:
+            changed = copy.deepcopy(mutation)
+            changed[key] = value
+            try:
+                namespace["qualified"](quality, changed)
+            except AssertionError:
+                pass
+            else:
+                raise AssertionError("unqualified source mutation accepted")
+        for bad in [
+            [],
+            quality[:-1],
+            [{"status": "failed", "reaped": True}] * 10,
+            [{"status": "passed", "reaped": False}] * 10,
+        ]:
+            try:
+                namespace["qualified"](bad, mutation)
+            except AssertionError:
+                pass
+            else:
+                raise AssertionError("partial numerical qualification accepted")
+        result["qualification_cases"] = 9
+        records = [
+            {
+                "prompt": prompt,
+                "mode": mode,
+                "status": "validated",
+                "reaped": True,
+                "tps": 10 if mode == "off" else 11,
+                "peak_bytes": (8 << 30) + (0 if mode == "off" else 100),
+            }
+            for prompt in ["MAIN", "HOLD"]
+            for mode in namespace["MODES"]
+        ]
+        evaluate = namespace["summary"]
+        assert all(c["eligible_prototype_gain"] for c in evaluate(records)["comparisons"])
+        records[1]["tps"] = 9
+        assert not evaluate(records)["comparisons"][0]["eligible_prototype_gain"]
+        records[1]["tps"] = 11
+        records[len(namespace["MODES"]) - 1]["tps"] = 8
+        assert not any(
+            c["eligible_prototype_gain"]
+            for c in evaluate(records)["comparisons"]
+            if c["prompt"] == "MAIN"
+        )
+        records[len(namespace["MODES"]) - 1]["tps"] = 10
+        records[1]["peak_bytes"] = 10 << 30
+        assert not evaluate(records)["comparisons"][0]["eligible_prototype_gain"]
+        for data in [[], records[:-1], [dict(r, status="running") for r in records]]:
+            try:
+                evaluate(data)
+            except AssertionError:
+                pass
+            else:
+                raise AssertionError("incomplete campaign accepted")
+        result.update(
+            status="passed",
+            decision_cases=7,
+            monitor="unchanged actual monitor/snapshot from speed-heads; eight CPU monitor cases qualified in its guard-checks.json",
+        )
+    except BaseException as error:
+        result.update(status="failed_or_interrupted", error=repr(error))
+        raise
+    finally:
+        path.write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()

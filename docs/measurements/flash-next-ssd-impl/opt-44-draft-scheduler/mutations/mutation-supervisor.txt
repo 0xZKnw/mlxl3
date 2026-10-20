@@ -1,0 +1,163 @@
+from pathlib import Path
+import hashlib, json, os, shutil, subprocess, time
+
+w = Path.cwd()
+root = Path("/Users/justin/Documents/mix-stq1_0")
+p = w / "docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/mutations"
+file = w / "native/src/flash_draft.rs"
+original = file.read_bytes()
+digest = hashlib.sha256(original).hexdigest()
+result = {"status": "incomplete", "source_before_sha256": digest, "restored": False, "commands": []}
+
+
+def save():
+    (p / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+
+
+def run(name, command, timeout, environment=None):
+    record = {"name": name, "command": command, "timeout_seconds": timeout, "status": "running"}
+    result["commands"].append(record)
+    save()
+    started = time.monotonic()
+    try:
+        with (p / (name + ".log")).open("x") as stream:
+            process = subprocess.Popen(
+                command, stdout=stream, stderr=subprocess.STDOUT, env=environment
+            )
+            record["pid"] = process.pid
+            try:
+                record["exit_code"] = process.wait(timeout=timeout)
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
+                record["reaped"] = process.poll() is not None
+        record["status"] = "completed"
+    except BaseException as error:
+        record.update(status="failed_or_interrupted", error=repr(error))
+        raise
+    finally:
+        record["seconds"] = time.monotonic() - started
+        save()
+    return record, (p / (name + ".log")).read_text()
+
+
+def vm():
+    return {
+        name: subprocess.check_output(command, text=True, timeout=5)
+        for name, command in [("power", ["pmset", "-g", "batt"]), ("vm_stat", ["vm_stat"])]
+    }
+
+
+save()
+try:
+    needle = "    let inverse = sum\n        .mul(&sum)?"
+    replacement = "    let rounded = sum.astype(Dtype::BFloat16)?.astype(Dtype::Float32)?;\n    let inverse = rounded\n        .mul(&rounded)?"
+    assert original.decode().count(needle) == 1
+    mutant = original.decode().replace(needle, replacement)
+    (p / "mutant-source.txt").write_text(mutant)
+    try:
+        file.write_text(mutant)
+        env = {
+            **os.environ,
+            "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+            "CARGO_TARGET_DIR": str(root / "target"),
+            "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+        }
+        record, log = run(
+            "build-mutant",
+            [
+                "cargo",
+                "test",
+                "--locked",
+                "--no-run",
+                "--release",
+                "--lib",
+                "--features",
+                "mlx,chat",
+                "--message-format=json",
+            ],
+            180,
+            env,
+        )
+        assert record["exit_code"] == 0
+        artifacts = []
+        for line in log.splitlines():
+            if not line.startswith("{"):
+                continue
+            data = json.loads(line)
+            if (
+                data.get("reason") == "compiler-artifact"
+                and data.get("executable")
+                and data["target"]["name"] == "mlxl3_native"
+            ):
+                artifacts.append(data["executable"])
+        assert len(artifacts) == 1
+        binary = root / "build/flash-opt-44/mutations/old-residual-norm"
+        binary.parent.mkdir(exist_ok=True)
+        assert not binary.exists()
+        shutil.copy2(artifacts[0], binary)
+        binary.chmod(0o555)
+        result["mutant_binary"] = {
+            "path": str(binary),
+            "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+        }
+    finally:
+        file.write_bytes(original)
+        result["source_after_sha256"] = hashlib.sha256(file.read_bytes()).hexdigest()
+        result["restored"] = result["source_after_sha256"] == digest
+        save()
+    assert result["restored"]
+    for label, binary, expected in [
+        ("negative", Path(result["mutant_binary"]["path"]), 101),
+        ("positive", root / "build/flash-opt-44/phase1/mlxl3_native", 0),
+    ]:
+        before = vm()
+        record, log = run(
+            label,
+            [
+                str(binary),
+                "qwen4::draft::flash_residual_norm_matches_independent_counterexample",
+                "--exact",
+                "--ignored",
+                "--test-threads=1",
+                "--nocapture",
+            ],
+            30,
+        )
+        after = vm()
+        record.update(before=before, after=after)
+        assert (
+            before["power"].splitlines()[0]
+            == after["power"].splitlines()[0]
+            == "Now drawing from 'AC Power'"
+        )
+        assert record["exit_code"] == expected
+        if label == "negative":
+            assert (
+                "residual norm differs from independent fixture" in log
+                and "0 passed; 1 failed;" in log
+            )
+        else:
+            assert "1 passed; 0 failed;" in log and "FLASH_DRAFT_NORM " in log
+        record["status"] = "passed_expected_result"
+        save()
+    result["status"] = "detected_restored_and_positive_rechecked"
+except BaseException as error:
+    result.update(status="failed_or_interrupted", error=repr(error))
+    raise
+finally:
+    save()
+    with (w / "opti.md").open("a") as stream:
+        stream.write(
+            "\n- **44-M "
+            + result["status"]
+            + "** : source restauré="
+            + str(result["restored"])
+            + " ; `opt-44-draft-scheduler/mutations/result.json` et logs, aucun TPS.\n"
+        )
+    print({"status": result["status"], "restored": result["restored"]}, flush=True)

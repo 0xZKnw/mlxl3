@@ -1,0 +1,82 @@
+{
+  "status": "detected_restored_and_positive_rechecked",
+  "source_before_sha256": "8ce58d70d32fee6465fa8ac8f24949ced2ab20a85f7706bfdc192fd729ea1bd4",
+  "restored": true,
+  "commands": [
+    {
+      "name": "build-mutant",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-run",
+        "--release",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 180,
+      "status": "completed",
+      "pid": 88113,
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 37.89340808300767
+    },
+    {
+      "name": "negative",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/mutations/old-residual-norm",
+        "qwen4::draft::flash_residual_norm_matches_independent_counterexample",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "timeout_seconds": 30,
+      "status": "passed_expected_result",
+      "pid": 88214,
+      "exit_code": 101,
+      "reaped": true,
+      "seconds": 0.3949704170227051,
+      "before": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   424919.\nPages active:                                 367518.\nPages inactive:                               359264.\nPages speculative:                             10477.\nPages throttled:                                   0.\nPages wired down:                             193725.\nPages purgeable:                                8254.\n\"Translation faults\":                     1000607338.\nPages copy-on-write:                        31686227.\nPages zero filled:                        1252331185.\nPages reactivated:                          97236655.\nPages purged:                               11585821.\nFile-backed pages:                            464925.\nAnonymous pages:                              272334.\nPages stored in compressor:                   320428.\nPages occupied by compressor:                 162795.\nDecompressions:                            276933614.\nCompressions:                              328486957.\nPageins:                                   914275839.\nPageouts:                                     137519.\nSwapins:                                     4071328.\nSwapouts:                                    5177451.\nPages tagged:                                  92877.\nPages tagged resident:                         66326.\nPages tagged compressed:                       26551.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3837.\nPages tag-storage free:                         2744.\nPages tag-storage non-tag pageable:            42379.\nPages tag-storage non-tag wired:                  79.\nBytes of compressed tags:                    4306688.\nTagged compressions:                         4769436.\nTagged decompressions:                       4528219.\n"
+      },
+      "after": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   424485.\nPages active:                                 368842.\nPages inactive:                               359414.\nPages speculative:                             10570.\nPages throttled:                                   0.\nPages wired down:                             192617.\nPages purgeable:                                8297.\n\"Translation faults\":                     1000611402.\nPages copy-on-write:                        31686746.\nPages zero filled:                        1252334368.\nPages reactivated:                          97236655.\nPages purged:                               11585821.\nFile-backed pages:                            465226.\nAnonymous pages:                              273600.\nPages stored in compressor:                   320357.\nPages occupied by compressor:                 162770.\nDecompressions:                            276933687.\nCompressions:                              328486957.\nPageins:                                   914276113.\nPageouts:                                     137519.\nSwapins:                                     4071328.\nSwapouts:                                    5177451.\nPages tagged:                                  92871.\nPages tagged resident:                         66322.\nPages tagged compressed:                       26549.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3837.\nPages tag-storage free:                         2741.\nPages tag-storage non-tag pageable:            42382.\nPages tag-storage non-tag wired:                  79.\nBytes of compressed tags:                    4306240.\nTagged compressions:                         4769436.\nTagged decompressions:                       4528221.\n"
+      }
+    },
+    {
+      "name": "positive",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/phase1/mlxl3_native",
+        "qwen4::draft::flash_residual_norm_matches_independent_counterexample",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "timeout_seconds": 30,
+      "status": "passed_expected_result",
+      "pid": 88219,
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 0.03581920900614932,
+      "before": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   424483.\nPages active:                                 368845.\nPages inactive:                               359409.\nPages speculative:                             10570.\nPages throttled:                                   0.\nPages wired down:                             192622.\nPages purgeable:                                8297.\n\"Translation faults\":                     1000612449.\nPages copy-on-write:                        31687013.\nPages zero filled:                        1252334537.\nPages reactivated:                          97236655.\nPages purged:                               11585821.\nFile-backed pages:                            465226.\nAnonymous pages:                              273598.\nPages stored in compressor:                   320356.\nPages occupied by compressor:                 162769.\nDecompressions:                            276933688.\nCompressions:                              328486957.\nPageins:                                   914276115.\nPageouts:                                     137519.\nSwapins:                                     4071328.\nSwapouts:                                    5177451.\nPages tagged:                                  92871.\nPages tagged resident:                         66322.\nPages tagged compressed:                       26549.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3837.\nPages tag-storage free:                         2731.\nPages tag-storage non-tag pageable:            42392.\nPages tag-storage non-tag wired:                  79.\nBytes of compressed tags:                    4306240.\nTagged compressions:                         4769436.\nTagged decompressions:                       4528221.\n"
+      },
+      "after": {
+        "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   424471.\nPages active:                                 368932.\nPages inactive:                               359406.\nPages speculative:                             10573.\nPages throttled:                                   0.\nPages wired down:                             192548.\nPages purgeable:                                8270.\n\"Translation faults\":                     1000615367.\nPages copy-on-write:                        31687464.\nPages zero filled:                        1252337443.\nPages reactivated:                          97236655.\nPages purged:                               11585821.\nFile-backed pages:                            465232.\nAnonymous pages:                              273679.\nPages stored in compressor:                   320354.\nPages occupied by compressor:                 162768.\nDecompressions:                            276933690.\nCompressions:                              328486957.\nPageins:                                   914276129.\nPageouts:                                     137519.\nSwapins:                                     4071328.\nSwapouts:                                    5177451.\nPages tagged:                                  92871.\nPages tagged resident:                         66322.\nPages tagged compressed:                       26549.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3837.\nPages tag-storage free:                         2740.\nPages tag-storage non-tag pageable:            42383.\nPages tag-storage non-tag wired:                  79.\nBytes of compressed tags:                    4306240.\nTagged compressions:                         4769436.\nTagged decompressions:                       4528221.\n"
+      }
+    }
+  ],
+  "mutant_binary": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/mutations/old-residual-norm",
+    "sha256": "0473b09124df5f325994495661e6d5cd3cbdf5eaae2e72895222fafaa6412d13"
+  },
+  "source_after_sha256": "8ce58d70d32fee6465fa8ac8f24949ced2ab20a85f7706bfdc192fd729ea1bd4"
+}
