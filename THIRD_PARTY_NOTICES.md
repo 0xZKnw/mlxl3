@@ -93,6 +93,17 @@ benchmarked MLXL3 implementations and may differ from Splash. Splash is
 licensed under the Apache License, Version 2.0; a copy is provided in
 `LICENSES/Apache-2.0.txt`.
 
+## SGLang DFlash2 and DSpark
+
+The experimental Flash Next draft tests in `native/src/flash_draft.rs` and
+the independent NumPy oracle in `scripts/check_flash_drafts.py` implement
+the DFlash2 and vanilla DSpark equations documented by SGLang, revision
+`e00930c5489053f26d86b179cee0d087f846acbb`:
+<https://github.com/sgl-project/sglang/tree/e00930c5489053f26d86b179cee0d087f846acbb/python/sglang/srt/models>.
+SGLang is licensed under Apache-2.0 (`LICENSES/Apache-2.0.txt`).
+The locally downloaded IncoAI DFlash2 and shadowpa0327 DSpark checkpoints
+are not bundled; their respective model cards document their weight licenses.
+
 ## ExLlamaV3
 
 Source: <https://github.com/turboderp-org/exllamav3>, pinned during development

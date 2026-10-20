@@ -125,6 +125,238 @@ pub(crate) fn pair_commit_offset(base: i32, current: i32, retained: i32) -> Opti
     base.checked_add(retained)
 }
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn expert_cohort_rows(capacity: usize) -> Option<usize> {
+    (10..=512)
+        .contains(&capacity)
+        .then_some((capacity / 10).min(8))
+}
+
+/// Greedy-only scheduler: prefer the smallest prefix on equal expected throughput.
+#[cfg(any(test, kani))]
+pub(crate) fn draft_prefix(confidence: &[f64], costs: &[f64]) -> Option<usize> {
+    if confidence.len() > 3
+        || costs.len() != confidence.len() + 1
+        || confidence
+            .iter()
+            .any(|p| !p.is_finite() || !(0.0..=1.0).contains(p))
+        || costs
+            .iter()
+            .any(|c| !c.is_finite() || !(1e-9..=360.0).contains(c))
+    {
+        return None;
+    }
+    let mut survival = 1.;
+    let mut expected = 1.;
+    let mut best_expected = 1.;
+    let mut best = 0;
+    for (position, &probability) in confidence.iter().enumerate() {
+        survival *= probability;
+        expected += survival;
+        if expected * costs[best] > best_expected * costs[position + 1] {
+            best = position + 1;
+            best_expected = expected;
+        }
+    }
+    Some(best)
+}
+
+#[cfg(test)]
+mod draft_contract_tests {
+    use super::*;
+
+    #[test]
+    fn draft_prefix_matches_exhaustive_quarter_probability_outcomes() {
+        let cost_tables = [
+            [1., 2., 3., 4.],
+            [1., 1., 1., 1.],
+            [1., 1.5, 2., 4.],
+            [1., 3., 1.5, 8.],
+        ];
+        for p0 in 0..=4 {
+            for p1 in 0..=4 {
+                for p2 in 0..=4 {
+                    let probabilities = [p0 as f64 / 4., p1 as f64 / 4., p2 as f64 / 4.];
+                    for length in 0..=3 {
+                        let mut emitted = [0u32; 4];
+                        for draw0 in 0..4 {
+                            for draw1 in 0..4 {
+                                for draw2 in 0..4 {
+                                    let draws = [draw0, draw1, draw2];
+                                    for (prefix, total) in
+                                        emitted.iter_mut().enumerate().take(length + 1)
+                                    {
+                                        let accepted = draws[..prefix]
+                                            .iter()
+                                            .zip([p0, p1, p2])
+                                            .take_while(|(draw, p)| **draw < *p)
+                                            .count();
+                                        *total += 1 + accepted as u32;
+                                    }
+                                }
+                            }
+                        }
+                        for costs in cost_tables {
+                            let mut expected = 0;
+                            for j in 1..=length {
+                                if emitted[j] as f64 * costs[expected]
+                                    > emitted[expected] as f64 * costs[j]
+                                {
+                                    expected = j;
+                                }
+                            }
+                            assert_eq!(
+                                draft_prefix(&probabilities[..length], &costs[..=length]),
+                                Some(expected)
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn draft_prefix_rejects_invalid_profiles_and_prefers_shorter_ties() {
+        assert_eq!(draft_prefix(&[], &[0.1]), Some(0));
+        assert_eq!(draft_prefix(&[0., 0., 0.], &[1.; 4]), Some(0));
+        assert_eq!(draft_prefix(&[1., 1., 1.], &[1.; 4]), Some(3));
+        assert_eq!(draft_prefix(&[1.; 4], &[1.; 5]), None);
+        assert_eq!(draft_prefix(&[1.], &[1.]), None);
+        for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1., 1.1] {
+            assert_eq!(draft_prefix(&[invalid], &[1.; 2]), None);
+        }
+        for invalid in [f64::NAN, f64::INFINITY, 0., -1., 361., 1e-12] {
+            assert_eq!(draft_prefix(&[0.5], &[1., invalid]), None);
+        }
+    }
+
+    #[test]
+    fn expert_cohorts_fit_even_the_smallest_streaming_cache() {
+        for capacity in 0..=1024 {
+            match expert_cohort_rows(capacity) {
+                Some(rows) => {
+                    assert!((10..=512).contains(&capacity));
+                    assert!((1..=8).contains(&rows));
+                    assert!(rows * 10 <= capacity);
+                    assert!(rows == 8 || (rows + 1) * 10 > capacity);
+                }
+                None => assert!(!(10..=512).contains(&capacity)),
+            }
+        }
+        assert_eq!(expert_cohort_rows(usize::MAX), None);
+    }
+
+    #[test]
+    fn draft_commits_match_independent_wide_arithmetic_and_reject_stale_tapes() {
+        for base in [-1, 0, 1, 4096, i32::MAX - 8, i32::MAX - 1, i32::MAX] {
+            for total in (0..=10).chain([usize::MAX]) {
+                for retained in (0..=10).chain([usize::MAX]) {
+                    for current in [
+                        i32::MIN,
+                        0,
+                        base.saturating_add(total.min(9) as i32),
+                        i32::MAX,
+                    ] {
+                        let valid = base >= 0
+                            && (1..=8).contains(&total)
+                            && (1..=total).contains(&retained)
+                            && i64::from(base) + total as i64 == i64::from(current);
+                        let expected = valid.then(|| (i64::from(base) + retained as i64) as i32);
+                        assert_eq!(
+                            draft_commit_offset(base, current, total, retained),
+                            expected
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+mod draft_contract_proofs {
+    use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(5)]
+    fn draft_scheduler_cannot_exceed_available_prefix_or_accept_invalid_costs() {
+        let confidence = kani::any::<[f64; 3]>();
+        let costs = kani::any::<[f64; 4]>();
+        let length = kani::any::<usize>();
+        kani::assume(length <= 3);
+        if let Some(prefix) = draft_prefix(&confidence[..length], &costs[..=length]) {
+            assert!(prefix <= length);
+            assert!(
+                costs[..=length]
+                    .iter()
+                    .all(|c| c.is_finite() && (1e-9..=360.).contains(c))
+            );
+            assert!(
+                confidence[..length]
+                    .iter()
+                    .all(|p| p.is_finite() && (0.0..=1.).contains(p))
+            );
+            kani::cover!(length == 3 && prefix == 0);
+            kani::cover!(length == 3 && prefix == 3);
+        }
+    }
+
+    #[kani::proof]
+    fn expert_cohorts_never_exceed_live_slot_capacity() {
+        let capacity: usize = kani::any();
+        if let Some(rows) = expert_cohort_rows(capacity) {
+            assert!((10..=512).contains(&capacity));
+            assert!((1..=8).contains(&rows));
+            assert!(rows * 10 <= capacity);
+            assert!(rows == 8 || (rows + 1) * 10 > capacity);
+            kani::cover!(rows == 1);
+            kani::cover!(rows == 7);
+            kani::cover!(rows == 8);
+        } else {
+            assert!(!(10..=512).contains(&capacity));
+        }
+    }
+
+    #[kani::proof]
+    fn wide_draft_commit_accepts_only_exact_finite_prefixes() {
+        let base: i32 = kani::any();
+        let current: i32 = kani::any();
+        let total: usize = kani::any();
+        let retained: usize = kani::any();
+        let result = draft_commit_offset(base, current, total, retained);
+        let valid = base >= 0
+            && (1..=8).contains(&total)
+            && (1..=total).contains(&retained)
+            && i64::from(base) + total as i64 == i64::from(current);
+        assert_eq!(result.is_some(), valid);
+        if let Some(end) = result {
+            assert_eq!(i64::from(end), i64::from(base) + retained as i64);
+            assert!(end <= current);
+            kani::cover!(total == 8 && retained == 1);
+            kani::cover!(total == 8 && retained == 8);
+            kani::cover!(total == 4 && retained == 3);
+        }
+    }
+}
+
+#[cfg(any(test, kani))]
+pub(crate) fn draft_commit_offset(
+    base: i32,
+    current: i32,
+    total: usize,
+    retained: usize,
+) -> Option<i32> {
+    if base < 0
+        || !(1..=8).contains(&total)
+        || !(1..=total).contains(&retained)
+        || base.checked_add(total as i32)? != current
+    {
+        return None;
+    }
+    base.checked_add(retained as i32)
+}
+
 pub fn row_offset(base: u64, row: u64, rows: u64, bytes: u64) -> Option<u64> {
     if row >= rows || bytes == 0 {
         return None;

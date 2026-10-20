@@ -5,6 +5,7 @@ checkpoint in the same process. Outputs are correctness fixtures, not benchmarks
 """
 
 import argparse
+import hashlib
 import json
 import os
 import struct
@@ -129,6 +130,39 @@ def probe_input(root: Path, entry: dict, width: int) -> np.ndarray:
     return data.reshape(1, 1, width)
 
 
+def draft_head_input(root: Path):
+    """Read the bounded real backbone fixture before loading the independent head."""
+    data = json.loads((root / "oracle.json").read_text())
+    kind = data.get("kind")
+    count = data.get("proposals")
+    if (
+        data.get("status") != "complete_cpu_oracle"
+        or kind not in ("dflash2", "dspark")
+        or type(count) is not int
+        or not 1 <= count <= 7
+        or data.get("residual_norm") != "sglang-3c560089-fp32-variance-bf16-residual"
+    ):
+        raise ValueError("incomplete or foreign draft oracle")
+    rows = count + int(kind == "dflash2")
+    entry = data["arrays"]["hidden"]
+    filename = entry["file"]
+    if (
+        type(filename) is not str
+        or Path(filename).name != filename
+        or entry.get("shape") != [rows, 2560]
+        or entry.get("count") != rows * 2560
+    ):
+        raise ValueError("invalid draft head input metadata")
+    with (root / filename).open("rb") as stream:
+        payload = stream.read(rows * 2560 * 4 + 1)
+    if len(payload) != rows * 2560 * 4 or hashlib.sha256(payload).hexdigest() != entry["sha256"]:
+        raise ValueError("incomplete or changed draft hidden")
+    hidden = np.frombuffer(payload, dtype="<f4").reshape(rows, 2560)
+    if not np.isfinite(hidden).all():
+        raise ValueError("nonfinite draft hidden")
+    return data, hidden[int(kind == "dflash2") :]
+
+
 def norm_reference(model: Path, output: Path):
     """Small oracle using the actual upstream norms, including grouped FP32 HC."""
     import mlx.core as mx
@@ -226,6 +260,7 @@ def main():
     parser.add_argument("--projections-only", action="store_true")
     parser.add_argument("--attention-only", type=Path)
     parser.add_argument("--mtp-only", type=Path)
+    parser.add_argument("--draft-head-only", type=Path)
     args = parser.parse_args()
     if (
         sum(
@@ -234,6 +269,7 @@ def main():
                 args.projections_only,
                 args.attention_only is not None,
                 args.mtp_only is not None,
+                args.draft_head_only is not None,
             )
         )
         > 1
@@ -402,6 +438,32 @@ def main():
 
     try:
         save_report()
+        if args.draft_head_only is not None:
+            from check_flash_drafts import Weights, bf16, select_cpu
+
+            draft_data, hidden = draft_head_input(args.draft_head_only)
+            lm_head = Packed("lm_head", 248320)
+            logits = lm_head(mx.array(hidden).astype(mx.float16)).astype(mx.bfloat16)
+            mx.eval(logits)
+            logits_cpu = np.asarray(logits.astype(mx.float32))
+            selected, confidence = select_cpu(
+                Weights(Path(draft_data["draft_directory"]) / "model.safetensors"),
+                draft_data["kind"],
+                bf16(hidden),
+                logits_cpu,
+                7,
+            )
+            report["draft_head"] = {
+                "kind": draft_data["kind"],
+                "revision": draft_data["revision"],
+                "hidden_sha256": draft_data["arrays"]["hidden"]["sha256"],
+                "logits": save("draft-head-logits", logits),
+                "tokens": selected,
+                "confidence": confidence,
+                "anchor": 7,
+            }
+            report["status"] = "complete"
+            return
         if args.projections_only:
             report["projections"] = []
             specs = [

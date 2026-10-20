@@ -1,0 +1,72 @@
+{
+  "status": "passed",
+  "physical_tests": 6,
+  "production_bridge_processes": 1,
+  "all_reaped": true,
+  "route_components": {
+    "blocks": [
+      {
+        "order": [
+          "original",
+          "shared"
+        ],
+        "original": 0.0244310546875,
+        "shared": 0.0210593385
+      },
+      {
+        "order": [
+          "shared",
+          "original"
+        ],
+        "original": 0.02377613025,
+        "shared": 0.0188413828125
+      },
+      {
+        "order": [
+          "original",
+          "shared"
+        ],
+        "original": 0.0239678125,
+        "shared": 0.0213575
+      },
+      {
+        "order": [
+          "shared",
+          "original"
+        ],
+        "original": 0.025390721375,
+        "shared": 0.0203287890625
+      },
+      {
+        "order": [
+          "original",
+          "shared"
+        ],
+        "original": 0.0245691953125,
+        "shared": 0.019284333375
+      }
+    ],
+    "checked_logits": 196608,
+    "gate_layers": 48,
+    "input_cases": 4,
+    "limits": "materialized inputs, two M1 GEMVs, component wall-clock; not release throughput",
+    "memory": {
+      "mlx_active_bytes": 7539953200,
+      "mlx_cache_bytes": 15780616,
+      "mlx_peak_bytes": 7555686176,
+      "process_footprint_bytes": 7882658400,
+      "process_lifetime_peak_bytes": 7882691168
+    },
+    "status": "passed_exact_route_components"
+  },
+  "component_paired_speedups": [
+    1.1601055126921485,
+    1.2619100459137278,
+    1.1222199461547466,
+    1.2490031401741295,
+    1.2740495009462571
+  ],
+  "new_swapout_bytes": 0,
+  "swapin_bytes_global": 31391744,
+  "limits": "component speedup only; release speed not measured; actual full states and independent scalar oracles, not proof"
+}

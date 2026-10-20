@@ -1,0 +1,31 @@
+{
+  "status": "targeted_document_read_complete",
+  "document": "/Users/justin/Downloads/MLXL3_PR34_AUDIT_GLOBAL_V2_2026-10-19.md",
+  "sha256": "9d450f3a307848552f749c608902c1c1ac30b50ffb103287f846b8ce5dab9012",
+  "document_head": "615b254df577ca502bf99e994548b7231502de4f",
+  "reading_scope": "Detailed sections 1–3,4.2,4.9–4.11,6–7,9.1/9.2/9.4/9.5,15; overview of other families. Not a fresh full audit or new external-model qualification.",
+  "source_confirmed": [
+    "Two independent gate projection calls in target pair",
+    "Two blocking target vocabulary-head evaluations before greedy",
+    "Exact greedy performs log_probs before argmax; preserve finite rounding and ties",
+    "Final prediction readback remains before output submission, including all-hot cohorts",
+    "Fallible hot calculation/submission before existing cache-invalidating error guards; conditional recovery gap not reproduced"
+  ],
+  "offline_checked": "audit-v2-paging-recalculation.json, five ratios agree with original snapshots",
+  "decisions": [
+    "Continue user-authorized profiling then local exact routing/head changes",
+    "Keep LES0/LFU and cache4GiB for attribution",
+    "No replacement of greedy normalization, arithmetic batching or permanent FP32 gate cache",
+    "Separate component measurements on materialized inputs from natural profiles and release throughput",
+    "Keep complete traces of guard failure and verifier limitations"
+  ],
+  "not_implemented_or_qualified": [
+    "R8 cache transaction repair",
+    "QSA long-context changes",
+    "DFlash2/DSpark Flash ports or downloads",
+    "Automatic memory budget changes",
+    "Resident draft bank fast path",
+    "PLE/prefill/prefix UI changes"
+  ],
+  "proof_claim": null
+}

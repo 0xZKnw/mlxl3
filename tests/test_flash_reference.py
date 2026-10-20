@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import json
 import struct
@@ -11,6 +12,63 @@ spec = importlib.util.spec_from_file_location(
 )
 oracle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(oracle)
+
+
+def draft_fixture(tmp_path):
+    hidden = np.ones((4, 2560), dtype="<f4")
+    payload = hidden.tobytes()
+    (tmp_path / "hidden.f32").write_bytes(payload)
+    data = {
+        "status": "complete_cpu_oracle",
+        "kind": "dflash2",
+        "proposals": 3,
+        "residual_norm": "sglang-3c560089-fp32-variance-bf16-residual",
+        "arrays": {
+            "hidden": {
+                "file": "hidden.f32",
+                "shape": [4, 2560],
+                "count": 10240,
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            }
+        },
+    }
+    (tmp_path / "oracle.json").write_text(json.dumps(data))
+    return data
+
+
+def test_draft_head_input_preserves_real_rows_and_dflash_anchor_offset(tmp_path):
+    data = draft_fixture(tmp_path)
+    _, hidden = oracle.draft_head_input(tmp_path)
+    assert hidden.shape == (3, 2560) and np.array_equal(hidden, np.ones((3, 2560)))
+    data.update(kind="dspark", proposals=4)
+    (tmp_path / "oracle.json").write_text(json.dumps(data))
+    _, hidden = oracle.draft_head_input(tmp_path)
+    assert hidden.shape == (4, 2560)
+
+
+@pytest.mark.parametrize("corrupt", ["hash", "size", "empty", "shape", "path", "old_norm", "nan"])
+def test_draft_head_input_rejects_corruption_and_incomplete_chain(tmp_path, corrupt):
+    data = draft_fixture(tmp_path)
+    entry = data["arrays"]["hidden"]
+    if corrupt == "hash":
+        entry["sha256"] = "0" * 64
+    elif corrupt == "size":
+        (tmp_path / "hidden.f32").write_bytes(b"\0" * 40961)
+    elif corrupt == "empty":
+        data["status"] = "failed"
+    elif corrupt == "shape":
+        entry["shape"] = [4, 2559]
+    elif corrupt == "path":
+        entry["file"] = "../hidden.f32"
+    elif corrupt == "old_norm":
+        data["residual_norm"] = "legacy"
+    else:
+        payload = np.full((4, 2560), np.nan, dtype="<f4").tobytes()
+        (tmp_path / "hidden.f32").write_bytes(payload)
+        entry["sha256"] = hashlib.sha256(payload).hexdigest()
+    (tmp_path / "oracle.json").write_text(json.dumps(data))
+    with pytest.raises(ValueError):
+        oracle.draft_head_input(tmp_path)
 
 
 def test_oracle_tokens_bound_work_and_vocabulary():

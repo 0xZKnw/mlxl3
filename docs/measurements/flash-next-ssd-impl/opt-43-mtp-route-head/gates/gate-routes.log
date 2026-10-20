@@ -1,0 +1,55 @@
+
+running 1 test
+test qwen4::tests::flash_paired_gate_cast_preserves_full_routes ... Flash Next: loading layer 1/48, 71 exact expert slots
+Flash Next: loading layer 2/48, 71 exact expert slots
+Flash Next: loading layer 3/48, 71 exact expert slots
+Flash Next: loading layer 4/48, 71 exact expert slots
+Flash Next: loading layer 5/48, 71 exact expert slots
+Flash Next: loading layer 6/48, 71 exact expert slots
+Flash Next: loading layer 7/48, 71 exact expert slots
+Flash Next: loading layer 8/48, 71 exact expert slots
+Flash Next: loading layer 9/48, 71 exact expert slots
+Flash Next: loading layer 10/48, 71 exact expert slots
+Flash Next: loading layer 11/48, 71 exact expert slots
+Flash Next: loading layer 12/48, 71 exact expert slots
+Flash Next: loading layer 13/48, 71 exact expert slots
+Flash Next: loading layer 14/48, 71 exact expert slots
+Flash Next: loading layer 15/48, 71 exact expert slots
+Flash Next: loading layer 16/48, 71 exact expert slots
+Flash Next: loading layer 17/48, 71 exact expert slots
+Flash Next: loading layer 18/48, 71 exact expert slots
+Flash Next: loading layer 19/48, 71 exact expert slots
+Flash Next: loading layer 20/48, 71 exact expert slots
+Flash Next: loading layer 21/48, 71 exact expert slots
+Flash Next: loading layer 22/48, 71 exact expert slots
+Flash Next: loading layer 23/48, 71 exact expert slots
+Flash Next: loading layer 24/48, 71 exact expert slots
+Flash Next: loading layer 25/48, 71 exact expert slots
+Flash Next: loading layer 26/48, 71 exact expert slots
+Flash Next: loading layer 27/48, 71 exact expert slots
+Flash Next: loading layer 28/48, 71 exact expert slots
+Flash Next: loading layer 29/48, 71 exact expert slots
+Flash Next: loading layer 30/48, 71 exact expert slots
+Flash Next: loading layer 31/48, 71 exact expert slots
+Flash Next: loading layer 32/48, 71 exact expert slots
+Flash Next: loading layer 33/48, 71 exact expert slots
+Flash Next: loading layer 34/48, 71 exact expert slots
+Flash Next: loading layer 35/48, 71 exact expert slots
+Flash Next: loading layer 36/48, 71 exact expert slots
+Flash Next: loading layer 37/48, 71 exact expert slots
+Flash Next: loading layer 38/48, 71 exact expert slots
+Flash Next: loading layer 39/48, 71 exact expert slots
+Flash Next: loading layer 40/48, 71 exact expert slots
+Flash Next: loading layer 41/48, 71 exact expert slots
+Flash Next: loading layer 42/48, 71 exact expert slots
+Flash Next: loading layer 43/48, 71 exact expert slots
+Flash Next: loading layer 44/48, 71 exact expert slots
+Flash Next: loading layer 45/48, 71 exact expert slots
+Flash Next: loading layer 46/48, 71 exact expert slots
+Flash Next: loading layer 47/48, 71 exact expert slots
+Flash Next: loading layer 48/48, 71 exact expert slots
+MTP43_ROUTE_PAIR {"blocks":[{"order":["original","shared"],"original":0.0244310546875,"shared":0.0210593385},{"order":["shared","original"],"original":0.02377613025,"shared":0.0188413828125},{"order":["original","shared"],"original":0.0239678125,"shared":0.0213575},{"order":["shared","original"],"original":0.025390721375,"shared":0.0203287890625},{"order":["original","shared"],"original":0.0245691953125,"shared":0.019284333375}],"checked_logits":196608,"gate_layers":48,"input_cases":4,"limits":"materialized inputs, two M1 GEMVs, component wall-clock; not release throughput","memory":{"mlx_active_bytes":7539953200,"mlx_cache_bytes":15780616,"mlx_peak_bytes":7555686176,"process_footprint_bytes":7882658400,"process_lifetime_peak_bytes":7882691168},"status":"passed_exact_route_components"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 192 filtered out; finished in 6.70s
+

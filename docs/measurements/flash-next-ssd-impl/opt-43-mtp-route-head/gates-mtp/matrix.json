@@ -1,0 +1,208 @@
+{
+  "schedule": [
+    {
+      "prompt": "MAIN",
+      "block": 0,
+      "index": 0,
+      "pair": 0,
+      "label": "H"
+    },
+    {
+      "prompt": "MAIN",
+      "block": 0,
+      "index": 1,
+      "pair": 0,
+      "label": "C"
+    },
+    {
+      "prompt": "MAIN",
+      "block": 0,
+      "index": 2,
+      "pair": 1,
+      "label": "C"
+    },
+    {
+      "prompt": "MAIN",
+      "block": 0,
+      "index": 3,
+      "pair": 1,
+      "label": "H"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 0,
+      "index": 0,
+      "pair": 0,
+      "label": "H"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 0,
+      "index": 1,
+      "pair": 0,
+      "label": "C"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 0,
+      "index": 2,
+      "pair": 1,
+      "label": "C"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 0,
+      "index": 3,
+      "pair": 1,
+      "label": "H"
+    },
+    {
+      "prompt": "MAIN",
+      "block": 1,
+      "index": 0,
+      "pair": 2,
+      "label": "C"
+    },
+    {
+      "prompt": "MAIN",
+      "block": 1,
+      "index": 1,
+      "pair": 2,
+      "label": "H"
+    },
+    {
+      "prompt": "MAIN",
+      "block": 1,
+      "index": 2,
+      "pair": 3,
+      "label": "H"
+    },
+    {
+      "prompt": "MAIN",
+      "block": 1,
+      "index": 3,
+      "pair": 3,
+      "label": "C"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 1,
+      "index": 0,
+      "pair": 2,
+      "label": "C"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 1,
+      "index": 1,
+      "pair": 2,
+      "label": "H"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 1,
+      "index": 2,
+      "pair": 3,
+      "label": "H"
+    },
+    {
+      "prompt": "HOLD",
+      "block": 1,
+      "index": 3,
+      "pair": 3,
+      "label": "C"
+    }
+  ],
+  "mode": "mtp",
+  "trial": "gates",
+  "warmup": 1,
+  "repeats": 2,
+  "tokens": 128,
+  "decode_tokens": 127,
+  "identity": {
+    "source_head": "615b254df577ca502bf99e994548b7231502de4f",
+    "source_local_modified": "Projection::forward_pair shared promotion; SsdMoe::route_pair and two-F32-row dispatch only; cfg(test) cast counter/profile/oracles; scalar Projection and LFM2 inference unchanged",
+    "files": {
+      "native/src/lib.rs": "314698a357ee70855453ad90b2ec60bded287c9461c138a56dc14a039eebd9a4",
+      "native/src/array.rs": "ebb5c094f0b3ba27eeb5d46f7f634a4a08140880ee01ab8a86e718f60885e606",
+      "native/src/flash_support.rs": "a12a77e2d79b1aa9cb91c558e22ba590bc7849447f487301cb2ad19a3d21b595",
+      "native/src/qwen4.rs": "f4dd3b20234da39d85d5f81716dbc4245a080e2cf670a91b3fd608c135eb9fe2",
+      "native/src/ssd_moe.rs": "8340c7dfa0f8d7f8649a9216214ab188e95258892f400e929d202bf9e9d0e052",
+      "native/src/ssd_prefetch.rs": "ab199e3321c684b0907666b436b3ecc0c2eedc4900926e4b882dfcd9230fd75f",
+      "native/src/router.rs": "e86fdba8233ef91bcc04a1a063c4822277c64b5d483b9911721c5bbb45b25199",
+      "native/src/lfm2.rs": "d628966435f0ac37ed6bd4719cafa941a6a6a8a44622246a90919150f71a9cd7",
+      "native/ffi/mlx_bridge.cpp": "6c8ccde48ea363b49d1fcb0fb62049bb76dce90c2c1b7ea4433eb994890f2697",
+      "native/ffi/disk_reader.h": "75155e20a8f4b6b625f807593cf9b1bfb7b5094e4612b7eb593310e542712f1a",
+      "native/tests/disk_reader.cpp": "582e0293fe1ad36c84890d5fa357c86ec3e204062357b7746bf46268eb43325b",
+      "native/tests/disk_reader_proof.cpp": "c8b3b0a00f64889e9328b78100ac9b28e3fe3e4e6217e4683e0afae2ad294523",
+      "Cargo.lock": "d6152886353571b01a83c86863dce1a53631f4c5a329fc55343b0ee9b37f128b",
+      "Cargo.toml": "8be1962d98cf99417a930f294de09c631bd960ddb5341aff814076444e01e486",
+      "build.rs": "0d008bfd3597d03d0cb193c3f18c6a6f063bf4922690fdcb5975282316c84ab6",
+      "native/src/main.rs": "830eb9a63340e3f89a9fe6d095bb910c298d748a9677776006b0202e1652b625",
+      "native/src/linear.rs": "17f0ea8d5bfc7b3d165477bd288e1d4df2350de78f3a2ffc47401caa200aeb13",
+      "scripts/benchmark-flash-bridge.py": "eeeb00e199eb8881803188a7edc02837b7d488af897dbcf3303b26c0a8e62fa3",
+      "scripts/check-mtp-bridge.py": "7460179b3a3d74bfa7e34b8cb19d1bae7b8af1a58422a08f00e36ea0ddf6c86b",
+      "benchmarks/benchmark_flash_memory.py": "95cba3a5ec5b5d33d7a16f6fa590d42dfbb5313e3d2183869dc469820b0dd35c",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/quality-matrix.json": "3b981b2b05750ab90cf97d5fbb5e9d20939b0cd02243032e0115ab3d43d014d0",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/quality-supervisor.txt": "344f096a5a433405cea85d3e2bca88bd88e5479fa8a6f21f58d4bc87b6ecfd41",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/guards-supervisor.txt": "9fbda607108b99f5d031164cbe23481b1fe7f47a34a934a485fb979c15bd4af0",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/diagnostic-guards.json": "225b35d5082e3a21d1f70ab335be9c28e1b9d181c695eefd1a778f85bfeaffd7",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/cpu-checks-supervisor.txt": "e5dfeb68a0ac30b8199e9b17bb5e0e4765e4d56ba532be705d3fdd6bd3ab5dd2",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/final-checks.json": "3089016537a10e2858f70dd9cb57cc3b5219d4602c4d3c92a7ad0d7f4229fc4f",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed/bench-supervisor.txt": "8019d6926d44309da490dae91695808bdd67276e1de6af9cec2422a5671115ca",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed/guards-supervisor.txt": "aab111641c1d64daad8ee592ad3a949525e3ca9c8d7f81a0ecb54faa8ba34943",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed/guard-checks.json": "4626e61bece5c14db7a47e27add1da92dadec93f51e647d8718a1591d314612d",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/quality.json": "39bdc36a34e725e54627adfbf673bebab4da8e750da0c898877b75ef933fcf75",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/quality-summary.json": "0829cfe8a9402fe1c2ff75743edfe4d0d28500a66b9b868a7ca5dd4f5a6c5f54",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/mutation-supervisor.txt": "fc667627d9a5e117d7d31272edda654a0a673e6a0d44776d71642d21b52fd3a3",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/mutation/result.json": "d0d9804dfeeb7bd6100637862c5970deead493d43172052510bc5ef085081705",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/python-regressions-corrected.log": "9ff52fe5a59153355b0d728d7fa402ec681316b7ac0bc2709cff21b4c419abac",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-mtp/bench-supervisor.txt": "98d03cee2a339be0132d330ba1e18d89af50dc5bbb7350cf20c580c54256b04f",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-mtp/guards-supervisor.txt": "3d890d117be845f392adc3d855c1b8a4b08506f0b66e6e818959645d418af1db",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-mtp/guard-checks.json": "d2ca7cf023a15b5e4e563138bb9c33acd0afdb4c79cc4adb5713cf3ae48fbc87",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates-baseline/result.json": "c131acd7812bbfd5e4fbefd0e0d4d174059f9498b4230ddfb7fd35463d1f121e",
+      "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates-baseline/validity-stop.json": "736af007148796a99beba3c2c9515139e37a1e30b4e6d1c5f89e63d13c723010"
+    },
+    "binaries": {
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/gates/mlxl3_native-28585053ede733ec": "8e033dccaec65a4b9edcdc1801212e3104698af2e7209316416172d41c6c5c7b",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/gates/mlxl3-rs": "9882f37d77bc13627f97126b3c73e43235bd571db0c319a128f0356c229e4381",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/final2-critical-path/mlxl3-rs": "a3fd917d625c20e4dd4e4144a84fcca5fe37ff0262c67caf4598f53e4597c59d"
+    },
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "model_revision": "65c895314393431c09050b2e04e250836b3a6eb4",
+    "model_integrity_evidence": "../opt-30-les/download.json (all ten hashes verified), ../opt-37-les-upstream-audit/checkpoint-header-layout.json",
+    "cache_slots_per_layer": 71,
+    "gpu_weight_slots": 3408,
+    "gpu_weight_slot_bytes": 4253224896,
+    "speculative_workers": 4,
+    "extra_weight_buffers": 0,
+    "allocator_mib": 512,
+    "prediction_depths": [
+      0,
+      4
+    ],
+    "mlx_version": "0.32.2 (build-time header static_assert)",
+    "rust_version": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "system": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B5112a",
+    "created_at": "2026-10-19T20:59:59.462405+00:00",
+    "cache_policy": "auto(default LFU without LES, LRU with LES) or explicit LRU",
+    "prior_candidate": "39A immutable52b7b6bb used as R0",
+    "trial": "43-A-M explicit user steering: MTP speed on Battery, OFF throughput inconclusive",
+    "prediction_dtype": "f32(default)/f16 prediction-only input cast",
+    "cache_gib": 4,
+    "protocol_revision": "4GiB before any speed run after two5GiB swap guard stops",
+    "revision": "correctedpreparationfailureoracle;productionengineidenticaltoa3fd917d;4GiBbeforeSpeed",
+    "power_protocol": "Battery Power, monitored before/during/after each process",
+    "native_context_limit": 262144,
+    "generation_budget": "bridge4096:128warm+2x128 measured per arm; OFF then MTP; 16arms/mode, balanced HCCH/CHHC",
+    "guard_evidence": "gates/diagnostic-guards.json",
+    "engines": {
+      "H": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/final2-critical-path/mlxl3-rs",
+      "C": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/gates/mlxl3-rs"
+    },
+    "activation_limit": "MTP effect only; cannot claim OFF throughput preservation from invalid OFF campaign"
+  },
+  "power": "Now drawing from 'Battery Power'",
+  "maximum_swapin_swapout_extra_peak_bytes": 268435456,
+  "started_at": 1792443599.5229099
+}

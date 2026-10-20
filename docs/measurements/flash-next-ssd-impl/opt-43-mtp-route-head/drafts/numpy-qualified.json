@@ -1,0 +1,52 @@
+[
+  {
+    "model": "dflash2",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_flash_drafts.py",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/drafts/numpy-dflash2-3-qualified",
+      "--kind",
+      "dflash2",
+      "--proposals",
+      "3"
+    ],
+    "script_sha256": "89483eddcafa2169711cf60647c4c20ff8139c582e8d2ad5d4266de25632e630",
+    "status": "qualified_cpu_oracle",
+    "started_at": 1792446343.7995079,
+    "exit_code": 0,
+    "all_20_array_hashes_unchanged": true,
+    "oracle": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/drafts/numpy-dflash2-3-qualified/oracle.json",
+    "oracle_sha256": "5b72ed293e954158543c4d134131d8b5375e4aa7d14321c4a6a2eab95eb296d4",
+    "parameters": 603065600,
+    "array_count": 20,
+    "finished_at": 1792446344.340641
+  },
+  {
+    "model": "dspark",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_flash_drafts.py",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DSpark-aafaf1bf",
+      "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/drafts/numpy-dspark-3-qualified",
+      "--kind",
+      "dspark",
+      "--proposals",
+      "3"
+    ],
+    "script_sha256": "89483eddcafa2169711cf60647c4c20ff8139c582e8d2ad5d4266de25632e630",
+    "status": "qualified_cpu_oracle",
+    "started_at": 1792446344.3408158,
+    "exit_code": 0,
+    "all_20_array_hashes_unchanged": true,
+    "oracle": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-43/drafts/numpy-dspark-3-qualified/oracle.json",
+    "oracle_sha256": "c28d5ce8a09a5670b3d75aa06ea3d7e6ce32fe2dac1230da5732699d879e82c7",
+    "parameters": 664569857,
+    "array_count": 20,
+    "finished_at": 1792446344.933984
+  }
+]

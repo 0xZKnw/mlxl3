@@ -339,19 +339,43 @@ impl SsdMoe {
         next: Option<&mut Self>,
         depth: usize,
     ) -> Result<Array> {
+        self.forward_rows(x, next, depth, 2)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn forward_draft_rows(&mut self, x: &Array) -> Result<Array> {
+        self.forward_rows(x, None, 0, 8)
+    }
+
+    fn forward_rows(
+        &mut self,
+        x: &Array,
+        next: Option<&mut Self>,
+        depth: usize,
+        row_limit: i32,
+    ) -> Result<Array> {
         ensure!(depth <= 10, "lookahead depth must be in 0..=10");
         ensure!(
             x.shape().len() == 2
-                && (1..=2).contains(&x.shape()[0])
+                && (1..=row_limit).contains(&x.shape()[0])
                 && x.shape()[1] == H
                 && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
             "streamed MoE expects one or two route rows"
         );
         let rows = x.shape()[0];
-        if rows == 2 && self.cache.borrow().capacity() < 20 {
-            let a = self.forward(&x.slice(0, 0, 1)?)?;
-            let b = self.forward(&x.slice(0, 1, 2)?)?;
-            return Array::concatenate(&[&a, &b], 0);
+        if self.cache.borrow().capacity() < rows as usize * 10 {
+            let cohort = crate::flash_support::expert_cohort_rows(self.cache.borrow().capacity())
+                .context("invalid streamed MoE cache capacity")? as i32;
+            let mut output = Vec::new();
+            for begin in (0..rows).step_by(cohort as usize) {
+                output.push(self.forward_rows(
+                    &x.slice(0, begin, (begin + cohort).min(rows))?,
+                    None,
+                    0,
+                    row_limit,
+                )?);
+            }
+            return Array::concatenate(&output.iter().collect::<Vec<_>>(), 0);
         }
         #[cfg(test)]
         let route_start = std::time::Instant::now();
@@ -647,6 +671,11 @@ impl SsdMoe {
     #[cfg(test)]
     pub(crate) fn cache_for_test_invalidate(&mut self) {
         self.cache.borrow_mut().invalidate();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn gate_for_test(&self) -> &Projection {
+        &self.gate
     }
 }
 
@@ -1254,7 +1283,7 @@ mod tests {
             inputs.push(Array::from_bytes(&read("input")?, &[1, H], Dtype::Float32)?);
             expected.push(read("output")?);
         }
-        for slots in [10, 20, 24, 89] {
+        for slots in [10, 19, 20, 24, 71, 89] {
             for (overlap, readers) in [
                 (false, 1),
                 (true, 1),
@@ -1280,6 +1309,23 @@ mod tests {
                         "two-row MoE differs, slots={slots}, overlap={overlap}, pair={pair:?}"
                     );
                 }
+                for rows in [1, 2, 4, 8] {
+                    let indices = (0..rows).map(|i| i % 3).collect::<Vec<_>>();
+                    let x = Array::concatenate(
+                        &indices.iter().map(|&i| &inputs[i]).collect::<Vec<_>>(),
+                        0,
+                    )?;
+                    let oracle = indices
+                        .iter()
+                        .flat_map(|&i| expected[i].iter().copied())
+                        .collect::<Vec<_>>();
+                    for _ in 0..2 {
+                        ensure!(
+                            moe.forward_draft_rows(&x)?.to_bytes()? == oracle,
+                            "wide MoE differs, slots={slots}, overlap={overlap}, rows={rows}"
+                        );
+                    }
+                }
                 let counters = (moe.hits, moe.misses, moe.read_bytes);
                 for shape in [[0, H], [3, H], [2, H - 1]] {
                     ensure!(
@@ -1292,6 +1338,12 @@ mod tests {
                         .is_err(),
                     "integer route input accepted"
                 );
+                for shape in [[0, H], [9, H], [4, H - 1]] {
+                    ensure!(
+                        moe.forward_draft_rows(&Array::zeros(&shape)?).is_err(),
+                        "invalid draft route shape accepted"
+                    );
+                }
                 ensure!(
                     counters == (moe.hits, moe.misses, moe.read_bytes),
                     "invalid shape changed cache counters"
@@ -1301,8 +1353,10 @@ mod tests {
                 let expert = moe.route(&inputs[0])?.0.to_u32()?[0] as usize;
                 let original = moe.records[expert].data_offsets;
                 moe.records[expert].data_offsets[0] = u64::MAX;
+                let wide =
+                    Array::concatenate(&[&inputs[0], &inputs[1], &inputs[0], &inputs[2]], 0)?;
                 ensure!(
-                    moe.forward_many(&inputs[0]).is_err(),
+                    moe.forward_draft_rows(&wide).is_err(),
                     "failed source accepted"
                 );
                 let ids = moe.route(&inputs[0])?.0.to_u32()?;

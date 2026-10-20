@@ -1,0 +1,113 @@
+{
+  "status": "passed",
+  "component_route_48_pairs_median_seconds": 0.0211072135,
+  "component_head_pair_median_seconds": 0.0079425338125,
+  "component": {
+    "gate_layers": 48,
+    "gate_logit_count": 49152,
+    "head_logit_count": 496640,
+    "head_pair_seconds": [
+      0.007827716125,
+      0.0079425338125,
+      0.0081219296875,
+      0.008186177125,
+      0.007491721375
+    ],
+    "limits": "materialized inputs, original two M1 gates and heads; wall-clock components, not release throughput",
+    "memory": {
+      "mlx_active_bytes": 7661740440,
+      "mlx_cache_bytes": 30787800,
+      "mlx_peak_bytes": 7682720648,
+      "process_footprint_bytes": 8008390824,
+      "process_lifetime_peak_bytes": 8009554088
+    },
+    "route_pair_48_layers_seconds": [
+      0.0210725286875,
+      0.0211072135,
+      0.0213073125,
+      0.0213224791875,
+      0.0208517005625
+    ],
+    "samples": 5,
+    "status": "completed_original_components",
+    "sweeps_per_sample": 16,
+    "warmup_sweeps": 2
+  },
+  "phase_system_event_deltas": [
+    {
+      "from": "loaded",
+      "to": "inputs_ready",
+      "global_system_event_deltas_bytes": {
+        "Pageins": 829456384,
+        "Compressions": 780517376,
+        "Decompressions": 2206449664,
+        "Swapins": 0,
+        "Swapouts": 0
+      }
+    },
+    {
+      "from": "inputs_ready",
+      "to": "warmup_done",
+      "global_system_event_deltas_bytes": {
+        "Pageins": 81920,
+        "Compressions": 0,
+        "Decompressions": 524288,
+        "Swapins": 0,
+        "Swapouts": 0
+      }
+    },
+    {
+      "from": "warmup_done",
+      "to": "route_begin",
+      "global_system_event_deltas_bytes": {
+        "Pageins": 16384,
+        "Compressions": 0,
+        "Decompressions": 0,
+        "Swapins": 0,
+        "Swapouts": 0
+      }
+    },
+    {
+      "from": "route_begin",
+      "to": "route_end",
+      "global_system_event_deltas_bytes": {
+        "Pageins": 1458176,
+        "Compressions": 7815168,
+        "Decompressions": 28049408,
+        "Swapins": 0,
+        "Swapouts": 0
+      }
+    },
+    {
+      "from": "route_end",
+      "to": "head_begin",
+      "global_system_event_deltas_bytes": {
+        "Pageins": 16384,
+        "Compressions": 0,
+        "Decompressions": 0,
+        "Swapins": 0,
+        "Swapouts": 0
+      }
+    },
+    {
+      "from": "head_begin",
+      "to": "head_end",
+      "global_system_event_deltas_bytes": {
+        "Pageins": 131072,
+        "Compressions": 132104192,
+        "Decompressions": 21921792,
+        "Swapins": 0,
+        "Swapouts": 0
+      }
+    }
+  ],
+  "whole_process_event_deltas": {
+    "Pageins": 4377640960,
+    "Compressions": 5183717376,
+    "Decompressions": 2358116352,
+    "Swapins": 131072,
+    "Swapouts": 0
+  },
+  "reaped": true,
+  "limits": "single original-profile process on materialized inputs; not exclusive GPU times, not release TPS, not a speedup"
+}

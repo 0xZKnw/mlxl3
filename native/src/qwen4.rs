@@ -28,6 +28,10 @@ const HC: i32 = 4;
 const WIDTH: i32 = H * HC;
 const EOS: u32 = 248044;
 
+#[cfg(all(test, feature = "chat"))]
+#[path = "flash_draft.rs"]
+mod draft;
+
 struct Norm {
     gain: Array,
     width: i32,
@@ -1545,7 +1549,7 @@ impl FlashMtpSession {
 mod tests {
     use super::*;
     use std::path::Path;
-    fn state_bytes(model: &FlashNext) -> Result<Vec<Vec<u8>>> {
+    pub(super) fn state_bytes(model: &FlashNext) -> Result<Vec<Vec<u8>>> {
         fn tensor(value: &Option<Array>) -> Result<Vec<u8>> {
             let Some(value) = value else {
                 return Ok(vec![0]);
@@ -1682,6 +1686,31 @@ mod tests {
             }
         }
     }
+    #[cfg(kani)]
+    #[kani::proof]
+    #[kani::unwind(100)]
+    fn actual_paired_verification_checks_tokens_shapes_and_commit() {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL").unwrap()))
+            .unwrap();
+        let mut model = FlashNext::from_checkpoint(&c).unwrap();
+        let tokens = kani::any::<[u32; 2]>();
+        let retained = if kani::any::<bool>() { 1 } else { 2 };
+        match model.verify_pair(tokens) {
+            Ok((logits, hidden)) => {
+                assert!(tokens.iter().all(|&t| t < 248320));
+                assert_eq!(logits.shape(), [2, 248320]);
+                assert_eq!(hidden.shape(), [2, WIDTH]);
+                assert_eq!(model.offset(), 2);
+                model.commit_pair(retained).unwrap();
+                assert_eq!(model.offset(), retained);
+                kani::cover!(retained == 1);
+                kani::cover!(retained == 2);
+            }
+            Err(_) => {
+                kani::cover!(tokens.iter().any(|&t| t >= 248320));
+            }
+        }
+    }
     fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
         let mut bytes = vec![qsa.offset.to_le_bytes().to_vec()];
         for value in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks] {
@@ -1704,7 +1733,157 @@ mod tests {
         }
         Ok(bytes)
     }
-    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical Apple GPU; original route/head component profile, not release throughput"]
+    fn flash_route_head_component_profile() -> Result<()> {
+        use std::time::Instant;
+        let started = Instant::now();
+        let snapshot = |phase: &str| -> Result<()> {
+            let output = std::process::Command::new("vm_stat").output()?;
+            ensure!(output.status.success(), "VM snapshot failed");
+            println!(
+                "MTP43_VM {}",
+                serde_json::json!({
+                    "phase":phase,"seconds":started.elapsed().as_secs_f64(),
+                    "raw":String::from_utf8(output.stdout)?
+                })
+            );
+            Ok(())
+        };
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut model = FlashNext::from_checkpoint(&c)?;
+        snapshot("loaded")?;
+        model.forward(EOS)?;
+        let first = model
+            .last_hidden
+            .as_ref()
+            .context("missing first hidden")?
+            .try_clone()?;
+        model.forward(7)?;
+        let second = model
+            .last_hidden
+            .as_ref()
+            .context("missing second hidden")?
+            .try_clone()?;
+        first.eval()?;
+        second.eval()?;
+        let x = Array::from_f32(
+            &(0..2 * H)
+                .map(|i| ((i * 17 + 13) % 257) as f32 / 257. - 0.5)
+                .collect::<Vec<_>>(),
+            &[2, H],
+        )?;
+        x.eval()?;
+        let inputs = [x.slice(0, 0, 1)?, x.slice(0, 1, 2)?];
+        for input in &inputs {
+            input.eval()?;
+        }
+        ensure!(model.layers.len() == 48);
+        let mut checked_gate_logits = 0;
+        for layer in &model.layers {
+            for input in &inputs {
+                let logits = layer.moe.gate_for_test().forward(input)?;
+                ensure!(logits.shape() == [1, 512] && logits.dtype() == Dtype::Float32);
+                let values = logits.to_f32()?;
+                ensure!(values.len() == 512 && values.iter().all(|v| v.is_finite()));
+                checked_gate_logits += values.len();
+                let probabilities = logits.softmax_precise()?.to_f32()?;
+                ensure!(
+                    probabilities.len() == 512
+                        && probabilities.iter().all(|v| v.is_finite() && *v >= 0.)
+                );
+                let mut order = (0..512usize).collect::<Vec<_>>();
+                order.sort_by(|&a, &b| {
+                    probabilities[a]
+                        .total_cmp(&probabilities[b])
+                        .then(a.cmp(&b))
+                });
+                let expected = &order[502..];
+                let (indices, weights) = layer.moe.route(input)?;
+                ensure!(
+                    indices.to_u32()? == expected.iter().map(|&id| id as u32).collect::<Vec<_>>()
+                );
+                let weights = weights.to_f32()?;
+                ensure!(weights.len() == 10 && weights.iter().all(|v| v.is_finite()));
+                let total = expected.iter().map(|&id| probabilities[id]).sum::<f32>();
+                ensure!(total.is_finite() && total > 0.);
+                for (&weight, &id) in weights.iter().zip(expected) {
+                    ensure!((weight - probabilities[id] / total).abs() <= 2e-6);
+                }
+            }
+        }
+        for streams in [&first, &second] {
+            let logits = model.logits(streams)?;
+            ensure!(logits.shape() == [1, 248320]);
+            let values = logits.to_f32()?;
+            ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
+        }
+        snapshot("inputs_ready")?;
+        let routes = || -> Result<()> {
+            for layer in &model.layers {
+                let a = layer.moe.route(&inputs[0])?;
+                let b = layer.moe.route(&inputs[1])?;
+                let ids = Array::concatenate(&[&a.0, &b.0], 0)?.to_u32()?;
+                ensure!(ids.len() == 20);
+                std::hint::black_box(ids);
+            }
+            Ok(())
+        };
+        let heads = || -> Result<()> {
+            std::hint::black_box(model.logits(&first)?);
+            std::hint::black_box(model.logits(&second)?);
+            Ok(())
+        };
+        for _ in 0..2 {
+            routes()?;
+            heads()?;
+        }
+        snapshot("warmup_done")?;
+        let mut route_samples = Vec::new();
+        let mut head_samples = Vec::new();
+        snapshot("route_begin")?;
+        for _ in 0..5 {
+            let start = Instant::now();
+            for _ in 0..16 {
+                routes()?;
+            }
+            route_samples.push(start.elapsed().as_secs_f64() / 16.);
+        }
+        snapshot("route_end")?;
+        snapshot("head_begin")?;
+        for _ in 0..5 {
+            let start = Instant::now();
+            for _ in 0..16 {
+                heads()?;
+            }
+            head_samples.push(start.elapsed().as_secs_f64() / 16.);
+        }
+        snapshot("head_end")?;
+        ensure!(
+            checked_gate_logits == 49152 && route_samples.len() == 5 && head_samples.len() == 5
+        );
+        ensure!(
+            route_samples
+                .iter()
+                .chain(&head_samples)
+                .all(|v| v.is_finite() && *v > 0.)
+        );
+        let memory = crate::array::memory_stats(false)?;
+        let peak = memory
+            .process_lifetime_peak_bytes
+            .context("missing process peak")?;
+        ensure!(peak > 0 && peak <= 10 << 30);
+        println!(
+            "MTP43_COMPONENT {}",
+            serde_json::json!({
+                "status":"completed_original_components","gate_layers":48,"gate_logit_count":checked_gate_logits,
+                "head_logit_count":496640,"warmup_sweeps":2,"samples":5,"sweeps_per_sample":16,
+                "route_pair_48_layers_seconds":route_samples,"head_pair_seconds":head_samples,
+                "memory":memory,"limits":"materialized inputs, original two M1 gates and heads; wall-clock components, not release throughput"
+            })
+        );
+        Ok(())
+    }
     #[test]
     #[ignore = "physical Apple GPU; isolated natural decode diagnostic, not release throughput"]
     fn flash_light_profile_preserves_natural_decode() -> Result<()> {

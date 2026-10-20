@@ -1,0 +1,112 @@
+{
+  "status": "passed",
+  "source_hashes": {
+    "bench-supervisor.txt": "5bdcca2eb1ecc7c3b5b60e18311a3beabfb4384b16f03e0310c497ccba14508b",
+    "guards-supervisor.txt": "99f19d2cc6fc3b285e762704691760466263f68e6d16f3157d50544d35ee427c"
+  },
+  "decision_cases": [
+    "prefix-0",
+    "prefix-1",
+    "prefix-2",
+    "prefix-3",
+    "prefix-4",
+    "prefix-5",
+    "prefix-6",
+    "prefix-7",
+    "prefix-8",
+    "prefix-9",
+    "prefix-10",
+    "prefix-11",
+    "prefix-12",
+    "prefix-13",
+    "prefix-14",
+    "prefix-15",
+    "('tps', True)",
+    "('tps', nan)",
+    "('tps', inf)",
+    "('tps', 0)",
+    "('tps', -1)",
+    "('peak_bytes', 0)",
+    "('peak_bytes', True)",
+    "('peak_bytes', 10737418241)",
+    "('status', 'running')",
+    "('reaped', False)",
+    "('swapin_bytes', -1)",
+    "('swapin_bytes', 268435457)",
+    "('swapout_bytes', 268435457)",
+    "('prompt', 'wrong')",
+    "('pair', 100)",
+    "('label', 'wrong')",
+    "invalid-order",
+    "invalid-order",
+    "invalid-order",
+    "effect-9.8",
+    "effect-9.95",
+    "effect-10.0",
+    "effect-10.1",
+    "range-or-memory-tps",
+    "range-or-memory-peak_bytes",
+    "control-drift-with-unchanged-paired-ratios",
+    "balanced-wait",
+    "balanced-negative",
+    "off-effect-not-stopped",
+    "memory-stop",
+    "control-drift-stop",
+    "nonnegative-geometric-criterion"
+  ],
+  "scaling_cases": 200,
+  "seed": 43,
+  "monitor_cases": [
+    {
+      "case": "valid",
+      "observed": "ok"
+    },
+    {
+      "case": "valid-ac",
+      "observed": "ok"
+    },
+    {
+      "case": "swapout",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "swapin",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "negative",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "power",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "probe-error",
+      "observed": "TimeoutExpired"
+    },
+    {
+      "case": "deadline",
+      "observed": "TimeoutExpired"
+    }
+  ],
+  "artifact_preflight_cases": [
+    {
+      "case": "incomplete",
+      "observed": "rejected"
+    },
+    {
+      "case": "missing-hash",
+      "observed": "rejected"
+    },
+    {
+      "case": "stale",
+      "observed": "rejected"
+    },
+    {
+      "case": "valid",
+      "observed": "passed_guard"
+    }
+  ],
+  "limits": "actual function AST with deterministic fake waits/OS probes, decision mutations and preflight; existing driver and process reaping patterns reused; not a proof"
+}

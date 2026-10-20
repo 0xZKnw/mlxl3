@@ -1,0 +1,330 @@
+from pathlib import Path
+import os, subprocess, json, time, signal, re, runpy, hashlib, math
+
+w = Path.cwd()
+root = Path("/Users/justin/Documents/mix-stq1_0")
+p = w / "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/components"
+old = json.loads((p / "quality-matrix.json").read_text())
+ident = json.loads((p / "identity.json").read_text())
+parse_vm = runpy.run_path(str(w / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+records = []
+assert not (p / "quality.json").exists(), "refusing to overwrite a profile run"
+proof = json.loads((p / "diagnostic-guards.json").read_text())
+assert proof["status"] == "passed"
+assert set(proof["source_hashes"]) == {"quality-supervisor.txt", "guards-supervisor.txt"}
+for filename, digest in proof["source_hashes"].items():
+    assert hashlib.sha256((p / filename).read_bytes()).hexdigest() == digest
+assert len(old) == 1
+for path, h in ident["binaries"].items():
+    assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == h
+for path, h in ident["files"].items():
+    assert hashlib.sha256((w / path).read_bytes()).hexdigest() == h
+
+
+def event_deltas(before, after):
+    """Return nonnegative system event deltas in page-equivalent bytes."""
+    pages = [re.search(r"page size of ([0-9]+) bytes", raw) for raw in [before, after]]
+    if not all(pages) or int(pages[0][1]) <= 0 or pages[0][1] != pages[1][1]:
+        raise ValueError("invalid or changed VM page size")
+    result = {}
+    for key in ["Pageins", "Compressions", "Decompressions", "Swapins", "Swapouts"]:
+        values = [
+            re.findall(rf"^{re.escape(key)}:\s+([0-9]+)\.\s*$", raw, re.MULTILINE)
+            for raw in [before, after]
+        ]
+        if any(len(v) != 1 for v in values):
+            raise ValueError("missing or duplicate VM event")
+        delta = int(values[1][0]) - int(values[0][0])
+        if delta < 0:
+            raise ValueError("VM event counter moved backwards")
+        result[key] = delta * int(pages[0][1])
+    return result
+
+
+def check_component(log):
+    profiles = [
+        json.loads(line.split("MTP43_COMPONENT ", 1)[1])
+        for line in log.splitlines()
+        if "MTP43_COMPONENT " in line
+    ]
+    assert len(profiles) == 1, "incomplete or duplicate component profile"
+    profile = profiles[0]
+    assert profile["status"] == "completed_original_components"
+    for key, expected in [
+        ("gate_layers", 48),
+        ("gate_logit_count", 49152),
+        ("head_logit_count", 496640),
+        ("warmup_sweeps", 2),
+        ("samples", 5),
+        ("sweeps_per_sample", 16),
+    ]:
+        assert type(profile[key]) is int and profile[key] == expected
+    for key in ["route_pair_48_layers_seconds", "head_pair_seconds"]:
+        samples = profile[key]
+        assert len(samples) == 5 and all(
+            type(v) in [int, float] and math.isfinite(v) and v > 0 for v in samples
+        )
+    peak = profile["memory"]["process_lifetime_peak_bytes"]
+    assert type(peak) is int and 0 < peak <= 10 << 30
+    snapshots = [
+        json.loads(line.split("MTP43_VM ", 1)[1])
+        for line in log.splitlines()
+        if "MTP43_VM " in line
+    ]
+    assert [s["phase"] for s in snapshots] == [
+        "loaded",
+        "inputs_ready",
+        "warmup_done",
+        "route_begin",
+        "route_end",
+        "head_begin",
+        "head_end",
+    ]
+    assert all(
+        type(s["seconds"]) in [int, float] and math.isfinite(s["seconds"]) and s["seconds"] >= 0
+        for s in snapshots
+    )
+    assert all(b["seconds"] >= a["seconds"] for a, b in zip(snapshots, snapshots[1:]))
+    events = [
+        {
+            "from": a["phase"],
+            "to": b["phase"],
+            "global_system_event_deltas_bytes": event_deltas(a["raw"], b["raw"]),
+        }
+        for a, b in zip(snapshots, snapshots[1:])
+    ]
+    return {"component": profile, "phase_system_event_deltas": events}
+
+
+def snapshot():
+    return {
+        key: subprocess.check_output(cmd, text=True, timeout=5)
+        for key, cmd in [
+            ("power", ["pmset", "-g", "batt"]),
+            ("vm_stat", ["vm_stat"]),
+            ("swap", ["sysctl", "vm.swapusage"]),
+        ]
+    }
+
+
+try:
+    for prev in old:
+        name = prev["name"]
+        cmd = [
+            x.replace("flash-opt-27/shared-overlap-repaired", "flash-opt-39a/les-lru")
+            for x in prev["command"]
+        ]
+        limit = prev["timeout_seconds"]
+        r = {
+            "name": name,
+            "command": cmd,
+            "env": prev["env"],
+            "timeout_seconds": limit,
+            "expected_tests": prev["expected_tests"],
+            "status": "running",
+            "before": snapshot(),
+        }
+        records.append(r)
+        (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+        child = None
+        t = time.monotonic()
+        try:
+            assert r["before"]["power"].splitlines()[0] == "Now drawing from 'Battery Power'", (
+                "profile requires battery"
+            )
+            with (p / (name + ".log")).open("w") as f:
+                child = subprocess.Popen(
+                    cmd,
+                    env={**os.environ, **prev["env"]},
+                    stdout=f,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+                r["pid"] = child.pid
+                deadline = time.monotonic() + limit
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise subprocess.TimeoutExpired(cmd, limit)
+                    try:
+                        r["exit_code"] = child.wait(timeout=min(2, remaining))
+                        break
+                    except subprocess.TimeoutExpired:
+                        current = parse_vm(
+                            subprocess.check_output(["vm_stat"], text=True, timeout=5)
+                        )
+                        delta = current["Swapouts"] - parse_vm(r["before"]["vm_stat"])["Swapouts"]
+                        r["maximum_live_swapout_bytes"] = max(
+                            r.get("maximum_live_swapout_bytes", 0), delta
+                        )
+                        assert 0 <= delta <= 256 << 20, "live quality swap limit exceeded"
+                        incoming = current["Swapins"] - parse_vm(r["before"]["vm_stat"])["Swapins"]
+                        r["maximum_live_swapin_bytes"] = max(
+                            r.get("maximum_live_swapin_bytes", 0), incoming
+                        )
+                        assert 0 <= incoming <= 256 << 20, "live profile swapin limit exceeded"
+                        power = subprocess.check_output(
+                            ["pmset", "-g", "batt"], text=True, timeout=5
+                        )
+                        assert power.splitlines()[0] == r["before"]["power"].splitlines()[0], (
+                            "live power changed"
+                        )
+            assert r["exit_code"] == 0, "quality process failed"
+            log = (p / (name + ".log")).read_text()
+            if r["expected_tests"] is not None:
+                counts = re.findall(r"test result: ok[.] (\d+) passed; 0 failed;", log)
+                assert counts and sum(map(int, counts)) == r["expected_tests"], (
+                    "absent or incorrect test count"
+                )
+                r["observed_tests"] = sum(map(int, counts))
+                if name.startswith("light-"):
+                    profiles = [
+                        json.loads(line.split("SSD_LIGHT_PROFILE ", 1)[1])
+                        for line in log.splitlines()
+                        if "SSD_LIGHT_PROFILE " in line
+                    ]
+                    assert len(profiles) == 2 and [v["phase"] for v in profiles] == [
+                        "warmup",
+                        "measured",
+                    ]
+                    mtp = prev["env"]["MLXL3_FLASH_PROFILE_MTP"] == "1"
+                    prompt = prev["env"]["MLXL3_FLASH_PROFILE_PROMPT"]
+                    depth = int(prev["env"]["MLXL3_SSD_LOOKAHEAD_DEPTH"])
+                    oracle = json.loads(
+                        (
+                            p.parent.parent / f"opt-18-hc/speed/1-{prompt}-baseline-H/report.json"
+                        ).read_text()
+                    )["runs"][0]
+                    for v in profiles:
+                        assert (
+                            v["status"] == "completed_diagnostic_awaiting_external_oracle"
+                            and v["mtp"] is mtp
+                            and v["prompt"] == prompt
+                            and v["lookahead_depth"] == depth
+                        )
+                        ids = v["tokens"]
+                        assert len(ids) == 64 and all(
+                            type(i) is int and 0 <= i < 248320 for i in ids
+                        )
+                        h = 0xCBF29CE484222325
+                        for token in ids:
+                            for byte in token.to_bytes(4, "little"):
+                                h = ((h ^ byte) * 0x100000001B3) & ((1 << 64) - 1)
+                        assert (
+                            f"{h:016x}" == oracle["token_hash"] and v["text"] == oracle["text"]
+                        ), "diagnostic H20 hash/text diverged"
+                        assert v["logit_count"] == 248320 and v["logits_finite"] is True
+                        assert len(v["route_fill_import_seconds"]) == 3
+                        assert all(
+                            type(x) in [int, float] and math.isfinite(x) and x >= 0
+                            for x in v["route_fill_import_seconds"]
+                            + v["mtp_head_verify_repair_total_seconds"]
+                        )
+                        counts = v["candidate_scanned_hot_admitted_imported_overlap_rows"]
+                        assert len(counts) == 6 and all(type(x) is int and x >= 0 for x in counts)
+                        peak = v["memory"]["process_lifetime_peak_bytes"]
+                        assert type(peak) is int and 0 < peak <= 10 << 30
+                        if depth:
+                            assert (
+                                v["prefetch"]["submitted"] > 0
+                                and v["prefetch"]["completed"] == v["prefetch"]["submitted"]
+                                and counts[3] > 0
+                            )
+                            control = next(q for q in records if q["name"] == name[:-1] + "0")
+                            control_peak = next(
+                                q for q in control["diagnostics"] if q["phase"] == v["phase"]
+                            )["memory"]["process_lifetime_peak_bytes"]
+                            assert peak <= control_peak + (256 << 20), (
+                                "diagnostic extra process peak exceeds limit"
+                            )
+                        else:
+                            assert v["prefetch"] is None and counts[:5] == [0] * 5
+                        if mtp:
+                            expected = json.loads(
+                                (
+                                    p.parent.parent
+                                    / f"opt-32-les-async/mtp-screen/{prompt}-counters.json"
+                                ).read_text()
+                            )
+                            assert all(
+                                v[k] == expected[k]
+                                for k in [
+                                    "mtp_proposed_tokens",
+                                    "mtp_accepted_tokens",
+                                    "mtp_blocks",
+                                ]
+                            )
+                        else:
+                            assert all(
+                                v[k] == 0
+                                for k in [
+                                    "mtp_proposed_tokens",
+                                    "mtp_accepted_tokens",
+                                    "mtp_blocks",
+                                ]
+                            )
+                    r["diagnostics"] = profiles
+            else:
+                summary = json.loads(log.strip().splitlines()[-1])
+                assert summary == {
+                    "status": "validated",
+                    "budgets": [1, 2, 3, 17],
+                    "cancel_checked": True,
+                }
+                r["summary"] = summary
+            if name == "component-baseline":
+                r.update(check_component(log))
+            r["after"] = snapshot()
+            assert r["after"]["power"].splitlines()[0] == r["before"]["power"].splitlines()[0], (
+                "power changed"
+            )
+            r["swapout_bytes"] = (
+                parse_vm(r["after"]["vm_stat"])["Swapouts"]
+                - parse_vm(r["before"]["vm_stat"])["Swapouts"]
+            )
+            assert 0 <= r["swapout_bytes"] <= 256 << 20, "quality swap limit exceeded"
+            r["swapin_bytes"] = (
+                parse_vm(r["after"]["vm_stat"])["Swapins"]
+                - parse_vm(r["before"]["vm_stat"])["Swapins"]
+            )
+            assert 0 <= r["swapin_bytes"] <= 256 << 20, "profile swapin limit exceeded"
+            r["system_event_deltas_bytes"] = event_deltas(
+                r["before"]["vm_stat"], r["after"]["vm_stat"]
+            )
+            r["system_counter_scope"] = (
+                "whole process including load and warmup, global; not physical SSD I/O or decode-only"
+            )
+            r["status"] = "passed"
+        except BaseException as exc:
+            r.update(
+                status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+                error=repr(exc),
+            )
+            raise
+        finally:
+            if child is not None and child.poll() is None:
+                os.killpg(child.pid, signal.SIGTERM)
+                try:
+                    child.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(child.pid, signal.SIGKILL)
+                    child.wait()
+            r["reaped"] = child is None or child.poll() is not None
+            r["seconds"] = time.monotonic() - t
+            (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+            with (w / "opti.md").open("a") as f:
+                f.write(
+                    "\n- 43-P profil "
+                    + name
+                    + " : **"
+                    + r["status"]
+                    + "**, swapouts+"
+                    + str(r.get("swapout_bytes", "non mesuré"))
+                    + "octets ; quality.json/log.\n"
+                )
+            print(
+                {k: r[k] for k in ["name", "status", "seconds", "swapout_bytes"] if k in r},
+                flush=True,
+            )
+finally:
+    (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
