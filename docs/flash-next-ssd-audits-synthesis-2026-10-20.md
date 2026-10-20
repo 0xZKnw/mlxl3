@@ -22,8 +22,30 @@ dans std/modèles seulement,2covers atteints. La tentative réserve/publication
 expire à180s ; MLX avec `--tests` rencontre une ICE ; CrossHair absent.
 Ni GPU ni concurrence ne sont prouvés. Sources/binaires/fixtures :125empreintes
 revérifiées après la campagne. [Preuves45 et limites](measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/summary.json).
-Le profilage45-P reste à faire ; les conclusions historiques44 sont conservées.
+Le profilage45-P est maintenant clos ; les conclusions historiques44 sont conservées.
 L'application installée n'est pas remplacée.
+
+**Profil45-P.** Neuf processus joints, zéro nouveau Swapout : DSpark B1/B2/B3/B4
+sur deux prompts CAL non-thinking, DFlash2 B4 thinking, puis OFF/MTP sur
+MAIN/HOLD thinking. Les20 générations64tokens des drafts ont aussi leurs
+états exacts. Les8 générations naturelles retrouvent tous les IDs de43,
+le hash/texte H20 et248320logits finits ; leurs états complets ne sont pas
+recopiés dans ce diagnostic.
+
+La cible prend environ77% du decode DS/B1 et90% DS/B4, contre1–3% pour
+l'appendKV. Les occurrences routées réutilisent un expert du même bloc dans
+environ21%(B2),30%(B3),36%(B4) des cas ; l'I/O est déjà dédupliquée.
+MTP naturel : vérification5,609/5,677s, tête0,227/0,227s, decode5,960/6,040s
+MAIN/HOLD. La tête représente3,8%, plafond théorique d'environ4% si son coût
+disparaissait entièrement. Ce n'est pas un gain de débit mesuré.
+
+Les horodatages réutilisent les frontières existantes sans nouveau `eval`.
+« Backbone » désigne sa construction/soumission ; la sélection paie son
+exécution différée. Route/fill/import sont inclusifs et ne s'additionnent pas
+à des duréesGPU exclusives. [Phases, routes et limites](measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/profile-phase/summary.json).
+KV groupé et tête MTP résidente sont différés pour ce cycle. Le prochain essai
+est29/35 : NT2 sur les slots experts Flash, jamais exécuté sur ces formes,
+distinct du NT2 dense10 et du MB2 de15. Aucun gain15tok/s annoncé.
 
 Revue demandée le 20 octobre 2026, sur `1f38776f64e917e699e3554a97ce3caae78a222a`,
 Qwen3.8-Flash-Next EXL3 2,05 bpw, M5/24 Gio. Le moteur est inchangé pendant

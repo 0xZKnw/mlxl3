@@ -1025,6 +1025,9 @@ struct Generated {
     seconds: f64,
     draft_seconds: f64,
     verification_seconds: f64,
+    // Input, backbone, selection, target, decision, commit, KV append; no extra GPU fences.
+    phase_seconds: [f64; 7],
+    moe_seconds: [f64; 3],
     accepted: usize,
     proposed: usize,
     blocks: usize,
@@ -1077,6 +1080,8 @@ fn generate(
             seconds: 0.,
             draft_seconds: 0.,
             verification_seconds: 0.,
+            phase_seconds: [0.; 7],
+            moe_seconds: [0.; 3],
             accepted: 0,
             proposed: 0,
             blocks: 0,
@@ -1085,6 +1090,15 @@ fn generate(
             decode_io: [0; 3],
         };
         let decode_io_start = target.io_stats();
+        let moe_profile = |target: &FlashNext| {
+            target.layers.iter().fold([0.; 3], |mut total, l| {
+                total[0] += l.moe.profile_seconds[0];
+                total[1] += l.moe.profile_seconds[1];
+                total[2] += l.moe.import_seconds;
+                total
+            })
+        };
+        let moe_start = moe_profile(target);
         let mut pending = VecDeque::new();
         let started = std::time::Instant::now();
         while result.tokens.len() < budget {
@@ -1106,8 +1120,18 @@ fn generate(
             let before = std::time::Instant::now();
             let round_started = before;
             let io_before = target.io_stats();
+            let mut phases = [0.; 7];
+            let mut tick = before;
+            let mut lap = || {
+                let now = std::time::Instant::now();
+                let seconds = now.duration_since(tick).as_secs_f64();
+                tick = now;
+                seconds
+            };
             let input = target.draft_input(anchor, draft.kind, count)?;
+            phases[0] = lap();
             let (hidden, _) = draft.forward(&input, count)?;
+            phases[1] = lap();
             let (mut proposals, confidence) = draft.select(&target.head, &hidden, count, anchor)?;
             ensure!(proposals.len() == count, "incomplete proposal block");
             let selected = draft.policy.choose(&confidence, count)?;
@@ -1116,6 +1140,7 @@ fn generate(
                 "invalid selected prefix"
             );
             proposals.truncate(selected);
+            phases[2] = lap();
             result.draft_seconds += before.elapsed().as_secs_f64();
             let verify = std::iter::once(anchor)
                 .chain(proposals.iter().copied())
@@ -1123,13 +1148,20 @@ fn generate(
             let before = std::time::Instant::now();
             let start = target.offset();
             let verification = target.verify_draft(&verify, draft.kind)?;
+            phases[3] = lap();
             let ids = verification.parts.logits.chat_greedy_ids()?;
             let acceptance = crate::speculative::greedy_accept(&proposals, &ids)
                 .context("invalid draft acceptance")?;
             let retained = acceptance.accepted_draft_tokens + 1;
             let captured = verification.parts.captured.slice(0, 0, retained as i32)?;
+            phases[4] = lap();
             verification.commit(retained)?;
+            phases[5] = lap();
             draft.append(&captured, start)?;
+            phases[6] = lap();
+            for (sum, part) in result.phase_seconds.iter_mut().zip(phases) {
+                *sum += part;
+            }
             result.verification_seconds += before.elapsed().as_secs_f64();
             pending.extend(
                 proposals[..acceptance.accepted_draft_tokens]
@@ -1143,8 +1175,28 @@ fn generate(
             result.widths[selected] += 1;
             if draft.record_rounds {
                 let io_after = target.io_stats();
+                let routes = target
+                    .layers
+                    .iter()
+                    .map(|l| &l.moe.route_ids)
+                    .collect::<Vec<_>>();
+                ensure!(
+                    routes.len() == 48
+                        && routes.iter().all(|ids| ids.len() == 10 * verify.len()
+                            && ids.as_chunks::<10>().0.iter().all(|row| row
+                                .iter()
+                                .all(|&id| id < 512)
+                                && row
+                                    .iter()
+                                    .copied()
+                                    .collect::<std::collections::BTreeSet<_>>()
+                                    .len()
+                                    == 10)),
+                    "incomplete profile routes"
+                );
                 result.trace.push(serde_json::json!({"drafted":count,"selected":selected,"confidence":confidence,
                     "accepted":acceptance.accepted_draft_tokens,"round_seconds":round_started.elapsed().as_secs_f64(),
+                    "phase_seconds":phases,"layer_routes":routes,
                     "decode_io_hits_misses_bytes":[io_after.0-io_before.0,io_after.1-io_before.1,io_after.2-io_before.2]}));
             }
         }
@@ -1154,6 +1206,8 @@ fn generate(
             started.elapsed().as_secs_f64()
         };
         let decode_io_end = target.io_stats();
+        let moe_end = moe_profile(target);
+        result.moe_seconds = std::array::from_fn(|i| moe_end[i] - moe_start[i]);
         result.decode_io = [
             decode_io_end.0 - decode_io_start.0,
             decode_io_end.1 - decode_io_start.1,
@@ -1163,6 +1217,12 @@ fn generate(
             result.tokens.len() == budget
                 && pending.is_empty()
                 && result.seconds.is_finite()
+                && result
+                    .phase_seconds
+                    .iter()
+                    .all(|t| t.is_finite() && *t >= 0.)
+                && result.phase_seconds.iter().sum::<f64>() <= result.seconds + 1e-6
+                && result.moe_seconds.iter().all(|t| t.is_finite() && *t >= 0.)
                 && (budget == 1 || result.seconds > 0.),
             "incomplete draft generation: tokens={}, budget={budget}, pending={}, seconds={}",
             result.tokens.len(),
@@ -1849,7 +1909,7 @@ fn flash_draft_speed_arm() -> Result<()> {
                 result.proposed,
                 result.accepted,
                 result.blocks,
-                serde_json::json!({"draft_seconds":result.draft_seconds,"verify_and_cache_seconds":result.verification_seconds,"prefix_histogram":result.widths,"decode_io_hits_misses_bytes":result.decode_io}),
+                serde_json::json!({"draft_seconds":result.draft_seconds,"verify_and_cache_seconds":result.verification_seconds,"phase_seconds":result.phase_seconds,"prefix_histogram":result.widths,"decode_io_hits_misses_bytes":result.decode_io}),
             )
         } else {
             if let Some(head) = &mut head {
@@ -2023,7 +2083,7 @@ fn flash_prefix_policies_preserve_real_tokens_and_states() -> Result<()> {
 }
 
 #[test]
-#[ignore = "physical Apple GPU; profile DSpark B1..B4 using separate calibration prompts; run alone"]
+#[ignore = "physical Apple GPU; profile draft B1..B4 using separate calibration prompts; run alone"]
 fn flash_draft_calibration_arm() -> Result<()> {
     let root = std::env::var("MLXL3_FLASH_MODEL")?;
     let root = Path::new(&root);
@@ -2033,7 +2093,9 @@ fn flash_draft_calibration_arm() -> Result<()> {
     let checkpoint = crate::checkpoint::inspect(root)?;
     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
     target.context = 4096;
-    let mut draft = Draft::load(Path::new(&draft_path), Kind::Dspark)?;
+    let kind =
+        Kind::parse(&std::env::var("MLXL3_FLASH_DRAFT_KIND").unwrap_or_else(|_| "dspark".into()))?;
+    let mut draft = Draft::load(Path::new(&draft_path), kind)?;
     draft.policy = PrefixPolicy::Forced(prefix);
     let tokenizer = crate::tokenizer::ChatTokenizer::load(root)?;
     let directory = tempfile::tempdir()?;
@@ -2078,7 +2140,9 @@ fn flash_draft_calibration_arm() -> Result<()> {
                 disk_state(&target, directory.path(), name, false)?;
             }
             runs.push(serde_json::json!({"name":name,"prompt_id":prompt_id(&tokens),"warmup":repetition==0,"repetition":repetition,
-                "tokens":generated.tokens,"trace":generated.trace,"states_checked":repetition>0}));
+                "tokens":generated.tokens,"trace":generated.trace,"phase_seconds":generated.phase_seconds,"decode_seconds":generated.seconds,
+                "route_fill_import_seconds":generated.moe_seconds,
+                "states_checked":repetition>0}));
         }
     }
     println!(
