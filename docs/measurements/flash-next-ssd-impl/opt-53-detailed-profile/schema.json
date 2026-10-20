@@ -49,5 +49,8 @@
     "no per-model physical NVMe traffic or GPU frequency",
     "global system observations do not attribute activity to an application",
     "the two fixed prompts and contexts do not represent all production workloads"
-  ]
+  ],
+  "quantile_method": "empirical nearest rank ceil(p*n)-1, zero samples retained",
+  "exports": "exports/*.csv; ns for component/worker distributions; output_step.seconds and phase clocks seconds; layer_role head separate; acceptance intervals by block start decoded step",
+  "csv_record_endings": "CRLF (standard Python csv dialect); Git source whitespace validation allows cr-at-eol only, keeping other checks"
 }

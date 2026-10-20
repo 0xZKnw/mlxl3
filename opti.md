@@ -12357,3 +12357,53 @@ Raison nouvelle :50 termine sans Swapout mais avec de très grands compteurs sys
 - **53M reprise réduite préenregistrée avantcode/modèle** : protocol-v2-memory.json. Les6Gio sont arrêtés pourlesconditionscourantes, aucunrejeu ;0preuvecausaledumodèleseul. Compléterles4cellules3Gio OFF/MTP MAIN/HOLD naturelles/synchronisées, premièreOFFMAINvalidée nonrépétée. Gardeoriginale2s renduecumulative depuispremiercontrôle (Swapouts114 516 393 984octets ;245 104 640déjàconsommés,23 330 816octetsrestants) etSwapinsoriginal, cap256Miochacun. Wrapperrunpy isolé autourduvraimoniteur43, avant/aprèsréels restaurésenfinally, historiquesinchangés, aucun moteur/kernel/MLXmodifié. Testserreurs/limites/chargeur+CPIPython etnouvelletentativeCrossHair avantreprise. Matriceinitiale53restera incomplète6Gio, touséchecspréservés ; pasdechangementdeseuilpourqualifierungain. Aucunmodèleactuel.
 
 - **53M garde cumulative vérifiée avantreprise** :209Pythonpassent dont49profile ; mutation supprimantlepointdedépartcumulatif détectée, source restauréebyteexacte et49repassés. Test duvraichaînage dechargeurs3niveaux vérifie isolationrunpyglobale, baselineglobale dansmoniteur etavantparprocessusrestauréenfinally sursuccès/timeout, baselinesinvalides/futuresrefusées. CrossHair encoreabsent (nonvérifié). SeulscontrôleurPython/testschangés, toutesourcesRust/C++/Metaletbinairesinchangés ; campaign-identity-v2.json fige cesempreintes. Reprise3Gio uniquement, garde256Mio cumulés etcontrôleavant/aprèschaqueprocessus ; aucuneautrecellule6Gio lancée.
+
+- 45-Q/R processus control-OFF-c3-HOLD : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/control-OFF-c3-HOLD/run-result.json.
+
+- 45-Q/R processus natural-OFF-c3-HOLD : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-OFF-c3-HOLD/run-result.json.
+
+- **53 dataset natural-OFF-c3-HOLD : complete_validated_diagnostic**, parité=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-OFF-c3-HOLD/dataset-result.json.
+
+- 45-Q/R processus control-MTP-c3-MAIN : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/control-MTP-c3-MAIN/run-result.json.
+
+- 45-Q/R processus natural-MTP-c3-MAIN : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-MTP-c3-MAIN/run-result.json.
+
+- **53 dataset natural-MTP-c3-MAIN : complete_validated_diagnostic**, parité=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-MTP-c3-MAIN/dataset-result.json.
+
+- 45-Q/R processus control-MTP-c3-HOLD : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/control-MTP-c3-HOLD/run-result.json.
+
+- 45-Q/R processus natural-MTP-c3-HOLD : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-MTP-c3-HOLD/run-result.json.
+
+- **53 dataset natural-MTP-c3-HOLD : complete_validated_diagnostic**, parité=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-MTP-c3-HOLD/dataset-result.json.
+
+- 45-Q/R processus fenced-OFF-c3-MAIN : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-OFF-c3-MAIN/run-result.json.
+
+- **53 dataset fenced-OFF-c3-MAIN : complete_validated_diagnostic**, parité=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-OFF-c3-MAIN/dataset-result.json.
+
+- 45-Q/R processus fenced-OFF-c3-HOLD : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-OFF-c3-HOLD/run-result.json.
+
+- **53 dataset fenced-OFF-c3-HOLD : complete_validated_diagnostic**, parité=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-OFF-c3-HOLD/dataset-result.json.
+
+- 45-Q/R processus fenced-MTP-c3-MAIN : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-MAIN/run-result.json.
+
+- **53 dataset fenced-MTP-c3-MAIN : complete_validated_diagnostic**, parité=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-MAIN/dataset-result.json.
+
+- 45-Q/R processus fenced-MTP-c3-HOLD : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-HOLD/run-result.json.
+
+- **53 dataset fenced-MTP-c3-HOLD : complete_validated_diagnostic**, parité=True ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-HOLD/dataset-result.json.
+
+- **53M orchestration : completed_reduced_3g_matrix_6g_incomplete_due_memory** ; /Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/campaign-v2-result.json. Couverture6Gio resteinterrompue/nonmesurée, aucunequalificationdegain.
+
+- **53M collecte réduite complète** :12/12cas3Gio (4contrôlesrelease,4naturels×6phases128,4synchronisés×4phases33), tous joints/paritévalidée/0nouveauSwapout sur3Gio. Reprise10cas termine ; totalcumuléaprès6Gio reste245 104 640octetsSwapout, Swapin185 171 968octets depuisorigine, sous256Mio. Cache6Gio : uncontrôleterminéavecswap, unprofilinterrompu,10casnonlancés ; matriceoriginale24 noncomplète explicitement. Aucun modèle encoreactif. Phaseexport53E àpréenregistrer avantcode/traitement.
+
+- **53E exports et contrôle croisé préenregistrés avantcode/traitement** : export-protocol.json. Construireindex/CSVparblocMTP etparcouche, mergercomposants brutsdéjàmesurés, horlogesracinesvswall séparé(20msou1%), sommeexclusivehost exacte, nombresrows/offset/propositions/verify/commits etbytesconservés ; quantilescontrôlésNumPyindépendant, acceptationnativevsrelease. Testsrégresseurs/erreurs etCrossHairavanttraitementintégral ; aucun nouveauGPU ni optimization. États6Gio conservés etdistinctionprofils33/128naturels/synchronisés obligatoire.
+
+- **53E correction de portée d’oracle après relecture de la vraie source/donnée** : oracle-07/reference.json chargé par53Q contient5positions, pas16 comme repris dans certaines notespréliminaires50/53. Vérification :248320logits/position bitexacts,48routes/position exactes ;2étatsGDN capturésparposition seulement. Les48activations couche ont forme/finitude etRMSEjournalisé maisseuilinfini, pas uneassertionnumériquestricte. oracle-scope.json fige SHA/clefs. Les tests ontbienpassé ; leurcouverture est corrigée, pas étendueartificiellement. Les parités128tousétatsrestent celles desrépétitionsdanslemêmemode, distinctes del’oracleindépendant. Aucunancienrésultat effacé, aucune nouvelleinférencepourmasquer cettecorrection.
+
+- **53E exports validés et clos** : 3 989 383événements/602 571jobslecteurs,48phases/50 679lignescomposants/2 316lignescouches/9 189lignesworkers/1 844sorties/951échantillonssystème/24lignesacceptationparposition ;48tracesbrutesgzip. Touteshorlogesracine/wall etpartitionshôtes,48couches/rows/offsets/jobs/bytes parbloc conservés ; quantilesréelscontrôlésNumPy, tousCSVréouverts/taillescolonnes vérifiées.229Pythontestsfinaux passent,fmtRust/Ruff/compilationPython/YAMLPRpush/liensrapportpassent. Mutation spanverifydétectée/restaurée ; sourcepostprogress20testsetintégrationsurtoutesdonnéespassent. CrossHairabsent, KaniICE etCBMCparse restentnonvérifiés, aucunnouveaubuildmoteur nécessaireexportPython.
+
+- **53 bilan final, terminé dans le périmètre sûr et incomplet6Gio** : [rapport](docs/flash-next-ssd-profile-53-2026-10-20.md), exports sousopt-53-detailed-profile/exports.12/12cas3Giovalidés/joints/0Swapout ; picsnaturels7,48GoOFF/8,34GoMTP, synchronisésmax8,48Go. DébitsdiagnosticagrégésOFFMAIN9,475/HOLD9,501,MTPMAIN9,724/HOLD8,811tok/s : descriptifs, dériveMTP7,18/9,16%, aucun gainqualifié. VérifMTP97,64/108,03ms parsortie,tête3,96/4,20ms ; attentesroutes/lecturesincluses, pasGPUexclusif. Acceptation12854/72et48/78 contre16/16danspréfixe33 ; cohortesMTPprêtes4,08/3,24%,~3,843/3,288expertscommuns. Cache6 : contrôleavec245104640BnouveauSwapout, naturelintérrompuet10casnonlancés ; tousrésultatsconservés. La tâche courante demandait les données, aucune optimisationkernel/wirednouvelle ni15tok/sannoncés.
+
+- **53 publication finale préparée** : sources/binaires d’inférence etcontrôleuridentiquesauxhashesde capturedu27709c98 ; seuleCI ajoute testsdel’export, scriptPythonposttraitementnouveau. Dépendanceshashéesenfin, toutesmtime/ctimeantérieuresàcapture, sanspaireavant/aprèshash ; septshardsmétadonnéesseulement. CIcode277 : Linux/macOS/contratsFlash/régressionpassés, globalKani encoreencours aurelevé, pasCIglobaleverte. AucunGPUmodèle/processusrestant ;53Rconception/52D/51Rclos,53Mcomplet3Gio/53Eclos ; aucunessai encoreencours. L’appinstalléen’a pas été remplacée. PushPR34autorisé àeffectueravecdataetsourcesposttraitement ; CIducommitfinalàinspecter ensuite.
+
+- **53 publication premier essai arrêté, format CSV valide conservé** : gitdiffcachedcheck signale103921lignes dans14CSV àfinsCRLFstdPython, aucune valeur numérique erronée ; commit/pushnonlancés grâcechaînageconditionnel. publication-whitespace.json conservecommandes, fichiers etdiagnostic ; sortiecomplète répétitive nonconservée (régénérabledepuisCSVinchangés). Validationavec core.whitespace blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol passe ; seulsCRdefinligneconnus reconnus, autresrèglesetRuff/Rustfmtconservées. Pas demutationCSV ni nouveaucodeexécutable, pas de nouveauGPU.
