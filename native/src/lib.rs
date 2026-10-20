@@ -10,6 +10,8 @@ pub use contracts::{reusable_prefix_len, smallm_kernel_key};
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
+#[cfg(any(test, kani))]
+mod flash_cache_profile;
 pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;

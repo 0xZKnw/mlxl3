@@ -675,6 +675,13 @@ impl SsdMoe {
     }
 
     #[cfg(test)]
+    pub(crate) fn slots_for_test(&self) -> usize {
+        let slots = self.cache.borrow().capacity();
+        assert!(self.banks.iter().all(|b| b.shape()[0] == slots as i32));
+        slots
+    }
+
+    #[cfg(test)]
     pub(crate) fn gate_for_test(&self) -> &Projection {
         &self.gate
     }

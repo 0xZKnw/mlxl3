@@ -1064,6 +1064,13 @@ impl FlashNext {
             );
             slots
         };
+        let layer_slots = match std::env::var("MLXL3_SSD_LAYER_SLOTS") {
+            Ok(value) => flash_support::parse_layer_slots(&value, slots).context(
+                "MLXL3_SSD_LAYER_SLOTS requires 48 capacities in 20..512 with exactly the current total cache budget",
+            )?,
+            Err(std::env::VarError::NotPresent) => [slots; 48],
+            Err(error) => return Err(error.into()),
+        };
         crate::array::set_default_cache_limit(512 << 20)?;
         let overlap = match std::env::var("MLXL3_SSD_OVERLAP") {
             Ok(value) => match value.as_str() {
@@ -1100,7 +1107,7 @@ impl FlashNext {
             eprintln!(
                 "Flash Next: loading layer {}/48, {} exact expert slots",
                 i + 1,
-                slots
+                layer_slots[i]
             );
             layers.push(Layer::load(
                 c,
@@ -1109,9 +1116,11 @@ impl FlashNext {
                 i == 1,
                 eps,
                 rope,
-                slots,
+                layer_slots[i],
                 overlap,
             )?);
+            #[cfg(test)]
+            assert_eq!(layers[i].moe.slots_for_test(), layer_slots[i]);
         }
         let lookahead_pool = if lookahead_depth > 0 {
             let pool = Rc::new(RefCell::new(ReaderPool::new()?));
@@ -1884,6 +1893,173 @@ mod tests {
         );
         Ok(())
     }
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical Apple GPU; experiment47 cold/warm route capture, not throughput"]
+    fn flash_cache_calibration_captures_prefill_decode_and_identical_states() -> Result<()> {
+        use crate::flash_cache_profile::{CALIBRATION_PROMPT, CacheTrace, TracePhase};
+        fn counts(target: &FlashNext) -> Vec<[u64; 3]> {
+            target
+                .layers
+                .iter()
+                .map(|l| [l.moe.hits, l.moe.misses, l.moe.read_bytes])
+                .collect()
+        }
+        fn difference(after: &[[u64; 3]], before: &[[u64; 3]]) -> Vec<[u64; 3]> {
+            after
+                .iter()
+                .zip(before)
+                .map(|(a, b)| {
+                    std::array::from_fn(|i| a[i].checked_sub(b[i]).expect("monotone I/O counter"))
+                })
+                .collect()
+        }
+        fn routes(target: &FlashNext) -> Result<Vec<Vec<u32>>> {
+            target
+                .layers
+                .iter()
+                .map(|layer| {
+                    let ids = layer.moe.route_ids.clone();
+                    ensure!(ids.len() == 10 && ids.iter().all(|&id| id < 512));
+                    let mut unique = ids.clone();
+                    unique.sort_unstable();
+                    unique.dedup();
+                    ensure!(unique.len() == 10);
+                    Ok(ids)
+                })
+                .collect()
+        }
+        ensure!(std::env::var("MLXL3_SSD_CACHE_GIB")? == "3");
+        ensure!(std::env::var("MLXL3_SSD_CACHE_POLICY")? == "auto");
+        ensure!(
+            std::env::var_os("MLXL3_SSD_LAYER_SLOTS").is_none(),
+            "calibration trace requires uniform cache"
+        );
+        let output = std::env::var("MLXL3_FLASH_CACHE_TRACE")?;
+        let marker = File::create_new(&output)?;
+        serde_json::to_writer(marker, &serde_json::json!({"status":"incomplete"}))?;
+        let path = std::env::var("MLXL3_FLASH_MODEL")?;
+        let checkpoint = crate::checkpoint::inspect(Path::new(&path))?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(Path::new(&path))?;
+        let prompt_ids = tokenizer.encode(&tokenizer.render(&[crate::tokenizer::Message {
+            role: "user".into(),
+            content: CALIBRATION_PROMPT.into(),
+        }])?)?;
+        ensure!((1..=512).contains(&prompt_ids.len()));
+        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+        ensure!(target.lookahead_depth == 0 && target.layers.len() == 48);
+        let mut trace = CacheTrace {
+            status: "incomplete".into(),
+            slots: 53,
+            prompt: CALIBRATION_PROMPT.into(),
+            thinking: "default_on".into(),
+            prompt_ids,
+            phases: Vec::new(),
+        };
+        let mut first_state = None;
+        let mut first_logits = None;
+        for _ in 0..2 {
+            target.reset();
+            let before = counts(&target);
+            let mut captured = Vec::new();
+            let mut logits = None;
+            for &token in &trace.prompt_ids {
+                logits = Some(target.forward(token)?);
+                captured.push(routes(&target)?);
+            }
+            let after_prefill = counts(&target);
+            let mut next = logits
+                .context("empty calibration prefill")?
+                .chat_greedy_ids()?[0];
+            let mut tokens = vec![next];
+            for _ in 1..128 {
+                next = target.forward(next)?.chat_greedy_ids()?[0];
+                captured.push(routes(&target)?);
+                tokens.push(next);
+            }
+            target.drain()?;
+            ensure!(target.offset() as usize == trace.prompt_ids.len() + 127);
+            let logits = target.logits(
+                target
+                    .last_hidden
+                    .as_ref()
+                    .context("missing calibration hidden")?,
+            )?;
+            ensure!(logits.shape() == [1, 248320]);
+            let values = logits.to_f32()?;
+            ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
+            let bytes = logits.to_bytes()?;
+            let state = state_bytes(&target)?;
+            ensure!(state.len() > 100 && state.iter().all(|buffer| !buffer.is_empty()));
+            if let (Some(first), Some(first_values)) = (&first_state, &first_logits) {
+                ensure!(
+                    state == *first && bytes == *first_values,
+                    "warm cache changed calibration states/logits"
+                );
+            } else {
+                first_state = Some(state.clone());
+                first_logits = Some(bytes);
+            }
+            trace.phases.push(TracePhase {
+                routes: captured,
+                text: tokenizer.decode(&tokens)?,
+                tokens,
+                prefill_counts: difference(&after_prefill, &before),
+                decode_counts: difference(&counts(&target), &after_prefill),
+                logit_count: values.len(),
+                logits_finite: true,
+                state_buffers: state.len(),
+            });
+        }
+        ensure!(
+            trace.phases[0].tokens == trace.phases[1].tokens
+                && trace.phases[0].routes == trace.phases[1].routes
+        );
+        trace.status = "complete".into();
+        trace.validate()?;
+        let bridge: Value = serde_json::from_reader(File::open(std::env::var(
+            "MLXL3_FLASH_CACHE_BRIDGE_REFERENCE",
+        )?)?)?;
+        ensure!(
+            bridge["status"] == "validated" && bridge["tokens"] == 128 && bridge["repeats"] == 1
+        );
+        ensure!(
+            bridge["mode"] == "baseline"
+                && bridge["expert_cache_gib"] == 3
+                && bridge["model"] == path
+        );
+        ensure!(bridge["prompts"]["CAL"] == CALIBRATION_PROMPT);
+        for (phase, key) in trace.phases.iter().zip(["warmup", "runs"]) {
+            let reference = bridge[key]
+                .as_array()
+                .context("missing calibration bridge runs")?;
+            ensure!(reference.len() == 1 && reference[0]["stats"]["generated_tokens"] == 128);
+            let hash = phase
+                .tokens
+                .iter()
+                .flat_map(|t| t.to_le_bytes())
+                .fold(0xcbf29ce484222325u64, |h, byte| {
+                    (h ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+                });
+            ensure!(
+                reference[0]["text"] == phase.text
+                    && reference[0]["token_hash"] == format!("{hash:016x}"),
+                "calibration differs from production NT1 bridge"
+            );
+        }
+        std::fs::write(output, serde_json::to_vec_pretty(&trace)?)?;
+        println!(
+            "FLASH_CACHE_TRACE phases=2 tokens_per_phase=128 layers=48 shape=10 status=complete"
+        );
+        Ok(())
+    }
+
+    #[cfg(all(kani, feature = "chat"))]
+    #[kani::proof]
+    fn actual_flash_cache_capture_preserves_all_routes_and_states() {
+        flash_cache_calibration_captures_prefill_decode_and_identical_states().unwrap();
+    }
+
     #[test]
     #[ignore = "physical Apple GPU; isolated natural decode diagnostic, not release throughput"]
     fn flash_light_profile_preserves_natural_decode() -> Result<()> {

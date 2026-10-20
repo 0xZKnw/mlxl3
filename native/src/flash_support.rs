@@ -27,6 +27,31 @@ pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
 
 #[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn valid_layer_slots(slots: &[usize; 48], uniform: usize) -> bool {
+    if !(10..=512).contains(&uniform) {
+        return false;
+    }
+    let mut total = 0usize;
+    for &capacity in slots {
+        if !(20..=512).contains(&capacity) {
+            return false;
+        }
+        total += capacity;
+    }
+    total == uniform * 48
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn parse_layer_slots(value: &str, uniform: usize) -> Option<[usize; 48]> {
+    let mut parts = value.split(',');
+    let mut slots = [0; 48];
+    for slot in &mut slots {
+        *slot = parts.next()?.parse().ok()?;
+    }
+    (parts.next().is_none() && valid_layer_slots(&slots, uniform)).then_some(slots)
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn slots_fit(ids: &[u32], capacity: i32) -> bool {
     !ids.is_empty()
         && ids.len() <= i32::MAX as usize
@@ -599,6 +624,65 @@ impl ExpertCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn per_layer_slots_preserve_budget_and_reject_malformed_profiles() {
+        let encode = |slots: &[usize; 48]| {
+            slots
+                .iter()
+                .map(usize::to_string)
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        for uniform in [20, 53, 512] {
+            assert_eq!(
+                parse_layer_slots(&encode(&[uniform; 48]), uniform),
+                Some([uniform; 48])
+            );
+        }
+        let mut seed = 47u32;
+        for _ in 0..1000 {
+            let mut slots = [53; 48];
+            for pair in slots.as_chunks_mut::<2>().0 {
+                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                let delta = seed as usize % 34;
+                pair[0] -= delta;
+                pair[1] += delta;
+            }
+            let expected = slots.iter().all(|&n| (20..=512).contains(&n))
+                && slots.iter().map(|&n| n as u128).sum::<u128>() == 48 * 53;
+            assert!(expected);
+            assert!(valid_layer_slots(&slots, 53));
+            assert_eq!(parse_layer_slots(&encode(&slots), 53), Some(slots));
+            slots[0] += 1;
+            assert!(!valid_layer_slots(&slots, 53));
+        }
+        for uniform in [0, 9, 513, usize::MAX] {
+            assert!(!valid_layer_slots(&[53; 48], uniform));
+        }
+        for invalid in [0, 19, 513, usize::MAX] {
+            let mut slots = [53; 48];
+            slots[0] = invalid;
+            assert!(!valid_layer_slots(&slots, 53));
+        }
+        let prefix = "53,".repeat(47);
+        for invalid in [
+            "",
+            "-1",
+            "1.0",
+            "NaN",
+            "é",
+            "５３",
+            "53 ",
+            " 53",
+            "184467440737095516160",
+            "53,53",
+        ] {
+            assert!(parse_layer_slots(&(prefix.clone() + invalid), 53).is_none());
+        }
+        assert!(parse_layer_slots(&"53,".repeat(46), 53).is_none());
+        assert!(parse_layer_slots(&encode(&[54; 48]), 53).is_none());
+        assert!(parse_layer_slots(&encode(&[20; 48]), 10).is_none());
+    }
     #[test]
     fn fill_reservation_preserves_ready_weights_only_on_commit_and_keeps_pending() {
         for complete in [false, true] {
@@ -1179,6 +1263,43 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(49)]
+    fn layer_slot_budget_is_exact_and_cannot_overflow() {
+        let slots: [usize; 48] = kani::any();
+        let uniform: usize = kani::any();
+        let valid = valid_layer_slots(&slots, uniform);
+        if valid {
+            assert!((20..=512).contains(&uniform));
+            let mut total = 0u128;
+            for &capacity in &slots {
+                assert!((20..=512).contains(&capacity));
+                total += capacity as u128;
+            }
+            assert_eq!(total, uniform as u128 * 48);
+            assert!(total <= 48 * 512);
+        }
+        kani::cover!(valid);
+        kani::cover!(valid && slots[0] != slots[47]);
+        kani::cover!(!valid && uniform == usize::MAX);
+        kani::cover!(!valid && slots[0] == usize::MAX);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(192)]
+    fn layer_slot_parser_checks_last_two_utf8_bytes_and_full_shape() {
+        let bytes: [u8; 2] = kani::any();
+        if let Ok(last) = std::str::from_utf8(&bytes) {
+            let text = "53,".repeat(47) + last;
+            let parsed = parse_layer_slots(&text, 53);
+            assert_eq!(parsed.is_some(), last == "53");
+            if let Some(slots) = parsed {
+                assert_eq!(slots, [53; 48]);
+            }
+            kani::cover!(last == "53");
+            kani::cover!(last != "53" && parsed.is_none());
+        }
+    }
     #[kani::proof]
     #[kani::unwind(27)]
     fn failed_fill_invalidates_ready_keys_without_releasing_pending_slots() {

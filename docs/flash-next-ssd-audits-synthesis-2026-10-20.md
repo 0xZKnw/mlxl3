@@ -275,3 +275,62 @@ logiques, sans mesure du trafic NVMe physique. Le cache uniforme et le partage
 du décodage entre occurrences restent des pistes distinctes. La coalescence
 avec une prélecture pending manque, mais ne s'applique pas au témoin LES0.
 Le regroupement de tête43B reste rejeté ; ne pas refaire ce même mécanisme.
+
+## Allocation par couche47 : qualité validée, gain général rejeté
+
+Une capture froide/chaude sur un prompt séparé de MAIN/HOLD couvre le prefill
+et127pas decode par génération, avec128tokens exacts face au bridge,248320logits
+finits et136buffers d'état identiques. Le replay du vrai ExpertCache Rust
+reproduit exactement les compteurs des48couches avant optimisation.
+
+Le solveur répartit les mêmes2544slots entre28 et84par couche. Sur la seconde
+phase decode de calibration, les chargements logiques passent de17419à16545
+(−5,0175%). Cela ne mesure pas le trafic physique du SSD.
+
+Le nouveau réglage expérimental `MLXL3_SSD_LAYER_SLOTS` accepte48capacités,
+20..512par couche, avec une somme exactement égale au budget uniforme courant.
+Il est absent par défaut ; `MLXL3_SSD_CACHE_GIB=3` reste le budget employé ici.
+Le profil proposé est conservé dans
+[selected-slots.txt](measurements/flash-next-ssd-impl/opt-47-layer-cache/selected-slots.txt).
+Aucun profil n'est sélectionné automatiquement.
+
+Le crible release128tokens, même binaire avec/sans profil, donne :
+
+| Mode/prompt | Uniforme tok/s | Par couche tok/s | Écart descriptif |
+| --- | ---: | ---: | ---: |
+| OFF MAIN |9,11731|9,04743|−0,7664%|
+| OFF HOLD |8,99984|8,95157|−0,5364%|
+| MTP MAIN |8,98468|9,00133|+0,1853%|
+| MTP HOLD |8,40335|9,70089|+15,4408%|
+
+**Aucun gain général confirmé** : une seule paire dépasse1%, et le protocole
+exigeait les quatre avant confirmation inversée. Le résultat HOLD est une
+observation à conserver, sans le promouvoir en boost ; aucune répétition pour
+bruit. Huit processus joints,24réponses exactes, zéro nouveau swapout ; pics
+processus maximums7 137 335 176octets OFF et8 131 024 152MTP. Le cache contient
+exactement3 174 942 528octets d'experts dans les deux configurations.
+
+Les17contrôles physiques/de parcours passent :13avec profil, oracle cible
+uniforme par défaut et trois refus CLI avant chargement des experts.
+Les tests source donnent130Rust passés/124ignorés,107CPU passés/3ignorés et69Python
+ciblés. Fmt, Clippy strict, Ruff et build `mlx,chat` passent. La mutation du
+contrôle de budget est détectée puis la source restaurée repasse.
+
+Kani vérifie le validateur numérique réel sur48usize etbudgetusize arbitraires,
+sansassume/unwind49 :143obligations et4covers atteints, une obligation
+inatteignable dans std::fmt seulement. Le parser expire à120s, le DP à180s,
+et le vrai parcours MLX rencontre une ICE : ces parties restent non vérifiées.
+Le premier refus CLI avait été attendu avec exit1 alors que le CLI retourne2 ;
+l'échec du banc est conservé, puis les trois cas passent avec le bon contrat.
+
+[Résultats et décision47](measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/closure.json) ·
+[qualité](measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/quality-summary.json) ·
+[replay et courbes](measurements/flash-next-ssd-impl/opt-47-layer-cache/allocation.json).
+L'application installée reste inchangée ;15tok/s n'est pas atteint.
+
+Le producteur de calibration refuse désormais tout profil par couche avant création
+du rapport. L’oracle négatif détecte l’ancienne version et la capture uniforme
+repassée produit le JSON intégral byte-identique. Le moteur release reconstruit
+est bit-identique au binaire mesuré. Cette dernière capture qualité observe
+1,0625Mio de nouveaux Swapouts système, sous la garde qualité256Mio ; elle
+n’est pas une mesure de débit et ne change pas les zéro Swapout des huit bras47R.

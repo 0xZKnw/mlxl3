@@ -1,0 +1,955 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:496:17
+    |
+496 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.20s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 4`
+Checking harness flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/e7e2fd0cd755dad8/out/mlxl3_native-e7e2fd0cd755dad8__RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 1 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 2 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 3 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 4 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 5 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 6 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 7 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 8 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 9 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 10 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 11 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 12 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 13 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 14 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 15 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 16 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 17 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 18 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 19 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 20 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 21 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 22 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 23 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 24 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 25 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 26 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 27 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 28 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 29 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 30 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 31 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 32 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 33 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 34 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 35 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 36 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 37 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 38 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 39 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 40 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 41 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 42 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 43 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 44 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 45 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 46 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 47 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support17valid_layer_slots.0 iteration 48 file native/src/flash_support.rs line 35 column 5 function flash_support::valid_layer_slots thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 1 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 2 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 3 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 4 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 5 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 6 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 7 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 8 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 9 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 10 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 11 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 12 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 13 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 14 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 15 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 16 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 17 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 18 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 19 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 20 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 21 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 22 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 23 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 24 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 25 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 26 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 27 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 28 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 29 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 30 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 31 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 32 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 33 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 34 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 35 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 36 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 37 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 38 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 39 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 40 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 41 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 42 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 43 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 44 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 45 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 46 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 47 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Unwinding loop _RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification46layer_slot_budget_is_exact_and_cannot_overflow.0 iteration 48 file native/src/flash_support.rs line 1275 column 13 function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow thread 0
+Runtime Symex: 4.30655s
+size of program expression: 113007 steps
+slicing removed 90259 assignments
+Generated 10275 VCC(s), 502 remaining after simplification
+Runtime Postprocess Equation: 0.0277627s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.126866s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 2.5084e-05s
+Solving with CaDiCaL 3.0.0
+313571 variables, 429257 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00285696s
+Runtime decision procedure: 0.135521s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+313572 variables, 429258 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0019665s
+Runtime decision procedure: 0.00274654s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+313573 variables, 429259 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00159388s
+Runtime decision procedure: 0.00221129s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+313574 variables, 429260 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00171379s
+Runtime decision procedure: 0.00233138s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+313575 variables, 429261 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00470992s
+Runtime decision procedure: 0.00534062s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+313576 variables, 429262 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00534104s
+Runtime decision procedure: 0.00596783s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+313577 variables, 429263 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.10199s
+Runtime decision procedure: 0.102626s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+313578 variables, 429264 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.50649s
+Runtime decision procedure: 0.506843s
+
+RESULTS:
+Check 1: std::ptr::NonNull::<usize>::as_ref::<'_>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 2: std::ptr::NonNull::<usize>::as_ref::<'_>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 3: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 4: core::num::<impl usize>::unchecked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1192:17 in function core::num::<impl usize>::unchecked_sub
+
+Check 5: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 6: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 7: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 8: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 9: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (20..=512).contains(&uniform)"
+	 - Location: native/src/flash_support.rs:1273:13 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 10: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/flash_support.rs:1275:30 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 11: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (20..=512).contains(&capacity)"
+	 - Location: native/src/flash_support.rs:1276:17 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 12: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:1277:17 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 13: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:1279:31 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 14: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: total == uniform as u128 * 48"
+	 - Location: native/src/flash_support.rs:1279:13 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 15: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:1280:30 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 16: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.7
+	 - Status: SUCCESS
+	 - Description: "assertion failed: total <= 48 * 512"
+	 - Location: native/src/flash_support.rs:1280:13 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 17: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: valid"
+	 - Location: native/src/flash_support.rs:1282:9 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 18: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.8
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:1283:31 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 19: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.9
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:1283:43 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 20: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: valid && slots[0] != slots[47]"
+	 - Location: native/src/flash_support.rs:1283:9 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 21: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: !valid && uniform == usize::MAX"
+	 - Location: native/src/flash_support.rs:1284:9 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 22: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.assertion.10
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:1285:32 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 23: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: !valid && slots[0] == usize::MAX"
+	 - Location: native/src/flash_support.rs:1285:9 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 24: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 25: <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::contains::<usize>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::contains::<usize>
+
+Check 26: flash_support::valid_layer_slots.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/flash_support.rs:35:22 in function flash_support::valid_layer_slots
+
+Check 27: flash_support::valid_layer_slots.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:39:9 in function flash_support::valid_layer_slots
+
+Check 28: flash_support::valid_layer_slots.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:41:14 in function flash_support::valid_layer_slots
+
+Check 29: kani::rustc_intrinsics::offset::<usize, *mut usize, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<usize, *mut usize, usize>
+
+Check 30: kani::rustc_intrinsics::offset::<usize, *mut usize, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<usize, *mut usize, usize>
+
+Check 31: kani::rustc_intrinsics::offset::<usize, *mut usize, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<usize, *mut usize, usize>
+
+Check 32: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 33: std::ptr::NonNull::<usize>::as_ref::<'_>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 34: std::ptr::NonNull::<usize>::as_ref::<'_>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 35: std::ptr::NonNull::<usize>::as_ref::<'_>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 36: std::ptr::NonNull::<usize>::as_ref::<'_>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 37: std::ptr::NonNull::<usize>::as_ref::<'_>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 38: std::ptr::NonNull::<usize>::as_ref::<'_>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<usize>::as_ref::<'_>
+
+Check 39: flash_support::valid_layer_slots.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:35:22 in function flash_support::valid_layer_slots
+
+Check 40: flash_support::valid_layer_slots.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:35:10 in function flash_support::valid_layer_slots
+
+Check 41: flash_support::valid_layer_slots.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:35:10 in function flash_support::valid_layer_slots
+
+Check 42: flash_support::valid_layer_slots.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:35:10 in function flash_support::valid_layer_slots
+
+Check 43: flash_support::valid_layer_slots.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:35:10 in function flash_support::valid_layer_slots
+
+Check 44: flash_support::valid_layer_slots.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:35:10 in function flash_support::valid_layer_slots
+
+Check 45: flash_support::valid_layer_slots.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:35:10 in function flash_support::valid_layer_slots
+
+Check 46: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:1275:30 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 47: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:1275:18 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 48: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:1275:18 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 49: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:1275:18 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 50: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:1275:18 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 51: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:1275:18 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 52: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:1275:18 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 53: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:1283:31 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 54: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:1283:43 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 55: flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow.array_bounds.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:1285:32 in function flash_support::verification::layer_slot_budget_is_exact_and_cannot_overflow
+
+Check 56: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 57: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 58: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 59: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 60: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 61: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 62: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 63: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 64: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 65: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 66: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 67: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 68: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:169:36 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 69: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 70: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 71: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 72: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 73: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 74: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 75: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:181:36 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 76: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 77: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 78: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 79: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 80: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 81: <std::slice::Iter<'_, usize> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, usize> as std::iter::Iterator>::next
+
+Check 82: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 83: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 84: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 85: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 86: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 87: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 88: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 89: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 90: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 91: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 92: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 93: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::le
+
+Check 94: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 95: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 96: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 97: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 98: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 99: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 100: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 101: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 102: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 103: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 104: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 105: std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &usize>::lt
+
+Check 106: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 107: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 108: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 109: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 110: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 111: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 112: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 113: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 114: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 115: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 116: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 117: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::le
+
+Check 118: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 119: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 120: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 121: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 122: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 123: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 124: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 125: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 126: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 127: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 128: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 129: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 130: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 131: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 132: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 133: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 134: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 135: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 136: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 137: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 138: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 139: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 140: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 141: <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<usize> as std::cmp::PartialEq>::eq
+
+Check 142: <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound
+
+Check 143: <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound
+
+Check 144: <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound
+
+Check 145: <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound
+
+Check 146: <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound
+
+Check 147: <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<usize> as std::ops::RangeBounds<usize>>::end_bound
+
+
+SUMMARY:
+ ** 0 of 143 failed (1 unreachable)
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 8.543673s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

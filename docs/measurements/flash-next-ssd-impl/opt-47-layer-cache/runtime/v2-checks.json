@@ -1,0 +1,124 @@
+[
+  {
+    "name": "v2-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.319980416999897,
+    "reaped": true
+  },
+  {
+    "name": "v2-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 2.9248939999961294,
+    "reaped": true
+  },
+  {
+    "name": "v2-cpu-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "exit_code": 0,
+    "seconds": 8.736891707987525,
+    "reaped": true
+  },
+  {
+    "name": "v2-release-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 48.89314904197818,
+    "reaped": true
+  },
+  {
+    "name": "v2-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 0.1330110419949051,
+    "reaped": true
+  },
+  {
+    "name": "v2-kani-budget",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "layer_slot_budget_is_exact_and_cannot_overflow",
+      "--output-format",
+      "regular"
+    ],
+    "exit_code": 0,
+    "seconds": 10.290172500011977,
+    "reaped": true
+  },
+  {
+    "name": "v2-kani-parser",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "layer_slot_parser_checks_last_two_utf8_bytes_and_full_shape",
+      "--output-format",
+      "regular"
+    ],
+    "exit_code": 124,
+    "seconds": 120.01171662501292,
+    "reaped": true
+  },
+  {
+    "name": "v2-kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "qwen4::tests::actual_flash_cache_capture_preserves_all_routes_and_states",
+      "--output-format",
+      "regular"
+    ],
+    "exit_code": 1,
+    "seconds": 4.378609459003201,
+    "reaped": true
+  }
+]
