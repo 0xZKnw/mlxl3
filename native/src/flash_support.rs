@@ -306,6 +306,17 @@ pub(crate) fn fixed_draft_width(value: &str, adaptive: bool) -> Option<usize> {
     }
 }
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn expert_output_stride(routes: u32, projections: u32, width: u32) -> Option<u32> {
+    if routes == 0 || projections == 0 || width == 0 {
+        return None;
+    }
+    routes
+        .checked_mul(projections)?
+        .checked_mul(width)
+        .filter(|&n| n <= i32::MAX as u32)
+}
+
 /// Greedy-only scheduler: prefer the smallest prefix on equal expected throughput.
 #[cfg(any(test, kani))]
 pub(crate) fn draft_prefix(confidence: &[f64], costs: &[f64]) -> Option<usize> {
@@ -338,6 +349,21 @@ pub(crate) fn draft_prefix(confidence: &[f64], costs: &[f64]) -> Option<usize> {
 #[cfg(test)]
 mod draft_contract_tests {
     use super::*;
+
+    #[test]
+    fn expert_output_strides_match_wide_arithmetic_and_reject_empty_or_overflow() {
+        for routes in [0, 1, 2, 7, 8, 10, 20, 53, 80, u32::MAX] {
+            for projections in [0, 1, 2, u32::MAX] {
+                for width in [0, 1, 640, 2560, i32::MAX as u32, u32::MAX] {
+                    let wide = u128::from(routes) * u128::from(projections) * u128::from(width);
+                    let expected =
+                        (routes > 0 && projections > 0 && width > 0 && wide <= i32::MAX as u128)
+                            .then_some(wide as u32);
+                    assert_eq!(expert_output_stride(routes, projections, width), expected);
+                }
+            }
+        }
+    }
 
     #[test]
     fn draft_prefix_matches_exhaustive_quarter_probability_outcomes() {
@@ -563,6 +589,24 @@ mod draft_contract_tests {
 #[cfg(kani)]
 mod draft_contract_proofs {
     use super::*;
+
+    #[kani::proof]
+    fn expert_output_stride_cannot_wrap_and_matches_wide_arithmetic() {
+        let routes: u32 = kani::any();
+        let projections: u32 = kani::any();
+        let width: u32 = kani::any();
+        let actual = expert_output_stride(routes, projections, width);
+        let wide = u128::from(routes) * u128::from(projections) * u128::from(width);
+        let valid = routes > 0 && projections > 0 && width > 0 && wide <= i32::MAX as u128;
+        assert_eq!(actual.is_some(), valid);
+        if let Some(stride) = actual {
+            assert_eq!(u128::from(stride), wide);
+        }
+        kani::cover!(routes == 80 && projections == 2 && width == 640 && actual == Some(102400));
+        kani::cover!(routes == 7 && projections == 1 && width == 2560 && actual == Some(17920));
+        kani::cover!(routes == 0 && actual.is_none());
+        kani::cover!(wide > u128::from(u32::MAX) && actual.is_none());
+    }
 
     #[kani::proof]
     #[kani::unwind(5)]

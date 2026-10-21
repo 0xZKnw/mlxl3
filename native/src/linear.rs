@@ -1079,6 +1079,7 @@ pub fn expert_mapped(
         false,
         false,
         None,
+        false,
     )
 }
 
@@ -1219,6 +1220,7 @@ pub(crate) fn expert_slots(
     projections_per_route: i32,
     k: usize,
     cb: Codebook,
+    stable_shapes: bool,
 ) -> Result<Array> {
     ensure!(
         trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
@@ -1240,6 +1242,7 @@ pub(crate) fn expert_slots(
         true,
         selected.masked,
         selected.groups.as_ref(),
+        stable_shapes,
     )
 }
 
@@ -1260,6 +1263,7 @@ fn expert_mapped_layout(
     slot_major: bool,
     masked: bool,
     groups: Option<&GroupedRoutes>,
+    stable_shapes: bool,
 ) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
@@ -1371,6 +1375,27 @@ fn expert_mapped_layout(
     } else {
         String::new()
     };
+    let local_output_dims = if stable_shapes {
+        ensure!(
+            slot_major && selected.shape().len() == 1,
+            "dynamic strides require flat slot routes"
+        );
+        crate::flash_support::expert_output_stride(
+            selected.shape()[0] as u32,
+            projections_per_route as u32,
+            output_dims as u32,
+        )
+        .context("dynamic expert output stride overflow")?;
+        "mlxl3_route_output_dims".to_owned()
+    } else {
+        (local_tiles * 16).to_string()
+    };
+    let kernel_source = include_str!("../shaders/_qmv_mapped_tile_kernel.metal");
+    // MLX detects shape bindings in the body, not in the header.
+    let stable_source = stable_shapes.then(|| format!("uint {} = uint({}_shape[0]) * uint(ROUTING_REPEAT) * uint(OUTPUT_TILES) * 16u;\n{kernel_source}",
+        if groups.is_some() { "mlxl3_group_output_dims" } else { "mlxl3_route_output_dims" },
+        if groups.is_some() { "tile_sub" } else { "tile_map" },
+    ));
     let header = codebook_header(cb)
         + &masked_header
         + &reference_reduction_header(slot_major)
@@ -1381,7 +1406,7 @@ fn expert_mapped_layout(
             k * 8,
             tiles_k,
             tiles_n,
-            local_tiles * 16,
+            local_output_dims,
             u8::from(slot_major),
         );
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
@@ -1407,14 +1432,28 @@ fn expert_mapped_layout(
             (grouped_rows, grouped_rows / width * output_tiles)
         });
         let grouped_header = group.map(|(width, _)| {
-            format!("{header}\n#define MLXL3_GROUPED_ROUTES 1\n#define MLXL3_QMV_MB {width}u\n#define MLXL3_GROUP_OUTPUT_DIMS {}u\n", route_rows * output_dims)
+            let stride = if stable_shapes {
+                "mlxl3_group_output_dims".to_owned()
+            } else {
+                format!("{}u", route_rows * output_dims)
+            };
+            format!("{header}\n#define MLXL3_GROUPED_ROUTES 1\n#define MLXL3_QMV_MB {width}u\n#define MLXL3_GROUP_OUTPUT_DIMS {stride}\n")
         });
+        #[cfg(test)]
+        if let Some(profile) = crate::flash_profile::span("expert_kernel_signature") {
+            profile.data(serde_json::json!({
+                "stable": stable_shapes,
+                "key": [group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
+                    grouped_header.as_deref().unwrap_or(&header).to_owned(),
+                    stable_source.as_deref().unwrap_or(kernel_source).to_owned()],
+            }));
+        }
         Ok(array::metal_kernel(
             &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
             &["xhat", "trellis", "tile_map", "tile_sub"],
             &["yhat"],
             grouped_header.as_deref().unwrap_or(&header),
-            include_str!("../shaders/_qmv_mapped_tile_kernel.metal"),
+            stable_source.as_deref().unwrap_or(kernel_source),
             &[
                 &xhat,
                 &words,
@@ -1623,239 +1662,274 @@ mod tests {
         let mut checked = 0;
         let mut masked_checked = 0;
         let mut grouped_checked = 0;
-        for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
-            let words = input / 16 * (output / 16) * 32;
-            let packed = (0..10 * projections * words)
-                .map(|i| (i as u16).wrapping_mul(1777))
-                .collect::<Vec<_>>();
-            let bank = Array::from_u16(
-                &packed,
-                &[
-                    10,
-                    projections as i32,
-                    (input / 16) as i32,
-                    (output / 16) as i32,
-                    32,
-                ],
-            )?;
-            for dtype in [Dtype::Float16, Dtype::Float32] {
-                for strided in [false, true] {
-                    for routes in &cases {
-                        let rows = routes.len() * projections;
-                        let value = |row: usize, col: usize| {
-                            ((row * 37 + col * 13) % 997) as f32 / 1024. - 0.5
-                        };
-                        let values = (0..rows)
-                            .flat_map(|r| (0..input).map(move |c| value(r, c)))
-                            .collect::<Vec<_>>();
-                        let x = if strided {
-                            let transposed = (0..input)
-                                .flat_map(|c| (0..rows).map(move |r| value(r, c)))
+        crate::flash_profile::start(false)?;
+        for stable_shapes in [false, true] {
+            for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
+                let words = input / 16 * (output / 16) * 32;
+                let packed = (0..10 * projections * words)
+                    .map(|i| (i as u16).wrapping_mul(1777))
+                    .collect::<Vec<_>>();
+                let bank = Array::from_u16(
+                    &packed,
+                    &[
+                        10,
+                        projections as i32,
+                        (input / 16) as i32,
+                        (output / 16) as i32,
+                        32,
+                    ],
+                )?;
+                for dtype in [Dtype::Float16, Dtype::Float32] {
+                    for strided in [false, true] {
+                        for routes in &cases {
+                            let rows = routes.len() * projections;
+                            let value = |row: usize, col: usize| {
+                                ((row * 37 + col * 13) % 997) as f32 / 1024. - 0.5
+                            };
+                            let values = (0..rows)
+                                .flat_map(|r| (0..input).map(move |c| value(r, c)))
                                 .collect::<Vec<_>>();
-                            Array::from_f32(&transposed, &[input as i32, rows as i32])?
-                                .astype(dtype)?
-                                .transpose(&[1, 0])?
-                        } else {
-                            Array::from_f32(&values, &[rows as i32, input as i32])?.astype(dtype)?
-                        };
-                        let scales = |width: usize| {
-                            (0..rows * width)
-                                .map(|i| half::f16::from_f32(0.5 + (i % 11) as f32 / 32.).to_bits())
-                                .collect::<Vec<_>>()
-                        };
-                        let su = scales(input);
-                        let sv = scales(output);
-                        let suh = Array::from_f16_bits(&su, &[rows as i32, input as i32])?;
-                        let svh = Array::from_f16_bits(&sv, &[rows as i32, output as i32])?;
-                        let before = Array::host_readbacks_for_test();
-                        let actual = expert_slots(
-                            &x,
-                            &bank,
-                            &suh,
-                            &svh,
-                            &ExpertSlots::new(routes, 10)?,
-                            output as i32,
-                            projections as i32,
-                            2,
-                            Codebook::Mul1,
-                        )?;
-                        assert_eq!(Array::host_readbacks_for_test(), before);
-                        assert_eq!(actual.shape(), [rows as i32, output as i32]);
-                        let host = actual.to_f32()?;
-                        assert_eq!(host.len(), rows * output);
-                        assert!(host.iter().all(|v| v.is_finite()));
-                        let grouped_reads = Array::host_readbacks_for_test();
-                        let grouped_slots = ExpertSlots::grouped(routes, 10)?;
-                        grouped_checked += usize::from(grouped_slots.shares_weights());
-                        let grouped = expert_slots(
-                            &x,
-                            &bank,
-                            &suh,
-                            &svh,
-                            &grouped_slots,
-                            output as i32,
-                            projections as i32,
-                            2,
-                            Codebook::Mul1,
-                        )?;
-                        assert_eq!(Array::host_readbacks_for_test(), grouped_reads);
-                        assert_eq!(grouped.shape(), actual.shape());
-                        assert_eq!(
-                            grouped.to_bytes()?,
-                            actual.to_bytes()?,
-                            "shared EXL3 changed a route: {routes:?}"
-                        );
-                        if routes.len() == 20 {
-                            let mut wrong = ExpertSlots::grouped(routes, 10)?;
-                            let origins = &mut wrong.groups.as_mut().unwrap().origins;
-                            let rows =
-                                &mut origins.iter_mut().find(|(width, _)| *width == 2).unwrap().1;
-                            let mut indices = rows.to_u32()?;
-                            indices[0] = 1;
-                            *rows = Array::from_u32(&indices, &[20])?;
-                            let changed = expert_slots(
+                            let x = if strided {
+                                let transposed = (0..input)
+                                    .flat_map(|c| (0..rows).map(move |r| value(r, c)))
+                                    .collect::<Vec<_>>();
+                                Array::from_f32(&transposed, &[input as i32, rows as i32])?
+                                    .astype(dtype)?
+                                    .transpose(&[1, 0])?
+                            } else {
+                                Array::from_f32(&values, &[rows as i32, input as i32])?
+                                    .astype(dtype)?
+                            };
+                            let scales = |width: usize| {
+                                (0..rows * width)
+                                    .map(|i| {
+                                        half::f16::from_f32(0.5 + (i % 11) as f32 / 32.).to_bits()
+                                    })
+                                    .collect::<Vec<_>>()
+                            };
+                            let su = scales(input);
+                            let sv = scales(output);
+                            let suh = Array::from_f16_bits(&su, &[rows as i32, input as i32])?;
+                            let svh = Array::from_f16_bits(&sv, &[rows as i32, output as i32])?;
+                            let before = Array::host_readbacks_for_test();
+                            let actual = expert_slots(
                                 &x,
                                 &bank,
                                 &suh,
                                 &svh,
-                                &wrong,
+                                &ExpertSlots::new(routes, 10)?,
                                 output as i32,
                                 projections as i32,
                                 2,
                                 Codebook::Mul1,
+                                stable_shapes,
                             )?;
-                            assert_ne!(
-                                changed.to_bytes()?,
+                            assert_eq!(Array::host_readbacks_for_test(), before);
+                            assert_eq!(actual.shape(), [rows as i32, output as i32]);
+                            let host = actual.to_f32()?;
+                            assert_eq!(host.len(), rows * output);
+                            assert!(host.iter().all(|v| v.is_finite()));
+                            let grouped_reads = Array::host_readbacks_for_test();
+                            let grouped_slots = ExpertSlots::grouped(routes, 10)?;
+                            grouped_checked += usize::from(grouped_slots.shares_weights());
+                            let grouped = expert_slots(
+                                &x,
+                                &bank,
+                                &suh,
+                                &svh,
+                                &grouped_slots,
+                                output as i32,
+                                projections as i32,
+                                2,
+                                Codebook::Mul1,
+                                stable_shapes,
+                            )?;
+                            assert_eq!(Array::host_readbacks_for_test(), grouped_reads);
+                            assert_eq!(grouped.shape(), actual.shape());
+                            assert_eq!(
+                                grouped.to_bytes()?,
                                 actual.to_bytes()?,
-                                "wrong shared origin was not detected"
+                                "shared EXL3 changed a route: {routes:?}"
                             );
-                        }
-                        for (route, &slot) in routes.iter().enumerate() {
-                            for projection in 0..projections {
-                                let row = route * projections + projection;
-                                let index = slot as usize * projections + projection;
-                                let mut reference = Exl3Linear::new(
-                                    Array::from_u16(
-                                        &packed[index * words..(index + 1) * words],
-                                        &[(input / 16) as i32, (output / 16) as i32, 32],
-                                    )?,
-                                    Array::from_f16_bits(
-                                        &su[row * input..(row + 1) * input],
-                                        &[input as i32],
-                                    )?,
-                                    Array::from_f16_bits(
-                                        &sv[row * output..(row + 1) * output],
-                                        &[output as i32],
-                                    )?,
-                                    None,
+                            if routes.len() == 20 {
+                                let mut wrong = ExpertSlots::grouped(routes, 10)?;
+                                let origins = &mut wrong.groups.as_mut().unwrap().origins;
+                                let rows = &mut origins
+                                    .iter_mut()
+                                    .find(|(width, _)| *width == 2)
+                                    .unwrap()
+                                    .1;
+                                let mut indices = rows.to_u32()?;
+                                indices[0] = 1;
+                                *rows = Array::from_u32(&indices, &[20])?;
+                                let changed = expert_slots(
+                                    &x,
+                                    &bank,
+                                    &suh,
+                                    &svh,
+                                    &wrong,
+                                    output as i32,
+                                    projections as i32,
                                     2,
                                     Codebook::Mul1,
+                                    stable_shapes,
                                 )?;
-                                reference.simdgroups = 4;
-                                reference.reference_accumulation = true;
-                                let expected = reference.forward(
-                                    &Array::from_f32(
-                                        &values[row * input..(row + 1) * input],
-                                        &[1, input as i32],
-                                    )?
-                                    .astype(dtype)?,
-                                )?;
-                                assert_eq!(
-                                    actual.slice(0, row as i32, row as i32 + 1)?.to_bytes()?,
-                                    expected.to_bytes()?,
-                                    "input={input},output={output},dtype={dtype:?},strided={strided},row={row},slot={slot}"
+                                assert_ne!(
+                                    changed.to_bytes()?,
+                                    actual.to_bytes()?,
+                                    "wrong shared origin was not detected"
                                 );
                             }
-                        }
-                        let ordinary = actual.to_bytes()?;
-                        let row_bytes = ordinary.len() / rows;
-                        for mask in 0..3 {
-                            let mut map = [u32::MAX; 512];
-                            for id in 0..10u32 {
-                                if mask == 2 || (mask == 1 && id % 2 == 0) {
-                                    map[id as usize] = id;
-                                }
-                            }
-                            let slots = ExpertSlots::residents(
-                                &Array::from_u32(routes, &[routes.len() as i32])?,
-                                &map,
-                                10,
-                            )?;
-                            let masked = expert_slots(
-                                &x,
-                                &bank,
-                                &suh,
-                                &svh,
-                                &slots,
-                                output as i32,
-                                projections as i32,
-                                2,
-                                Codebook::Mul1,
-                            )?;
-                            assert_eq!(masked.shape(), actual.shape());
-                            let values = masked.to_f32()?;
-                            let bytes = masked.to_bytes()?;
-                            assert_eq!(values.len(), rows * output);
-                            assert!(values.iter().all(|v| v.is_finite()));
-                            for row in 0..rows {
-                                if map[routes[row / projections] as usize] == u32::MAX {
-                                    assert!(
-                                        values[row * output..(row + 1) * output]
-                                            .iter()
-                                            .all(|&v| v == 0.)
-                                    );
-                                } else {
+                            for (route, &slot) in routes.iter().enumerate() {
+                                for projection in 0..projections {
+                                    let row = route * projections + projection;
+                                    let index = slot as usize * projections + projection;
+                                    let mut reference = Exl3Linear::new(
+                                        Array::from_u16(
+                                            &packed[index * words..(index + 1) * words],
+                                            &[(input / 16) as i32, (output / 16) as i32, 32],
+                                        )?,
+                                        Array::from_f16_bits(
+                                            &su[row * input..(row + 1) * input],
+                                            &[input as i32],
+                                        )?,
+                                        Array::from_f16_bits(
+                                            &sv[row * output..(row + 1) * output],
+                                            &[output as i32],
+                                        )?,
+                                        None,
+                                        2,
+                                        Codebook::Mul1,
+                                    )?;
+                                    reference.simdgroups = 4;
+                                    reference.reference_accumulation = true;
+                                    let expected = reference.forward(
+                                        &Array::from_f32(
+                                            &values[row * input..(row + 1) * input],
+                                            &[1, input as i32],
+                                        )?
+                                        .astype(dtype)?,
+                                    )?;
                                     assert_eq!(
-                                        bytes[row * row_bytes..(row + 1) * row_bytes],
-                                        ordinary[row * row_bytes..(row + 1) * row_bytes],
-                                        "resident row differs: mask={mask},row={row}"
+                                        actual.slice(0, row as i32, row as i32 + 1)?.to_bytes()?,
+                                        expected.to_bytes()?,
+                                        "input={input},output={output},dtype={dtype:?},strided={strided},row={row},slot={slot}"
                                     );
                                 }
                             }
-                            masked_checked += 1;
-                        }
-                        if routes.len() == 1 {
-                            let wrong = expert_slots(
-                                &x,
-                                &bank,
-                                &suh,
-                                &svh,
-                                &ExpertSlots::new(&[0], 10)?,
-                                output as i32,
-                                projections as i32,
-                                2,
-                                Codebook::Mul1,
-                            )?;
-                            assert_ne!(
-                                actual.to_bytes()?,
-                                wrong.to_bytes()?,
-                                "wrong-slot control was not detected"
-                            );
-                        }
-                        if routes.len() == 20 {
-                            for (invalid, capacity) in [
-                                (vec![], 10),
-                                (vec![0; 81], 10),
-                                (vec![10; 20], 10),
-                                (vec![u32::MAX; 20], 10),
-                                (vec![0; 20], 0),
-                                (vec![0; 20], 513),
-                            ] {
-                                assert!(ExpertSlots::grouped(&invalid, capacity).is_err());
+                            let ordinary = actual.to_bytes()?;
+                            let row_bytes = ordinary.len() / rows;
+                            for mask in 0..3 {
+                                let mut map = [u32::MAX; 512];
+                                for id in 0..10u32 {
+                                    if mask == 2 || (mask == 1 && id % 2 == 0) {
+                                        map[id as usize] = id;
+                                    }
+                                }
+                                let slots = ExpertSlots::residents(
+                                    &Array::from_u32(routes, &[routes.len() as i32])?,
+                                    &map,
+                                    10,
+                                )?;
+                                let masked = expert_slots(
+                                    &x,
+                                    &bank,
+                                    &suh,
+                                    &svh,
+                                    &slots,
+                                    output as i32,
+                                    projections as i32,
+                                    2,
+                                    Codebook::Mul1,
+                                    stable_shapes,
+                                )?;
+                                assert_eq!(masked.shape(), actual.shape());
+                                let values = masked.to_f32()?;
+                                let bytes = masked.to_bytes()?;
+                                assert_eq!(values.len(), rows * output);
+                                assert!(values.iter().all(|v| v.is_finite()));
+                                for row in 0..rows {
+                                    if map[routes[row / projections] as usize] == u32::MAX {
+                                        assert!(
+                                            values[row * output..(row + 1) * output]
+                                                .iter()
+                                                .all(|&v| v == 0.)
+                                        );
+                                    } else {
+                                        assert_eq!(
+                                            bytes[row * row_bytes..(row + 1) * row_bytes],
+                                            ordinary[row * row_bytes..(row + 1) * row_bytes],
+                                            "resident row differs: mask={mask},row={row}"
+                                        );
+                                    }
+                                }
+                                masked_checked += 1;
                             }
+                            if routes.len() == 1 {
+                                let wrong = expert_slots(
+                                    &x,
+                                    &bank,
+                                    &suh,
+                                    &svh,
+                                    &ExpertSlots::new(&[0], 10)?,
+                                    output as i32,
+                                    projections as i32,
+                                    2,
+                                    Codebook::Mul1,
+                                    stable_shapes,
+                                )?;
+                                assert_ne!(
+                                    actual.to_bytes()?,
+                                    wrong.to_bytes()?,
+                                    "wrong-slot control was not detected"
+                                );
+                            }
+                            if routes.len() == 20 {
+                                for (invalid, capacity) in [
+                                    (vec![], 10),
+                                    (vec![0; 81], 10),
+                                    (vec![10; 20], 10),
+                                    (vec![u32::MAX; 20], 10),
+                                    (vec![0; 20], 0),
+                                    (vec![0; 20], 513),
+                                ] {
+                                    assert!(ExpertSlots::grouped(&invalid, capacity).is_err());
+                                }
+                            }
+                            checked += 1;
                         }
-                        checked += 1;
                     }
                 }
             }
         }
-        assert_eq!(checked, 88);
-        assert_eq!(masked_checked, 264);
-        assert_eq!(grouped_checked, 56);
-        println!(
-            "FLASH_SHARED_SLOT_SHAPES cases={checked} enabled={grouped_checked} fallback=32 widths=1..4 routes=1..80 wrong_origin_controls=8 parity=byte_exact no_added_host_readback=true"
+        let events = serde_json::to_value(crate::flash_profile::finish()?)?;
+        let mut keys: [std::collections::BTreeSet<String>; 2] = Default::default();
+        for event in events
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["name"] == "expert_kernel_signature")
+        {
+            let data = &event["data"];
+            keys[usize::from(data["stable"].as_bool().unwrap())]
+                .insert(serde_json::to_string(&data["key"])?);
+        }
+        ensure!(
+            !keys[0].is_empty() && !keys[1].is_empty() && keys[1].len() < keys[0].len(),
+            "stable expert headers did not reduce actual factory keys"
         );
-        println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=8 parity=byte_exact");
+        println!(
+            "FLASH_STABLE_KERNEL_KEYS baseline={} stable={} equality=full_metadata no_timing_claim=true",
+            keys[0].len(),
+            keys[1].len()
+        );
+        assert_eq!(checked, 176);
+        assert_eq!(masked_checked, 528);
+        assert_eq!(grouped_checked, 112);
+        println!(
+            "FLASH_SHARED_SLOT_SHAPES cases={checked} enabled={grouped_checked} fallback=64 widths=1..4 routes=1..80 wrong_origin_controls=16 parity=byte_exact no_added_host_readback=true"
+        );
+        println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=16 parity=byte_exact");
         println!(
             "FLASH_MASKED_SLOT_SHAPES cases={masked_checked} masks=all_cold,mixed,all_hot parity=byte_exact"
         );
@@ -1996,6 +2070,7 @@ mod tests {
                 2,
                 k,
                 Codebook::Mul1,
+                false,
             )?;
             assert_eq!(
                 Array::host_readbacks_for_test(),
@@ -2050,7 +2125,8 @@ mod tests {
                 128,
                 2,
                 k,
-                Codebook::Mul1
+                Codebook::Mul1,
+                false,
             )
             .is_err()
         );

@@ -49,6 +49,7 @@ pub struct SsdMoe {
     gpu_hot_wide: bool,
     unique_cohorts: bool,
     shared_exl3: bool,
+    stable_expert_kernels: bool,
     #[cfg(test)]
     cohort_sizes: Vec<usize>,
     #[cfg(test)]
@@ -121,6 +122,11 @@ impl SsdMoe {
         let shared_exl3 =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_EXL3", "0")?)
                 .context("MLXL3_SSD_SHARED_EXL3 must be 0 or 1")?;
+        let stable_expert_kernels = crate::flash_support::parse_gpu_hot_wide(&control(
+            "MLXL3_SSD_STABLE_EXPERT_KERNELS",
+            "0",
+        )?)
+        .context("MLXL3_SSD_STABLE_EXPERT_KERNELS must be 0 or 1")?;
         let readers = std::env::var("MLXL3_SSD_READERS")
             .unwrap_or_else(|_| "4".into())
             .parse::<usize>()
@@ -221,6 +227,7 @@ impl SsdMoe {
             gpu_hot_wide,
             unique_cohorts,
             shared_exl3,
+            stable_expert_kernels,
             #[cfg(test)]
             cohort_sizes: Vec::new(),
             #[cfg(test)]
@@ -364,6 +371,7 @@ impl SsdMoe {
             2,
             2,
             Codebook::Mul1,
+            self.stable_expert_kernels,
         )?
         .reshape(&[n, 2, I])?;
         #[cfg(test)]
@@ -384,6 +392,7 @@ impl SsdMoe {
             1,
             2,
             Codebook::Mul1,
+            self.stable_expert_kernels,
         )?;
         #[cfg(test)]
         crate::flash_profile::stage("expert_down_completion", &down)?;
