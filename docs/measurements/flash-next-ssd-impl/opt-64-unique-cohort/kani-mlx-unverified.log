@@ -1,0 +1,186 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:381:17
+    |
+381 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:503:29
+    |
+503 |                     None => assert!(!(2..24).contains(&rows)),
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:534:17
+    |
+534 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:567:21
+    |
+567 |             None => assert!(!(1..=8).contains(&time)),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/flash_support.rs:357:25
+    |
+357 |                 None => assert!(!(10..=512).contains(&capacity)),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/linear.rs:2027:44
+     |
+2027 |             with_grouped_mb3_test(true, || assert!(grouped_mb3_enabled()));
+     |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:2707:43
+     |
+2707 |             with_dense_mlp_batch(true, || assert!(dense_mlp_batch_enabled()));
+     |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:3004:24
+     |
+3004 |             Ok("0") => assert!(!model.pipeline && !model.mtp_pipeline),
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:3005:24
+     |
+3005 |             Ok("1") => assert!(model.pipeline && model.mtp_pipeline),
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `step`
+    --> native/src/flash_support.rs:1360:17
+     |
+1360 |               for step in 0..10_000 {
+     |                   ^^^^
+...
+1386 | /                             assert!(
+1387 | |                                 !(free && matches!(slots[slot], Slot::Ready(_))),
+1388 | |                                 "free slot ignored: capacity={capacity}, step={step}"
+1389 | |                             );
+     | |_____________________________- you might have meant to use string interpolation in this string literal
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+     |
+1360 |             for _step in 0..10_000 {
+     |                 +
+
+warning: unused variable: `index`
+    --> native/src/linear.rs:2180:18
+     |
+2180 |               for (index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+     |                    ^^^^^
+2181 | /                 assert_eq!(
+2182 | |                     left.to_f16_bits()?,
+2183 | |                     right.to_f16_bits()?,
+2184 | |                     "grouped batch M={matrix_rows} output {index} differs"
+2185 | |                 );
+     | |_________________- you might have meant to use string interpolation in this string literal
+     |
+help: if this is intentional, prefix it with an underscore
+     |
+2180 |             for (_index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+     |                  +
+
+warning: unused variable: `name`
+    --> native/src/qwen35.rs:3518:18
+     |
+3518 |               for (name, actual, expected) in [
+     |                    ^^^^
+...
+3524 | /                 assert_eq!(
+3525 | |                     actual.to_f16_bits()?,
+3526 | |                     expected.to_f16_bits()?,
+3527 | |                     "fused GDN {name} differs at T={time}"
+3528 | |                 );
+     | |_________________- you might have meant to use string interpolation in this string literal
+     |
+help: if this is intentional, prefix it with an underscore
+     |
+3518 |             for (_name, actual, expected) in [
+     |                  +
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+error: internal compiler error: Kani unexpectedly panicked at panicked at kani-compiler/src/intrinsics.rs:243:17:
+                                assertion failed: matches!(output.kind(), TyKind :: RigidTy(RigidTy::Int(IntTy::I32))).
+
+
+thread 'rustc' (5048967) panicked at kani-compiler/src/intrinsics.rs:243:17:
+assertion failed: matches!(output.kind(), TyKind :: RigidTy(RigidTy::Int(IntTy::I32)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+Kani unexpectedly panicked during compilation.
+Please file an issue here: https://github.com/model-checking/kani/issues/new?labels=bug&template=bug_report.md
+
+[Kani] no current codegen item.
+[Kani] no current codegen location.
+error: could not compile `mlxl3-native` (lib test); 24 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/.kani/kani-0.68.0/bin/kani-compiler --crate-name mlxl3_native --edition=2024 native/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 -C split-debuginfo=unpacked --warn=unexpected_cfgs --check-cfg 'cfg(kani)' --test --cfg 'feature="chat"' --cfg 'feature="default"' --cfg 'feature="direct-metal"' --cfg 'feature="mlx"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("chat", "default", "direct-metal", "mlx"))' -C metadata=139ca1952f2bfbae -C extra-filename=-3c81f9e853fe4b0d --out-dir /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/3c81f9e853fe4b0d/out --target aarch64-apple-darwin -C incremental=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/incremental -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/ahash/5af5da0159b76eea/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/aho-corasick/665113403def9a72/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/anstream/5a70834d8bebf2dd/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/anstyle/7c5af46dd91a5e78/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/anstyle-parse/cb68b83e298b1d9c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/anstyle-query/84d6aa1840097a5e/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/anyhow/c195f83837491f49/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/base64/b518b77948fbc7c8/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/bitflags/a4b8312ebf784550/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/block/628b4ae846b3a06c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/bytes/7fcb520d35d3baeb/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/castaway/6ae2ae731bc2eded/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/cfg-if/56e1ef36918e08c6/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/clap/20ac85651e05fe26/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/clap_builder/e825a74b153182c5/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/clap_lex/eae226806e9eb57b/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/colorchoice/bd7164d11d973b9c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/compact_str/5acd89dcd8fd099b/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/console/818e5600c347d07a/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/core-foundation/348af31f25921e93/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/core-foundation-sys/e44066cae8a881df/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/core-graphics-types/8da6e538d72d88b1/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/crossbeam-deque/421f254b12884ed3/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/crossbeam-epoch/4e8ee6f3626b8051/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/crossbeam-utils/a177e96ae318b280/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/daachorse/2ba29b3375ef5350/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/dary_heap/7f76fa6ab86cb93d/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/deranged/74d9e9c89c5b6bc7/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/derive_builder/20b66635923926ed/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/either/23032fc733a56a97/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/equivalent/c55283f2cfc49a14/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/errno/05e2b1fc5df74773/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/esaxx-rs/23d25ee90459dfbc/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/fastrand/044801937eae065e/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/fnv/31985c6bfd586764/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/foreign-types/336d2a8fc2923db1/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/foreign-types-shared/f4390e7bb7a01ee2/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/fs2/35b7c72e6c097b62/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/futures-channel/6d61500a849c64bf/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/futures-core/271a2e89e50ed1da/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/futures-sink/791d73fd92743e4f/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/futures-task/be59ef427dd68e29/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/futures-util/c6c4a386b080c962/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/getrandom/1e157fef85d85dcf/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/getrandom/f3bc277357b511ec/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/h2/c0af407ca23f0294/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/half/a3f2ea807daba588/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/hashbrown/8719210bde38a7e1/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/http/e1eb334763f2c5b3/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/http-body/82fc8231f92974b4/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/httparse/d9ce5bb27300091a/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/httpdate/b9b0fe23f6d52ce7/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/hyper/48cf2c9eadc4f822/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/indexmap/7b32f38e9dceca7c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/indicatif/7385e11232e7da3c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/is_terminal_polyfill/0e23195ce0543f17/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/itertools/fbc94b3da273acc0/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/itoa/f2d28d66786213f9/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/libc/5cbc2a299c2fd860/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/log/53d133c537d27aa3/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/macro_rules_attribute/91ce42fb018f85f7/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/malloc_buf/8511be791662e600/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/memchr/8322d072715c847c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/memo-map/0ddefc217644fa75/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/metal/e3dc05a8d9469a30/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/minijinja/a3b948eb109a7d32/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/minijinja-contrib/d5d0d4f04b5a9fee/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/minimal-lexical/005807976b6bef78/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mio/efc0370dbec4b4ab/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/monostate/0fd0f393ed0ea33c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/nom/b0c94dbb7f70406f/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/num-conv/8f239c0127c82fff/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/objc/99cc7daec2170dc9/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/once_cell/1e2924f276c1029f/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/onig/c3cb013e1ac2b9cd/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/onig_sys/f079774179098f94/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/pin-project-lite/80a3ed6684606142/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/portable-atomic/ac4e4ad83a20d24a/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/powerfmt/b02c022743554f75/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/ppv-lite86/6ed7542f53e87853/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/rand/b6fbc4a2721578f5/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/rand_chacha/9ea3b07bfeeb5d30/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/rand_core/e1c92c167f3474a3/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/rayon/07217825213899eb/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/rayon-cond/650ad468693402b8/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/rayon-core/bf73a8758cdd1cbc/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/regex/4390b493b785de15/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/regex-automata/b7ba8b2577898a07/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/regex-syntax/afb828c4e6f57d00/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/rustix/dd8fc9ed36d1eb5b/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/ryu/ba8e1850ef0d6bea/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/serde/4068273af0a0a29a/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/serde_core/ed9acc8e6ace16fe/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/serde_json/8344360eb9017521/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/signal-hook/d4cb2f29aa6de92f/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/signal-hook-registry/015294451253fc9b/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/slab/4367c13b28d2718b/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/smallvec/277e9400601531f6/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/socket2/4ff6d1a655c97064/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/socket2/77df24396cdea669/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/spm_precompiled/f35896c94a348558/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/static_assertions/604cf458cf146e68/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/strsim/a34c14373c06ede2/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tempfile/73a4a7384d2beebd/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/thiserror/78718ca3031c2113/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/time/854e44d44df9b882/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/time-core/e90f87965bcab269/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tokenizers/a586fd518de82acb/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tokio/b7951ff13467e3d0/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tokio-util/91354c17826276c0/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tower-service/11080a6b1df38347/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tracing/54e156ec972a0fca/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tracing-core/05e1d1844581962e/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/try-lock/a8a777dec971efe5/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/unicode-normalization-alignments/8103c73636fa48d9/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/unicode-segmentation/290924ba07e74649/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/unicode-width/13b54a0fa75825b5/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/unicode_categories/e9b6876b3a7e12a9/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/unit-prefix/fd66df912f43d062/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/utf8parse/b07c1264e9eb1008/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/want/60b8d5951e8c667d/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/zerocopy/d1647dc7d5a4ad57/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/zmij/841d215301cb54f8/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/clap_derive/6d5b30c94e044b5c/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/derive_builder_macro/e869875ba4c87e17/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/foreign-types-macros/1022191366659387/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/macro_rules_attribute-proc_macro/99fb94fcbb618d98/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/monostate-impl/11694644b3ccc030/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/paste/bef68cfceb4cdbba/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/pastey/0332b2af15dd09b7/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/rustversion/fd50508c62e9b2cb/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/serde_derive/25ba86eccdcf1e7b/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/thiserror-impl/376299df1a634bd8/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/tokio-macros/a90a619f91ad772f/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/zerocopy-derive/782ed0a4b5592569/out -L dependency=/Users/justin/Documents/mix-stq1_0/target/kani/debug/build/mlxl3-native/3c81f9e853fe4b0d/out --extern anyhow=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/anyhow/c195f83837491f49/out/libanyhow-c195f83837491f49.rlib --extern anyhow=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/anyhow/c195f83837491f49/out/libanyhow-c195f83837491f49.rmeta --extern clap=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/clap/20ac85651e05fe26/out/libclap-20ac85651e05fe26.rlib --extern clap=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/clap/20ac85651e05fe26/out/libclap-20ac85651e05fe26.rmeta --extern fs2=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/fs2/35b7c72e6c097b62/out/libfs2-35b7c72e6c097b62.rlib --extern fs2=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/fs2/35b7c72e6c097b62/out/libfs2-35b7c72e6c097b62.rmeta --extern half=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/half/a3f2ea807daba588/out/libhalf-a3f2ea807daba588.rlib --extern half=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/half/a3f2ea807daba588/out/libhalf-a3f2ea807daba588.rmeta --extern hyper=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/hyper/48cf2c9eadc4f822/out/libhyper-48cf2c9eadc4f822.rlib --extern hyper=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/hyper/48cf2c9eadc4f822/out/libhyper-48cf2c9eadc4f822.rmeta --extern libc=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/libc/5cbc2a299c2fd860/out/liblibc-5cbc2a299c2fd860.rlib --extern libc=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/libc/5cbc2a299c2fd860/out/liblibc-5cbc2a299c2fd860.rmeta --extern metal=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/metal/e3dc05a8d9469a30/out/libmetal-e3dc05a8d9469a30.rlib --extern metal=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/metal/e3dc05a8d9469a30/out/libmetal-e3dc05a8d9469a30.rmeta --extern minijinja=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/minijinja/a3b948eb109a7d32/out/libminijinja-a3b948eb109a7d32.rlib --extern minijinja=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/minijinja/a3b948eb109a7d32/out/libminijinja-a3b948eb109a7d32.rmeta --extern minijinja_contrib=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/minijinja-contrib/d5d0d4f04b5a9fee/out/libminijinja_contrib-d5d0d4f04b5a9fee.rlib --extern minijinja_contrib=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/minijinja-contrib/d5d0d4f04b5a9fee/out/libminijinja_contrib-d5d0d4f04b5a9fee.rmeta --extern objc=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/objc/99cc7daec2170dc9/out/libobjc-99cc7daec2170dc9.rlib --extern objc=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/objc/99cc7daec2170dc9/out/libobjc-99cc7daec2170dc9.rmeta --extern serde=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/serde/4068273af0a0a29a/out/libserde-4068273af0a0a29a.rlib --extern serde=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/serde/4068273af0a0a29a/out/libserde-4068273af0a0a29a.rmeta --extern serde_json=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/serde_json/8344360eb9017521/out/libserde_json-8344360eb9017521.rlib --extern serde_json=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/serde_json/8344360eb9017521/out/libserde_json-8344360eb9017521.rmeta --extern signal_hook=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/signal-hook/d4cb2f29aa6de92f/out/libsignal_hook-d4cb2f29aa6de92f.rlib --extern signal_hook=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/signal-hook/d4cb2f29aa6de92f/out/libsignal_hook-d4cb2f29aa6de92f.rmeta --extern tempfile=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tempfile/73a4a7384d2beebd/out/libtempfile-73a4a7384d2beebd.rlib --extern tempfile=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tempfile/73a4a7384d2beebd/out/libtempfile-73a4a7384d2beebd.rmeta --extern time=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/time/854e44d44df9b882/out/libtime-854e44d44df9b882.rlib --extern time=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/time/854e44d44df9b882/out/libtime-854e44d44df9b882.rmeta --extern tokenizers=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tokenizers/a586fd518de82acb/out/libtokenizers-a586fd518de82acb.rlib --extern tokenizers=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tokenizers/a586fd518de82acb/out/libtokenizers-a586fd518de82acb.rmeta --extern tokio=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tokio/b7951ff13467e3d0/out/libtokio-b7951ff13467e3d0.rlib --extern tokio=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/tokio/b7951ff13467e3d0/out/libtokio-b7951ff13467e3d0.rmeta '-Cllvm-args=--reachability=harnesses --log-level=warn --assertion-reach-checks --harness actual_unique_window_demand_entry' -C overflow-checks=on -Z unstable-options -Z trim-diagnostic-paths=no -Z human_readable_cgu_names -Z always-encode-mir --cfg=kani -Z 'crate-attr=feature(register_tool)' -Z 'crate-attr=register_tool(kanitool)' --force-warn unstable_features --sysroot /Users/justin/.kani/kani-0.68.0 -L /Users/justin/.kani/kani-0.68.0/lib --extern 'force:kani' --extern 'noprelude,nounused:std=/Users/justin/.kani/kani-0.68.0/lib/libstd.rlib' -C panic=abort -C symbol-mangling-version=v0 -Z panic_abort_tests=yes -Z mir-enable-passes=-RemoveStorageMarkers '--check-cfg=cfg(kani)' -Clinker=echo --kani-compiler -Cllvm-args=--check-version=0.68.0 -L native=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/5753d57714c7e399/out -L native=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/esaxx-rs/52760bfc7ce723b9/out -L native=/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/onig_sys/280d6b33c435d82f/out -L native=/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib -l static=mlxl3_mlx_bridge -l dylib=mlx -l dylib=c++ -C 'link-arg=-Wl,-rpath,@executable_path' -C link-arg=-Wl,-rpath,/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib` (exit status: 101)
+error: Failed to compile `mlxl3_native` due to an internal compiler error.: error: internal compiler error: Kani unexpectedly panicked at panicked at kani-compiler/src/intrinsics.rs:243:17:
+                                assertion failed: matches!(output.kind(), TyKind :: RigidTy(RigidTy::Int(IntTy::I32))).
+
+

@@ -1,0 +1,77 @@
+/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 - <<'PY'
+import json, runpy, subprocess, time, hashlib
+from pathlib import Path
+p=Path('docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort')
+c=p
+api=runpy.run_path('scripts/profile_flash.py'); qualify=runpy.run_path('docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/qualify.py')['qualify']; parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+start={'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)),'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+original=json.loads((p/'quality-hot-v4/origin.json').read_text()); assert start['vm_bytes']['Swapouts']==original['vm_bytes']['Swapouts']
+(c/'speed-origin-hot-v4.json').write_text(json.dumps(start,indent=2)+'\n'); baseline={k:start['vm_bytes'][k] for k in ('Swapins','Swapouts')}
+identity=json.loads((p/'identity-v4.json').read_text()); cli=next(a for a in identity['artifacts'] if a['path'].endswith('mlxl3-rs'))
+result={'status':'incomplete','parity':False,'confirmed_gain':False,'modes':{},'source_commit':'bde5e44f + local hot-v4','binary_sha256':cli['sha256'],'original_vm_baseline':baseline}
+output=c/'speed-result-hot-v4.json'; assert not output.exists()
+def save(): output.write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n')
+def watch(seconds,path):
+ records=[]
+ try:
+  deadline=time.monotonic()+seconds
+  while True:
+   row={'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)), 'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}; records.append(row)
+   assert row['power'].splitlines()[0]==start['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+   for key in baseline: assert 0<=row['vm_bytes'][key]-baseline[key]<=256<<20
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts'], 'new Swapout'
+   if time.monotonic()>=deadline: break
+   time.sleep(min(2,deadline-time.monotonic()))
+ finally: path.write_text(json.dumps({'samples':records},indent=2)+'\n')
+save()
+try:
+ assert json.loads((p/'quality-hot-v4/campaign-result.json').read_text())['status']=='passed_quality_and_postflight30s'
+ checks=json.loads((p/'quality-hot-v4/checks.json').read_text()); assert checks['status']=='complete' and checks['checks']==43 and checks['parity'] is True
+ assert json.loads((p/'control-hot-v4-before/campaign-result.json').read_text())['status']=='passed_control_and_postflight30s'
+ watch(20,c/'speed-preflight-hot-v4.json')
+ for mode in ['A']:
+  for f in identity['files']+identity['artifacts']: assert hashlib.sha256(Path(f['path']).read_bytes()).hexdigest()==f['sha256'],f['path']
+  dest=c/f'speed-{mode}-hot-v4'; plan=dest/'run.json'; matrix=json.loads(plan.read_text()); assert len(matrix)==8
+  for item in matrix:
+   assert item['command'][2]==cli['path'] and item['env']['MLXL3_FLASH_MULTI_TOKEN']=='1' and item['env']['MLXL3_SSD_GPU_HOT_WIDE']=='1' and item['env']['MLXL3_SSD_UNIQUE_COHORT']==str(int(item['variant']=='C'))
+   assert {k:v for k,v in item['env'].items() if k!='MLXL3_SSD_UNIQUE_COHORT'}=={k:v for k,v in matrix[0]['env'].items() if k!='MLXL3_SSD_UNIQUE_COHORT'}
+  print('64H early-Hot v3 speed starts '+mode,flush=True); api['run_sampler'](plan,baseline)
+  processes=json.loads(plan.with_name('run-result.json').read_text()); assert processes['status']=='completed_expected_outcomes_not_speed'
+  rows=[]
+  for item,process in zip(matrix,processes['commands'],strict=True):
+   assert process['reaped'] and process['status']=='completed_expected_outcome' and process['swapouts_bytes']==0
+   report=json.loads((dest/item['name']/'report.json').read_text()); assert report['status']=='validated' and report['reaped'] and report['reader_joined'] and report['binary_sha256']==cli['sha256']
+   assert len(report['runs'])==1 and len(report['warmup'])==1
+   measured=report['runs'][0]; warm=report['warmup'][0]
+   golden=json.loads(Path('docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final',item['prompt']+'-0-OFF','report.json').read_text())['runs'][0]
+   for run in [warm,measured]: assert (run['token_hash'],run['text'])==(golden['token_hash'],golden['text'])
+   peak=max(run['stats']['memory']['process_lifetime_peak_bytes'] for run in [warm,measured]); assert 0<peak<=12_000_000_000
+   profile_metrics=None
+   stats=measured['stats']
+   if mode in ['R','A']:
+    profile=stats['dflash_profile']; verified=profile['verified_rows']; outputs=stats['dflash_accepted_tokens']+stats['dflash_blocks']
+    assert verified==stats['dflash_proposed_tokens']+stats['dflash_blocks'] and verified>0 and outputs>0
+    assert stats['decode_tokens']-outputs in [0,1]
+    assert 0<profile['verification_seconds']<=stats['dflash_block_seconds']
+    assert profile['expert_demand_bytes']>=0 and profile['expert_demand_bytes']%1_248_012==0
+    profile_metrics={'verified_rows':verified,'block_outputs':outputs,'ordinary_tail_outputs':stats['decode_tokens']-outputs,'verification_ms_per_block_output':1000*profile['verification_seconds']/outputs,'verification_ms_per_verified_row':1000*profile['verification_seconds']/verified,'expert_demand_bytes_per_decode_token':profile['expert_demand_bytes']/stats['decode_tokens'],'expert_record_equivalents_per_decode_token':profile['expert_demand_bytes']/1_248_012/stats['decode_tokens']}
+   rows.append({**{k:item[k] for k in ['prompt','index','variant','mode']},'status':'validated','reaped':True,'reader_joined':True,'peak_bytes':peak,'swapouts_bytes':process['swapouts_bytes'],'tps':measured['stats']['decode_tps'],'seconds':measured['stats']['decode_seconds'],'binary_sha256':cli['sha256'],'token_hash':measured['token_hash'],'text':measured['text'],'stats':measured['stats'],'profile_metrics':profile_metrics})
+  qualified=qualify(rows,'H','C')
+  if mode == 'OFF': qualified.update(control_only=True,confirmed_gain=False,claim='unchanged B1 path; no gain attributed to multi-token')
+  result['modes'][mode]={'rows':rows,'qualification':qualified}; save()
+  print({'mode':mode,'qualification':qualified,'tps':[round(r['tps'],4) for r in rows],'peak_bytes':max(r['peak_bytes'] for r in rows)},flush=True)
+  with Path('opti.md').open('a') as f: f.write('\n- 64H early-Hot v3 débit '+mode+' : '+qualified['status']+', contrôle seul='+str(mode == 'OFF')+' ; '+str(output)+'. 63/WIDE restent1 ; UNIQUE seul varie. Postflight final encore requis.\n')
+ result.update(status='completed_speed_pending_postflight',parity=True)
+except BaseException as e:
+ result.update(status='failed_or_interrupted',parity=False,error=repr(e)); raise
+finally:
+ try:
+  watch(30,c/'speed-postflight-hot-v4.json')
+  if result['parity']:
+   result['status']='completed_speed_and_postflight30s'
+   result['confirmed_gain']=any(result['modes'][m]['qualification']['confirmed_gain'] for m in ['A'])
+ except BaseException as e:
+  result.update(status='failed_postflight',parity=False,confirmed_gain=False,postflight_error=repr(e)); raise
+ finally:
+  save(); print({'status':result['status'],'parity':result['parity'],'confirmed_gain':result['confirmed_gain']},flush=True)
+PY

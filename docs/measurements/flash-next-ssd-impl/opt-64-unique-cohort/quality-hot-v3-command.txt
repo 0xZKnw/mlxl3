@@ -1,0 +1,60 @@
+/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 - <<'PY'
+import json, runpy, subprocess, time, os
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort')
+p=base/'quality-hot-v3'
+plan=p/'run.json'
+api=runpy.run_path('scripts/profile_flash.py')
+parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+def take():
+ return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)), 'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+start=take(); start['prior_failed_64H_swapouts_bytes']=json.loads((base/'hot-order-v2-retry/campaign-result.json').read_text())['original_vm_baseline']['Swapouts']; baseline={k:start['vm_bytes'][k] for k in ('Swapins','Swapouts')}
+origin=p/'origin.json'; assert not origin.exists(); origin.write_text(json.dumps(start,indent=2)+'\n')
+result={'status':'incomplete','parity':False,'original_vm_baseline':baseline,'source_identity':'identity-v3.json','source_commit':'bde5e44f + hot-v3'}
+identity=json.loads((base/'identity-v3.json').read_text())
+import hashlib
+for f in identity['files']+identity['artifacts']: assert hashlib.sha256(Path(f['path']).read_bytes()).hexdigest()==f['sha256'],f['path']
+def watch(seconds,path):
+ records=[]
+ try:
+  deadline=time.monotonic()+seconds
+  while True:
+   row=take(); records.append(row)
+   assert row['power'].splitlines()[0]==start['power'].splitlines()[0]
+   assert row['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+   for key in baseline:
+    assert 0<=row['vm_bytes'][key]-baseline[key]<=256<<20
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts'], 'new Swapout'
+   if time.monotonic()>=deadline: break
+   time.sleep(min(2,deadline-time.monotonic()))
+ finally:
+  path.write_text(json.dumps({'samples':records},indent=2)+'\n')
+try:
+ watch(30,p/'idle30-before-gpu.json')
+ watch(20,p/'preflight.json')
+ print('64H v3 idle30/preflight20 passed; mutation then quality starts',flush=True)
+ mutation=json.loads((base/'hot-order-mutation-build.json').read_text()); assert mutation['source_restored'] and hashlib.sha256(Path(mutation['binary']).read_bytes()).hexdigest()==mutation['binary_sha256']
+ mp=base/'mutation-hot-v3/run.json'; api['run_sampler'](mp,baseline)
+ mr=json.loads(mp.with_name('run-result.json').read_text()); assert mr['status']=='completed_expected_outcomes_not_speed' and len(mr['commands'])==1 and mr['commands'][0]['reaped'] and mr['commands'][0]['exit_code']==101 and mr['commands'][0]['swapouts_bytes']==0
+ log=(mp.parent/'late-hot.log').read_text(); assert 'window Hot was not submitted before the CPU readback' in log and 'test result: FAILED. 0 passed; 1 failed;' in log
+ (base/'mutation-hot-v3/result.json').write_text(json.dumps({'status':'detected_late_hot_order_regression','selected_tests':1,'exit_code':101,'source_restored':True,'mutant_binary_sha256':mutation['binary_sha256']},indent=2)+'\n')
+ api['run_sampler'](plan,baseline)
+ raw=json.loads(plan.with_name('run-result.json').read_text())
+ assert raw['status']=='completed_expected_outcomes_not_speed' and len(raw['commands'])==5
+ assert all(r['reaped'] and r['status']=='completed_expected_outcome' and r['swapouts_bytes']==0 for r in raw['commands'])
+ module=(p/'hybrid-module.log').read_text(); assert 'test result: ok. 4 passed; 0 failed;' in module and 'SSD_UNIQUE_WINDOW cases=24 ' in module
+ checks=json.loads((p/'checks.json').read_text()); assert checks['status']=='complete' and checks['checks']==43 and checks['parity'] is True
+ for f in identity['files']+identity['artifacts']: assert hashlib.sha256(Path(f['path']).read_bytes()).hexdigest()==f['sha256'],f['path']
+ result.update(status='passed_quality_pending_postflight',parity=True,mutation_detected=True)
+except BaseException as e:
+ result.update(status='failed_or_interrupted',parity=False,error=repr(e)); raise
+finally:
+ try:
+  watch(30,p/'postflight.json')
+  if result['parity']: result['status']='passed_quality_and_postflight30s'
+ except BaseException as e:
+  result.update(status='failed_postflight',parity=False,postflight_error=repr(e)); raise
+ finally:
+  (p/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n')
+  print(result,flush=True)
+PY

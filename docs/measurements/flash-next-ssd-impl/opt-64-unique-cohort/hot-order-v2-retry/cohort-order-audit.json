@@ -1,0 +1,87 @@
+{
+  "status": "diagnostic_memory_failed_numeric_and_order_data_only",
+  "throughput_qualified": false,
+  "variants": {
+    "0": [
+      {
+        "phase": "trace_1",
+        "diagnostic_tps_not_qualified": 9.20080762644721,
+        "windows": 0,
+        "cohort_shapes": {},
+        "windows_with_hot": 0,
+        "all_window_hot_after_routes": null,
+        "host_inclusive_ms_per_output": {
+          "moe_forward_rows": 89.02132015873016,
+          "moe_unique_cohorts": 0.0,
+          "route_window_build_and_wait_inclusive": 0.0,
+          "route_readback_inclusive": 25.990304714285713,
+          "gpu_resident_hot_prepare": 22.44787742857143,
+          "disk_read_batch": 30.037692190476193
+        }
+      },
+      {
+        "phase": "trace_2",
+        "diagnostic_tps_not_qualified": 10.474962946082226,
+        "windows": 0,
+        "cohort_shapes": {},
+        "windows_with_hot": 0,
+        "all_window_hot_after_routes": null,
+        "host_inclusive_ms_per_output": {
+          "moe_forward_rows": 78.61566131746032,
+          "moe_unique_cohorts": 0.0,
+          "route_window_build_and_wait_inclusive": 0.0,
+          "route_readback_inclusive": 25.810439349206348,
+          "gpu_resident_hot_prepare": 16.660267952380952,
+          "disk_read_batch": 27.73313447619048
+        }
+      }
+    ],
+    "1": [
+      {
+        "phase": "trace_1",
+        "diagnostic_tps_not_qualified": 10.096318611925193,
+        "windows": 240,
+        "cohort_shapes": {
+          "5+1": 1,
+          "6": 47,
+          "6+2": 4,
+          "7+1": 18,
+          "8": 170
+        },
+        "windows_with_hot": 240,
+        "all_window_hot_after_routes": true,
+        "host_inclusive_ms_per_output": {
+          "moe_forward_rows": 58.73427119047619,
+          "moe_unique_cohorts": 40.67780168253968,
+          "route_window_build_and_wait_inclusive": 22.10411565079365,
+          "route_readback_inclusive": 13.61509980952381,
+          "gpu_resident_hot_prepare": 10.50504026984127,
+          "disk_read_batch": 29.332921444444445
+        }
+      },
+      {
+        "phase": "trace_2",
+        "diagnostic_tps_not_qualified": 11.475108065805648,
+        "windows": 240,
+        "cohort_shapes": {
+          "5+1": 1,
+          "6": 47,
+          "6+2": 4,
+          "7+1": 18,
+          "8": 170
+        },
+        "windows_with_hot": 240,
+        "all_window_hot_after_routes": true,
+        "host_inclusive_ms_per_output": {
+          "moe_forward_rows": 50.128071222222225,
+          "moe_unique_cohorts": 37.99993525396825,
+          "route_window_build_and_wait_inclusive": 21.06241858730159,
+          "route_readback_inclusive": 12.91115423809524,
+          "gpu_resident_hot_prepare": 7.195904746031746,
+          "disk_read_batch": 26.035619476190476
+        }
+      }
+    ]
+  },
+  "limits": "nested host intervals; no exclusive GPU attribution; nonzero new Swapout invalidates campaign qualification"
+}

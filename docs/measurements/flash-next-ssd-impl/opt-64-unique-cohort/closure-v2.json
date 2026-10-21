@@ -1,0 +1,52 @@
+{
+  "status": "complete_no_validated_gain",
+  "parity": true,
+  "confirmed_gain": false,
+  "control_rows": [
+    {
+      "mode": "OFF",
+      "prompt": "MAIN",
+      "before_tps": 10.438127205350204,
+      "after_tps": 9.916740472040164,
+      "drift_percent": 5.257642213992275,
+      "path_before": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-before/before-OFF-MAIN/report.json",
+      "path_after": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-after/after-OFF-MAIN/report.json"
+    },
+    {
+      "mode": "OFF",
+      "prompt": "HOLD",
+      "before_tps": 9.843350694923938,
+      "after_tps": 9.511524666085593,
+      "drift_percent": 3.4886733776920975,
+      "path_before": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-before/before-OFF-HOLD/report.json",
+      "path_after": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-after/after-OFF-HOLD/report.json"
+    },
+    {
+      "mode": "MTP",
+      "prompt": "MAIN",
+      "before_tps": 10.507146343544614,
+      "after_tps": 10.400212565604383,
+      "drift_percent": 1.028188388128548,
+      "path_before": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-before-v2/before-v2-MTP-MAIN/report.json",
+      "path_after": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-after/after-MTP-MAIN/report.json"
+    },
+    {
+      "mode": "MTP",
+      "prompt": "HOLD",
+      "before_tps": 9.920114664027736,
+      "after_tps": 9.665621870200525,
+      "drift_percent": 2.6329686516272988,
+      "path_before": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-before-v2/before-v2-MTP-HOLD/report.json",
+      "path_after": "docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-after/after-MTP-HOLD/report.json"
+    }
+  ],
+  "excluded_controls": [
+    "control-before/before-MTP-MAIN MULTI_TOKEN=0",
+    "control-before/before-MTP-HOLD MULTI_TOKEN=0"
+  ],
+  "speed_status": "inconclusive_drift",
+  "speed_report": "speed-result.json",
+  "quality_report": "quality-v2/campaign-result.json",
+  "source_identity": "identity-v2.json",
+  "limit": "no DFlash-vs-MTP gain claim; earlier failed quality-v1 and incompatible MTP0 controls retained"
+}

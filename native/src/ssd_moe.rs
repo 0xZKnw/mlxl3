@@ -15,6 +15,20 @@ const H: i32 = 2560;
 const I: i32 = 640;
 const TRELLIS: usize = 409600;
 
+struct ResidentHot {
+    input: Array,
+    output: Array,
+    map: [u32; 512],
+    complete: bool,
+}
+
+struct PreparedRows {
+    selected: Array,
+    weights: Array,
+    ids: Vec<u32>,
+    hot: Option<ResidentHot>,
+}
+
 pub struct SsdMoe {
     gate: Projection,
     resident_gate: Option<Array>,
@@ -33,6 +47,13 @@ pub struct SsdMoe {
     readers: usize,
     gpu_hot: bool,
     gpu_hot_wide: bool,
+    unique_cohorts: bool,
+    #[cfg(test)]
+    cohort_sizes: Vec<usize>,
+    #[cfg(test)]
+    route_readbacks: usize,
+    #[cfg(test)]
+    window_hot_before_readback: Vec<bool>,
     #[cfg(test)]
     hybrid_submissions: u64,
     #[cfg(test)]
@@ -93,6 +114,9 @@ impl SsdMoe {
         let gpu_hot_wide =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_GPU_HOT_WIDE", "0")?)
                 .context("MLXL3_SSD_GPU_HOT_WIDE must be 0 or 1")?;
+        let unique_cohorts =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_UNIQUE_COHORT", "0")?)
+                .context("MLXL3_SSD_UNIQUE_COHORT must be 0 or 1")?;
         let readers = std::env::var("MLXL3_SSD_READERS")
             .unwrap_or_else(|_| "4".into())
             .parse::<usize>()
@@ -191,6 +215,13 @@ impl SsdMoe {
         Ok(Self {
             gpu_hot,
             gpu_hot_wide,
+            unique_cohorts,
+            #[cfg(test)]
+            cohort_sizes: Vec::new(),
+            #[cfg(test)]
+            route_readbacks: 0,
+            #[cfg(test)]
+            window_hot_before_readback: Vec::new(),
             #[cfg(test)]
             hybrid_submissions: 0,
             #[cfg(test)]
@@ -443,6 +474,170 @@ impl SsdMoe {
         depth: usize,
         row_limit: i32,
     ) -> Result<Array> {
+        self.forward_rows_prepared(x, next, depth, row_limit, None)
+    }
+
+    fn routed_input(x: &Array) -> Result<Array> {
+        let rows = x.shape()[0];
+        let indices = (0..rows as u32)
+            .flat_map(|row| std::iter::repeat_n(row, 10))
+            .collect::<Vec<_>>();
+        x.take(&Array::from_u32(&indices, &[rows * 10])?, 0)?
+            .astype(Dtype::Float16)
+    }
+
+    fn prepare_resident_hot(&mut self, x: &Array, selected: &Array) -> Result<Option<ResidentHot>> {
+        if let Some(last) = self.last.take() {
+            last.eval()?;
+        }
+        let map = self.cache.borrow().resident_slot_map()?;
+        if map.iter().all(|&slot| slot == u32::MAX) {
+            return Ok(None);
+        }
+        let input = Self::routed_input(x)?;
+        #[cfg(test)]
+        let _prepare = crate::flash_profile::span("gpu_resident_hot_prepare");
+        let slots = linear::ExpertSlots::residents(selected, &map, self.banks[0].shape()[0])?;
+        slots.indices().async_eval()?;
+        let output = self.calculate_slots(&input, &slots)?;
+        #[cfg(test)]
+        let output = if self.slow_hot_for_test {
+            hybrid_tests::delay(&output)?
+        } else {
+            output
+        };
+        self.last = Some(output.try_clone()?);
+        output.async_eval()?;
+        #[cfg(test)]
+        {
+            self.hybrid_submissions += 1;
+        }
+        Ok(Some(ResidentHot {
+            input,
+            output,
+            map,
+            complete: false,
+        }))
+    }
+
+    fn forward_unique_rows(&mut self, x: &Array, row_limit: i32) -> Result<Array> {
+        #[cfg(test)]
+        let _cohorts = crate::flash_profile::span("moe_unique_cohorts");
+        #[cfg(test)]
+        let planning = crate::flash_profile::span("route_window_build_and_wait_inclusive");
+        #[cfg(test)]
+        let started = std::time::Instant::now();
+        #[cfg(test)]
+        let submissions_before = self.hybrid_submissions;
+        let rows = x.shape()[0];
+        let pairs = (0..rows)
+            .map(|row| self.route(&x.slice(0, row, row + 1)?))
+            .collect::<Result<Vec<_>>>()?;
+        let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+        let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
+        let mut hot = self.prepare_resident_hot(x, &selected)?;
+        #[cfg(test)]
+        self.window_hot_before_readback
+            .push(self.hybrid_submissions > submissions_before);
+        let ids = selected.to_u32()?;
+        ensure!(ids.len() == rows as usize * 10, "incomplete route window");
+        #[cfg(test)]
+        {
+            self.route_readbacks += 1;
+            self.profile_seconds[0] += started.elapsed().as_secs_f64();
+            drop(planning);
+        }
+        let available = self.cache.borrow().available_slots();
+        if crate::flash_support::largest_expert_prefix(&ids, available) == Some(rows as usize) {
+            return self.forward_rows_prepared(
+                x,
+                None,
+                0,
+                row_limit,
+                Some(PreparedRows {
+                    selected,
+                    weights,
+                    ids,
+                    hot,
+                }),
+            );
+        }
+        // A split may evict future Hot experts: finish their captured results first.
+        if let Some(hot) = &mut hot {
+            let hot_ids = ids
+                .iter()
+                .copied()
+                .filter(|&id| {
+                    hot.map
+                        .get(id as usize)
+                        .is_some_and(|&slot| slot != u32::MAX)
+                })
+                .collect::<Vec<_>>();
+            // Reused Hot values still count as demand before Cold chooses its victims.
+            if !hot_ids.is_empty() {
+                ensure!(
+                    self.cache
+                        .borrow_mut()
+                        .reserve(&hot_ids)?
+                        .iter()
+                        .all(|p| p.1),
+                    "resident Hot snapshot changed before reservation"
+                );
+            }
+            hot.output.eval()?;
+            hot.complete = true;
+            self.last = None;
+        }
+        let mut output = Vec::new();
+        let mut begin = 0;
+        while begin < rows {
+            let available = self.cache.borrow().available_slots();
+            let count =
+                crate::flash_support::largest_expert_prefix(&ids[begin as usize * 10..], available)
+                    .filter(|&count| count > 0)
+                    .context("route window has no reservable expert prefix")?
+                    as i32;
+            let end = begin + count;
+            if let Some(last) = self.last.take() {
+                last.eval()?;
+            }
+            output.push(
+                self.forward_rows_prepared(
+                    &x.slice(0, begin, end)?,
+                    None,
+                    0,
+                    row_limit,
+                    Some(PreparedRows {
+                        selected: selected.slice(0, begin, end)?,
+                        weights: weights.slice(0, begin, end)?,
+                        ids: ids[begin as usize * 10..end as usize * 10].to_vec(),
+                        hot: hot
+                            .as_ref()
+                            .map(|hot| {
+                                Ok::<_, anyhow::Error>(ResidentHot {
+                                    input: hot.input.slice(0, begin * 10, end * 10)?,
+                                    output: hot.output.slice(0, begin * 10, end * 10)?,
+                                    map: hot.map,
+                                    complete: true,
+                                })
+                            })
+                            .transpose()?,
+                    }),
+                )?,
+            );
+            begin = end;
+        }
+        Array::concatenate(&output.iter().collect::<Vec<_>>(), 0)
+    }
+
+    fn forward_rows_prepared(
+        &mut self,
+        x: &Array,
+        next: Option<&mut Self>,
+        depth: usize,
+        row_limit: i32,
+        prepared: Option<PreparedRows>,
+    ) -> Result<Array> {
         ensure!(depth <= 10, "lookahead depth must be in 0..=10");
         ensure!(
             x.shape().len() == 2
@@ -456,7 +651,16 @@ impl SsdMoe {
             pool.borrow_mut().poll();
         }
         let available = self.cache.borrow().available_slots();
-        if available < rows as usize * 10 {
+        if prepared.is_none() && available < rows as usize * 10 {
+            if self.unique_cohorts
+                && self.gpu_hot
+                && self.gpu_hot_wide
+                && self.overlap
+                && depth == 0
+                && self.prefetcher.is_none()
+            {
+                return self.forward_unique_rows(x, row_limit);
+            }
             #[cfg(test)]
             let _cohorts = crate::flash_profile::span("moe_cohorts");
             let cohort = crate::flash_support::expert_cohort_rows(available)
@@ -473,6 +677,8 @@ impl SsdMoe {
             return Array::concatenate(&output.iter().collect::<Vec<_>>(), 0);
         }
         #[cfg(test)]
+        self.cohort_sizes.push(rows as usize);
+        #[cfg(test)]
         let profile = crate::flash_profile::span("moe_forward_rows");
         #[cfg(test)]
         let route_start = std::time::Instant::now();
@@ -485,62 +691,56 @@ impl SsdMoe {
         }
         #[cfg(test)]
         let routing = crate::flash_profile::span("router_build_and_wait_inclusive");
-        let pairs = (0..rows)
-            .map(|row| self.route(&x.slice(0, row, row + 1)?))
-            .collect::<Result<Vec<_>>>()?;
-        let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
-        let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
-        let routed_input = || {
-            let row_indices = (0..rows as u32)
-                .flat_map(|row| std::iter::repeat_n(row, 10))
-                .collect::<Vec<_>>();
-            x.take(&Array::from_u32(&row_indices, &[rows * 10])?, 0)?
-                .astype(Dtype::Float16)
-        };
         let hybrid = self.gpu_hot
             && self.overlap
             && (rows <= 2 || self.gpu_hot_wide)
             && depth == 0
             && self.prefetcher.is_none();
-        let map = if hybrid {
-            if let Some(last) = self.last.take() {
-                last.eval()?;
+        let (selected, weights, host_ids, hot) = match prepared {
+            Some(prepared) => (
+                prepared.selected,
+                prepared.weights,
+                Some(prepared.ids),
+                prepared.hot,
+            ),
+            None => {
+                let pairs = (0..rows)
+                    .map(|row| self.route(&x.slice(0, row, row + 1)?))
+                    .collect::<Result<Vec<_>>>()?;
+                let selected =
+                    Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+                let weights =
+                    Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
+                let hot = if hybrid {
+                    self.prepare_resident_hot(x, &selected)?
+                } else {
+                    None
+                };
+                (selected, weights, None, hot)
             }
-            Some(self.cache.borrow().resident_slot_map()?)
-        } else {
-            None
         };
-        let early_input = map
-            .as_ref()
-            .filter(|map| map.iter().any(|&slot| slot != u32::MAX))
-            .map(|_| routed_input())
-            .transpose()?;
-        let gpu_hot = if let (Some(map), Some(input)) = (&map, &early_input) {
-            #[cfg(test)]
-            let _prepare = crate::flash_profile::span("gpu_resident_hot_prepare");
-            let slots = linear::ExpertSlots::residents(&selected, map, self.banks[0].shape()[0])?;
-            slots.indices().async_eval()?;
-            let value = self.calculate_slots(input, &slots)?;
-            #[cfg(test)]
-            let value = if self.slow_hot_for_test {
-                hybrid_tests::delay(&value)?
-            } else {
-                value
-            };
-            self.last = Some(value.try_clone()?);
-            value.async_eval()?;
-            #[cfg(test)]
-            {
-                self.hybrid_submissions += 1;
-            }
-            Some(value)
-        } else {
-            None
+        let (early_input, gpu_hot, snapshot, completed_hot) = match hot {
+            Some(hot) => (
+                Some(hot.input),
+                Some(hot.output),
+                Some(hot.map),
+                hot.complete,
+            ),
+            None => (None, None, None, false),
         };
         let early_hot = gpu_hot.is_some();
         #[cfg(test)]
         let readback = crate::flash_profile::span("route_readback_inclusive");
-        let ids = selected.to_u32()?;
+        let ids = match host_ids {
+            Some(ids) => ids,
+            None => {
+                #[cfg(test)]
+                {
+                    self.route_readbacks += 1;
+                }
+                selected.to_u32()?
+            }
+        };
         #[cfg(test)]
         {
             drop(readback);
@@ -562,7 +762,7 @@ impl SsdMoe {
         }
         let routed_x = match early_input {
             Some(value) => value,
-            None => routed_input()?,
+            None => Self::routed_input(x)?,
         };
         if !early_hot && let Some(last) = self.last.take() {
             #[cfg(test)]
@@ -579,7 +779,40 @@ impl SsdMoe {
         }
         let before = self.cache.borrow().prefetch_hits;
         let fill = ExpertFill::new(&self.cache);
-        let routes = self.cache.borrow_mut().reserve(&ids)?;
+        let snapshot_hot = |id: u32| {
+            snapshot
+                .as_ref()
+                .and_then(|map| map.get(id as usize))
+                .is_some_and(|&slot| slot != u32::MAX)
+        };
+        let routes = if completed_hot {
+            // Completed Hot values survive eviction; reserve only the original Cold IDs.
+            let cold_ids = ids
+                .iter()
+                .copied()
+                .filter(|&id| !snapshot_hot(id))
+                .collect::<Vec<_>>();
+            let reserved = if cold_ids.is_empty() {
+                Vec::new()
+            } else {
+                self.cache.borrow_mut().reserve(&cold_ids)?
+            };
+            let mut reserved = reserved.into_iter();
+            ids.iter()
+                .map(|&id| {
+                    if snapshot_hot(id) {
+                        (
+                            snapshot.as_ref().expect("Hot snapshot")[id as usize] as usize,
+                            true,
+                        )
+                    } else {
+                        reserved.next().expect("reserved Cold occurrence")
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            self.cache.borrow_mut().reserve(&ids)?
+        };
         let used = self.cache.borrow().prefetch_hits - before;
         if let Some((_, pool)) = &self.prefetcher {
             pool.borrow()
@@ -601,7 +834,7 @@ impl SsdMoe {
             } else {
                 self.misses = self.misses.saturating_add(1);
             }
-            if hit {
+            if if early_hot { snapshot_hot(ids[i]) } else { hit } {
                 hot.push((i, slot as u32));
             } else {
                 cold.push((i, slot as u32));
@@ -609,7 +842,8 @@ impl SsdMoe {
         }
         #[cfg(test)]
         if let Some(profile) = &profile {
-            profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hot.len(),"cold_rows":cold.len(),"capacity":self.cache.borrow().capacity()}));
+            let hits = routes.iter().filter(|p| p.1).count();
+            profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hits,"cold_rows":ids.len()-hits,"resident_gpu_rows":hot.len(),"completed_hot":completed_hot,"capacity":self.cache.borrow().capacity()}));
         }
         let hot_output = if early_hot {
             #[cfg(test)]
@@ -667,6 +901,7 @@ impl SsdMoe {
         let read_start = std::time::Instant::now();
         let jobs = cold
             .iter()
+            .filter(|&&(i, _)| !routes[i].1)
             .filter_map(|&(i, slot)| filled.insert(slot).then_some((ids[i], slot as usize)))
             .collect::<Vec<_>>();
         #[cfg(test)]
@@ -713,7 +948,7 @@ impl SsdMoe {
                 )?;
                 let combined = Array::concatenate(&[&hot_output, &cold_output], 0)?;
                 for (i, &(_, hit)) in routes.iter().enumerate() {
-                    let index = if early_hot && hit {
+                    let index = if early_hot && snapshot_hot(ids[i]) {
                         i
                     } else if !early_hot && hit {
                         hot.iter().position(|p| p.0 == i).expect("hot route")

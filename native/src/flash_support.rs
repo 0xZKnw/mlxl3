@@ -205,6 +205,37 @@ pub(crate) fn expert_cohort_rows(capacity: usize) -> Option<usize> {
         .then_some((capacity / 10).min(8))
 }
 
+/// Largest complete prefix whose distinct experts fit the non-pending slots.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn largest_expert_prefix(ids: &[u32], available: usize) -> Option<usize> {
+    if ids.is_empty()
+        || ids.len() > 80
+        || !ids.len().is_multiple_of(10)
+        || available > 512
+        || ids.iter().any(|&id| id >= 512)
+    {
+        return None;
+    }
+    let mut seen = [0u64; 8];
+    let mut unique = 0;
+    let mut rows = 0;
+    for row in ids.as_chunks::<10>().0 {
+        for &id in row {
+            let word = &mut seen[(id / 64) as usize];
+            let bit = 1u64 << (id % 64);
+            if *word & bit == 0 {
+                *word |= bit;
+                unique += 1;
+            }
+        }
+        if unique > available {
+            break;
+        }
+        rows += 1;
+    }
+    Some(rows)
+}
+
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn parse_gpu_hot_wide(value: &str) -> Option<bool> {
     match value {
@@ -330,6 +361,77 @@ mod draft_contract_tests {
     }
 
     #[test]
+    fn unique_prefix_matches_set_oracle_and_respects_pending_ownership() -> Result<(), CacheError> {
+        use std::collections::BTreeSet;
+        let mut seed = 0x638053u64;
+        for case in 0..4096 {
+            let rows = case % 8 + 1;
+            let ids = (0..rows * 10)
+                .map(|_| {
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    ((seed >> 32) % (case % 81 + 1) as u64) as u32
+                })
+                .collect::<Vec<_>>();
+            let available = case % 81;
+            let expected = (1..=rows)
+                .take_while(|&n| ids[..n * 10].iter().collect::<BTreeSet<_>>().len() <= available)
+                .count();
+            assert_eq!(largest_expert_prefix(&ids, available), Some(expected));
+        }
+        for length in [0, 1, 9, 11, 79, 81, 90] {
+            assert_eq!(largest_expert_prefix(&vec![0; length], 53), None);
+        }
+        for bad in [512, u32::MAX] {
+            let mut ids = [0; 80];
+            ids[79] = bad;
+            assert_eq!(largest_expert_prefix(&ids, 0), None);
+        }
+        assert_eq!(largest_expert_prefix(&[511; 80], 1), Some(8));
+        assert_eq!(largest_expert_prefix(&[511; 80], 0), Some(0));
+        assert_eq!(largest_expert_prefix(&[0; 10], 513), None);
+        assert_eq!(largest_expert_prefix(&[0; 10], usize::MAX), None);
+        let ids = (0..8)
+            .flat_map(|row| {
+                let group = if row == 5 {
+                    0
+                } else if row > 5 {
+                    row - 1
+                } else {
+                    row
+                };
+                group * 10..group * 10 + 10
+            })
+            .collect::<Vec<u32>>();
+        for pending in [0, 4] {
+            let mut cache = ExpertCache::new(53)?;
+            let claims = (500..500 + pending)
+                .map(|id| Ok((cache.claim_prefetch(id)?.unwrap(), id)))
+                .collect::<Result<Vec<_>, CacheError>>()?;
+            let mut begin = 0;
+            let mut sizes = Vec::new();
+            while begin < ids.len() {
+                let n = largest_expert_prefix(&ids[begin..], cache.available_slots()).unwrap();
+                assert!(n > 0);
+                let routes = cache.reserve(&ids[begin..begin + n * 10])?;
+                assert!(
+                    routes
+                        .iter()
+                        .all(|&(slot, _)| claims.iter().all(|&(busy, _)| busy != slot))
+                );
+                assert!(
+                    claims
+                        .iter()
+                        .all(|&(slot, id)| cache.pending[slot] == Some(id))
+                );
+                begin += n * 10;
+                sizes.push(n);
+            }
+            assert_eq!(sizes, if pending == 0 { vec![6, 2] } else { vec![4, 4] });
+        }
+        Ok(())
+    }
+
+    #[test]
     fn gpu_hot_wide_accepts_only_explicit_boolean_literals() {
         for (value, expected) in [("0", Some(false)), ("1", Some(true))] {
             assert_eq!(parse_gpu_hot_wide(value), expected);
@@ -408,6 +510,55 @@ mod draft_contract_proofs {
         } else {
             assert!(!(10..=512).contains(&capacity));
         }
+    }
+
+    #[kani::proof]
+    #[kani::unwind(81)]
+    fn unique_expert_prefix_is_bounded_for_eighty_routes() {
+        let ids: [u32; 80] = kani::any();
+        let rows: usize = kani::any();
+        kani::assume((1..=8).contains(&rows));
+        let available: usize = kani::any();
+        if let Some(prefix) = largest_expert_prefix(&ids[..rows * 10], available) {
+            assert!(prefix <= rows && available <= 512);
+            assert!(ids[..rows * 10].iter().all(|&id| id < 512));
+            if available >= rows * 10 {
+                assert_eq!(prefix, rows);
+            }
+            if available == 0 {
+                assert_eq!(prefix, 0);
+            }
+            kani::cover!(prefix == 0);
+            kani::cover!(prefix == 8);
+        }
+    }
+
+    #[kani::proof]
+    #[kani::unwind(21)]
+    fn unique_expert_prefix_matches_independent_twenty_route_oracle() {
+        let ids: [u32; 20] = kani::any();
+        let available: usize = kani::any();
+        kani::assume(available <= 512);
+        for &id in &ids {
+            kani::assume(id < 512);
+        }
+        let mut expected = 0;
+        for rows in 1..=2 {
+            let prefix = &ids[..rows * 10];
+            let unique = prefix
+                .iter()
+                .enumerate()
+                .filter(|&(i, id)| !prefix[..i].contains(id))
+                .count();
+            if unique <= available {
+                expected = rows;
+            }
+        }
+        let actual = largest_expert_prefix(&ids, available).unwrap();
+        assert_eq!(actual, expected);
+        kani::cover!(actual == 0);
+        kani::cover!(actual == 1);
+        kani::cover!(actual == 2);
     }
 
     #[kani::proof]

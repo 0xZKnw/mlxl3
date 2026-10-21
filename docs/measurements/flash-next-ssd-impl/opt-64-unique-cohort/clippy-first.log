@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+error: using `chunks_exact` with a constant chunk size
+   --> native/src/flash_support.rs:222:20
+    |
+222 |     for row in ids.chunks_exact(10) {
+    |                    ^^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<10>().0`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+    = note: `-D clippy::chunks-exact-to-as-chunks` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::chunks_exact_to_as_chunks)]`
+
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: useless use of `vec!`
+   --> native/src/ssd_moe/hybrid_tests.rs:221:32
+    |
+221 |     let x = Array::concatenate(&vec![&input; 8], 0)?;
+    |                                ^^^^^^^^^^^^^^^^ help: you can use a slice directly: `&[&input; 8]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#useless_vec
+    = note: `-D clippy::useless-vec` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_vec)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors
