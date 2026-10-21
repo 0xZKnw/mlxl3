@@ -1,0 +1,3328 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "timestamp": "2026-10-21T20:39:20.277915Z",
+    "kani_version": "0.68.0",
+    "target": "aarch64-apple-darwin",
+    "build_mode": "release"
+  },
+  "project": {
+    "crate_name": [
+      "mlxl3_native"
+    ],
+    "workspace_root": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/b3d3f0d49d096ea9/out"
+  },
+  "tools": {
+    "kani": "0.68.0",
+    "rustc": "rustc 1.100.0-nightly (8925ea358 2026-08-20)",
+    "cbmc": "6.11.0 (cbmc-6.11.0)",
+    "goto_cc": "clang version 21.0.0 (goto-cc 6.11.0 (cbmc-6.11.0))",
+    "goto_instrument": "6.11.0 (cbmc-6.11.0)",
+    "solvers": [
+      {
+        "name": "cadical",
+        "version": null
+      }
+    ]
+  },
+  "harness_metadata": [
+    {
+      "pretty_name": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+      "mangled_name": "_RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support21draft_contract_proofs67fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+      "crate_name": "mlxl3_native",
+      "source": {
+        "file": "native/src/flash_support.rs",
+        "start_line": 569,
+        "end_line": 586
+      },
+      "goto_file": "/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/b3d3f0d49d096ea9/out/mlxl3_native-b3d3f0d49d096ea9__RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support21draft_contract_proofs67fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals.symtab.out",
+      "attributes": {
+        "kind": "Proof",
+        "should_panic": false
+      },
+      "contract": {
+        "contracted_function_name": null,
+        "recursion_tracker": null
+      },
+      "has_loop_contracts": false,
+      "is_automatically_generated": false,
+      "is_bounded": false,
+      "is_ctor_based": false
+    }
+  ],
+  "error_details": [
+    {
+      "harness_id": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+      "has_errors": false
+    }
+  ],
+  "property_details": [
+    {
+      "harness_id": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+      "property_details": {
+        "total_properties": 267,
+        "passed": 255,
+        "failed": 0,
+        "unreachable": 8,
+        "undetermined": 0,
+        "solver_error": 0,
+        "satisfied": 4,
+        "unsatisfiable": 0,
+        "covered": 0,
+        "uncovered": 0
+      }
+    }
+  ],
+  "cbmc": [
+    {
+      "harness_id": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+      "cbmc_metadata": {
+        "version": "6.11.0",
+        "os_info": "aarch64 macos unix"
+      },
+      "configuration": {
+        "object_bits": 16,
+        "solver": "cadical"
+      },
+      "cbmc_stats": {
+        "runtime_symex_s": 1.08537,
+        "size_program_expression": 51966,
+        "slicing_removed_assignments": 38630,
+        "vccs_generated": 1384,
+        "vccs_remaining": 713,
+        "runtime_postprocess_equation_s": 0.0239168,
+        "runtime_convert_ssa_s": 0.0635792,
+        "runtime_post_process_s": 0.005241,
+        "runtime_solver_s": 0.00201987,
+        "runtime_decision_procedure_s": 0.00223092
+      }
+    }
+  ],
+  "verification_results": {
+    "summary": {
+      "total_harnesses": 1,
+      "executed": 1,
+      "status": "completed",
+      "successful": 1,
+      "failed": 0,
+      "duration_ms": 2040
+    },
+    "results": [
+      {
+        "harness_id": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+        "status": "Success",
+        "duration_ms": 2040,
+        "checks": [
+          {
+            "id": 1,
+            "function": "kani::rustc_intrinsics::offset::<usize, *const usize, usize>",
+            "status": "Success",
+            "description": "Offset in bytes overflows isize",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 2,
+            "function": "kani::rustc_intrinsics::offset::<usize, *const usize, usize>",
+            "status": "Success",
+            "description": "Offset result address must equal original pointer address plus offset",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 3,
+            "function": "kani::rustc_intrinsics::offset::<usize, *const usize, usize>",
+            "status": "Success",
+            "description": "Offset result and original pointer must point to the same allocation",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 4,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 5,
+            "function": "<std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "405",
+              "column": "5"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 6,
+            "function": "<std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index",
+            "status": "Success",
+            "description": "misaligned pointer to reference cast: address must be a multiple of its type's alignment",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "411",
+              "column": "22"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 7,
+            "function": "<std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "411",
+              "column": "22"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 8,
+            "function": "core::slice::index::slice_index_fail::do_panic::runtime",
+            "status": "Success",
+            "description": "This is a placeholder message; Kani doesn't support message formatted at runtime",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "41",
+              "column": "9"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 9,
+            "function": "kani::mem::cbmc::same_allocation",
+            "status": "Success",
+            "description": "Kani does not support reasoning about pointer to unallocated memory",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "unsupported_construct"
+          },
+          {
+            "id": 10,
+            "function": "core::slice::index::slice_index_fail::do_panic::runtime",
+            "status": "Success",
+            "description": "This is a placeholder message; Kani doesn't support message formatted at runtime",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "59",
+              "column": "9"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 11,
+            "function": "<std::ops::RangeInclusive<u8> as std::ops::RangeBounds<u8>>::contains::<u8>",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "native/src/lib.rs",
+              "line": "0",
+              "column": "0"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 12,
+            "function": "core::num::<impl usize>::checked_sub",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "1096",
+              "column": "31"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 13,
+            "function": "core::num::<impl usize>::is_multiple_of",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "3875",
+              "column": "22"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 14,
+            "function": "core::num::<impl usize>::is_multiple_of",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "3875",
+              "column": "22"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 15,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "571",
+              "column": "34"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 16,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "571",
+              "column": "34"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 17,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "569",
+              "column": "5"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 18,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "575",
+              "column": "83"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 19,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "576",
+              "column": "34"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 20,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "attempt to subtract with overflow",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "576",
+              "column": "22"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 21,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "assertion failed: actual == expected",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "580",
+              "column": "13"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 22,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Satisfied",
+            "description": "cover condition: actual == Some(1)",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "581",
+              "column": "13"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 23,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Satisfied",
+            "description": "cover condition: actual == Some(7)",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "582",
+              "column": "13"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 24,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Satisfied",
+            "description": "cover condition: adaptive && actual.is_none()",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "583",
+              "column": "13"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 25,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Satisfied",
+            "description": "cover condition: !adaptive && length == 3 && actual.is_none()",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "584",
+              "column": "13"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 26,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to multiply with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "132",
+              "column": "28"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 27,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Unreachable",
+            "description": "attempt to subtract with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "133",
+              "column": "51"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 28,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Unreachable",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "133",
+              "column": "51"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 29,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "164",
+              "column": "21"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 30,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "155",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 31,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 32,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "155",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 33,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 34,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "155",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 35,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Unreachable",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 36,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "155",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 37,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 38,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "155",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 39,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 40,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "155",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 41,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 42,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "217",
+              "column": "13"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 43,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Unreachable",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "238",
+              "column": "21"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 44,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "38"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 45,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "242",
+              "column": "21"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 46,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "245",
+              "column": "17"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 47,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2353",
+              "column": "32"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 48,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2364",
+              "column": "33"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 49,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "Rust intrinsic assumption failed",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2387",
+              "column": "18"
+            },
+            "category": "assume"
+          },
+          {
+            "id": 50,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2390",
+              "column": "40"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 51,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "exact_div arguments divide exactly",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2395",
+              "column": "22"
+            },
+            "category": "exact_div"
+          },
+          {
+            "id": 52,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "exact_div divisor is nonzero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2395",
+              "column": "22"
+            },
+            "category": "exact_div"
+          },
+          {
+            "id": 53,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "exact_div division does not overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2395",
+              "column": "22"
+            },
+            "category": "exact_div"
+          },
+          {
+            "id": 54,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to shift by excessive shift distance",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2415",
+              "column": "24"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 55,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2417",
+              "column": "24"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 56,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to shift by excessive shift distance",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2441",
+              "column": "27"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 57,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2444",
+              "column": "33"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 58,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to shift by excessive shift distance",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2447",
+              "column": "27"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 59,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to shift by excessive shift distance",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2451",
+              "column": "50"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 60,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2451",
+              "column": "32"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 61,
+            "function": "std::str::from_utf8",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/converts.rs",
+              "line": "91",
+              "column": "11"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 62,
+            "function": "core::slice::index::slice_index_fail::do_panic::runtime",
+            "status": "Success",
+            "description": "This is a placeholder message; Kani doesn't support message formatted at runtime",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "50",
+              "column": "9"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 63,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 64,
+            "function": "std::ptr::align_offset::mod_inv",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2316",
+              "column": "36"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 65,
+            "function": "std::ptr::align_offset::mod_inv",
+            "status": "Unreachable",
+            "description": "attempt to subtract with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2317",
+              "column": "49"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 66,
+            "function": "std::ptr::align_offset::mod_inv",
+            "status": "Unreachable",
+            "description": "attempt to shift right with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2317",
+              "column": "44"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 67,
+            "function": "std::ptr::align_offset::mod_inv",
+            "status": "Unreachable",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2317",
+              "column": "27"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 68,
+            "function": "core::slice::index::slice_index_fail::do_panic::runtime",
+            "status": "Success",
+            "description": "This is a placeholder message; Kani doesn't support message formatted at runtime",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "69",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 69,
+            "function": "std::fmt::Arguments::<'_>::from_str",
+            "status": "Unreachable",
+            "description": "attempt to shift left with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+              "line": "820",
+              "column": "38"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 70,
+            "function": "std::option::Option::<usize>::is_some",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "633",
+              "column": "5"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 71,
+            "function": "std::ptr::const_ptr::<impl *const u8>::align_offset",
+            "status": "Success",
+            "description": "This is a placeholder message; Kani doesn't support message formatted at runtime",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs",
+              "line": "1282",
+              "column": "13"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 72,
+            "function": "kani::rustc_intrinsics::offset::<u8, *const u8, usize>",
+            "status": "Success",
+            "description": "Offset in bytes overflows isize",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 73,
+            "function": "kani::rustc_intrinsics::offset::<u8, *const u8, usize>",
+            "status": "Success",
+            "description": "Offset result address must equal original pointer address plus offset",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 74,
+            "function": "kani::rustc_intrinsics::offset::<u8, *const u8, usize>",
+            "status": "Success",
+            "description": "Offset result and original pointer must point to the same allocation",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 75,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "attempt to subtract with overflow",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "60"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 76,
+            "function": "<usize as kani::rustc_intrinsics::ToISize>::to_isize",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "203",
+              "column": "17"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 77,
+            "function": "<usize as kani::rustc_intrinsics::ToISize>::to_isize",
+            "status": "Success",
+            "description": "Offset value overflows isize",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 78,
+            "function": "<usize as kani::rustc_intrinsics::ToISize>::to_isize",
+            "status": "Success",
+            "description": "internal error: entered unreachable code",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 79,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2364",
+              "column": "33"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 80,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2390",
+              "column": "40"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 81,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2395",
+              "column": "22"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 82,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2395",
+              "column": "22"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 83,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "count trailing zeros is undefined for value zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2410",
+              "column": "17"
+            },
+            "category": "bit_count"
+          },
+          {
+            "id": 84,
+            "function": "std::ptr::align_offset::<u8>",
+            "status": "Success",
+            "description": "count trailing zeros is undefined for value zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2411",
+              "column": "17"
+            },
+            "category": "bit_count"
+          },
+          {
+            "id": 85,
+            "function": "std::option::Option::<usize>::is_some",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "634",
+              "column": "18"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 86,
+            "function": "std::option::Option::<usize>::is_some",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "634",
+              "column": "18"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 87,
+            "function": "std::option::Option::<usize>::is_some",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "634",
+              "column": "18"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 88,
+            "function": "std::option::Option::<usize>::is_some",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "634",
+              "column": "18"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 89,
+            "function": "std::option::Option::<usize>::is_some",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "634",
+              "column": "18"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 90,
+            "function": "std::option::Option::<usize>::is_some",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "634",
+              "column": "18"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 91,
+            "function": "core::num::<impl usize>::is_multiple_of",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "3875",
+              "column": "22"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 92,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 93,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 94,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 95,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 96,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 97,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 98,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 99,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 100,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 101,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 102,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 103,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "19"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 104,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "60"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 105,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "60"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 106,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "60"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 107,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "60"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 108,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "60"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 109,
+            "function": "flash_support::fixed_draft_width",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "304",
+              "column": "60"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 110,
+            "function": "flash_support::draft_contract_proofs::fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_support.rs",
+              "line": "576",
+              "column": "34"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 111,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 112,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 113,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 114,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 115,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 116,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 117,
+            "function": "core::str::validations::utf8_char_width",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "279",
+              "column": "5"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 118,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "164",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 119,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "164",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 120,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "164",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 121,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "164",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 122,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "164",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 123,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "164",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 124,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 125,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 126,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 127,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 128,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 129,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 130,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 131,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 132,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 133,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 134,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 135,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 136,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 137,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 138,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 139,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 140,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 141,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 142,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 143,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 144,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 145,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 146,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 147,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 148,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 149,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 150,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 151,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 152,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 153,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 154,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 155,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 156,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 157,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 158,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 159,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "160",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 160,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "232",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 161,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "232",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 162,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "232",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 163,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "232",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 164,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "232",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 165,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "232",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 166,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "233",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 167,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "233",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 168,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "233",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 169,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "233",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 170,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "233",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 171,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "233",
+              "column": "52"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 172,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "38"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 173,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "38"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 174,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "38"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 175,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "38"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 176,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "38"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 177,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "38"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 178,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "250",
+              "column": "5"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 179,
+            "function": "std::str::from_utf8",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/converts.rs",
+              "line": "91",
+              "column": "11"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 180,
+            "function": "std::ptr::align_offset::mod_inv",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "2317",
+              "column": "27"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 181,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 182,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 183,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 184,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 185,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 186,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 187,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 188,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 189,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 190,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 191,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 192,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::le",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2422",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 193,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 194,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 195,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 196,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 197,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 198,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "28"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 199,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 200,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 201,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 202,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 203,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 204,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for &u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2418",
+              "column": "35"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 205,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 206,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 207,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 208,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 209,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 210,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 211,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 212,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 213,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 214,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 215,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 216,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::le",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2194",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 217,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 218,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 219,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 220,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 221,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 222,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 223,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 224,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 225,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 226,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 227,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 228,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for u8>::lt",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 229,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 230,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 231,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 232,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 233,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 234,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 235,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 236,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 237,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 238,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 239,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 240,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 241,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 242,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 243,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 244,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 245,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 246,
+            "function": "<std::option::Option<usize> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 247,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 248,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 249,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 250,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 251,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 252,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 253,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 254,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 255,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 256,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 257,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 258,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 259,
+            "function": "<std::ops::RangeInclusive<u8> as std::ops::RangeBounds<u8>>::end_bound",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs",
+              "line": "1141",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 260,
+            "function": "<std::ops::RangeInclusive<u8> as std::ops::RangeBounds<u8>>::end_bound",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs",
+              "line": "1141",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 261,
+            "function": "<std::ops::RangeInclusive<u8> as std::ops::RangeBounds<u8>>::end_bound",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs",
+              "line": "1141",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 262,
+            "function": "<std::ops::RangeInclusive<u8> as std::ops::RangeBounds<u8>>::end_bound",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs",
+              "line": "1141",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 263,
+            "function": "<std::ops::RangeInclusive<u8> as std::ops::RangeBounds<u8>>::end_bound",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs",
+              "line": "1141",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 264,
+            "function": "<std::ops::RangeInclusive<u8> as std::ops::RangeBounds<u8>>::end_bound",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs",
+              "line": "1141",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 265,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "unwinding assertion loop 1",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "241",
+              "column": "17"
+            },
+            "category": "unwind"
+          },
+          {
+            "id": 266,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "unwinding assertion loop 0",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "224",
+              "column": "17"
+            },
+            "category": "unwind"
+          },
+          {
+            "id": 267,
+            "function": "core::str::validations::run_utf8_validation",
+            "status": "Success",
+            "description": "unwinding assertion loop 2",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs",
+              "line": "145",
+              "column": "5"
+            },
+            "category": "unwind"
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "enabled": false
+  }
+}

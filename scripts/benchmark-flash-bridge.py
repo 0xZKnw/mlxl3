@@ -206,6 +206,7 @@ def run(
                         validate(event, mode, enabled, tokens)
                     entry = {
                         "mode": "dflash2" if dflash else "mtp" if enabled else "baseline",
+                        "generation_mode": mode,
                         "prompt": label,
                         "repeat": repeat,
                         "token_hash": event["token_hash"],

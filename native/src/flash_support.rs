@@ -298,6 +298,14 @@ pub(crate) fn parse_gpu_hot_wide(value: &str) -> Option<bool> {
     }
 }
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn fixed_draft_width(value: &str, adaptive: bool) -> Option<usize> {
+    match (value.as_bytes(), adaptive) {
+        ([digit @ b'1'..=b'7'], false) => Some(usize::from(*digit - b'0')),
+        _ => None,
+    }
+}
+
 /// Greedy-only scheduler: prefer the smallest prefix on equal expected throughput.
 #[cfg(any(test, kani))]
 pub(crate) fn draft_prefix(confidence: &[f64], costs: &[f64]) -> Option<usize> {
@@ -495,6 +503,37 @@ mod draft_contract_tests {
     }
 
     #[test]
+    fn fixed_draft_width_rejects_nonliteral_and_adaptive_controls() {
+        for a in 0..=255u8 {
+            for bytes in [vec![a], vec![a, b'1']] {
+                if let Ok(value) = std::str::from_utf8(&bytes) {
+                    let expected = (bytes.len() == 1 && (b'1'..=b'7').contains(&a))
+                        .then(|| usize::from(a - b'0'));
+                    assert_eq!(fixed_draft_width(value, false), expected);
+                    assert_eq!(fixed_draft_width(value, true), None);
+                }
+            }
+        }
+        for value in [
+            "",
+            "0",
+            "8",
+            "01",
+            "+1",
+            " 1",
+            "1\n",
+            "é",
+            "１",
+            &"1".repeat(4096),
+        ] {
+            assert_eq!(fixed_draft_width(value, false), None);
+        }
+        for width in 1..=7 {
+            assert_eq!(fixed_draft_width(&width.to_string(), false), Some(width));
+        }
+    }
+
+    #[test]
     fn draft_commits_match_independent_wide_arithmetic_and_reject_stale_tapes() {
         for base in [-1, 0, 1, 4096, i32::MAX - 8, i32::MAX - 1, i32::MAX] {
             for total in (0..=10).chain([usize::MAX]) {
@@ -524,6 +563,27 @@ mod draft_contract_tests {
 #[cfg(kani)]
 mod draft_contract_proofs {
     use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(5)]
+    fn fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals() {
+        let bytes: [u8; 3] = kani::any();
+        let length = usize::from(kani::any::<u8>() % 4);
+        let adaptive: bool = kani::any();
+        if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
+            let actual = fixed_draft_width(value, adaptive);
+            let expected = if !adaptive && length == 1 && (b'1'..=b'7').contains(&bytes[0]) {
+                Some(usize::from(bytes[0]) - usize::from(b'0'))
+            } else {
+                None
+            };
+            assert_eq!(actual, expected);
+            kani::cover!(actual == Some(1));
+            kani::cover!(actual == Some(7));
+            kani::cover!(adaptive && actual.is_none());
+            kani::cover!(!adaptive && length == 3 && actual.is_none());
+        }
+    }
 
     #[kani::proof]
     #[kani::unwind(5)]

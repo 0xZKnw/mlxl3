@@ -105,6 +105,10 @@ for line in sys.stdin:
             assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
             assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
             assert all(r["mode"] == "dflash2" for r in result["runs"])
+            assert all(
+                r["generation_mode"]["dflash_active"] is True
+                for r in result["runs"] + result["warmup"]
+            )
             assert result["reaped"] and result["reader_joined"]
         else:
             with pytest.raises((ValueError, RuntimeError, TimeoutError)):
@@ -150,6 +154,10 @@ for line in sys.stdin:
         assert result["expert_cache_gib"] == (None if automatic else budget)
         assert len(result["runs"]) == len(result["warmup"]) == 2
         assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+        assert all(
+            r["generation_mode"]["dflash_active"] is False
+            for r in result["runs"] + result["warmup"]
+        )
         if fault == "one_prompt":
             selected = bench.run(
                 engine,

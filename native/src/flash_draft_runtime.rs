@@ -20,21 +20,40 @@ impl Options {
                 _ => anyhow::bail!("{name} must be 0 or 1"),
             }
         };
-        let adaptive = flag("MLXL3_FLASH_DRAFT_ADAPTIVE")? && mode == 1;
+        let adaptive_requested = flag("MLXL3_FLASH_DRAFT_ADAPTIVE")?;
+        let adaptive = adaptive_requested && mode == 1;
+        let width = match std::env::var("MLXL3_FLASH_DRAFT_WIDTH") {
+            Ok(value) => crate::flash_support::fixed_draft_width(&value, adaptive_requested)
+                .context(
+                    "MLXL3_FLASH_DRAFT_WIDTH requires 1..7 and MLXL3_FLASH_DRAFT_ADAPTIVE=0",
+                )?,
+            Err(std::env::VarError::NotPresent) => {
+                if adaptive || mode == 3 {
+                    7
+                } else if mode == 2 {
+                    2
+                } else {
+                    3
+                }
+            }
+            Err(_) => anyhow::bail!("MLXL3_FLASH_DRAFT_WIDTH must be valid Unicode"),
+        };
         Ok(Self {
             q4: flag("MLXL3_FLASH_DRAFT_Q4")?,
             ring: flag("MLXL3_FLASH_DRAFT_RING")?,
             adaptive,
-            width: if adaptive || mode == 3 {
-                7
-            } else if mode == 2 {
-                2
-            } else {
-                3
-            },
+            width,
         })
     }
 }
+
+#[cfg(kani)]
+#[kani::proof]
+fn fixed_width_options_reach_the_real_reader() {
+    let result = Options::read(1);
+    kani::cover!(result.is_ok());
+}
+
 pub(in crate::qwen4) struct Session {
     draft: Draft,
     path: PathBuf,
@@ -306,6 +325,19 @@ mod tests {
         }
     }
     #[test]
+    #[ignore = "isolated process environment; no checkpoint or GPU model"]
+    fn fixed_width_environment_reaches_the_production_option_reader() -> Result<()> {
+        let expected = std::env::var("MLXL3_EXPECTED_FIXED_WIDTH")?;
+        let actual = Options::read(1);
+        if expected == "error" {
+            ensure!(actual.is_err(), "invalid fixed-width options accepted");
+        } else {
+            let actual = actual?;
+            ensure!(actual.width == expected.parse::<usize>()? && !actual.adaptive);
+        }
+        Ok(())
+    }
+    #[test]
     #[ignore = "physical Apple GPU, pinned target and DFlash2 checkpoint; run alone"]
     fn splash_runtime_preserves_serial_tokens_and_states() -> Result<()> {
         let target_path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
@@ -335,11 +367,13 @@ mod tests {
             oracles.push((budget, tokens));
         }
         let mut records = Vec::new();
-        for (q4, ring, adaptive) in [
-            (false, false, false),
-            (true, false, false),
-            (true, true, false),
-            (true, true, true),
+        for (q4, ring, adaptive, width) in [
+            (false, false, false, 3),
+            (true, false, false, 3),
+            (true, true, false, 3),
+            (true, true, true, 7),
+            (true, true, false, 1),
+            (true, true, false, 7),
         ] {
             target.reset();
             target.dflash = None;
@@ -357,7 +391,7 @@ mod tests {
                     q4,
                     ring,
                     adaptive,
-                    width: if adaptive { 7 } else { 3 },
+                    width,
                 },
                 budget: VerifyBudget::default(),
                 pending: VecDeque::new(),
@@ -377,7 +411,7 @@ mod tests {
                 }
                 ensure!(
                     &tokens == expected,
-                    "DFlash tokens differ Q4={q4}/ring={ring}/adaptive={adaptive}/budget={budget}"
+                    "DFlash tokens differ Q4={q4}/ring={ring}/adaptive={adaptive}/width={width}/budget={budget}"
                 );
                 ensure!(
                     target.offset() as usize == prompt.len() + budget - 1,
@@ -419,7 +453,7 @@ mod tests {
                             && profile.commit_cache_seconds > 0.
                     );
                 }
-                records.push(serde_json::json!({"profile":profile,"q4":q4,"ring":ring,"adaptive":adaptive,"budget":budget,"states":states.len(),"stats":target.dflash2_stats()}));
+                records.push(serde_json::json!({"profile":profile,"q4":q4,"ring":ring,"adaptive":adaptive,"width":width,"budget":budget,"states":states.len(),"stats":target.dflash2_stats()}));
             }
             cancel.store(true, Ordering::Relaxed);
             ensure!(target.prefill_dflash2(&prompt, &cancel).is_err() && target.offset() == 0);
