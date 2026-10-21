@@ -1888,7 +1888,7 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
         disk_state(&target, state.path(), &format!("s{i}"), true)?;
     }
     let mut cases = 0;
-    for width in [1, 2, 4, 8] {
+    for width in 1..=8 {
         for retained in 1..=width {
             target.reset();
             target.forward(serial[0])?;
@@ -1945,10 +1945,10 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
             "invalid commit did not reset"
         );
     }
-    ensure!(cases == 15);
+    ensure!(cases == 36);
     println!(
         "FLASH_DRAFT_PREFIX {}",
-        serde_json::json!({"status":"passed","kind":format!("{kind:?}"),"prefix_cases":cases,"captures":capture_check,"widths":[1,2,4,8],"target_logits_and_states":"byte_exact","memory":array::memory_stats(false)?})
+        serde_json::json!({"status":"passed","kind":format!("{kind:?}"),"prefix_cases":cases,"captures":capture_check,"widths":[1,2,3,4,5,6,7,8],"target_logits_and_states":"byte_exact","memory":array::memory_stats(false)?})
     );
     Ok(())
 }

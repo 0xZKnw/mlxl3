@@ -1098,7 +1098,7 @@ impl ExpertSlots {
             .iter()
             .try_fold(1i32, |n, &s| n.checked_mul(s))
             .context("resident route shape overflow")?;
-        ensure!(selected.dtype() == Dtype::UInt32 && (1..=20).contains(&rows));
+        ensure!(selected.dtype() == Dtype::UInt32 && (1..=80).contains(&rows));
         ensure!(
             (1..=512).contains(&capacity)
                 && map.iter().all(|&s| s == u32::MAX || s < capacity as u32),
@@ -1424,6 +1424,12 @@ mod tests {
             vec![0, 1, 0, 2],
             (0..10).map(|i| i % 5).collect(),
             (0..20).map(|i| i % 10).collect(),
+            (0..30).map(|i| i % 10).collect(),
+            (0..40).map(|i| i % 10).collect(),
+            (0..50).map(|i| i % 10).collect(),
+            (0..60).map(|i| i % 10).collect(),
+            (0..70).map(|i| i % 10).collect(),
+            (0..80).map(|i| i % 10).collect(),
         ];
         let mut checked = 0;
         let mut masked_checked = 0;
@@ -1595,8 +1601,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(checked, 40);
-        assert_eq!(masked_checked, 120);
+        assert_eq!(checked, 88);
+        assert_eq!(masked_checked, 264);
         println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=8 parity=byte_exact");
         println!(
             "FLASH_MASKED_SLOT_SHAPES cases={masked_checked} masks=all_cold,mixed,all_hot parity=byte_exact"
@@ -1633,7 +1639,7 @@ mod tests {
                 Array::from_f16_bits(&bits, &[10, 2, 128])?
             };
             for strided_ids in [false, true] {
-                for ids in all_ids.chunks(20) {
+                for ids in all_ids.chunks(80) {
                     let selected = if strided_ids {
                         let storage = ids
                             .iter()
@@ -1681,7 +1687,7 @@ mod tests {
         let mut invalid = map;
         invalid[511] = 10;
         assert!(ExpertSlots::residents(&selected, &invalid, 10).is_err());
-        for n in [0, 21] {
+        for n in [0, 81] {
             assert!(
                 ExpertSlots::residents(&Array::from_u32(&vec![0; n], &[n as i32])?, &map, 10)
                     .is_err()
@@ -1696,7 +1702,7 @@ mod tests {
                 .to_u32()?,
             vec![9]
         );
-        assert_eq!(cases, 104);
+        assert_eq!(cases, 28);
         println!(
             "FLASH_GPU_RESIDENT_PLAN cases={cases} ids=514 invalid_controls=6 wrong_map=true parity=byte_exact"
         );

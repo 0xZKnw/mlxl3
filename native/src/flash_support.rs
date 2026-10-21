@@ -159,6 +159,15 @@ pub(crate) fn expert_cohort_rows(capacity: usize) -> Option<usize> {
         .then_some((capacity / 10).min(8))
 }
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn parse_gpu_hot_wide(value: &str) -> Option<bool> {
+    match value {
+        "0" => Some(false),
+        "1" => Some(true),
+        _ => None,
+    }
+}
+
 /// Greedy-only scheduler: prefer the smallest prefix on equal expected throughput.
 #[cfg(any(test, kani))]
 pub(crate) fn draft_prefix(confidence: &[f64], costs: &[f64]) -> Option<usize> {
@@ -272,6 +281,16 @@ mod draft_contract_tests {
             }
         }
         assert_eq!(expert_cohort_rows(usize::MAX), None);
+    }
+
+    #[test]
+    fn gpu_hot_wide_accepts_only_explicit_boolean_literals() {
+        for (value, expected) in [("0", Some(false)), ("1", Some(true))] {
+            assert_eq!(parse_gpu_hot_wide(value), expected);
+        }
+        for value in ["", "true", "false", "2", "01", " 1", "1\n", "é", "１"] {
+            assert_eq!(parse_gpu_hot_wide(value), None);
+        }
     }
 
     #[test]
@@ -495,7 +514,7 @@ impl ExpertCache {
                 unique.insert(position, id);
             }
         }
-        if unique.len() > self.pending.iter().filter(|p| p.is_none()).count() {
+        if unique.len() > self.available_slots() {
             return Err(CacheError::Capacity);
         }
         self.clock = self.clock.checked_add(1).ok_or(CacheError::Clock)?;
@@ -595,11 +614,8 @@ impl ExpertCache {
         if id >= 512 {
             return Err(CacheError::InvalidIds);
         }
-        let pending = self.pending.iter().filter(|p| p.is_some()).count();
         let cohort = if self.capacity() >= 20 { 20 } else { 10 };
-        if self.contains(id)
-            || self.pending.contains(&Some(id))
-            || self.capacity() - pending <= cohort
+        if self.contains(id) || self.pending.contains(&Some(id)) || self.available_slots() <= cohort
         {
             return Ok(None);
         }
@@ -635,6 +651,10 @@ impl ExpertCache {
     }
     pub fn capacity(&self) -> usize {
         self.keys.len()
+    }
+
+    pub(crate) fn available_slots(&self) -> usize {
+        self.pending.iter().filter(|p| p.is_none()).count()
     }
 }
 
@@ -1252,6 +1272,43 @@ mod tests {
     }
 
     #[test]
+    fn wide_cohorts_exclude_pending_slots_before_reserving() -> Result<()> {
+        for capacity in [10, 19, 20, 24, 53, 80, 512] {
+            let mut cache = ExpertCache::new(capacity)?;
+            let mut pending = Vec::new();
+            for id in 0..4 {
+                if let Some(slot) = cache.claim_prefetch(id)? {
+                    pending.push((slot, id));
+                }
+            }
+            let available = capacity - pending.len();
+            assert_eq!(cache.available_slots(), available);
+            let cohort = expert_cohort_rows(cache.available_slots()).unwrap();
+            let ids = (100..100 + cohort as u32 * 10).collect::<Vec<_>>();
+            let routes = cache.reserve(&ids)?;
+            assert!(
+                routes
+                    .iter()
+                    .all(|&(slot, hit)| { !hit && pending.iter().all(|&(busy, _)| busy != slot) })
+            );
+            assert_eq!(cache.available_slots(), available);
+            if capacity == 53 || capacity == 80 {
+                assert_eq!(cohort, capacity / 10 - 1);
+                assert!(
+                    cache
+                        .reserve(&(100..100 + (capacity / 10 * 10) as u32).collect::<Vec<_>>())
+                        .is_err()
+                );
+            }
+            for (slot, id) in pending {
+                cache.publish_prefetch(slot, id, false);
+            }
+            assert_eq!(cache.available_slots(), capacity);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn persistent_prefetch_sequences_preserve_cache_invariants() -> Result<()> {
         for capacity in [10, 20, 24, 89] {
             let mut cache = ExpertCache::new(capacity)?;
@@ -1335,6 +1392,29 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(81)]
+    fn wide_cohorts_fit_every_pending_pattern_in_eighty_slots() {
+        let mut cache = ExpertCache::new(80).unwrap();
+        let mut occupied = 0usize;
+        for slot in 0..80 {
+            if kani::any() {
+                cache.pending[slot] = Some(511);
+                occupied += 1;
+            }
+        }
+        let available = cache.available_slots();
+        assert_eq!(available + occupied, 80);
+        if let Some(rows) = expert_cohort_rows(available) {
+            assert!(rows * 10 + occupied <= cache.capacity());
+            kani::cover!(rows == 7 && occupied == 4);
+            kani::cover!(rows == 8);
+        } else {
+            assert!(occupied > 70);
+            kani::cover!(occupied == 80);
+        }
+    }
+
     #[kani::proof]
     #[kani::unwind(513)]
     fn resident_slot_snapshot_excludes_pending_and_preserves_lfu() {
@@ -1457,10 +1537,15 @@ mod verification {
         if let Ok(value) = std::str::from_utf8(&bytes[..len]) {
             let lru = parse_lru_override(value);
             let half = parse_predictor_half(value);
+            let wide = parse_gpu_hot_wide(value);
             assert_eq!(lru.is_some(), value == "auto" || value == "lru");
             assert_eq!(half.is_some(), value == "f32" || value == "f16");
             assert_eq!(lru == Some(true), value == "lru");
             assert_eq!(half == Some(true), value == "f16");
+            assert_eq!(wide.is_some(), value == "0" || value == "1");
+            assert_eq!(wide == Some(true), value == "1");
+            kani::cover!(wide == Some(false));
+            kani::cover!(wide == Some(true));
             kani::cover!(lru == Some(false));
             kani::cover!(lru == Some(true));
             kani::cover!(half == Some(false));

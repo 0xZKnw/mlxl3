@@ -32,6 +32,7 @@ pub struct SsdMoe {
     overlap: bool,
     readers: usize,
     gpu_hot: bool,
+    gpu_hot_wide: bool,
     #[cfg(test)]
     hybrid_submissions: u64,
     #[cfg(test)]
@@ -89,6 +90,9 @@ impl SsdMoe {
             "1" => prefix.starts_with("model.language_model.layers."),
             _ => anyhow::bail!("MLXL3_SSD_GPU_HOT must be 0 or 1"),
         };
+        let gpu_hot_wide =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_GPU_HOT_WIDE", "0")?)
+                .context("MLXL3_SSD_GPU_HOT_WIDE must be 0 or 1")?;
         let readers = std::env::var("MLXL3_SSD_READERS")
             .unwrap_or_else(|_| "4".into())
             .parse::<usize>()
@@ -186,6 +190,7 @@ impl SsdMoe {
         };
         Ok(Self {
             gpu_hot,
+            gpu_hot_wide,
             #[cfg(test)]
             hybrid_submissions: 0,
             #[cfg(test)]
@@ -444,13 +449,17 @@ impl SsdMoe {
                 && (1..=row_limit).contains(&x.shape()[0])
                 && x.shape()[1] == H
                 && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
-            "streamed MoE expects one or two route rows"
+            "invalid streamed MoE route shape or dtype"
         );
         #[cfg(test)]
         let profile = crate::flash_profile::span("moe_forward_rows");
         let rows = x.shape()[0];
-        if self.cache.borrow().capacity() < rows as usize * 10 {
-            let cohort = crate::flash_support::expert_cohort_rows(self.cache.borrow().capacity())
+        if let Some((_, pool)) = &self.prefetcher {
+            pool.borrow_mut().poll();
+        }
+        let available = self.cache.borrow().available_slots();
+        if available < rows as usize * 10 {
+            let cohort = crate::flash_support::expert_cohort_rows(available)
                 .context("invalid streamed MoE cache capacity")? as i32;
             let mut output = Vec::new();
             for begin in (0..rows).step_by(cohort as usize) {
@@ -486,8 +495,11 @@ impl SsdMoe {
             x.take(&Array::from_u32(&row_indices, &[rows * 10])?, 0)?
                 .astype(Dtype::Float16)
         };
-        let hybrid =
-            self.gpu_hot && self.overlap && rows <= 2 && depth == 0 && self.prefetcher.is_none();
+        let hybrid = self.gpu_hot
+            && self.overlap
+            && (rows <= 2 || self.gpu_hot_wide)
+            && depth == 0
+            && self.prefetcher.is_none();
         let map = if hybrid {
             if let Some(last) = self.last.take() {
                 last.eval()?;
@@ -1759,7 +1771,7 @@ mod tests {
             inputs.push(Array::from_bytes(&read("input")?, &[1, H], Dtype::Float32)?);
             expected.push(read("output")?);
         }
-        for slots in [10, 19, 20, 24, 53, 71, 89] {
+        for slots in [10, 19, 20, 24, 53, 71, 80, 89, 512] {
             for (overlap, readers) in [
                 (false, 1),
                 (true, 1),
@@ -1775,6 +1787,8 @@ mod tests {
                     overlap,
                 )?;
                 moe.readers = readers;
+                moe.gpu_hot = true;
+                moe.gpu_hot_wide = true;
                 for pair in [[0, 1], [0, 1], [1, 0], [0, 0], [1, 2]] {
                     let x = Array::concatenate(&[&inputs[pair[0]], &inputs[pair[1]]], 0)?;
                     let output = moe.forward_many(&x)?.to_bytes()?;
@@ -1785,7 +1799,7 @@ mod tests {
                         "two-row MoE differs, slots={slots}, overlap={overlap}, pair={pair:?}"
                     );
                 }
-                for rows in [1, 2, 4, 8] {
+                for rows in 1..=8 {
                     let indices = (0..rows).map(|i| i % 3).collect::<Vec<_>>();
                     let x = Array::concatenate(
                         &indices.iter().map(|&i| &inputs[i]).collect::<Vec<_>>(),
