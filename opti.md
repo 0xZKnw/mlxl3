@@ -13525,6 +13525,8 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 
 - **64L qualitév6 validée avant débit** : trois processus joints1,786/25,971/305,204s,32casMoE/36préfixes avec logits etétats exacts/43contrôles bridge complets ; post30passé,0nouveauSwapout depuis l'origine qualitév3 conservée. Manifestes146sources+2artefacts recontrôlés, aucune divergence numérique, preuve du défaut avant correction conservée etéchec de fixturev5 non effacé. Plansv5 TPS jamais lancés ; plansv6 seulement sont admissibles. Correction reste optionnelle UNIQUE0par défaut, pas un gain de débit annoncé. Publication du correctif et des preuves pour analyse autorisée par les demandes précédentes ; la qualification vitesse v6 reste à faire, mêmes seuils/cache3Gio/oracles et gardes. Tous les essais physiques qualité sont clos, aucune inférence/build/proveur restant.
 
+- **64U/64H/64L publication de correction/prototypes et preuves** : commit `aa5bc75f` poussé dansPR34 (`codex/flash-next-ssd-205`), parentbde5e44f, sourcev6 etCLI vérifiés avant publication. DéfautLFU corrigé/qualité validée ; gains64Uv2 nonconcluants,64Hv4 rejetés,64Lv6 nonmesurés à la publication, flagdéfaut0etappinchangés. Diffsource ettests examinés ; diffbrut des CSV signale leurs finsCRLF standard, conservées pour ne pas altérer les données ; vérification avec `core.whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol` passe pour le commit complet, sans suppression des autres contrôles. Le débitv6 préenregistré démarre ensuite avec `speed-all-lfu-v6-command.txt` : quatre témoins avant, huitHCCHDFlash puisquatre témoins après, arrêt au premier échec, trois fenêtres explicites,0Swapoutdepuisqualitév3. Nouveaucommit sourcepublié ne modifie pas les hashes146+2 du manifestev6 ; CIduSHAexact à inspecter, pas encore déclarée verte.
+
 - 45-Q/R processus unique-window : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/quality-lfu-v5/run-result.json.
 
 - 45-Q/R processus unique-window : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/quality-lfu-v6/run-result.json.
@@ -13532,3 +13534,77 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 - 45-Q/R processus target-prefixes : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/quality-lfu-v6/run-result.json.
 
 - 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/quality-lfu-v6/run-result.json.
+
+- 45-Q/R processus before-OFF-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-before/run-result.json.
+
+- 45-Q/R processus before-OFF-HOLD : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-before/run-result.json.
+
+- 45-Q/R processus before-MTP-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-before/run-result.json.
+
+- 45-Q/R processus before-MTP-HOLD : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-before/run-result.json.
+
+- **64L témoins avantv6 clos** : quatre processus joints etpost30passé, texte/hash exacts,0nouveauSwapout depuisqualitév3 ; before-OFF-MAIN 10.268330tok/s ; before-OFF-HOLD 10.110321tok/s ; before-MTP-MAIN 11.085962tok/s ; before-MTP-HOLD 10.101107tok/s. Picphysique maximal 8194659608octets. Manifeste146+2 vérifié avant départ ; campagne DFlash HCCHv6 maintenant autorisée, pas encore de gain qualifié. Les valeurs ci-dessus viennent directement des JSONstats.decode_tps.
+
+- **64L huitDFlashv6 clos, comparaison générale interrompue** :16réponses128exactes, huit enfants joints etpost30passé, pic8 259 656 256octets,0nouveauSwapout pendant la fenêtreDFlash. HCCH MAIN10,648781/10,618671/10,742993/10,424147 ; HOLD9,543684/8,433276/9,848826/9,583577tok/s. Gains−0,283/+3,059%MAIN et−11,635/+2,768%HOLD ; étendue3,341/14,403points→`inconclusive_drift`, pas un gain. Les contrôles H sont stables2,155/0,418% ; c'est la dispersion des gains, pas une dérive H>5%, qui empêche la qualification. Le8,43reste conservé. Deux candidatsHOLD vérifient140lignes chacun, mais67blocs/59acceptés contre55blocs/71acceptés ; vérification13,113vs11,325s et octets201,028vs195,004Mo/token : adaptation à examiner, pas d'attributionGPUexclusive.
+- Les deux témoins MTP après sont joints/validés, mais le troisième OFF/MAIN est interrompu à38,328s quand `vm_stat` ne peut plus créer un processus (`BlockingIOError35 Resource temporarily unavailable`). QuatrièmeOFF/HOLD nonlancé, postflight échoue aussi àforker : `control-lfu-v6-after/campaign-result.json` reste `failed_postflight/parity:false`, rapportOFFpartiel `incomplete`. Ne pas annoncer une campagneOFF/MTP/DFlash complète. Snapshotprocess après :474processus,0zombie, aucun de nos moteurs/benchmarks encoreactif ; plafonds6000global/4000uid, cause transitoire nonétablie. `vm_stat` fonctionne ensuite etcompteurSwapout inchangé ; aucune augmentation observée, mais le postflight initial n'est pas rétroactivement validé. Aucun nouvel essaiGPU avant contrôle de récupération.
+
+## FLASHSSD-2026-10-21-64D — analyse discriminante cache/largeur et reprise sûre (préenregistrement)
+
+- Demande utilisateur : aprèsHOLD, comparer UNIQUE0/1 parhits/misses/octetsSSD demandés par token en précisant les largeurs de vérification adaptatives, puis confronter58aux sourcesStrata/Splash. Pas de promotion64U sur le débit actuel. D'abord observer30s sans moteur après le défautfork, en conservant l'origineSwapoutqualitév3 et l'erreur64L. Pas de relance TPS64L inchangée pour obtenir un meilleur nombre ; les témoins manquants restent explicitement manquants.
+- Avant nouvelle instrumentation, examiner le harnais de profil existant64P/64H : il exporte déjà les compteurs MoE avant/après et les traces `verify_draft` du vrai `Session::advance`. Réutiliser le natifv6 figé s'il permet cette analyse, sans nouveau `eval()` ni modification de kernels. Diagnostic séparé de la campagne128TPS : MAIN/HOLD,UNIQUE0/1,mêmesQ4/ring/adapt7/cache3Gio/63/Hot/Wide1 ; quatre processus au maximum, phases/oracle numérique existants, largeur etsorties réellement supportées déclarées avant départ. Extraire comptes parphase etlargeur depuis les événements decode etcontrecontrôler les totaux contre les snapshots. Les hits sont des occurrences logiques, les octets des records demandés, pas les octetsNVMe physiques ; une cohorte plusgrande change la définition de hit pour un expert répété. Comparer également parligne vérifiée etsignaler les différences de planning.
+- Pré20/post30,≤12e9B et0nouveauSwapout, incoming256Mio, un modèle etaucunbuild/proveur simultané. Si la fenêtre échoue, conserver l'échec etcontinuer l'analyse horsligne possible, pas de gain déclaré. Recherche58Strata/Splash : lirehistorique58 avant toute nouvelle mesure/prototype, fixer commitsamont/sources, préciser ce qui est déjàporté etles limitesquantification/arrondi ; préenregistrer toute future modification séparément après le diagnostic demandé. Aucun essai àlargeurfixe oucacheagrandi dans64D.
+
+- **64D demande de reprise explicite avant relance** : l'utilisateur identifie le défaut système transitoire déjà rencontré et demande de réessayer. Après la nouvelle observation30s sans moteur, reprendre uniquement les deux témoins OFF après interrompu/nonlancé dans `control-lfu-v6-after-retry/`. Ne pas refaire les huit DFlash, ni les deux MTP après déjàjoints/validés ; ne pas effacer8,43. Mêmev6/146sources+2artefacts, options/model/cache/power,1warm+1mesure128sorties, pré20/post30. Conserver l'origine incoming etSwapout de la première fenêtre `control-lfu-v6-after/origin.json` sur reprise, aucune remise à zéro ; source/binaire inchangés, raison nouvelle=userretry+fork de nouveau fonctionnel. Échec initial et son postflight restent échoués même si la reprise passe ; statut de clôture doit les lier explicitement. Diagnostic cache64D vient après cette reprise, avant tout prototype58.
+
+- **64D reprise des témoins clos** : récupération sansmodèle30s passe ; deuxOFFaprès joints43,758/43,510s, paritétexte/hash128exacte etpost30passé, origineafterinitialeconservée et0nouveauSwapout depuisqualitév3. L'échecfork initial n'estpas effacé ; clôturev6 doit associer MTPaprèsinitial etOFFaprèsreprise. Aucun moteur ni build/proveur actif avant nouveau diagnostic.
+- **64D protocole fixé avant diagnostic** : natifv6déjàfigé7d89e963..., mêmeproductionAA5bc75f ; kind=`verifier` existant :64sorties/63decode et6générations parprocessus dontoracleOFFséquentiel, warmup, contrôlesavant/après etdeuxtracesnaturelles. Quatreprocessus dansl'ordre MAIN/UNIQUE0,MAIN/UNIQUE1,HOLD/UNIQUE1,HOLD/UNIQUE0 ;24générations au total,8tracesdecode. Pasune relance de la campagneTPS128 ni reconstruction deslargeurs ducas8,43 (absentesdesstatsCLI) ; diagnosticdistinct etoraclescomplets248320logits/états finaux. Dossierspréalablementcréés, piedstime-l pourpicphysique etsource146+2vérifiée avant/après. Mêmebudgetd'experts3Gio/53,4lecteurs,63HotWide1,Q4ringadapt7, alloc512Mio,LES/lookahead0. Nouvellefenêtreincoming64Dexplicitementpriseaprèsreprisefermée,0Swapoutresteancréàqualitév3/pré20/post30 ; gardes256Mio/12e9. Aucun codeexécutablemodifié ; analyseparphase/largeur àpartirdesévénements etcontrôle descompteurscumulatifs.
+
+- **64D posttraitement préenregistré avant code** : ajouter uniquement l'analyse nécessaire des traces déjà validées par `profile_flash.py`, sans instrumentation moteur. Attribuer chaque occurrence/hit/miss/record lu à sa fenêtre `verify_draft`, distinguer le pas ordinaire final, contrecontrôler aux48snapshots MoE et à `expert_demand_bytes`. Histogrames de largeurs et multiplicités par expert, octets/token et par ligne ; assertions de couverture nonvide. Tests déterministes sur48couches aveccohorteB2 etdeuxB1 de mêmeI/O physique (le tauxhitlogique diffère), comptages faux/incomplets/largeursinvalides refusés. TentativeCrossHair après finGPU, format/lint/tests ciblés ; si absent marquer nonprouvé. Aucun build/proveur ni exécution de tests pendant le diagnosticGPU ; l'analyse n'est pas dans les146sources du binairev6 figé et ne change aucune inférence.
+
+- 45-Q/R processus A-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 45-Q/R processus A-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 45-Q/R processus A-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 45-Q/R processus A-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 45-Q/R processus A-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 45-Q/R processus A-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 45-Q/R processus A-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 45-Q/R processus A-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/run-result.json.
+
+- 64L Hot-demand v6 débit A : inconclusive_drift, contrôle seul=False ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-result-lfu-v6.json. 63/WIDE restent1 ; UNIQUE seul varie. Postflight final encore requis.
+
+- 45-Q/R processus after-MTP-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-after/run-result.json.
+
+- 45-Q/R processus after-MTP-HOLD : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-after/run-result.json.
+
+- 45-Q/R processus after-OFF-MAIN : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-after/run-result.json.
+
+- 45-Q/R processus after-OFF-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-after-retry/run-result.json.
+
+- 45-Q/R processus after-OFF-HOLD : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/control-lfu-v6-after-retry/run-result.json.
+
+- 45-Q/R processus MAIN-U0 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/run-result.json.
+
+- 45-Q/R processus MAIN-U1 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/run-result.json.
+
+- 45-Q/R processus HOLD-U1 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/run-result.json.
+
+- 45-Q/R processus HOLD-U0 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/run-result.json.
+
+- **53 dataset cache-width-64D : complete_validated_diagnostic**, parité=True ; docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/dataset-result.json.
+
+- **64L v6 clos, débit non concluant** :8processus/16réponses exactes, post30passé, picphysique8 259 656 256B,0nouveauSwapout. HCCH MAIN10,649/10,619/10,743/10,424tok/s ; HOLD9,544/8,433/9,849/9,584. Gains−0,283/+3,059% et−11,635/+2,768%, étendues3,341/14,403points ; témoins dérivent2,155/0,418%, pas>5%. Le mauvais8,433 est conservé (67cycles/59acceptés contre55/71,140lignes cible identiques). Aucun gain qualifié, UNIQUEreste0. Témoins frais OFFavant10,268/10,110 puis10,725/10,281MAIN/HOLD ; MTPavant11,086/10,101 puis11,152/10,310. OFFfinal interrompuEAGAIN35 etpostflightéchoué conservés ; relance utilisateur des2OFFmanquants seulement passe avecorigineSwapoutpréservée/post30. Rapport64Lactualisé etclosure-lfu-v6.json ; aucune autre inférence active.
+
+- **64D clos, diagnostic validé, pas de gainTPS** :4processusjoints/24générations/8traces, logits248320/états/sorties exacts,48compteursbackendetroutecoverage contrevérifiés. Picphysique8 461 097 944B,incomingmax1 769 472B,0nouveauSwapout/pré20/post30. Mo demandés/token moyennés2traces :MAIN181,685→177,475(−2,317%),HOLD178,703→174,335(−2,444%). Hits/MissesMAIN42023/21337→41776/22544,HOLD42600/20760→42415/20945 ;hitslogiquesdépendentdesfrontièrescohortes, recordsdemandés≠I/OphysiqueNVMe. Histogrammes B1..8etpasordinaire conservés danscache-width-analysis.json, pasune reconstructiondu128sorties. Analyzer+9régressions/Ruffpassent ; CrossHair absent, nonprouvé. CI PythonPR/pushajoutée, nouvelleCIpasencoreinspectée. CommandeanalysearchivéeetSHA, rapport docs/flash-next-ssd-cache-width-64-2026-10-21.md. Strata011c9e60/Splash1482f6bb reconsultés :groupementau-delàB2etpetitgroupfallback ;ancien58B2seulement/planSIMD32nonextensibleà80, GPUjamaisqualifié. Aucunchangementnativedepuisv6 ;ancienneCIexactAA Linux/macOSMLX/FlashKani passent, Kaniglobal annulédansanciencache_allocation_is_optimal_and_exact_on_two_layers_two_levels, pasuncontre-exemple niCIglobaleverte.
+
+- **64D reproductibilité du posttraitement** :première relecture du fichiercommande échoue sur une assertion trop stricte comparant touteslignescible au seul compteurverified_rows ; HOLDpossède un pasordinaire final. Commandecorrigée avant publication pour ajoutercepas explicitement ; données/analyzer/histogrammesinchangés. AucunGPUrelancé. SuitePythonliée107tests passée ; reproduction8traces exigée avantcommit.
+
+- **64D relecturecommande, secondrefus** :égalité finale Python/JSON comparait clésentièresauxclés JSON chaînes ; normalisationJSON requise. Aucun compteur/résultat modifié, cesdeuxéchecsdecommande gardésaujournal. Les assertionsbackend48couchesetbudget étaientpassées pour8traces avantcette dernièrecomparaison.
+
+- **64D relecture finale passée** :8traces reproduites identiquesauJSONarchivé, compteurs48couchesetfullroutecoverageexactes ;107testsPythonpassés, Ruff/py_compilepassent. Revuefinale/workflowCIinspectés ; aucune nouvellepreuveformelle Python(CrossHairabsent), aucunemodificationnativerequise. Diagnosticclosetprêtàpublicationavec64Lnonconcluant.

@@ -1,0 +1,620 @@
+{
+  "status": "complete_backend_counters_and_width_coverage_exact",
+  "parity": true,
+  "rows": [
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 3,
+        "2": 7,
+        "3": 2,
+        "5": 1,
+        "6": 1,
+        "8": 4
+      },
+      "ordinary_target_steps": 0,
+      "target_rows": 66,
+      "logical_hits": 20983,
+      "logical_misses": 10697,
+      "logical_hit_fraction": 0.6623421717171717,
+      "requested_record_bytes": 11475470340,
+      "requested_bytes_per_token": 182150322.85714287,
+      "requested_bytes_per_target_row": 173870762.72727272,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          1012,
+          428,
+          534149136
+        ],
+        "2": [
+          4379,
+          2341,
+          2563416648
+        ],
+        "3": [
+          1917,
+          963,
+          1080778392
+        ],
+        "5": [
+          1562,
+          838,
+          821191896
+        ],
+        "6": [
+          1700,
+          1180,
+          1101994596
+        ],
+        "8": [
+          10413,
+          4947,
+          5373939672
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 13587,
+        "2": 4112,
+        "3": 1072,
+        "4": 520,
+        "5": 409,
+        "6": 213,
+        "7": 126,
+        "8": 46
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 16400,
+        "2": 4475,
+        "3": 1064,
+        "4": 437,
+        "5": 278
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "MAIN",
+      "unique": 0,
+      "phase": "trace_1",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/MAIN-U0/trace_1-decode.json.gz",
+      "source_sha256": "c5ae506a632d486da0adad2fe1d8d2b450ee0f164a40c149469f4435cf12e718"
+    },
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 3,
+        "2": 7,
+        "3": 2,
+        "5": 1,
+        "6": 1,
+        "8": 4
+      },
+      "ordinary_target_steps": 0,
+      "target_rows": 66,
+      "logical_hits": 21040,
+      "logical_misses": 10640,
+      "logical_hit_fraction": 0.6641414141414141,
+      "requested_record_bytes": 11416813776,
+      "requested_bytes_per_token": 181219266.2857143,
+      "requested_bytes_per_target_row": 172982026.9090909,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          1033,
+          407,
+          507940884
+        ],
+        "2": [
+          4433,
+          2287,
+          2513496168
+        ],
+        "3": [
+          1917,
+          963,
+          1075786344
+        ],
+        "5": [
+          1567,
+          833,
+          821191896
+        ],
+        "6": [
+          1690,
+          1190,
+          1105738632
+        ],
+        "8": [
+          10400,
+          4960,
+          5392659852
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 13587,
+        "2": 4112,
+        "3": 1072,
+        "4": 520,
+        "5": 409,
+        "6": 213,
+        "7": 126,
+        "8": 46
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 16400,
+        "2": 4475,
+        "3": 1064,
+        "4": 437,
+        "5": 278
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "MAIN",
+      "unique": 0,
+      "phase": "trace_2",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/MAIN-U0/trace_2-decode.json.gz",
+      "source_sha256": "20c502184d2ce7074b3c18142eccf7cc2a33904c266569845563aebc770198ba"
+    },
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 2,
+        "2": 8,
+        "3": 2,
+        "5": 1,
+        "6": 1,
+        "8": 4
+      },
+      "ordinary_target_steps": 0,
+      "target_rows": 67,
+      "logical_hits": 20809,
+      "logical_misses": 11351,
+      "logical_hit_fraction": 0.6470460199004975,
+      "requested_record_bytes": 11215883844,
+      "requested_bytes_per_token": 178029902.2857143,
+      "requested_bytes_per_target_row": 167401251.40298507,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          633,
+          327,
+          408099924
+        ],
+        "2": [
+          5192,
+          2488,
+          2741882364
+        ],
+        "3": [
+          1891,
+          989,
+          1097002548
+        ],
+        "5": [
+          1599,
+          801,
+          792487620
+        ],
+        "6": [
+          1653,
+          1227,
+          1057066164
+        ],
+        "8": [
+          9841,
+          5519,
+          5119345224
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 13483,
+        "2": 4404,
+        "3": 1072,
+        "4": 520,
+        "5": 409,
+        "6": 213,
+        "7": 126,
+        "8": 46
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 13603,
+        "2": 4386,
+        "3": 1063,
+        "4": 515,
+        "5": 411,
+        "6": 218,
+        "7": 115,
+        "8": 46
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "MAIN",
+      "unique": 1,
+      "phase": "trace_1",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/MAIN-U1/trace_1-decode.json.gz",
+      "source_sha256": "b3f01651af25ece677c20acdc87976ca808b463135563a7cdf590d3315f6133f"
+    },
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 2,
+        "2": 8,
+        "3": 2,
+        "5": 1,
+        "6": 1,
+        "8": 4
+      },
+      "ordinary_target_steps": 0,
+      "target_rows": 67,
+      "logical_hits": 20967,
+      "logical_misses": 11193,
+      "logical_hit_fraction": 0.6519589552238806,
+      "requested_record_bytes": 11145995172,
+      "requested_bytes_per_token": 176920558.2857143,
+      "requested_bytes_per_target_row": 166358136.8955224,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          642,
+          318,
+          396867816
+        ],
+        "2": [
+          5239,
+          2441,
+          2694457908
+        ],
+        "3": [
+          1889,
+          991,
+          1100746584
+        ],
+        "5": [
+          1595,
+          805,
+          793735632
+        ],
+        "6": [
+          1657,
+          1223,
+          1063306224
+        ],
+        "8": [
+          9945,
+          5415,
+          5096881008
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 13483,
+        "2": 4404,
+        "3": 1072,
+        "4": 520,
+        "5": 409,
+        "6": 213,
+        "7": 126,
+        "8": 46
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 13603,
+        "2": 4386,
+        "3": 1063,
+        "4": 515,
+        "5": 411,
+        "6": 218,
+        "7": 115,
+        "8": 46
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "MAIN",
+      "unique": 1,
+      "phase": "trace_2",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/MAIN-U1/trace_2-decode.json.gz",
+      "source_sha256": "110f06cad8fbadee2bd487bb913545da7d8b11d9be57bd514a13cfbf772c4513"
+    },
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 5,
+        "2": 6,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "8": 3
+      },
+      "ordinary_target_steps": 1,
+      "target_rows": 66,
+      "logical_hits": 21241,
+      "logical_misses": 10439,
+      "logical_hit_fraction": 0.6704861111111111,
+      "requested_record_bytes": 10958793372,
+      "requested_bytes_per_token": 173949101.14285713,
+      "requested_bytes_per_target_row": 166042323.8181818,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          2078,
+          802,
+          1000905624
+        ],
+        "2": [
+          3720,
+          2040,
+          2283861960
+        ],
+        "3": [
+          2032,
+          848,
+          948489120
+        ],
+        "4": [
+          2688,
+          1152,
+          1170635256
+        ],
+        "5": [
+          3320,
+          1480,
+          1613679516
+        ],
+        "8": [
+          7403,
+          4117,
+          3941221896
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 15857,
+        "2": 3658,
+        "3": 1201,
+        "4": 626,
+        "5": 208,
+        "6": 114,
+        "7": 52,
+        "8": 39
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 15967,
+        "2": 3648,
+        "3": 1195,
+        "4": 613,
+        "5": 208,
+        "6": 113,
+        "7": 50,
+        "8": 39
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "HOLD",
+      "unique": 1,
+      "phase": "trace_1",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/HOLD-U1/trace_1-decode.json.gz",
+      "source_sha256": "ebfed1fe68cccbbc3d5ef2a4d281ebfb6a9228d77b83aa2e4f0bae02fbb7b686"
+    },
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 3,
+        "2": 7,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "8": 3
+      },
+      "ordinary_target_steps": 1,
+      "target_rows": 66,
+      "logical_hits": 21174,
+      "logical_misses": 10506,
+      "logical_hit_fraction": 0.6683712121212121,
+      "requested_record_bytes": 11007465840,
+      "requested_bytes_per_token": 174721680.0,
+      "requested_bytes_per_target_row": 166779785.45454547,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          1375,
+          545,
+          680166540
+        ],
+        "2": [
+          4360,
+          2360,
+          2643289416
+        ],
+        "3": [
+          2027,
+          853,
+          955977192
+        ],
+        "4": [
+          2693,
+          1147,
+          1163147184
+        ],
+        "5": [
+          3311,
+          1489,
+          1633647708
+        ],
+        "8": [
+          7408,
+          4112,
+          3931237800
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 15503,
+        "2": 3835,
+        "3": 1201,
+        "4": 626,
+        "5": 208,
+        "6": 114,
+        "7": 52,
+        "8": 39
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 15613,
+        "2": 3825,
+        "3": 1195,
+        "4": 613,
+        "5": 208,
+        "6": 113,
+        "7": 50,
+        "8": 39
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "HOLD",
+      "unique": 1,
+      "phase": "trace_2",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/HOLD-U1/trace_2-decode.json.gz",
+      "source_sha256": "3826cd1c53bf765126c22ae701377d52383e01db6a1cfddd311302c8b54b75b6"
+    },
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 5,
+        "2": 6,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "8": 3
+      },
+      "ordinary_target_steps": 1,
+      "target_rows": 66,
+      "logical_hits": 21313,
+      "logical_misses": 10367,
+      "logical_hit_fraction": 0.6727588383838384,
+      "requested_record_bytes": 11280780468,
+      "requested_bytes_per_token": 179060007.42857143,
+      "requested_bytes_per_target_row": 170920916.1818182,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          2029,
+          851,
+          1062058212
+        ],
+        "2": [
+          3686,
+          2074,
+          2322550332
+        ],
+        "3": [
+          2023,
+          857,
+          955977192
+        ],
+        "4": [
+          2676,
+          1164,
+          1180619352
+        ],
+        "5": [
+          3313,
+          1487,
+          1641135780
+        ],
+        "8": [
+          7586,
+          3934,
+          4118439600
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 15857,
+        "2": 3658,
+        "3": 1201,
+        "4": 626,
+        "5": 208,
+        "6": 114,
+        "7": 52,
+        "8": 39
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 17149,
+        "2": 4033,
+        "3": 1213,
+        "4": 509,
+        "5": 158
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "HOLD",
+      "unique": 0,
+      "phase": "trace_1",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/HOLD-U0/trace_1-decode.json.gz",
+      "source_sha256": "06ef4ea420afaea22481d8e47d338af8822954d7d799127c57f2b3314955eb99"
+    },
+    {
+      "emitted_decode_tokens": 63,
+      "verified_windows_by_rows": {
+        "1": 7,
+        "2": 5,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "8": 3
+      },
+      "ordinary_target_steps": 1,
+      "target_rows": 66,
+      "logical_hits": 21287,
+      "logical_misses": 10393,
+      "logical_hit_fraction": 0.6719381313131313,
+      "requested_record_bytes": 11235852036,
+      "requested_bytes_per_token": 178346857.7142857,
+      "requested_bytes_per_target_row": 170240182.36363637,
+      "by_target_width_hits_misses_bytes": {
+        "1": [
+          2735,
+          1105,
+          1379053260
+        ],
+        "2": [
+          3034,
+          1766,
+          1911954384
+        ],
+        "3": [
+          2014,
+          866,
+          970953336
+        ],
+        "4": [
+          2695,
+          1145,
+          1163147184
+        ],
+        "5": [
+          3287,
+          1513,
+          1647375840
+        ],
+        "8": [
+          7522,
+          3998,
+          4163368032
+        ]
+      },
+      "expert_multiplicity_per_window_layer": {
+        "1": 16001,
+        "2": 3586,
+        "3": 1201,
+        "4": 626,
+        "5": 208,
+        "6": 114,
+        "7": 52,
+        "8": 39
+      },
+      "expert_multiplicity_per_moe_cohort": {
+        "1": 17293,
+        "2": 3961,
+        "3": 1213,
+        "4": 509,
+        "5": 158
+      },
+      "backend_counters_exact": true,
+      "limits": "Logical hits depend on cohort boundaries; record bytes are not physical NVMe bytes. Width1 includes ordinary steps, listed separately. Multiplicities are upper bounds before separating Hot/Cold compute phases. No exclusive GPU or throughput claim.",
+      "prompt": "HOLD",
+      "unique": 0,
+      "phase": "trace_2",
+      "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D/HOLD-U0/trace_2-decode.json.gz",
+      "source_sha256": "f06dee988aa92b7c2906ff5f2b556ad7417e3f5ef2f68e378a57f0788dd21f0e"
+    }
+  ],
+  "native_identity": "identity-v6.json",
+  "code_source_commit": "aa5bc75f"
+}

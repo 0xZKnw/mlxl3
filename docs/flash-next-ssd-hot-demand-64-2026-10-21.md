@@ -1,6 +1,6 @@
 # Demande Hot perdue dans le repli — expérience64L
 
-21 octobre2026. **Défaut reproduit ; correction physique validée en v6, gain de débit non mesuré.** Suite de [64H](flash-next-ssd-early-hot-64-2026-10-21.md), dont le gain de débit est rejeté. Le correctif ne constitue pas encore un gain de tok/s.
+21 octobre2026. **Défaut reproduit et corrigé ; qualité physique validée en v6, gain de débit non concluant.** Suite de [64H](flash-next-ssd-early-hot-64-2026-10-21.md), dont le gain de débit est rejeté. Le correctif est publié dans la PR34 au commit `aa5bc75f` ; UNIQUE reste désactivé par défaut.
 
 Le repli termine le calcul Hot de toute la fenêtre puis réutilise ses valeurs, même si leurs anciens slots sont réaffectés. Il réserve uniquement Cold. Cette optimisation omettait un effet de `ExpertCache::reserve` : mettre à jour la fréquence et l'ancienneté des experts effectivement demandés. Des experts Hot utilisés pouvaient donc être évincés à la place d'experts moins utilisés.
 
@@ -18,6 +18,21 @@ La qualité v6 passe :32cas MoE en1,786s,36préfixes du vérificateur DFlash ave
 
 Les contrôles locaux déjà exécutés passent : rustfmt,Clippy strict,115tests CPU/3ignorés et144tests MLX/chat/144ignorés ; les tests physiques sont sélectionnés séparément. Kani retenté sur le vrai chemin Rust échoue avant obligations dans `intrinsics.rs:243`, chemin GPU **non prouvé**. Le helper CPU inchangé garde sa vérification bornée20IDs0..511/capacité0..512/unwind21 ; cela ne prouve ni80IDs, niMLX/Metal/concurrence.
 
-Le protocole préenregistré reste DFlash2Q4/ring/adaptatif7,MAIN/HOLD,128sorties/127decode,HCCH UNIQUE0/1 dans le même binaire ;63/Hot/Wide1,cache3Gio,4lecteurs,allocateur512Mio,secteur/applis ouvertes. Seuils≥1%chaque paire, dérive≤5%, étendue≤3points. Empreinte physique≤12milliards d'octets,0nouveauSwapout depuis l'origine qualitév3 conservée, incoming256Mio par fenêtre courte,pré20/post30. Aucun débit64L mesuré à cette rédaction. Le flag UNIQUE reste0par défaut ; application installée inchangée.
+Le protocole préenregistré est DFlash2Q4/ring/adaptatif7,MAIN/HOLD,128sorties/127decode,HCCH UNIQUE0/1 dans le même binaire ;63/Hot/Wide1,cache3Gio,4lecteurs,allocateur512Mio,secteur/applis ouvertes. Seuils≥1%chaque paire, dérive≤5%, étendue≤3points. Empreinte physique≤12milliards d'octets,0nouveauSwapout depuis l'origine qualitév3 conservée, incoming256Mio par fenêtre courte,pré20/post30.
+
+Les huit processus DFlash passent les contrôles de sortie et le postcontrôle30s, avec un pic physique de8 259 656 256octets et aucun nouveau Swapout. Les seize réponses (chauffes comprises) sont exactes. Le débit reste **non concluant** :
+
+| Prompt | H1 UNIQUE0 | C1 UNIQUE1 | C2 UNIQUE1 | H2 UNIQUE0 | Gains appariés |
+| --- | ---: | ---: | ---: | ---: | --- |
+| MAIN | 10,649 | 10,619 | 10,743 | 10,424 | −0,283% ; +3,059% |
+| HOLD | 9,544 | 8,433 | 9,849 | 9,584 | −11,635% ; +2,768% |
+
+Unités tok/s. La dérive des témoins est2,155%MAIN/0,418%HOLD ; l'étendue des gains dépasse3points (3,341/14,403). L'étiquette automatique `inconclusive_drift` désigne ici la dispersion des gains, pas une dérive des seuls témoins supérieure à5%. Le8,433 est conservé. Ce bras a67cycles/59acceptés contre55/71pour l'autre candidat HOLD, malgré140lignes cible dans les deux : l'ordonnancement adaptatif change le nombre de cycles. Ces compteurs ne prouvent pas une cause GPU exclusive.
+
+[Débits et contrôles mémoire](measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-result-lfu-v6.json), [tous les bras](measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-A-lfu-v6/), [clôture](measurements/flash-next-ssd-impl/opt-64-unique-cohort/closure-lfu-v6.json).
+
+Les témoins frais128 sont OFF10,268→10,725 MAIN et10,110→10,281 HOLD ; MTP1 11,086→11,152 MAIN et10,101→10,310 HOLD. Les quatre premiers et les deux MTP finaux passent. Le premier OFF final a été interrompu par `BlockingIOError: [Errno35] Resource temporarily unavailable` lors d'un lancement de processus ; le rapport et son postcontrôle échoué restent `parity:false`. Après récupération sans modèle, la relance explicitement demandée des **deux OFF manquants seulement** passe, avec l'origine Swapout initiale conservée et postcontrôle30s. Aucun témoin ne remplace un résultat DFlash défavorable ; aucun gain n'est qualifié.
+
+L'[analyse64D des hits, octets et largeurs](flash-next-ssd-cache-width-64-2026-10-21.md) observe environ2,3–2,4% de records demandés en moins, sur des traces64sorties distinctes. Elle ne reconstruit pas les histogrammes absents des statistiques CLI128 et ne valide pas un gain de débit. L'application installée reste inchangée.
 
 L'audit de portée64A confirme que les240/144splits historiques appartiennent au décodage. Ils représentent5grandes fenêtres sur17–18passages cible MAIN et3sur22HOLD ; leurs durées de vérification hôte inclusives pèsent55,5–56,2%/35,4–35,8%. Ces fractions ne représentent ni du GPU exclusif, ni du surcoût intégralement supprimable. [Histogrammes, durées et SHA des quatre traces](measurements/flash-next-ssd-impl/opt-64-unique-cohort/scope-audit-64A.json). Le chiffre90%reste conditionnel aux seuls splits, pas à toutes les vérifications.
