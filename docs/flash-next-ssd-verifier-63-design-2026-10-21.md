@@ -1,5 +1,7 @@
 # 63V — prochain prototype du vérificateur Flash multi-lignes
 
+Actualisation du21octobre2026 : conception historique ci-dessous conservée ; l’implémentation, les contrôles et mesures63 sont désormais décrits dans le [rapport de réalisation](flash-next-ssd-verifier-63-2026-10-21.md). Ce statut initial ne décrit pas le code actuel.
+
 **Conception uniquement, aucun code ni benchmark63 lancé.** La campagne62H v2 doit finir avant toute compilation locale. La base source est2eccb469 ; les réglages Hot seront fixés après la qualification complète62, pas choisis selon un seul prompt.
 
 ## Réemploi du moteur existant

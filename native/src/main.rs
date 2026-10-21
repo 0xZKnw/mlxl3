@@ -2183,6 +2183,7 @@ struct NativeStats {
     dflash_blocks: Option<usize>,
     dflash_lookup_blocks: Option<usize>,
     dflash_block_seconds: f64,
+    dflash_profile: Option<mlxl3_native::qwen4::FlashDraftProfile>,
     mtp_proposed_tokens: Option<usize>,
     mtp_accepted_tokens: Option<usize>,
     mtp_blocks: Option<usize>,
@@ -2207,6 +2208,14 @@ impl NativeStats {
         self.context_limit = round.context_limit;
         self.round_count += round.round_count;
         self.dflash_block_seconds += round.dflash_block_seconds;
+        if let Some(profile) = round.dflash_profile {
+            let sum = self.dflash_profile.get_or_insert_with(Default::default);
+            sum.draft_seconds += profile.draft_seconds;
+            sum.verification_seconds += profile.verification_seconds;
+            sum.commit_cache_seconds += profile.commit_cache_seconds;
+            sum.verified_rows += profile.verified_rows;
+            sum.expert_demand_bytes += profile.expert_demand_bytes;
+        }
         self.memory = round.memory;
         if let Some(counts) = round.mtp_depth_blocks {
             let sum = self.mtp_depth_blocks.get_or_insert([0; 4]);
@@ -2599,6 +2608,7 @@ fn bridge_generate_round(
         stats.dflash_blocks = Some(blocks);
         stats.dflash_lookup_blocks = Some(0);
         stats.dflash_block_seconds = seconds;
+        stats.dflash_profile = target.dflash2_profile();
     }
     Ok(RoundOutput {
         raw: complete,
@@ -3551,6 +3561,13 @@ mod tests {
             decode_seconds: 1.,
             decode_tokens: 10,
             round_count: 1,
+            dflash_profile: Some(mlxl3_native::qwen4::FlashDraftProfile {
+                draft_seconds: 0.25,
+                verification_seconds: 0.5,
+                commit_cache_seconds: 0.125,
+                verified_rows: 12,
+                expert_demand_bytes: 1_248_012,
+            }),
             dflash_proposed_tokens: Some(10),
             dflash_accepted_tokens: Some(6),
             dflash_blocks: Some(2),
@@ -3569,6 +3586,13 @@ mod tests {
             context_used: 231,
             context_limit: 4096,
             round_count: 1,
+            dflash_profile: Some(mlxl3_native::qwen4::FlashDraftProfile {
+                draft_seconds: 0.125,
+                verification_seconds: 1.,
+                commit_cache_seconds: 0.125,
+                verified_rows: 48,
+                expert_demand_bytes: 2_496_024,
+            }),
             dflash_proposed_tokens: Some(40),
             dflash_accepted_tokens: Some(22),
             dflash_blocks: Some(8),
@@ -3591,6 +3615,22 @@ mod tests {
         assert_eq!((first.context_used, first.context_limit), (231, 4096));
         assert_eq!(first.mtp_lookup_blocks, Some(7));
         assert_eq!(first.dflash_lookup_blocks, Some(4));
+        let profile = first.dflash_profile.unwrap();
+        assert_eq!(
+            (
+                profile.draft_seconds,
+                profile.verification_seconds,
+                profile.commit_cache_seconds
+            ),
+            (0.375, 1.5, 0.25)
+        );
+        assert_eq!(
+            (profile.verified_rows, profile.expert_demand_bytes),
+            (60, 3_744_036)
+        );
+        let encoded = serde_json::to_value(&first).unwrap();
+        assert_eq!(encoded["dflash_profile"]["verified_rows"], 60);
+        assert_eq!(encoded["dflash_profile"]["verification_seconds"], 1.5);
         assert_eq!(
             (
                 first.dflash_proposed_tokens,

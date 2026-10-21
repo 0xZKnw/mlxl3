@@ -32,6 +32,17 @@ const EOS: u32 = 248044;
 #[path = "flash_draft.rs"]
 mod draft;
 
+/// Inclusive host timings; verification includes its existing GPU completion waits.
+#[cfg(feature = "chat")]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
+pub struct FlashDraftProfile {
+    pub draft_seconds: f64,
+    pub verification_seconds: f64,
+    pub commit_cache_seconds: f64,
+    pub verified_rows: usize,
+    pub expert_demand_bytes: u64,
+}
+
 struct Norm {
     gain: Array,
     width: i32,
@@ -141,6 +152,16 @@ impl Hc {
     }
 }
 
+fn verification_projection(projection: &Projection, input: &Array) -> Result<Array> {
+    if projection.is_exl3() {
+        return projection.forward(input);
+    }
+    let rows = (0..input.shape()[0])
+        .map(|row| projection.forward(&input.slice(0, row, row + 1)?))
+        .collect::<Result<Vec<_>>>()?;
+    Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)
+}
+
 struct Gdn {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
@@ -197,29 +218,8 @@ impl Gdn {
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 10240])?;
         stage!("qkv", qkv);
-        let history = match &self.history {
-            Some(h) => h.try_clone()?,
-            None => Array::zeros_dtype(&[1, 3, 10240], Dtype::Float16)?,
-        };
-        let input = Array::concatenate(&[&history, &qkv], 1)?;
-        self.history = Some(input.slice(1, 1, 4)?);
-        let conv = input
-            .astype(Dtype::Float32)?
-            .mul(&self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?)?
-            .sum(1, true)?
-            .astype(Dtype::Float16)?
-            .silu()?;
-        stage!("conv", conv);
-        let q = conv.slice(2, 0, 2048)?.reshape(&[1, 1, 16, 128])?;
-        let k = conv.slice(2, 2048, 4096)?.reshape(&[1, 1, 16, 128])?;
-        let v = conv.slice(2, 4096, 10240)?.reshape(&[1, 1, 48, 128])?;
-        let norm = |value: &Array, scale: f32| -> Result<Array> {
-            let eps = Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()], &[])?;
-            let inverse = value.mul(value)?.sum(3, true)?.add(&eps)?.rsqrt()?;
-            value.mul(&inverse)?.scalar_mul(scale)
-        };
-        let q = norm(&q, 1. / 128f32.sqrt())?;
-        let k = norm(&k, 1.)?;
+        let (_conv, q, k, v) = self.convolve(&qkv)?;
+        stage!("conv", _conv);
         stage!("q", q);
         stage!("k", k);
         stage!("v", v);
@@ -259,6 +259,123 @@ impl Gdn {
         self.out
             .forward(&gated.reshape(&[1, 6144])?)?
             .astype(Dtype::Float32)
+    }
+    fn convolve(&mut self, qkv: &Array) -> Result<(Array, Array, Array, Array)> {
+        let history = match &self.history {
+            Some(h) => h.try_clone()?,
+            None => Array::zeros_dtype(&[1, 3, 10240], Dtype::Float16)?,
+        };
+        let input = Array::concatenate(&[&history, qkv], 1)?;
+        self.history = Some(input.slice(1, 1, 4)?);
+        let conv = input
+            .astype(Dtype::Float32)?
+            .mul(&self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?)?
+            .sum(1, true)?
+            .astype(Dtype::Float16)?
+            .silu()?;
+        let q = conv.slice(2, 0, 2048)?.reshape(&[1, 1, 16, 128])?;
+        let k = conv.slice(2, 2048, 4096)?.reshape(&[1, 1, 16, 128])?;
+        let v = conv.slice(2, 4096, 10240)?.reshape(&[1, 1, 48, 128])?;
+        let norm = |value: &Array, scale: f32| -> Result<Array> {
+            let eps = Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()], &[])?;
+            let inverse = value.mul(value)?.sum(3, true)?.add(&eps)?.rsqrt()?;
+            value.mul(&inverse)?.scalar_mul(scale)
+        };
+        let q = norm(&q, 1. / 128f32.sqrt())?;
+        let k = norm(&k, 1.)?;
+        Ok((conv, q, k, v))
+    }
+
+    fn forward_rows(&mut self, inputs: &[Array]) -> Result<(Vec<Array>, Vec<AttentionState>)> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("gdn_rows");
+        ensure!(
+            (2..=8).contains(&inputs.len()),
+            "invalid GDN verification width"
+        );
+        #[cfg(test)]
+        self.stages.clear();
+        let rows = inputs.len() as i32;
+        let input =
+            Array::concatenate(&inputs.iter().collect::<Vec<_>>(), 0)?.astype(Dtype::Float16)?;
+        let qkv = verification_projection(&self.qkv, &input)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, rows, 10240])?;
+        let mut prepared = Vec::with_capacity(inputs.len());
+        let mut histories = Vec::with_capacity(inputs.len() - 1);
+        for row in 0..rows {
+            let (_, q, k, v) = self.convolve(&qkv.slice(1, row, row + 1)?)?;
+            prepared.push([q, k, v]);
+            if row + 1 < rows {
+                histories.push(clone_array(&self.history)?);
+            }
+        }
+        let cat = |column: usize| {
+            Array::concatenate(&prepared.iter().map(|p| &p[column]).collect::<Vec<_>>(), 1)
+        };
+        let q = cat(0)?;
+        let k = cat(1)?;
+        let v = cat(2)?;
+        let a = verification_projection(&self.a, &input)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, rows, 48])?;
+        let b = verification_projection(&self.b, &input)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, rows, 48])?;
+        let initial = match &self.state {
+            Some(state) => state.try_clone()?,
+            None => Array::zeros_dtype(&[1, 48, 128, 128], Dtype::Float32)?,
+        };
+        let (value, final_state, tape) = gated_delta::step_with_gates_tape(
+            &q,
+            &k,
+            &v,
+            &a,
+            &b,
+            &self.a_log,
+            &self.dt_bias,
+            &initial,
+        )?;
+        self.state = Some(final_state);
+        let tape = Rc::new(tape);
+        let snapshots = histories
+            .into_iter()
+            .enumerate()
+            .map(|(row, history)| AttentionState::GdnTape {
+                history,
+                tape: Rc::clone(&tape),
+                retained: row as i32 + 1,
+            })
+            .collect();
+        let z = verification_projection(&self.z, &input)?
+            .astype(Dtype::Float16)?
+            .reshape(&[1, rows, 48, 128])?;
+        let mut gated = Vec::with_capacity(inputs.len());
+        for row in 0..rows {
+            let normed = self.norm.forward(&value.slice(1, row, row + 1)?)?;
+            gated.push(
+                normed
+                    .astype(Dtype::Float32)?
+                    .mul(
+                        &z.slice(1, row, row + 1)?
+                            .astype(Dtype::Float32)?
+                            .sigmoid()?,
+                    )?
+                    .astype(Dtype::Float16)?
+                    .reshape(&[1, 6144])?,
+            );
+        }
+        let output = verification_projection(
+            &self.out,
+            &Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?,
+        )?
+        .astype(Dtype::Float32)?;
+        Ok((
+            (0..rows)
+                .map(|row| output.slice(0, row, row + 1))
+                .collect::<Result<Vec<_>>>()?,
+            snapshots,
+        ))
     }
     fn reset(&mut self) {
         self.state = None;
@@ -787,12 +904,18 @@ enum AttentionState {
         history: Option<Array>,
         state: Option<Array>,
     },
+    GdnTape {
+        history: Option<Array>,
+        tape: Rc<gated_delta::RecurrentTape>,
+        retained: i32,
+    },
     Qsa(QsaState),
 }
 struct LayerState {
     attention: AttentionState,
     ple: Option<(Option<Array>, [u32; 2])>,
 }
+type PreparedRow = (Array, Array, Array);
 pub(crate) struct Layer {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
@@ -854,7 +977,7 @@ impl Layer {
         crate::flash_profile::stage("mlp_hc_write", &written)?;
         Ok(written)
     }
-    fn prepare(&mut self, streams: &Array, token: u32) -> Result<(Array, Array, Array)> {
+    fn prepare(&mut self, streams: &Array, token: u32) -> Result<PreparedRow> {
         #[cfg(test)]
         let _prepare_profile = crate::flash_profile::span("prepare");
         #[cfg(test)]
@@ -910,6 +1033,70 @@ impl Layer {
         }
         Ok((streams, mixed, gate.context("missing MoE injection")?))
     }
+    fn prepare_rows(
+        &mut self,
+        streams: &[Array],
+        tokens: &[u32],
+        multi: bool,
+    ) -> Result<(Vec<PreparedRow>, Vec<LayerState>)> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("prepare_rows");
+        ensure!(
+            streams.len() == tokens.len() && (1..=8).contains(&tokens.len()),
+            "invalid Flash preparation rows"
+        );
+        if !multi || tokens.len() == 1 || matches!(self.attention, Attention::Qsa(_)) {
+            let mut prepared = Vec::with_capacity(tokens.len());
+            let mut states = Vec::with_capacity(tokens.len() - 1);
+            for (row, (&token, stream)) in tokens.iter().zip(streams).enumerate() {
+                prepared.push(self.prepare(stream, token)?);
+                if row + 1 < tokens.len() {
+                    states.push(self.snapshot()?);
+                }
+            }
+            return Ok((prepared, states));
+        }
+        let mut residuals = Vec::with_capacity(tokens.len());
+        let mut mixed = Vec::with_capacity(tokens.len());
+        let mut gates = Vec::with_capacity(tokens.len());
+        let mut ple_states = Vec::with_capacity(tokens.len() - 1);
+        for (row, (&token, stream)) in tokens.iter().zip(streams).enumerate() {
+            let residual = match &mut self.ple {
+                Some(ple) => ple.forward(stream, token)?,
+                None => stream.try_clone()?,
+            };
+            let (input, gate) = self.attn_hc.read(&residual)?;
+            residuals.push(residual);
+            mixed.push(input);
+            gates.push(gate.context("missing attention injection")?);
+            if row + 1 < tokens.len() {
+                ple_states.push(
+                    self.ple
+                        .as_ref()
+                        .map(|p| -> Result<_> { Ok((clone_array(&p.history)?, p.rows.previous)) })
+                        .transpose()?,
+                );
+            }
+        }
+        let Attention::Gdn(gdn) = &mut self.attention else {
+            unreachable!()
+        };
+        let (branches, snapshots) = gdn.forward_rows(&mixed)?;
+        let mut prepared = Vec::with_capacity(tokens.len());
+        for ((residual, branch), gate) in residuals.iter().zip(&branches).zip(&gates) {
+            let residual = Hc::write(residual, branch, gate)?;
+            let (input, gate) = self.mlp_hc.read(&residual)?;
+            prepared.push((residual, input, gate.context("missing MoE injection")?));
+        }
+        Ok((
+            prepared,
+            snapshots
+                .into_iter()
+                .zip(ple_states)
+                .map(|(attention, ple)| LayerState { attention, ple })
+                .collect(),
+        ))
+    }
     fn snapshot(&self) -> Result<LayerState> {
         Ok(LayerState {
             attention: match &self.attention {
@@ -932,6 +1119,18 @@ impl Layer {
                 g.history = history;
                 g.state = state;
             }
+            (
+                Attention::Gdn(g),
+                AttentionState::GdnTape {
+                    history,
+                    tape,
+                    retained,
+                },
+            ) => {
+                let state = tape.replay(retained)?;
+                g.history = history;
+                g.state = Some(state);
+            }
             (Attention::Qsa(q), AttentionState::Qsa(state)) => q.restore(state),
             _ => anyhow::bail!("invalid Flash attention snapshot"),
         }
@@ -948,12 +1147,15 @@ impl Layer {
         tokens: [u32; 2],
         next: Option<&mut SsdMoe>,
         depth: usize,
+        multi: bool,
     ) -> Result<([Array; 2], LayerState)> {
         #[cfg(test)]
         let _pair_profile = crate::flash_profile::span("forward_pair");
-        let a = self.prepare(&streams[0], tokens[0])?;
-        let first = self.snapshot()?;
-        let b = self.prepare(&streams[1], tokens[1])?;
+        let (prepared, mut states) = self.prepare_rows(streams, &tokens, multi)?;
+        let [a, b]: [PreparedRow; 2] = prepared
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("incomplete Flash pair preparation"))?;
+        let first = states.pop().context("missing Flash pair snapshot")?;
         let output =
             self.moe
                 .forward_lookahead(&Array::concatenate(&[&a.1, &b.1], 0)?, next, depth)?;
@@ -988,6 +1190,7 @@ pub struct FlashNext {
     context: i32,
     pub last_hidden: Option<Array>,
     verification: Option<PairState>,
+    multi_token: bool,
     lookahead_depth: usize,
     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
     #[cfg(feature = "chat")]
@@ -1001,6 +1204,7 @@ struct PairState {
 impl FlashNext {
     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
         ensure!(c.model_type == "qwen4_exp", "expected qwen4_exp");
+        let multi_token = flash_support::multi_token_verifier()?;
         let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
             Ok(value) => value
                 .parse::<usize>()
@@ -1182,6 +1386,7 @@ impl FlashNext {
             context,
             last_hidden: None,
             verification: None,
+            multi_token,
             lookahead_depth,
             lookahead_pool,
             #[cfg(feature = "chat")]
@@ -1299,13 +1504,32 @@ impl FlashNext {
             let next = (self.lookahead_depth > 0)
                 .then(|| rest.first_mut().map(|l| &mut l.moe))
                 .flatten();
-            let (output, first) =
-                current[i].forward_pair(&streams, tokens, next, self.lookahead_depth)?;
+            let (output, first) = current[i].forward_pair(
+                &streams,
+                tokens,
+                next,
+                self.lookahead_depth,
+                self.multi_token,
+            )?;
             streams = output;
             states.push(first);
         }
-        let logits =
-            Array::concatenate(&[&self.logits(&streams[0])?, &self.logits(&streams[1])?], 0)?;
+        let logits = if self.multi_token {
+            let input = streams
+                .iter()
+                .map(|stream| -> Result<Array> {
+                    self.mixer.read(stream)?.0.astype(Dtype::Float16)
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let logits = verification_projection(
+                &self.head,
+                &Array::concatenate(&input.iter().collect::<Vec<_>>(), 0)?,
+            )?;
+            logits.eval()?;
+            logits
+        } else {
+            Array::concatenate(&[&self.logits(&streams[0])?, &self.logits(&streams[1])?], 0)?
+        };
         let hidden = Array::concatenate(&[&streams[0], &streams[1]], 0)?;
         self.drain()?;
         self.verification = Some(PairState {

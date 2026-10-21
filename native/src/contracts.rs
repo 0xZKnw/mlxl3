@@ -344,6 +344,44 @@ pub(crate) fn qmv_batch_layout(rows: i32, grouped: bool, wide: bool) -> Option<(
     Some((mb, (rows + mb - 1) / mb))
 }
 
+/// Reference EXL3 reduction with two independent rows sharing each decoded tile.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn flash_reference_batch_layout(rows: i32) -> Option<(i32, i32)> {
+    if !(2..=8).contains(&rows) {
+        return None;
+    }
+    Some((2, (rows + 1) / 2))
+}
+
+#[test]
+fn flash_reference_batch_covers_odd_rows_without_extra_outputs() {
+    for rows in 2..=8 {
+        let (mb, groups) = flash_reference_batch_layout(rows).unwrap();
+        assert_eq!(mb, 2);
+        assert!(groups * mb >= rows && groups * mb < rows + mb);
+    }
+    for rows in [i32::MIN, -1, 0, 1, 9, 24, i32::MAX] {
+        assert_eq!(flash_reference_batch_layout(rows), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_reference_batch_has_exact_bounded_coverage() {
+    let rows: i32 = kani::any();
+    match flash_reference_batch_layout(rows) {
+        Some((mb, groups)) => {
+            assert!((2..=8).contains(&rows));
+            assert_eq!(mb, 2);
+            assert!(groups * mb >= rows && groups * mb < rows + mb);
+            assert!((1..=4).contains(&groups));
+            kani::cover!(rows == 3);
+            kani::cover!(rows == 8);
+        }
+        None => assert!(!(2..=8).contains(&rows)),
+    }
+}
+
 /// Experimental M3 geometry, restricted to the checkpoint shapes measured on M5.
 #[cfg(any(feature = "mlx", test, kani))]
 #[allow(clippy::too_many_arguments)]

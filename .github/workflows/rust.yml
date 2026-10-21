@@ -30,6 +30,9 @@ jobs:
             --harness cpu_slot_validation_preserves_bounds_for_real_route_widths
             --harness expert_cohorts_never_exceed_live_slot_capacity
             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+            --harness flash_reference_batch_has_exact_bounded_coverage
+            --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+            --harness gdn_tape_prefix_covers_all_valid_commits
             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
             --harness circular_writes_are_bounded_disjoint_and_cannot_wrap
             --harness adaptive_prefix_is_bounded_and_rejects_invalid_probabilities

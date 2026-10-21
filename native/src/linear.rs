@@ -149,6 +149,7 @@ pub struct Exl3Linear {
     simdgroups: i32,
     reference_accumulation: bool,
     mtp_hidden_batch: bool,
+    flash_batch: bool,
 }
 
 impl Exl3Linear {
@@ -194,6 +195,7 @@ impl Exl3Linear {
         if checkpoint.model_type == "qwen4_exp" {
             linear.simdgroups = 4;
             linear.reference_accumulation = true;
+            linear.flash_batch = crate::flash_support::multi_token_verifier()?;
             linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
             if linear.mtp_hidden_batch {
                 ensure!(
@@ -260,6 +262,7 @@ impl Exl3Linear {
             simdgroups,
             reference_accumulation: false,
             mtp_hidden_batch: false,
+            flash_batch: false,
         })
     }
 
@@ -298,6 +301,12 @@ impl Exl3Linear {
             "MTP hidden projection requires four streams"
         );
         if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 1 {
+            if self.flash_batch
+                && self.k != 7
+                && crate::contracts::flash_reference_batch_layout(matrix_rows).is_some()
+            {
+                return self.forward_qmv_batch(x, matrix_rows);
+            }
             let matrix = x.reshape(&[matrix_rows, self.rows])?;
             let rows = (0..matrix_rows)
                 .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
@@ -469,7 +478,7 @@ impl Exl3Linear {
         let splits = if self.mtp_hidden_batch {
             2
         } else {
-            split_count(input_tiles, output_tiles)
+            self.splits(input_tiles, output_tiles)
         };
         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
         let mut nt = if use_nt4 {
@@ -490,6 +499,10 @@ impl Exl3Linear {
             );
             nt = 1;
             (4, 1)
+        } else if self.reference_accumulation {
+            nt = 1;
+            crate::contracts::flash_reference_batch_layout(matrix_rows)
+                .context("unsupported Flash reference batch")?
         } else {
             crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
                 .context("invalid batch QMV rows")?
@@ -501,7 +514,7 @@ impl Exl3Linear {
             nt = 1;
         }
         let header = codebook_header(self.cb)
-            + &reference_reduction_header(self.mtp_hidden_batch)
+            + &reference_reduction_header(self.reference_accumulation)
             + &format!(
                 "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
                 u8::from(self.mtp_hidden_batch)
@@ -1414,6 +1427,88 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore = "physical Apple GPU and Flash checkpoint; run alone"]
+    fn flash_reference_batches_match_independent_single_rows() -> anyhow::Result<()> {
+        use super::*;
+        let checkpoint =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut cases = 0;
+        for name in [
+            "model.language_model.layers.0.linear_attn.in_proj_qkv",
+            "model.language_model.layers.0.linear_attn.in_proj_z",
+            "model.language_model.layers.0.linear_attn.out_proj",
+            "lm_head",
+        ] {
+            let mut linear = Exl3Linear::from_checkpoint(&checkpoint, name)?;
+            ensure!(linear.reference_accumulation && linear.simdgroups == 4 && linear.k != 7);
+            for rows in [2, 3, 4, 8, 5, 6, 7, 1, 9] {
+                for dtype in [Dtype::Float16, Dtype::Float32] {
+                    for strided in [false, true] {
+                        let value = |r: i32, c: i32| ((r * 37 + c * 13) % 997) as f32 / 1024. - 0.5;
+                        let x = if strided {
+                            let values = (0..linear.rows)
+                                .flat_map(|c| (0..rows).map(move |r| value(r, c)))
+                                .collect::<Vec<_>>();
+                            Array::from_f32(&values, &[linear.rows, rows])?
+                                .astype(dtype)?
+                                .transpose(&[1, 0])?
+                        } else {
+                            let values = (0..rows)
+                                .flat_map(|r| (0..linear.rows).map(move |c| value(r, c)))
+                                .collect::<Vec<_>>();
+                            Array::from_f32(&values, &[rows, linear.rows])?.astype(dtype)?
+                        };
+                        linear.flash_batch = false;
+                        let expected = (0..rows)
+                            .map(|r| linear.forward(&x.slice(0, r, r + 1)?))
+                            .collect::<Result<Vec<_>>>()?;
+                        let expected = Array::concatenate(&expected.iter().collect::<Vec<_>>(), 0)?;
+                        linear.flash_batch = true;
+                        let actual = linear.forward(&x)?;
+                        ensure!(actual.shape() == [rows, linear.cols]);
+                        let values = actual.astype(Dtype::Float32)?.to_f32()?;
+                        ensure!(
+                            values.len() == (rows * linear.cols) as usize
+                                && values.iter().all(|v| v.is_finite())
+                        );
+                        ensure!(
+                            actual.to_bytes()? == expected.to_bytes()?,
+                            "reference batch differs {name}/B{rows}/{dtype:?}/strided={strided}"
+                        );
+                        if rows > 1 {
+                            ensure!(
+                                actual.slice(0, 0, 1)?.to_bytes()?
+                                    != expected.slice(0, 1, 2)?.to_bytes()?,
+                                "vacuous row oracle"
+                            );
+                        }
+                        cases += 1;
+                    }
+                }
+            }
+            assert!(
+                linear
+                    .forward(&Array::zeros_dtype(&[0, linear.rows], Dtype::Float16)?)
+                    .is_err()
+            );
+            assert!(
+                linear
+                    .forward(&Array::zeros_dtype(&[2, linear.rows - 1], Dtype::Float16)?)
+                    .is_err()
+            );
+        }
+        assert_eq!(cases, 144);
+        println!("FLASH_REFERENCE_BATCH cases={cases} parity=byte_exact");
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_flash_reference_batch_entry() {
+        flash_reference_batches_match_independent_single_rows().unwrap();
+    }
+
     #[test]
     #[ignore = "physical Apple GPU; real Flash slot shapes, dtypes, strides and wrong-slot oracle"]
     fn flash_slot_shapes_match_resident_reference_for_every_route() -> anyhow::Result<()> {

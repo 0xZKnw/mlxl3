@@ -46,6 +46,7 @@ pub(in crate::qwen4) struct Session {
     accepted: usize,
     blocks: usize,
     seconds: f64,
+    profile: FlashDraftProfile,
 }
 impl Session {
     pub(in crate::qwen4) fn reset(&mut self) {
@@ -56,6 +57,7 @@ impl Session {
         self.accepted = 0;
         self.blocks = 0;
         self.seconds = 0.;
+        self.profile = FlashDraftProfile::default();
     }
     fn advance(&mut self, target: &mut FlashNext, anchor: u32, remaining: usize) -> Result<u32> {
         ensure!(
@@ -75,8 +77,17 @@ impl Session {
             .min(remaining - 1)
             .min((target.context - target.offset - 1) as usize);
         if count == 0 {
-            return Ok(target.forward(anchor)?.chat_greedy_ids()?[0]);
+            let before = target.io_stats().2;
+            let id = target.forward(anchor)?.chat_greedy_ids()?[0];
+            self.profile.expert_demand_bytes = flash_support::draft_demand_bytes(
+                self.profile.expert_demand_bytes,
+                before,
+                target.io_stats().2,
+            )
+            .context("DFlash demand byte counter reversed or exhausted")?;
+            return Ok(id);
         }
+        let demand_before = target.io_stats().2;
         let started = std::time::Instant::now();
         let input = target.draft_input(anchor, Kind::Dflash2, count)?;
         let (hidden, _) = self.draft.forward(&input, count)?;
@@ -98,14 +109,19 @@ impl Session {
             .chain(proposals.iter().copied())
             .collect::<Vec<_>>();
         let start = target.offset;
+        let draft_seconds = started.elapsed().as_secs_f64();
+        let verifying = std::time::Instant::now();
         let verification = target.verify_draft(&tokens, Kind::Dflash2)?;
         let ids = verification.parts.logits.chat_greedy_ids()?;
+        let verification_seconds = verifying.elapsed().as_secs_f64();
         let acceptance = crate::speculative::greedy_accept(&proposals, &ids)
             .context("invalid DFlash verification")?;
         let retained = acceptance.accepted_draft_tokens + 1;
+        let committing = std::time::Instant::now();
         let captured = verification.parts.captured.slice(0, 0, retained as i32)?;
         verification.commit(retained)?;
         self.draft.append(&captured, start)?;
+        let commit_cache_seconds = committing.elapsed().as_secs_f64();
         self.pending.extend(
             proposals[..acceptance.accepted_draft_tokens]
                 .iter()
@@ -122,6 +138,16 @@ impl Session {
                 )
                 .context("invalid DFlash budget observation")?;
         }
+        self.profile.draft_seconds += draft_seconds;
+        self.profile.verification_seconds += verification_seconds;
+        self.profile.commit_cache_seconds += commit_cache_seconds;
+        self.profile.verified_rows += selected + 1;
+        self.profile.expert_demand_bytes = flash_support::draft_demand_bytes(
+            self.profile.expert_demand_bytes,
+            demand_before,
+            target.io_stats().2,
+        )
+        .context("DFlash demand byte counter reversed or exhausted")?;
         self.proposed += selected;
         self.accepted += acceptance.accepted_draft_tokens;
         self.blocks += 1;
@@ -167,6 +193,7 @@ impl FlashNext {
             accepted: 0,
             blocks: 0,
             seconds: 0.,
+            profile: FlashDraftProfile::default(),
         }));
         Ok(())
     }
@@ -180,6 +207,9 @@ impl FlashNext {
         self.dflash
             .as_ref()
             .map(|s| (s.proposed, s.accepted, s.blocks, s.seconds))
+    }
+    pub fn dflash2_profile(&self) -> Option<FlashDraftProfile> {
+        self.dflash.as_ref().map(|s| s.profile)
     }
     pub fn prefill_dflash2(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<Array> {
         self.reset();
@@ -226,6 +256,37 @@ impl FlashNext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; real terminal fallback; run alone"]
+    fn runtime_profile_counts_terminal_target_reads() -> Result<()> {
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+        let draft = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT")?);
+        target.configure_dflash2(Some(&draft), 1)?;
+        target.prefill_dflash2(&[EOS], &AtomicBool::new(false))?;
+        let before = target.io_stats().2;
+        let id = target.advance_dflash2(7, 1)?;
+        let bytes = target
+            .io_stats()
+            .2
+            .checked_sub(before)
+            .context("counter reversed")?;
+        let profile = target
+            .dflash2_profile()
+            .context("missing runtime profile")?;
+        ensure!(
+            bytes > 0 && bytes % flash_support::EXPERT_BYTES == 0,
+            "vacuous read fixture"
+        );
+        ensure!(profile.expert_demand_bytes == bytes && profile.verified_rows == 0);
+        ensure!(target.dflash2_stats() == Some((0, 0, 0, 0.)));
+        ensure!(id < 248320 && target.offset() == 2);
+        target.reset();
+        ensure!(target.dflash2_profile().unwrap().expert_demand_bytes == 0);
+        println!("FLASH_DRAFT_FALLBACK_PROFILE bytes={bytes} parity=true");
+        Ok(())
+    }
     #[test]
     fn invalid_modes_are_rejected_before_loading_a_checkpoint() {
         for mode in [0, 4, usize::MAX] {
@@ -292,6 +353,7 @@ mod tests {
                 accepted: 0,
                 blocks: 0,
                 seconds: 0.,
+                profile: FlashDraftProfile::default(),
             }));
             for (budget, expected) in &oracles {
                 let logits = target.prefill_dflash2(&prompt, &cancel)?;
@@ -316,10 +378,40 @@ mod tests {
                         "DFlash state {i} differs at {budget}"
                     );
                 }
-                records.push(serde_json::json!({"q4":q4,"ring":ring,"adaptive":adaptive,"budget":budget,"states":states.len(),"stats":target.dflash2_stats()}));
+                let (proposed, accepted, blocks, seconds) = target.dflash2_stats().unwrap();
+                let profile = target.dflash2_profile().unwrap();
+                ensure!(profile.verified_rows == proposed + blocks);
+                ensure!(
+                    [
+                        profile.draft_seconds,
+                        profile.verification_seconds,
+                        profile.commit_cache_seconds
+                    ]
+                    .iter()
+                    .all(|s| s.is_finite() && *s >= 0.)
+                );
+                ensure!(
+                    profile.draft_seconds
+                        + profile.verification_seconds
+                        + profile.commit_cache_seconds
+                        <= seconds + 1e-6
+                );
+                ensure!(
+                    accepted <= proposed
+                        && profile.expert_demand_bytes % flash_support::EXPERT_BYTES == 0
+                );
+                if blocks > 0 {
+                    ensure!(
+                        profile.verified_rows >= blocks * 2
+                            && profile.verification_seconds > 0.
+                            && profile.commit_cache_seconds > 0.
+                    );
+                }
+                records.push(serde_json::json!({"profile":profile,"q4":q4,"ring":ring,"adaptive":adaptive,"budget":budget,"states":states.len(),"stats":target.dflash2_stats()}));
             }
             cancel.store(true, Ordering::Relaxed);
             ensure!(target.prefill_dflash2(&prompt, &cancel).is_err() && target.offset() == 0);
+            ensure!(target.dflash2_profile().unwrap().verified_rows == 0);
             cancel.store(false, Ordering::Relaxed);
             ensure!(
                 target

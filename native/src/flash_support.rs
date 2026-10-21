@@ -1,5 +1,51 @@
 //! CPU contracts for Flash Next's disk rows and exact expert cache.
 use anyhow::Result;
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn draft_demand_bytes(total: u64, before: u64, after: u64) -> Option<u64> {
+    total.checked_add(after.checked_sub(before)?)
+}
+
+#[test]
+fn draft_demand_counts_deltas_and_rejects_reversal_or_exhaustion() {
+    assert_eq!(draft_demand_bytes(0, 10, 17), Some(7));
+    assert_eq!(draft_demand_bytes(5, 10, 17), Some(12));
+    assert_eq!(draft_demand_bytes(u64::MAX, 10, 10), Some(u64::MAX));
+    assert_eq!(draft_demand_bytes(0, u64::MAX, 0), None);
+    assert_eq!(draft_demand_bytes(u64::MAX, 0, 1), None);
+    assert_eq!(draft_demand_bytes(0, 0, u64::MAX), Some(u64::MAX));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn draft_demand_counters_are_exact_or_reject_without_wrapping() {
+    let (total, before, after): (u64, u64, u64) = kani::any();
+    let result = draft_demand_bytes(total, before, after);
+    if after < before {
+        assert_eq!(result, None);
+        kani::cover!(after == 0 && before == u64::MAX);
+    } else {
+        let exact = u128::from(total) + u128::from(after) - u128::from(before);
+        if exact <= u128::from(u64::MAX) {
+            assert_eq!(result.map(u128::from), Some(exact));
+            kani::cover!(after > before && total > 0);
+            kani::cover!(after == before && total == u64::MAX);
+        } else {
+            assert_eq!(result, None);
+            kani::cover!(total == u64::MAX && after > before);
+        }
+    }
+}
+
+#[cfg(feature = "mlx")]
+pub(crate) fn multi_token_verifier() -> Result<bool> {
+    match std::env::var("MLXL3_FLASH_MULTI_TOKEN") {
+        Ok(value) => parse_gpu_hot_wide(&value)
+            .ok_or_else(|| anyhow::anyhow!("MLXL3_FLASH_MULTI_TOKEN must be 0 or 1")),
+        Err(std::env::VarError::NotPresent) => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
 #[cfg(any(feature = "mlx", test, kani))]
 use std::{cell::RefCell, rc::Rc};
 

@@ -1140,12 +1140,9 @@ impl FlashNext {
                 .collect();
             let mut captures = Vec::with_capacity(5);
             for (index, layer) in self.layers.iter_mut().enumerate() {
-                let mut prepared = Vec::with_capacity(tokens.len());
-                for (row, (&token, stream)) in tokens.iter().zip(&streams).enumerate() {
-                    prepared.push(layer.prepare(stream, token)?);
-                    if row + 1 < tokens.len() {
-                        prefixes[row].push(layer.snapshot()?);
-                    }
+                let (prepared, states) = layer.prepare_rows(&streams, tokens, self.multi_token)?;
+                for (prefix, state) in prefixes.iter_mut().zip(states) {
+                    prefix.push(state);
                 }
                 let inputs =
                     Array::concatenate(&prepared.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
@@ -1166,14 +1163,25 @@ impl FlashNext {
                 }
             }
             ensure!(captures.len() == 5, "incomplete verification captures");
-            let heads = streams
+            let mixed = streams
                 .iter()
                 .map(|x| -> Result<Array> {
                     let (mixed, _) = self.mixer.read(x)?;
-                    self.head.forward(&mixed.astype(Dtype::Float16)?)
+                    mixed.astype(Dtype::Float16)
                 })
                 .collect::<Result<Vec<_>>>()?;
-            let logits = Array::concatenate(&heads.iter().collect::<Vec<_>>(), 0)?;
+            let logits = if self.multi_token {
+                verification_projection(
+                    &self.head,
+                    &Array::concatenate(&mixed.iter().collect::<Vec<_>>(), 0)?,
+                )?
+            } else {
+                let heads = mixed
+                    .iter()
+                    .map(|x| self.head.forward(x))
+                    .collect::<Result<Vec<_>>>()?;
+                Array::concatenate(&heads.iter().collect::<Vec<_>>(), 0)?
+            };
             let captured = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?;
             logits.eval()?;
             captured.eval()?;
@@ -1949,6 +1957,64 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
     println!(
         "FLASH_DRAFT_PREFIX {}",
         serde_json::json!({"status":"passed","kind":format!("{kind:?}"),"prefix_cases":cases,"captures":capture_check,"widths":[1,2,3,4,5,6,7,8],"target_logits_and_states":"byte_exact","memory":array::memory_stats(false)?})
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU and Flash checkpoint; verifier timing after exact parity; run alone"]
+fn flash_verifier_block_timing_preserves_serial_outputs() -> Result<()> {
+    let width: usize = std::env::var("MLXL3_FLASH_VERIFY_ROWS")?.parse()?;
+    ensure!([2, 3, 4, 8].contains(&width), "unsupported benchmark width");
+    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+    let serial = [EOS, 78768, 11, 7, 5, 19, 23, 13, 17, 31, 42];
+    let mut expected = Vec::new();
+    for &token in &serial {
+        let logits = target.forward(token)?;
+        let values = logits.astype(Dtype::Float32)?.to_f32()?;
+        ensure!(values.len() == 248320 && values.iter().all(|x| x.is_finite()));
+        expected.push(logits.to_bytes()?);
+    }
+    let mut records = Vec::new();
+    for iteration in 0..6 {
+        target.reset();
+        target.forward_tokens(&serial[..2])?;
+        let before = target.io_stats();
+        let started = std::time::Instant::now();
+        let verification = target.verify_draft(&serial[2..2 + width], Kind::Dflash2)?;
+        let verification_seconds = started.elapsed().as_secs_f64();
+        ensure!(
+            verification.parts.logits.shape() == [width as i32, 248320]
+                && verification.parts.logits.to_bytes()? == expected[2..2 + width].concat(),
+            "timed verifier differs from serial"
+        );
+        let committing = std::time::Instant::now();
+        verification.commit(width)?;
+        let commit_seconds = committing.elapsed().as_secs_f64();
+        let demand_bytes = target
+            .io_stats()
+            .2
+            .checked_sub(before.2)
+            .context("byte counter reversed")?;
+        ensure!(
+            target.forward(serial[2 + width])?.to_bytes()? == expected[2 + width],
+            "timed verifier continuation differs"
+        );
+        if iteration > 0 {
+            ensure!(verification_seconds.is_finite() && verification_seconds > 0.);
+            records.push(
+                serde_json::json!({"verification_seconds":verification_seconds,
+                "commit_seconds":commit_seconds,"expert_demand_bytes":demand_bytes}),
+            );
+        }
+    }
+    ensure!(records.len() == 5);
+    println!(
+        "FLASH_VERIFIER_BLOCK {}",
+        serde_json::json!({"status":"passed",
+        "width":width,"multi_token":target.multi_token,"samples":records,
+        "parity":"byte_exact_logits_and_continuation","memory":array::memory_stats(false)?})
     );
     Ok(())
 }

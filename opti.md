@@ -13042,3 +13042,180 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 - **63V précision avant prototype** : réutiliser les compteurs de phase existants et exposer au bridge les durées draft/sélection, vérification cible, commit/cache sans nouvel `eval()`. Rapporter vérification/(acceptés+blocs), ms/ligne réellement vérifiée et octets/lectures SSD par token émis, avec périmètres et recouvrements explicites. Valider et microbenchmarker B2/B3/B4 avant B8 avec une référence séquentielle ; temps du vérificateur seul avant la génération complète. Comparer63 seul WIDE0 puis sa combinaison WIDE1 séparément (même protocole, pas d’addition de gains). Parité exacte obligatoire, OFF/MTP1/DFlash MAIN/HOLD,3Gio,0nouveau Swapout,12e9octets.58/groupedEXL3 et draftQ4 spécialisés viennent après63 selon profil ; autres pistes différées.
 
 - **62 clôture suites et CI** : suite livrée entière `cargo test --locked --release --features mlx,chat` :141passés/140ignorés (113lib/12CLI/16contrats),0échec, après fermeture GPU ; log `opt-62-wide-hot/full-shipped-v2.log`. CI source2ecc : régressions/Linux/macOSMLX/KaniFlash passent ;Kani global échoue sur ancienharnais allocation sans verdict final. Aucun test GPU ignoré prétendu exécuté par cette suite ; sélections physiques qualité séparées déjà archivées.
+
+- **63V contrôle Splash demandé par l’utilisateur avant prototype** : le cache de travail Splash indique maintenant1ac910d0, distinct du1482f6bb audité61 ; le HEAD distant vérifié par `git ls-remote` est286d71cc5a8d638486f7ea6c7e0c482dac82c82a. Les lectures immédiates de Qwen4ExpTarget/GDN ci-dessus concernent1ac910d0, pas1482. Avant implémentation63, collecter le nouveauHEAD et comparer les régions vérificateur/projections/tape/commit aux versions auditées ; archiver SHA/chemins et écarts réels. Aucun gain amont transposé présumé, aucun modèle amont exécuté.
+
+- **63V correction de provenance avant tout usage** : le dossierSplash contient des blobs téléchargés et aucun `.git`. La première commande `git -C` a remonté au dépôtMLXL3 parent :1ac910d0/286d71cc ne sont donc **pas** des révisionsSplash. Le fetch lu sur `origin` était une lecture du dépôtMLXL3, aucun checkout/changement de source effectué. Vérification corrigée avec URLexplicite `git ls-remote https://github.com/incoai/splash.git HEAD` :1482f6bbc2abf12375332725302019594150b6cb, inchangé. Les4blobs vérificateur/GDN/ABI téléchargés de cette révision sont archivés avecSHA256 dans `opt-63-verifier/splash-review-source.json` ; l’affirmation de changement amont ci-dessus est invalidée, historique conservé.
+
+- **63V prototypev1 compilé, premier palier qualité préenregistré** : nouvelle option `MLXL3_FLASH_MULTI_TOKEN=1`, défaut0 ; projections EXL3 denses NT1/MB2/SG4/splits référence, préparations GDN multi-lignes et tape existante, PLE/HC causal conservé, QSA et MTP encore séquentiels. Pas de nouveau shader/fusion GDN Splash à ce stade. Métriques runtime draft/vérification/commit et lignes ajoutées sans eval ; octets demandés experts sont distincts d’octets physiques SSD. Avant débit ou modèle complet, deux processus GPU seuls :108comparaisons de projections réelles qkv/z/out, B2/B3/B4 puis B8 et autres bornes1/5/6/7/9, F16/F32/strides, oracle mono-ligne ; tapeGDN 16/48/128 T1..8 chaque préfixe, variantes héritées et cas invalides.0Swapout/pic≤12e9, même3Gio, nouvelleorigine63 explicite, pré20/post30, superviseur existant. Identité/archive/binairev1 figés avant lancement ; aucune compilation/proof concurrente.
+
+- 45-Q/R processus flash_reference_batches_match_independent_single_rows : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-quality-v1/run-result.json.
+
+- 45-Q/R processus tape_replay_matches_every_serial_prefix : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-quality-v1/run-result.json.
+
+- **63V palier micro qualitév1 terminé/validé** :108comparaisons qkv/z/out réelles bit à bit identiques au mono-ligne, F16/F32/strides, B1..B9 (B9repli), mauvaisesformes refusées et mauvaisordre détecté. Tape16/48/128 T1..8, touspréfixes, sortie/étatfinal/replay bit à bit ; variantes16/32 et2/4 héritées passent également. Deuxprocessus sélectionnés non vides, joints,0Swapout au pré20/post30, origine63 `Swapins85102100480,Swapouts120147050496`. Sources/binairev1 figés `identity-v1.json`, logs etstatuts `micro-quality-v1/`. Kani :66obligations/5couvertures préfixes GDN et69obligations/2couvertures géométrieMB2,0échec ; preuves CPU bornées, pas preuve GPU. Aucun débit mesuré à ce stade. ComparaisonSplash détaillée : `docs/flash-next-ssd-verifier-63-splash-map-2026-10-21.md` ; graphes persistants/fusionsGDN/HC/QSA et commitfusionné restent absents.
+
+- **63V palier modèle complet et microbench préenregistré avant code du harnais** : garder le même oracle séquentiel et36préfixes1..8/captures/136états/continuation, erreurs/abandon ; DFlash runtime20cas et bridge43contrôles après parité. Ensuite microbench vérificateur seul B2/B3/B4 puisB8 : un modèle par processus, préfixe fixe2tokens et mêmes tokens vérifiés,1warmup+5mesures, HCCH par largeur, seulflag63 varie (WIDE0) ; oracle logits et continuation mono-ligne construits hors chronomètre, validation de chaque résultat. Chronomètre inclusif de `verify_draft` avec ses eval/drain existants, commit total séparé ; octets experts demandés lus par différence des compteurs. Aucun eval ajouté pour profilage. Conserver les16processus même si gainnégatif ; bruit/écart≥5% témoin ouétendue>3points interdit un gain établi. Garde VM63 et12e9 identiques, post30. Cette mesure de bloc n’est pas un débit de génération ; OFF/MTP/DFlash complet ensuite seulement. La répétition de36préfixes62 contrôle le nouveau calcul et replay63, mécanisme différent de62.
+
+- **63V contrôle CPUv2 intermédiaire** : Clippy strict v1 refuse le type complexe du retour `prepare_rows` ; alias local `PreparedRow` ajouté, Clippy strictv2 passe. Tentative Kani réelle `cargo kani --tests --lib --features mlx,chat --harness actual_flash_reference_batch_entry` : ICE `intrinsics.rs:243` avant vérification, parcoursMLX nonprouvé. Logs anciens conservés ; nouveaux tests d’agrégation/sérialisation et invariants de métriques runtime ajoutés avant campagne modèle. Suite Python et build/suite livrée en cours, aucune mesureGPU concurrente.
+
+- **63V extension tête avant palier modèlev3** : le checkpoint réel expose `lm_head.trellis` (EXL3), donc la tête peut utiliser la même réduction dense qualifiée plutôt que des appels indépendants. Ajouter la matrice réelle `lm_head` au contrôle micro (144cas au lieu108), puis concaténer les entrées de la tête seulement sousflag63 pour DFlash ; fallback mono-ligne des projections nonEXL3. La parité du kernel de tête est requise avant les36préfixes. Aucun nouveau benchmark de débit ni gain annoncé avant ce contrôle. MTP reste au chemin précédent jusqu’à parité DFlash complète.
+
+- 45-Q/R processus dense-and-head : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/quality-v3/run-result.json.
+
+- 45-Q/R processus target-prefixes : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/quality-v3/run-result.json.
+
+- **63V qualitév3 jalon observé pendant campagne** :144comparaisons denses y compris têteEXL3 passent bit à bit (2,62s, durée test et non débit) ;36préfixes1..8 passent logits248320/captures/états/continuation/erreurs/abandon, capture indépendante64000valeurs RMSE0 etbyte_equaltrue. Picphysique du testpréfixes7 463 508 184octets ; logs `quality-v3/target-prefixes.log`. Runtime/bridge encore en cours, campagne non déclarée close. CPUv3 :113passés/3ignorés sansfeatures ;142passés/142ignorés livréMLX/chat ;915Pythonpassés/4sautés,Clippystrictv3 etbuildCLI réussis. Les mesures de vitesse restent non lancées. CIpublicationbilan62SHA540ff : régressions passent, workflow natif échec ; jobs exacts à inspecter, pas deCIglobaleverte déclarée.
+
+- **63V nouvelle préférence utilisateur (après validation63)** : augmenter ensuite les experts résidents pour viser environ10Go de footprint, en profitant de la marge observée autour7,42–7,46Go. Ne pas changer le budget3Gio pendant la comparaison63 ; campagne cache supplémentaire préenregistrée séparément après qualité/débit63, paliers et garde0Swapout/12e9 ; le gain mémoire potentiel ne sera pas transformé en budget sans mesurer le runtime avec draft et MTP. Aucun essai de cache plus grand lancé à ce stade.
+
+- 45-Q/R processus runtime-states : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/quality-v3/run-result.json.
+
+- **63V runtimev3 terminé, bridge encore en cours** :20cas B/Q4/ring/adaptatif et budgets1/2/3/17/64 passent séquencegreedy,136états/cas, annulation/reprise et reset après erreur. Les nouveaux compteurs vérifient `verified_rows=proposed+blocks`, phases finies/non négatives et sommebornée par duréebloc. Picprocessus8 737 414 224octets,0Swapout ; durée test264,27s, pas mesure tok/s. Préenregistrer maintenant63Vv4 MTP : appeler le même `prepare_rows` pour `forward_pair`, restaurer le seul snapshot/tape du premierpréfixe ; tête deuxlignes groupée EXL3 sousflag63 avec un seul eval existant final. Réutiliser les tests physiques existants de10transactions/préfixes1/2 et sessionMTP budgets1/2/3/17 (acceptation/rejet et états cible/tête), puis vraieCLI OFF/MTP/DFlash. La v3 est figée ; pas de compilation durant le bridge ou les mesuresGPU.
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/quality-v3/run-result.json.
+
+- **63V bridgev3 terminé** :43contrôles réels CLI/bridge passent, paritétrue ; processus principal et lecteurs joints,0Swapout pendant les quatreprocessusqualité. Durée bridge299,93s (ce n’est pas une mesure débit). Postflight30s en cours, pas de nouvellecompilation/inférence. La v4 ajoute uniquement le branchement MTP commun et deux spans hôte test-only sans eval ; code pas encore compilé. Le microbench vérificateur seul utilisera d’abord les binairesv3 immuables déjà qualifiés et son plan16processus préenregistré, avant compilationv4.
+
+- 45-Q/R processus B2-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B2-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B2-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B2-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B3-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- **63V qualitév3 close/validée** : quatreprocessusjoints,144casdense/tête,36préfixes,20configurationsruntime/136états,43contrôlesbridge ; pré20/post30 et0nouveauSwapout.19réponsesbridge contiennent un profilnonvide, export confirmé par `quality-v3/profile-export-check.json`. Deux erreurs d’un diagnostic ad hoc sur champsJSONnullable ont eu lieu avant lancement du microbench (aucuneinférence), parser corrigé en testant les types ; aucune réécriture du résultat bridge. Microbenchv3 de16bras lancé seulement après ce contrôle, toujoursorigineVM63, sourcev3archivée ; v4MTP local non compilé, aucun CPUbuild/proof concurrent.
+
+- 45-Q/R processus B3-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B3-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B3-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B4-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B4-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B4-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B4-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B8-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B8-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B8-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- 45-Q/R processus B8-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/micro-speed-v3/run-result.json.
+
+- **63V microbenchv3 terminé/validé dans son périmètre** :16processusjoints/80échantillons, oracle logits+continuation exact pour chaque mesure,0Swapout pré20/post30. Médianes de5mesures/bras HCCH : B2 102,370/102,449ms→92,491/92,703ms (débit debloc+10,682/+10,514%, latence−9,651/−9,513%) ;B3 174,819/175,262→167,306/167,370ms (+4,490/+4,715%) ;B4 230,122/229,710→205,659/205,415ms (+11,895/+11,827%) ;B8 465,597/464,978→408,831/406,565ms (+13,885/+14,367%, latence−12,192/−12,562%). Dérivecontrôles≤0,254%, étendue≤0,483point, seuils passent les4largeurs. `micro-speed-v3/analysis.json` garde80temps, pics et octets demandés ; médiane standard `statistics.median`, gains H/C−1, latence1−C/H, pairesHC etHC inversée deHCCH. **Microbloc sur routes fixes chaudes, pas un gain de générationtok/s**. La qualité numérique et la mesure concernent v3 immuable ; v4MTP doit être recompilé/testé séparément avant la matrice complète.
+
+- **63Vv4 contrôles avant mesure complète** : format/Clippystrict/buildCLI et suite livrée142passés/142ignorés réussis ; KaniMLX harnais pairréel échoue encore parICEintrinsics243, nonprouvé. Refaire seulement les contrôles affectés : pair10transactions et sessionMTPbudgets1/2/3/17 sousflag0puis1, oraclecible/tête séquentiel, erreurs/rejets/contextes ; scriptCLI `check-mtp-bridge.py` budgets1/2/3/17 avec annulationcontext_usage/delta et reprise, chemins invalides, greedyfallback. Cinqprocessus sélectionnés explicitement,3Gio/VM63,0Swapout/12e9, pré20/post30. Les36préfixes/runtimeDFlash/43bridgev3 restent archivéspourcodeDFlashnumériqueinchangé ; spansv4sonttest-only. MatricecomplèteOFF/MTP/R/A v4 aprèsparité ; pas degainv4annoncé surla seule v3.
+
+- 45-Q/R processus flash_pair_verification_preserves_serial_logits_and_all_states-0 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/mtp-quality-v4/run-result.json.
+
+- 45-Q/R processus flash_mtp_session_preserves_greedy_sequence_target_and_head_states-0 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/mtp-quality-v4/run-result.json.
+
+- 45-Q/R processus flash_pair_verification_preserves_serial_logits_and_all_states-1 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/mtp-quality-v4/run-result.json.
+
+- 45-Q/R processus flash_mtp_session_preserves_greedy_sequence_target_and_head_states-1 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/mtp-quality-v4/run-result.json.
+
+- 45-Q/R processus mtp-bridge : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/mtp-quality-v4/run-result.json.
+
+- **63V qualitéMTPv4 jalon terminé, postflight requis** :10transactions/préfixes1/2 et sessionMTPbudgets1/2/3/17 passent sousflags0et1, états cible/tête exacts, acceptation et rejet nonvacuels ; bridge natif budgets1/2/3/17 validé, annulationcontext_usage/delta+reprise et fallbackpenalty passent. Cinqprocessusjoints,0Swapout pendant contrôles ;173,16s debridge est une durée de test, pas un débit qualifié.
+- **63P correction du périmètre du compteur avant campagne débit (préenregistrement)** : les duréesv3/v4 de vérification restent des blocs spéculatifs, mais `expert_demand_bytes` ne comptait que cesblocs et omettait la passeordinaire finale `remaining=1`. Avant tout débitcomplet, compter aussi cette branche et vérifier les compteurs du parcours `advance_dflash2(7,1)` réel, positif/nonvide, offsets et reset. Nouveau test ciblé avec une promptEOS1token, cachefrais et draftQ4/ring, aucune autre comparaison numérique à refaire car calculcible inchangé. Ne pas réécrire les champsv3 : ce sont des octets deblocs seulement ;v5 sera le total demandesexperts de `advance`, ycomprisfallbackterminal. Compteur de demandes réussies en octets vers buffers, pas lecturesphysiquesdevice/OSpagecache. Vérifier Clippy/build/suite et tenter Kani actuel ; même VM63/pré20/post30 pour testGPU, pas decompilation durantGPU. Géométries de63 etMTPv4 inchangées.
+
+- **63P vérification intermédiaire** : helper réel `draft_demand_bytes` commun aux deuxbranches, soustraction/additionchecked et régression aux bornesu64. Mutation `Some(total)` au lieu de l’accumulation détectée (`Some(0)`≠`Some(7)`,1testéchoué), source restaurée dansfinally ; le collecteur a ensuite échoué en cherchant lepanic dansstdoutseul. Inspectiondu logstdout+stderr confirme le résultat attendu, `counter-mutation-inspection.json` conserve cette erreur decollecte. La suiteCPU restaurée passe ; pasdepreuvevacuementverte. Ajouter aussi lecontrôleCLI2sorties MAIN/HOLD pour l’exportcompteurterminal, avant la vraiecampagne128. Pasdechronométrageinterprété pour cette régression2tokens. Kani5contrats liés lancé sur source restaurée ; aucunGPU concurrent.
+
+- 45-Q/R processus terminal-target-counter : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/counter-quality-v5/run-result.json.
+
+- 45-Q/R processus terminal-bridge-counter : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/counter-quality-v5/run-result.json.
+
+- **63P CPUv5 vérifié** :114testspassés/3ignorés sansfeatures ;143passés/143ignorés livréMLX/chat ; Clippystrict/buildCLI passent. Kani5contrats passent :compteurdemandes73obligations/4couvertures, layout69/2, préfixeGDN66/5, commitpair71/4, commitlarge71/3,0échec ; domaines symboliquesu64 et i32/usize des contrats réels, pas preuveGPU. `identity-v5.json` fige146sources/4artéfacts. La sourcecalcul cible/MTPv4 est inchangée par63P. Plans débitv4 jamais lancés, conservés et remplacés parv5 pour compteursSSDcomplets ;32bras128sorties/127decode,HCCH MAIN/HOLD,OFF/MTP1/R/A, uniquev5CLI etseulflag63 varie, WIDE0/3Gio fixes. Profil exporté : vérification/(acceptés+blocs), ms/ligne vérifiée, octetsexperts etéquivalentsrecord/token effectivement décodé ; passterminalordinaire0ou1token identifiée séparément. Octetsdemandés ne sont pas des octetsdevice ; profilagehôte inclusif ne permet pas un tempsGPUexclusif. Qualitév3+MTPv4+régressioncompteurv5 requises avant vitesse.
+
+- **63P qualitév5 close/validée** : vrai fallback `advance_dflash2(7,1)` :430 564 140octets demandés et comptés exactement, statsblocs/lignes0, offsets/reset valides ; ancien chemin auraitexporté0. CLI2sorties/1decode MAIN/HOLD (2warmups+2mesures) exporte199 681 920/148 513 428/197 185 896/149 761 440octets et0ligne vérifiée, contrôle nonvide etparitécompteur ; pasdes tok/squalifiés. Deuxprocessusjoints,post30/0nouveauSwapout, mêmeorigine63. `counter-quality-v5/export-check.json` etstatuts gardés.
+- **63V débitcompletv5 lancé** : toutesqualitésv3/MTPv4/compteurv5 closes et sources146+4artéfacts recontrôlés à chaque mode.32bras HCCH MAIN/HOLD,1warmup+1mesure128sorties/127decode, mêmeCLI releasev5, seul `MLXL3_FLASH_MULTI_TOKEN`0/1 varie ; WIDE0/3Gio/53slots, secteurfixe. OFFtémoincheminB1, MTP1 puisDFlashfixe3 etadaptatif7. OrigineVM63cumulativeinchangée,0Swapout/12e9 etpost30exigés. Nouvellescolonnes profilblocs/caches exportées. Aucun gainréel de génération63 annoncé avant fin de cette comparaison.
+
+- 45-Q/R processus OFF-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-OFF-v5/run-result.json.
+
+- 63V v5 débit OFF : inconclusive_drift, contrôle seul=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-v5-result.json. Postflight final encore requis.
+
+- 45-Q/R processus MTP-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- 45-Q/R processus MTP-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- **63V débitv5 OFF clos, campagne continue** :8bras/16réponsesexactes,joints,0Swapout. MAINH10,8398/10,6908,C10,7669/10,7629 ;HOLDH10,3296/10,0077,C9,3303/10,3776tok/s. CheminB1inchangé etaucungainattribué ; un brasHOLDCralentit isolément−9,675%, étenduedesécarts13,371points (contrôlesH3,217%) → **témoinOFF nonconcluant**, conservé. Picphysique7 143 315 312octets. Ne pas remplacer cetéchecparunmoyennage ni prétendreconditionsglobalementparfaites ; lespairesMTP/DFlash suivantes seront qualifiées dansleursfenêtrespropres et cetteinstabilité resteralimitante danslebilan. Toutepublicationdegainréel indiquera lescontroleseffectifsetnonseulementlemicrobench. Pasdepostflightfinalencore.
+
+- 45-Q/R processus MTP-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- 45-Q/R processus MTP-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-MTP-v5/run-result.json.
+
+- 63V v5 débit MTP : validated_gain, contrôle seul=False ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-v5-result.json. Postflight final encore requis.
+
+- 45-Q/R processus R-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- **63V débitv5 MTP terminé, qualificationmémoireencoreouverte** :8bras/16réponses128tokens exactes,joints,0Swapout. QuatrepairesMAIN+6,1818/+6,5255%,HOLD+6,3433/+6,8707%. MTP63 :11,1455/11,2253tok/s MAIN et10,2587/10,2570 HOLD ; témoins10,4966/10,5377 et9,6468/9,5976. Contrôlesdérivent0,391/0,512%, étendues0,344/0,527point ; helperqualify`validated_gain`danscesfenêtres, `memory_status:requires_campaign_postflight_before_publication` conservé. Picphysiquemax8 201 065 752octets ; valeurscandidatàdétaillerdansrapport. OFF a une fenêtreHOLDisoléeinstable, pasdeclaimgainglobalindépendant àpartirdesimplesmoyennes. DFlashfixe3 démarre ; aucunpushdegainavantcomparaisontroismodesetpostflightfinal.
+
+- 45-Q/R processus R-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- 45-Q/R processus R-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- 45-Q/R processus R-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- 45-Q/R processus R-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- 45-Q/R processus R-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- 45-Q/R processus R-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- 45-Q/R processus R-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-R-v5/run-result.json.
+
+- 63V v5 débit R : inconclusive_drift, contrôle seul=False ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-v5-result.json. Postflight final encore requis.
+
+- 45-Q/R processus A-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 45-Q/R processus A-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 45-Q/R processus A-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 45-Q/R processus A-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 45-Q/R processus A-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 45-Q/R processus A-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 45-Q/R processus A-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 45-Q/R processus A-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-A-v5/run-result.json.
+
+- 63V v5 débit A : inconclusive_drift, contrôle seul=False ; docs/measurements/flash-next-ssd-impl/opt-63-verifier/speed-v5-result.json. Postflight final encore requis.
+
+- **63V préférence utilisateur révisée** : annuler la piste cache agrandi vers10Go, avant tout nouvel essai ; l’utilisateur rappelle les essais antérieurs et demande de poursuivre les mécanismes Splash après63. Cache3Gio inchangé. La préférence précédente reste dans l’historique mais ne commande plus la suite.
+- **63V débit autonome v5 clos** :32processus/64réponses exactes vs oracleOFF, tous joints ; postflight16échantillons/30,005s secteur100%,0nouveauSwapout depuis origine63,13 074 432octetsSwapin cumulatifs. Identité146sources/4artéfacts recontrôlée, CLI SHA256 `b49cc73c6ea18ab83cc43878be3b64d9d06773cbb3a212ff5f44c22df49de4e1`. MTP **gain validé dans sa fenêtre** :+6,182/+6,526% MAIN,+6,343/+6,871% HOLD, contrôles≤0,513%, étendues≤0,528point, candidats11,146–11,225tok/s MAIN/10,257–10,259 HOLD. Pic candidat7,920–7,926Go ; pic tousbrasMTP8,201Go, pas d’économie MTP universelle revendiquée.
+- **63V DFlash v5** :fixe3 candidats9,762/9,842 MAIN et9,580/9,503 HOLD ; gains+8,108/+11,138 et+11,714/+9,880%, étendue MAIN3,030points>3 → **non concluant** selon protocole, seuil non assoupli après résultat. Adaptatif7 candidats10,867/10,935 MAIN et9,627/9,767 HOLD ; gains+7,036/+7,203 et+6,199/+12,111%, étendueHOLD5,912points>3 → **non concluant**. Pic candidatsfixe8,222Go/adaptatif8,263Go contre témoins8,429/8,934Go. Politique adaptative temporelle change parfois le nombre de propositions/lignes (MAIN136→138) ; texte et empreinte restent exacts, ne pas attribuer toutes les différences de phases au seul kernel. OFFB1 inchangé, son outlierHOLD conservé/nonconcluant. MTP est seul gain réel de génération qualifié à ce palier ; aucun15tok/s atteint, flag63 reste0 par défaut. Résultat initial conservé ; qualification mémoire finale séparée dans `opt-63-verifier/speed-v5-closure.json`.
+- **63V profil v5 inspecté** :fixeMAIN mêmes182lignes et28 849 045 392octets demandés, vérification13,312/13,546s→12,263/12,159s ;95,742–96,558ms par sortie debloc et66,809–67,379ms/ligne côtécandidat. HOLD186lignes,29 511 739 764octets,98,452–99,280ms/sortie et67,222–67,788ms/ligne. AdaptatifMAIN138lignes,81,546–82,093ms/sortie et75,046–75,549ms/ligne ; HOLD136–137lignes et1tokenterminalordinaire,89,933–91,215ms/sortie debloc et83,320–83,891ms/ligne. Compteurs SSD :équivalentsrecords/token, pas appels système ni octetsdevice. Touttemps hôte inclusif, GPUexclusif non mesuré. Bilan source/qualité/microbench/tok/s à publier maintenant dansPR34 avant comparaison combinée63+WIDE séparée ; cette combinaison reste à contrôler, pas de gain additionné.
