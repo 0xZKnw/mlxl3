@@ -25,6 +25,20 @@ from check_flash_drafts import (
 )
 
 
+@pytest.mark.parametrize("scores,expected", [(np.zeros(16), 1 / 16), (np.arange(16) * 1000, 1.0)])
+def test_dflash_confidence_is_stable_temperature_one(scores, expected):
+    assert check_flash_drafts.candidate_confidence(scores) == pytest.approx(expected)
+    assert check_flash_drafts.candidate_confidence(scores + 1e6) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "scores", [[], np.ones(15), np.ones(17), np.full(16, np.nan), np.full(16, np.inf)]
+)
+def test_dflash_confidence_rejects_incomplete_or_nonfinite_scores(scores):
+    with pytest.raises(ValueError):
+        check_flash_drafts.candidate_confidence(scores)
+
+
 def native_chain_fixture(tmp_path, kind="dspark", count=1):
     logits = np.ones((count, 248320), dtype="<f4")
     entry = save_array(tmp_path, "native_logits", logits)
@@ -34,14 +48,14 @@ def native_chain_fixture(tmp_path, kind="dspark", count=1):
         "revision": check_flash_drafts.REVISION[kind],
         "proposals": count,
         "arrays": {"native_logits": entry, "hidden": {"sha256": "a" * 64}},
-        "native": {"tokens": [42] * count, "confidence": [0.5] * count if kind == "dspark" else []},
+        "native": {"tokens": [42] * count, "confidence": [0.5] * count},
     }, logits
 
 
 @pytest.mark.parametrize("kind,count", [("dflash2", 1), ("dspark", 1), ("dspark", 7)])
 def test_native_chain_compares_all_logits_and_real_confidences(tmp_path, kind, count):
     data, logits = native_chain_fixture(tmp_path, kind, count)
-    confidence = [0.5] * count if kind == "dspark" else []
+    confidence = [0.5] * count
     checked = check_native_chain(tmp_path, data, logits, [42] * count, confidence)
     assert checked["status"] == "passed_native_chain"
     assert checked["logit_count"] == count * 248320 and checked["relative_rmse"] == 0
@@ -297,9 +311,15 @@ def test_real_selector_equations_follow_predecessor_and_use_full_edge_scale(kind
     logits[:, 2] = 1.5
     tokens, confidence = select_cpu(weights, kind, hidden, logits, 7)
     assert tokens == [1, 2]
-    assert confidence == (
-        pytest.approx([0.7310585786300049, 0.2689414213699951]) if kind == "dspark" else []
-    )
+    if kind == "dspark":
+        assert confidence == pytest.approx([0.7310585786300049, 0.2689414213699951])
+    else:
+        assert confidence == pytest.approx(
+            [
+                np.exp(2) / (np.exp(2) + np.exp(1.5) + 14),
+                np.exp(1.5) / (np.exp(-2) + np.exp(1.5) + 14),
+            ]
+        )
 
 
 @pytest.mark.parametrize("bad", ["empty", "width", "hidden", "nan", "kind", "anchor"])
@@ -405,7 +425,7 @@ def diagnostic_fixture(category):
         "status": "complete_cpu_oracle",
         "arrays": {name: {"count": 100} for name in names},
         "selector_tokens": [25, 18, 32],
-        "selector_confidence": [],
+        "selector_confidence": [0.5] * 3,
     }
 
     def comparison(name, tolerance):
@@ -423,7 +443,7 @@ def diagnostic_fixture(category):
                 for name in names[:-1]
             ],
             selector_tokens=[25, 18, 32],
-            confidence=[],
+            confidence=[0.5] * 3,
         )
     elif category == "prefix":
         data.update(
@@ -480,7 +500,7 @@ def test_coupled_diagnostic_requires_nonempty_real_head_and_proposal_parity(bad)
     data["coupled"] = {
         "tokens": [25, 18, 32],
         "cpu_hidden_tokens": [25, 18, 32],
-        "confidence": [],
+        "confidence": [0.5] * 3,
         "head": {
             "name": "coupled_logits",
             "count": 3 * 248320,

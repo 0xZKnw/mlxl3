@@ -1,0 +1,28 @@
+{
+  "status": "metadata_comparison_not_quantized_or_benchmarked",
+  "hub_revision": "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+  "config_json_equal": true,
+  "local_config_sha256": "2409575986f9ea24d455343eb469c0e6940def5edab1d1be503bb8eb4cc3b1b9",
+  "hub_config_sha256": "2409575986f9ea24d455343eb469c0e6940def5edab1d1be503bb8eb4cc3b1b9",
+  "layers": 5,
+  "intermediate": 7680,
+  "target_layers": [
+    5,
+    15,
+    25,
+    35,
+    45
+  ],
+  "rope_theta": 10000,
+  "source_header_sha256": "5ef4772f77b6a3ea349c6515aceffdb999868946aafb04578416494c64ef0513",
+  "bf16_tensor_payload_bytes": 1206131200,
+  "projection_matrices": 47,
+  "projection_parameters": 475791360,
+  "unchanged_bf16_tensor_bytes": 254548480,
+  "note": "AF4G64 projection payload estimate requires authoritative group-byte layout; no weight conversion or accuracy/acceptance test performed",
+  "fixture_note": "Splash test fixture has 3 layers and different captures; actual pinned Hub config is unchanged 5 layers. Not a newly trained head.",
+  "af4g64_projection_estimate_bytes": 267632640,
+  "total_tensor_payload_estimate_bytes": 522181120,
+  "payload_savings_estimate_bytes": 683950080,
+  "payload_estimate_note": "47 matrices quantized per actual Splash Builder; 36 bytes per 64 weights, AF4G64; excludes planes alignment, allocator, scratch, KV, target and real physical footprint. No conversion/performance/acceptance run."
+}

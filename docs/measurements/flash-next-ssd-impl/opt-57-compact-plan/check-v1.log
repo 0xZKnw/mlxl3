@@ -1,0 +1,44 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: failed to run custom build command for `mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)`
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/Documents/mix-stq1_0/target/debug/build/mlxl3-native-ecc5b8c5049c6259/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_09/HEAD
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_09/index
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/packed-refs
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/refs/heads/codex/flash-57-compact
+  cargo:rerun-if-changed=native
+  cargo:rerun-if-changed=Cargo.toml
+  cargo:rerun-if-changed=Cargo.lock
+  cargo:rustc-env=MLXL3_BUILD_REVISION=79e605fab417-dirty
+  cargo:rustc-env=MLXL3_BUILD_PROFILE=debug
+  cargo:rerun-if-env-changed=MLXL3_MLX_ROOT
+  cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp
+  cargo:rerun-if-changed=/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/mlx/version.h
+  cargo:rerun-if-changed=/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/mlx/fast.h
+  cargo:rerun-if-changed=/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib/libmlx.dylib
+  cargo:rerun-if-changed=/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib/libjaccl.dylib
+  cargo:rerun-if-changed=/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib
+  cargo:rustc-env=MLXL3_MLX_VERSION=0.32.2
+
+  --- stderr
+  In file included from native/ffi/mlx_bridge.cpp:32:
+  native/ffi/indirect_metal.h:18:19: error: 'this' argument to member function 'stream' has type 'const mlx::core::fast::CustomKernel', but function is not marked const
+     18 |       : Primitive(prototype.stream()), offset_(offset) {
+        |                   ^~~~~~~~~
+  /Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/mlx/primitives.h:59:17: note: 'stream' declared here
+     59 |   const Stream& stream() {
+        |                 ^
+  In file included from native/ffi/mlx_bridge.cpp:32:
+  native/ffi/indirect_metal.h:81:26: error: static_cast from 'const void *' to 'MTL::Buffer *' casts away qualifiers
+     81 |       encoder->setBuffer(static_cast<MTL::Buffer*>(in.buffer().ptr()), in.offset(), index++);
+        |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  native/ffi/indirect_metal.h:91:35: error: static_cast from 'const void *' to 'MTL::Buffer *' casts away qualifiers
+     91 |     encoder->dispatchThreadgroups(static_cast<MTL::Buffer*>(grid.buffer().ptr()),
+        |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  3 errors generated.
+
+  thread 'main' (3569592) panicked at build.rs:5:5:
+  native compiler failed: "/usr/bin/clang++" "-std=c++20" "-O2" "-fPIC" "-fvisibility=hidden" "-c" "native/ffi/mlx_bridge.cpp" "-o" "/Users/justin/Documents/mix-stq1_0/target/debug/build/mlxl3-native-4eff80733515be42/out/mlx_bridge.o" "-I" "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include" "-I" "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/metal_cpp"
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

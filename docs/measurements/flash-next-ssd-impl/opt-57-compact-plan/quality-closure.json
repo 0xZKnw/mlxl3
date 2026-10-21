@@ -1,0 +1,27 @@
+{
+  "status": "partial_power_interrupted_then_cumulative_swapin_refused",
+  "new_snapshot": {
+    "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   265538.\nPages active:                                 493197.\nPages inactive:                               505208.\nPages speculative:                             15999.\nPages throttled:                                   0.\nPages wired down:                             154404.\nPages purgeable:                               12159.\n\"Translation faults\":                     1434846715.\nPages copy-on-write:                        46620775.\nPages zero filled:                        1622215470.\nPages reactivated:                         153166694.\nPages purged:                               16513143.\nFile-backed pages:                            548213.\nAnonymous pages:                              466191.\nPages stored in compressor:                   174630.\nPages occupied by compressor:                  84352.\nDecompressions:                            404545461.\nCompressions:                              473617814.\nPageins:                                  1462158538.\nPageouts:                                     206285.\nSwapins:                                     5084226.\nSwapouts:                                    7319526.\nPages tagged:                                  99960.\nPages tagged resident:                         83850.\nPages tagged compressed:                       16110.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4212.\nPages tag-storage free:                         3101.\nPages tag-storage non-tag pageable:            41676.\nPages tag-storage non-tag wired:                  79.\nBytes of compressed tags:                    2537408.\nTagged compressions:                         7189046.\nTagged decompressions:                       6883799.\n",
+    "sysctl vm.swapusage": "vm.swapusage: total = 7168.00M  used = 5508.44M  free = 1659.56M  (encrypted)\n",
+    "pmset -g batt": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t100%; discharging; 11:59 remaining present: true\n",
+    "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+    "vm_bytes": {
+      "Pages free": 4350574592,
+      "File-backed pages": 8981921792,
+      "Pages occupied by compressor": 1382023168,
+      "Swapins": 83299958784,
+      "Swapouts": 119923113984
+    }
+  },
+  "original_vm_baseline": {
+    "Swapins": 82857558016,
+    "Swapouts": 119923113984
+  },
+  "deltas": {
+    "Swapins": 442400768,
+    "Swapouts": 0
+  },
+  "numeric_cases_passed": 12,
+  "bridge_complete": false,
+  "speed_measured": false
+}

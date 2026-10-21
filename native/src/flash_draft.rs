@@ -1,15 +1,22 @@
-//! Test prototype for the pinned Flash Next drafts; no Desktop activation.
+//! Flash Next DFlash2 runtime and numerical oracles for the pinned drafts.
 //! Equations: SGLang 3c560089 DFlash2 and e00930c5 DSpark (Apache-2.0).
 use super::*;
 use std::path::Path;
+#[path = "flash_draft_runtime.rs"]
+pub(super) mod runtime;
+#[cfg(test)]
+#[path = "flash_draft_splash_tests.rs"]
+mod splash_tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
     Dflash2,
+    #[cfg(test)]
     Dspark,
 }
 
 impl Kind {
+    #[cfg(test)]
     fn parse(value: &str) -> Result<Self> {
         match value {
             "dflash2" => Ok(Self::Dflash2),
@@ -20,6 +27,7 @@ impl Kind {
     fn captures(self) -> [usize; 5] {
         match self {
             Self::Dflash2 => [5, 15, 25, 35, 45],
+            #[cfg(test)]
             Self::Dspark => [1, 12, 23, 34, 45],
         }
     }
@@ -49,12 +57,17 @@ impl Kind {
 struct Draft {
     kind: Kind,
     weights: BTreeMap<String, Array>,
+    quantized: BTreeMap<String, (Array, Array, Array)>,
+    circular: bool,
     cache: Vec<Option<(Array, Array)>>,
     offset: i32,
+    #[cfg(test)]
     policy: PrefixPolicy,
+    #[cfg(test)]
     record_rounds: bool,
 }
 
+#[cfg(test)]
 #[derive(Default)]
 enum PrefixPolicy {
     #[default]
@@ -63,12 +76,14 @@ enum PrefixPolicy {
     Adaptive(PrefixPlan),
 }
 
+#[cfg(test)]
 struct PrefixPlan {
     temperatures: [f64; 3],
     costs: [f64; 4],
     calibration_prompt_ids: Vec<String>,
 }
 
+#[cfg(test)]
 impl PrefixPlan {
     fn parse(data: &Value, identity: &Value) -> Result<Self> {
         ensure!(
@@ -115,6 +130,7 @@ impl PrefixPlan {
     }
 }
 
+#[cfg(test)]
 impl PrefixPolicy {
     fn choose(&self, confidence: &[f32], count: usize) -> Result<usize> {
         match self {
@@ -153,6 +169,7 @@ impl PrefixPolicy {
     }
 }
 
+#[cfg(test)]
 fn prompt_id(tokens: &[u32]) -> String {
     let hash = tokens
         .iter()
@@ -163,6 +180,7 @@ fn prompt_id(tokens: &[u32]) -> String {
     format!("{hash:016x}")
 }
 
+#[cfg(test)]
 fn profile_identity(target: &Path, draft: &Path) -> Result<Value> {
     fn stamp(path: &Path) -> Result<Value> {
         let path = path.canonicalize()?;
@@ -201,6 +219,7 @@ fn profile_identity(target: &Path, draft: &Path) -> Result<Value> {
     )
 }
 
+#[cfg(test)]
 fn configure_policy(draft: &mut Draft, target_path: &Path) -> Result<()> {
     let profile = std::env::var("MLXL3_FLASH_PREFIX_PROFILE").ok();
     let forced = std::env::var("MLXL3_FLASH_FORCE_PREFIX").ok();
@@ -316,7 +335,15 @@ impl Draft {
         self.cache = (0..5).map(|_| None).collect();
         self.offset = 0;
     }
+    #[cfg(test)]
     fn load(path: &Path, kind: Kind) -> Result<Self> {
+        Self::load_options(path, kind, false, false)
+    }
+    fn load_options(path: &Path, kind: Kind, q4: bool, circular: bool) -> Result<Self> {
+        ensure!(
+            kind == Kind::Dflash2 || (!q4 && !circular),
+            "Splash options require DFlash2"
+        );
         let tensors = crate::checkpoint::read_header(&path.join("model.safetensors"))
             .context("reading raw BF16 Flash draft header")?;
         let config: Value = serde_json::from_reader(File::open(path.join("config.json"))?)?;
@@ -422,6 +449,7 @@ impl Draft {
             "unexpected or missing draft tensors"
         );
         let mut weights = BTreeMap::new();
+        let mut quantized = BTreeMap::new();
         for (name, shape) in shapes {
             let info = tensors
                 .get(&name)
@@ -433,15 +461,27 @@ impl Draft {
             );
             let (file, offset) = info.source()?;
             let weight = Array::from_file(file, offset, &shape, Dtype::BFloat16)?;
-            weight.eval()?;
-            weights.insert(name, weight);
+            if q4 && name.ends_with(".weight") && shape.len() == 2 {
+                let (w, s, b) = weight.quantize4()?;
+                w.eval()?;
+                s.eval()?;
+                b.eval()?;
+                quantized.insert(name, (w, s, b));
+            } else {
+                weight.eval()?;
+                weights.insert(name, weight);
+            }
         }
         Ok(Self {
             kind,
             weights,
+            quantized,
+            circular,
             cache: (0..5).map(|_| None).collect(),
             offset: 0,
+            #[cfg(test)]
             policy: PrefixPolicy::Fixed,
+            #[cfg(test)]
             record_rounds: false,
         })
     }
@@ -449,6 +489,9 @@ impl Draft {
         &self.weights[name]
     }
     fn linear(&self, x: &Array, prefix: &str) -> Result<Array> {
+        if let Some((w, s, b)) = self.quantized.get(&format!("{prefix}.weight")) {
+            return x.affine4(w, s, b, None);
+        }
         x.matmul(
             &self
                 .weight(&format!("{prefix}.weight"))
@@ -486,6 +529,15 @@ impl Draft {
                 .linear(&context, &format!("{p}.v_proj"))?
                 .reshape(&[1, rows, 8, 128])?
                 .transpose(&[0, 2, 1, 3])?;
+            if self.circular {
+                cache.push(Some(append_ring(
+                    self.cache[layer].take(),
+                    &keys,
+                    &values,
+                    start,
+                )?));
+                continue;
+            }
             let (keys, values) = match &self.cache[layer] {
                 Some((old_k, old_v)) => (
                     Array::concatenate(&[old_k, &keys], 2)?,
@@ -570,6 +622,17 @@ impl Draft {
             .linear(x, &format!("{p}.v_proj"))?
             .reshape(&[1, rows, 8, 128])?
             .transpose(&[0, 2, 1, 3])?;
+        if self.circular {
+            let (keys, values) = self.cache[layer]
+                .as_ref()
+                .context("empty circular KV cache")?;
+            return self.linear(
+                &ring_attention(&q, &k, &v, keys, values, position)?
+                    .transpose(&[0, 2, 1, 3])?
+                    .reshape(&[rows, 4096])?,
+                &format!("{p}.o_proj"),
+            );
+        }
         let (keys, values, past) = match &self.cache[layer] {
             Some((old_k, old_v)) => (
                 Array::concatenate(&[old_k, &k], 2)?,
@@ -709,13 +772,25 @@ impl Draft {
                 .mul(&projected.reshape(&[rows, 1, 256])?)?
                 .matmul(&keys.transpose(&[0, 2, 1])?)?
                 .astype(Dtype::Float32)?;
-            let maps = edges.add(&unary.reshape(&[rows, 1, 16])?)?.argmax()?;
+            let scores = edges.add(&unary.reshape(&[rows, 1, 16])?)?;
+            let maps = scores.argmax()?;
+            let probabilities = scores.softmax_precise()?;
             let mut rank = Array::from_u32(&[0], &[1])?;
             for row in 0..rows {
+                let previous_rank = rank.try_clone()?;
                 rank = maps
                     .slice(0, row, row + 1)?
                     .reshape(&[16])?
                     .take(&rank, 0)?;
+                confidence.push(
+                    probabilities
+                        .slice(0, row, row + 1)?
+                        .reshape(&[16, 16])?
+                        .take(&previous_rank, 0)?
+                        .reshape(&[16])?
+                        .take(&rank, 0)?
+                        .reshape(&[1])?,
+                );
                 output.push(ids.slice(0, row, row + 1)?.reshape(&[16])?.take(&rank, 0)?);
             }
         } else {
@@ -776,6 +851,113 @@ impl Draft {
         };
         Ok((output, confidence))
     }
+}
+
+fn append_ring(
+    cache: Option<(Array, Array)>,
+    keys: &Array,
+    values: &Array,
+    start: i32,
+) -> Result<(Array, Array)> {
+    ensure!(
+        keys.shape().len() == 4
+            && keys.shape()[0] == 1
+            && keys.shape()[1] == 8
+            && keys.shape()[3] == 128
+            && keys.shape() == values.shape()
+            && keys.dtype() == Dtype::BFloat16
+            && values.dtype() == Dtype::BFloat16,
+        "invalid ring append tensors"
+    );
+    let writes = crate::flash_draft_budget::ring_writes(start, keys.shape()[2])
+        .context("invalid circular KV append")?;
+    let (mut key_ring, mut value_ring) = match cache {
+        Some(pair) => pair,
+        None => (
+            Array::zeros_dtype(&[1, 8, 2048, 128], Dtype::BFloat16)?,
+            Array::zeros_dtype(&[1, 8, 128, 2048], Dtype::BFloat16)?,
+        ),
+    };
+    let values = values.transpose(&[0, 1, 3, 2])?;
+    for (source, slot, count) in writes {
+        if count == 0 {
+            continue;
+        }
+        key_ring =
+            key_ring.slice_update(&keys.slice(2, source, source + count)?, &[0, 0, slot, 0])?;
+        value_ring =
+            value_ring.slice_update(&values.slice(3, source, source + count)?, &[0, 0, 0, slot])?;
+    }
+    key_ring.eval()?;
+    value_ring.eval()?;
+    Ok((key_ring, value_ring))
+}
+
+fn ring_attention(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    keys: &Array,
+    values: &Array,
+    position: i32,
+) -> Result<Array> {
+    let shape = q.shape();
+    ensure!(
+        shape.len() == 4
+            && shape[0] == 1
+            && shape[1] == 32
+            && shape[3] == 128
+            && (1..=8).contains(&shape[2])
+            && position >= 0,
+        "invalid circular queries"
+    );
+    let rows = shape[2];
+    ensure!(
+        k.shape() == [1, 8, rows, 128]
+            && v.shape() == k.shape()
+            && keys.shape() == [1, 8, 2048, 128]
+            && values.shape() == [1, 8, 128, 2048]
+            && [q, k, v, keys, values]
+                .iter()
+                .all(|a| a.dtype() == Dtype::BFloat16),
+        "invalid circular K/V"
+    );
+    let pad = |a: &Array| -> Result<Array> {
+        if rows == 8 {
+            a.try_clone()
+        } else {
+            Array::concatenate(
+                &[
+                    a,
+                    &Array::zeros_dtype(&[1, a.shape()[1], 8 - rows, 128], Dtype::BFloat16)?,
+                ],
+                2,
+            )
+        }
+    };
+    let q = pad(q)?;
+    let k = pad(k)?;
+    let v = pad(v)?.transpose(&[0, 1, 3, 2])?;
+    let params = Array::from_u32(&[position as u32, 2048], &[2])?;
+    let header = format!(
+        "#define FLASH_RING_ROWS {rows}u\n{}",
+        include_str!("../shaders/flash_draft_ring.h")
+    );
+    let partials = array::metal_kernel(&format!("mlxl3_flash_ring_split_r{rows}"),
+        &["q","k","v","keys","values","params"], &["partials"], &header,
+        "uint head = threadgroup_position_in_grid.x; uint split = threadgroup_position_in_grid.z;\n\
+         threadgroup float workspace[32 * 128 + 3 * 32];\n\
+         draft_attention_split_phase(q + head*32*128, keys + head*2048*128, values + head*2048*128,\n\
+             k + head*8*128, v + head*128*8, partials + (head*8+split)*4160, params[1], params[0], split,\n\
+             workspace, workspace+4096, workspace+4128, workspace+4160,\n\
+             thread_index_in_threadgroup, thread_index_in_simdgroup, simdgroup_index_in_threadgroup);",
+        &[&q,&k,&v,keys,values,&params], &[vec![8,8,4160]], &[Dtype::Float32], [8*256,1,8], [256,1,1])?.remove(0);
+    let output = array::metal_kernel(&format!("mlxl3_flash_ring_reduce_r{rows}"),
+        &["partials"], &["output"], &header,
+        "uint head = threadgroup_position_in_grid.x;\n\
+         draft_attention_reduce_phase(partials + head*8*4160, output + head*32*128, thread_index_in_threadgroup);",
+        &[&partials], &[vec![1,32,8,128]], &[Dtype::BFloat16], [8*256,1,1], [256,1,1])?.remove(0);
+    output.slice(2, 0, rows)
 }
 
 fn top16(logits: &Array) -> Result<(Array, Array, Array)> {
@@ -1020,6 +1202,7 @@ impl FlashNext {
     }
 }
 
+#[cfg(test)]
 struct Generated {
     tokens: Vec<u32>,
     seconds: f64,
@@ -1036,6 +1219,7 @@ struct Generated {
     decode_io: [u64; 3],
 }
 
+#[cfg(test)]
 fn generate(
     target: &mut FlashNext,
     draft: &mut Draft,
@@ -1238,6 +1422,7 @@ fn generate(
     operation
 }
 
+#[cfg(test)]
 fn oracle_array(root: &Path, data: &Value, name: &str) -> Result<Array> {
     let entry = &data["arrays"][name];
     let shape = entry["shape"]
@@ -1276,6 +1461,7 @@ fn oracle_array(root: &Path, data: &Value, name: &str) -> Result<Array> {
     Array::from_f32(&values, &shape)
 }
 
+#[cfg(test)]
 fn compare_oracle(
     root: &Path,
     data: &Value,
@@ -1310,6 +1496,7 @@ fn compare_oracle(
     )
 }
 
+#[cfg(test)]
 fn export_native_probe(
     root: &Path,
     oracle: &Value,
@@ -1501,7 +1688,7 @@ fn flash_draft_matches_numpy_backbone_cache_and_selector() -> Result<()> {
         serde_json::json!(tokens) == data["selector_tokens"],
         "selector disagrees with independent oracle"
     );
-    if kind == Kind::Dspark {
+    {
         let expected = data["selector_confidence"]
             .as_array()
             .context("missing confidence")?;
@@ -1515,8 +1702,6 @@ fn flash_draft_matches_numpy_backbone_cache_and_selector() -> Result<()> {
                 "confidence differs"
             );
         }
-    } else {
-        ensure!(confidence.is_empty());
     }
     let coupled_root = std::env::var("MLXL3_FLASH_DRAFT_HEAD_REFERENCE")?;
     let coupled_root = Path::new(&coupled_root);
@@ -1631,6 +1816,7 @@ fn flash_draft_matches_numpy_backbone_cache_and_selector() -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn disk_state(target: &FlashNext, root: &Path, label: &str, save: bool) -> Result<usize> {
     let values = super::tests::state_bytes(target)?;
     ensure!(!values.is_empty(), "empty state comparison");
@@ -1767,6 +1953,7 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn thinking_mode() -> Result<bool> {
     match std::env::var("MLXL3_FLASH_THINKING").as_deref() {
         Ok("on") | Err(std::env::VarError::NotPresent) => Ok(true),
@@ -1775,10 +1962,12 @@ fn thinking_mode() -> Result<bool> {
     }
 }
 
+#[cfg(test)]
 fn prompt(target_path: &Path) -> Result<Vec<u32>> {
     prompt_with_thinking(target_path, thinking_mode()?)
 }
 
+#[cfg(test)]
 fn prompt_with_thinking(target_path: &Path, thinking: bool) -> Result<Vec<u32>> {
     let tokenizer = crate::tokenizer::ChatTokenizer::load(target_path)?;
     let text=std::env::var("MLXL3_FLASH_PROMPT").unwrap_or_else(|_|"Explique en fran\u{e7}ais, avec un exemple concret, comment un cache LFU \u{e9}vite les lectures SSD inutiles pendant l\u{2019}inf\u{e9}rence d\u{2019}un mod\u{e8}le MoE.".into());
@@ -2153,7 +2342,7 @@ fn flash_draft_calibration_arm() -> Result<()> {
     Ok(())
 }
 
-#[cfg(kani)]
+#[cfg(all(kani, test))]
 #[kani::proof]
 #[kani::unwind(100)]
 fn actual_flash_draft_generation_checks_empty_decode_and_committed_state() {
@@ -2181,7 +2370,7 @@ fn actual_flash_draft_generation_checks_empty_decode_and_committed_state() {
     }
 }
 
-#[cfg(kani)]
+#[cfg(all(kani, test))]
 #[kani::proof]
 #[kani::unwind(100)]
 fn actual_raw_draft_loader_checks_types_and_geometry() {
@@ -2202,7 +2391,7 @@ fn actual_raw_draft_loader_checks_types_and_geometry() {
     }
 }
 
-#[cfg(kani)]
+#[cfg(all(kani, test))]
 #[kani::proof]
 #[kani::unwind(100)]
 fn actual_flash_draft_norm_and_selector_preserve_shapes() {
@@ -2231,11 +2420,15 @@ fn actual_flash_draft_norm_and_selector_preserve_shapes() {
     if let Ok((tokens, confidence)) = draft.select_logits(&logits, &x, 7) {
         assert_eq!(tokens.len(), 1);
         assert!(tokens[0] < 248320);
-        assert!(confidence.is_empty());
+        assert!(
+            confidence.len() == 1
+                && confidence[0].is_finite()
+                && (0.0..=1.0).contains(&confidence[0])
+        );
     }
 }
 
-#[cfg(kani)]
+#[cfg(all(kani, test))]
 #[kani::proof]
 #[kani::unwind(100)]
 fn actual_flash_draft_verification_checks_tokens_shapes_and_commit() {

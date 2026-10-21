@@ -1,0 +1,49 @@
+[
+  {
+    "name": "57P-primitive-0",
+    "native_test": "array::tests::indirect_dispatch_obeys_gpu_grid_and_recovers_after_compile_errors",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-57/v2/mlxl3_native",
+      "array::tests::indirect_dispatch_obeys_gpu_grid_and_recovers_after_compile_errors",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512"
+    },
+    "expected_exit": 0
+  },
+  {
+    "name": "57P-primitive-2",
+    "native_test": "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-57/v2/mlxl3_native",
+      "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512"
+    },
+    "expected_exit": 0
+  },
+  {
+    "name": "57P-asan-streams",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-57/v2/indirect-asan",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib"
+    ],
+    "env": {
+      "ASAN_OPTIONS": "detect_leaks=0",
+      "UBSAN_OPTIONS": "halt_on_error=1"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "INDIRECT_CABI cases=20 cross_streams=3"
+    ]
+  }
+]

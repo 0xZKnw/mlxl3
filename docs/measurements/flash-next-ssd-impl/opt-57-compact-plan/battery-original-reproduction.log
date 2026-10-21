@@ -1,0 +1,164 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_supervisor_checks_outcomes_and_reaps_children[battery] __________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-102/test_supervisor_checks_outcome0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108aaf770>
+case = 'battery'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "ok",
+            "expected_failure",
+            "interleaved",
+            "silent",
+            "interrupt",
+            "bad_exit",
+            "zero_tests",
+            "power",
+            "swap",
+            "backward",
+            "memory",
+            "missing_head",
+            "failed_head",
+            "empty_head",
+            "valid_head",
+            "battery",
+            "battery_unspecified",
+            "invalid_power",
+        ],
+    )
+    def test_supervisor_checks_outcomes_and_reaps_children(tmp_path, monkeypatch, case):
+        main = runpy.run_path(str(SOURCE))["main"]
+        monkeypatch.chdir(tmp_path)
+        from types import SimpleNamespace
+    
+        monkeypatch.setattr(
+            resource,
+            "getrusage",
+            lambda _: SimpleNamespace(ru_maxrss=(11 << 30) if case == "memory" else 64 << 10),
+        )
+        before = {
+            "pmset -g batt": "Now drawing from 'AC Power'\n",
+            "vm_bytes": {"Swapins": 0, "Swapouts": 0},
+        }
+        if case.startswith("battery"):
+            before["pmset -g batt"] = "Now drawing from 'Battery Power'\n"
+        snapshots = [copy.deepcopy(before), copy.deepcopy(before)]
+        if case == "power":
+            snapshots[1]["pmset -g batt"] = "Now drawing from 'Battery Power'\n"
+        if case in ("swap", "backward"):
+            snapshots[1]["vm_bytes"]["Swapouts"] = (256 << 20) + 1 if case == "swap" else -1
+    
+        def monitor(child, record, parser):
+            if case == "interrupt":
+                raise KeyboardInterrupt
+            return child.wait(timeout=0.5)
+    
+        monkeypatch.setattr(
+            runpy,
+            "run_path",
+            lambda path: (
+                {"snapshot": lambda parser: snapshots.pop(0), "monitor": monitor}
+                if "bench-supervisor" in str(path)
+                else {"parse_vm": None}
+            ),
+        )
+        negative = case == "expected_failure"
+        text = (
+            "running 1 test\ntest fake::case ... FAILED\ntest result: FAILED. 0 passed; 1 failed\nreason"
+            if negative
+            else "running 1 test\ntest fake::case ... ok\ntest result: ok. 1 passed; 0 failed"
+        )
+        if case == "zero_tests":
+            text = "running 0 tests\ntest result: ok. 0 passed; 0 failed"
+        if case == "interleaved":
+            text = "running 1 test\ntest fake::case ... DIAGNOSTIC\nok\ntest result: ok. 1 passed; 0 failed"
+        code = f"print({text!r}); raise SystemExit({101 if negative or case == 'bad_exit' else 0})"
+        if case in ("silent", "interrupt"):
+            code = "import time; time.sleep(60)"
+        matrix = tmp_path / "matrix.json"
+        matrix.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "probe",
+                        "command": [sys.executable, "-c", code],
+                        "env": {},
+                        "expected_exit": 101 if negative else 0,
+                        "native_test": "fake::case",
+                        "required_text": ["reason"] if negative else [],
+                    }
+                ]
+            )
+        )
+        if case in ("battery", "invalid_power"):
+            item = json.loads(matrix.read_text())
+            item[0]["power_source"] = "Battery Power" if case == "battery" else "unknown"
+            matrix.write_text(json.dumps(item))
+        if case in ("missing_head", "failed_head", "empty_head", "valid_head"):
+            item = json.loads(matrix.read_text())
+            reference = tmp_path / "head.json"
+            item[0]["native_head_reference"] = str(reference)
+            matrix.write_text(json.dumps(item))
+            if case != "missing_head":
+                count = 248320 if case == "valid_head" else 0
+                reference.write_text(
+                    json.dumps(
+                        {
+                            "status": "failed" if case == "failed_head" else "complete",
+                            "native_chain": {"status": "passed_native_chain", "logit_count": count},
+                            "draft_head": {"logits": {"count": count}},
+                        }
+                    )
+                )
+        if case in ("ok", "expected_failure", "interleaved", "valid_head", "battery"):
+>           main(matrix)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_quality_run.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-102/test_supervisor_checks_outcome0/matrix.json')
+
+    def main(path):
+        destination = path.parent
+        output = destination / (path.stem + "-result.json")
+        assert not output.exists(), "refusing to overwrite a run"
+        matrix = json.loads(path.read_text())
+        assert matrix and len({item["name"] for item in matrix}) == len(matrix)
+        previous = runpy.run_path(
+            "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt"
+        )
+        parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+        records = []
+        result = {
+            "status": "incomplete",
+            "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "matrix_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "commands": records,
+        }
+    
+        def save():
+            output.write_text(json.dumps(result, indent=2) + "\n")
+    
+        save()
+        try:
+            for item in matrix:
+                record = {**item, "status": "running", "before": previous["snapshot"](parse_vm)}
+                records.append(record)
+                child = None
+                started = time.monotonic()
+                try:
+                    assert (
+>                       record["before"]["pmset -g batt"].splitlines()[0]
+                        == "Now drawing from 'AC Power'"
+                    )
+E                   AssertionError
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:44: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{'name': 'probe', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 4.624977009370923e-06, 'swapouts_bytes': None}
+=========================== short test summary info ============================
+FAILED tests/test_flash_quality_run.py::test_supervisor_checks_outcomes_and_reaps_children[battery]
+1 failed in 0.18s

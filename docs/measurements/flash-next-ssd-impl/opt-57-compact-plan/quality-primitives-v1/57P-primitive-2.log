@@ -1,0 +1,20 @@
+
+running 1 test
+test linear::tests::flash_slot_shapes_match_resident_reference_for_every_route ... Error: MLX: [metal::Device] Unable to build metal library from source
+program_source:32:16: error: unknown type name 'float16_t'
+  const device float16_t* xhat [[buffer(0)]],
+               ^
+program_source:67:31: warning: unused variable 'partials' [-Wunused-variable]
+            threadgroup float partials
+                              ^
+
+
+FAILED
+
+failures:
+
+failures:
+    linear::tests::flash_slot_shapes_match_resident_reference_for_every_route
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 232 filtered out; finished in 0.15s
+

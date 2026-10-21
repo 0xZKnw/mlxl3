@@ -78,7 +78,11 @@ def native_diagnostic(log, kind, category, oracle, width=3, coupled=None):
             type(v) is not int or not 0 <= v < 248320 for v in data["selector_tokens"]
         ):
             raise ValueError("native selector diverged")
-        if len(data["confidence"]) != len(oracle["selector_confidence"]):
+        if (
+            not data["selector_tokens"]
+            or len(data["confidence"]) != len(data["selector_tokens"])
+            or len(data["confidence"]) != len(oracle["selector_confidence"])
+        ):
             raise ValueError("incomplete confidence head")
         for value, expected in zip(data["confidence"], oracle["selector_confidence"], strict=True):
             number(value)
@@ -119,7 +123,7 @@ def native_diagnostic(log, kind, category, oracle, width=3, coupled=None):
             number(check["relative_rmse"])
             if check["relative_rmse"] > 0.004:
                 raise ValueError("real head logits diverged")
-            expected_count = oracle["proposals"] if kind == "dspark" else 0
+            expected_count = oracle["proposals"]
             if len(actual["confidence"]) != expected_count:
                 raise ValueError("incomplete coupled confidences")
             for value in actual["confidence"]:
@@ -393,6 +397,14 @@ def save_array(directory, name, value):
     }
 
 
+def candidate_confidence(scores):
+    """Largest temperature-one probability among the sixteen Markov candidates."""
+    scores = np.asarray(scores, dtype=np.float64)
+    if scores.shape != (16,) or not np.isfinite(scores).all():
+        raise ValueError("invalid DFlash candidate scores")
+    return float(1 / np.exp(scores - scores.max()).sum())
+
+
 def select_cpu(weights, kind, hidden, logits, anchor):
     """Reference equations on real backbone output and independent EXL3 logits."""
     if (
@@ -417,7 +429,9 @@ def select_cpu(weights, kind, hidden, logits, anchor):
             pred = weights("candidate_selector.predecessor_codebook", [previous])[0]
             keys = weights("candidate_selector.successor_codebook", ids)
             edges = bf16(bf16(pred * projected[row]) @ keys.T)
-            previous = int(ids[np.argmax(logits[row, ids] + edges)])
+            scores = logits[row, ids] + edges
+            confidence.append(candidate_confidence(scores))
+            previous = int(ids[np.argmax(scores)])
             tokens.append(previous)
     else:
         matrix = weights("markov_head.markov_w2.weight")
@@ -485,7 +499,7 @@ def check_native_chain(root, data, reference_logits, reference_tokens, reference
         or len(reference_tokens) != count
     ):
         raise ValueError("native hidden proposals diverged")
-    length = count if kind == "dspark" else 0
+    length = count
     if (
         type(confidence) is not list
         or len(confidence) != length
@@ -543,6 +557,7 @@ def selector_fixture(weights, kind, rows):
             logits[row, ids] = unary
             previous = int(ids[correct])
             tokens.append(previous)
+            confidences.append(candidate_confidence(unary + edge))
     else:
         matrix = weights("markov_head.markov_w2.weight")
         anchor = weights("markov_head.markov_w1.weight", [7])[0]

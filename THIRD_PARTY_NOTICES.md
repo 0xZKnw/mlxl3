@@ -98,13 +98,21 @@ upstream throughput is not an MLXL3 measurement.
 
 ## IncoAI Splash
 
-Source: <https://github.com/inco-ai/splash>.
+Source: <https://github.com/incoai/splash>.
 
 MLXL3 reads Splash's public DFlash 2 draft package ABI and uses its published
 geometry as a compatibility reference. Runtime kernels remain independently
 benchmarked MLXL3 implementations and may differ from Splash. Splash is
 licensed under the Apache License, Version 2.0; a copy is provided in
 `LICENSES/Apache-2.0.txt`.
+
+`native/shaders/flash_draft_ring.h` adapts the split attention and fixed-order
+reduction from `runtime/metal/kernels/decode/draft.metal` at revision
+`1482f6bbc2abf12375332725302019594150b6cb`. MLXL3 changes its bindings to
+immutable MLX inputs, separate partial buffers, one lane and variable query
+counts. `native/src/flash_draft_budget.rs` adapts that revision's single-lane
+VerifyBudget cost/acceptance model to Rust, with bounded labels and verified
+prefix updates. Upstream performance figures do not describe these ports.
 
 ## SGLang DFlash2 and DSpark
 

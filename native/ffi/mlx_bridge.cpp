@@ -586,6 +586,37 @@ int mlxl3_array_affine4(void* x, void* w, void* scales, void* biases,
     *out = new mx::array(std::move(result));
   });
 }
+int mlxl3_array_quantize4(void* input, void** weight, void** scales, void** biases) noexcept {
+  return protect([&] {
+    if (!weight || !scales || !biases) throw std::invalid_argument("null quantization output");
+    const auto& x = arr(input);
+    if (x.ndim() != 2 || x.dtype() != mx::bfloat16 || x.shape(0) <= 0 ||
+        x.shape(1) <= 0 || x.shape(1) % 64)
+      throw std::invalid_argument("Q4 requires BF16 [output,input] with whole groups of 64");
+    if (!mx::all(mx::isfinite(x)).item<bool>()) throw std::invalid_argument("non-finite Q4 weight");
+    auto result = mx::quantize(x, 64, 4, "affine");
+    if (!mx::all(mx::isfinite(result[1])).item<bool>() || !mx::all(mx::isfinite(result[2])).item<bool>())
+      throw std::invalid_argument("non-finite Q4 affine parameters");
+    auto w = std::make_unique<mx::array>(std::move(result[0]));
+    auto s = std::make_unique<mx::array>(std::move(result[1]));
+    auto b = std::make_unique<mx::array>(std::move(result[2]));
+    *weight = w.release(); *scales = s.release(); *biases = b.release();
+  });
+}
+int mlxl3_array_slice_update(void* input, void* update, const int* start,
+                            const int* stop, size_t rank, void** out) noexcept {
+  return protect([&] {
+    if (!out || !start || !stop || !rank || rank != arr(input).ndim() ||
+        rank != arr(update).ndim() || arr(input).dtype() != arr(update).dtype())
+      throw std::invalid_argument("invalid slice update metadata");
+    for (size_t axis = 0; axis < rank; ++axis)
+      if (start[axis] < 0 || stop[axis] < start[axis] || stop[axis] > arr(input).shape(axis) ||
+          stop[axis] - start[axis] != arr(update).shape(axis))
+        throw std::invalid_argument("slice update outside destination");
+    *out = new mx::array(mx::slice_update(arr(input), arr(update),
+                                        mx::Shape(start, start + rank), mx::Shape(stop, stop + rank)));
+  });
+}
 int mlxl3_array_sdpa(void* q, void* k, void* v, float scale, int causal, void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::fast::scaled_dot_product_attention(
     arr(q), arr(k), arr(v), scale, causal ? "causal" : "")); });

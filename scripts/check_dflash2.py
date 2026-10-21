@@ -112,7 +112,10 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                 return result
 
             ready = until("ready")
-            assert ready["dflash_supported"] is True and ready["dflash_tune_supported"] is True
+            assert (
+                ready["dflash_supported"] is True and type(ready["dflash_tune_supported"]) is bool
+            )
+            online = not ready["dflash_tune_supported"]
             report["ready"] = ready
             assert request("set_dflash", enabled=True)["dflash_active"] is True
             for budget in (1, 2, 3, 8, 17, 64):
@@ -139,13 +142,19 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
             for phase in ("context_usage", "delta"):
                 request(mode=3, budget=256, cancel_at=phase)
                 equal(golden, request(mode=3))
-            prompt = "Explain this table in detail.\n" + "1 2 3 4 5 6 7 8 9 10\n" * 18
+            prompt = "Explain this table in detail.\n" + "1 2 3 4 5 6 7 8 9 10\n" * (
+                1 if online else 18
+            )
             messages = [{"role": "user", "content": prompt}]
             cold = request(mode=2, messages=messages)
             request(mode=2, messages=messages, reuse_prompt_cache=True)
             warm = request(mode=3, messages=messages, reuse_prompt_cache=True)
             equal(cold, warm)
-            assert warm["stats"]["cached_prompt_tokens"] >= 256
+            assert (
+                warm["stats"]["cached_prompt_tokens"] == 0
+                if online
+                else warm["stats"]["cached_prompt_tokens"] >= 256
+            )
             miss = request(
                 mode=3, messages=messages, reuse_prompt_cache=True, conversation_id="other"
             )
@@ -158,7 +167,9 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                 equal(cold, saved)
                 assert saved["stats"]["cached_prompt_tokens"] == 0
             assert request("set_dflash", enabled=False)["dflash_active"] is False
-            if tune:
+            if online:
+                request("tune_dflash", terminal="error")
+            elif tune:
                 request("tune_dflash", cancel_at="dflash_tune_progress")
                 equal(golden, request(mode=3))
                 result = request("tune_dflash", memory_saver=True)

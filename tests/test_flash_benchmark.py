@@ -36,6 +36,19 @@ spec.loader.exec_module(bench)
         "counter_range",
         "negative_counter",
         "missing_counter",
+        "df_ok",
+        "df_mode",
+        "df_hash",
+        "df_empty",
+        "df_timing",
+        "df_short",
+        "df_drift",
+        "df_invalid",
+        "df_silent",
+        "df_crash",
+        "df_counter_range",
+        "df_counter_type",
+        "df_missing_counter",
     ],
 )
 def test_campaign(tmp_path, fault, monkeypatch):
@@ -46,6 +59,7 @@ def test_campaign(tmp_path, fault, monkeypatch):
         + f"fault = {fault!r}\n"
         + """
 import json, os, sys, time
+fault = fault.removeprefix('df_')
 print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
 counter = 0
 for line in sys.stdin:
@@ -55,7 +69,7 @@ for line in sys.stdin:
     if fault == 'silent': time.sleep(30)
     if fault == 'crash': sys.exit(3)
     if fault == 'invalid': print('null', flush=True); continue
-    if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': False}), flush=True)
+    if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
     tokens = r['max_tokens']
     e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
          'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
@@ -71,12 +85,54 @@ for line in sys.stdin:
         if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
         if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
         if fault == 'missing_counter': del e['stats']['mtp_blocks']
+    if r.get('dflash2'):
+        assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+        e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+        if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+        if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+        if fault == 'missing_counter': del e['stats']['dflash_blocks']
     print(json.dumps(e), flush=True)
 """
     )
     engine.chmod(0o755)
     output = tmp_path / "results"
+    if fault.startswith("df_"):
+        if fault == "df_ok":
+            result = bench.run(
+                engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+            )
+            assert result["status"] == "validated" and result["mode"] == "dflash2"
+            assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+            assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+            assert all(r["mode"] == "dflash2" for r in result["runs"])
+            assert result["reaped"] and result["reader_joined"]
+        else:
+            with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                bench.run(
+                    engine,
+                    tmp_path,
+                    output,
+                    tokens=8,
+                    repeats=2,
+                    timeout=0.5,
+                    dflash_draft=tmp_path,
+                )
+            result = json.loads((output / "report.json").read_text())
+            assert (
+                result["status"] == "failed"
+                and result["error"]
+                and "median_decode_tps" not in result
+            )
+            assert result["reaped"] and result["reader_joined"]
+        return
     if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt"):
+        if fault == "ok":
+            original_validate = bench.validate
+
+            def legacy_validate(event, mode, mtp, budget):
+                return original_validate(event, mode, mtp, budget)
+
+            monkeypatch.setattr(bench, "validate", legacy_validate)
         automatic = fault == "auto_cache"
         budget = 4.75 if fault == "fixed_cache" else 8
         result = bench.run(
@@ -222,3 +278,12 @@ def test_mutually_exclusive_cache_modes(tmp_path):
         check=False,
     )
     assert result.returncode == 2 and "not allowed" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "options", [{"mtp": True}, {"compare": True}, {"dflash_mode": 0}, {"dflash_mode": True}]
+)
+def test_dflash_rejects_invalid_modes_before_starting_a_child(tmp_path, options):
+    with pytest.raises(ValueError):
+        bench.run(tmp_path, tmp_path, tmp_path, dflash_draft=tmp_path, **options)
+    assert not (tmp_path / "report.json").exists()

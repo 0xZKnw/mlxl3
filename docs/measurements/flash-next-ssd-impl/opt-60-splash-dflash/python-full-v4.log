@@ -1,0 +1,93 @@
+........................................................................ [ 12%]
+........................................................................ [ 25%]
+........................................................................ [ 38%]
+..................................F..................................... [ 51%]
+........................................................................ [ 64%]
+........................................................................ [ 76%]
+........................................................................ [ 89%]
+..........................................................               [100%]
+=================================== FAILURES ===================================
+____ test_actual_driver_reaps_bridge_on_invalid_output_or_interrupt[silent] ____
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-107/test_actual_driver_reaps_bridg3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108434680>
+fault = 'silent'
+
+    @pytest.mark.parametrize("fault", ["ok", "hash", "memory", "silent", "crash", "interrupt"])
+    def test_actual_driver_reaps_bridge_on_invalid_output_or_interrupt(tmp_path, monkeypatch, fault):
+        monkeypatch.chdir(ROOT)
+        engine = tmp_path / "engine"
+        pidfile = tmp_path / "pid"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault={fault!r}\npidfile={str(pidfile)!r}\n"
+            + """
+    import json,os,sys,time
+    open(pidfile,'w').write(str(os.getpid()))
+    print(json.dumps({'type':'ready','pid':os.getpid()}),flush=True)
+    for line in sys.stdin:
+     r=json.loads(line)
+     if r['type']=='shutdown':break
+     if fault=='silent':time.sleep(5)
+     if fault=='crash':sys.exit(3)
+     print(json.dumps({'type':'generation_mode','request_id':r['request_id'],'mtp_active':False,'dflash_active':False}),flush=True)
+     print(json.dumps({'type':'complete','request_id':r['request_id'],'token_hash':'wrong' if fault=='hash' else '1234567890abcdef','cache_context':'known prefix continued','stats':{'generated_tokens':128,'decode_tokens':127,'decode_tps':10.,'decode_seconds':12.7,'ttft_seconds':1.,'prefill_tps':1.,'memory':{'process_lifetime_peak_bytes':12000000001 if fault=='memory' else 12000000000}}}),flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        golden = tmp_path / "golden.json"
+        golden.write_text(json.dumps(GOLDEN))
+        if fault == "silent":
+            get = queue.Queue.get
+            monkeypatch.setattr(queue.Queue, "get", lambda self, **kwargs: get(self, timeout=0.2))
+        if fault == "interrupt":
+    
+            def interrupt(*args):
+                raise KeyboardInterrupt
+    
+            monkeypatch.setitem(API["generate"].__globals__, "check_event", interrupt)
+        args = (engine, tmp_path, tmp_path / "output", "baseline", "MAIN", 6, golden)
+        if fault == "ok":
+            first = API["generate"](*args)
+            second = API["generate"](
+                engine, tmp_path, tmp_path / "output2", "baseline", "MAIN", 6, golden
+            )
+            assert first["status"] == second["status"] == "validated"
+            assert first["runtime"]["pid"] != second["runtime"]["pid"]
+            with pytest.raises(ProcessLookupError):
+                os.kill(first["runtime"]["pid"], 0)
+        else:
+            with pytest.raises((AssertionError, RuntimeError, TimeoutError, KeyboardInterrupt)):
+                API["generate"](*args)
+            report = json.loads((tmp_path / "output/report.json").read_text())
+            assert report["status"] == "failed" and "median_decode_tps" not in report
+        with pytest.raises(ProcessLookupError):
+>           os.kill(int(pidfile.read_text()), 0)
+                        ^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_larger_cache.py:276: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-107/test_actual_driver_reaps_bridg3/pid')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-107/test_actual_driver_reaps_bridg3/pid'
+
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1013: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_flash_larger_cache.py::test_actual_driver_reaps_bridge_on_invalid_output_or_interrupt[silent]
+1 failed, 561 passed in 35.83s

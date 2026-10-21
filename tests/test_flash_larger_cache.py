@@ -250,7 +250,15 @@ for line in sys.stdin:
     golden.write_text(json.dumps(GOLDEN))
     if fault == "silent":
         get = queue.Queue.get
-        monkeypatch.setattr(queue.Queue, "get", lambda self, **kwargs: get(self, timeout=0.2))
+        ready = False
+
+        def bounded_get(self, **kwargs):
+            nonlocal ready
+            event = get(self, timeout=0.2 if ready else 2)
+            ready = True
+            return event
+
+        monkeypatch.setattr(queue.Queue, "get", bounded_get)
     if fault == "interrupt":
 
         def interrupt(*args):

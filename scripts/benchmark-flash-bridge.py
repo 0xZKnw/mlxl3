@@ -19,8 +19,8 @@ PROMPTS = {
 }
 
 
-def validate(event: dict, mode: dict | None, mtp: bool, budget: int) -> None:
-    if mode is None or mode.get("mtp_active") is not mtp or mode.get("dflash_active") is not False:
+def validate(event: dict, mode: dict | None, mtp: bool, budget: int, dflash=False) -> None:
+    if mode is None or mode.get("mtp_active") is not mtp or mode.get("dflash_active") is not dflash:
         raise ValueError(f"engine mode mismatch: {mode}")
     stats = event["stats"]
     if stats["generated_tokens"] != budget or stats["decode_tokens"] != budget - 1:
@@ -49,6 +49,16 @@ def validate(event: dict, mode: dict | None, mtp: bool, budget: int) -> None:
         proposed, accepted, blocks = counters
         if accepted > proposed or proposed != blocks or proposed + accepted > budget - 1:
             raise ValueError("inconsistent depth-one MTP counters")
+    if dflash:
+        counters = [
+            stats.get(key)
+            for key in ("dflash_proposed_tokens", "dflash_accepted_tokens", "dflash_blocks")
+        ]
+        if any(type(value) is not int or value < 0 for value in counters):
+            raise ValueError("invalid DFlash counters")
+        proposed, accepted, blocks = counters
+        if accepted > proposed or proposed > 7 * blocks or blocks + accepted > budget - 1:
+            raise ValueError("inconsistent DFlash counters")
 
 
 def run(
@@ -63,7 +73,14 @@ def run(
     auto_cache=False,
     cache_gib=8.0,
     prompt=None,
+    dflash_draft=None,
+    dflash_mode=1,
 ):
+    dflash = dflash_draft is not None
+    if dflash and (mtp or compare or not Path(dflash_draft).is_dir()):
+        raise ValueError("DFlash requires a draft directory and excludes MTP/comparison")
+    if type(dflash_mode) is not int or dflash_mode not in (1, 2, 3):
+        raise ValueError("DFlash mode must be 1, 2 or 3")
     if tokens < 2 or repeats < 1 or not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("tokens >= 2, repeats >= 1 and finite timeout > 0 required")
     if not math.isfinite(cache_gib) or not 0.6 <= cache_gib <= 12:
@@ -74,7 +91,9 @@ def run(
     output.mkdir(parents=True, exist_ok=True)
     report = {
         "status": "incomplete",
-        "mode": "comparison" if compare else "mtp" if mtp else "baseline",
+        "mode": "comparison" if compare else "dflash2" if dflash else "mtp" if mtp else "baseline",
+        "dflash_draft": str(Path(dflash_draft).resolve()) if dflash else None,
+        "dflash_mode": dflash_mode if dflash else None,
         "engine": str(engine.resolve()),
         "binary_sha256": hashlib.sha256(engine.read_bytes()).hexdigest(),
         "model": str(model.resolve()),
@@ -172,16 +191,21 @@ def run(
                         "mtp": enabled,
                         "mtp_depth": 1,
                         "mtp_head_path": str(model.resolve()),
-                        "dflash2": False,
+                        "dflash2": dflash,
+                        "dflash_draft_path": str(Path(dflash_draft).resolve()) if dflash else "",
+                        "dflash_mode": dflash_mode,
                         "mcp_enabled": False,
                         "reuse_prompt_cache": False,
                     }
                     process.stdin.write(json.dumps(request) + "\n")
                     process.stdin.flush()
                     event, mode = until("complete", request_id)
-                    validate(event, mode, enabled, tokens)
+                    if dflash:
+                        validate(event, mode, enabled, tokens, True)
+                    else:
+                        validate(event, mode, enabled, tokens)
                     entry = {
-                        "mode": "mtp" if enabled else "baseline",
+                        "mode": "dflash2" if dflash else "mtp" if enabled else "baseline",
                         "prompt": label,
                         "repeat": repeat,
                         "token_hash": event["token_hash"],
@@ -227,7 +251,9 @@ def run(
                 for mode in ({r["mode"] for r in report["runs"]})
             }
             report["median_decode_tps"] = (
-                medians if compare else medians["mtp" if mtp else "baseline"]
+                medians
+                if compare
+                else medians["dflash2" if dflash else "mtp" if mtp else "baseline"]
             )
             report["status"] = "validated"
         except BaseException as error:
@@ -244,7 +270,13 @@ def run(
             reader.join(timeout=5)
             process.stdin.close()
             process.stdout.close()
+            report["reaped"] = process.poll() is not None
+            report["reader_joined"] = not reader.is_alive()
+            if not report["reaped"] or not report["reader_joined"]:
+                report.update(status="failed", error="benchmark child/reader did not stop")
             save()
+            if not report["reaped"] or not report["reader_joined"]:
+                raise RuntimeError(report["error"])
     return report
 
 
@@ -255,6 +287,8 @@ if __name__ == "__main__":
     parser.add_argument("output", type=Path)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--mtp", action="store_true")
+    modes.add_argument("--dflash-draft", type=Path)
+    parser.add_argument("--dflash-mode", type=int, choices=(1, 2, 3), default=1)
     modes.add_argument(
         "--compare", action="store_true", help="alternate baseline/MTP on the same binary"
     )
@@ -267,6 +301,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--prompt", choices=tuple(PROMPTS), help="measure only this fixed prompt")
     parser.add_argument("--repeats", type=int, default=3, help="measured repetitions after warmup")
+    parser.add_argument("--tokens", type=int, default=64)
     args = parser.parse_args()
     run(
         args.engine,
@@ -278,4 +313,7 @@ if __name__ == "__main__":
         cache_gib=args.cache_gib,
         prompt=args.prompt,
         repeats=args.repeats,
+        tokens=args.tokens,
+        dflash_draft=args.dflash_draft,
+        dflash_mode=args.dflash_mode,
     )

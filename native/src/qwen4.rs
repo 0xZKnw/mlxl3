@@ -28,7 +28,7 @@ const HC: i32 = 4;
 const WIDTH: i32 = H * HC;
 const EOS: u32 = 248044;
 
-#[cfg(all(test, feature = "chat"))]
+#[cfg(feature = "chat")]
 #[path = "flash_draft.rs"]
 mod draft;
 
@@ -990,6 +990,8 @@ pub struct FlashNext {
     verification: Option<PairState>,
     lookahead_depth: usize,
     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
+    #[cfg(feature = "chat")]
+    dflash: Option<Box<draft::runtime::Session>>,
 }
 struct PairState {
     base: i32,
@@ -1182,6 +1184,8 @@ impl FlashNext {
             verification: None,
             lookahead_depth,
             lookahead_pool,
+            #[cfg(feature = "chat")]
+            dflash: None,
         })
     }
     pub fn embedding(&self, token: u32) -> Result<Array> {
@@ -1360,6 +1364,10 @@ impl FlashNext {
         self.offset = 0;
         self.last_hidden = None;
         self.verification = None;
+        #[cfg(feature = "chat")]
+        if let Some(session) = &mut self.dflash {
+            session.reset();
+        }
     }
     pub fn context_limit(&self) -> i32 {
         self.context

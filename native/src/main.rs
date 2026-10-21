@@ -1824,6 +1824,12 @@ fn prefill_round(
         model.reset();
         bail!("generation cancelled");
     }
+    if let NativeChatModel::Flash(target) = model
+        && target.dflash2_active()
+    {
+        *cache = None;
+        return Ok((target.prefill_dflash2(tokens, cancelled)?, None, 0));
+    }
     let chunk_size = if draft.is_some() {
         mlxl3_native::dflash::PREFILL_CHUNK
     } else {
@@ -2506,6 +2512,10 @@ fn bridge_generate_round(
                     context_limit,
                     budget - generated.len(),
                 )?);
+            } else if let NativeChatModel::Flash(target) = &mut *model
+                && target.dflash2_active()
+            {
+                dflash_next = Some(target.advance_dflash2(next, budget - generated.len())?);
             } else {
                 logits = model.forward(next)?;
             }
@@ -2580,6 +2590,16 @@ fn bridge_generate_round(
         mtp_depth_blocks: mtp_session.as_ref().map(|s| s.stats().4),
         ..Default::default()
     };
+    let mut stats = stats;
+    if let NativeChatModel::Flash(target) = &*model
+        && let Some((proposed, accepted, blocks, seconds)) = target.dflash2_stats()
+    {
+        stats.dflash_proposed_tokens = Some(proposed);
+        stats.dflash_accepted_tokens = Some(accepted);
+        stats.dflash_blocks = Some(blocks);
+        stats.dflash_lookup_blocks = Some(0);
+        stats.dflash_block_seconds = seconds;
+    }
     Ok(RoundOutput {
         raw: complete,
         stats,
@@ -2904,7 +2924,7 @@ fn native_bridge(
         NativeChatModel::Qwen(target) => target.dflash_family(),
         _ => None,
     };
-    let dflash_supported = dflash_family.is_some();
+    let dflash_supported = dflash_family.is_some() || matches!(&model, NativeChatModel::Flash(_));
     let mtp_auto_download_supported = matches!(&model, NativeChatModel::Qwen(_))
         && mlxl3_native::mtp::target_layout(&path)
             .is_ok_and(|(layout, layers)| layout.managed_head(layers).is_some());
@@ -2920,7 +2940,7 @@ fn native_bridge(
         "mlx_version":env!("MLXL3_MLX_VERSION"),
         "runtime_executable":executable,
         "dflash_supported":dflash_supported, "dflash_family":dflash_family,
-        "dflash_tune_supported":dflash_supported, "dflash_configure_supported":true,
+        "dflash_tune_supported":dflash_family.is_some(), "dflash_configure_supported":true,
         "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
         "mtp_auto_download_supported":mtp_auto_download_supported,
@@ -2980,6 +3000,9 @@ fn native_bridge(
                             "MTP requires a supported Qwen target"
                         );
                         dflash_weights = None;
+                        if let NativeChatModel::Flash(target) = &mut model {
+                            target.configure_dflash2(None, 1)?;
+                        }
                         load_mtp_head(
                             &mut mtp_head,
                             &mut mtp_head_revision,
@@ -3013,6 +3036,27 @@ fn native_bridge(
                 prompt_cache = None;
                 model.reset();
                 let result = (|| -> Result<()> {
+                    if let NativeChatModel::Flash(target) = &mut model {
+                        anyhow::ensure!(
+                            request.kind != "tune_dflash",
+                            "Flash DFlash2 learns its verify budget online; Tune is not supported"
+                        );
+                        if request.enabled {
+                            mtp_head = None;
+                            mtp_head_revision = None;
+                        }
+                        dflash_weights = None;
+                        let path =
+                            registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
+                        target.configure_dflash2(
+                            request.enabled.then_some(path.as_path()),
+                            request.dflash_mode,
+                        )?;
+                        return emit_event(
+                            json!({"type":"dflash_status", "request_id":request.request_id,
+                            "dflash_active":target.dflash2_active(), "memory":mlxl3_native::array::memory_stats(false)?}),
+                        );
+                    }
                     if request.enabled || request.kind == "tune_dflash" {
                         let family = dflash_family.context("Unsupported DFlash target")?;
                         mtp_head = None;
@@ -3056,6 +3100,9 @@ fn native_bridge(
                 }
                 if let Err(error) = result {
                     dflash_weights = None;
+                    if let NativeChatModel::Flash(target) = &mut model {
+                        target.configure_dflash2(None, 1)?;
+                    }
                     mlxl3_native::array::synchronize()?;
                     mlxl3_native::array::clear_cache()?;
                     if cancelled.swap(false, Ordering::Relaxed) {
@@ -3165,8 +3212,6 @@ fn native_bridge(
                         mtp_head_revision = None;
                     }
                     if request.dflash2 {
-                        let family = dflash_family
-                            .context("DFlash2 supports Qwen3.6-35B-A3B and Qwen3.8-27B")?;
                         anyhow::ensure!(
                             (1..=3).contains(&request.dflash_mode),
                             "DFlash mode must be 1, 2 or 3"
@@ -3177,30 +3222,43 @@ fn native_bridge(
                             "DFlash2 requires greedy sampling and repetition penalty 1.0"
                         );
                         let draft_started = Instant::now();
-                        if load_dflash_weights(
+                        if let NativeChatModel::Flash(target) = &mut model {
+                            dflash_weights = None;
+                            prompt_cache = None;
+                            let path =
+                                registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
+                            target.configure_dflash2(Some(&path), request.dflash_mode)?;
+                            draft_load_seconds += draft_started.elapsed().as_secs_f64();
+                        } else if load_dflash_weights(
                             &mut dflash_weights,
                             &mut prompt_cache,
                             &request.dflash_draft_path,
-                            family,
+                            dflash_family.context("Unsupported DFlash2 target")?,
                         )? {
                             draft_load_seconds += draft_started.elapsed().as_secs_f64();
                         }
                     } else {
+                        if let NativeChatModel::Flash(target) = &mut model {
+                            target.configure_dflash2(None, 1)?;
+                        }
                         if dflash_weights.is_some() {
                             prompt_cache = None;
                         }
                         dflash_weights = None;
                     }
+                    let flash_dflash =
+                        matches!(&model, NativeChatModel::Flash(target) if target.dflash2_active());
+                    let dflash_active = dflash_weights.is_some() || flash_dflash;
                     emit_event(json!({
                         "type":"generation_mode", "request_id":request.request_id,
                         "dflash_requested":request.dflash2,
-                        "dflash_active":dflash_weights.is_some(),
+                        "dflash_active":dflash_active,
                         "mtp_requested":request.mtp, "mtp_active":mtp_active,
                         "mtp_depth":if mtp_active { request.mtp_depth } else { 0 },
                         "mtp_reason":if request.mtp && !mtp_active { Some("MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
-                        "dflash_proposals":if dflash_weights.is_some() { if request.dflash_mode == 3 { 7 } else if request.dflash_mode == 2 { 2 } else { 5 } } else { 0 },
-                        "dflash_mode":if dflash_weights.is_some() { request.dflash_mode } else { 0 },
-                        "dflash_draft_path":dflash_weights.as_ref().map(|(path, _, _)| path.display().to_string())
+                        "dflash_proposals":if let NativeChatModel::Flash(target) = &model { target.dflash2_proposals().unwrap_or(0) } else if dflash_active { if request.dflash_mode == 3 { 7 } else if request.dflash_mode == 2 { 2 } else { 5 } } else { 0 },
+                        "dflash_mode":if dflash_active { request.dflash_mode } else { 0 },
+                        "dflash_draft_path":if flash_dflash { Some(request.dflash_draft_path.clone()) } else { dflash_weights.as_ref().map(|(path, _, _)| path.display().to_string()) }
                     }))?;
                     bridge_generate(
                         &mut model,

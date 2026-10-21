@@ -1,0 +1,50 @@
+[
+  {
+    "name": "57P-primitive-0",
+    "native_test": "array::tests::indirect_dispatch_obeys_gpu_grid_and_recovers_after_compile_errors",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-57/v1/mlxl3_native",
+      "array::tests::indirect_dispatch_obeys_gpu_grid_and_recovers_after_compile_errors",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512"
+    },
+    "expected_exit": 0
+  },
+  {
+    "name": "57P-primitive-1",
+    "native_test": "linear::tests::compact_resident_plan_has_exact_origins_and_projection_grids",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-57/v1/mlxl3_native",
+      "linear::tests::compact_resident_plan_has_exact_origins_and_projection_grids",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512"
+    },
+    "expected_exit": 0
+  },
+  {
+    "name": "57P-primitive-2",
+    "native_test": "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-57/v1/mlxl3_native",
+      "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512"
+    },
+    "expected_exit": 0
+  }
+]

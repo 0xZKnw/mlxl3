@@ -426,7 +426,7 @@ impl SsdMoe {
         self.forward_rows(x, next, depth, 2)
     }
 
-    #[cfg(test)]
+    #[cfg(any(feature = "chat", test))]
     pub(crate) fn forward_draft_rows(&mut self, x: &Array) -> Result<Array> {
         self.forward_rows(x, None, 0, 8)
     }

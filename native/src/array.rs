@@ -83,6 +83,20 @@ unsafe extern "C" {
         indices: *mut c_void,
         out: *mut *mut c_void,
     ) -> i32;
+    fn mlxl3_array_quantize4(
+        input: *mut c_void,
+        weight: *mut *mut c_void,
+        scales: *mut *mut c_void,
+        biases: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_array_slice_update(
+        input: *mut c_void,
+        update: *mut c_void,
+        start: *const i32,
+        stop: *const i32,
+        rank: usize,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_mlx_error() -> *const c_char;
     fn mlxl3_mlx_init(metallib: *const c_char) -> i32;
     fn mlxl3_memory_stats(out: *mut u64, reset_peak: bool) -> i32;
@@ -1034,6 +1048,52 @@ impl Array {
             )
         })
     }
+    pub(crate) fn quantize4(&self) -> Result<(Self, Self, Self)> {
+        ensure!(
+            self.dtype() == Dtype::BFloat16
+                && self.shape().len() == 2
+                && self.shape().iter().all(|&n| n > 0)
+                && self.shape()[1] % 64 == 0,
+            "invalid Q4 source"
+        );
+        let (mut w, mut s, mut b) = (
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        checked(unsafe { mlxl3_array_quantize4(self.handle.as_ptr(), &mut w, &mut s, &mut b) })?;
+        let (w, s, b) = (Self::owned(w), Self::owned(s), Self::owned(b));
+        Ok((w?, s?, b?))
+    }
+    pub(crate) fn slice_update(&self, update: &Self, start: &[i32]) -> Result<Self> {
+        let shape = self.shape();
+        ensure!(
+            start.len() == shape.len()
+                && update.shape().len() == shape.len()
+                && self.dtype() == update.dtype(),
+            "invalid slice update rank/type"
+        );
+        let stop = start
+            .iter()
+            .zip(update.shape())
+            .zip(shape)
+            .map(|((&a, &n), &limit)| {
+                a.checked_add(n)
+                    .filter(|&end| a >= 0 && end <= limit)
+                    .context("slice update outside destination")
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Self::output(|out| unsafe {
+            mlxl3_array_slice_update(
+                self.handle.as_ptr(),
+                update.handle.as_ptr(),
+                start.as_ptr(),
+                stop.as_ptr(),
+                start.len(),
+                out,
+            )
+        })
+    }
     pub fn log_probs(&self) -> Result<Self> {
         self.unary(9, &[], 0., 0)
     }
@@ -1237,6 +1297,25 @@ impl Array {
                 out,
             )
         })
+    }
+}
+
+#[cfg(kani)]
+mod splash_verification {
+    use super::*;
+    #[kani::proof]
+    #[kani::unwind(10)]
+    fn actual_flash_q4_and_slice_update_validate_mlx_shapes() {
+        let rows: i32 = kani::any();
+        kani::assume((1..=8).contains(&rows));
+        let input = Array::zeros_dtype(&[rows, 64], Dtype::BFloat16).unwrap();
+        let (w, s, b) = input.quantize4().unwrap();
+        assert_eq!(w.shape(), &[rows, 8]);
+        assert_eq!(s.shape(), &[rows, 1]);
+        assert_eq!(b.shape(), &[rows, 1]);
+        assert!(input.slice_update(&input, &[-1, 0]).is_err());
+        assert!(input.slice_update(&input, &[0, 0]).is_ok());
+        kani::cover!(rows == 8);
     }
 }
 pub fn concatenate(inputs: &[&Array], axis: i32) -> Result<Array> {

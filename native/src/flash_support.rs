@@ -367,7 +367,7 @@ mod draft_contract_proofs {
     }
 }
 
-#[cfg(any(test, kani))]
+#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
 pub(crate) fn draft_commit_offset(
     base: i32,
     current: i32,
