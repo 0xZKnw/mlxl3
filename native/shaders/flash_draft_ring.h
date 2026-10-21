@@ -289,4 +289,3 @@ inline void draft_attention_reduce_phase(device const float *partials,
   for (uint i = 0; i < Chunk; ++i)
     output[row * D + dim + i] = bfloat(accumulated[i] / total);
 }
-

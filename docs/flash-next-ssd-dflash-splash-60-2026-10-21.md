@@ -20,6 +20,8 @@ Le budget adaptatif transpose le modèle probabilités/coût de Splash sur une s
 
 Le bridge Flash dispose maintenant du vrai parcours DFlash2 : chargement, préfill avec captures, propositions, vérification, commit, génération, annulation, erreurs et réinitialisation. Il annonce la capacité DFlash2 et l'absence du Tune historique : le budget est en ligne. Le mode 1 permet le budget adaptatif, le mode 2 fixe deux propositions et le mode 3 en fixe sept. Les contrôles expérimentaux sont `MLXL3_FLASH_DRAFT_Q4`, `MLXL3_FLASH_DRAFT_RING` et `MLXL3_FLASH_DRAFT_ADAPTIVE`, valeurs `0` ou `1`, tous à `1` par défaut dans ce prototype DFlash2 activé explicitement. La configuration mémoire mesurée ci-dessous utilise **Q4=1, RING=0, ADAPTIVE=0**, mode 1 ; son débit ne valide pas celui de la configuration adaptative. Aucun support DSpark ou changement de calcul LFM2 n'est ajouté ici.
 
+Le draft BF16 brut est fourni explicitement au bridge avec `dflash_draft_path`, et Q4 est calculé en mémoire. L'installateur `dflash-draft` et le téléchargement automatique Desktop conservent leur périmètre legacy de drafts packed ; ils ne sont pas étendus ni validés pour Flash dans cette expérience.
+
 ## Correction et vérification
 
 Les identités des sources, archives et binaires sont dans [les mesures 60](measurements/flash-next-ssd-impl/opt-60-splash-dflash/). La version native v3 a passé les comparaisons suivantes sur le M5 physique, un seul couple cible/draft chargé :
@@ -29,6 +31,8 @@ Les identités des sources, archives et binaires sont dans [les mesures 60](meas
 - Sélection et confiances : huit cohortes BF16/Q4, largeurs 1/2/3/7, comparées à un calcul Markov scalaire ; erreurs de confiance au plus 1e-4.
 - Génération native : 20 cas B/Q/R/A × budgets 1/2/3/17/64, tokens identiques à la cible séquentielle et 136 états sémantiques par cas comparés en forme, finitude et octets. Annulation, reprise et entrées invalides incluses. Pic d'empreinte physique 8 945 229 024 octets, aucun nouveau Swapout jusque 30 secondes après la fin.
 - Bridge de production v6 : 43 contrôles passés en 307,95 secondes, budgets 1/2/3/8/17/64, trois modes, conflits et erreurs, annulation au préfill et après émission, reprise, cache de conversation ignoré explicitement, mémoire idle et désactivation. Pic physique 8 937 904 704 octets, aucun nouveau Swapout jusque 30 secondes après la fin. Les contrôles v6 gardent la même origine VM cumulative que v3 ; aucun compteur remis à zéro entre les processus.
+
+Le contrôle du diff avant push a ensuite demandé de retirer une ligne vide en fin du shader embarqué. La source v7 et ses binaires sont archivés séparément ; aucune opération numérique ne change. Les six appends et 28 attentions ont été revérifiés sur v7, avec les mêmes erreurs bornées, avant les mesures Q/R et R/A. La mesure B/Q v6 n'exécute jamais ce shader (`RING=0`) : ses chemins Q4 et cible ne sont pas affectés par cette correction de fin de fichier.
 
 Contrôles CPU : suite release `mlx,chat`, 139 tests passés et 138 ignorés ; ces tests ignorés ne sont pas déclarés exécutés par la suite générale. Suite Python pertinente : 562 tests passés, puis 69 tests benchmark/qualificateur affectés par les derniers changements. Format, Ruff et Clippy strict passent. L'échec initial d'une fixture de démarrage trop courte a été reproduit sur HEAD puis corrigé dans le test ; les journaux négatifs sont conservés.
 
