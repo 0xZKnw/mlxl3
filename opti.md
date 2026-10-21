@@ -12934,3 +12934,111 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 - 45-Q/R processus pending-claims : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/quality-v2/run-result.json.
 
 - **62H correction validée, performance en cours** : complémentv2 passé (3cas physiques de4claims pending), processus joint et postflight30s passé ; CLI release v2 bit à bit identique àv1, seule différence de source : un test ajouté. Identitév2 contrôlée146sources/3artefacts. Les9processus qualité, tous les postflights et leur origine commune enregistrent0nouveau Swapout. Rapport : `docs/flash-next-ssd-wide-hot-62-2026-10-21.md`. Code expérimentalWIDE0 par défaut, publication demandée dans PR34 ; **aucun gain tok/s mesuré ou revendiqué à ce stade**,32bras de débit préenregistrés non lancés. Aucun changement d'app installée. Vérification MLX formelle bloquée par ICE ; CrossHair absent.
+
+- 45-Q/R processus OFF-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v1/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v1/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-2-C : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v1/run-result.json.
+
+- **62H débit v1 bloqué/interrompu (infrastructure)** :2bras OFF-MAIN H/C terminés,3e interrompu avant la fin ; `BlockingIOError(35, Resource temporarily unavailable)` lors d'un lancement de commande du moniteur, puis même refus au début du postflight. Tous les enfants de ces3bras sont déclarés joints ; aucun processus d'inférence62 ne subsiste au contrôle suivant. Aucun MTP/R/A lancé, aucune qualification de gain ; `speed-result.json` reste `parity:false, confirmed_gain:false, status:failed_postflight`. Conserver les rapports partiels et les échecs, ne pas compléter ce résultat a posteriori. Diagnostic ultérieur :614processus,409utilisateur pour limiteNPROC4000/6000,7 166 296 064octets pages libres,0nouveau Swapout depuis origine62,1 294 336octets Swapin. Cause exacte du refus transitoire non établie ; ce relevé postérieur n'explique pas son instant. Aucune modification de limites système ni fermeture d'apps. Prochaine action : diagnostic de lancement/collecte, puis nouveau protocole explicitement préenregistré si reprise ; pas de relance silencieuse des seuls bras défavorables.
+
+- **62H reprise débit v2 préenregistrée avant lancement**, demande explicite « bah retest ». Les12lancements séquentiels de diagnostic passent, tous joints ; le journal kernel accessible ne fournit pas de cause du refus. Reprendre **les32bras complets depuis OFF-MAIN-H**, mêmes options, prompts128, warmup/répétition, ordreHCCH, binaire9d45a586…23f26 et critères quev1. Nouveaux dossiers `speed-{OFF,MTP,R,A}-v2` et `speed-v2-result.json` ; aucun brasv1 réutilisé ou supprimé. Même origine cumulative VM62, nouvelle vérification20s et30s postflight ;0Swapout requis. Aucun retry automatique qui masquerait un refus de commande, pas de modification des limites macOS, compilations/proveurs terminés. Propriété de cette reprise : mesurer la série entière après l'interruption système, pas sélectionner un résultat favorable. État **en cours**, gain non établi.
+
+- 45-Q/R processus OFF-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 45-Q/R processus OFF-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 45-Q/R processus OFF-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-OFF-v2/run-result.json.
+
+- 62H reprise v2 débit OFF : rejected_gain, contrôle seul=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-v2-result.json. Postflight final encore requis.
+
+- 45-Q/R processus MTP-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 45-Q/R processus MTP-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 45-Q/R processus MTP-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 45-Q/R processus MTP-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 45-Q/R processus MTP-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-MTP-v2/run-result.json.
+
+- 62H reprise v2 débit MTP : inconclusive_drift, contrôle seul=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-v2-result.json. Postflight final encore requis.
+
+- 45-Q/R processus R-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 45-Q/R processus R-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 45-Q/R processus R-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 45-Q/R processus R-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 45-Q/R processus R-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 45-Q/R processus R-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 45-Q/R processus R-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 45-Q/R processus R-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-R-v2/run-result.json.
+
+- 62H reprise v2 débit R : rejected_gain, contrôle seul=False ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-v2-result.json. Postflight final encore requis.
+
+- 45-Q/R processus A-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+- 45-Q/R processus A-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+- 45-Q/R processus A-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+- 45-Q/R processus A-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+- 45-Q/R processus A-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+- 45-Q/R processus A-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+- 45-Q/R processus A-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+## FLASHSSD-2026-10-21-63V — vérificateur Flash multi-lignes et tape GDN (préenregistrement)
+
+- **Statut : planifié, prototype/compilation/mesure non démarrés**. Autorisation utilisateur du21/10 : implémenter les écarts61, valider et pousser progressivement. Dépendance : finir62H v2 et son postflight avant toute compilation locale. Base source2eccb469 ; baseline mesurée : nouveau binaire commun H/C construit sur cette base+prototype, réglages identiques entre bras. WIDE sera fixé à1 si62A satisfait la qualification entière, sinon0 ; jamais choisi par prompt ni à partir d'une seule paire.
+- **Hypothèse et nouveauté** : `verify_draft` prépare les positions séparément ; la primitive GDN multi-token/tape existe dans `gated_delta.rs`/Qwen35 mais n'est pas branchée à Flash. Le kernel EXL3 dense sait partager les poids entre lignes, cependant le chemin Flash resérialise et n'active pas l'accumulation de référence dans ce cas. Essai distinct des experts MB2 systématiques15/48 et du compact57 : matrices denses identiques entre positions, NT1/MB2/SG4 et splits de référence ; pas de regroupement des experts uniques. Conception/source et limites : `docs/flash-next-ssd-verifier-63-design-2026-10-21.md`.
+- **Changement prévu** : une option expérimentale0/1 (défaut0) commune au vérificateur Flash. Autoriser les projections EXL3 de référence B2..B8 à partager le décodage avec accumulations indépendantes exactes (K7 et formes non qualifiées : séquentiel). Garder l'ordre causal PLE/HC ; grouper la préparation GDN puis employer le kernel/tape FP16/FP32 existant16/48/128. Conserver le bon historique de convolution, l'état PLE, les captures et tous les préfixes observables ; replay au commit partiel, état final direct au commit complet. QSA séquentiel conservé initialement. Brancher le MTP1 après la parité DFlash. Aucune modification du calcul LFM2 ni de l'app installée. Ne pas appeler une concaténation resérialisée un kernel partagé.
+- **Qualité avant vitesse** : micro-oracle indépendant mono-ligne EXL3, B1..B8 et formes réelles, Float16/Float32/strides, tailles/nombre/finitude, mauvais layout/ligne détecté par mutation ; cas invalides/bordures. GDN/tape16/48/128 T1..T8, tous les préfixes égaux bit à bit au kernel actuel appliqué successivement ; erreurs de forme/dtype et préfixes invalides. Puis36préfixes complets (logits248320, captures,136états), continuation, abandon/annulation/reprise, runtime et bridge/CLI MTP1+DFlash réel. Kani sur géométrie/layout et préfixes de l'implémentation, domaines symboliques et unwinding explicites ; tentative réelle MLX conservée même si ICE. fmt/Clippy strict/build livré et suites complètes pertinentes, CI exacte. Archiver sources, hashes et options de chaque variante avant GPU.
+- **Profil** : ajouter des frontières hôte sans eval supplémentaire au runtime effectivement utilisé (draft/selection/cible/décision/commit/append et détail préparation/MoE/route/SSD). Conserver les intervalles inclusifs et leurs recouvrements ; GPU exclusif et reprise GPU non mesurables avec ces seules durées. Profil diagnostique distinct de la vitesse, pas d'attribution de gains par addition de composantes recouvrantes.
+- **Vitesse prévue après qualité** : M5, checkpoint65c89531, drafta22a1744 Q4/ring, cache3Gio/53slots,512Mioallocateur,4lecteurs, overlap/Hot1, lookahead0, greedy, contexte4096 ; alimentation constatée avant campagne et fixée. OFF puis MTP1 puis DFlash fixe3 et adaptatif7, MAIN/HOLD128sorties, un warmup+une mesure/processus, HCCH et mêmeSHA entre H/C ; seule l'option de vérification varie. Min1% dans chaque paire, dérive≤5%, étendue≤3points,0Swapout et pic≤12e9octets jusqu'au postflight30s. Témoins OFF descriptifs si chemin inchangé.512sorties dans une campagne distincte après qualification ; EOS précoce reste une campagne incomplète, pas une mesure128 équivalente.
+- **Mémoire** : nouvelle origine63 explicite après fermeture62, préflight20s, garde cumulative256Mio/2s, aucun autre modèle/compilation/proveur concurrent. Estimation792723456octets d'anciens snapshots B8 n'est pas une mesure de RAM récupérée ; mesurer footprint/allocations, coût du replay et états retenus. Garder les échecs/mesures non concluantes et chaque étape d'intégration. Aucun gain63 revendiqué avant résultats.
+
+- 45-Q/R processus A-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-A-v2/run-result.json.
+
+- 62H reprise v2 débit A : inconclusive_drift, contrôle seul=False ; docs/measurements/flash-next-ssd-impl/opt-62-wide-hot/speed-v2-result.json. Postflight final encore requis.
+
+- **62H v2 clôturé : non concluant pour le gain global**,32bras de génération terminés/64réponses exactes vs témoin, tous joints. OFF contrôles10,22–10,70tok/s/pic7,142Go ; MTP9,56–10,39/pic8,196Go (WIDE inactif surB1/B2, aucun gain attribué). Fixe3 : +0,074/+1,227% MAIN et+0,844/+1,162% HOLD, stabilité satisfaite mais seuil1% par paire non atteint → **gain rejeté**. Adaptatif7 : +1,323/+2,838% MAIN,+4,855/+0,847% HOLD ; étendueHOLD4,008points>3 → **non concluant**, pic8 936 970 768octets. Le postflight a acquis11échantillons/20s, puis refus de forkEAGAIN35 à nouveau ; conserver `status:failed_postflight, parity:false, confirmed_gain:false`. Pas de relance des mêmes gains ; nouvelle observation ultérieure0nouveau Swapout/7 880 704octetsSwapin depuis origine62, ne remplace pas le postflight incomplet. Code correct déjà publié2eccb469, optionWIDE reste0 par défaut.63V fixera doncWIDE0 conformément au préenregistrement.
+
+## FLASHSSD-2026-10-21-62S — collecte macOS sans fork pour les gardes (préenregistrement)
+
+- **En cours, avant prototype**. Deux EAGAIN35 indépendants (62Hv1 monitor,62Hv2 postflight) interrompent les contrôles malgré faible nombre de processus relevé après coup ; cause macOS exacte inconnue. But : supprimer le besoin de lancer `vm_stat`/`pmset` à chaque échantillon critique, sans masquer une erreur, affaiblir les gardes ni inventer des zéros. Pas un essai de gain tok/s moteur.
+- Réutiliser les mêmes compteurs macOS via `host_statistics64(HOST_VM_INFO64)` révision1 stable et IOKit `IOPSGetProvidingPowerSourceType` ; bibliothèque standard Python/ctypes uniquement, aucun psutil installé. Vérifier taille/offsets ABI contre les headers SDK locaux par C statique puis lire les compteurs par l'API réelle. Fournir un adaptateur explicite optionnel au superviseur existant ; chemins historiques inchangés si absent. Conserver intervalles2s, origine cumulative, limite256Mio, refus des diminutions/pouvoir changé, délai360s et nettoyage des enfants.
+- Tests CPU : conversion unités et bornes, formes/réponses natives tronquées/erreurs, source alimentation inconnue, libération des ports/objets sur erreur ; intégration du moniteur avec fork forcé en échec et vraie nouvelle source, fuite du moduleglobal interdite, interruption/enfant silencieux. Mutation/ancienmoniteur détecte encore le EAGAIN simulé. Kani non applicable au Python ; tenter CrossHair source réel si disponible, sinon statutnonvérifié. Compiler uniquement le contrôleABI C avant la campagne, CBMC sur propriété ABI si praticable ; fmt/lint/types/tests complets et CI PR/push adaptés.
+- Validation physique sans modèle : snapshots Mach/IOKit encadrés par `vm_stat`/`pmset`, compteurs swap monotones concordants, alimentation exacte,50échantillons/100s sans fork dans la sonde ; postflight tardif62 séparé, ne pas convertir les échecs originaux en succès. Aucune compilation/proof pendant une inférence ;63V non commencé tant que collecte non validée. Résultats dans `docs/measurements/flash-next-ssd-impl/opt-62-system-probe/`, pas de gain de débit revendiqué.
+
+- **Priorité utilisateur actualisée** : finaliser/publier62 puis vérificateur63 d'abord, grouped58 et Q4 ensuite ; autres pistes peuvent attendre. **62S planifié est différé avant tout prototype** : aucune sonde Mach/IOKit, dépendance ni adaptation du superviseur n'a été implémentée. Ne pas lancer la matrice50/100s prévue. Pour clôturer62 seulement, contrôle différé tardif30s séparé avec collecte existante ; refus de créationEAGAIN : au plus3tentatives d'observation espacées100ms, erreurs conservées et aucun zéro inventé ; toute autre erreur/refus persistant invalide le contrôle. Même origine VM62,0Swapout ; le `failed_postflight` initial ne sera pas réécrit. Pas de nouvelle génération62.
+
+- **62H contrôle différé clos** :16échantillons/30s, aucune erreur de création, secteur100%,0nouveau Swapout depuis origine62 ; Swapin13 107 200octets. Observation tardive séparée `opt-62-wide-hot/postflight-late-v2.json`, ne réécrit aucun `failed_postflight`. Campagne62 fermée avec correction validée et gain global non qualifié ; HOLD inclus. Option0 par défaut, pas de nouveau benchmark isolé62 prévu.62S différé avant prototype, aucune collecte Mach/IOKit écrite.
+- **63V précision avant prototype** : réutiliser les compteurs de phase existants et exposer au bridge les durées draft/sélection, vérification cible, commit/cache sans nouvel `eval()`. Rapporter vérification/(acceptés+blocs), ms/ligne réellement vérifiée et octets/lectures SSD par token émis, avec périmètres et recouvrements explicites. Valider et microbenchmarker B2/B3/B4 avant B8 avec une référence séquentielle ; temps du vérificateur seul avant la génération complète. Comparer63 seul WIDE0 puis sa combinaison WIDE1 séparément (même protocole, pas d’addition de gains). Parité exacte obligatoire, OFF/MTP1/DFlash MAIN/HOLD,3Gio,0nouveau Swapout,12e9octets.58/groupedEXL3 et draftQ4 spécialisés viennent après63 selon profil ; autres pistes différées.
+
+- **62 clôture suites et CI** : suite livrée entière `cargo test --locked --release --features mlx,chat` :141passés/140ignorés (113lib/12CLI/16contrats),0échec, après fermeture GPU ; log `opt-62-wide-hot/full-shipped-v2.log`. CI source2ecc : régressions/Linux/macOSMLX/KaniFlash passent ;Kani global échoue sur ancienharnais allocation sans verdict final. Aucun test GPU ignoré prétendu exécuté par cette suite ; sélections physiques qualité séparées déjà archivées.
