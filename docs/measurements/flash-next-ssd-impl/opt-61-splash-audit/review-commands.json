@@ -1,0 +1,20 @@
+{
+  "purpose": "read_only_source_audit_no_benchmark",
+  "github": [
+    "gh api repos/incoai/splash/commits/HEAD",
+    "gh api repos/Niko1221/Strata/commits/HEAD",
+    "gh api repos/Niko1221/Strata/compare/9de04cd44e927a9a3df6bbc0e94fc1be8b844ba4...011c9e600a93bbc9fd451c563501b5831c32bbca",
+    "gh api repos/Niko1221/Strata/git/trees/011c9e600a93bbc9fd451c563501b5831c32bbca?recursive=1",
+    "gh run view 39589281004 --repo 0xZKnw/mlxl3 --json status,conclusion,headSha,jobs,url",
+    "gh run view 39589281223 --repo 0xZKnw/mlxl3 --json status,conclusion,headSha,jobs,url",
+    "gh api --allow-escape-sequences repos/0xZKnw/mlxl3/actions/jobs/119185879467/logs"
+  ],
+  "local": [
+    "rg --files / rg -n to identify existing production paths, helpers and historical trials",
+    "nl -ba FILE with the selected source regions documented in report61",
+    "sha1(blob header + source bytes) against pinned Git trees; SHA256 for local source/artifacts",
+    "read target config and draft safetensors JSON header only; no model load",
+    "git diff --check"
+  ],
+  "no_upstream_code_executed": true
+}
