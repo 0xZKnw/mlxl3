@@ -1,5 +1,5 @@
 {
-  "status": "prepared_not_launched_pending_ring_v7_quality",
+  "status": "completed_and_reaped",
   "baseline": "Q",
   "candidate": "R",
   "identity": "../identity-v7.json",
@@ -19,5 +19,10 @@
   "postflight_seconds": 30,
   "power": "AC",
   "budget_state": "reset_each_request",
-  "conditions": "user applications left open; no builds/provers/other inference concurrent"
+  "conditions": "user applications left open; no builds/provers/other inference concurrent",
+  "initial_status": "prepared_not_launched_pending_ring_v7_quality",
+  "gain_status": "inconclusive_drift",
+  "confirmed_gain": false,
+  "postflight": "passed_postflight30s_zero_new_swapout",
+  "outcome": "analysis.json"
 }

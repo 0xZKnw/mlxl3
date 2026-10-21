@@ -12817,3 +12817,73 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 - 45-Q/R processus splash_ring_matches_chronological_cache_after_multiple_wraps : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/quality-v7/run-result.json.
 
 - **60 ring finalv7 passé** :6appends/28attentions vsoracle indépendant conservés, processusjoint, postflight=passed_postflight30s_zero_new_swapout,0Swapout cumulatif. Une seule ligneEOF retirée du shader ; aucun calculmodifié, source finalev7. Contrôle diffglobal repassé avantpublication ; preuves quality-v7. GUI/installateurpackedlegacy lus : cette livraison porte le bridge natif/draftBF16fourni, téléchargement/installationDesktopnonétendus etnonvalidés, aucuneappremplacée.
+
+- **60 publié PR34 dc33e3e4** : réductionmémoire486–490Mo et parcoursDFlashréel, pasdeboostTPSBQ annoncé. Sourcev7identiquehorsEOF vérifiée ; CIcommitexactàsuivre. **60QR lancé** huitbras Q=100/R=110 MAIN/HOLD QR RQ, mêmeoriginev3, mêmesrègles/cache/protocole128 ; dernier20s postflight qualité+compteursimmédiats serventpréflight. Demande utilisateur confirme mesurer aussi A si R ne gagnepas, carmémoireutile. R/A v6 restentpréparésnonlancés ; essais effectifs v7.
+
+- 45-Q/R processus MAIN-0-Q : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- 45-Q/R processus MAIN-1-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- 45-Q/R processus MAIN-2-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- 45-Q/R processus MAIN-3-Q : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- 45-Q/R processus HOLD-0-Q : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- 45-Q/R processus HOLD-1-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- 45-Q/R processus HOLD-2-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- **60 témoins finaux préenregistrés avant A** : après QR etRA complets, OFF MAIN/HOLD frais (descriptif, oracle greedy128), puis MTP1 vsDFlash HCCH MAIN/HOLD (huitbras). Sourcev7/cache3Gio/ctx4096/protocole inchangés, mêmeorigineVM etpostflight. SélectiondeDF : garderQ mémoirequalifiée ; promouvoirR/A comme candidat de comparaison seulement si quatrepairesfavorables et géométrique>=1% parprompt ; si stabilité échoue, candidat exploratoire explicitementnonqualifié. Aucuneconversion du meilleurpassage isolé enboost. Un warmup+unemesure/nouveauprocessus, contrôle identités/texte/counters/0Swapout/12Go, aucunGPU enplus. Matriceeffective écrite aprèslesétages, protocole speed-v7-final/protocol.json ; nonlancéàcetteentrée.
+
+- 45-Q/R processus HOLD-3-Q : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/run-result.json.
+
+- **60QR clos : inconclusive_drift**, gainétabli=False, mémoire=passed_postflight30s_zero_new_swapout, paires=[{'prompt': 'MAIN', 'baseline_tps': 8.317400903832086, 'candidate_tps': 8.468245994544649, 'gain_percent': 1.8136085113206857}, {'prompt': 'MAIN', 'baseline_tps': 9.017820500087252, 'candidate_tps': 9.02569443710944, 'gain_percent': 0.08731529998975418}, {'prompt': 'HOLD', 'baseline_tps': 7.95058287045512, 'candidate_tps': 8.479318091903723, 'gain_percent': 6.650269924402874}, {'prompt': 'HOLD', 'baseline_tps': 8.458736530679683, 'candidate_tps': 7.986626258243492, 'gain_percent': -5.581333225403773}], dérive={'MAIN': {'control_percent': 8.421135452692452, 'gain_spread_points': 1.7262932113309315}, 'HOLD': {'control_percent': 6.3914013413141735, 'gain_spread_points': 12.231603149806647}}, pics={'Q': [8381176240, 8386337200], 'R': [8421104096, 8426904104]}. Huitprocessusjoints/16réponsesexactes ; preuves speed-v7-QR. Aucuneaddition avecBQ niTPSétablie àpartirdupassageisolé ; mémoirecirculaire bornée maisplusélevéesurcontextescourts.
+
+- **60RA démarrage** conformémentàlademandeutilisateur malgréQRnonconcluant : huitbras MAIN/HOLD RA AR, R=110fixe3/A=111adaptatif7, mêmev7/cache3Gio/128sorties/warmup1+mesure1 etorigineVMv3 ; derniers20sQRpostflight préflight, aucunecompilation/proof/autremodèle. Rappel : modèle coût apprenddèscycle1, réajustementprobabiliste seulement64cycles, étatneufparrequête ; nepasprésenter unepromesseSplash commegaintarget.
+
+- 45-Q/R processus MAIN-0-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- 45-Q/R processus MAIN-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- 45-Q/R processus MAIN-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- 45-Q/R processus MAIN-3-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- 45-Q/R processus HOLD-0-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- **60 CI commitdc33 observée en parallèle distant** : Linuxnatifpasse ; Kaniglobaléchoue àcache_allocation_is_optimal_and_exact_on_two_layers_two_levels (fichier sourceinchangé), shutdownrunner/exit143, mêmeconditionancienne79, pasuncontre-exemple. LogRESTcomplet etversionnettoyée conservés ci-dc33-kani-job-raw/clean.log ; gh run view logprematuré refusé puisRESTutilisé. KaniFlash/macOS/régressions encoreencours danssnapshotprogress2 ; aucuneCIglobaleverteannoncée. LocalM5 : aucunecompilation/proof pendantTPS.
+
+- 45-Q/R processus HOLD-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- 45-Q/R processus HOLD-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- 45-Q/R processus HOLD-3-R : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/run-result.json.
+
+- **60RA clos : inconclusive_drift**, gainstrict=False, mémoire=passed_postflight30s_zero_new_swapout, paires=[{'prompt': 'MAIN', 'baseline_tps': 8.6966899114237, 'candidate_tps': 9.78949404898707, 'gain_percent': 12.565747987954555}, {'prompt': 'MAIN', 'baseline_tps': 8.76331840790956, 'candidate_tps': 9.746120780381254, 'gain_percent': 11.214956786057662}, {'prompt': 'HOLD', 'baseline_tps': 8.221001338546609, 'candidate_tps': 8.848810307271892, 'gain_percent': 7.636648418746916}, {'prompt': 'HOLD', 'baseline_tps': 8.631875904246858, 'candidate_tps': 8.854146781692373, 'gain_percent': 2.575000844673392}], dérive={'MAIN': {'control_percent': 0.7661362790265747, 'gain_spread_points': 1.350791201896893}, 'HOLD': {'control_percent': 4.997865208630259, 'gain_spread_points': 5.0616475740735245}}, pics={'R': [8417434056, 8423463368], 'A': [8858622504, 8909625896]}. Huitprocessusjoints/16réponsesexactes ; preuves speed-v7-RA. Quatrepairesfavorables ne supprimentpasles critères de dispersion. AucunboostvsMTP encoremesuré.
+
+- **60 comparaison finale lancée OFF puis MTP1/A** : RA quatrepairesfavorables, MAIN+12,566/+11,215% avecdérive0,766% ; HOLD+7,637/+2,575% maisétendue5,062points>3, doncstrictnonconcluant. A sélectionné selonrèglepréenregistrée, pasun gaindéjàétablivsMTP. Dixbrasfrais128sorties (OFF MAIN/HOLD, MTP1/A HCCH MAIN/HOLD), unitév7/3Gio/flagsA111/ctx4096/1warm+1mesure, mêmeoriginev3 (compteursimmédiats0Swapout). PostflightRA30spassé ; nouvelleslecturesCI distantes terminées : régressions/Linux/macOSMLX/KaniFlash passent aucommitdc33, Kaniglobalrunner143 préexistantéchoue. PasdeCPUbuild/prover local concurrent.
+
+- 45-Q/R processus MAIN-0-OFF : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus HOLD-0-OFF : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus MAIN-0-MTP1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus MAIN-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus MAIN-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus MAIN-3-MTP1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus HOLD-0-MTP1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus HOLD-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus HOLD-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- 45-Q/R processus HOLD-3-MTP1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/run-result.json.
+
+- **60 finale OFF/MTP1/A close : inconclusive_drift**, gainDFvsMTP=False, parité=True, mémoire=passed_postflight30s_zero_new_swapout. Paires=[{'prompt': 'MAIN', 'baseline_tps': 10.546205600197585, 'candidate_tps': 9.993924297597134, 'gain_percent': -5.236777316289976}, {'prompt': 'MAIN', 'baseline_tps': 10.153864358501073, 'candidate_tps': 10.013123893998234, 'gain_percent': -1.386077847149958}, {'prompt': 'HOLD', 'baseline_tps': 9.58632154198171, 'candidate_tps': 8.985452340618014, 'gain_percent': -6.267985052788894}, {'prompt': 'HOLD', 'baseline_tps': 9.69535567097409, 'candidate_tps': 9.282909805575505, 'gain_percent': -4.254056059370392}], dérive={'MAIN': {'control_percent': 3.863959846657128, 'gain_spread_points': 3.8506994691400176}, 'HOLD': {'control_percent': 1.137392779022517, 'gain_spread_points': 2.013928993418501}}, pics={'OFF': [7133452144, 7141496688], 'MTP1': [7915313704, 8195937584], 'A': [8863406608, 8897600040]}, deltasVMcumulatifs={'Swapins': 240009216, 'Swapouts': 0}. Les68générationsdes4campagnes ontmêmes texte/empreinte128tokens queOFFfraîche ; cela complète les20cas IDs+136états natifs, pasunepreuveGPU. Dixprocessusfinauxjoints ; aucune15tok/s. Preuves speed-v7-final/analysis.json/rows.json/postflight.json. CampagneGPUterminée, avantcontrôlesCPUfinaux.
+
+- **60 clôture avant push demandé puis nouvelle revue utilisateur** : toutescampagnesGPUfermées et68réponseshash/texte128tokens comparées auxOFFfrais ;0Swapout ycompris30spostflightfinal, Swapin240009216B<268435456B. GainmémoireQ4fixevalidé486–490Mo ; BQ/QR/RA/finale tousstrictnonconcluants enTPS, aucuneA nebatMTP1 (−1,386à−6,268%). MAINRApositifqualifiéparprompt+11,215/+12,566%, HOLDdispersionéchoue ; pasdegainglobalannoncé.15nonatteints. Sourcev7/binaire/hashes recontrôlés, codepublié dc33, appnonremplacée. CPUfinal :110passés/3ignorés sansfeatures, releaseMLX139/138ignorés, Pythoncomplet915passés/4skips (ponyexl3 absent pourmetrics/adaptersLFM-Ling ; modèleLing absent), fmt/Ruffpassent. Ces suitesCPU ont été exécutées après fermetureGPU. CIcode dc33 :régressions/Linux/macOSMLX/KaniFlash passent ;Kaniglobal143shutdownsurancienharnais, nonprouvé. Détails/propriétés/bornes/limites/commandes dansrapport60, final-cpu-commands.json etvalidation-summary.json. Plansv6QR/RA explicitementnonlancésremplacésv7.57rejetécomposant+mémoirepostflight,58prototypeGPUnonlancédifféré/sourcepréservéeautreworktree ; aucunessai60encours. Nouvellemissionfournieparutilisateur àlire seulementaprèscepush ; pasencoreouverte.

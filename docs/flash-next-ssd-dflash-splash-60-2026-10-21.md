@@ -1,6 +1,6 @@
 # Flash Next SSD : DFlash2 Q4, cache circulaire et budget Splash — expérience 60
 
-État : correction numérique et bridge passés, réduction mémoire Q4 validée ; débit global B/Q non concluant. Cache circulaire et budget adaptatif qualifiés numériquement, leur débit reste à mesurer. Aucune application installée remplacée.
+État : implémentation publiée dans la PR34, correction numérique et bridge passés, réduction mémoire Q4 validée. Les quatre campagnes de débit sont closes. L'adaptatif améliore les quatre paires contre DFlash fixe, avec une dispersion trop forte sur HOLD ; il reste derrière MTP1 sur les quatre paires fraîches. **15 tok/s non atteints.** Aucune application installée remplacée.
 
 ## Sources et portée
 
@@ -66,4 +66,62 @@ Les huit processus sont joints, avec 16 réponses exactes (warmup et mesure). La
 
 Les quatre comparaisons de pic physique donnent des économies de **490 013 056 / 486 769 000 / 487 620 968 / 486 785 480 octets**, soit environ 486–490 Mo. Le pic BF16 est de 8,873–8,875 Go et le pic Q4 de 8,385–8,389 Go. La réduction mémoire est validée pour cette configuration et ce protocole. Zéro nouveau Swapout sur les huit bras et les 30 secondes postflight, même origine cumulative que la correction native. [Données et décision](measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v6-BQ/analysis.json).
 
-Le point de publication comprend cette réduction mémoire et le vrai parcours DFlash2 numériquement qualifié. Les anciens résultats négatifs 57 et l'état incomplet 58 sont conservés comme preuves historiques, sans incorporation de leurs prototypes dans le moteur. Les comparaisons Q/R, R/A, OFF et MTP1 restent à faire ; **15 tok/s non atteints**.
+Le premier point de publication `dc33e3e4` comprend cette réduction mémoire et le vrai parcours DFlash2 numériquement qualifié. Les anciens résultats négatifs 57 et l'état incomplet 58 sont conservés comme preuves historiques, sans incorporation de leurs prototypes dans le moteur.
+
+## Mesures Q/R
+
+| Prompt | Q4 concat (tok/s) | Q4 circulaire (tok/s) | Effets appariés |
+|---|---|---|---|
+| MAIN | 8,317 ; 9,018 | 8,468 ; 9,026 | +1,81 % ; +0,09 % |
+| HOLD | 7,951 ; 8,459 | 8,479 ; 7,987 | +6,65 % ; −5,58 % |
+
+Décision : **`inconclusive_drift`, aucun gain global établi**. Les témoins dérivent de 8,421 % et 6,391 % ; l'étendue sur HOLD vaut 12,232 points et les deux effets y changent de signe. Le cache circulaire ajoute environ 37–41 Mo de pic sur ces contextes courts, tout en bornant sa capacité KV à 2 048 positions. Les huit processus sont joints, 16 réponses exactes, aucun nouveau Swapout jusque 30 secondes après. [Données et décision Q/R](measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-QR/analysis.json).
+
+## Mesures R/A
+
+La demande utilisateur confirme de tester l'adaptatif même sans gain Q/R grâce à l'intérêt mémoire de Q4.
+
+| Prompt | Q4 circulaire fixe (tok/s) | Q4 circulaire adaptatif (tok/s) | Effets appariés |
+|---|---|---|---|
+| MAIN | 8,697 ; 8,763 | 9,789 ; 9,746 | +12,57 % ; +11,21 % |
+| HOLD | 8,221 ; 8,632 | 8,849 ; 8,854 | +7,64 % ; +2,58 % |
+
+Les quatre paires sont favorables. MAIN satisfait les seuils préenregistrés : dérive 0,766 %, étendue 1,351 point. HOLD a une dérive de 4,998 % et une étendue de 5,062 points, supérieure aux trois permis. Décision globale stricte : **`inconclusive_drift`**, avec un signal positif à confirmer, sans annonce de boost général.
+
+Les compteurs expliquent un mécanisme concret : sur MAIN, le fixe vérifie 182 lignes dans ses blocs, l'adaptatif 136 ou 138 ; sur HOLD, 186 contre 139 ou 138. Il écarte donc environ un quart des lignes de vérification, avec davantage de petits blocs. Cela ne mesure pas le temps GPU exclusif. MAIN compte 50–51 cycles, avant le premier refit probabiliste à 64 ; HOLD atteint 64–65 cycles, donc ce refit arrive en toute fin. Le gain ne peut pas être attribué à une longue calibration probabiliste : l'adaptation du coût commence bien plus tôt.
+
+Le pic adaptatif atteint **8,859–8,910 Go**, contre environ 8,42 Go pour le fixe, notamment avec les états temporaires des vérifications larges. L'économie de pic de 486–490 Mo mesurée en Q4 fixe ne doit pas être transférée au pic du mode adaptatif. Huit processus joints, 16 réponses exactes, zéro nouveau Swapout jusque 30 secondes après. [Données R/A](measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-RA/analysis.json).
+
+## Comparaison finale OFF / MTP1 / DFlash2 adaptatif
+
+La règle enregistrée avant R/A retient A comme candidat exploratoire : quatre effets favorables et au moins 1 % géométrique sur chaque prompt. Elle ne transforme pas l'échec du critère de dispersion en gain validé. Deux témoins OFF frais précèdent huit bras MTP1/A alternés, mêmes binaire v7, modèle, paramètres et alimentation.
+
+| Prompt | OFF, témoin descriptif (tok/s) | MTP1 (tok/s) | DFlash2 A (tok/s) | A contre MTP1 |
+|---|---|---|---|---|
+| MAIN | 10,480 | 10,546 ; 10,154 | 9,994 ; 10,013 | −5,24 % ; −1,39 % |
+| HOLD | 10,458 | 9,586 ; 9,695 | 8,985 ; 9,283 | −6,27 % ; −4,25 % |
+
+**A ne dépasse MTP1 sur aucune des quatre paires.** Le classement global du qualificateur reste `inconclusive_drift` : sur MAIN, l'étendue des effets atteint 3,851 points, au-delà de trois, malgré une dérive témoin de 3,864 %. HOLD a une dérive de 1,137 % et une étendue de 2,014 points. Ces limites ne permettent pas d'annoncer un gain ; les quatre observations vont dans le sens opposé. OFF est un témoin descriptif, sans matrice appariée complète contre chaque mode.
+
+Pics physiques finaux : environ **7,13–7,14 Go OFF**, **7,92–8,20 Go MTP1**, **8,86–8,90 Go DFlash2 A**. Les dix processus sont joints. Les **68 générations** des quatre campagnes (34 processus, warmup et mesure, chacune de 128 tokens) ont le même texte et la même empreinte de tokens que les témoins OFF frais. Cela complète les comparaisons numériques natives de 136 états ; une empreinte de tokens n'est pas une preuve formelle.
+
+Zéro nouveau Swapout sur toute la campagne cumulative v3, y compris le postflight final de 30 secondes. Swapin cumulé final : **240 009 216 octets**, sous la garde de 268 435 456 octets. Un seul couple cible/draft chargé à la fois, aucune compilation ni preuve locale pendant les mesures. [Données finales](measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/analysis.json).
+
+## Vérification CI et reproduction
+
+Au commit de code `dc33e3e48c472dfd875923679304ab3114e55ad0`, les [régressions Desktop/protocole](https://github.com/0xZKnw/mlxl3/actions/runs/39584144970), Linux natif, macOS MLX et Kani Flash passent. Le [workflow natif global](https://github.com/0xZKnw/mlxl3/actions/runs/39584145219) reste rouge : le job Kani global reçoit un shutdown runner / exit 143 sur le harnais préexistant `cache_allocation_is_optimal_and_exact_on_two_layers_two_levels`, dont le code n'a pas changé. Ce n'est pas un contre-exemple ; le même problème était enregistré au commit79. Les nouveaux harnais de ring et de préfixe ont leurs obligations et couvertures passées dans le job Kani Flash distinct. Journaux bruts et nettoyés conservés avec les mesures.
+
+Les commandes GPU exactes, variables d'environnement, modèles et ordres sont dans les `run.json`, avec leurs empreintes de matrice et les identités des binaires. Les plans QR/RA v6 ont été préparés mais jamais lancés, remplacés par v7 après la seule correction de fin de fichier du shader. Contrôles locaux utilisés :
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --all-targets --features mlx,chat -- -D warnings
+cargo clippy --all-targets --no-default-features --features chat -- -D warnings
+cargo test --release --features mlx,chat
+cargo test --locked --no-default-features
+python -m pytest -q
+cargo kani --lib --no-default-features --harness circular_writes_are_bounded_disjoint_and_cannot_wrap
+cargo kani --lib --no-default-features --harness adaptive_prefix_is_bounded_and_rejects_invalid_probabilities
+```
+
+Le build utilise `MLXL3_MLX_ROOT` pointant vers MLX0.32.2 et le runtime Apple physique M5/macOS27.2. Après fermeture de la campagne GPU, la suite CPU sans features passe **110 tests / 3 ignorés** (94 lib + 16 contrats), et la suite Python complète passe **915 tests / 4 skips**, en 105,74 secondes. Les skips concernent `ponyexl3.convert` / `ponyexl3.convert.measure` absents et le modèle Ling local absent ; ces parcours de conversion ne sont pas validés par ce run. Format et Ruff repassent, toutes les empreintes de source/binaire v7 sont recontrôlées. Les tests physiques ignorés par la suite générale restent distingués des tests sélectionnés explicitement. La GUI et son installateur automatique Flash DFlash2 ne sont pas validés ici. [Synthèse vérifiable](measurements/flash-next-ssd-impl/opt-60-splash-dflash/validation-summary.json) et [commandes CPU finales](measurements/flash-next-ssd-impl/opt-60-splash-dflash/final-cpu-commands.json).
