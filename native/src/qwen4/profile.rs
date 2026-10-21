@@ -68,9 +68,10 @@ fn save(p: &Path, v: &impl serde::Serialize) -> Result<()> {
 fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
     let directory = PathBuf::from(std::env::var("MLXL3_PROFILE_OUTPUT")?);
     let kind = std::env::var("MLXL3_PROFILE_KIND")?;
-    let mtp = match std::env::var("MLXL3_FLASH_PROFILE_MTP")?.as_str() {
-        "0" => false,
-        "1" => true,
+    let (mtp, dflash) = match std::env::var("MLXL3_FLASH_PROFILE_MTP")?.as_str() {
+        "0" => (false, false),
+        "1" => (true, false),
+        "DFLASH2" => (false, true),
         _ => anyhow::bail!("invalid mode"),
     };
     let label = std::env::var("MLXL3_FLASH_PROFILE_PROMPT")?;
@@ -84,6 +85,17 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
         _ => anyhow::bail!("invalid prompt"),
     };
     let (budget, phases): (usize, &[(&str, bool, bool)]) = match kind.as_str() {
+        "verifier" => (
+            64,
+            &[
+                ("sequential_oracle", false, false),
+                ("warmup", false, false),
+                ("control_before", false, false),
+                ("trace_1", true, false),
+                ("trace_2", true, false),
+                ("control_after", false, false),
+            ],
+        ),
         "natural" => (
             128,
             &[
@@ -137,9 +149,16 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
     let load_seconds = load_start.elapsed().as_secs_f64();
     ensure!(!prompt_ids.is_empty() && prompt_ids.len() + budget <= target.context_limit() as usize);
     let mut expected = None;
+    let mut expected_head = None;
     let mut summaries = Vec::new();
     for &(phase, traced, fenced) in phases {
         target.reset();
+        let use_dflash = dflash && phase != "sequential_oracle";
+        let use_mtp = mtp && phase != "sequential_oracle";
+        if use_dflash {
+            let draft = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT")?);
+            target.configure_dflash2(Some(&draft), 1)?;
+        }
         if let Some(h) = &mut head {
             h.reset();
         }
@@ -154,16 +173,23 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
         let mut logits = None;
         {
             let _span = profile::span("prefill");
-            for (step, &token) in prompt_ids.iter().enumerate() {
-                let step_span = profile::span("prefill_step");
-                if let Some(s) = &step_span {
-                    s.data(serde_json::json!({"step":step,"token":token}));
+            if use_dflash {
+                logits = Some(
+                    target
+                        .prefill_dflash2(&prompt_ids, &std::sync::atomic::AtomicBool::new(false))?,
+                );
+            } else {
+                for (step, &token) in prompt_ids.iter().enumerate() {
+                    let step_span = profile::span("prefill_step");
+                    if let Some(s) = &step_span {
+                        s.data(serde_json::json!({"step":step,"token":token}));
+                    }
+                    if use_mtp && let (Some(h), Some(hidden)) = (&mut head, &target.last_hidden) {
+                        let _h = profile::span("prefill_head_extend");
+                        h.extend_cache(&target, hidden, token)?;
+                    }
+                    logits = Some(target.forward(token)?);
                 }
-                if let (Some(h), Some(hidden)) = (&mut head, &target.last_hidden) {
-                    let _h = profile::span("prefill_head_extend");
-                    h.extend_cache(&target, hidden, token)?;
-                }
-                logits = Some(target.forward(token)?);
             }
         }
         let mut anchor = logits.context("empty prefill")?.chat_greedy_ids()?[0];
@@ -189,7 +215,10 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
                 let mark = Instant::now();
                 let step_span = profile::span("output_step");
                 let old = (session.proposed, session.accepted, session.blocks);
-                anchor = if let Some(h) = &mut head {
+                anchor = if use_dflash {
+                    target.advance_dflash2(anchor, budget - step)?
+                } else if use_mtp {
+                    let h = head.as_mut().context("missing profile MTP head")?;
                     session.advance(
                         &mut target,
                         h,
@@ -224,7 +253,7 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
                 && session.pending.is_empty()
                 && target.offset() as usize == prompt_ids.len() + budget - 1
         );
-        if let Some(h) = &head {
+        if use_mtp && let Some(h) = &head {
             ensure!(h.offset() == target.offset() - 1);
         }
         let logits = target.logits(
@@ -241,7 +270,7 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
         );
         let state = super::tests::state_bytes(&target)?;
         ensure!(state.len() > 100 && state.iter().all(|s| !s.is_empty()));
-        let head_state = if let Some(h) = &head {
+        let head_state = if use_mtp && let Some(h) = &head {
             let Attention::Qsa(q) = &h.layer.attention else {
                 anyhow::bail!("invalid head")
             };
@@ -249,11 +278,21 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
         } else {
             Vec::new()
         };
-        let parity = (output.clone(), logits.to_bytes()?, state, head_state);
+        let parity = (output.clone(), logits.to_bytes()?, state);
         if let Some(e) = &expected {
             ensure!(&parity == e, "full profile parity failed: {phase}");
         } else {
             expected = Some(parity);
+        }
+        if use_mtp {
+            if let Some(expected) = &expected_head {
+                ensure!(
+                    &head_state == expected,
+                    "MTP head profile parity failed: {phase}"
+                );
+            } else {
+                expected_head = Some(head_state);
+            }
         }
         ensure!(!traced || (!prefill_events.is_empty() && !decode_events.is_empty()));
         let hash = output
@@ -263,6 +302,10 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
                 (h ^ u64::from(b)).wrapping_mul(0x100000001b3)
             });
         let summary = serde_json::json!({"phase":phase,"traced":traced,"fenced":fenced,"mtp":mtp,"prompt":label,"prompt_ids":prompt_ids,"tokens":output,"token_hash":format!("{hash:016x}"),"text":tokenizer.decode(&output)?,"prefill_epoch":prefill_epoch,"decode_epoch":decode_epoch,"prefill_seconds":prefill_seconds,"decode_seconds":decode_seconds,"diagnostic_tps":(budget-1)as f64/decode_seconds,"before_counts":before_counts,"prefill_counts":prefill_counts,"after_counts":final_counts,"before":before,"prefill_boundary":prefill_snapshot,"after":after,"steps":steps,"mtp_proposed":session.proposed,"mtp_accepted":session.accepted,"mtp_blocks":session.blocks,"mtp_head_verify_repair_total_seconds":session.profile_seconds,"logit_count":host.len(),"full_logits_target_head_states_byte_exact":true,"prefill_event_count":prefill_events.len(),"decode_event_count":decode_events.len()});
+        let mut summary = summary;
+        summary["dflash"] = Value::Bool(use_dflash);
+        summary["dflash_stats"] = serde_json::json!(target.dflash2_stats());
+        summary["dflash_profile"] = serde_json::json!(target.dflash2_profile());
         save(&directory.join(format!("{phase}-summary.json")), &summary)?;
         if traced {
             save(

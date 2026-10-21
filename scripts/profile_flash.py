@@ -69,7 +69,7 @@ def validate_events(events):
             assert isinstance(data, dict)
             rows, cap = integer(data["rows"]), integer(data["capacity"])
             ids, slots = data["ids"], data["slots_hit"]
-            assert rows in (1, 2) and 10 <= cap <= 512
+            assert 1 <= rows <= 8 and 10 <= cap <= 512
             assert len(ids) == len(slots) == 10 * rows
             assert all(type(n) is int and 0 <= n < 512 for n in ids)
             assert all(type(n) is int and 0 <= n < cap and type(hit) is bool for n, hit in slots)
@@ -159,7 +159,7 @@ def vm_counts(raw):
 
 
 def validate_summary(summary, kind, golden, expected_tokens=None):
-    budget = {"quality": 17, "fenced": 33, "natural": 128}[kind]
+    budget = {"quality": 17, "fenced": 33, "natural": 128, "verifier": 64}[kind]
     assert summary["full_logits_target_head_states_byte_exact"] is True
     assert summary["logit_count"] == 248320
     tokens = summary["tokens"]
@@ -228,6 +228,14 @@ def analyze(directory, kind, golden, expected_tokens=None):
     complete = json.loads((directory / "complete.json").read_text())
     assert complete["status"] == "complete_diagnostic_internal_full_parity_external_golden_pending"
     expected_phases = {
+        "verifier": [
+            "sequential_oracle",
+            "warmup",
+            "control_before",
+            "trace_1",
+            "trace_2",
+            "control_after",
+        ],
         "natural": ["warmup", "control_before", "trace_1", "trace_2", "trace_3", "control_after"],
         "fenced": ["warmup", "oracle", "fenced_1", "fenced_2"],
         "quality": ["warmup", "oracle", "trace", "fenced"],

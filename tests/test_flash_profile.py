@@ -60,6 +60,29 @@ def test_worker_overlap_and_nested_times_are_not_added_as_exclusive_gpu():
     assert "not exclusive GPU" in out["limits"]
 
 
+@pytest.mark.parametrize("width", range(1, 9))
+def test_real_multi_token_routes_reuse_experts_between_rows(width):
+    rows = trace()
+    data = rows[2]["data"]
+    data.update(
+        rows=width,
+        ids=list(range(10)) * width,
+        slots_hit=[[i, False] for i in range(10)] * width,
+        cold_rows=10 * width,
+    )
+    out = API["validate_events"](rows)
+    assert out["routes"][0]["pairs"] == 10 * (width - 1)
+    assert out["routes"][0]["unique"] == 10
+
+
+@pytest.mark.parametrize("width", [0, 9, True, -1])
+def test_route_width_rejects_outside_production_contract(width):
+    rows = trace()
+    rows[2]["data"]["rows"] = width
+    with pytest.raises(AssertionError):
+        API["validate_events"](rows)
+
+
 @pytest.mark.parametrize(
     "fault",
     [

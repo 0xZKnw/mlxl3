@@ -451,14 +451,14 @@ impl SsdMoe {
                 && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
             "invalid streamed MoE route shape or dtype"
         );
-        #[cfg(test)]
-        let profile = crate::flash_profile::span("moe_forward_rows");
         let rows = x.shape()[0];
         if let Some((_, pool)) = &self.prefetcher {
             pool.borrow_mut().poll();
         }
         let available = self.cache.borrow().available_slots();
         if available < rows as usize * 10 {
+            #[cfg(test)]
+            let _cohorts = crate::flash_profile::span("moe_cohorts");
             let cohort = crate::flash_support::expert_cohort_rows(available)
                 .context("invalid streamed MoE cache capacity")? as i32;
             let mut output = Vec::new();
@@ -472,6 +472,8 @@ impl SsdMoe {
             }
             return Array::concatenate(&output.iter().collect::<Vec<_>>(), 0);
         }
+        #[cfg(test)]
+        let profile = crate::flash_profile::span("moe_forward_rows");
         #[cfg(test)]
         let route_start = std::time::Instant::now();
         #[cfg(test)]

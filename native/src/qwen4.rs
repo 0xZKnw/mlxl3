@@ -123,6 +123,8 @@ impl Hc {
         })
     }
     fn read(&self, streams: &Array) -> Result<(Array, Option<Array>)> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("hc_read_build");
         let normalized = self.norm.forward(&streams.reshape(&[1, 1, WIDTH])?)?;
         let weights = self.up.forward_flash_hc(
             &self
@@ -140,9 +142,13 @@ impl Hc {
                     .reshape(&[1, HC])
             })
             .transpose()?;
+        #[cfg(test)]
+        crate::flash_profile::stage("hc_read_completion", &mixed)?;
         Ok((mixed, injection))
     }
     fn write(streams: &Array, branch: &Array, gate: &Array) -> Result<Array> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("hc_write_build");
         streams.add(
             &branch
                 .reshape(&[1, 1, H])?
@@ -199,6 +205,8 @@ impl Gdn {
         })
     }
     fn forward(&mut self, x: &Array) -> Result<Array> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("gdn_single_build");
         #[cfg(test)]
         self.stages.clear();
         macro_rules! stage {
@@ -261,6 +269,8 @@ impl Gdn {
             .astype(Dtype::Float32)
     }
     fn convolve(&mut self, qkv: &Array) -> Result<(Array, Array, Array, Array)> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("gdn_convolve_norm_build");
         let history = match &self.history {
             Some(h) => h.try_clone()?,
             None => Array::zeros_dtype(&[1, 3, 10240], Dtype::Float16)?,
@@ -298,9 +308,16 @@ impl Gdn {
         let rows = inputs.len() as i32;
         let input =
             Array::concatenate(&inputs.iter().collect::<Vec<_>>(), 0)?.astype(Dtype::Float16)?;
+        #[cfg(test)]
+        let projection = crate::flash_profile::span("gdn_qkv_build");
         let qkv = verification_projection(&self.qkv, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 10240])?;
+        #[cfg(test)]
+        {
+            drop(projection);
+            crate::flash_profile::stage("gdn_rows_qkv_completion", &qkv)?;
+        }
         let mut prepared = Vec::with_capacity(inputs.len());
         let mut histories = Vec::with_capacity(inputs.len() - 1);
         for row in 0..rows {
@@ -316,12 +333,26 @@ impl Gdn {
         let q = cat(0)?;
         let k = cat(1)?;
         let v = cat(2)?;
+        #[cfg(test)]
+        {
+            crate::flash_profile::stage("gdn_rows_q_completion", &q)?;
+            crate::flash_profile::stage("gdn_rows_k_completion", &k)?;
+            crate::flash_profile::stage("gdn_rows_v_completion", &v)?;
+        }
+        #[cfg(test)]
+        let gates_profile = crate::flash_profile::span("gdn_gates_build");
         let a = verification_projection(&self.a, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 48])?;
         let b = verification_projection(&self.b, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 48])?;
+        #[cfg(test)]
+        {
+            drop(gates_profile);
+            crate::flash_profile::stage("gdn_rows_a_completion", &a)?;
+            crate::flash_profile::stage("gdn_rows_b_completion", &b)?;
+        }
         let initial = match &self.state {
             Some(state) => state.try_clone()?,
             None => Array::zeros_dtype(&[1, 48, 128, 128], Dtype::Float32)?,
@@ -336,6 +367,8 @@ impl Gdn {
             &self.dt_bias,
             &initial,
         )?;
+        #[cfg(test)]
+        crate::flash_profile::stage("gdn_rows_scan_completion", &value)?;
         self.state = Some(final_state);
         let tape = Rc::new(tape);
         let snapshots = histories
@@ -350,6 +383,10 @@ impl Gdn {
         let z = verification_projection(&self.z, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 48, 128])?;
+        #[cfg(test)]
+        crate::flash_profile::stage("gdn_rows_z_completion", &z)?;
+        #[cfg(test)]
+        let post_profile = crate::flash_profile::span("gdn_norm_gate_build");
         let mut gated = Vec::with_capacity(inputs.len());
         for row in 0..rows {
             let normed = self.norm.forward(&value.slice(1, row, row + 1)?)?;
@@ -365,11 +402,14 @@ impl Gdn {
                     .reshape(&[1, 6144])?,
             );
         }
-        let output = verification_projection(
-            &self.out,
-            &Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?,
-        )?
-        .astype(Dtype::Float32)?;
+        #[cfg(test)]
+        drop(post_profile);
+        let gated = Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("gdn_rows_norm_gate_completion", &gated)?;
+        let output = verification_projection(&self.out, &gated)?.astype(Dtype::Float32)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("gdn_rows_out_completion", &output)?;
         Ok((
             (0..rows)
                 .map(|row| output.slice(0, row, row + 1))
@@ -530,6 +570,8 @@ impl Qsa {
         }
     }
     fn forward(&mut self, x: &Array) -> Result<Array> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("qsa_build");
         #[cfg(test)]
         self.stages.clear();
         macro_rules! stage {
@@ -835,6 +877,8 @@ impl Ple {
         })
     }
     fn forward(&mut self, streams: &Array, token: u32) -> Result<Array> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("ple_build");
         #[cfg(test)]
         self.stages.clear();
         macro_rules! stage {

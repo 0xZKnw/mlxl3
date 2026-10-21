@@ -60,6 +60,8 @@ impl Session {
         self.profile = FlashDraftProfile::default();
     }
     fn advance(&mut self, target: &mut FlashNext, anchor: u32, remaining: usize) -> Result<u32> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("dflash_advance");
         ensure!(
             anchor < 248320 && remaining > 0,
             "invalid DFlash anchor or budget"
@@ -89,6 +91,8 @@ impl Session {
         }
         let demand_before = target.io_stats().2;
         let started = std::time::Instant::now();
+        #[cfg(test)]
+        let draft_profile = crate::flash_profile::span("dflash_proposal_inclusive");
         let input = target.draft_input(anchor, Kind::Dflash2, count)?;
         let (hidden, _) = self.draft.forward(&input, count)?;
         let (mut proposals, confidence) =
@@ -110,13 +114,21 @@ impl Session {
             .collect::<Vec<_>>();
         let start = target.offset;
         let draft_seconds = started.elapsed().as_secs_f64();
+        #[cfg(test)]
+        drop(draft_profile);
+        #[cfg(test)]
+        let verification_profile = crate::flash_profile::span("dflash_verification_inclusive");
         let verifying = std::time::Instant::now();
         let verification = target.verify_draft(&tokens, Kind::Dflash2)?;
         let ids = verification.parts.logits.chat_greedy_ids()?;
         let verification_seconds = verifying.elapsed().as_secs_f64();
+        #[cfg(test)]
+        drop(verification_profile);
         let acceptance = crate::speculative::greedy_accept(&proposals, &ids)
             .context("invalid DFlash verification")?;
         let retained = acceptance.accepted_draft_tokens + 1;
+        #[cfg(test)]
+        let _commit_profile = crate::flash_profile::span("dflash_commit_cache_build");
         let committing = std::time::Instant::now();
         let captured = verification.parts.captured.slice(0, 0, retained as i32)?;
         verification.commit(retained)?;

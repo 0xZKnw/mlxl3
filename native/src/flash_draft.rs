@@ -1082,6 +1082,8 @@ impl FlashNext {
             let mut streams = self.streams(token)?;
             let mut captures = Vec::with_capacity(5);
             for i in 0..self.layers.len() {
+                #[cfg(test)]
+                let _layer = crate::flash_profile::span(&format!("layer_{i}"));
                 let (current, rest) = self.layers.split_at_mut(i + 1);
                 let next = (self.lookahead_depth > 0)
                     .then(|| rest.first_mut().map(|l| &mut l.moe))
@@ -1122,6 +1124,12 @@ impl FlashNext {
     }
 
     fn verify_draft(&mut self, tokens: &[u32], kind: Kind) -> Result<Verification<'_>> {
+        #[cfg(test)]
+        let profile = crate::flash_profile::span("verify_draft");
+        #[cfg(test)]
+        if let Some(profile) = &profile {
+            profile.data(serde_json::json!({"rows":tokens.len()}));
+        }
         ensure!(
             self.verification.is_none()
                 && (1..=8).contains(&tokens.len())
@@ -1140,6 +1148,8 @@ impl FlashNext {
                 .collect();
             let mut captures = Vec::with_capacity(5);
             for (index, layer) in self.layers.iter_mut().enumerate() {
+                #[cfg(test)]
+                let _layer = crate::flash_profile::span(&format!("layer_{index}"));
                 let (prepared, states) = layer.prepare_rows(&streams, tokens, self.multi_token)?;
                 for (prefix, state) in prefixes.iter_mut().zip(states) {
                     prefix.push(state);
@@ -1163,6 +1173,8 @@ impl FlashNext {
                 }
             }
             ensure!(captures.len() == 5, "incomplete verification captures");
+            #[cfg(test)]
+            let head_profile = crate::flash_profile::span("draft_target_head_build");
             let mixed = streams
                 .iter()
                 .map(|x| -> Result<Array> {
@@ -1183,8 +1195,14 @@ impl FlashNext {
                 Array::concatenate(&heads.iter().collect::<Vec<_>>(), 0)?
             };
             let captured = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?;
+            #[cfg(test)]
+            drop(head_profile);
+            #[cfg(test)]
+            let completion = crate::flash_profile::span("draft_target_head_eval_inclusive");
             logits.eval()?;
             captured.eval()?;
+            #[cfg(test)]
+            drop(completion);
             self.drain()?;
             self.last_hidden = Some(streams.last().context("missing last stream")?.try_clone()?);
             self.offset += tokens.len() as i32;
