@@ -1,0 +1,82 @@
+{
+  "conclusion": "success",
+  "headSha": "ba7068fbbc9b60bbf0fecfdf16117135e4d39100",
+  "jobs": [
+    {
+      "completedAt": "2026-10-21T14:28:29Z",
+      "conclusion": "success",
+      "databaseId": 119276326859,
+      "name": "desktop-and-protocol",
+      "startedAt": "2026-10-21T14:18:53Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-21T14:18:55Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-21T14:18:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-21T14:19:00Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-10-21T14:18:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-21T14:19:06Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@v5",
+          "number": 3,
+          "startedAt": "2026-10-21T14:19:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-21T14:19:21Z",
+          "conclusion": "success",
+          "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+          "number": 4,
+          "startedAt": "2026-10-21T14:19:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-21T14:28:24Z",
+          "conclusion": "success",
+          "name": "Run scripts/check-e2e.sh",
+          "number": 5,
+          "startedAt": "2026-10-21T14:19:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-21T14:28:24Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@v5",
+          "number": 9,
+          "startedAt": "2026-10-21T14:28:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-21T14:28:25Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 10,
+          "startedAt": "2026-10-21T14:28:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-21T14:28:27Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-10-21T14:28:25Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39615788278/job/119276326859"
+    }
+  ],
+  "status": "completed"
+}

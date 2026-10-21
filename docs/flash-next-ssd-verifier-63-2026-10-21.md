@@ -1,6 +1,6 @@
 # Flash Next SSD63 — vérificateur multi-token exact
 
-21 octobre2026. Base publiée `540ff4806b033ae58a1bff9f512ae8b4b50f185b`, suite des expériences61/62. **Correction physique et microbench validés ; gain MTP de6,18–6,87% qualifié dans les fenêtres appariées. Débit DFlash non concluant selon les seuils préenregistrés.** Option expérimentale `MLXL3_FLASH_MULTI_TOKEN=1`, défaut0 ; app installée inchangée. La combinaison63+GPU Hot Wide reste à mesurer séparément.
+21 octobre2026. Base publiée `540ff4806b033ae58a1bff9f512ae8b4b50f185b`, code63 publié `ba7068fbbc9b60bbf0fecfdf16117135e4d39100`, suite des expériences61/62. **63 clos : correction physique et microbench validés ; gain MTP de6,18–6,87% qualifié dans les fenêtres appariées. Débit DFlash63seul non concluant selon les seuils préenregistrés ; ajoutWide à63 qualifié en adaptatif, +1,12–3,29%, sans additionner les gains.** Options expérimentales `MLXL3_FLASH_MULTI_TOKEN=1` et `MLXL3_SSD_GPU_HOT_WIDE=1`, chacune défaut0 ; app installée inchangée.
 
 ## Calcul réellement groupé
 
@@ -48,7 +48,7 @@ Les campagnes physiques v1/v3/v4/v5 sont closes avec0nouveauSwapout et postfligh
 
 Kani0.68.0, contrats CPU réels : layoutMB2/i32 symbolique69obligations/2couvertures ; préfixesGDN66/5 ; commitpair71/4 ; commitlarge71/3 ; compteurdemandes73/4 avec troisu64symboliques et oracleu128 indépendant. Aucun échec ; domaines et assertions d’unwinding conservés. Une mutation qui omettait l’accumulation est détectée, puis source restaurée et suites repassées. Le collecteur cherchait initialement lepanic dansstdoutseul ; erreur conservée, inspection du logcombiné confirmée.
 
-Tentatives Kani réelles MLX dense et pair : ICE `intrinsics.rs:243` avant vérification. GPU, MLX, concurrence et génération entière restent nonprouvés. La CI ajoute les trois contrats pertinents au jobFlash PR/push. La CI de la base540ff passe régressions/Linux/macOSMLX/KaniFlash ; Kani global échoue sur l’ancien harnais allocation, sans verdict final. La CI du prochain commit63 reste à inspecter.
+Tentatives Kani réelles MLX dense et pair : ICE `intrinsics.rs:243` avant vérification. GPU, MLX, concurrence et génération entière restent nonprouvés. La CI ajoute les trois contrats pertinents au jobFlash PR/push. Les CI de la base540ff et du code63 ba7068fb passent régressions/Linux/macOSMLX/KaniFlash. Kani global échoue sur l’ancien harnais allocation ; pourba706 le log exact confirme un shutdown du runner/exit143, sans verdict de ce harnais. Snapshots et logs des jobs exacts sont archivés dans `opt-63-verifier/ci-ba706-*`, aucune CI globale verte annoncée.
 
 ## Microbench du vérificateur seul v3
 
@@ -84,4 +84,27 @@ Le pic candidat fixe est8,222Go contre8,429Go pour les témoins ; adaptatif8,263
 
 Sur fixeMAIN, les182lignes et28 849 045 392octets demandés sont identiques entre bras : vérification13,312/13,546s→12,263/12,159s. Cela correspond à95,742–96,558ms/sortie debloc et66,809–67,379ms/ligne avec63. FixeHOLD :186lignes,29 511 739 764octets,98,452–99,280ms/sortie et67,222–67,788ms/ligne. AdaptatifMAIN :81,546–82,093ms/sortie et75,046–75,549ms/ligne ; HOLD :89,933–91,215ms/sortie et83,320–83,891ms/ligne, avec1tokenterminalordinaire séparé. Ces métriques hôte inclusives ne mesurent pas le coûtGPU exclusif du replay ou des lectures.
 
-Ensuite : mesurer la combinaison63+WIDE séparément, sans additionner les gains. **Le nouvel essai de cache vers10Go est annulé à la demande de l’utilisateur**, avant lancement ; garder3Gio et poursuivre les mécanismes Splash après63. Aucun nouvel essai de cache agrandi ni installation d’app n’a été lancé.
+Le palier63C ci-dessous compare séparément la combinaison63+WIDE, sans additionner les gains. **Le nouvel essai de cache vers10Go est annulé à la demande de l’utilisateur**, avant lancement ; garder3Gio et poursuivre les mécanismes Splash après63. Aucun nouvel essai de cache agrandi ni installation d’app n’a été lancé.
+
+## Interaction63C avec GPU Hot Wide
+
+Mêmes sources146 et4artéfacts de l’identitév5, mêmes3Gio/53slots/Q4/ring etCLI, flag63=1 partout ; WIDE0/1 seul varie. Les36préfixes passent, puis un bref changement d’alimentation interrompt le runtime. La reprise limitée aux20configurationsruntime/136états et43contrôlesbridge passe, avec annulation/reprise, états exacts et postflight30s. Le premier `failed_postflight` reste conservé, sans réécriture en succès. Une erreur d’affichage ad hoc `len(checks)` sur un compteurentier est corrigée avant vitesse ; elle n’a relancé aucun test ni changé le résultat du bridge.
+
+L’utilisateur avait ouvert puis referméMLXL3 **après** la fin de63V :1 277 624 320octetsSwapout supplémentaires sont observés hors mesure, aucun moteur restant. La cause exclusive système n’est pas prouvée et les résultats63V antérieurs ne sont pas réécrits. Une origine63C distincte est explicitement enregistrée après cet incident ; les compteurs et horodatages sont conservés.
+
+La première campagne de vitesse termine les8brasfixes, tous joints et exacts. GainsWideMAIN−0,346/+2,826%,HOLD+0,558/+0,017%, étendueMAIN3,172points>3 : **non concluant**, pas de gain additionnel établi. Sur l’adaptatif, troisbrasMAIN terminent puis le dernier témoin est arrêté par la limite cumulée de256MioSwapin, avantHOLD. Le résultat reste `failed_postflight/parity:false/confirmed_gain:false`, même si tous les bras terminés sont exacts et aucun nouveauSwapout n’est observé.
+
+Après nettoyage :365 510 656octetsSwapin cumulés depuisorigine63C,0nouveauSwapout. Une répétition bornée des8brasadaptatifs seulement, avec nouveaux témoinsHCCH MAIN/HOLD, est préenregistrée après30s sansmodèle. OrigineSwapin distincte, mêmeborne256Mio et0Swapout sur l’ensemble, pré20/post30, mêmes source/binaire/limites ; ni les3brasA initiaux ni un seuil modifié ne sont mélangés à cette reprise. La fixe non concluante n’est pas relancée.
+
+**Cette reprise est terminée et qualifiée** :8processusjoints/16réponses exactes ; postflight16échantillons/30,005s, secteur100%,0nouveauSwapout sur l’ensemble63C et851 968octetsSwapin dans la nouvellefenêtre courte. Le cumulSwapin depuisorigine63C initiale reste366 362 624octets, donc l’échec long n’est pas effacé ni transformé en succès sous256Mio. [Clôture](measurements/flash-next-ssd-impl/opt-63-verifier/combined-wide-v5/adaptive-short-v5/closure.json), [résultat brut](measurements/flash-next-ssd-impl/opt-63-verifier/combined-wide-v5/adaptive-short-v5/speed-result.json).
+
+| Prompt adaptatif |63seul, WIDE0 tok/s |63+Wide, tok/s | Gains appariés |
+| --- | --- | --- | --- |
+| MAIN |10,7223/10,7237 |11,0127/10,8989 |+2,708/+1,634% |
+| HOLD |9,6593/9,4279 |9,7673/9,7384 |+1,118/+3,293% |
+
+Dérive témoinsMAIN0,014%,HOLD2,454% ; étendue des gains1,074/2,175points, sous les limites5%/3points, chaque paire≥1%. Pic physique maximal8 287 033 872octets, sans économie mémoireWide revendiquée. MAIN garde138lignes/77acceptées/50blocs ; HOLD139–140lignes et64–66acceptées/60–62blocs : le gain inclut les décisions adaptatives influencées par le temps. Il ne mesure pas isolément unkernel ou les seules lecturesSSD. Aucun nouveau gainOFF/MTP attribué àWIDE, inactifB1/B2. Ce n’est pas une comparaison contemporaine DFlashcontreMTP : les chiffresMTP63V ont leur propre fenêtre. **15tok/s non atteints.**
+
+63V et63C sont clos ; aucune autre relanceWide prévue, défauts0 conservés. Sources exécutables identiques àba7068fb, pas de nouvelle compilation ni de nouveau kernel pendant63C. Les interruptions d’alimentation et de swap-in, les réponses incomplètes et les diagnostics corrigés restent archivés.
+
+Les mécanismes encore absents et leur priorité conditionnée par le profil sont détaillés dans la [rechercheSplash64R](flash-next-ssd-splash-64-research-2026-10-21.md). Les87–89% de vérificationDFlash ne constituent pas une partGDN ; aucun kernel64 ni profilGPU exclusif nouveau n’est revendiqué.
