@@ -48,6 +48,7 @@ pub struct SsdMoe {
     gpu_hot: bool,
     gpu_hot_wide: bool,
     unique_cohorts: bool,
+    shared_exl3: bool,
     #[cfg(test)]
     cohort_sizes: Vec<usize>,
     #[cfg(test)]
@@ -117,6 +118,9 @@ impl SsdMoe {
         let unique_cohorts =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_UNIQUE_COHORT", "0")?)
                 .context("MLXL3_SSD_UNIQUE_COHORT must be 0 or 1")?;
+        let shared_exl3 =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_EXL3", "0")?)
+                .context("MLXL3_SSD_SHARED_EXL3 must be 0 or 1")?;
         let readers = std::env::var("MLXL3_SSD_READERS")
             .unwrap_or_else(|_| "4".into())
             .parse::<usize>()
@@ -216,6 +220,7 @@ impl SsdMoe {
             gpu_hot,
             gpu_hot_wide,
             unique_cohorts,
+            shared_exl3,
             #[cfg(test)]
             cohort_sizes: Vec::new(),
             #[cfg(test)]
@@ -325,10 +330,13 @@ impl SsdMoe {
     }
 
     fn calculate(&self, x: &Array, slots: &[u32]) -> Result<Array> {
-        self.calculate_slots(
-            x,
-            &linear::ExpertSlots::new(slots, self.banks[0].shape()[0])?,
-        )
+        let capacity = self.banks[0].shape()[0];
+        let slots = if self.shared_exl3 {
+            linear::ExpertSlots::grouped(slots, capacity)?
+        } else {
+            linear::ExpertSlots::new(slots, capacity)?
+        };
+        self.calculate_slots(x, &slots)
     }
 
     fn calculate_slots(&self, x: &Array, slots: &linear::ExpertSlots) -> Result<Array> {
@@ -2184,3 +2192,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "ssd_moe/grouped_micro.rs"]
+mod grouped_micro;

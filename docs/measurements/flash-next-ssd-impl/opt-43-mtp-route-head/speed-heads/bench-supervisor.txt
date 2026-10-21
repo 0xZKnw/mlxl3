@@ -36,11 +36,13 @@ def snapshot(parse_vm):
 
 
 def monitor(child, r, parse_vm):
-    deadline = time.monotonic() + 360
+    seconds = r.get("timeout_seconds", 360)
+    assert type(seconds) in (int, float) and math.isfinite(seconds) and 0 < seconds <= 900
+    deadline = time.monotonic() + seconds
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise subprocess.TimeoutExpired(r["command"], 360)
+            raise subprocess.TimeoutExpired(r["command"], seconds)
         try:
             return child.wait(timeout=min(2, remaining))
         except subprocess.TimeoutExpired:

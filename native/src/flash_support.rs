@@ -105,6 +105,59 @@ pub(crate) fn slots_fit(ids: &[u32], capacity: i32) -> bool {
         && ids.iter().all(|&id| id < capacity as u32)
 }
 
+/// Original route indices, grouped in chunks of up to four equal expert slots.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn expert_route_groups(ids: &[u32], capacity: i32) -> Option<[Vec<u32>; 4]> {
+    if ids.len() > 80 || capacity > 512 || !slots_fit(ids, capacity) {
+        return None;
+    }
+    let mut groups: [Vec<u32>; 4] = std::array::from_fn(|_| Vec::new());
+    for (first, &slot) in ids.iter().enumerate() {
+        if ids[..first].contains(&slot) {
+            continue;
+        }
+        let mut chunk = [0; 4];
+        let mut count = 0;
+        for (row, &other) in ids.iter().enumerate() {
+            if other == slot {
+                chunk[count] = row as u32;
+                count += 1;
+                if count == 4 {
+                    groups[3].extend_from_slice(&chunk);
+                    count = 0;
+                }
+            }
+        }
+        if count > 0 {
+            groups[count - 1].extend_from_slice(&chunk[..count]);
+        }
+    }
+    Some(groups)
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn expert_group_chunks(ids: &[u32]) -> Option<usize> {
+    if ids.is_empty() || ids.len() > 80 {
+        return None;
+    }
+    let mut chunks = 0;
+    for (row, slot) in ids.iter().enumerate() {
+        let prior = ids[..row].iter().filter(|other| *other == slot).count();
+        if prior % 4 == 0 {
+            chunks += 1;
+        }
+    }
+    Some(chunks)
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn expert_grouping_worthwhile(rows: usize, chunks: usize) -> bool {
+    (16..=80).contains(&rows)
+        && chunks >= rows.div_ceil(4)
+        && chunks <= rows
+        && (rows - chunks) * 5 >= rows
+}
+
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn parse_lru_override(value: &str) -> Option<bool> {
     match value {
@@ -2072,6 +2125,196 @@ mod verification {
             assert!(ids[0] >= 512 || ids[1] >= 512);
             for i in 0..10 {
                 assert_eq!(cache.keys[i], Some(i as u32));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod grouped_route_tests {
+    use super::{expert_group_chunks, expert_grouping_worthwhile, expert_route_groups};
+    use std::collections::BTreeMap;
+
+    fn check(ids: &[u32], capacity: i32) {
+        let mut counts = BTreeMap::<u32, usize>::new();
+        for &id in ids {
+            *counts.entry(id).or_default() += 1;
+        }
+        let expected_chunks = (!ids.is_empty() && ids.len() <= 80)
+            .then(|| counts.values().map(|n| n.div_ceil(4)).sum::<usize>());
+        assert_eq!(expert_group_chunks(ids), expected_chunks);
+        let actual = expert_route_groups(ids, capacity);
+        let valid = !ids.is_empty()
+            && ids.len() <= 80
+            && (1..=512).contains(&capacity)
+            && ids
+                .iter()
+                .all(|&slot| i64::from(slot) < i64::from(capacity));
+        if !valid {
+            assert!(actual.is_none());
+            return;
+        }
+        let mut by_slot: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+        for (row, &slot) in ids.iter().enumerate() {
+            by_slot.entry(slot).or_default().push(row as u32);
+        }
+        let mut lists = by_slot.into_values().collect::<Vec<_>>();
+        lists.sort_by_key(|rows| rows[0]);
+        let mut expected: [Vec<u32>; 4] = std::array::from_fn(|_| Vec::new());
+        for rows in lists {
+            for chunk in rows.chunks(4) {
+                expected[chunk.len() - 1].extend_from_slice(chunk);
+            }
+        }
+        let actual = actual.unwrap();
+        assert_eq!(actual, expected);
+        let mut coverage = actual.into_iter().flatten().collect::<Vec<_>>();
+        coverage.sort_unstable();
+        assert_eq!(coverage, (0..ids.len() as u32).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn grouped_routes_preserve_every_original_position_and_reject_invalid_slots() {
+        for capacity in [-1, 0, 1, 3, 512, 513] {
+            for n in 0..=7 {
+                for bits in 0..3usize.pow(n) {
+                    let mut value = bits;
+                    let ids = (0..n)
+                        .map(|_| {
+                            let slot = value % 3;
+                            value /= 3;
+                            slot as u32
+                        })
+                        .collect::<Vec<_>>();
+                    check(&ids, capacity);
+                }
+            }
+            for n in [1, 2, 3, 4, 5, 8, 79, 80, 81] {
+                check(&vec![0; n], capacity);
+                check(&(0..n as u32).collect::<Vec<_>>(), capacity);
+                check(&vec![u32::MAX; n], capacity);
+                check(&vec![511; n], capacity);
+            }
+        }
+        let mut seed = 17u32;
+        for n in (1..=80).cycle().take(1024) {
+            let ids = (0..n)
+                .map(|_| {
+                    seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                    seed % 53
+                })
+                .collect::<Vec<_>>();
+            check(&ids, 53);
+        }
+        assert_eq!(
+            expert_route_groups(&[2, 1, 2, 2, 2, 2, 1, 0], 3).unwrap(),
+            [vec![5, 7], vec![1, 6], vec![], vec![0, 2, 3, 4]]
+        );
+    }
+
+    #[test]
+    fn grouped_dispatch_threshold_matches_wide_arithmetic_at_all_boundaries() {
+        for rows in (0..=100).chain([usize::MAX]) {
+            for chunks in (0..=101).chain([usize::MAX]) {
+                let expected = (16..=80).contains(&rows)
+                    && (chunks as u128) * 4 >= rows as u128
+                    && chunks <= rows
+                    && ((rows as u128) - chunks as u128) * 5 >= rows as u128;
+                assert_eq!(expert_grouping_worthwhile(rows, chunks), expected);
+            }
+        }
+        assert!(expert_grouping_worthwhile(20, 16));
+        assert!(!expert_grouping_worthwhile(20, 17));
+        assert!(!expert_grouping_worthwhile(15, 4));
+        assert_eq!(expert_group_chunks(&[u32::MAX; 80]), Some(20));
+    }
+}
+
+#[cfg(kani)]
+mod grouped_route_verification {
+    use super::{expert_group_chunks, expert_grouping_worthwhile, expert_route_groups};
+
+    #[kani::proof]
+    fn grouped_dispatch_gate_matches_wide_arithmetic_for_all_usize_inputs() {
+        let rows: usize = kani::any();
+        let chunks: usize = kani::any();
+        let expected = (16..=80).contains(&rows)
+            && (chunks as u128) * 4 >= rows as u128
+            && chunks <= rows
+            && ((rows as u128) - chunks as u128) * 5 >= rows as u128;
+        assert_eq!(expert_grouping_worthwhile(rows, chunks), expected);
+        kani::cover!(rows == 20 && chunks == 16 && expected);
+        kani::cover!(rows == 20 && chunks == 17 && !expected);
+        kani::cover!(rows == usize::MAX && !expected);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(9)]
+    fn grouped_chunk_counter_matches_eight_symbolic_occurrence_counts() {
+        let storage: [u32; 8] = kani::any();
+        let length = usize::from(kani::any::<u8>() % 9);
+        let ids = &storage[..length];
+        let mut expected = 0;
+        for row in 0..length {
+            if (0..row).all(|prior| ids[prior] != ids[row]) {
+                let total = (0..length).filter(|&other| ids[other] == ids[row]).count();
+                expected += total.div_ceil(4);
+            }
+        }
+        let actual = expert_group_chunks(ids);
+        assert_eq!(actual, (length > 0).then_some(expected));
+        if let Some(chunks) = actual {
+            assert!((length.div_ceil(4)..=length).contains(&chunks));
+            kani::cover!(length == 8 && chunks == 8);
+            kani::cover!(length == 8 && chunks == 2);
+        }
+        kani::cover!(actual.is_none());
+    }
+
+    #[kani::proof]
+    #[kani::unwind(9)]
+    fn grouped_expert_routes_cover_eight_symbolic_origins_exactly() {
+        let ids: [u32; 8] = kani::any();
+        let count = usize::from(kani::any::<u8>() % 9);
+        let capacity = i32::from(kani::any::<u16>() % 514);
+        let ids = &ids[..count];
+        let valid = count > 0
+            && (1..=512).contains(&capacity)
+            && ids.iter().all(|&slot| slot < capacity as u32);
+        let groups = expert_route_groups(ids, capacity);
+        assert_eq!(groups.is_some(), valid);
+        kani::cover!(!valid);
+        if let Some(groups) = groups {
+            let mut seen = [0u8; 8];
+            for (i, rows) in groups.iter().enumerate() {
+                assert_eq!(rows.len() % (i + 1), 0);
+                for chunk in rows.chunks(i + 1) {
+                    for &row in chunk {
+                        assert!((row as usize) < count);
+                        assert_eq!(ids[row as usize], ids[chunk[0] as usize]);
+                        seen[row as usize] += 1;
+                    }
+                }
+            }
+            for (row, &uses) in seen.iter().enumerate() {
+                assert_eq!(uses, u8::from(row < count));
+            }
+            kani::cover!(groups[0].len() == 8);
+            kani::cover!(groups[3].len() == 8);
+        }
+    }
+
+    #[kani::proof]
+    #[kani::unwind(81)]
+    fn grouped_expert_routes_eighty_symbolic_inputs_are_bounded() {
+        let ids: [u32; 80] = kani::any();
+        let capacity = i32::from(kani::any::<u16>() % 514);
+        if let Some(groups) = expert_route_groups(&ids, capacity) {
+            assert_eq!(groups.iter().map(Vec::len).sum::<usize>(), 80);
+            for rows in &groups {
+                for &row in rows {
+                    assert!(row < 80);
+                }
             }
         }
     }

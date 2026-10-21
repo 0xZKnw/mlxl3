@@ -1078,7 +1078,13 @@ pub fn expert_mapped(
         return_raw,
         false,
         false,
+        None,
     )
+}
+
+struct GroupedRoutes {
+    origins: Vec<(i32, Array)>,
+    restore: Vec<u32>,
 }
 
 /// CPU-origin indices validated once, before any expert graph is submitted.
@@ -1086,6 +1092,7 @@ pub(crate) struct ExpertSlots {
     indices: Array,
     capacity: i32,
     masked: bool,
+    groups: Option<GroupedRoutes>,
 }
 
 impl ExpertSlots {
@@ -1098,11 +1105,53 @@ impl ExpertSlots {
             indices: Array::from_u32(ids, &[i32::try_from(ids.len())?])?,
             capacity,
             masked: false,
+            groups: None,
         })
+    }
+
+    pub(crate) fn grouped(ids: &[u32], capacity: i32) -> Result<Self> {
+        ensure!(
+            ids.len() <= 80 && capacity <= 512,
+            "invalid grouped expert slots"
+        );
+        let mut slots = Self::new(ids, capacity)?;
+        if ids.len() < 16 {
+            return Ok(slots);
+        }
+        let chunks = crate::flash_support::expert_group_chunks(ids)
+            .context("invalid grouped expert route count")?;
+        if !crate::flash_support::expert_grouping_worthwhile(ids.len(), chunks) {
+            return Ok(slots);
+        }
+        let groups = crate::flash_support::expert_route_groups(ids, capacity)
+            .context("invalid grouped expert slots")?;
+        let mut origins = Vec::new();
+        let mut restore = vec![0; ids.len()];
+        let mut offset = 0;
+        for (width, rows) in groups.iter().enumerate() {
+            if rows.is_empty() {
+                continue;
+            }
+            for &row in rows {
+                restore[row as usize] = offset;
+                offset += 1;
+            }
+            origins.push((
+                width as i32 + 1,
+                Array::from_u32(rows, &[rows.len() as i32])?,
+            ));
+        }
+        slots.groups = Some(GroupedRoutes { origins, restore });
+        Ok(slots)
     }
 
     pub(crate) fn indices(&self) -> &Array {
         &self.indices
+    }
+
+    #[cfg(test)]
+    pub(crate) fn shares_weights(&self) -> bool {
+        self.groups.is_some()
     }
 
     pub(crate) fn residents(selected: &Array, map: &[u32; 512], capacity: i32) -> Result<Self> {
@@ -1127,6 +1176,7 @@ impl ExpertSlots {
             indices,
             capacity,
             masked: true,
+            groups: None,
         })
     }
 
@@ -1189,6 +1239,7 @@ pub(crate) fn expert_slots(
         false,
         true,
         selected.masked,
+        selected.groups.as_ref(),
     )
 }
 
@@ -1208,6 +1259,7 @@ fn expert_mapped_layout(
     return_raw: bool,
     slot_major: bool,
     masked: bool,
+    groups: Option<&GroupedRoutes>,
 ) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
@@ -1307,6 +1359,10 @@ fn expert_mapped_layout(
         !masked || slot_major,
         "masked experts require slot-major banks"
     );
+    ensure!(
+        groups.is_none() || (slot_major && !masked && k == 2 && matches!(cb, Codebook::Mul1)),
+        "grouped experts require unmasked K2 MUL1 slot-major banks"
+    );
     let masked_header = if masked {
         format!(
             "\n#define MLXL3_MASKED_SLOTS 1\n#define MLXL3_SLOT_CAPACITY {}u\n",
@@ -1329,40 +1385,78 @@ fn expert_mapped_layout(
             u8::from(slot_major),
         );
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
-    let partials = array::metal_kernel(
-        &format!(
-            "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}{}",
-            input_dims,
-            output_dims,
-            k,
-            cb as u32,
-            nt,
-            simdgroups,
-            splits,
-            u8::from(slot_major),
-            if masked {
-                format!("_resident{}", shape[0])
-            } else {
-                String::new()
-            },
-        ),
-        &["xhat", "trellis", "tile_map", "tile_sub"],
-        &["yhat"],
-        &header,
-        include_str!("../shaders/_qmv_mapped_tile_kernel.metal"),
-        &[&xhat, &words, selected, selected],
-        &[vec![splits, rows, output_dims]],
-        &[Dtype::Float32],
-        [
-            (local_tiles / nt)
-                .checked_mul(simdgroups * 32)
-                .context("expert QMV grid overflow")?,
-            1,
-            splits,
-        ],
-        [simdgroups * 32, 1, 1],
-    )?
-    .remove(0);
+    let name = format!(
+        "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}{}",
+        input_dims,
+        output_dims,
+        k,
+        cb as u32,
+        nt,
+        simdgroups,
+        splits,
+        u8::from(slot_major),
+        if masked {
+            format!("_resident{}", shape[0])
+        } else {
+            String::new()
+        },
+    );
+    let dispatch = |group: Option<(i32, &Array)>| -> Result<Array> {
+        let (route_rows, work_tiles) = group.map_or((rows, local_tiles), |(width, origins)| {
+            let grouped_rows = origins.shape()[0] * projections_per_route;
+            (grouped_rows, grouped_rows / width * output_tiles)
+        });
+        let grouped_header = group.map(|(width, _)| {
+            format!("{header}\n#define MLXL3_GROUPED_ROUTES 1\n#define MLXL3_QMV_MB {width}u\n#define MLXL3_GROUP_OUTPUT_DIMS {}u\n", route_rows * output_dims)
+        });
+        Ok(array::metal_kernel(
+            &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
+            &["xhat", "trellis", "tile_map", "tile_sub"],
+            &["yhat"],
+            grouped_header.as_deref().unwrap_or(&header),
+            include_str!("../shaders/_qmv_mapped_tile_kernel.metal"),
+            &[
+                &xhat,
+                &words,
+                selected,
+                group.map_or(selected, |(_, origins)| origins),
+            ],
+            &[vec![splits, route_rows, output_dims]],
+            &[Dtype::Float32],
+            [
+                (work_tiles / nt)
+                    .checked_mul(simdgroups * 32)
+                    .context("expert QMV grid overflow")?,
+                1,
+                splits,
+            ],
+            [simdgroups * 32, 1, 1],
+        )?
+        .remove(0))
+    };
+    let partials = if let Some(groups) = groups {
+        let parts = groups
+            .origins
+            .iter()
+            .map(|(width, origins)| dispatch(Some((*width, origins))))
+            .collect::<Result<Vec<_>>>()?;
+        let joined = if parts.len() == 1 {
+            parts[0].try_clone()?
+        } else {
+            Array::concatenate(&parts.iter().collect::<Vec<_>>(), 1)?
+        };
+        let restore = groups
+            .restore
+            .iter()
+            .flat_map(|&row| {
+                (0..projections_per_route as u32)
+                    .map(move |projection| row * projections_per_route as u32 + projection)
+            })
+            .collect::<Vec<_>>();
+        joined.take(&Array::from_u32(&restore, &[rows])?, 1)?
+    } else {
+        dispatch(None)?
+    };
     #[cfg(test)]
     crate::flash_profile::stage("exl3_trellis_qmv", &partials)?;
     let yhat = if splits == 1 {
@@ -1528,6 +1622,7 @@ mod tests {
         ];
         let mut checked = 0;
         let mut masked_checked = 0;
+        let mut grouped_checked = 0;
         for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
             let words = input / 16 * (output / 16) * 32;
             let packed = (0..10 * projections * words)
@@ -1589,6 +1684,52 @@ mod tests {
                         let host = actual.to_f32()?;
                         assert_eq!(host.len(), rows * output);
                         assert!(host.iter().all(|v| v.is_finite()));
+                        let grouped_reads = Array::host_readbacks_for_test();
+                        let grouped_slots = ExpertSlots::grouped(routes, 10)?;
+                        grouped_checked += usize::from(grouped_slots.shares_weights());
+                        let grouped = expert_slots(
+                            &x,
+                            &bank,
+                            &suh,
+                            &svh,
+                            &grouped_slots,
+                            output as i32,
+                            projections as i32,
+                            2,
+                            Codebook::Mul1,
+                        )?;
+                        assert_eq!(Array::host_readbacks_for_test(), grouped_reads);
+                        assert_eq!(grouped.shape(), actual.shape());
+                        assert_eq!(
+                            grouped.to_bytes()?,
+                            actual.to_bytes()?,
+                            "shared EXL3 changed a route: {routes:?}"
+                        );
+                        if routes.len() == 20 {
+                            let mut wrong = ExpertSlots::grouped(routes, 10)?;
+                            let origins = &mut wrong.groups.as_mut().unwrap().origins;
+                            let rows =
+                                &mut origins.iter_mut().find(|(width, _)| *width == 2).unwrap().1;
+                            let mut indices = rows.to_u32()?;
+                            indices[0] = 1;
+                            *rows = Array::from_u32(&indices, &[20])?;
+                            let changed = expert_slots(
+                                &x,
+                                &bank,
+                                &suh,
+                                &svh,
+                                &wrong,
+                                output as i32,
+                                projections as i32,
+                                2,
+                                Codebook::Mul1,
+                            )?;
+                            assert_ne!(
+                                changed.to_bytes()?,
+                                actual.to_bytes()?,
+                                "wrong shared origin was not detected"
+                            );
+                        }
                         for (route, &slot) in routes.iter().enumerate() {
                             for projection in 0..projections {
                                 let row = route * projections + projection;
@@ -1691,6 +1832,18 @@ mod tests {
                                 "wrong-slot control was not detected"
                             );
                         }
+                        if routes.len() == 20 {
+                            for (invalid, capacity) in [
+                                (vec![], 10),
+                                (vec![0; 81], 10),
+                                (vec![10; 20], 10),
+                                (vec![u32::MAX; 20], 10),
+                                (vec![0; 20], 0),
+                                (vec![0; 20], 513),
+                            ] {
+                                assert!(ExpertSlots::grouped(&invalid, capacity).is_err());
+                            }
+                        }
                         checked += 1;
                     }
                 }
@@ -1698,6 +1851,10 @@ mod tests {
         }
         assert_eq!(checked, 88);
         assert_eq!(masked_checked, 264);
+        assert_eq!(grouped_checked, 56);
+        println!(
+            "FLASH_SHARED_SLOT_SHAPES cases={checked} enabled={grouped_checked} fallback=32 widths=1..4 routes=1..80 wrong_origin_controls=8 parity=byte_exact no_added_host_readback=true"
+        );
         println!("FLASH_SLOT_SHAPES cases={checked} wrong_slot_controls=8 parity=byte_exact");
         println!(
             "FLASH_MASKED_SLOT_SHAPES cases={masked_checked} masks=all_cold,mixed,all_hot parity=byte_exact"

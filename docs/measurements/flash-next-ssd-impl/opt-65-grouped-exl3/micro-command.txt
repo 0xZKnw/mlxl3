@@ -1,0 +1,48 @@
+import hashlib,json,re,runpy,subprocess,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3')
+api=runpy.run_path('scripts/profile_flash.py');parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+identity=json.loads((base/'identity-v1.json').read_text())
+def source_check():
+ for row in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()==row['sha256'],row['path']
+def take():
+ return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)),'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+assert all(json.loads((base/phase/'campaign-result.json').read_text())['status']=='passed_quality_and_postflight30s' for phase in ['quality-slots-v1','quality-bridge-v2','quality-mtp-v1'])
+assert all(row['status']=='completed_expected_outcome' for row in json.loads((base/'quality-target-v1/run-result.json').read_text())['commands'][:2])
+start=take();common_out=json.loads((base/'quality-slots-v1/campaign-result.json').read_text())['common_swapout_anchor'];assert start['vm_bytes']['Swapouts']==common_out
+for stage in ['micro-v1']:
+ p=base/stage;origin=take();baseline={k:origin['vm_bytes'][k] for k in ['Swapins','Swapouts']};assert baseline['Swapouts']==common_out
+ (p/'origin.json').write_text(json.dumps(origin,indent=2)+'\n')
+ result={'status':'incomplete','parity':False,'identity':'identity-v1.json','original_vm_baseline':baseline,'common_swapout_anchor':common_out}
+ def watch(seconds,path):
+  records=[]
+  try:
+   deadline=time.monotonic()+seconds
+   while True:
+    row=take();records.append(row)
+    assert row['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+    assert row['vm_bytes']['Swapouts']==common_out
+    assert 0<=row['vm_bytes']['Swapins']-baseline['Swapins']<=256<<20
+    if time.monotonic()>=deadline:break
+    time.sleep(min(2,deadline-time.monotonic()))
+  finally:path.write_text(json.dumps({'samples':records},indent=2)+'\n')
+ try:
+  source_check();watch(20,p/'preflight.json');api['run_sampler'](p/'run.json',baseline)
+  run=json.loads((p/'run-result.json').read_text());assert run['status']=='completed_expected_outcomes_not_speed'
+  expected=1
+  assert len(run['commands'])==expected and all(row['reaped'] and row['swapouts_bytes']==0 and row['status']=='completed_expected_outcome' for row in run['commands'])
+  data=json.loads((p/'samples.json').read_text());assert data['status']=='complete' and data['parity']=='byte_exact_independent' and data['no_timed_io'] is True
+  assert data['forwards_per_sample']==128 and data['samples_per_cell']==8 and len(data['records'])==24
+  peak=int(re.search(r'(\d+)\s+peak memory footprint',(p/'grouped-micro.log').read_text())[1]);assert 0<peak<=12_000_000_000
+  result['peak_physical_bytes']=peak
+  source_check();result.update(status='passed_quality_pending_postflight',parity=True)
+ except BaseException as error:
+  result.update(status='failed_or_interrupted',parity=False,error=repr(error));raise
+ finally:
+  try:
+   watch(30,p/'postflight.json')
+   if result['parity']:result['status']='passed_quality_and_postflight30s'
+  except BaseException as error:
+   result.update(status='failed_postflight',parity=False,postflight_error=repr(error));raise
+  finally:
+   (p/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n');print(stage,result,flush=True)

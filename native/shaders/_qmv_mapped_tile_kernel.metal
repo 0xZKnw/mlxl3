@@ -62,6 +62,10 @@
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
             uint sub;
+#if MLXL3_GROUPED_ROUTES
+            uint original_rows[MLXL3_QMV_MB];
+            uint compact_rows[MLXL3_QMV_MB];
+#endif
             uint tile_ns[MLXL3_QMV_NT];
             if (EXPERT_MAP) {
                 uint groups_per_row = uint(OUTPUT_TILES) / MLXL3_QMV_NT;
@@ -69,6 +73,13 @@
                 uint group_in_row = tile_group - sub * groups_per_row;
                 uint route = sub / uint(ROUTING_REPEAT);
                 uint projection = sub - route * uint(ROUTING_REPEAT);
+#if MLXL3_GROUPED_ROUTES
+                for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                    original_rows[batch_row] = tile_sub[route * MLXL3_QMV_MB + batch_row] * uint(ROUTING_REPEAT) + projection;
+                    compact_rows[batch_row] = (route * MLXL3_QMV_MB + batch_row) * uint(ROUTING_REPEAT) + projection;
+                }
+                sub = original_rows[0];
+#endif
                 uint source_base =
 #if MLXL3_SLOT_MAJOR
                     group_in_row * MLXL3_QMV_NT;
@@ -122,7 +133,12 @@
 #if MLXL3_BATCH_ROWS
                         + (row_base + batch_row) * uint(GROUPS) * uint(INPUT_DIMS)
 #endif
-                        + sub * uint(INPUT_DIMS) + tile_k * 16u
+#if MLXL3_GROUPED_ROUTES
+                        + original_rows[batch_row] * uint(INPUT_DIMS)
+#else
+                        + sub * uint(INPUT_DIMS)
+#endif
+                        + tile_k * 16u
                     );
                     x_pair = x_pairs[lane & 7u];
 #if MLXL3_BATCH_ROWS
@@ -184,26 +200,50 @@
                         uint cw0 = MLXL3_K_BITS <= 5u
                             ? (window >> (3u * MLXL3_K_BITS)) & 0xffffu
                             : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
+#if MLXL3_GROUPED_ROUTES
+                        float decoded[4] = {
+                            float(mlxl3_decode_codeword(cw0, CB)),
+                            float(mlxl3_decode_codeword(cw1, CB)),
+                            float(mlxl3_decode_codeword(cw2, CB)),
+                            float(mlxl3_decode_codeword(cw3, CB))
+                        };
+#endif
                         for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
                             uint j = group * 4u;
                             acc[batch_row][output_tile][j] = fma(
                                 x_values[batch_row][0],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[0],
+#else
                                 float(mlxl3_decode_codeword(cw0, CB)),
+#endif
                                 acc[batch_row][output_tile][j]
                             );
                             acc[batch_row][output_tile][j + 1u] = fma(
                                 x_values[batch_row][1],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[1],
+#else
                                 float(mlxl3_decode_codeword(cw1, CB)),
+#endif
                                 acc[batch_row][output_tile][j + 1u]
                             );
                             acc[batch_row][output_tile][j + 2u] = fma(
                                 x_values[batch_row][2],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[2],
+#else
                                 float(mlxl3_decode_codeword(cw2, CB)),
+#endif
                                 acc[batch_row][output_tile][j + 2u]
                             );
                             acc[batch_row][output_tile][j + 3u] = fma(
                                 x_values[batch_row][3],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[3],
+#else
                                 float(mlxl3_decode_codeword(cw3, CB)),
+#endif
                                 acc[batch_row][output_tile][j + 3u]
                             );
                         }
@@ -258,9 +298,15 @@
                     }
 #endif
                     yhat[
+#if MLXL3_GROUPED_ROUTES
+                        split * uint(MLXL3_GROUP_OUTPUT_DIMS)
+                        + compact_rows[batch_row] * uint(OUTPUT_TILES) * 16u
+                        + (tile_ns[output_tile] * 16u) + column
+#else
                         ((row_base + batch_row) * uint(N_SPLITS) + split)
                         * uint(LOCAL_OUTPUT_DIMS)
                         + (local_tile + output_tile) * 16u + column
+#endif
                     ] = sum;
                 }
             }

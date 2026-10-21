@@ -1,0 +1,16 @@
+{
+  "status": "research_only_no_prototype_no_measurement",
+  "mlx_version": "0.32.2",
+  "installed_header": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/metal/device.h",
+  "installed_header_sha256": "ab1e07495b916a86eb762cddc68c6f1ae5e4c61020baacdea3c0dadd59150603",
+  "reviewed_api": [
+    "CommandEncoder::start_concurrent",
+    "set_input_array",
+    "set_output_array",
+    "dispatch_threadgroups",
+    "set_compute_pipeline_state"
+  ],
+  "old58_source_archive": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-58/v1/source.tar.gz",
+  "old58_indirect_header_sha256": "9c31689b46c3fb197568fa18f07a3a7ad7c9f6a9db63c9a0c83239590780afcc",
+  "finding": "Host-known disjoint groups could use standard MLX encoder and direct grids, full output coverage, no initialization. Old indirect path ends MLX encoding, owns a new concurrent encoder, clears outputs and synchronizes with events. This is a possible new implementation, not measured savings. Backend API version stability and lifetime/error/coverage invariants need testing."
+}
