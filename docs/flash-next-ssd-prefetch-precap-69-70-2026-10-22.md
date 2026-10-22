@@ -1,8 +1,10 @@
 # Flash Next SSD : prélecture du vérificateur et draft préplafonné (69–70)
 
-État : correction du pic mémoire70M validée, options69/70 expérimentales
-désactivées par défaut. Aucun gain de débit69 qualifié ; reprise du débit70
-préparée après correction du chargement. L’app installée reste inchangée.
+État final du 22 octobre : correction du pic mémoire70M et gain PRECAP70
+contre l'ancien adaptatif validés et poussés. Les témoins OFF/MTP1/B2 sont
+terminés ; B2 fixe reste le plus rapide observé. Aucun gain de débit69
+qualifié, options69/70 expérimentales désactivées par défaut. L’app installée
+reste inchangée ; les 15 tok/s ne sont pas atteints.
 
 ## Implémentation et périmètre
 
@@ -31,8 +33,8 @@ préparée après correction du chargement. L’app installée reste inchangée.
 
 Les 3 Gio d’experts et leurs 53 slots/couche sont conservés. Aucune modification
 LFM2, kernel EXL3 ou politique adaptative de cache supplémentaire. Le partage
-EXL3 directement sur GPU Hot (71) reste préenregistré, sans prototype, jusqu’à
-la clôture de ces deux étapes, conformément à la dernière instruction.
+EXL3 directement sur GPU Hot (71P) reste préenregistré, sans prototype ; il
+n'est inclus dans aucun résultat de ce rapport. Les étapes69/70 sont closes.
 
 ## Sources et protocole
 
@@ -296,6 +298,144 @@ l'adaptatif qui calculait jusqu'à sept propositions avant de tronquer ;
 il ne démontre pas un gain face à B2 fixe.
 
 Témoins avant : B2fixe11,470853/10,912513 etMTP1 11,219774/10,204433tok/s.
-Les témoins après restent à terminer pour juger le classement entre modes.
-PRECAP demeure une option expérimentale désactivée ; aucun15tok/s annoncé.
+Les témoins après sont désormais terminés, voir ci-dessous. PRECAP demeure
+une option expérimentale désactivée ; aucun15tok/s annoncé.
 [Données et critères](measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/precap-gain.json).
+
+## 70S2 clos : classement actuel et coût restant
+
+Même binaire70M/v2, cache expert3Gio/53slots, allocator64Mio, contexte4096,
+secteur, un warmup128 puis une mesure128 par processus,127tokens décodés.
+Les deux témoins B2/MTP encadrent le HCCH PRECAP ; OFF est un témoin final
+supplémentaire. Les moyennes suivantes conservent tous les points prévus.
+
+| Mode | MAIN, tok/s | HOLD, tok/s | Mesures par prompt | Pic physique maximal |
+| --- | ---: | ---: | ---: | ---: |
+| OFF | 10,728288 | 10,337428 | 1 | 7141824416 B |
+| MTP1 | 11,135342 | 10,200603 | 2 | 7890901520 B |
+| DFlash2 B2 fixe | **11,544644** | **11,001097** | 2 | 7847909712 B |
+| DFlash2 PRECAP | 11,366681 | 10,856438 | 2 | 7891507464 B |
+
+MTP après :11,050911/10,196773tok/s, dérive −1,505%/−0,075% par rapport à
+avant. B2 après :11,618435/11,089681tok/s, dérive +1,287%/+1,624%. Les
+contrôles restent sous5%. B2 et PRECAP dépassent les deux points MTP de
+chaque prompt ; c'est un classement descriptif sur ces deux prompts et ces
+effectifs, pas une qualification universelle contre MTP. PRECAP est qualifié
+contre l'ancien adaptatif, pas contre B2. Passer de la moyenne B2 MAIN à15
+demanderait encore environ30% de débit supplémentaire.
+
+**36 réponses de128tokens exactes**,18warmups et18mesures, hachages identiques
+aux golden indépendants60. Tous les enfants sont joints, toutes les phases
+pré20/post30 passent et **zéro nouveau swap-out système** est observé depuis
+l'ancre explicite157155328B. Cela n'efface pas les échecs antérieurs. Aucun
+autre modèle, build ou proveur n'a tourné pendant les mesures GPU.
+
+Les profils existants, sans nouvel `eval()` de mesure, expliquent le gain :
+
+| Moyenne HCCH, ancien adaptatif → PRECAP | MAIN | HOLD |
+| --- | ---: | ---: |
+| Temps draft | 1,192475 → 0,673266 s | 1,399065 → 0,773872 s |
+| Temps vérification cible | 10,296577 → 10,317046 s | 11,076570 → 10,628498 s |
+| Positions calculées par le draft | 381 → 199,5 | 442 → 223 |
+| Lignes cible vérifiées | 138 → 145 | 140 → 136,5 |
+| Octets d'API SSD par token décodé | 180,805 → 186,671 Mo | 196,542 → 198,861 Mo |
+
+La vérification représente encore92,3%/90,9% du décodage PRECAP. Sa durée
+inclut routage, attentes SSD, backbone et MoE ; ce n'est ni un temps GDN
+exclusif, ni un temps GPU exclusif. Les octets d'API peuvent provenir du cache
+fichier : aucun volume physique NVMe n'est déduit. La réduction du draft
+n'a pas supprimé le travail de la cible.
+
+[Matrice finale et limites](measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/summary.json),
+[profils détaillés](measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/precap-components.json).
+
+Les159sources exécutables et les deux binaires sont inchangés depuis le
+correctif publié82cbef71, puis le gain publié2945cd6b :
+
+| Artefact70M/v2 réellement mesuré | SHA-256 |
+| --- | --- |
+| CLI | `8bb0733f5352a6d7e46515ff25df965007f417c181bd1fc8c9c148eb001f9804` |
+| Tests natifs | `01137fb55487c92aa6a1c366346bc17394c8e55980b05a587dd99ffb73449012` |
+
+[Identité complète](measurements/flash-next-ssd-impl/opt-70-load-memory/identity-v2.json),
+[dépendance MLX](measurements/flash-next-ssd-impl/opt-70-load-memory/runtime-dependency.json),
+[vérification finale des empreintes](measurements/flash-next-ssd-impl/opt-70-load-memory/identity-final-check.json).
+Les anciens binaires70v2 du début de ce rapport identifient les essais
+antérieurs au correctif mémoire ; ils ne sont pas ceux de70S2.
+
+Commandes locales finales, toutes réussies avant les mesures GPU :
+
+```sh
+cargo fmt --check
+cargo clippy --release --all-targets --features mlx,chat -- -D warnings
+cargo test --release --features mlx,chat -- --test-threads=1
+cargo build --release --features mlx,chat
+cargo kani --lib --no-default-features --harness slot_reads_initialize_exact_disjoint_bank_regions
+```
+
+La suite normale livre154tests passés/154ignorés. Les quatre tests composant,
+quatre tests modèle et deux bridges43 ont été exécutés séparément ; leurs
+succès n'activent pas tous les154tests ignorés. Les989tests Python/4ignorés
+précèdent70M, qui ne modifie pas ces sources Python, empreintes recontrôlées.
+Les18tests65P préexistants restent exclus de cette publication. Les preuves
+CPU bornées, l'ICE KaniMLX, l'échec de parsing CBMCApple et le timeout du
+harnais optimalité128bits restent des résultats distincts, pas une preuve
+complète du moteur. [Commandes et codes de retour](measurements/flash-next-ssd-impl/opt-70-load-memory/checks-final.json),
+[Kani des intervalles](measurements/flash-next-ssd-impl/opt-70-load-memory/kani-slots.json).
+
+CI2945cd6b inspectée : jobs natifs Ubuntu/macOS et régression Desktop/protocole
+réussis. Le job Kani global échoue après un arrêt du runner, exit143, pendant
+`cache_allocation_is_optimal_and_exact_on_two_layers_two_levels`, avant
+conclusion de ce harnais ; aucun contre-exemple dans les obligations terminées.
+Flash Kani reste en cours à cette observation. Aucune CI entièrement verte
+revendiquée. [Log exact du job arrêté](measurements/flash-next-ssd-impl/opt-70-load-memory/ci-2945cd6b-kani-job.log).
+
+## 71R : revue Splash/Strata après les mesures, sans nouveau prototype
+
+Les HEAD consultés sont toujours Splash1482f6bbc2abf12375332725302019594150b6cb
+et Strata011c9e600a93bbc9fd451c563501b5831c32bbca. Six fichiers ciblés ont
+été recontrôlés byte à byte contre ces commits, pas seulement les README.
+[Sources, SHA-256 et périmètre](measurements/flash-next-ssd-impl/opt-71-research/sources.json).
+Cette revue ne prétend pas couvrir tout le code amont.
+
+| Piste | Différence réelle et prochaine vérification utile |
+| --- | --- |
+| Ordre Hot/prédiction | `SsdMoe::forward_draft_lookahead` soumet `prediction.async_eval` avant `forward_draft_rows`, donc avant les routes/Hot courants. Le chemin local `forward_rows` possède déjà une soumission après Hot, mais passer simplement par `forward_lookahead(depth>0)` désactiverait le fast path hybride actuel et changerait les limites B8. Une expérience distincte devrait conserver Hot anticipé, borner la prédiction à deux lignes et déplacer seulement sa soumission. Mesurer ensuite attente critique et octets, avec un témoin sans prédiction. |
+| Départ des workers après reprise GPU | Splash sépare `planAhead` de `startAhead` et déclenche le second dans le callback suivant la libération GPU. Notre pool est borné, quatre workers avec un job chacun, mais cette frontière native de reprise n'existe pas dans le wrapper MLX. Il faut mesurer le coût de reprise avant de porter un ordonnanceur entier. |
+| Partage EXL3 directement sur Hot B2 | Splash groupe surGPU les routes et dispatch les seules tuiles actives.71P appliquerait le partage seulement aux experts Hot présents une fois dans chaque ligne, en écrivant directement aux positions existantes. Le prototype CPU65/66 et ses `concatenate`/`take` ne sont pas réactivés. Le coût du plan et la pression registres peuvent annuler le gain ; oracle bit à bit puis B2 réel indispensables. |
+| Fenêtres persistantes | Strata réutilise `Window::Cached` selon largeur, tête, état de fold et modes ; seules certaines positions/QSA sont patchées. Notre cache de factories Metal ne remplace pas ces buffers et listes de dispatch persistants. Chantier distinct et plus lourd : d'abord séparer construction hôte, attente SSD et exécution GPU, sans supprimer les protections de slots ni la causalité. |
+
+Sources primaires : [Splash ExpertStore, `planAhead`/`startAhead`](https://github.com/incoai/splash/blob/1482f6bbc2abf12375332725302019594150b6cb/runtime/model/ExpertStore.cpp#L594),
+[Splash MoE, plan et grilles indirectes](https://github.com/incoai/splash/blob/1482f6bbc2abf12375332725302019594150b6cb/runtime/ops/MoE.cpp#L195),
+[Strata Window, cache de fenêtres](https://github.com/Niko1221/Strata/blob/011c9e600a93bbc9fd451c563501b5831c32bbca/metal/src/engine/window.cpp#L1083).
+Les économies décrites dans leurs commentaires ne sont pas des gains MLXL3.
+
+Garde-fous tirés de l'historique et du code actuel :
+
+- Le vrai dispatch indirect a déjà été implémenté dans57P : aucun cas mixte
+  stable positif, puis échec du postflight mémoire. Le refaire isolément ne
+  constitue pas une nouvelle piste ; le mécanisme nouveau71P serait le travail
+  de déquantification réellement évité, sans regroupement CPU.
+- Shared expert groupé68 et grouped EXL3 CPU65/66 restent négatifs. Les
+  résultats B4/B8 ne sont pas remplacés par le seul meilleur microbenchmark.
+- Strata choisit MRU ou arrière LRU selon la taille d'expert, seuil1,5Mo.
+  Nos records1,248012Mo relèveraient de son côté MRU/top10. L'éviction
+  préférentielle des prélectures inutilisées reste une hypothèse locale69R2,
+  motivée par les octets supplémentaires, pas une correction amont évidente.
+  [Initialisation Strata](https://github.com/Niko1221/Strata/blob/011c9e600a93bbc9fd451c563501b5831c32bbca/metal/src/engine/stream.cpp#L151).
+- Le draft Splash utilise AF4G64 ; notre draft affine4/groupe64 lit des plans
+  MLX et des scales/bias FP16. Le format général est proche, mais les plans,
+  arrondis et épilogues doivent être vérifiés avant toute substitution. La
+  cible EXL3 trellis et son codebook arithmétique restent distincts des kernels
+  GGUF/IQ et de leurs tables constantes. Copier ces kernels n'est pas un port
+  exact automatique. [Draft Splash](https://github.com/incoai/splash/blob/1482f6bbc2abf12375332725302019594150b6cb/runtime/model/DFlashDraft.cpp#L69).
+- Les experts sont déjà des records contigus avec12segments/preadv ; ni un
+  second repacking, ni davantage de cache sans mécanisme nouveau ne sont
+  retenus. Le maintien GPU par API Metal non publique de Splash n'est pas porté.
+
+Décision71R : revue close, aucun nouveau débit ni gain annoncé. Priorité
+suivante proposée : isoler l'ordre de prédiction69, puis71P Hot B2 avec
+sortie directe ; fenêtres natives seulement si les délais hôte le justifient.
+71P est différé, sans code ni mesure en cours. Pour un port futur, conserver
+les attributions Apache2.0 Splash et MIT Strata. Aucun changement exécutable
+ni nouvelle inférence n'a été effectué pendant71R.
