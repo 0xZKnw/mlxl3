@@ -156,6 +156,9 @@ def test_checker_bounds_failures_preserves_report_and_reaps_child(tmp_path, beha
         )
         assert result["status"] == "complete" and result["parity"] is True
         assert result["checks"] == (44 if behavior == "flash" else 43)
+        assert result["active_request"] is None
+        assert len(result["requests"]) == result["checks"]
+        assert all(request["status"] == "complete" for request in result["requests"])
     else:
         with pytest.raises((AssertionError, RuntimeError, TimeoutError)):
             run(str(engine), "model", "draft", timeout=0.5, tune=False, output=output)
@@ -165,3 +168,75 @@ def test_checker_bounds_failures_preserves_report_and_reaps_child(tmp_path, beha
     pid = int(engine.with_suffix(".pid").read_text())
     with pytest.raises(ProcessLookupError):
         os.kill(pid, 0)
+
+
+@pytest.mark.parametrize("behavior", ["silent", "request_silent"])
+def test_cli_sigterm_preserves_progress_and_reaps_native_child(tmp_path, behavior):
+    import signal
+    import subprocess
+    import time
+
+    engine, output = tmp_path / "engine", tmp_path / "report.json"
+    write_bridge(engine, behavior)
+    script = Path(__file__).resolve().parents[1] / "scripts/check_dflash2.py"
+    process = None
+    child_pid = None
+    with (tmp_path / "cli.log").open("w") as log:
+        try:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(script),
+                    str(engine),
+                    "model",
+                    "draft",
+                    "--timeout",
+                    "30",
+                    "--skip-tune",
+                    "--output",
+                    str(output),
+                ],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                marker = engine.with_suffix(".pid")
+                if marker.exists() and output.exists():
+                    child_pid = int(marker.read_text())
+                    try:
+                        progress = json.loads(output.read_text())
+                    except json.JSONDecodeError:
+                        continue
+                    if behavior == "silent" or (
+                        (progress.get("active_request") or {}).get("type") == "generate"
+                        and progress["checks"] == 1
+                    ):
+                        break
+                time.sleep(0.01)
+            else:
+                raise AssertionError("checker never persisted the interrupted phase")
+            process.send_signal(signal.SIGTERM)
+            assert process.wait(timeout=8) != 0
+            report = json.loads(output.read_text())
+            assert report["status"] == "failed" and report["parity"] is None
+            assert (
+                report["error"] == f"RuntimeError: checker interrupted by signal {signal.SIGTERM}"
+            )
+            if behavior == "request_silent":
+                assert report["checks"] == 1
+                assert report["requests"][0]["status"] == "complete"
+                assert report["active_request"]["status"] == "failed_or_interrupted"
+                assert report["active_request"]["type"] == "generate"
+                assert report["active_request"]["started_epoch"] > 0
+            assert child_pid is not None
+            with pytest.raises(ProcessLookupError):
+                os.kill(child_pid, 0)
+        finally:
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=5)

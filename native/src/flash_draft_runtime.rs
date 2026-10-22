@@ -1,5 +1,5 @@
 use super::*;
-use crate::flash_draft_budget::VerifyBudget;
+use crate::flash_draft_budget::{PreDraftBudget, VerifyBudget};
 use std::sync::atomic::AtomicBool;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -7,28 +7,37 @@ struct Options {
     q4: bool,
     ring: bool,
     adaptive: bool,
+    precap: bool,
     width: usize,
 }
 impl Options {
     fn read(mode: usize) -> Result<Self> {
         ensure!((1..=3).contains(&mode), "DFlash mode must be 1, 2 or 3");
-        let flag = |name: &str| -> Result<bool> {
+        let flag = |name: &str, default: bool| -> Result<bool> {
             match std::env::var(name) {
                 Ok(v) if v == "0" => Ok(false),
                 Ok(v) if v == "1" => Ok(true),
-                Err(std::env::VarError::NotPresent) => Ok(true),
+                Err(std::env::VarError::NotPresent) => Ok(default),
                 _ => anyhow::bail!("{name} must be 0 or 1"),
             }
         };
-        let adaptive_requested = flag("MLXL3_FLASH_DRAFT_ADAPTIVE")?;
+        let adaptive_requested = flag("MLXL3_FLASH_DRAFT_ADAPTIVE", true)?;
+        let precap_requested = flag("MLXL3_FLASH_DRAFT_PRECAP", false)?;
+        ensure!(
+            !precap_requested || adaptive_requested,
+            "MLXL3_FLASH_DRAFT_PRECAP requires MLXL3_FLASH_DRAFT_ADAPTIVE=1"
+        );
         let adaptive = adaptive_requested && mode == 1;
+        let precap = precap_requested && adaptive;
         let width = match std::env::var("MLXL3_FLASH_DRAFT_WIDTH") {
             Ok(value) => crate::flash_support::fixed_draft_width(&value, adaptive_requested)
                 .context(
                     "MLXL3_FLASH_DRAFT_WIDTH requires 1..7 and MLXL3_FLASH_DRAFT_ADAPTIVE=0",
                 )?,
             Err(std::env::VarError::NotPresent) => {
-                if adaptive || mode == 3 {
+                if precap {
+                    3
+                } else if adaptive || mode == 3 {
                     7
                 } else if mode == 2 {
                     2
@@ -39,9 +48,10 @@ impl Options {
             Err(_) => anyhow::bail!("MLXL3_FLASH_DRAFT_WIDTH must be valid Unicode"),
         };
         Ok(Self {
-            q4: flag("MLXL3_FLASH_DRAFT_Q4")?,
-            ring: flag("MLXL3_FLASH_DRAFT_RING")?,
+            q4: flag("MLXL3_FLASH_DRAFT_Q4", true)?,
+            ring: flag("MLXL3_FLASH_DRAFT_RING", true)?,
             adaptive,
+            precap,
             width,
         })
     }
@@ -60,6 +70,7 @@ pub(in crate::qwen4) struct Session {
     identity: [(u64, std::time::SystemTime); 2],
     options: Options,
     budget: VerifyBudget,
+    pre_budget: PreDraftBudget,
     pending: VecDeque<u32>,
     proposed: usize,
     accepted: usize,
@@ -71,6 +82,7 @@ impl Session {
     pub(in crate::qwen4) fn reset(&mut self) {
         self.draft.reset();
         self.budget = VerifyBudget::default();
+        self.pre_budget = PreDraftBudget::default();
         self.pending.clear();
         self.proposed = 0;
         self.accepted = 0;
@@ -92,11 +104,14 @@ impl Session {
             remaining > 0 && target.offset == self.draft.offset && target.offset < target.context,
             "DFlash target and cache positions differ"
         );
-        let count = self
+        let mut count = self
             .options
             .width
             .min(remaining - 1)
             .min((target.context - target.offset - 1) as usize);
+        if self.options.precap {
+            count = self.pre_budget.choose(count);
+        }
         if count == 0 {
             let before = target.io_stats().2;
             let id = target.forward(anchor)?.chat_greedy_ids()?[0];
@@ -109,10 +124,12 @@ impl Session {
             return Ok(id);
         }
         let demand_before = target.io_stats().2;
+        let prefetch_before = target.prefetch_stats();
         let started = std::time::Instant::now();
         #[cfg(test)]
         let draft_profile = crate::flash_profile::span("dflash_proposal_inclusive");
         let input = target.draft_input(anchor, Kind::Dflash2, count)?;
+        ensure!(input.shape() == [count as i32 + 1, H]);
         let (hidden, _) = self.draft.forward(&input, count)?;
         let (mut proposals, confidence) =
             self.draft.select(&target.head, &hidden, count, anchor)?;
@@ -169,10 +186,32 @@ impl Session {
                 )
                 .context("invalid DFlash budget observation")?;
         }
+        if self.options.precap {
+            self.pre_budget
+                .observe(
+                    count,
+                    retained,
+                    u64::try_from(started.elapsed().as_nanos())?,
+                )
+                .context("invalid or exhausted pre-draft budget")?;
+        }
+        self.profile.drafted_rows += count + 1;
+        self.profile.drafted_widths[count] += 1;
+        self.profile.verified_widths[selected] += 1;
         self.profile.draft_seconds += draft_seconds;
         self.profile.verification_seconds += verification_seconds;
         self.profile.commit_cache_seconds += commit_cache_seconds;
         self.profile.verified_rows += selected + 1;
+        for ((total, before), after) in self
+            .profile
+            .ssd_prefetch
+            .iter_mut()
+            .zip(prefetch_before)
+            .zip(target.prefetch_stats())
+        {
+            *total = flash_support::draft_demand_bytes(*total, before, after)
+                .context("DFlash prefetch counter reversed or exhausted")?;
+        }
         self.profile.expert_demand_bytes = flash_support::draft_demand_bytes(
             self.profile.expert_demand_bytes,
             demand_before,
@@ -219,6 +258,7 @@ impl FlashNext {
             identity,
             options,
             budget: VerifyBudget::default(),
+            pre_budget: PreDraftBudget::default(),
             pending: VecDeque::new(),
             proposed: 0,
             accepted: 0,
@@ -338,8 +378,56 @@ mod tests {
         Ok(())
     }
     #[test]
+    #[ignore = "isolated environment; production pre-draft option parser"]
+    fn pre_draft_environment_reaches_real_options() -> Result<()> {
+        let expected = std::env::var("MLXL3_EXPECTED_PRECAP")?;
+        let mode: usize = std::env::var("MLXL3_EXPECTED_MODE")?.parse()?;
+        let result = Options::read(mode);
+        if expected == "error" {
+            ensure!(result.is_err());
+        } else {
+            let options = result?;
+            ensure!(options.precap == (expected == "1"));
+            if options.precap {
+                ensure!(options.adaptive && options.width == 3 && mode == 1);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "physical Apple GPU, pinned target and DFlash2 checkpoint; run alone"]
     fn splash_runtime_preserves_serial_tokens_and_states() -> Result<()> {
+        check_runtime_parity(
+            &[1, 2, 3, 8, 17, 64],
+            &[
+                (false, false, false, 3, false),
+                (true, false, false, 3, false),
+                (true, true, false, 3, false),
+                (true, true, true, 7, false),
+                (true, true, false, 1, false),
+                (true, true, false, 7, false),
+                (true, true, true, 3, true),
+            ],
+        )
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; 512 tokens, pre-draft adaptation and independent serial states"]
+    fn pre_draft_long_generation_preserves_serial_tokens_and_states() -> Result<()> {
+        check_runtime_parity(&[512], &[(true, true, true, 3, true)])
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_pre_draft_runtime_preserves_serial_generation() {
+        pre_draft_long_generation_preserves_serial_tokens_and_states().unwrap();
+    }
+
+    fn check_runtime_parity(
+        budgets: &[usize],
+        variants: &[(bool, bool, bool, usize, bool)],
+    ) -> Result<()> {
         let target_path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
         let draft_path = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT")?);
         let checkpoint = crate::checkpoint::inspect(&target_path)?;
@@ -348,7 +436,7 @@ mod tests {
         let cancel = AtomicBool::new(false);
         let root = tempfile::tempdir()?;
         let mut oracles = Vec::new();
-        for budget in [1, 2, 3, 17, 64] {
+        for &budget in budgets {
             target.reset();
             let mut logits = target.forward_tokens(&prompt)?;
             let mut tokens = Vec::new();
@@ -367,14 +455,7 @@ mod tests {
             oracles.push((budget, tokens));
         }
         let mut records = Vec::new();
-        for (q4, ring, adaptive, width) in [
-            (false, false, false, 3),
-            (true, false, false, 3),
-            (true, true, false, 3),
-            (true, true, true, 7),
-            (true, true, false, 1),
-            (true, true, false, 7),
-        ] {
+        for &(q4, ring, adaptive, width, precap) in variants {
             target.reset();
             target.dflash = None;
             array::synchronize()?;
@@ -391,9 +472,11 @@ mod tests {
                     q4,
                     ring,
                     adaptive,
+                    precap,
                     width,
                 },
                 budget: VerifyBudget::default(),
+                pre_budget: PreDraftBudget::default(),
                 pending: VecDeque::new(),
                 proposed: 0,
                 accepted: 0,
@@ -427,6 +510,35 @@ mod tests {
                 let (proposed, accepted, blocks, seconds) = target.dflash2_stats().unwrap();
                 let profile = target.dflash2_profile().unwrap();
                 ensure!(profile.verified_rows == proposed + blocks);
+                ensure!(profile.drafted_widths.iter().sum::<usize>() == blocks);
+                ensure!(profile.verified_widths.iter().sum::<usize>() == blocks);
+                ensure!(
+                    profile.drafted_rows
+                        == profile
+                            .drafted_widths
+                            .iter()
+                            .enumerate()
+                            .map(|(w, &n)| (w + 1) * n)
+                            .sum::<usize>()
+                );
+                ensure!(
+                    profile.verified_rows
+                        == profile
+                            .verified_widths
+                            .iter()
+                            .enumerate()
+                            .map(|(w, &n)| (w + 1) * n)
+                            .sum::<usize>()
+                );
+                if precap {
+                    ensure!(profile.drafted_widths[4..].iter().all(|&n| n == 0));
+                    if *budget >= 17 {
+                        ensure!(
+                            profile.drafted_widths[1..=3].iter().all(|&n| n > 0),
+                            "pre-draft scheduler did not reach all three shapes"
+                        );
+                    }
+                }
                 ensure!(
                     [
                         profile.draft_seconds,
@@ -453,7 +565,7 @@ mod tests {
                             && profile.commit_cache_seconds > 0.
                     );
                 }
-                records.push(serde_json::json!({"profile":profile,"q4":q4,"ring":ring,"adaptive":adaptive,"width":width,"budget":budget,"states":states.len(),"stats":target.dflash2_stats()}));
+                records.push(serde_json::json!({"profile":profile,"q4":q4,"ring":ring,"adaptive":adaptive,"width":width,"precap":precap,"budget":budget,"states":states.len(),"stats":target.dflash2_stats()}));
             }
             cancel.store(true, Ordering::Relaxed);
             ensure!(target.prefill_dflash2(&prompt, &cancel).is_err() && target.offset() == 0);

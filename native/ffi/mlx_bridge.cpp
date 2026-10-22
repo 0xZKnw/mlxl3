@@ -407,6 +407,12 @@ int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) no
   return protect([&] { auto s = shape(dims, rank); byte_count(s, dtype(type));
     *out = new mx::array(mx::zeros(s, dtype(type))); });
 }
+int mlxl3_array_uninitialized(const int32_t* dims, size_t rank, int type, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null uninitialized array output");
+    *out = allocated_array(shape(dims, rank), dtype(type)).release();
+  });
+}
 int mlxl3_array_eval(void* p) noexcept { return protect([&] { arr(p).eval(); }); }
 int mlxl3_array_is_available(void* p, int* out) noexcept {
   return protect([&] {

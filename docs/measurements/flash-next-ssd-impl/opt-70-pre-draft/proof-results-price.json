@@ -1,0 +1,25 @@
+[
+  {
+    "label": "price",
+    "harness": "pre_draft_prices_choose_the_fastest_observed_shape",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pre_draft_prices_choose_the_fastest_observed_shape",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/price.json"
+    ],
+    "exit": -15,
+    "reason": "timeout_120s",
+    "seconds": 120.1372757500003,
+    "peak_group_rss_bytes": 1172979712,
+    "reaped": true
+  }
+]

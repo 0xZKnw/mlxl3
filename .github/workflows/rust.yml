@@ -14,7 +14,7 @@ permissions:
 jobs:
   kani-flash-contracts:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Verify Flash offsets, partition and greedy commits independently
@@ -32,6 +32,10 @@ jobs:
             --harness grouped_chunk_counter_matches_eight_symbolic_occurrence_counts
             --harness fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals
             --harness expert_output_stride_cannot_wrap_and_matches_wide_arithmetic
+            --harness draft_prediction_geometry_is_bounded_for_all_usize
+            --harness slot_reads_initialize_exact_disjoint_bank_regions
+            --harness pre_draft_choice_is_bounded_for_all_states
+            --harness pre_draft_observation_is_atomic_and_checked
             --harness expert_cohorts_never_exceed_live_slot_capacity
             --harness unique_expert_prefix_matches_independent_twenty_route_oracle
             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
@@ -91,6 +95,7 @@ jobs:
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
           build/ci/kernel-cache-key
           c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
+          c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only native/tests/uninitialized_bank_proof.cpp
       - name: Check SSD ranges, actual I/O bytes and failure draining
         if: matrix.os == 'macos-26'
         run: |

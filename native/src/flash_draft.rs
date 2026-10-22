@@ -1147,7 +1147,9 @@ impl FlashNext {
                 .map(|_| Vec::with_capacity(48))
                 .collect();
             let mut captures = Vec::with_capacity(5);
-            for (index, layer) in self.layers.iter_mut().enumerate() {
+            for index in 0..self.layers.len() {
+                let (current, rest) = self.layers.split_at_mut(index + 1);
+                let layer = &mut current[index];
                 #[cfg(test)]
                 let _layer = crate::flash_profile::span(&format!("layer_{index}"));
                 let (prepared, states) = layer.prepare_rows(&streams, tokens, self.multi_token)?;
@@ -1156,7 +1158,11 @@ impl FlashNext {
                 }
                 let inputs =
                     Array::concatenate(&prepared.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
-                let values = layer.moe.forward_draft_rows(&inputs)?;
+                let next = rest.first_mut().map(|layer| &mut layer.moe);
+                let values =
+                    layer
+                        .moe
+                        .forward_draft_lookahead(&inputs, next, self.lookahead_depth)?;
                 streams = prepared
                     .iter()
                     .enumerate()
@@ -1919,7 +1925,26 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
             target.reset();
             target.forward(serial[0])?;
             target.forward(serial[1])?;
+            let predictions_before = target
+                .layers
+                .iter()
+                .map(|l| l.moe.prefetch_profile[0])
+                .sum::<u64>();
             let verification = target.verify_draft(&serial[2..2 + width], kind)?;
+            if verification.target.lookahead_depth > 0
+                && verification.target.layers[0].moe.prefetch_pipeline
+            {
+                let predictions_after = verification
+                    .target
+                    .layers
+                    .iter()
+                    .map(|l| l.moe.prefetch_profile[0])
+                    .sum::<u64>();
+                ensure!(
+                    predictions_after - predictions_before == 47 * 16 * width.min(2) as u64,
+                    "verification did not issue its own prediction window"
+                );
+            }
             let expected = expected_logits[2..2 + width].concat();
             ensure!(
                 verification.parts.logits.shape() == [width as i32, 248320]

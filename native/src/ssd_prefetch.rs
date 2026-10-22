@@ -1,6 +1,10 @@
 //! Bounded reads into persistent GPU slots; only the inference thread owns MLX.
 pub(crate) const PREDICTION_RANKS: usize = 16;
 
+pub(crate) fn prediction_rows(rows: usize) -> Option<usize> {
+    (1..=8).contains(&rows).then_some(rows.min(2))
+}
+
 /// Strongest rank first, alternating target rows before using the next rank.
 pub(crate) fn order_predictions(ids: &mut [u32], rows: usize) -> bool {
     if !(1..=2).contains(&rows)
@@ -19,6 +23,23 @@ pub(crate) fn order_predictions(ids: &mut [u32], rows: usize) -> bool {
         }
     }
     true
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn draft_prediction_geometry_is_bounded_for_all_usize() {
+    let rows: usize = kani::any();
+    let selected = prediction_rows(rows);
+    assert_eq!(selected.is_some(), rows > 0 && rows <= 8);
+    if let Some(n) = selected {
+        assert_eq!(n, if rows == 1 { 1 } else { 2 });
+        assert!(n <= rows && n * PREDICTION_RANKS <= 32);
+    }
+    kani::cover!(rows == 0 && selected.is_none());
+    kani::cover!(rows == 1 && selected == Some(1));
+    kani::cover!(rows == 2 && selected == Some(2));
+    kani::cover!(rows == 8 && selected == Some(2));
+    kani::cover!(rows == usize::MAX && selected.is_none());
 }
 
 #[cfg(feature = "mlx")]
@@ -42,6 +63,9 @@ mod gpu {
         pub failed: AtomicU64,
         pub late_needed: AtomicU64,
         pub bytes: AtomicU64,
+        pub demand_reused: AtomicU64,
+        pub demand_timeouts: AtomicU64,
+        pub demand_wait_ns: AtomicU64,
     }
 
     struct Pending {
@@ -152,23 +176,29 @@ mod gpu {
             false
         }
 
-        fn finish(worker: &mut Worker, valid: bool, counters: &Counters) {
-            if let Some(pending) = worker.pending.take()
-                && !pending
+        fn finish(worker: &mut Worker, valid: bool, counters: &Counters) -> bool {
+            let Some(pending) = worker.pending.take() else {
+                return false;
+            };
+            let published =
+                pending
                     .cache
                     .borrow_mut()
-                    .publish_prefetch(pending.slot, pending.expert, valid)
-            {
+                    .publish_prefetch(pending.slot, pending.expert, valid);
+            if !published {
                 counters.discarded.fetch_add(1, Ordering::Relaxed);
             }
             // Drops the MLX owners on the inference thread, after the worker is done.
+            published
         }
 
         /// Publish completions from every layer, without waiting for unfinished reads.
         pub fn poll(&mut self) {
             for worker in &mut self.workers {
                 match worker.rx.try_recv() {
-                    Ok(completed) => Self::finish(worker, completed.valid, &self.counters),
+                    Ok(completed) => {
+                        Self::finish(worker, completed.valid, &self.counters);
+                    }
                     Err(mpsc::TryRecvError::Disconnected) => {
                         worker.tx = None;
                         Self::finish(worker, false, &self.counters);
@@ -187,6 +217,53 @@ mod gpu {
                 {
                     self.counters.late_needed.fetch_add(1, Ordering::Relaxed);
                 }
+            }
+        }
+
+        /// A timeout retains the write lease; urgent reads may use another slot.
+        pub fn wait_demand(
+            &mut self,
+            layer: usize,
+            cache: &std::rc::Rc<std::cell::RefCell<crate::flash_support::ExpertCache>>,
+            ids: &[u32],
+        ) {
+            let started = std::time::Instant::now();
+            let deadline = started + std::time::Duration::from_millis(1);
+            let mut needed = false;
+            for worker in &mut self.workers {
+                if !worker.pending.as_ref().is_some_and(|p| {
+                    p.layer == layer
+                        && std::rc::Rc::ptr_eq(&p.cache, cache)
+                        && ids.contains(&p.expert)
+                }) {
+                    continue;
+                }
+                needed = true;
+                match worker
+                    .rx
+                    .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
+                {
+                    Ok(completed) => {
+                        if Self::finish(worker, completed.valid, &self.counters) {
+                            self.counters.demand_reused.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        self.counters
+                            .demand_timeouts
+                            .fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        worker.tx = None;
+                        Self::finish(worker, false, &self.counters);
+                    }
+                }
+            }
+            if needed {
+                self.counters.demand_wait_ns.fetch_add(
+                    u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    Ordering::Relaxed,
+                );
             }
         }
 
@@ -216,6 +293,145 @@ mod gpu {
             }
         }
     }
+
+    #[cfg(test)]
+    mod demand_tests {
+        use super::*;
+        use crate::{
+            array::{Array, Dtype, PreparedRead},
+            flash_support::ExpertCache,
+        };
+        use anyhow::ensure;
+        use std::{cell::RefCell, io::Write, rc::Rc};
+
+        #[test]
+        #[ignore = "physical Apple GPU; bounded persistent owners over 256 real reads"]
+        fn pending_leases_release_every_batch_without_retaining_allocations() -> Result<()> {
+            let mut file = tempfile::tempfile()?;
+            let bytes = vec![37u8; 4096];
+            file.write_all(&bytes)?;
+            let cache = Rc::new(RefCell::new(ExpertCache::new(24)?));
+            let weak = Rc::downgrade(&cache);
+            let mut banks = vec![Array::zeros_dtype(&[24, 4096], Dtype::UInt8)?];
+            banks[0].eval()?;
+            let active = crate::array::memory_stats(false)?.mlx_active_bytes;
+            let mut pool = ReaderPool::new()?;
+            let (mut minimum, mut maximum) = (active, 0);
+            for _ in 0..64 {
+                cache.borrow_mut().invalidate();
+                ensure!(Rc::strong_count(&cache) == 1);
+                for id in 0..4 {
+                    let slot = cache.borrow_mut().claim_prefetch(id)?.unwrap();
+                    let read =
+                        Array::prepare_read(&file, 0, &mut banks, &[(0, slot * 4096, 4096)])?;
+                    ensure!(pool.submit(0, id, slot, Rc::clone(&cache), read));
+                }
+                ensure!(Rc::strong_count(&cache) == 5 && !pool.has_room());
+                pool.wait_for_test()?;
+                ensure!(pool.workers.iter().all(|w| w.pending.is_none()));
+                ensure!(Rc::strong_count(&cache) == 1);
+                let now = crate::array::memory_stats(false)?.mlx_active_bytes;
+                minimum = minimum.min(now);
+                maximum = maximum.max(now);
+                ensure!(now <= active, "persistent read allocations grew");
+                ensure!(banks[0].to_bytes()?[..4 * 4096] == bytes.repeat(4));
+            }
+            ensure!(pool.counters.completed.load(Ordering::Relaxed) == 256);
+            drop(pool);
+            drop(cache);
+            ensure!(weak.upgrade().is_none());
+            println!(
+                "SSD_PREFETCH_LEASES batches=64 reads=256 peak_pending=4 cache_owners=1_to_5_to_1 initial_active={active} min_active={minimum} max_active={maximum} retained_after_drop=false"
+            );
+            Ok(())
+        }
+
+        #[test]
+        #[ignore = "physical Apple GPU; real records with deterministic completion/error channels"]
+        fn demand_reuses_only_finished_matching_records_and_preserves_timeout_leases() -> Result<()>
+        {
+            let data = (0..64).map(|i| (i * 3 + 1) as u8).collect::<Vec<_>>();
+            for outcome in 0..4 {
+                let mut file = tempfile::tempfile()?;
+                file.write_all(&data)?;
+                let cache = Rc::new(RefCell::new(ExpertCache::new(24)?));
+                let other = Rc::new(RefCell::new(ExpertCache::new(24)?));
+                let mut banks = vec![Array::zeros_dtype(&[24, 64], Dtype::UInt8)?];
+                let slot = cache.borrow_mut().claim_prefetch(7)?.unwrap();
+                let read = Array::prepare_read(&file, 0, &mut banks, &[(0, slot * 64, 64)])?;
+                let token = read.token();
+                let (sender, receiver) = mpsc::sync_channel(1);
+                let mut pool = ReaderPool {
+                    workers: vec![Worker {
+                        tx: None,
+                        rx: receiver,
+                        thread: None,
+                        pending: Some(Pending {
+                            layer: 3,
+                            expert: 7,
+                            slot,
+                            cache: Rc::clone(&cache),
+                            _read: read,
+                        }),
+                    }],
+                    counters: Arc::default(),
+                };
+                pool.wait_demand(4, &cache, &[7]);
+                pool.wait_demand(3, &other, &[7]);
+                pool.wait_demand(3, &cache, &[8]);
+                ensure!(pool.workers[0].pending.is_some() && !cache.borrow().contains(7));
+                ensure!(pool.counters.demand_timeouts.load(Ordering::Relaxed) == 0);
+                if outcome <= 1 {
+                    if outcome == 1 {
+                        file.set_len(0)?;
+                    }
+                    // The Pending retains the real read lease until this synchronous read finishes.
+                    let (valid, bytes) = unsafe { PreparedRead::run(token) };
+                    ensure!(valid == (outcome == 0) && bytes == if valid { 64 } else { 0 });
+                    sender.send(Completed { valid })?;
+                    pool.wait_demand(3, &cache, &[7, 7]);
+                    ensure!(pool.workers[0].pending.is_none());
+                    ensure!(cache.borrow().contains(7) == valid);
+                    ensure!(
+                        pool.counters.demand_reused.load(Ordering::Relaxed) == u64::from(valid)
+                    );
+                    if valid {
+                        ensure!(cache.borrow_mut().reserve(&[7])? == [(slot, true)]);
+                        ensure!(&banks[0].to_bytes()?[slot * 64..(slot + 1) * 64] == data);
+                    } else {
+                        ensure!(!cache.borrow_mut().reserve(&[7])?[0].1);
+                    }
+                } else if outcome == 2 {
+                    pool.wait_demand(3, &cache, &[7]);
+                    ensure!(pool.counters.demand_timeouts.load(Ordering::Relaxed) == 1);
+                    ensure!(pool.workers[0].pending.is_some() && !cache.borrow().contains(7));
+                    let urgent = cache.borrow_mut().reserve(&[7])?[0];
+                    ensure!(!urgent.1 && urgent.0 != slot);
+                    Array::read_record(&file, 0, &mut banks, &[(0, urgent.0 * 64, 64)])?;
+                    let (valid, bytes) = unsafe { PreparedRead::run(token) };
+                    ensure!(valid && bytes == 64);
+                    sender.send(Completed { valid })?;
+                    pool.wait_demand(3, &cache, &[7]);
+                    ensure!(pool.workers[0].pending.is_none());
+                    ensure!(cache.borrow_mut().reserve(&[7])? == [(urgent.0, true)]);
+                    ensure!(pool.counters.demand_reused.load(Ordering::Relaxed) == 0);
+                    ensure!(pool.counters.discarded.load(Ordering::Relaxed) == 1);
+                    let actual = banks[0].to_bytes()?;
+                    ensure!(&actual[slot * 64..(slot + 1) * 64] == data);
+                    ensure!(&actual[urgent.0 * 64..(urgent.0 + 1) * 64] == data);
+                } else {
+                    drop(sender);
+                    pool.wait_demand(3, &cache, &[7]);
+                    ensure!(pool.workers[0].pending.is_none() && !cache.borrow().contains(7));
+                    ensure!(pool.counters.discarded.load(Ordering::Relaxed) == 1);
+                }
+            }
+            println!(
+                "SSD_DEMAND_REUSE cases=4 identity_checks=12 records=real timeout_pending=true duplicate_rejected=true"
+            );
+            Ok(())
+        }
+    }
 }
 #[cfg(feature = "mlx")]
 pub(crate) use gpu::ReaderPool;
@@ -223,6 +439,19 @@ pub(crate) use gpu::ReaderPool;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn draft_predictions_only_cover_valid_prefix_rows() {
+        for rows in 0..=10 {
+            let expected = match rows {
+                1 => Some(1),
+                2..=8 => Some(2),
+                _ => None,
+            };
+            assert_eq!(prediction_rows(rows), expected);
+        }
+        assert_eq!(prediction_rows(usize::MAX), None);
+    }
 
     #[test]
     fn candidates_interleave_strongest_ranks_and_reject_invalid_shapes() {

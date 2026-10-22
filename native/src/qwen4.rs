@@ -40,7 +40,12 @@ pub struct FlashDraftProfile {
     pub verification_seconds: f64,
     pub commit_cache_seconds: f64,
     pub verified_rows: usize,
+    pub drafted_rows: usize,
+    pub drafted_widths: [usize; 8],
+    pub verified_widths: [usize; 8],
     pub expert_demand_bytes: u64,
+    /// Submitted, completed, used, reused, timeouts, wait ns, read bytes, late demands.
+    pub ssd_prefetch: [u64; 8],
 }
 
 struct Norm {
@@ -1654,6 +1659,24 @@ impl FlashNext {
                 m + l.moe.misses,
                 b.saturating_add(l.moe.read_bytes),
             )
+        })
+    }
+    #[cfg(feature = "chat")]
+    fn prefetch_stats(&self) -> [u64; 8] {
+        self.lookahead_pool.as_ref().map_or([0; 8], |pool| {
+            let pool = pool.borrow();
+            let c = &pool.counters;
+            [
+                &c.submitted,
+                &c.completed,
+                &c.used,
+                &c.demand_reused,
+                &c.demand_timeouts,
+                &c.demand_wait_ns,
+                &c.bytes,
+                &c.late_needed,
+            ]
+            .map(|c| c.load(Ordering::Relaxed))
         })
     }
 }

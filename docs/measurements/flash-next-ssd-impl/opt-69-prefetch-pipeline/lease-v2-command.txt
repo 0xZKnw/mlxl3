@@ -1,0 +1,31 @@
+import hashlib,json,re,runpy,subprocess,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline');dest=base/'quality-leases-v2';identity=json.loads(Path('docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/identity-v2.json').read_text());api=runpy.run_path('scripts/profile_flash.py');parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm'];baseline={'Swapins':0,'Swapouts':106037248}
+def check():
+ for r in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(r['path']).read_bytes()).hexdigest()==r['sha256'],r['path']
+def watch(seconds,path):
+ rows=[]
+ try:
+  end=time.monotonic()+seconds
+  while True:
+   row={'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)),'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)};rows.append(row)
+   assert row['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts']
+   assert 0<=row['vm_bytes']['Swapins']<=256<<20
+   if time.monotonic()>=end:break
+   time.sleep(min(2,end-time.monotonic()))
+ finally:path.write_text(json.dumps({'samples':rows},indent=2)+'\n')
+result={'status':'incomplete','parity':False,'baseline':baseline,'scope':'light lease diagnostic only; not a restarted throughput campaign'}
+try:
+ check();watch(20,dest/'preflight.json');api['run_sampler'](dest/'run.json',baseline)
+ raw=json.loads((dest/'run-result.json').read_text());assert raw['status']=='completed_expected_outcomes_not_speed' and len(raw['commands'])==1
+ row=raw['commands'][0];assert row['status']=='completed_expected_outcome' and row['reaped'] and row['swapouts_bytes']==0
+ text=(dest/'lease-retention.log').read_text();assert 'SSD_PREFETCH_LEASES batches=64 reads=256 peak_pending=4 cache_owners=1_to_5_to_1' in text and 'retained_after_drop=false' in text
+ peak=int(re.search(r'(\d+)\s+peak memory footprint',text)[1]);assert 0<peak<=1_000_000_000;result['peak_physical_bytes']=peak;check();result.update(status='passed_pending_postflight',parity=True)
+except BaseException as error:result.update(status='failed_or_interrupted',parity=False,error=repr(error));raise
+finally:
+ try:
+  watch(30,dest/'postflight.json')
+  if result['parity']:result['status']='passed_light_diagnostic_and_postflight30s'
+ except BaseException as error:result.update(status='failed_postflight',parity=False,error=repr(error));raise
+ finally:(dest/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n');print(result,flush=True)

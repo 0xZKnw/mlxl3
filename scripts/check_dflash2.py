@@ -28,11 +28,21 @@ def equal(reference, candidate):
 
 
 def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_draft=None):
-    report = {"status": "running", "parity": None, "checks": 0, "events": []}
+    report = {
+        "status": "running",
+        "parity": None,
+        "checks": 0,
+        "events": [],
+        "requests": [],
+        "active_request": None,
+    }
 
     def save():
         if output:
-            Path(output).write_text(json.dumps(report, indent=2) + "\n")
+            path = Path(output)
+            temporary = path.with_name(path.name + ".tmp")
+            temporary.write_text(json.dumps(report, indent=2) + "\n")
+            temporary.replace(path)
 
     save()
     deadline = time.monotonic() + timeout
@@ -93,6 +103,23 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                     "reuse_prompt_cache": False,
                 }
                 value.update(options)
+                progress = {
+                    key: value[key]
+                    for key in (
+                        "type",
+                        "request_id",
+                        "max_tokens",
+                        "dflash2",
+                        "dflash_mode",
+                        "reuse_prompt_cache",
+                        "memory_saver",
+                    )
+                    if key in value
+                }
+                progress.update(status="running", started_epoch=time.time(), cancel_at=cancel_at)
+                report["requests"].append(progress)
+                report["active_request"] = progress
+                save()
                 bridge.send(value, deadline)
                 result = until(
                     terminal
@@ -109,6 +136,9 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                     cancel_at,
                 )
                 report["checks"] += 1
+                progress.update(status="complete", finished_epoch=time.time())
+                report["active_request"] = None
+                save()
                 return result
 
             ready = until("ready")
@@ -196,6 +226,10 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                 equal(golden, request(mode=best))
         report.update(status="complete", parity=True)
     except BaseException as error:
+        if report["active_request"] is not None:
+            report["active_request"].update(
+                status="failed_or_interrupted", finished_epoch=time.time()
+            )
         report.update(status="failed", parity=None, error=f"{type(error).__name__}: {error}")
         raise
     finally:
@@ -213,6 +247,11 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True)
     parser.add_argument("--foreign-draft")
     args = parser.parse_args()
+
+    def interrupted(signum, _frame):
+        raise RuntimeError(f"checker interrupted by signal {signum}")
+
+    signal.signal(signal.SIGTERM, interrupted)
     result = run(
         args.engine,
         args.model,
@@ -223,5 +262,11 @@ if __name__ == "__main__":
         foreign_draft=args.foreign_draft,
     )
     print(
-        json.dumps({key: value for key, value in result.items() if key not in ("events", "tuning")})
+        json.dumps(
+            {
+                key: value
+                for key, value in result.items()
+                if key not in ("events", "requests", "tuning")
+            }
+        )
     )

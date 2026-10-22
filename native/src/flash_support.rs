@@ -1,6 +1,54 @@
 //! CPU contracts for Flash Next's disk rows and exact expert cache.
 use anyhow::Result;
 
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(14)]
+fn slot_reads_initialize_exact_disjoint_bank_regions() {
+    let slot: usize = kani::any();
+    kani::assume(slot < 512); // Both callers obtain slots from ExpertCache, capacity <=512.
+    let writes = expert_slot_destinations(slot);
+    let widths = [819200, 409600, 10240, 2560, 1280, 5120, 12];
+    let mut total = 0;
+    for &(bank, _, count) in &writes {
+        assert!(bank < 7 && count > 0);
+        total += count;
+    }
+    assert_eq!(total as u64, EXPERT_BYTES);
+    for (bank, width) in widths.into_iter().enumerate() {
+        let mut end = slot * width;
+        for &(destination, start, count) in &writes {
+            if destination == bank {
+                assert_eq!(start, end);
+                end += count;
+            }
+        }
+        assert_eq!(end, (slot + 1) * width);
+        assert!(end <= 512 * width);
+    }
+    kani::cover!(slot == 0);
+    kani::cover!(slot == 511);
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn expert_slot_destinations(slot: usize) -> [(usize, usize, usize); 12] {
+    assert!(slot < 512, "expert slot exceeds bank limit");
+    [
+        (4, slot * 640 * 2, 640 * 2),
+        (5, slot * 2560 * 2, 2560 * 2),
+        (6, slot * 12, 4),
+        (1, slot * 409600, 409600),
+        (2, slot * 2 * 2560 * 2, 2560 * 2),
+        (3, slot * 2 * 640 * 2, 640 * 2),
+        (6, slot * 12 + 4, 4),
+        (0, slot * 2 * 409600, 409600),
+        (2, (slot * 2 + 1) * 2560 * 2, 2560 * 2),
+        (3, (slot * 2 + 1) * 640 * 2, 640 * 2),
+        (6, slot * 12 + 8, 4),
+        (0, (slot * 2 + 1) * 409600, 409600),
+    ]
+}
+
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn draft_demand_bytes(total: u64, before: u64, after: u64) -> Option<u64> {
     total.checked_add(after.checked_sub(before)?)
@@ -2419,6 +2467,28 @@ mod grouped_route_verification {
                 for &row in rows {
                     assert!(row < 80);
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn slot_read_segments_initialize_every_byte_before_publication() {
+    for capacity in [10, 24, 53, 512] {
+        let widths = [819200, 409600, 10240, 2560, 1280, 5120, 12];
+        for slot in 0..capacity {
+            let ranges = expert_slot_destinations(slot);
+            assert_eq!(ranges.iter().map(|r| r.2 as u64).sum::<u64>(), EXPERT_BYTES);
+            for (bank, width) in widths.into_iter().enumerate() {
+                let mut writes = ranges.iter().filter(|r| r.0 == bank).collect::<Vec<_>>();
+                writes.sort_by_key(|r| r.1);
+                let mut end = slot * width;
+                for &&(_, start, count) in &writes {
+                    assert_eq!(start, end, "hole/overlap in bank{bank} slot{slot}");
+                    assert!(count > 0);
+                    end += count;
+                }
+                assert_eq!(end, (slot + 1) * width);
             }
         }
     }

@@ -137,6 +137,12 @@ unsafe extern "C" {
         out: *mut *mut c_void,
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
+    fn mlxl3_array_uninitialized(
+        dims: *const i32,
+        rank: usize,
+        dtype: i32,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
     #[cfg(test)]
     fn mlxl3_array_is_available(p: *mut c_void, out: *mut i32) -> i32;
@@ -672,6 +678,15 @@ impl Array {
         initialize()?;
         Self::output(|out| unsafe {
             mlxl3_array_zeros(shape.as_ptr(), shape.len(), dtype as i32, out)
+        })
+    }
+    /// # Safety
+    /// Every region read by the CPU or GPU must first be completely initialized.
+    pub(crate) unsafe fn uninitialized(shape: &[i32], dtype: Dtype) -> Result<Self> {
+        bytes_for(shape, dtype)?;
+        initialize()?;
+        Self::output(|out| unsafe {
+            mlxl3_array_uninitialized(shape.as_ptr(), shape.len(), dtype as i32, out)
         })
     }
     pub fn shape(&self) -> &[i32] {
@@ -1396,6 +1411,60 @@ pub fn metal_kernel(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore = "physical Apple GPU; isolated allocation and direct-read diagnostic"]
+    fn uninitialized_storage_is_ready_and_reads_only_filled_ranges() -> Result<()> {
+        use std::io::Write;
+        for raw in [true, false, false, true] {
+            synchronize()?;
+            clear_cache()?;
+            let before = memory_stats(false)?;
+            let bank = if raw {
+                // No element of this diagnostic buffer is ever read.
+                unsafe { Array::uninitialized(&[32 * 1024 * 1024], Dtype::UInt16)? }
+            } else {
+                Array::zeros_dtype(&[32 * 1024 * 1024], Dtype::UInt16)?
+            };
+            if raw {
+                ensure!(
+                    bank.is_available_for_test()?,
+                    "allocation submitted a GPU fill"
+                );
+            }
+            bank.eval()?;
+            synchronize()?;
+            println!(
+                "FLASH_EMPTY_BANK {}",
+                serde_json::json!({
+                    "raw":raw,"before":before,"after":memory_stats(false)?,
+                    "logical_bytes":bank.byte_len()?,"retained_bytes":bank.retained_bytes()?
+                })
+            );
+            drop(bank);
+        }
+        let mut file = tempfile::tempfile()?;
+        let expected = (0..128u8).collect::<Vec<_>>();
+        file.write_all(&expected)?;
+        // Only the two fully initialized views below are exposed to a reader.
+        let mut banks = [unsafe { Array::uninitialized(&[64], Dtype::UInt16)? }];
+        Array::read_record(&file, 9, &mut banks, &[(0, 16, 32), (0, 80, 16)])?;
+        ensure!(banks[0].slice(0, 8, 24)?.to_bytes()? == expected[9..41]);
+        ensure!(banks[0].slice(0, 40, 48)?.to_bytes()? == expected[41..57]);
+        ensure!(Array::read_record(&file, u64::MAX, &mut banks, &[(0, 0, 8)]).is_err());
+        Array::read_record(&file, 0, &mut banks, &[(0, 0, 128)])?;
+        ensure!(banks[0].to_bytes()? == expected);
+        ensure!(unsafe { Array::uninitialized(&[-1], Dtype::UInt16) }.is_err());
+        ensure!(unsafe { Array::uninitialized(&[i32::MAX; 4], Dtype::Float32) }.is_err());
+        let shape = [1];
+        ensure!(
+            checked(unsafe {
+                mlxl3_array_uninitialized(shape.as_ptr(), 1, 2, std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical Apple GPU; readback must wait only for the scheduled source event"]
     fn scheduled_route_readback_does_not_wait_for_later_gpu_work() -> anyhow::Result<()> {

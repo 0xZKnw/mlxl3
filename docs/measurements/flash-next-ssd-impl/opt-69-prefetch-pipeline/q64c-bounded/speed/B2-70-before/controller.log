@@ -1,0 +1,50 @@
+{'name': 'B2-70-before-MAIN-0-H', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 2.0147936250014027, 'swapouts_bytes': None}
+{'status': 'failed_postflight', 'parity': False, 'confirmed_gain': False, 'phase': 'B2-70-before', 'identity': '../../opt-70-pre-draft/identity-v3.json', 'original_vm_baseline': {'Swapins': 0, 'Swapouts': 157024256}, 'common_swapout_anchor': 157024256, 'historical_69_failed_swapout_bytes': 106037248, 'error': "AssertionError('live Swapouts changed')", 'postflight_error': 'AssertionError()'}
+Traceback (most recent call last):
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 47, in monitor
+    return child.wait(timeout=min(2, remaining))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 2045, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12', 'scripts/benchmark-flash-bridge.py', '/Users/justin/Documents/mix-stq1_0/build/flash-opt-70/v2/mlxl3-rs', '/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531', '/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded/speed/B2-70-before/B2-70-before-MAIN-0-H', '--tokens', '128', '--repeats', '1', '--cache-gib', '3', '--prompt', 'MAIN', '--dflash-draft', '/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744', '--dflash-mode', '1']' timed out after 2 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded/speed-command.txt", line 91, in <module>
+    if control:run_plan(dest)
+               ^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded/speed-command.txt", line 47, in run_plan
+    source_check();api['run_sampler'](plan,baseline)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/profile_flash.py", line 423, in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 63, in main
+    record["exit_code"] = previous["monitor"](child, record, parse_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/profile_flash.py", line 365, in guarded
+    return monitor(child, record, zero_swapout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 49, in monitor
+    current = parse_vm(subprocess.check_output(["vm_stat"], text=True, timeout=5))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/profile_flash.py", line 361, in zero_swapout
+    assert delta == 0, "live Swapouts changed"
+           ^^^^^^^^^^
+AssertionError: live Swapouts changed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded/speed-command.txt", line 106, in <module>
+    watch(30,dest/'postflight.json')
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded/speed-command.txt", line 30, in watch
+    assert row['vm_bytes']['Swapouts']==baseline['Swapouts']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

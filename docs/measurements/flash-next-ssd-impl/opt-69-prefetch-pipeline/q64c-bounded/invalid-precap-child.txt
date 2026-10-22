@@ -1,0 +1,28 @@
+import json,tempfile,time,sys
+from pathlib import Path
+sys.path.insert(0,str(Path('scripts').resolve()))
+from native_json_process import JsonProcess
+base=Path('docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-bounded');result={'status':'incomplete','parity':False,'events':[]};deadline=time.monotonic()+120
+try:
+ with tempfile.TemporaryDirectory(prefix='precap-error-') as folder, JsonProcess(['/Users/justin/Documents/mix-stq1_0/build/flash-opt-70/v2/mlxl3-rs','--registry',str(Path(folder)/'registry.json'),'bridge','/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531','--context-length','4096']) as child:
+  def until(kind,request=None):
+   while True:
+    e=child.receive(deadline);result['events'].append(e)
+    if e['type']=='error' and kind!='error':raise RuntimeError(e)
+    if e['type']==kind and (request is None or e.get('request_id')==request):return e
+  until('ready')
+  child.send({'type':'set_dflash','request_id':'invalid-precap','enabled':True,'dflash_mode':1,'dflash_draft_path':'/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744'},deadline)
+  e=until('error','invalid-precap');assert 'MLXL3_FLASH_DRAFT_PRECAP requires MLXL3_FLASH_DRAFT_ADAPTIVE=1' in e['message']
+  assert not any(e['type'] in ['delta','complete'] for e in result['events'])
+  child.send({'type':'set_dflash','request_id':'disable','enabled':False},deadline)
+  e=until('dflash_status','disable');assert e['dflash_active'] is False
+  child.send({'type':'generate','request_id':'recover','conversation_id':'dflash2-check','messages':[{'role':'user','content':'Write complete Python code to multiply two matrices with comments and examples.'}],'max_tokens':2,'temperature':0,'top_k':1,'repetition_penalty':1,'dflash2':False,'reuse_prompt_cache':False},deadline)
+  e=until('complete','recover');assert e['stats']['generated_tokens']==2
+  earlier=json.loads((base/'bridge69/checks.json').read_text())['events'];modes={r['request_id']:r for r in earlier if r.get('type')=='generation_mode'}
+  golden=next(r for r in earlier if r.get('type')=='complete' and r['stats']['generated_tokens']==2 and not modes.get(r['request_id'],{}).get('dflash_active',True))
+  assert (e['token_hash'],e['cache_context'])==(golden['token_hash'],golden['cache_context'])
+  result['peak_physical_bytes']=e['stats']['memory']['process_lifetime_peak_bytes'];assert 0<result['peak_physical_bytes']<=12_000_000_000
+  result['recovery_token_hash']=e['token_hash']
+ result.update(status='passed_real_cli_rejection_and_recovery',parity=True,reaped=True,reader_joined=True)
+except BaseException as error:result.update(status='failed_or_interrupted',parity=False,error=repr(error));raise
+finally:(base/'invalid-precap-checks.json').write_text(json.dumps(result,indent=2)+'\n');print({k:v for k,v in result.items() if k!='events'},flush=True)

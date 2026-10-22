@@ -1,0 +1,24 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--features",
+    "mlx,chat",
+    "--tests",
+    "--harness",
+    "actual_uninitialized_slot_reads_preserve_outputs",
+    "--output-format",
+    "regular",
+    "-Z",
+    "unstable-options",
+    "--export-json",
+    "docs/measurements/flash-next-ssd-impl/opt-70-load-memory/kani-actual-v2.json"
+  ],
+  "exit_code": 1,
+  "reason": null,
+  "seconds": 5.104361749999953,
+  "reaped": true,
+  "mlx_root": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+  "target_dir": "/Users/justin/Documents/mix-stq1_0/target"
+}

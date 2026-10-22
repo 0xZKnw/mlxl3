@@ -3,6 +3,51 @@
 use std::collections::VecDeque;
 
 const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+
+/// Per-request B2/B3/B4 costs, measured before choosing the next draft shape.
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PreDraftBudget {
+    totals: [[u64; 2]; 3], // Emitted tokens and whole-cycle nanoseconds.
+    cycles: u64,
+}
+impl PreDraftBudget {
+    pub(crate) fn choose(&self, maximum: usize) -> usize {
+        let limit = maximum.min(3);
+        if limit == 0 {
+            return 0;
+        }
+        if let Some(index) = (0..limit).find(|&i| self.totals[i][1] == 0) {
+            return index + 1;
+        }
+        if self.cycles.is_multiple_of(16) {
+            return (self.cycles / 16 % limit as u64) as usize + 1;
+        }
+        let mut best = 0;
+        for i in 1..limit {
+            if u128::from(self.totals[i][0]) * u128::from(self.totals[best][1])
+                > u128::from(self.totals[best][0]) * u128::from(self.totals[i][1])
+            {
+                best = i;
+            }
+        }
+        best + 1
+    }
+
+    pub(crate) fn observe(&mut self, width: usize, emitted: usize, nanos: u64) -> Option<()> {
+        if !(1..=3).contains(&width) || emitted == 0 || emitted > width + 1 || nanos == 0 {
+            return None;
+        }
+        let row = self.totals[width - 1];
+        let updated = [
+            row[0].checked_add(emitted as u64)?,
+            row[1].checked_add(nanos)?,
+        ];
+        let cycles = self.cycles.checked_add(1)?;
+        self.totals[width - 1] = updated;
+        self.cycles = cycles;
+        Some(())
+    }
+}
 #[derive(Clone, Copy, Debug)]
 struct Label {
     position: usize,
@@ -404,5 +449,180 @@ mod verification {
             kani::cover!(n == 0);
             kani::cover!(n == 7);
         }
+    }
+}
+
+#[cfg(test)]
+mod pre_draft_tests {
+    use super::PreDraftBudget;
+
+    #[test]
+    fn pre_draft_warms_each_legal_shape_then_prices_emitted_tokens() {
+        let mut b = PreDraftBudget::default();
+        assert_eq!(b.choose(0), 0);
+        assert_eq!(b.choose(usize::MAX), 1);
+        b.observe(1, 2, 200).unwrap();
+        assert_eq!(b.choose(1), 1);
+        assert_eq!(b.choose(3), 2);
+        b.observe(2, 3, 1000).unwrap();
+        assert_eq!(b.choose(2), 1);
+        assert_eq!(b.choose(8), 3);
+        b.observe(3, 4, 1000).unwrap();
+        assert_eq!(b.choose(3), 1);
+        b.observe(2, 3, 10).unwrap();
+        assert_eq!(b.choose(3), 1); // A fast sample does not erase previous work.
+        b.observe(3, 4, 10).unwrap();
+        assert_eq!(b.choose(3), 1);
+    }
+
+    #[test]
+    fn pre_draft_explores_all_three_shapes_and_clips_to_remaining_budget() {
+        let mut b = PreDraftBudget {
+            totals: [[2, 100], [3, 100], [4, 100]],
+            cycles: 3,
+        };
+        assert_eq!(b.choose(3), 3);
+        assert_eq!(b.choose(2), 2);
+        assert_eq!(b.choose(1), 1);
+        for (cycle, width) in [(16, 2), (32, 3), (48, 1)] {
+            b.cycles = cycle;
+            assert_eq!(b.choose(3), width);
+            assert!((1..=2).contains(&b.choose(2)));
+        }
+    }
+
+    #[test]
+    fn pre_draft_rejects_invalid_or_exhausted_counters_without_mutation() {
+        for (width, emitted, nanos) in [
+            (0, 1, 1),
+            (4, 1, 1),
+            (usize::MAX, 1, 1),
+            (1, 0, 1),
+            (1, 3, 1),
+            (3, usize::MAX, 1),
+            (1, 1, 0),
+        ] {
+            let mut b = PreDraftBudget::default();
+            let before = b.clone();
+            assert_eq!(b.observe(width, emitted, nanos), None);
+            assert_eq!(b, before);
+        }
+        for (tokens, nanos, cycles) in [(u64::MAX, 1, 1), (1, u64::MAX, 1), (1, 1, u64::MAX)] {
+            let mut b = PreDraftBudget {
+                totals: [[tokens, nanos]; 3],
+                cycles,
+            };
+            let before = b.clone();
+            assert_eq!(b.observe(1, 1, 1), None);
+            assert_eq!(b, before);
+        }
+    }
+
+    #[test]
+    fn pre_draft_integer_prices_and_long_trace_stay_bounded() {
+        let mut b = PreDraftBudget {
+            totals: [[u64::MAX - 1, u64::MAX]; 3],
+            cycles: 3,
+        };
+        b.totals[2] = [u64::MAX, u64::MAX - 1];
+        assert_eq!(b.choose(usize::MAX), 3);
+        let mut b = PreDraftBudget::default();
+        let mut widths = [0; 3];
+        for _ in 0..192 {
+            let width = b.choose(7);
+            assert!((1..=3).contains(&width));
+            widths[width - 1] += 1;
+            b.observe(width, width + 1, [100, 300, 500][width - 1])
+                .unwrap();
+        }
+        assert!(widths[0] > 170 && widths[1] > 1 && widths[2] > 1);
+        assert_eq!(b.cycles, 192);
+        assert_eq!(PreDraftBudget::default().choose(3), 1);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(5)]
+fn pre_draft_choice_is_bounded_for_all_states() {
+    let b = PreDraftBudget {
+        totals: kani::any(),
+        cycles: kani::any(),
+    };
+    let maximum: usize = kani::any();
+    let choice = b.choose(maximum);
+    assert!(choice <= maximum.min(3));
+    assert_eq!(choice == 0, maximum == 0);
+    kani::cover!(choice == 0);
+    kani::cover!(choice == 1);
+    kani::cover!(choice == 2);
+    kani::cover!(choice == 3);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(5)]
+fn pre_draft_observation_is_atomic_and_checked() {
+    let mut b = PreDraftBudget {
+        totals: kani::any(),
+        cycles: kani::any(),
+    };
+    let before = b.clone();
+    let width: usize = kani::any();
+    let emitted: usize = kani::any();
+    let nanos: u64 = kani::any();
+    let result = b.observe(width, emitted, nanos);
+    if result.is_some() {
+        assert!((1..=3).contains(&width) && (1..=width + 1).contains(&emitted) && nanos > 0);
+        assert_eq!(u128::from(b.cycles), u128::from(before.cycles) + 1);
+        for i in 0..3 {
+            if i == width - 1 {
+                assert_eq!(
+                    u128::from(b.totals[i][0]),
+                    u128::from(before.totals[i][0]) + emitted as u128
+                );
+                assert_eq!(
+                    u128::from(b.totals[i][1]),
+                    u128::from(before.totals[i][1]) + u128::from(nanos)
+                );
+            } else {
+                assert_eq!(b.totals[i][0], before.totals[i][0]);
+                assert_eq!(b.totals[i][1], before.totals[i][1]);
+            }
+        }
+    } else {
+        assert_eq!(b.cycles, before.cycles);
+        for i in 0..3 {
+            assert_eq!(b.totals[i][0], before.totals[i][0]);
+            assert_eq!(b.totals[i][1], before.totals[i][1]);
+        }
+    }
+    kani::cover!(result.is_none());
+    kani::cover!(result.is_some() && width == 1);
+    kani::cover!(result.is_some() && width == 2);
+    kani::cover!(result.is_some() && width == 3);
+}
+
+#[cfg(all(kani, test))]
+#[kani::proof]
+#[kani::unwind(5)]
+fn pre_draft_prices_choose_the_fastest_observed_shape() {
+    let b = PreDraftBudget {
+        totals: kani::any(),
+        cycles: kani::any(),
+    };
+    let maximum: usize = kani::any();
+    let limit = maximum.min(3);
+    if limit > 0 && !b.cycles.is_multiple_of(16) && (0..limit).all(|i| b.totals[i][1] > 0) {
+        let choice = b.choose(maximum) - 1;
+        for i in 0..limit {
+            assert!(
+                u128::from(b.totals[choice][0]) * u128::from(b.totals[i][1])
+                    >= u128::from(b.totals[i][0]) * u128::from(b.totals[choice][1])
+            );
+        }
+        kani::cover!(choice == 0);
+        kani::cover!(choice == 1);
+        kani::cover!(choice == 2);
     }
 }

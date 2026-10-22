@@ -1,0 +1,3988 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "timestamp": "2026-10-22T14:21:30.899396Z",
+    "kani_version": "0.68.0",
+    "target": "aarch64-apple-darwin",
+    "build_mode": "release"
+  },
+  "project": {
+    "crate_name": [
+      "mlxl3_native"
+    ],
+    "workspace_root": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/e9ebd27560dd3e45/out"
+  },
+  "tools": {
+    "kani": "0.68.0",
+    "rustc": "rustc 1.100.0-nightly (8925ea358 2026-08-20)",
+    "cbmc": "6.11.0 (cbmc-6.11.0)",
+    "goto_cc": "clang version 21.0.0 (goto-cc 6.11.0 (cbmc-6.11.0))",
+    "goto_instrument": "6.11.0 (cbmc-6.11.0)",
+    "solvers": [
+      {
+        "name": "cadical",
+        "version": null
+      }
+    ]
+  },
+  "harness_metadata": [
+    {
+      "pretty_name": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+      "mangled_name": "_RNvNtCs3yamx1GSPoC_12mlxl3_native18flash_draft_budget42pre_draft_choice_is_bounded_for_all_states",
+      "crate_name": "mlxl3_native",
+      "source": {
+        "file": "native/src/flash_draft_budget.rs",
+        "start_line": 547,
+        "end_line": 560
+      },
+      "goto_file": "/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/e9ebd27560dd3e45/out/mlxl3_native-e9ebd27560dd3e45__RNvNtCs3yamx1GSPoC_12mlxl3_native18flash_draft_budget42pre_draft_choice_is_bounded_for_all_states.symtab.out",
+      "attributes": {
+        "kind": "Proof",
+        "should_panic": false
+      },
+      "contract": {
+        "contracted_function_name": null,
+        "recursion_tracker": null
+      },
+      "has_loop_contracts": false,
+      "is_automatically_generated": false,
+      "is_bounded": false,
+      "is_ctor_based": false
+    }
+  ],
+  "error_details": [
+    {
+      "harness_id": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+      "has_errors": false
+    }
+  ],
+  "property_details": [
+    {
+      "harness_id": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+      "property_details": {
+        "total_properties": 322,
+        "passed": 312,
+        "failed": 0,
+        "unreachable": 6,
+        "undetermined": 0,
+        "solver_error": 0,
+        "satisfied": 4,
+        "unsatisfiable": 0,
+        "covered": 0,
+        "uncovered": 0
+      }
+    }
+  ],
+  "cbmc": [
+    {
+      "harness_id": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+      "cbmc_metadata": {
+        "version": "6.11.0",
+        "os_info": "aarch64 macos unix"
+      },
+      "configuration": {
+        "object_bits": 16,
+        "solver": "cadical"
+      },
+      "cbmc_stats": {
+        "runtime_symex_s": 0.11727,
+        "size_program_expression": 9041,
+        "slicing_removed_assignments": 5672,
+        "vccs_generated": 943,
+        "vccs_remaining": 198,
+        "runtime_postprocess_equation_s": 0.00147112,
+        "runtime_convert_ssa_s": 0.0968203,
+        "runtime_post_process_s": 0.000019542,
+        "runtime_solver_s": 0.000016834,
+        "runtime_decision_procedure_s": 0.000493791
+      }
+    }
+  ],
+  "verification_results": {
+    "summary": {
+      "total_harnesses": 1,
+      "executed": 1,
+      "status": "completed",
+      "successful": 1,
+      "failed": 0,
+      "duration_ms": 1272
+    },
+    "results": [
+      {
+        "harness_id": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+        "status": "Success",
+        "duration_ms": 1272,
+        "checks": [
+          {
+            "id": 1,
+            "function": "kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<[u64; 2]>, *mut std::mem::MaybeUninit<[u64; 2]>, usize>",
+            "status": "Success",
+            "description": "Offset in bytes overflows isize",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 2,
+            "function": "kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<[u64; 2]>, *mut std::mem::MaybeUninit<[u64; 2]>, usize>",
+            "status": "Success",
+            "description": "Offset result address must equal original pointer address plus offset",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 3,
+            "function": "kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<[u64; 2]>, *mut std::mem::MaybeUninit<[u64; 2]>, usize>",
+            "status": "Success",
+            "description": "Offset result and original pointer must point to the same allocation",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 4,
+            "function": "std::fmt::Arguments::<'_>::from_str",
+            "status": "Unreachable",
+            "description": "attempt to shift left with overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs",
+              "line": "820",
+              "column": "38"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 5,
+            "function": "<std::ops::Range<usize> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::find::check<usize, {closure@native/src/flash_draft_budget.rs:19:46: 19:50}>::{closure#0}}, std::ops::ControlFlow<usize>>",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs",
+              "line": "2490",
+              "column": "21"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 6,
+            "function": "std::panic::Location::<'_>::caller",
+            "status": "Success",
+            "description": "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs",
+              "line": "181",
+              "column": "9"
+            },
+            "category": "unsupported_construct"
+          },
+          {
+            "id": 7,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Unreachable",
+            "description": "Cannot compute offset of a ZST",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 8,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "Offset result and original pointer should point to the same allocation",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 9,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Unreachable",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "93",
+              "column": "25"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 10,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Unreachable",
+            "description": "attempt to calculate the remainder with overflow",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "93",
+              "column": "25"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 11,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with overflow",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "93",
+              "column": "25"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 12,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "93",
+              "column": "25"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 13,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "Expected the distance between the pointers, in bytes, to be a\n                        multiple of the size of `T`",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 14,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Unreachable",
+            "description": "attempt to divide by zero",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "97",
+              "column": "21"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 15,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Unreachable",
+            "description": "attempt to divide with overflow",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "97",
+              "column": "21"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 16,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "attempt to divide with overflow",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "97",
+              "column": "21"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 17,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "attempt to divide by zero",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "97",
+              "column": "21"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 18,
+            "function": "std::mem::conjure_zst::do_panic::runtime",
+            "status": "Success",
+            "description": "This is a placeholder message; Kani doesn't support message formatted at runtime",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs",
+              "line": "1707",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 19,
+            "function": "core::num::<impl u64>::is_multiple_of",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "3875",
+              "column": "22"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 20,
+            "function": "core::num::<impl u64>::is_multiple_of",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "3875",
+              "column": "22"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 21,
+            "function": "std::ops::ControlFlow::<usize>::break_value",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs",
+              "line": "195",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 22,
+            "function": "core::num::<impl usize>::unchecked_add",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_add` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "1013",
+              "column": "17"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 23,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::assume_init_mut",
+            "status": "Success",
+            "description": "misaligned pointer to reference cast: address must be a multiple of its type's alignment",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "1016",
+              "column": "13"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 24,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::assume_init_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "1016",
+              "column": "13"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 25,
+            "function": "core::panicking::panic_nounwind_fmt::runtime",
+            "status": "Success",
+            "description": "call to foreign \"Rust\" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs",
+              "line": "110",
+              "column": "17"
+            },
+            "category": "unsupported_construct"
+          },
+          {
+            "id": 26,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to divide by zero",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 27,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to divide by zero",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 28,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "20"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 29,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to calculate the remainder with a divisor of zero",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "20"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 30,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "20"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 31,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "26",
+              "column": "18"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 32,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 33,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 34,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 35,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 36,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to multiply with overflow",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "16"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 37,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 38,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 39,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 40,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 41,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to multiply with overflow",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "19"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 42,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "33",
+              "column": "9"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 43,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "attempt to add with overflow",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "20",
+              "column": "20"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 44,
+            "function": "core::slice::<impl [std::mem::MaybeUninit<[u64; 2]>]>::get_unchecked_mut::<usize>",
+            "status": "Success",
+            "description": "misaligned pointer to reference cast: address must be a multiple of its type's alignment",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs",
+              "line": "693",
+              "column": "18"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 45,
+            "function": "core::slice::<impl [std::mem::MaybeUninit<[u64; 2]>]>::get_unchecked_mut::<usize>",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs",
+              "line": "693",
+              "column": "18"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 46,
+            "function": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+            "status": "Success",
+            "description": "assertion failed: choice <= maximum.min(3)",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "554",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 47,
+            "function": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+            "status": "Success",
+            "description": "assertion failed: choice == 0 == maximum == 0",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "555",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 48,
+            "function": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+            "status": "Satisfied",
+            "description": "cover condition: choice == 0",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "556",
+              "column": "5"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 49,
+            "function": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+            "status": "Satisfied",
+            "description": "cover condition: choice == 1",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "557",
+              "column": "5"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 50,
+            "function": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+            "status": "Satisfied",
+            "description": "cover condition: choice == 2",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "558",
+              "column": "5"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 51,
+            "function": "flash_draft_budget::pre_draft_choice_is_bounded_for_all_states",
+            "status": "Satisfied",
+            "description": "cover condition: choice == 3",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "559",
+              "column": "5"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 52,
+            "function": "std::ptr::const_ptr::<impl *const ()>::offset_from_unsigned",
+            "status": "Success",
+            "description": "assertion failed: 0 < pointee_size && pointee_size <= isize::MAX as usize",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs",
+              "line": "731",
+              "column": "9"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 53,
+            "function": "kani::rustc_intrinsics::ptr_offset_from_unsigned::<()>",
+            "status": "Success",
+            "description": "Expected non-negative distance between pointers",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 54,
+            "function": "kani::rustc_intrinsics::offset::<(), *mut (), usize>",
+            "status": "Success",
+            "description": "Offset in bytes overflows isize",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 55,
+            "function": "kani::rustc_intrinsics::offset::<(), *mut (), usize>",
+            "status": "Success",
+            "description": "Offset result address must equal original pointer address plus offset",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 56,
+            "function": "kani::rustc_intrinsics::offset::<(), *mut (), usize>",
+            "status": "Success",
+            "description": "Offset result and original pointer must point to the same allocation",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 57,
+            "function": "<usize as kani::rustc_intrinsics::ToISize>::to_isize",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "203",
+              "column": "17"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 58,
+            "function": "<usize as kani::rustc_intrinsics::ToISize>::to_isize",
+            "status": "Success",
+            "description": "Offset value overflows isize",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 59,
+            "function": "<usize as kani::rustc_intrinsics::ToISize>::to_isize",
+            "status": "Success",
+            "description": "internal error: entered unreachable code",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 60,
+            "function": "<std::ops::ControlFlow<std::ops::try_trait::NeverShortCircuitResidual> as std::ops::FromResidual<std::ops::ControlFlow<std::ops::try_trait::NeverShortCircuitResidual, std::convert::Infallible>>>::from_residual",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs",
+              "line": "130",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 61,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 62,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 63,
+            "function": "<std::ops::ControlFlow<std::ops::try_trait::NeverShortCircuitResidual, [u64; 2]> as std::ops::Try>::branch",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs",
+              "line": "116",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 64,
+            "function": "<std::ops::ControlFlow<usize> as std::ops::FromResidual<std::ops::ControlFlow<usize, std::convert::Infallible>>>::from_residual",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs",
+              "line": "130",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 65,
+            "function": "core::slice::<impl [std::mem::MaybeUninit<[u64; 2]>]>::get_unchecked_mut::<std::ops::RangeTo<usize>>",
+            "status": "Success",
+            "description": "misaligned pointer to reference cast: address must be a multiple of its type's alignment",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs",
+              "line": "693",
+              "column": "18"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 66,
+            "function": "core::slice::<impl [std::mem::MaybeUninit<[u64; 2]>]>::get_unchecked_mut::<std::ops::RangeTo<usize>>",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs",
+              "line": "693",
+              "column": "18"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 67,
+            "function": "std::ptr::drop_in_place::<[[u64; 2]]>",
+            "status": "Success",
+            "description": "misaligned pointer to reference cast: address must be a multiple of its type's alignment",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "843",
+              "column": "24"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 68,
+            "function": "std::ptr::drop_in_place::<[[u64; 2]]>",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "843",
+              "column": "24"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 69,
+            "function": "<std::ops::Range<usize> as std::slice::SliceIndex<[std::mem::MaybeUninit<[u64; 2]>]>>::get_unchecked_mut",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs",
+              "line": "399",
+              "column": "27"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 70,
+            "function": "core::num::<impl usize>::unchecked_sub",
+            "status": "Success",
+            "description": "attempt to compute `unchecked_sub` which would overflow",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "1192",
+              "column": "17"
+            },
+            "category": "arithmetic_overflow"
+          },
+          {
+            "id": 71,
+            "function": "<std::ops::try_trait::NeverShortCircuit<[[u64; 2]; 3]> as std::ops::FromResidual>::from_residual",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/try_trait.rs",
+              "line": "451",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 72,
+            "function": "kani::mem::cbmc::same_allocation",
+            "status": "Success",
+            "description": "Kani does not support reasoning about pointer to unallocated memory",
+            "location": {
+              "file": "library/kani/src/lib.rs",
+              "line": "57",
+              "column": "1"
+            },
+            "category": "unsupported_construct"
+          },
+          {
+            "id": 73,
+            "function": "std::array::try_from_fn_erased::<std::ops::try_trait::NeverShortCircuit<[u64; 2]>, &mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}>>",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "931",
+              "column": "20"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 74,
+            "function": "std::array::try_from_fn::<std::ops::try_trait::NeverShortCircuit<[u64; 2]>, 3, &mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}>>",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "155",
+              "column": "11"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 75,
+            "function": "std::ptr::drop_in_place::<[()]>",
+            "status": "Success",
+            "description": "misaligned pointer to reference cast: address must be a multiple of its type's alignment",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "843",
+              "column": "24"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 76,
+            "function": "std::ptr::drop_in_place::<[()]>",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs",
+              "line": "843",
+              "column": "24"
+            },
+            "category": "safety_check"
+          },
+          {
+            "id": 77,
+            "function": "<std::ops::ControlFlow<usize> as std::ops::Try>::branch",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs",
+              "line": "116",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 78,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "93",
+              "column": "25"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 79,
+            "function": "kani::rustc_intrinsics::ptr_offset_from::<()>",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "library/kani_core/src/models.rs",
+              "line": "97",
+              "column": "21"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 80,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 81,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 82,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 83,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 84,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 85,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 86,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 87,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 88,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 89,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 90,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 91,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 92,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 93,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 94,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 95,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 96,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 97,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 98,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 99,
+            "function": "flash_draft_budget::PreDraftBudget::choose::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "19",
+              "column": "51"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 100,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "22",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 101,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "22",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 102,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "22",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 103,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "22",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 104,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "22",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 105,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "22",
+              "column": "12"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 106,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 107,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 108,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 109,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 110,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 111,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 112,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "23",
+              "column": "20"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 113,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 114,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 115,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 116,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 117,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 118,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 119,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 120,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "27"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 121,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 122,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 123,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 124,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 125,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 126,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 127,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 128,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "27",
+              "column": "59"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 129,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 130,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 131,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 132,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 133,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 134,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 135,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 136,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "30"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 137,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 138,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 139,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 140,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 141,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 142,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 143,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 144,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "28",
+              "column": "65"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 145,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::write",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "575",
+              "column": "9"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 146,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::write",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "575",
+              "column": "9"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 147,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::write",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "575",
+              "column": "9"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 148,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::write",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "575",
+              "column": "9"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 149,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::write",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "575",
+              "column": "9"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 150,
+            "function": "std::mem::MaybeUninit::<[u64; 2]>::write",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/maybe_uninit.rs",
+              "line": "575",
+              "column": "9"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 151,
+            "function": "core::num::<impl u64>::is_multiple_of",
+            "status": "Success",
+            "description": "division by zero",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs",
+              "line": "3875",
+              "column": "22"
+            },
+            "category": "division-by-zero"
+          },
+          {
+            "id": 152,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 153,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 154,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 155,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 156,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 157,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 158,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "46"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 159,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "46"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 160,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "46"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 161,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "46"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 162,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "46"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 163,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "972",
+              "column": "46"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 164,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "32"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 165,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "32"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 166,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "32"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 167,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "32"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 168,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "32"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 169,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "32"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 170,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 171,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 172,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 173,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 174,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 175,
+            "function": "std::array::Guard::<'_, [u64; 2]>::push_unchecked",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "973",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 176,
+            "function": "std::ptr::const_ptr::<impl *const T>::offset_from_unsigned::runtime_ptr_ge::runtime",
+            "status": "Success",
+            "description": "same object violation in this >= origin",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs",
+              "line": "716",
+              "column": "21"
+            },
+            "category": "pointer"
+          },
+          {
+            "id": 177,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 178,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 179,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 180,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 181,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 182,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 183,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 184,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 185,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 186,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 187,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 188,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "83",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 189,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 190,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 191,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 192,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 193,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 194,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 195,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 196,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 197,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 198,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 199,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 200,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "87",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 201,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 202,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 203,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 204,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 205,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 206,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 207,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 208,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 209,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 210,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 211,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 212,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "90",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 213,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 214,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 215,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 216,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 217,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 218,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 219,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 220,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 221,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 222,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 223,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 224,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "93",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 225,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "33"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 226,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "33"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 227,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "33"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 228,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "33"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 229,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "33"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 230,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "33"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 231,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 232,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 233,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 234,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 235,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 236,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 237,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 238,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 239,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 240,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 241,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 242,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "95",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 243,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 244,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 245,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 246,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 247,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 248,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 249,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 250,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 251,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 252,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 253,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 254,
+            "function": "<&mut std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::FnMut<(usize,)>>::call_mut",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "97",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 255,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "107",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 256,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "107",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 257,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "107",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 258,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "107",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 259,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "107",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 260,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "107",
+              "column": "17"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 261,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "114",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 262,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "114",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 263,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "114",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 264,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "114",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 265,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "114",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 266,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "114",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 267,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "121",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 268,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "121",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 269,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "121",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 270,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "121",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 271,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "121",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 272,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "121",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 273,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 274,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 275,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 276,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 277,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 278,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "21"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 279,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "58"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 280,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "58"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 281,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "58"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 282,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "58"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 283,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "58"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 284,
+            "function": "<std::array::drain::Drain<'_, '_, (), {closure@std::ops::try_trait::NeverShortCircuit<[u64; 2]>::wrap_mut_1<(), {closure@<[u64; 2] as kani::Arbitrary>::any_array<3>::{closure#0}}>::{closure#0}}> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/drain.rs",
+              "line": "123",
+              "column": "58"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 285,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 286,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 287,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 288,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 289,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 290,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1101",
+              "column": "23"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 291,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 292,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 293,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 294,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 295,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 296,
+            "function": "<std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs",
+              "line": "1103",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 297,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 298,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 299,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 300,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 301,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 302,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "50"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 303,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 304,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 305,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 306,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 307,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 308,
+            "function": "std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2192",
+              "column": "59"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 309,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 310,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 311,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 312,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 313,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 314,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "13"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 315,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 316,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 317,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 318,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 319,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 320,
+            "function": "<std::array::Guard<'_, [u64; 2]> as std::ops::Drop>::drop",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/mod.rs",
+              "line": "985",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 321,
+            "function": "<std::ops::Range<usize> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::find::check<usize, {closure@native/src/flash_draft_budget.rs:19:46: 19:50}>::{closure#0}}, std::ops::ControlFlow<usize>>",
+            "status": "Success",
+            "description": "unwinding assertion loop 0",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs",
+              "line": "2489",
+              "column": "9"
+            },
+            "category": "unwind"
+          },
+          {
+            "id": 322,
+            "function": "flash_draft_budget::PreDraftBudget::choose",
+            "status": "Success",
+            "description": "unwinding assertion loop 0",
+            "location": {
+              "file": "native/src/flash_draft_budget.rs",
+              "line": "26",
+              "column": "9"
+            },
+            "category": "unwind"
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "enabled": false
+  }
+}

@@ -415,6 +415,7 @@ def test_real_sampler_rejects_exhausted_budget_before_starting_child(
     tmp_path, monkeypatch, counter, delta
 ):
     import shutil
+    import subprocess
     import sys
     import threading
     from types import SimpleNamespace
@@ -461,6 +462,17 @@ def test_real_sampler_rejects_exhausted_budget_before_starting_child(
                 "vm_bytes": current.copy(),
                 "pmset -g batt": "Now drawing from 'AC Power'",
             }
+            if delta == "live":
+
+                def vm_stat(command, **kwargs):
+                    assert command == ["vm_stat"]
+                    assert kwargs == {"text": True, "timeout": 5}
+                    return "synthetic VM counters"
+
+                namespace["monitor"].__globals__["subprocess"] = SimpleNamespace(
+                    TimeoutExpired=subprocess.TimeoutExpired,
+                    check_output=vm_stat,
+                )
         if selected == (tmp_path / paths["parser"]).resolve() and delta == "live":
             namespace["parse_vm"] = lambda _: {"Swapins": 100, "Swapouts": 101}
         return namespace

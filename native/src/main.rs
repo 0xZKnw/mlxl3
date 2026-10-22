@@ -2214,7 +2214,17 @@ impl NativeStats {
             sum.verification_seconds += profile.verification_seconds;
             sum.commit_cache_seconds += profile.commit_cache_seconds;
             sum.verified_rows += profile.verified_rows;
+            sum.drafted_rows += profile.drafted_rows;
+            for (sum, value) in sum.drafted_widths.iter_mut().zip(profile.drafted_widths) {
+                *sum += value;
+            }
+            for (sum, value) in sum.verified_widths.iter_mut().zip(profile.verified_widths) {
+                *sum += value;
+            }
             sum.expert_demand_bytes += profile.expert_demand_bytes;
+            for (sum, value) in sum.ssd_prefetch.iter_mut().zip(profile.ssd_prefetch) {
+                *sum = sum.saturating_add(value);
+            }
         }
         self.memory = round.memory;
         if let Some(counts) = round.mtp_depth_blocks {
@@ -3566,7 +3576,11 @@ mod tests {
                 verification_seconds: 0.5,
                 commit_cache_seconds: 0.125,
                 verified_rows: 12,
+                drafted_rows: 16,
+                drafted_widths: [1, 2, 3, 4, 5, 6, 7, 8],
+                verified_widths: [1, 2, 3, 4, 5, 6, 7, 8],
                 expert_demand_bytes: 1_248_012,
+                ssd_prefetch: [1, 2, 3, 4, 5, 6, 7, 8],
             }),
             dflash_proposed_tokens: Some(10),
             dflash_accepted_tokens: Some(6),
@@ -3591,7 +3605,11 @@ mod tests {
                 verification_seconds: 1.,
                 commit_cache_seconds: 0.125,
                 verified_rows: 48,
+                drafted_rows: 64,
+                drafted_widths: [8, 7, 6, 5, 4, 3, 2, 1],
+                verified_widths: [8, 7, 6, 5, 4, 3, 2, 1],
                 expert_demand_bytes: 2_496_024,
+                ssd_prefetch: [8, 7, 6, 5, 4, 3, 2, 1],
             }),
             dflash_proposed_tokens: Some(40),
             dflash_accepted_tokens: Some(22),
@@ -3631,6 +3649,14 @@ mod tests {
         let encoded = serde_json::to_value(&first).unwrap();
         assert_eq!(encoded["dflash_profile"]["verified_rows"], 60);
         assert_eq!(encoded["dflash_profile"]["verification_seconds"], 1.5);
+        assert_eq!(profile.ssd_prefetch, [9; 8]);
+        assert_eq!(profile.drafted_rows, 80);
+        assert_eq!(profile.drafted_widths, [9; 8]);
+        assert_eq!(profile.verified_widths, [9; 8]);
+        assert_eq!(
+            encoded["dflash_profile"]["ssd_prefetch"],
+            serde_json::to_value([9; 8]).unwrap()
+        );
         assert_eq!(
             (
                 first.dflash_proposed_tokens,
