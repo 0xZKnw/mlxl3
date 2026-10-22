@@ -1,6 +1,7 @@
 # 68 — shared expert multi-token et garde swap
 
 Base publiée : f8c9202ed37015c7adf3d787e5471f654f064cea, PR34.
+Implémentation et preuves publiées : `2213550c6e302fb77ba6869a2af8d7620c87f816`.
 État : prototype expérimental, campagne terminée, qualité physique passée. Aucun nouveau
 gain de génération qualifié, aucune application installée ou publiée.
 
@@ -226,7 +227,11 @@ Les workflows PR/push existants couvrent déjà le script modifié, ses tests,
 Rust CPU et la compilation/lint MLX. Le parentf8c9202e a une régression verte
 et deux jobs native verts, mais pas une CI globale verte : Kani a été
 interrompu sur un signal d'arrêt, et FlashKani annulé à sa limite de temps.
-Les résultats du nouveau commit sont à inspecter après publication.
+Les runs du commit2213550c sont inspectés : Native39789496463 et
+Regression39789496476 sont encore en cours ou en attente, sans conclusion
+verte. Leur [photographie datée](measurements/flash-next-ssd-impl/opt-68-shared-expert/ci-2213550c-in-progress.json)
+ne préjuge pas du résultat final. Le complément documentaire de publication
+ne modifie aucune source ni aucun binaire mesuré.
 
 Preuves : [opt-68-shared-expert](measurements/flash-next-ssd-impl/opt-68-shared-expert).
 Le [résumé structuré](measurements/flash-next-ssd-impl/opt-68-shared-expert/summary.json)
