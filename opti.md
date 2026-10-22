@@ -14330,3 +14330,39 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 - **70M-Q bridge70 et validation70M clos** :43/43, profils PRECAP B2/B3/B4 réels, OFF/MTP/DFlash2/cache/annulation/reprise/erreurs exacts, enfant joint297,460s, pic7935564256B ; pré20/post30 secteur et0nouveauSwapout à ancre157155328. Deux bridges86contrôles,4testscomposant+4testsmodèle, génération512/136états, suite154passés/154ignorés, Kani228obligations/2covers/domaines et limites documentées. Pic génération maximal8134777504B : pas de réduction46% revendiquée en génération. Gain de chargement3,19Go validé et code retenu,159sources/deuxbinaires vérifiés, dépendanceMLX0.32.2 hashée. Aucun modèle/proveur/build actif. Publier maintenant dansPR34 selon demande ; app installée inchangée, options69/70 défaut0. 70S2 seulement préparé et non lancé, reprise après push confirmé.65Ppréexistant (dossier et testPython) reste exclu.
 
 - **70M préparation publication** : revue finale des fonctions modifiées/appelants/ordre Hot→réservation→fill→calcul et invariants pending terminée. Le calcul des mots EXL3 reste moduloPACKED_U32 à l'intérieur de la tuile ; pas de nouveaukernel. Diff whitespace échoue seulement sur troisJSONL de build (ligne vide terminale) ; originaux bruts préservés en .jsonl.raw.gz etSHA dans whitespace-normalization.json, seules les lignes vides finales normalisées. Aucun code/mesure numérique modifié. YAMLworkflow re-parsé avec triggerspush/PR et harnais70M vérifiés ; actionlint absent, aucune CI nouvelle annoncée avant push. Horsscope65Ppréservé, pas de compilation ou inférence active.
+
+- **70M publication confirmée** : commit82cbef7106fed5468f0209bc16e64ff25c62f451 poussé sansforce dansPR34, tête distante confirmée et description mise à jour. CI du SHAexact en cours : Native39818144205, Regression39818144137, aucune conclusion verte présumée. App inchangée ;65Pnoninclus. 70S2 origine fraîche enregistrée aprèspush et vérification159sources/deuxbinaires, même ancre157155328B/compresseur≤7Go. Démarrage du témoin B2-70-before selon le protocole préenregistré ; aucun nouveaucode/budget/cache/policy.
+
+- 45-Q/R processus B2-70-before-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/B2-70-before/run-result.json.
+
+- 45-Q/R processus B2-70-before-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/B2-70-before/run-result.json.
+
+- **70S2 B2-70-before clos** : MAIN11,470853/HOLD10,912513tok/s,4réponses128exactes (warm+mesure), pic7845943560B, deuxenfantsjoints42,693/43,258s ; pré20/post30 secteur/0nouveauSwapout ancre157155328. Le point ancien arrêté2,015s n'est pas recyclé ; cette nouvellebaseline valide la reprise du test. Aucune attribution de gainTPS à70M (pas de paire débit ancien/nouveau), politiqueauto distincte de l'écran69LRU. TémoinMTP1 frais à suivre.
+
+- 45-Q/R processus MTP-70-before-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/MTP-70-before/run-result.json.
+
+- 45-Q/R processus MTP-70-before-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/MTP-70-before/run-result.json.
+
+- **70S2 MTP-70-before clos** : MAIN11,219774/HOLD10,204433tok/s,4réponses128exactes, pic7887116840B, enfants joints/pré20/post30 secteur/0nouveauSwapout depuis157155328. Débits B2 avant11,470853/10,912513 restent des témoins uniques, pas une comparaison intermode qualifiée à ce stade. Écran PRECAP H/C à lancer maintenant ; garder les témoins après pour mesurer dérive et classement. CI82cbef71 vérifiée par IDs directs (liste filtrée a renvoyé[]), quatre jobs Native et Regression encore en cours, aucune CIverte annoncée.
+
+- 45-Q/R processus PRECAP-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/screen/run-result.json.
+
+- 45-Q/R processus PRECAP-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/screen/run-result.json.
+
+- 45-Q/R processus PRECAP-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/screen/run-result.json.
+
+- 45-Q/R processus PRECAP-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/screen/run-result.json.
+
+- 45-Q/R processus PRECAP-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/validation/run-result.json.
+
+- 45-Q/R processus PRECAP-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/validation/run-result.json.
+
+- **70S2 écran PRECAP favorable, confirmation en cours** : MAIN H10,969865/C11,375660tok/s (+3,699183%), HOLD H10,032978/C10,826402 (+7,908159%).8réponses128exactes,4enfantsjoints,0nouveauSwapout ; picsH7948065176/7945132464B etC7886264680/7885920640B. Selon préenregistrement, C-H supplémentaire lancé automatiquement pourHCCH ; pas encore de gain qualifié ni de témoinaprès. Source/binaireinchangés.
+- **CI82cbef71 diagnostic** : Linux/macOS etRegression réussissent, KaniFlash encore en cours. Kani global job119961950235 marquéfailure ; log REST réel récupéré (gh run --log refuse tant que workflow en cours, première réponseESC refusée conservée). Le runner reçoit explicitementshutdown17:01:01, opérationannulée17:01:02, pendant cache_allocation_is_optimal_and_exact_on_two_layers_two_levels ; obligations achevées avant interruption sanséchec, cette propriété et le jobglobal restent nonvalidés. Aucun timeout60min ni contre-exemple démontré ; ne pas réduire le domaine pour verdir. RawANSI conservécompressé et versionlisible, limitesvisibles. Relance ciblée à considérer après fin du workflow, sans changer le code mesuré pendantTPS.
+
+- 45-Q/R processus PRECAP-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/validation/run-result.json.
+
+- 45-Q/R processus PRECAP-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/PRECAP/validation/run-result.json.
+
+- **70S2 PRECAP HCCH clos / gain validé vsancienadaptatif** : MAIN H10,969865/C11,375660 puisC11,357701/H10,812826tok/s, gains+3,699183/+5,039156% ; HOLD H10,032978/C10,826402 puisC10,886474/H9,860747, gains+7,908159/+10,402117%. MoyennesC11,366681/10,856438tok/s, dériveH1,452339%/1,746631%, étenduegains1,339973/2,493958points, seuils préenregistrés satisfaits.16réponses128exactes, huitenfantsjoints, pic7950457240B(H), candidat≤7891507464B, pré20/post30 secteur/0nouveauSwapout ancre157155328. La mentionrequires_campaign_postflight du helper est satisfaite par le statut extérieurpassed_speed_and_postflight30s. Code/source159/CLI8bb inchangés ; gain validé à publier maintenant, défaut expérimental0 conservé. Ce gain est relatif àl'ancienadaptatif7, pas àB2fixe/MTP1 ; témoinsaprès encore nonmesurés,15nonatteints.
+- **CI relance ciblée refusée pendant workflow actif** : POST job119961950235/rerun retourne403 «workflow run already running» ; aucune relance effectuée, conserver diagnostic externe, ne pas boucler. Réexaminer après clôture du workflow. Aucun code mesuré changé.

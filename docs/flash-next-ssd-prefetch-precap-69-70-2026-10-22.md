@@ -276,3 +276,26 @@ est préenregistrée : B2/MTP avant, adaptatif H-C-C-H conditionnel sur MAIN/HOL
 B2/MTP après, mêmes3Gio/64Mio,128sorties, nouveaux témoins, aucune reprise
 silencieuse du point interrompu. Aucun15tok/s ni victoire sur MTP présumé.
 [Commandes, identités, résultats bruts et limites70M](measurements/flash-next-ssd-impl/opt-70-load-memory/).
+
+## 70S2 : préplafonnement validé contre l'ancien adaptatif
+
+Après publication de70M au commit82cbef71, nouveaux témoins et comparaison
+H-C-C-H, mêmes source/binaire/options hors préplafonnement :
+
+| Prompt | Ancien adaptatif H | PRECAP C | Gain par paire |
+| --- | --- | --- | --- |
+| MAIN | 10,969865 / 10,812826 | 11,375660 / 11,357701 | +3,699 % / +5,039 % |
+| HOLD | 10,032978 / 9,860747 | 10,826402 / 10,886474 | +7,908 % / +10,402 % |
+
+Unités tok/s ; moyennes C **11,366681 / 10,856438**. Les dérives H sont
+1,452 % / 1,747 %, les étendues de gains1,340 /2,494points : le critère
+HCCH préenregistré passe. Les16réponses128tokens (warmups compris) sont
+exactes, les huit enfants sont joints et le postflight30s conserve zéro
+nouveau swap-out. Pic C≤7891507464B, H≤7950457240B. Le gain concerne
+l'adaptatif qui calculait jusqu'à sept propositions avant de tronquer ;
+il ne démontre pas un gain face à B2 fixe.
+
+Témoins avant : B2fixe11,470853/10,912513 etMTP1 11,219774/10,204433tok/s.
+Les témoins après restent à terminer pour juger le classement entre modes.
+PRECAP demeure une option expérimentale désactivée ; aucun15tok/s annoncé.
+[Données et critères](measurements/flash-next-ssd-impl/opt-70-load-memory/speed70/precap-gain.json).
