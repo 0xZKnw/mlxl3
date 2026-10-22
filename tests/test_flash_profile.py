@@ -322,7 +322,7 @@ def test_summary_rejects_divergence_incomplete_nonfinite_and_memory_overrun(faul
 
 @pytest.mark.parametrize("fails", [False, True])
 def test_cumulative_guard_uses_campaign_vm_but_restores_per_case_snapshot(fails):
-    before = {"Swapins": 200, "Swapouts": 300, "other": 7}
+    before = {"Swapins": 200, "Swapouts": 30, "other": 7}
     record = {"before": {"vm_bytes": before}}
     baseline = {"Swapins": 20, "Swapouts": 30}
 
@@ -339,8 +339,24 @@ def test_cumulative_guard_uses_campaign_vm_but_restores_per_case_snapshot(fails)
             wrapped(None, record, None)
     else:
         assert wrapped(None, record, None) == 0
-    assert before == {"Swapins": 200, "Swapouts": 300, "other": 7}
+    assert before == {"Swapins": 200, "Swapouts": 30, "other": 7}
     assert record["live_guard_basis"]["Swapouts"] == 30
+
+
+@pytest.mark.parametrize("counter", [31, 29, True, None])
+def test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter(counter):
+    baseline = {"Swapins": 20, "Swapouts": 30}
+    before = {"Swapins": 200, "Swapouts": 30, "other": 7}
+    record = {"before": {"vm_bytes": before}}
+
+    def monitor(child, record, parse):
+        parse("one live sample")
+        pytest.fail("the invalid live sample escaped the guard")
+
+    wrapped = API["cumulative_monitor"](monitor, baseline)
+    with pytest.raises(AssertionError, match="live Swapouts"):
+        wrapped(None, record, lambda _: {"Swapins": 200, "Swapouts": counter})
+    assert before == {"Swapins": 200, "Swapouts": 30, "other": 7}
 
 
 @pytest.mark.parametrize(
@@ -379,15 +395,22 @@ def test_loader_intercepts_actual_monitor_without_mutating_global_runpy(tmp_path
         "def monitor(child,record,parse):return record['before']['vm_bytes'].copy()\n"
     )
     original = runpy.run_path
-    before = {"Swapins": 100, "Swapouts": 200}
+    before = {"Swapins": 100, "Swapouts": 20}
     r = {"before": {"vm_bytes": before}}
     out = api["run_sampler"](r, {"Swapins": 10, "Swapouts": 20})
-    assert out == {"Swapins": 10, "Swapouts": 20} and before == {"Swapins": 100, "Swapouts": 200}
+    assert out == {"Swapins": 10, "Swapouts": 20} and before == {"Swapins": 100, "Swapouts": 20}
     assert runpy.run_path is original and monitor.read_text().startswith("def monitor")
 
 
-@pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
-@pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+@pytest.mark.parametrize(
+    "counter,delta",
+    [
+        (counter, delta)
+        for counter in ("Swapins", "Swapouts")
+        for delta in (0, 1, 256 << 20, (256 << 20) + 1, -1, "missing", "bool")
+    ]
+    + [("Swapouts", "live")],
+)
 def test_real_sampler_rejects_exhausted_budget_before_starting_child(
     tmp_path, monkeypatch, counter, delta
 ):
@@ -417,7 +440,7 @@ def test_real_sampler_rejects_exhausted_budget_before_starting_child(
         del current[counter]
     elif delta == "bool":
         current[counter] = True
-    else:
+    elif delta != "live":
         current[counter] += delta
 
     class FastEvent(threading.Event):
@@ -438,6 +461,8 @@ def test_real_sampler_rejects_exhausted_budget_before_starting_child(
                 "vm_bytes": current.copy(),
                 "pmset -g batt": "Now drawing from 'AC Power'",
             }
+        if selected == (tmp_path / paths["parser"]).resolve() and delta == "live":
+            namespace["parse_vm"] = lambda _: {"Swapins": 100, "Swapouts": 101}
         return namespace
 
     glob = api["run_sampler"].__globals__
@@ -454,15 +479,20 @@ def test_real_sampler_rejects_exhausted_budget_before_starting_child(
                     "command": [
                         sys.executable,
                         "-c",
-                        "from pathlib import Path; Path('child-started').touch()",
+                        (
+                            "import time; from pathlib import Path; Path('child-started').touch(); "
+                            f"time.sleep({30 if delta == 'live' else 0})"
+                        ),
                     ],
                     "env": {},
                     "expected_exit": 0,
+                    "timeout_seconds": 5,
                 }
             ]
         )
     )
-    allowed = type(delta) is int and 0 <= delta <= 256 << 20
+    maximum = 0 if counter == "Swapouts" else 256 << 20
+    allowed = type(delta) is int and 0 <= delta <= maximum
     if allowed:
         api["run_sampler"](plan, baseline)
     else:
@@ -470,13 +500,19 @@ def test_real_sampler_rejects_exhausted_budget_before_starting_child(
             api["run_sampler"](plan, baseline)
     result = json.loads(plan.with_name("run-result.json").read_text())
     record = result["commands"][0]
-    assert record["reaped"] and marker.exists() == allowed
-    assert ("pid" in record) == allowed
+    assert record["reaped"] and marker.exists() == (allowed or delta == "live")
+    assert ("pid" in record) == (allowed or delta == "live")
     assert record["status"] == (
         "completed_expected_outcome" if allowed else "failed_or_interrupted"
     )
     assert record["before"]["vm_bytes"] == current
-    assert record["preflight_guard"]["status"] == ("passed" if allowed else "failed")
+    assert record["preflight_guard"]["status"] == (
+        "passed" if allowed or delta == "live" else "failed"
+    )
+    if delta == "live":
+        assert record["maximum_live_swapout_bytes"] == 1
+        assert record["last_live_vm_bytes"] == {"Swapins": 100, "Swapouts": 101}
+        assert "live Swapouts changed" in record["error"]
     assert json.loads(plan.with_name("system-samples.json").read_text())["sampler_joined"]
     assert runpy.run_path is original
 
@@ -493,7 +529,7 @@ def test_preflight_budget_boundaries_are_exact_for_large_counters():
                     before[counter] += delta
                     record = {"before": {"vm_bytes": before}}
                     original = copy.deepcopy(record)
-                    if 0 <= delta <= limit:
+                    if 0 <= delta <= (0 if counter == "Swapouts" else limit):
                         API["cumulative_preflight"](record, baseline, limit)
                         assert record["preflight_guard"]["status"] == "passed"
                     else:

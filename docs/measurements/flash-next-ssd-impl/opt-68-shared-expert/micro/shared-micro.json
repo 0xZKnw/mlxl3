@@ -1,0 +1,2172 @@
+{
+  "layers": [
+    0,
+    23,
+    47
+  ],
+  "meaning": "component wall time includes host construction, dispatch and evaluation; not exclusive GPU time or generation throughput",
+  "parity": "byte_exact",
+  "profile_meaning": "separate fenced completion wall intervals; inclusive parents overlap children, never add to native timings",
+  "profiles": [
+    {
+      "candidate": false,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 4025584,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 11625
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 437542,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 25792
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 940500,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 448959
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1271000,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 941375
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1658542,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1283084
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2049875,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1661000
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2312667,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 2065459
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2603000,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 2323584
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2808792,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 2603625
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3257000,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 2819875
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3657209,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3258625
+        }
+      ],
+      "layer": 0,
+      "rows": 2
+    },
+    {
+      "candidate": false,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 5100542,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 125
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 471542,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 13500
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1190750,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 483500
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1524667,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 1193084
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1940542,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1538000
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2323667,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1942000
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2773417,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 2334375
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3202792,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 2786209
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3526375,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 3203459
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3951292,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 3538250
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 4723209,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3952667
+        }
+      ],
+      "layer": 23,
+      "rows": 2
+    },
+    {
+      "candidate": false,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 4114500,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 125
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 456542,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 17625
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 901833,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 471792
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1263958,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 902667
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1690500,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1278167
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2058708,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1692583
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2359042,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 2072000
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2601917,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 2372625
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2960667,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 2602667
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3415333,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 2974708
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3798833,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3417042
+        }
+      ],
+      "layer": 47,
+      "rows": 2
+    },
+    {
+      "candidate": true,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 3684875,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 500
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 449583,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 29625
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 1628875,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 461583
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 2607166,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 1632083
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              2560
+            ]
+          },
+          "end_ns": 2962958,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 2619833
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3161291,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2965125
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3570125,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3163166
+        }
+      ],
+      "layer": 0,
+      "rows": 2
+    },
+    {
+      "candidate": true,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 2991209,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 1167
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 396584,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 82584
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 1219875,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 412750
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 1558750,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 1222042
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              2560
+            ]
+          },
+          "end_ns": 1976625,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1573959
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2315042,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1980375
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2663542,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2317250
+        }
+      ],
+      "layer": 23,
+      "rows": 2
+    },
+    {
+      "candidate": true,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 5994625,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 167
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 598000,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 14125
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 1004459,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 615084
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              640
+            ]
+          },
+          "end_ns": 1247292,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 1005834
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              2,
+              2560
+            ]
+          },
+          "end_ns": 1557209,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1261167
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3603834,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1560584
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 5744000,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3615167
+        }
+      ],
+      "layer": 47,
+      "rows": 2
+    },
+    {
+      "candidate": false,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 5050000,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 166
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 265958,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 12083
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 501666,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 277333
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 723125,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 502416
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 964541,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 732833
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1182666,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 966208
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1419750,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 1193916
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1659000,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 1429958
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1879333,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 1659750
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2116083,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1889625
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2334458,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2117416
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2575500,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 2345041
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2846916,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 2585750
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3068333,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 2847750
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3306291,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 3078625
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3657333,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3307500
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3874958,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 3668208
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 4139083,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 3885708
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 4372750,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 4139666
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 4610333,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 4383041
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 4834125,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 4611583
+        }
+      ],
+      "layer": 0,
+      "rows": 4
+    },
+    {
+      "candidate": false,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 5148042,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 84
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 242292,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 11292
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 486584,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 253125
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 716417,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 487375
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 996000,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 727292
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1255750,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 997667
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1473125,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 1268084
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1738709,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 1483709
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2088334,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 1739417
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2307584,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 2098875
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2545917,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2309542
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2791834,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 2556875
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3038125,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 2802292
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3263625,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 3038667
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3517125,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 3274250
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3740334,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3518542
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3974334,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 3751709
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 4213334,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 3984959
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 4438959,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 4213917
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 4670667,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 4449625
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 4914500,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 4671959
+        }
+      ],
+      "layer": 23,
+      "rows": 4
+    },
+    {
+      "candidate": false,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 5064375,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 42
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 165583,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 11417
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 414375,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 176167
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 636458,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 415000
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 873042,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 647250
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1098292,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 874458
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1339042,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 1109708
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1574542,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 1349458
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 1960708,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 1575292
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2127750,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1971625
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2399625,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2129375
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2554667,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 2410292
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 2802333,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 2565958
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3019167,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 2802958
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3259583,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 3029417
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 3496958,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 3260792
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3732792,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 3507958
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 3969250,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 3744583
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              640
+            ]
+          },
+          "end_ns": 4187667,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 3969833
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 4444667,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 4198250
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 4830125,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 4445917
+        }
+      ],
+      "layer": 47,
+      "rows": 4
+    },
+    {
+      "candidate": true,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 2192375,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 208
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 266791,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 10666
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 679041,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 280541
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 780000,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 679708
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              2560
+            ]
+          },
+          "end_ns": 1069583,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 790333
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1286500,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1071208
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1528708,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1287875
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1751875,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1529958
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1974041,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1752958
+        }
+      ],
+      "layer": 0,
+      "rows": 4
+    },
+    {
+      "candidate": true,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 3156000,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 84
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 257667,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 10709
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 895625,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 267500
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 1543167,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 896625
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              2560
+            ]
+          },
+          "end_ns": 1955709,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 1553875
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2181459,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1957500
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2404125,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2182834
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2819125,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2405417
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 2929250,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 2820417
+        }
+      ],
+      "layer": 23,
+      "rows": 4
+    },
+    {
+      "candidate": true,
+      "events": [
+        {
+          "data": null,
+          "end_ns": 2110000,
+          "name": "shared_expert_total",
+          "parent": null,
+          "start_ns": 83
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 271167,
+          "name": "shared_gate_projection",
+          "parent": 0,
+          "start_ns": 10417
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 526917,
+          "name": "shared_up_projection",
+          "parent": 0,
+          "start_ns": 281625
+        },
+        {
+          "data": {
+            "dtype": "Float16",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              640
+            ]
+          },
+          "end_ns": 746625,
+          "name": "shared_swiglu",
+          "parent": 0,
+          "start_ns": 527542
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              4,
+              2560
+            ]
+          },
+          "end_ns": 1001375,
+          "name": "shared_down_projection",
+          "parent": 0,
+          "start_ns": 756917
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1221167,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1003000
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1448042,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1222458
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1657708,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1449208
+        },
+        {
+          "data": {
+            "dtype": "Float32",
+            "kind": "completion_wall",
+            "shape": [
+              1,
+              2560
+            ]
+          },
+          "end_ns": 1876042,
+          "name": "shared_expert_completion",
+          "parent": 0,
+          "start_ns": 1658917
+        }
+      ],
+      "layer": 47,
+      "rows": 4
+    }
+  ],
+  "samples": [
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 0,
+      "rows": 2,
+      "seconds": 0.061672625
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 0,
+      "rows": 2,
+      "seconds": 0.066008583
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 1,
+      "rows": 2,
+      "seconds": 0.065494
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 1,
+      "rows": 2,
+      "seconds": 0.076426292
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 2,
+      "rows": 2,
+      "seconds": 0.049987042
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 2,
+      "rows": 2,
+      "seconds": 0.034501334
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 3,
+      "rows": 2,
+      "seconds": 0.028628792
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 3,
+      "rows": 2,
+      "seconds": 0.033005459
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 4,
+      "rows": 2,
+      "seconds": 0.033957541
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 4,
+      "rows": 2,
+      "seconds": 0.030874542
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 0,
+      "rows": 4,
+      "seconds": 0.0483555
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 0,
+      "rows": 4,
+      "seconds": 0.036219333
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 1,
+      "rows": 4,
+      "seconds": 0.036696708
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 1,
+      "rows": 4,
+      "seconds": 0.047490375
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 2,
+      "rows": 4,
+      "seconds": 0.046936417
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 2,
+      "rows": 4,
+      "seconds": 0.03615875
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 3,
+      "rows": 4,
+      "seconds": 0.035978667
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 3,
+      "rows": 4,
+      "seconds": 0.0483925
+    },
+    {
+      "calls": 96,
+      "candidate": false,
+      "pair": 4,
+      "rows": 4,
+      "seconds": 0.050404625
+    },
+    {
+      "calls": 96,
+      "candidate": true,
+      "pair": 4,
+      "rows": 4,
+      "seconds": 0.038912333
+    }
+  ],
+  "status": "complete",
+  "warmups_per_layer_variant": 8
+}

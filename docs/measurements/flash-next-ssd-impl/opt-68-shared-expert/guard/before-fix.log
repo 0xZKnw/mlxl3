@@ -1,0 +1,148 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[31] _____
+
+counter = 31
+
+    @pytest.mark.parametrize("counter", [31, 29, True, None])
+    def test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter(counter):
+        baseline = {"Swapins": 20, "Swapouts": 30}
+        before = {"Swapins": 200, "Swapouts": 30, "other": 7}
+        record = {"before": {"vm_bytes": before}}
+    
+        def monitor(child, record, parse):
+            parse("one live sample")
+            pytest.fail("the invalid live sample escaped the guard")
+    
+        wrapped = API["cumulative_monitor"](monitor, baseline)
+        with pytest.raises(AssertionError, match="live Swapouts"):
+>           wrapped(None, record, lambda _: {"Swapins": 200, "Swapouts": counter})
+
+tests/test_flash_profile.py:358: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/profile_flash.py:351: in guarded
+    return monitor(child, record, parse_vm)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+child = None
+record = {'before': {'vm_bytes': {'Swapins': 200, 'Swapouts': 30, 'other': 7}}, 'live_guard_basis': {'scope': 'cumulative_campaign', 'Swapins': 20, 'Swapouts': 30}}
+parse = <function test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter.<locals>.<lambda> at 0x10904a700>
+
+    def monitor(child, record, parse):
+        parse("one live sample")
+>       pytest.fail("the invalid live sample escaped the guard")
+E       Failed: the invalid live sample escaped the guard
+
+tests/test_flash_profile.py:354: Failed
+____ test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[29] _____
+
+counter = 29
+
+    @pytest.mark.parametrize("counter", [31, 29, True, None])
+    def test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter(counter):
+        baseline = {"Swapins": 20, "Swapouts": 30}
+        before = {"Swapins": 200, "Swapouts": 30, "other": 7}
+        record = {"before": {"vm_bytes": before}}
+    
+        def monitor(child, record, parse):
+            parse("one live sample")
+            pytest.fail("the invalid live sample escaped the guard")
+    
+        wrapped = API["cumulative_monitor"](monitor, baseline)
+        with pytest.raises(AssertionError, match="live Swapouts"):
+>           wrapped(None, record, lambda _: {"Swapins": 200, "Swapouts": counter})
+
+tests/test_flash_profile.py:358: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/profile_flash.py:351: in guarded
+    return monitor(child, record, parse_vm)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+child = None
+record = {'before': {'vm_bytes': {'Swapins': 200, 'Swapouts': 30, 'other': 7}}, 'live_guard_basis': {'scope': 'cumulative_campaign', 'Swapins': 20, 'Swapouts': 30}}
+parse = <function test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter.<locals>.<lambda> at 0x108209580>
+
+    def monitor(child, record, parse):
+        parse("one live sample")
+>       pytest.fail("the invalid live sample escaped the guard")
+E       Failed: the invalid live sample escaped the guard
+
+tests/test_flash_profile.py:354: Failed
+___ test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[True] ____
+
+counter = True
+
+    @pytest.mark.parametrize("counter", [31, 29, True, None])
+    def test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter(counter):
+        baseline = {"Swapins": 20, "Swapouts": 30}
+        before = {"Swapins": 200, "Swapouts": 30, "other": 7}
+        record = {"before": {"vm_bytes": before}}
+    
+        def monitor(child, record, parse):
+            parse("one live sample")
+            pytest.fail("the invalid live sample escaped the guard")
+    
+        wrapped = API["cumulative_monitor"](monitor, baseline)
+        with pytest.raises(AssertionError, match="live Swapouts"):
+>           wrapped(None, record, lambda _: {"Swapins": 200, "Swapouts": counter})
+
+tests/test_flash_profile.py:358: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/profile_flash.py:351: in guarded
+    return monitor(child, record, parse_vm)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+child = None
+record = {'before': {'vm_bytes': {'Swapins': 200, 'Swapouts': 30, 'other': 7}}, 'live_guard_basis': {'scope': 'cumulative_campaign', 'Swapins': 20, 'Swapouts': 30}}
+parse = <function test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter.<locals>.<lambda> at 0x10904a480>
+
+    def monitor(child, record, parse):
+        parse("one live sample")
+>       pytest.fail("the invalid live sample escaped the guard")
+E       Failed: the invalid live sample escaped the guard
+
+tests/test_flash_profile.py:354: Failed
+___ test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[None] ____
+
+counter = None
+
+    @pytest.mark.parametrize("counter", [31, 29, True, None])
+    def test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter(counter):
+        baseline = {"Swapins": 20, "Swapouts": 30}
+        before = {"Swapins": 200, "Swapouts": 30, "other": 7}
+        record = {"before": {"vm_bytes": before}}
+    
+        def monitor(child, record, parse):
+            parse("one live sample")
+            pytest.fail("the invalid live sample escaped the guard")
+    
+        wrapped = API["cumulative_monitor"](monitor, baseline)
+        with pytest.raises(AssertionError, match="live Swapouts"):
+>           wrapped(None, record, lambda _: {"Swapins": 200, "Swapouts": counter})
+
+tests/test_flash_profile.py:358: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/profile_flash.py:351: in guarded
+    return monitor(child, record, parse_vm)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+child = None
+record = {'before': {'vm_bytes': {'Swapins': 200, 'Swapouts': 30, 'other': 7}}, 'live_guard_basis': {'scope': 'cumulative_campaign', 'Swapins': 20, 'Swapouts': 30}}
+parse = <function test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter.<locals>.<lambda> at 0x1090dcd60>
+
+    def monitor(child, record, parse):
+        parse("one live sample")
+>       pytest.fail("the invalid live sample escaped the guard")
+E       Failed: the invalid live sample escaped the guard
+
+tests/test_flash_profile.py:354: Failed
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile.py::test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[31]
+FAILED tests/test_flash_profile.py::test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[29]
+FAILED tests/test_flash_profile.py::test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[True]
+FAILED tests/test_flash_profile.py::test_cumulative_guard_rejects_any_live_swapout_or_invalid_counter[None]
+4 failed, 78 deselected in 0.06s

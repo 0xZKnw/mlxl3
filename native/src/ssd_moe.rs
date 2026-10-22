@@ -50,6 +50,7 @@ pub struct SsdMoe {
     unique_cohorts: bool,
     shared_exl3: bool,
     stable_expert_kernels: bool,
+    shared_batch: bool,
     #[cfg(test)]
     cohort_sizes: Vec<usize>,
     #[cfg(test)]
@@ -127,6 +128,9 @@ impl SsdMoe {
             "0",
         )?)
         .context("MLXL3_SSD_STABLE_EXPERT_KERNELS must be 0 or 1")?;
+        let shared_batch =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
+                .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
         let readers = std::env::var("MLXL3_SSD_READERS")
             .unwrap_or_else(|_| "4".into())
             .parse::<usize>()
@@ -228,6 +232,7 @@ impl SsdMoe {
             unique_cohorts,
             shared_exl3,
             stable_expert_kernels,
+            shared_batch,
             #[cfg(test)]
             cohort_sizes: Vec::new(),
             #[cfg(test)]
@@ -990,30 +995,7 @@ impl SsdMoe {
             .sum(1, false)?;
         #[cfg(test)]
         crate::flash_profile::stage("routed_reduction_completion", &routed)?;
-        let mut shared_rows = Vec::new();
-        for row in 0..rows {
-            let x = x.slice(0, row, row + 1)?;
-            let gate = self.shared_gate.forward(&x)?.astype(Dtype::Float16)?;
-            #[cfg(test)]
-            crate::flash_profile::stage("shared_gate_projection", &gate)?;
-            let up = self.shared_up.forward(&x)?.astype(Dtype::Float16)?;
-            #[cfg(test)]
-            crate::flash_profile::stage("shared_up_projection", &up)?;
-            let activated = gate.swiglu(&up)?;
-            #[cfg(test)]
-            crate::flash_profile::stage("shared_swiglu", &activated)?;
-            let shared = self.shared_down.forward(&activated)?.astype(x.dtype())?;
-            #[cfg(test)]
-            crate::flash_profile::stage("shared_down_projection", &shared)?;
-            let shared = shared.mul(&self.multiplier.forward(&x)?.sigmoid()?)?;
-            #[cfg(test)]
-            crate::flash_profile::stage("shared_expert_completion", &shared)?;
-            shared_rows.push(shared);
-        }
-        let output = routed.add(&Array::concatenate(
-            &shared_rows.iter().collect::<Vec<_>>(),
-            0,
-        )?)?;
+        let output = routed.add(&self.shared(x)?)?;
         #[cfg(test)]
         crate::flash_profile::stage("moe_add_completion", &output)?;
         self.last = Some(output.try_clone()?);
@@ -1037,6 +1019,54 @@ impl SsdMoe {
             next.prefetch(&ids, depth)?;
         }
         Ok(output)
+    }
+
+    fn shared_projection(&self, x: &Array) -> Result<Array> {
+        let gate = self.shared_gate.forward(x)?.astype(Dtype::Float16)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("shared_gate_projection", &gate)?;
+        let up = self.shared_up.forward(x)?.astype(Dtype::Float16)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("shared_up_projection", &up)?;
+        let activated = gate.swiglu(&up)?;
+        #[cfg(test)]
+        crate::flash_profile::stage("shared_swiglu", &activated)?;
+        let shared = self.shared_down.forward(&activated)?.astype(x.dtype())?;
+        #[cfg(test)]
+        crate::flash_profile::stage("shared_down_projection", &shared)?;
+        Ok(shared)
+    }
+
+    fn shared(&self, x: &Array) -> Result<Array> {
+        ensure!(
+            x.shape().len() == 2
+                && (1..=8).contains(&x.shape()[0])
+                && x.shape()[1] == H
+                && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
+            "invalid shared expert shape or dtype"
+        );
+        let rows = x.shape()[0];
+        let batched = (self.shared_batch
+            && rows > 1
+            && self.shared_gate.is_exl3()
+            && self.shared_up.is_exl3()
+            && self.shared_down.is_exl3())
+        .then(|| self.shared_projection(x))
+        .transpose()?;
+        let mut output = Vec::new();
+        for row in 0..rows {
+            let x = x.slice(0, row, row + 1)?;
+            let shared = match &batched {
+                Some(values) => values.slice(0, row, row + 1)?,
+                None => self.shared_projection(&x)?,
+            };
+            // Keep the dense scalar GEMV's single-row reduction order.
+            let shared = shared.mul(&self.multiplier.forward(&x)?.sigmoid()?)?;
+            #[cfg(test)]
+            crate::flash_profile::stage("shared_expert_completion", &shared)?;
+            output.push(shared);
+        }
+        Array::concatenate(&output.iter().collect::<Vec<_>>(), 0)
     }
 
     fn prefetch(&mut self, ids: &[u32], budget: usize) -> Result<()> {
@@ -1135,6 +1165,10 @@ impl SsdMoe {
 #[cfg(test)]
 #[path = "ssd_moe/hybrid_tests.rs"]
 mod hybrid_tests;
+
+#[cfg(test)]
+#[path = "ssd_moe/shared_tests.rs"]
+mod shared_tests;
 
 #[cfg(test)]
 mod tests {

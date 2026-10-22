@@ -345,10 +345,24 @@ def cumulative_monitor(monitor, baseline):
         before = record["before"]["vm_bytes"]
         saved = {key: before[key] for key in baseline}
         assert all(baseline[key] <= saved[key] for key in baseline), "future VM baseline"
+        assert saved["Swapouts"] == baseline["Swapouts"], "campaign Swapouts before monitor"
         record["live_guard_basis"] = {"scope": "cumulative_campaign", **baseline}
         before.update(baseline)
+
+        def zero_swapout(text):
+            current = parse_vm(text)
+            record["last_live_vm_bytes"] = current.copy()
+            value = current["Swapouts"]
+            assert type(value) is int and value >= 0, "invalid live Swapouts counter"
+            delta = value - baseline["Swapouts"]
+            record["maximum_live_swapout_bytes"] = max(
+                record.get("maximum_live_swapout_bytes", 0), delta
+            )
+            assert delta == 0, "live Swapouts changed"
+            return current
+
         try:
-            return monitor(child, record, parse_vm)
+            return monitor(child, record, zero_swapout)
         finally:
             before.update(saved)
 
@@ -364,6 +378,7 @@ def cumulative_preflight(record, baseline, limit):
         "scope": "cumulative_campaign",
         "baseline": baseline.copy(),
         "limit_bytes": limit,
+        "swapout_limit_bytes": 0,
         "deltas": {},
     }
     record["preflight_guard"] = guard
@@ -372,7 +387,8 @@ def cumulative_preflight(record, baseline, limit):
         assert type(current) is int and current >= 0, "invalid VM counter before launch"
         delta = current - start
         guard["deltas"][key] = delta
-        assert 0 <= delta <= limit, f"campaign {key} limit exceeded before launch"
+        maximum = 0 if key == "Swapouts" else limit
+        assert 0 <= delta <= maximum, f"campaign {key} limit exceeded before launch"
     guard["status"] = "passed"
 
 

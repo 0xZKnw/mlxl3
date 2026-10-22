@@ -1,0 +1,783 @@
+{
+  "status": "completed_no_qualified_throughput_gain",
+  "base": "f8c9202ed37015c7adf3d787e5471f654f064cea",
+  "source_files": 155,
+  "artifacts": [
+    {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-68/v1/mlxl3-rs",
+      "sha256": "8607d08ef5fab6163c43defabf3e127cefd527e002599605a3cb27841ca3f005"
+    },
+    {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-68/v1/mlxl3_native",
+      "sha256": "10ddc2da0be16ba9554add152c2c189c5da8fa885faa4ad1d2c33ac2203ffc7a"
+    }
+  ],
+  "all_sources_and_artifacts_rechecked": true,
+  "shared_batch_default": 0,
+  "phases": [
+    {
+      "mode": "OFF",
+      "status": "passed_speed_and_postflight30s",
+      "gain_percent": {
+        "MAIN": 3.8691353064184586,
+        "HOLD": -11.184784536791337
+      },
+      "qualification": {
+        "status": "screen_below_threshold_not_a_confirmed_regression",
+        "confirmed_gain": false,
+        "validation_launched": false
+      },
+      "evidence": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/OFF/campaign-result.json",
+      "sha256": "dbd5b5a88dbb61e4b89bfa950a528ee4dc596fada3054ee902565b2b6b64e314"
+    },
+    {
+      "mode": "MTP",
+      "status": "passed_speed_and_postflight30s",
+      "gain_percent": {
+        "MAIN": 0.24754241465212434,
+        "HOLD": 0.9092659786174018
+      },
+      "qualification": {
+        "status": "screen_below_threshold_not_a_confirmed_regression",
+        "confirmed_gain": false,
+        "validation_launched": false
+      },
+      "evidence": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/MTP/campaign-result.json",
+      "sha256": "d2cc442806e0e96abdca52941c65da309096d7a1b6a75b29858427525cff935a"
+    },
+    {
+      "mode": "B2",
+      "status": "passed_speed_and_postflight30s",
+      "gain_percent": {
+        "MAIN": -0.1268422590074425,
+        "HOLD": -0.04814127157898307
+      },
+      "qualification": {
+        "status": "screen_below_threshold_not_a_confirmed_regression",
+        "confirmed_gain": false,
+        "validation_launched": false
+      },
+      "evidence": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/B2/campaign-result.json",
+      "sha256": "738d6ef35bb794339c1902b078e9ed522f4e10b2b3eff4204a43e6d301f31b47"
+    },
+    {
+      "mode": "ADAPT",
+      "status": "passed_speed_and_postflight30s",
+      "gain_percent": {
+        "MAIN": -1.8284919571469271,
+        "HOLD": -1.2065776609075263
+      },
+      "qualification": {
+        "status": "screen_below_threshold_not_a_confirmed_regression",
+        "confirmed_gain": false,
+        "validation_launched": false
+      },
+      "evidence": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/ADAPT/campaign-result.json",
+      "sha256": "afc09863f2780051a00c7fc859fb14bcf08a313961e357fa3f598999334016da"
+    }
+  ],
+  "rows": [
+    {
+      "name": "OFF-MAIN-0-H",
+      "mode": "OFF",
+      "prompt": "MAIN",
+      "index": 0,
+      "variant": "H",
+      "tps": 9.693746250216606,
+      "seconds": 13.101230084,
+      "peak_bytes": 7143708576,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/OFF/screen/OFF-MAIN-0-H/report.json",
+      "report_sha256": "7e1922cf5e7a4db96bfd834d076eceb6a4a95e5ef43fc9a3475ca55949c673f2",
+      "memory": {
+        "mlx_active_bytes": 6579498624,
+        "mlx_cache_bytes": 54563698,
+        "mlx_peak_bytes": 6593081408,
+        "process_footprint_bytes": 7143675808,
+        "process_lifetime_peak_bytes": 7143708576
+      }
+    },
+    {
+      "name": "OFF-MAIN-1-C",
+      "mode": "OFF",
+      "prompt": "MAIN",
+      "index": 1,
+      "variant": "C",
+      "tps": 10.068810408898353,
+      "seconds": 12.613208000000002,
+      "peak_bytes": 7137253304,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/OFF/screen/OFF-MAIN-1-C/report.json",
+      "report_sha256": "a6f657a7da54f6e0937dcaa23f8a99c92eda2061450ae778c47507d40bf4e05a",
+      "memory": {
+        "mlx_active_bytes": 6579498624,
+        "mlx_cache_bytes": 49318770,
+        "mlx_peak_bytes": 6592628128,
+        "process_footprint_bytes": 7137236920,
+        "process_lifetime_peak_bytes": 7137253304
+      }
+    },
+    {
+      "name": "OFF-HOLD-0-H",
+      "mode": "OFF",
+      "prompt": "HOLD",
+      "index": 0,
+      "variant": "H",
+      "tps": 9.93070864386406,
+      "seconds": 12.788614041,
+      "peak_bytes": 7144216600,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/OFF/screen/OFF-HOLD-0-H/report.json",
+      "report_sha256": "c5757811852d35e66a8507288818f3b6d1d03f5a8eee2127473ab2966a0d0f06",
+      "memory": {
+        "mlx_active_bytes": 6579355264,
+        "mlx_cache_bytes": 57488324,
+        "mlx_peak_bytes": 6595846996,
+        "process_footprint_bytes": 7144151064,
+        "process_lifetime_peak_bytes": 7144216600
+      }
+    },
+    {
+      "name": "OFF-HOLD-1-C",
+      "mode": "OFF",
+      "prompt": "HOLD",
+      "index": 1,
+      "variant": "C",
+      "tps": 8.819980279071352,
+      "seconds": 14.399125166,
+      "peak_bytes": 7135991760,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/OFF/screen/OFF-HOLD-1-C/report.json",
+      "report_sha256": "b6216753d83885544369f3423632540a40de86482255a112733c06abd6a36141",
+      "memory": {
+        "mlx_active_bytes": 6579355264,
+        "mlx_cache_bytes": 49034178,
+        "mlx_peak_bytes": 6592233888,
+        "process_footprint_bytes": 7135975376,
+        "process_lifetime_peak_bytes": 7135991760
+      }
+    },
+    {
+      "name": "MTP-MAIN-0-H",
+      "mode": "MTP",
+      "prompt": "MAIN",
+      "index": 0,
+      "variant": "H",
+      "tps": 11.096802255464377,
+      "seconds": 11.444738500000001,
+      "peak_bytes": 8203146544,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/MTP/screen/MTP-MAIN-0-H/report.json",
+      "report_sha256": "53cb08a1cb377a65e0658eaf259c72f2d943a3120d756c90c5be4c8ddfd95009",
+      "memory": {
+        "mlx_active_bytes": 7294077152,
+        "mlx_cache_bytes": 199446716,
+        "mlx_peak_bytes": 7438605912,
+        "process_footprint_bytes": 7931533912,
+        "process_lifetime_peak_bytes": 8203146544
+      }
+    },
+    {
+      "name": "MTP-MAIN-1-C",
+      "mode": "MTP",
+      "prompt": "MAIN",
+      "index": 1,
+      "variant": "C",
+      "tps": 11.124271547716724,
+      "seconds": 11.416477875000002,
+      "peak_bytes": 7928650256,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/MTP/screen/MTP-MAIN-1-C/report.json",
+      "report_sha256": "bd8b25589ef455b3e7e3e88432572fb71b64c629846d399b18099781f1c0be35",
+      "memory": {
+        "mlx_active_bytes": 7294077152,
+        "mlx_cache_bytes": 199127228,
+        "mlx_peak_bytes": 7438764376,
+        "process_footprint_bytes": 7928633872,
+        "process_lifetime_peak_bytes": 7928650256
+      }
+    },
+    {
+      "name": "MTP-HOLD-0-H",
+      "mode": "MTP",
+      "prompt": "HOLD",
+      "index": 0,
+      "variant": "H",
+      "tps": 10.031993799228108,
+      "seconds": 12.659497458,
+      "peak_bytes": 7927945816,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/MTP/screen/MTP-HOLD-0-H/report.json",
+      "report_sha256": "5aab8ae1201d1786e3117e1b36b2f6f2f187d2e5bae5c7d4e7e5e990ad847543",
+      "memory": {
+        "mlx_active_bytes": 7293919200,
+        "mlx_cache_bytes": 196942172,
+        "mlx_peak_bytes": 7439021112,
+        "process_footprint_bytes": 7927929432,
+        "process_lifetime_peak_bytes": 7927945816
+      }
+    },
+    {
+      "name": "MTP-HOLD-1-C",
+      "mode": "MTP",
+      "prompt": "HOLD",
+      "index": 1,
+      "variant": "C",
+      "tps": 10.123211305821496,
+      "seconds": 12.545426165999999,
+      "peak_bytes": 7927978560,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/MTP/screen/MTP-HOLD-1-C/report.json",
+      "report_sha256": "26ac81f3fafe7054a985c0e2a3f5a8424678f9b81b79512d730a47d62705dadc",
+      "memory": {
+        "mlx_active_bytes": 7293919200,
+        "mlx_cache_bytes": 196909916,
+        "mlx_peak_bytes": 7438914616,
+        "process_footprint_bytes": 7927962176,
+        "process_lifetime_peak_bytes": 7927978560
+      }
+    },
+    {
+      "name": "B2-MAIN-0-H",
+      "mode": "B2",
+      "prompt": "MAIN",
+      "index": 0,
+      "variant": "H",
+      "tps": 11.205301860959999,
+      "seconds": 11.333920458,
+      "peak_bytes": 8202639864,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/B2/screen/B2-MAIN-0-H/report.json",
+      "report_sha256": "f54dda6a5e4885e0b90c7bb9d59cc3dbb744e7f825003976b12b618163678cb7",
+      "memory": {
+        "mlx_active_bytes": 7144353920,
+        "mlx_cache_bytes": 201983242,
+        "mlx_peak_bytes": 7288644932,
+        "process_footprint_bytes": 7867717992,
+        "process_lifetime_peak_bytes": 8202639864
+      },
+      "accepted": 58,
+      "proposed": 69,
+      "blocks": 69,
+      "profile": {
+        "commit_cache_seconds": 0.18951837900000001,
+        "draft_seconds": 0.535416956,
+        "expert_demand_bytes": 23930630100,
+        "verification_seconds": 10.607002790999998,
+        "verified_rows": 138
+      },
+      "verify_ms_per_block_emission": 83.51970701574801,
+      "verify_ms_per_line": 76.86233906521737,
+      "expert_demand_bytes_per_decoded_token": 188430158.26771653
+    },
+    {
+      "name": "B2-MAIN-1-C",
+      "mode": "B2",
+      "prompt": "MAIN",
+      "index": 1,
+      "variant": "C",
+      "tps": 11.191088802950954,
+      "seconds": 11.348314917000002,
+      "peak_bytes": 8202902032,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/B2/screen/B2-MAIN-1-C/report.json",
+      "report_sha256": "16bda1b06f5bbd9241703d47f84771faa352167a010e84f5e8cd2d38ee251ea9",
+      "memory": {
+        "mlx_active_bytes": 7144355456,
+        "mlx_cache_bytes": 202325786,
+        "mlx_peak_bytes": 7288545648,
+        "process_footprint_bytes": 7868389760,
+        "process_lifetime_peak_bytes": 8202902032
+      },
+      "accepted": 58,
+      "proposed": 69,
+      "blocks": 69,
+      "profile": {
+        "commit_cache_seconds": 0.19213745700000004,
+        "draft_seconds": 0.5125513359999999,
+        "expert_demand_bytes": 23930630100,
+        "verification_seconds": 10.641984169000002,
+        "verified_rows": 138
+      },
+      "verify_ms_per_block_emission": 83.7951509370079,
+      "verify_ms_per_line": 77.11582731159423,
+      "expert_demand_bytes_per_decoded_token": 188430158.26771653
+    },
+    {
+      "name": "B2-HOLD-0-H",
+      "mode": "B2",
+      "prompt": "HOLD",
+      "index": 0,
+      "variant": "H",
+      "tps": 10.017284086987896,
+      "seconds": 12.678087084000001,
+      "peak_bytes": 8201296352,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/B2/screen/B2-HOLD-0-H/report.json",
+      "report_sha256": "33244f707a8ef21e1bfaa15997516aa589825f37430b22054f2e90852e473ffa",
+      "memory": {
+        "mlx_active_bytes": 7144217216,
+        "mlx_cache_bytes": 201137882,
+        "mlx_peak_bytes": 7289609552,
+        "process_footprint_bytes": 7867619664,
+        "process_lifetime_peak_bytes": 8201296352
+      },
+      "accepted": 56,
+      "proposed": 70,
+      "blocks": 70,
+      "profile": {
+        "commit_cache_seconds": 0.21400908400000002,
+        "draft_seconds": 0.5773016250000003,
+        "expert_demand_bytes": 25474420944,
+        "verification_seconds": 11.784688877,
+        "verified_rows": 140
+      },
+      "verify_ms_per_block_emission": 93.5292768015873,
+      "verify_ms_per_line": 84.17634912142857,
+      "expert_demand_bytes_per_decoded_token": 200585991.68503937
+    },
+    {
+      "name": "B2-HOLD-1-C",
+      "mode": "B2",
+      "prompt": "HOLD",
+      "index": 1,
+      "variant": "C",
+      "tps": 10.012461639050741,
+      "seconds": 12.684193416000001,
+      "peak_bytes": 8199723560,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/B2/screen/B2-HOLD-1-C/report.json",
+      "report_sha256": "7d9c268d71fc2877f6f1d2c560e24791af9afb95d18a3e982165a56a85c9e8ca",
+      "memory": {
+        "mlx_active_bytes": 7144217216,
+        "mlx_cache_bytes": 200974138,
+        "mlx_peak_bytes": 7289519168,
+        "process_footprint_bytes": 7865702808,
+        "process_lifetime_peak_bytes": 8199723560
+      },
+      "accepted": 56,
+      "proposed": 70,
+      "blocks": 70,
+      "profile": {
+        "commit_cache_seconds": 0.21466712100000013,
+        "draft_seconds": 0.5789818780000002,
+        "expert_demand_bytes": 25474420944,
+        "verification_seconds": 11.781844217,
+        "verified_rows": 140
+      },
+      "verify_ms_per_block_emission": 93.50670013492064,
+      "verify_ms_per_line": 84.15603012142857,
+      "expert_demand_bytes_per_decoded_token": 200585991.68503937
+    },
+    {
+      "name": "ADAPT-MAIN-0-H",
+      "mode": "ADAPT",
+      "prompt": "MAIN",
+      "index": 0,
+      "variant": "H",
+      "tps": 10.174639270983091,
+      "seconds": 12.482014999999999,
+      "peak_bytes": 8252840584,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/ADAPT/screen/ADAPT-MAIN-0-H/report.json",
+      "report_sha256": "242dd6888061a99cbf8fc7d40e0c21514366cec73b5a0070058dcba6577de7ee",
+      "memory": {
+        "mlx_active_bytes": 7144438400,
+        "mlx_cache_bytes": 424996546,
+        "mlx_peak_bytes": 7383032160,
+        "process_footprint_bytes": 8104712744,
+        "process_lifetime_peak_bytes": 8252840584
+      },
+      "accepted": 78,
+      "proposed": 90,
+      "blocks": 49,
+      "profile": {
+        "commit_cache_seconds": 0.146437998,
+        "draft_seconds": 1.2093779129999997,
+        "expert_demand_bytes": 23166846756,
+        "verification_seconds": 11.124286126999998,
+        "verified_rows": 139
+      },
+      "verify_ms_per_block_emission": 87.59280414960628,
+      "verify_ms_per_line": 80.03083544604314,
+      "expert_demand_bytes_per_decoded_token": 182416116.18897638
+    },
+    {
+      "name": "ADAPT-MAIN-1-C",
+      "mode": "ADAPT",
+      "prompt": "MAIN",
+      "index": 1,
+      "variant": "C",
+      "tps": 9.988596810244452,
+      "seconds": 12.714498584,
+      "peak_bytes": 8253823624,
+      "swapouts_bytes": 0,
+      "token_hash": "f6b5f974c6db2e7a",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/ADAPT/screen/ADAPT-MAIN-1-C/report.json",
+      "report_sha256": "20ed7cd7d1154c11b4ff1aa8fbb2d55aa4ff8ec47f471db9173c56d5b512b69d",
+      "memory": {
+        "mlx_active_bytes": 7144402560,
+        "mlx_cache_bytes": 423711210,
+        "mlx_peak_bytes": 7383359252,
+        "process_footprint_bytes": 8101435968,
+        "process_lifetime_peak_bytes": 8253823624
+      },
+      "accepted": 78,
+      "proposed": 90,
+      "blocks": 49,
+      "profile": {
+        "commit_cache_seconds": 0.15440908099999998,
+        "draft_seconds": 1.3108406719999999,
+        "expert_demand_bytes": 23034557484,
+        "verification_seconds": 11.247087747000002,
+        "verified_rows": 139
+      },
+      "verify_ms_per_block_emission": 88.55974603937008,
+      "verify_ms_per_line": 80.91430033812951,
+      "expert_demand_bytes_per_decoded_token": 181374468.37795275
+    },
+    {
+      "name": "ADAPT-HOLD-0-H",
+      "mode": "ADAPT",
+      "prompt": "HOLD",
+      "index": 0,
+      "variant": "H",
+      "tps": 9.350320009335089,
+      "seconds": 13.582422833999999,
+      "peak_bytes": 8254282400,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/ADAPT/screen/ADAPT-HOLD-0-H/report.json",
+      "report_sha256": "6a73d486fff20d1fd078a7669a957609c405200f0368a6c450ae896641f72ecd",
+      "memory": {
+        "mlx_active_bytes": 7144227456,
+        "mlx_cache_bytes": 417676022,
+        "mlx_peak_bytes": 7379072608,
+        "process_footprint_bytes": 8097028672,
+        "process_lifetime_peak_bytes": 8254282400
+      },
+      "accepted": 71,
+      "proposed": 86,
+      "blocks": 55,
+      "profile": {
+        "commit_cache_seconds": 0.17209525199999998,
+        "draft_seconds": 1.462909289,
+        "expert_demand_bytes": 24852910968,
+        "verification_seconds": 11.838105538999999,
+        "verified_rows": 141
+      },
+      "verify_ms_per_block_emission": 93.95321856349204,
+      "verify_ms_per_line": 83.95819531205673,
+      "expert_demand_bytes_per_decoded_token": 195692212.3464567
+    },
+    {
+      "name": "ADAPT-HOLD-1-C",
+      "mode": "ADAPT",
+      "prompt": "HOLD",
+      "index": 1,
+      "variant": "C",
+      "tps": 9.237501136879086,
+      "seconds": 13.748306833,
+      "peak_bytes": 8254347816,
+      "swapouts_bytes": 0,
+      "token_hash": "9d02c1a97e015196",
+      "report": "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/ADAPT/screen/ADAPT-HOLD-1-C/report.json",
+      "report_sha256": "4ae89b20e5f8e7099fb7b0516d9e4202b59044cfd284ccb76c2be65cc3b7d73b",
+      "memory": {
+        "mlx_active_bytes": 7144249984,
+        "mlx_cache_bytes": 420340282,
+        "mlx_peak_bytes": 7378352480,
+        "process_footprint_bytes": 8100665848,
+        "process_lifetime_peak_bytes": 8254347816
+      },
+      "accepted": 72,
+      "proposed": 87,
+      "blocks": 54,
+      "profile": {
+        "commit_cache_seconds": 0.16126841900000002,
+        "draft_seconds": 1.4336230400000005,
+        "expert_demand_bytes": 24931535724,
+        "verification_seconds": 12.041414000000001,
+        "verified_rows": 141
+      },
+      "verify_ms_per_block_emission": 95.56677777777779,
+      "verify_ms_per_line": 85.40009929078015,
+      "expert_demand_bytes_per_decoded_token": 196311304.91338584
+    }
+  ],
+  "speed_processes": 16,
+  "responses_including_warmups": 32,
+  "speed_peak_physical_bytes": 8254347816,
+  "quality_peak_physical_bytes": 8301517520,
+  "new_swapout_bytes": 0,
+  "quality": {
+    "quality-component": {
+      "status": "passed_quality_and_postflight30s",
+      "parity": true,
+      "phase": "quality-component",
+      "identity": "identity-v1.json",
+      "original_vm_baseline": {
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "power": "Now drawing from 'AC Power'",
+      "prior_67_swapout_bytes": 397737984,
+      "new_boot": true,
+      "peak_physical_bytes": 625656792
+    },
+    "quality-native": {
+      "status": "passed_quality_and_postflight30s",
+      "parity": true,
+      "phase": "quality-native",
+      "identity": "identity-v1.json",
+      "original_vm_baseline": {
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "power": "Now drawing from 'AC Power'",
+      "prior_67_swapout_bytes": 397737984,
+      "new_boot": true,
+      "peak_physical_bytes": 8160647984
+    },
+    "quality-bridge": {
+      "status": "passed_quality_and_postflight30s",
+      "parity": true,
+      "phase": "quality-bridge",
+      "identity": "identity-v1.json",
+      "original_vm_baseline": {
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "power": "Now drawing from 'AC Power'",
+      "prior_67_swapout_bytes": 397737984,
+      "new_boot": true,
+      "peak_physical_bytes": 8301517520
+    },
+    "micro": {
+      "status": "passed_quality_and_postflight30s",
+      "parity": true,
+      "phase": "micro",
+      "identity": "identity-v1.json",
+      "original_vm_baseline": {
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "power": "Now drawing from 'AC Power'",
+      "prior_67_swapout_bytes": 397737984,
+      "new_boot": true,
+      "peak_physical_bytes": 625509288
+    }
+  },
+  "observed_cross_mode_comparisons": [
+    {
+      "prompt": "MAIN",
+      "variant": "H",
+      "b2_vs_mtp_observed_percent": 0.9777556001972831,
+      "b2_vs_adaptive_observed_percent": 10.129721187425677,
+      "qualified_mode_comparison": false
+    },
+    {
+      "prompt": "HOLD",
+      "variant": "H",
+      "b2_vs_mtp_observed_percent": -0.14662800371092466,
+      "b2_vs_adaptive_observed_percent": 7.133061510054506,
+      "qualified_mode_comparison": false
+    },
+    {
+      "prompt": "MAIN",
+      "variant": "C",
+      "b2_vs_mtp_observed_percent": 0.6006438709053707,
+      "b2_vs_adaptive_observed_percent": 12.038647825620608,
+      "qualified_mode_comparison": false
+    },
+    {
+      "prompt": "HOLD",
+      "variant": "C",
+      "b2_vs_mtp_observed_percent": -1.0940171396705556,
+      "b2_vs_adaptive_observed_percent": 8.389287218355657,
+      "qualified_mode_comparison": false
+    }
+  ],
+  "mode_comparison_limit": "different processes, no dedicated interleaved HCCH; no general DFlash2>MTP1 claim",
+  "micro": {
+    "meaning": "component wall only; not model throughput",
+    "rows": {
+      "2": {
+        "pairs": [
+          {
+            "pair": 0,
+            "baseline_ms_per_call": 0.6424231770833334,
+            "candidate_ms_per_call": 0.68758940625,
+            "component_rate_gain_percent": -6.568779093470301
+          },
+          {
+            "pair": 1,
+            "baseline_ms_per_call": 0.7961072083333334,
+            "candidate_ms_per_call": 0.6822291666666667,
+            "component_rate_gain_percent": 16.692051180260805
+          },
+          {
+            "pair": 2,
+            "baseline_ms_per_call": 0.5206983541666667,
+            "candidate_ms_per_call": 0.35938889583333333,
+            "component_rate_gain_percent": 44.88437461577573
+          },
+          {
+            "pair": 3,
+            "baseline_ms_per_call": 0.34380686458333337,
+            "candidate_ms_per_call": 0.29821658333333334,
+            "component_rate_gain_percent": 15.287641197015933
+          },
+          {
+            "pair": 4,
+            "baseline_ms_per_call": 0.3537243854166667,
+            "candidate_ms_per_call": 0.32160981250000004,
+            "component_rate_gain_percent": 9.985569988374232
+          }
+        ],
+        "median_paired_rate_gain_percent": 15.287641197015933,
+        "gate_completion_markers_per_layer": {
+          "baseline": 2,
+          "candidate": 1
+        },
+        "actual_metal_dispatch_count": "not_measured"
+      },
+      "4": {
+        "pairs": [
+          {
+            "pair": 0,
+            "baseline_ms_per_call": 0.503703125,
+            "candidate_ms_per_call": 0.37728471874999997,
+            "component_rate_gain_percent": 33.50742820139732
+          },
+          {
+            "pair": 1,
+            "baseline_ms_per_call": 0.49469140625,
+            "candidate_ms_per_call": 0.382257375,
+            "component_rate_gain_percent": 29.413175154567007
+          },
+          {
+            "pair": 2,
+            "baseline_ms_per_call": 0.48892101041666663,
+            "candidate_ms_per_call": 0.3766536458333334,
+            "component_rate_gain_percent": 29.806525391502745
+          },
+          {
+            "pair": 3,
+            "baseline_ms_per_call": 0.5040885416666666,
+            "candidate_ms_per_call": 0.37477778125,
+            "component_rate_gain_percent": 34.50331553417474
+          },
+          {
+            "pair": 4,
+            "baseline_ms_per_call": 0.5250481770833334,
+            "candidate_ms_per_call": 0.4053368020833334,
+            "component_rate_gain_percent": 29.533803588697705
+          }
+        ],
+        "median_paired_rate_gain_percent": 29.806525391502745,
+        "gate_completion_markers_per_layer": {
+          "baseline": 4,
+          "candidate": 1
+        },
+        "actual_metal_dispatch_count": "not_measured"
+      }
+    }
+  },
+  "unverified": [
+    "Kani MLX ICE before obligations",
+    "CrossHair absent",
+    "exclusive GPU timestamps and real Metal dispatch count not measured"
+  ],
+  "experimental_option_promoted": false,
+  "invalid_control_rejections": {
+    "status": "passed_six_real_cli_rejections",
+    "parity": true,
+    "checks": [
+      {
+        "name": "two",
+        "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+        "peak_physical_bytes": 616956840,
+        "reaped": true,
+        "before_ready": true
+      },
+      {
+        "name": "true",
+        "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+        "peak_physical_bytes": 616907688,
+        "reaped": true,
+        "before_ready": true
+      },
+      {
+        "name": "empty",
+        "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+        "peak_physical_bytes": 615990208,
+        "reaped": true,
+        "before_ready": true
+      },
+      {
+        "name": "space",
+        "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+        "peak_physical_bytes": 616022952,
+        "reaped": true,
+        "before_ready": true
+      },
+      {
+        "name": "negative",
+        "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+        "peak_physical_bytes": 617038760,
+        "reaped": true,
+        "before_ready": true
+      },
+      {
+        "name": "nonunicode",
+        "expected_error": "unicode",
+        "peak_physical_bytes": 616006568,
+        "reaped": true,
+        "before_ready": true
+      }
+    ],
+    "before": {
+      "epoch": 1792676491.681389,
+      "vm_bytes": {
+        "Pages free": 1293877248,
+        "File-backed pages": 7449165824,
+        "Pages occupied by compressor": 4232118272,
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    "after": {
+      "epoch": 1792676518.0117471,
+      "vm_bytes": {
+        "Pages free": 1417740288,
+        "File-backed pages": 7453196288,
+        "Pages occupied by compressor": 4176281600,
+        "Swapins": 0,
+        "Swapouts": 0
+      },
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  },
+  "published_variant_pytest": {
+    "passed": 987,
+    "skipped": 4,
+    "seconds": 104.7,
+    "excluded_preexisting_local_file": "tests/test_flash_grouped_diagnostics.py",
+    "log": "pytest-published-variant.log"
+  }
+}
