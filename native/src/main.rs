@@ -2955,6 +2955,7 @@ fn native_bridge(
     emit_event(json!({
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
+        "memory":mlxl3_native::array::memory_stats(false)?,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
         "runtime_profile":env!("MLXL3_BUILD_PROFILE"),
         "mlx_version":env!("MLXL3_MLX_VERSION"),

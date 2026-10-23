@@ -1,0 +1,76 @@
+{
+  "status": "CPU_checks_and_Rust_decoder_BMC_complete_Cpp_formal_unverified",
+  "tests": {
+    "passed": 159,
+    "ignored": 159
+  },
+  "encoder_cpp": {
+    "sdk_cases": 32,
+    "extra_edges": [
+      "zero_valid",
+      "negative_signed_unavailable",
+      "maximum_signed"
+    ],
+    "sanitizers": "ASan+UBSan",
+    "executed": true
+  },
+  "commands": {
+    "clippy": {
+      "command": [
+        "cargo",
+        "clippy",
+        "--release",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 8.122738415997446,
+      "reaped": true
+    },
+    "tests": {
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "seconds": 166.5841145830018,
+      "reaped": true
+    },
+    "build": {
+      "command": [
+        "cargo",
+        "build",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 1.0291421250003623,
+      "reaped": true
+    }
+  },
+  "ci": {
+    "parsed": true,
+    "macos_only_cpp": true,
+    "exact_rust_counts_asserted": true,
+    "workflow_sha256": "f4f1ff34e01a897c253ed73ea0726f5faace16cb8b9b220a0535e62c8e918d22",
+    "github_run": "not_run"
+  },
+  "not_run": [
+    "full model by this agent"
+  ],
+  "reason": "User explicitly prioritizes fresh TPS now; no build/prover/GPU alongside parent campaign",
+  "source_identity": "identity-v1.json",
+  "no_new_eval_or_synchronize": true,
+  "formal_results": "verification-summary.json",
+  "physical_component": "passed 1/1 by parent in fresh-controls-v1; not independently rerun"
+}

@@ -1,0 +1,64 @@
+{
+  "experiment": "FLASHSSD-2026-10-23-77B",
+  "status": "validated_cpu_local_not_model_memory_qualification",
+  "finished_utc": "2026-10-23T12:34:28.351609+00:00",
+  "source_sha256": {
+    "scripts/analyze_flash_process_memory.py": "2ec7a7f947387356ad568995e8cb57046607b2f80b4349767df8acfc85bfda41",
+    "tests/test_flash_process_memory.py": "d9870957de14d2c21002814a567630f9bc0c1e8cd3265ea5ed85e3e8a9d1d593"
+  },
+  "files_changed": [
+    "scripts/analyze_flash_process_memory.py",
+    "tests/test_flash_process_memory.py"
+  ],
+  "source_math_or_driver_changes": false,
+  "model_or_gpu_launched": false,
+  "limits": {
+    "process_lifetime_peak_bytes": 12000000000,
+    "process_compressed_logical_bytes": 536870912,
+    "process_compressed_peak_logical_bytes": 536870912,
+    "compressed_lifetime_delta_bytes": 1073741824,
+    "ledger_swapins_delta_logical_bytes": 0
+  },
+  "tests": {
+    "initial_focused": "219 passed in 0.47s",
+    "final_focused": "220 passed in 0.31s",
+    "full_1078_suite": "not rerun; isolated new module"
+  },
+  "lint": {
+    "initial_ruff": "4 findings, preserved in ruff-check.log",
+    "final_ruff": "all checks passed",
+    "format": "2 files already formatted",
+    "byte_compile": "2 modules compiled to isolated artifacts"
+  },
+  "mutation": {
+    "status": "detected_and_restored",
+    "normal": "2 passed",
+    "mutant": "2 failed DID NOT RAISE AnalysisError",
+    "restored": "2 passed",
+    "production_mutated": false,
+    "scratch_removed": true,
+    "all_children_joined": true
+  },
+  "formal_verification": {
+    "kind": "symbolic counterexample search attempt",
+    "command": "python -m crosshair check scripts/analyze_flash_process_memory.py --analysis_kind PEP316 --per_condition_timeout 5",
+    "exit_code": 1,
+    "diagnostic": "No module named crosshair",
+    "proved": false
+  },
+  "ci": {
+    "patch": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-77-process-memory/analyzer-cpu/ci-analyzer.patch",
+    "git_apply_check": "exit0",
+    "workflow_modified_by_this_agent": false,
+    "github_run": "not executed"
+  },
+  "qualification_label": "observed_process_pressure_within_budget",
+  "limitations": [
+    "Data at ready/complete only; no idle cleanup coverage",
+    "No measurement of private swap-outs or physical SSD traffic",
+    "Output correctness and process cleanup rely on source checker; analyzer validates flags if present",
+    "All process data are from input JSON; provenance hash is not authentication",
+    "Synthetic fixtures are not physical model proofs",
+    "Caps unchanged; large compression is failure despite zero logical swapin delta"
+  ]
+}

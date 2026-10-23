@@ -20,6 +20,7 @@
 #include <sys/uio.h>
 #include "kernel_cache_key.h"
 #include "disk_reader.h"
+#include "process_memory.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -144,9 +145,10 @@ int mlxl3_start_capture(const char* path) noexcept {
 int mlxl3_stop_capture() noexcept {
   return protect([] { mx::metal::stop_capture(); });
 }
-int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
+int mlxl3_memory_stats(uint64_t* out, size_t count, bool reset_peak) noexcept {
   return protect([&] {
-    if (!out) throw std::invalid_argument("null memory statistics output");
+    if (!out || count < mlxl3::memory_stats_values)
+      throw std::invalid_argument("memory statistics output requires 12 values");
     if (reset_peak) mx::reset_peak_memory();
     out[0] = mx::get_active_memory();
     out[1] = mx::get_cache_memory();
@@ -154,8 +156,12 @@ int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
     rusage_info_v4 usage{};
     const auto ok = proc_pid_rusage(getpid(), RUSAGE_INFO_V4,
                                    reinterpret_cast<rusage_info_t*>(&usage)) == 0;
-    out[3] = ok ? usage.ri_phys_footprint : 0;
-    out[4] = ok ? usage.ri_lifetime_max_phys_footprint : 0;
+    task_vm_info_data_t vm{};
+    mach_msg_type_number_t vm_count = TASK_VM_INFO_COUNT;
+    const auto vm_ok = task_info(mach_task_self(), TASK_VM_INFO,
+        reinterpret_cast<task_info_t>(&vm), &vm_count) == KERN_SUCCESS;
+    const auto process = mlxl3::process_memory_values(usage, ok, vm, vm_count, vm_ok);
+    std::copy(process.begin(), process.end(), out + 3);
   });
 }
 int mlxl3_mlx_init(const char* metallib) noexcept {

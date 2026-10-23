@@ -1,0 +1,1684 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "timestamp": "2026-10-23T12:31:57.140986Z",
+    "kani_version": "0.68.0",
+    "target": "aarch64-apple-darwin",
+    "build_mode": "release"
+  },
+  "project": {
+    "crate_name": [
+      "mlxl3_native"
+    ],
+    "workspace_root": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/c9ce5985d679519b/out"
+  },
+  "tools": {
+    "kani": "0.68.0",
+    "rustc": "rustc 1.100.0-nightly (8925ea358 2026-08-20)",
+    "cbmc": "6.11.0 (cbmc-6.11.0)",
+    "goto_cc": "clang version 21.0.0 (goto-cc 6.11.0 (cbmc-6.11.0))",
+    "goto_instrument": "6.11.0 (cbmc-6.11.0)",
+    "solvers": [
+      {
+        "name": "cadical",
+        "version": null
+      }
+    ]
+  },
+  "harness_metadata": [
+    {
+      "pretty_name": "array::memory_stats_decoder_preserves_validity_and_values",
+      "mangled_name": "_RNvNtCs4vZ1j8MrPpD_12mlxl3_native5array50memory_stats_decoder_preserves_validity_and_values",
+      "crate_name": "mlxl3_native",
+      "source": {
+        "file": "native/src/array.rs",
+        "start_line": 2374,
+        "end_line": 2449
+      },
+      "goto_file": "/Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/c9ce5985d679519b/out/mlxl3_native-c9ce5985d679519b__RNvNtCs4vZ1j8MrPpD_12mlxl3_native5array50memory_stats_decoder_preserves_validity_and_values.symtab.out",
+      "attributes": {
+        "kind": "Proof",
+        "should_panic": false
+      },
+      "contract": {
+        "contracted_function_name": null,
+        "recursion_tracker": null
+      },
+      "has_loop_contracts": false,
+      "is_automatically_generated": false,
+      "is_bounded": false,
+      "is_ctor_based": false
+    }
+  ],
+  "error_details": [
+    {
+      "harness_id": "array::memory_stats_decoder_preserves_validity_and_values",
+      "has_errors": false
+    }
+  ],
+  "property_details": [
+    {
+      "harness_id": "array::memory_stats_decoder_preserves_validity_and_values",
+      "property_details": {
+        "total_properties": 130,
+        "passed": 127,
+        "failed": 0,
+        "unreachable": 0,
+        "undetermined": 0,
+        "solver_error": 0,
+        "satisfied": 3,
+        "unsatisfiable": 0,
+        "covered": 0,
+        "uncovered": 0
+      }
+    }
+  ],
+  "cbmc": [
+    {
+      "harness_id": "array::memory_stats_decoder_preserves_validity_and_values",
+      "cbmc_metadata": {
+        "version": "6.11.0",
+        "os_info": "aarch64 macos unix"
+      },
+      "configuration": {
+        "object_bits": 16,
+        "solver": "cadical"
+      },
+      "cbmc_stats": {
+        "runtime_symex_s": 0.0445944,
+        "size_program_expression": 3431,
+        "slicing_removed_assignments": 1899,
+        "vccs_generated": 602,
+        "vccs_remaining": 82,
+        "runtime_postprocess_equation_s": 0.0004565,
+        "runtime_convert_ssa_s": 0.0193975,
+        "runtime_post_process_s": 0.000029041,
+        "runtime_solver_s": 0.000512292,
+        "runtime_decision_procedure_s": 0.00055325
+      }
+    }
+  ],
+  "verification_results": {
+    "summary": {
+      "total_harnesses": 1,
+      "executed": 1,
+      "status": "completed",
+      "successful": 1,
+      "failed": 0,
+      "duration_ms": 580
+    },
+    "results": [
+      {
+        "harness_id": "array::memory_stats_decoder_preserves_validity_and_values",
+        "status": "Success",
+        "duration_ms": 580,
+        "checks": [
+          {
+            "id": 1,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 2,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 3,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "unreachable code",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "unreachable"
+          },
+          {
+            "id": 4,
+            "function": "array::MemoryStats::from_raw",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "344",
+              "column": "31"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 5,
+            "function": "array::MemoryStats::from_raw",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "345",
+              "column": "30"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 6,
+            "function": "array::MemoryStats::from_raw",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "346",
+              "column": "29"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 7,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_id == process_id",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2378",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 8,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2379",
+              "column": "40"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 9,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.mlx_active_bytes == values[0]",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2379",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 10,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2380",
+              "column": "39"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 11,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.mlx_cache_bytes == values[1]",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2380",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 12,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2381",
+              "column": "38"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 13,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.mlx_peak_bytes == values[2]",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2381",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 14,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2384",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 15,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2385",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 16,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_footprint_bytes ==\nif values[11] & 1 != 0 { Some(values[3]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2382",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 17,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2392",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 18,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2393",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 19,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_lifetime_peak_bytes ==\nif values[11] & 1 != 0 { Some(values[4]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2390",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 20,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2400",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 21,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2401",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 22,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_start_abstime ==\nif values[11] & 1 != 0 { Some(values[10]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2398",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 23,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2408",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 24,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2409",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 25,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_compressed_logical_bytes ==\nif values[11] & 2 != 0 { Some(values[5]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2406",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 26,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2416",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 27,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2417",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 28,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_compressed_peak_logical_bytes ==\nif values[11] & 2 != 0 { Some(values[6]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2414",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 29,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2424",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 30,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2425",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 31,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_compressed_lifetime_logical_bytes ==\nif values[11] & 2 != 0 { Some(values[7]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2422",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 32,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2432",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 33,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2433",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 34,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_decompressions ==\nif values[11] & 4 != 0 { Some(values[8]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2430",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 35,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2440",
+              "column": "12"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 36,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2441",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 37,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "assertion failed: stats.process_ledger_swapins_logical_bytes ==\nif values[11] & 8 != 0 { Some(values[9]) } else { None }",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2438",
+              "column": "5"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 38,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2446",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 39,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Satisfied",
+            "description": "cover condition: values[11] == 0",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2446",
+              "column": "5"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 40,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2447",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 41,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2447",
+              "column": "38"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 42,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2447",
+              "column": "56"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 43,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Satisfied",
+            "description": "cover condition: values[11] == 15 && values[5] == 0 && values[9] == 0",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2447",
+              "column": "5"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 44,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2448",
+              "column": "18"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 45,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2448",
+              "column": "38"
+            },
+            "category": "assertion"
+          },
+          {
+            "id": 46,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Satisfied",
+            "description": "cover condition: values[11] == 15 && values[5] == u64::MAX",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2448",
+              "column": "5"
+            },
+            "category": "cover"
+          },
+          {
+            "id": 47,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 48,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 49,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 50,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 51,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 52,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 53,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 54,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 55,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 56,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 57,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 58,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 59,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "48"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 60,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 61,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 62,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 63,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 64,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 65,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 66,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 67,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 68,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 69,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 70,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 71,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 72,
+            "function": "array::MemoryStats::from_raw::{closure#0}",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "342",
+              "column": "82"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 73,
+            "function": "array::MemoryStats::from_raw",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "344",
+              "column": "31"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 74,
+            "function": "array::MemoryStats::from_raw",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "345",
+              "column": "30"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 75,
+            "function": "array::MemoryStats::from_raw",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "346",
+              "column": "29"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 76,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2379",
+              "column": "40"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 77,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2380",
+              "column": "39"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 78,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2381",
+              "column": "38"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 79,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2384",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 80,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2385",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 81,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2392",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 82,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2393",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 83,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2400",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 84,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2401",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 85,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2408",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 86,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2409",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 87,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2416",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 88,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2417",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 89,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2424",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 90,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2425",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 91,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2432",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 92,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2433",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 93,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2440",
+              "column": "12"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 94,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2441",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 95,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2446",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 96,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2447",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 97,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2447",
+              "column": "38"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 98,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2447",
+              "column": "56"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 99,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2448",
+              "column": "18"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 100,
+            "function": "array::memory_stats_decoder_preserves_validity_and_values",
+            "status": "Success",
+            "description": "index out of bounds: the length is less than or equal to the given index",
+            "location": {
+              "file": "native/src/array.rs",
+              "line": "2448",
+              "column": "38"
+            },
+            "category": "array_bounds"
+          },
+          {
+            "id": 101,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 102,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 103,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 104,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 105,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 106,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 107,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 108,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 109,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 110,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 111,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 112,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 113,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 114,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 115,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 116,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 117,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 118,
+            "function": "<std::option::Option<u64> as std::cmp::PartialEq>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs",
+              "line": "2439",
+              "column": "15"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 119,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 120,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 121,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 122,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 123,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 124,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "54"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 125,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer NULL",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 126,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer invalid",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 127,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: deallocated dynamic object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 128,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: dead object",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 129,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: pointer outside object bounds",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          },
+          {
+            "id": 130,
+            "function": "std::cmp::impls::<impl std::cmp::PartialEq for u64>::eq",
+            "status": "Success",
+            "description": "dereference failure: invalid integer address",
+            "location": {
+              "file": "/Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs",
+              "line": "2153",
+              "column": "63"
+            },
+            "category": "pointer_dereference"
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "enabled": false
+  }
+}

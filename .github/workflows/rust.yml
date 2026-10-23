@@ -228,6 +228,12 @@ jobs:
           python -m py_compile scripts/check_flash_drafts.py
       - name: Check bridge and QMM validation tools
         run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_drafts.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
+      - name: Check process memory report analyzer (CPU only)
+        run: |
+          ruff format --check scripts/analyze_flash_process_memory.py tests/test_flash_process_memory.py
+          ruff check scripts/analyze_flash_process_memory.py tests/test_flash_process_memory.py
+          python -m py_compile scripts/analyze_flash_process_memory.py
+          python -m pytest -q tests/test_flash_process_memory.py
       - name: Check idle-memory benchmark failure and parity gates
         run: |
           ruff format --check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
@@ -244,6 +250,11 @@ jobs:
           ruff format --check docs/measurements/tune-feedback-20261010/diagnose-tune.py
           ruff check docs/measurements/tune-feedback-20261010/diagnose-tune.py
           python docs/measurements/tune-feedback-20261010/diagnose-tune.py --self-test
+      - name: Check process-memory encoding against the Apple SDK without a GPU
+        if: matrix.os == 'macos-26'
+        run: |
+          c++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined native/tests/process_memory.cpp -o build/ci/process-memory
+          build/ci/process-memory
       - name: Compile and lint the shipped MLX bridge
         if: matrix.os == 'macos-26'
         run: |
@@ -254,5 +265,10 @@ jobs:
           cargo build --locked --release --features mlx,chat
           cargo test --locked --lib --features mlx,chat qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config -- --exact | tee build/ci/raw-draft-reader.log
           python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path("build/ci/raw-draft-reader.log").read_text()'
+          set -euo pipefail
+          for test_name in memory_stats_decode_keeps_zero_valid_and_preserves_all_fields memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work; do
+            cargo test --locked --lib --features mlx,chat "array::tests::$test_name" -- --exact --test-threads=1 | tee "build/ci/$test_name.log"
+            python -c 'import sys; from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path(sys.argv[1]).read_text()' "build/ci/$test_name.log"
+          done
       # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
       # not run inference or numeric GPU checks; the macOS build uses pinned libmlx.

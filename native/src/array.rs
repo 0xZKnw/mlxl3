@@ -99,7 +99,7 @@ unsafe extern "C" {
     ) -> i32;
     fn mlxl3_mlx_error() -> *const c_char;
     fn mlxl3_mlx_init(metallib: *const c_char) -> i32;
-    fn mlxl3_memory_stats(out: *mut u64, reset_peak: bool) -> i32;
+    fn mlxl3_memory_stats(out: *mut u64, count: usize, reset_peak: bool) -> i32;
     fn mlxl3_synchronize() -> i32;
     fn mlxl3_clear_cache() -> i32;
     fn mlxl3_array_free(p: *mut c_void);
@@ -317,6 +317,8 @@ fn bytes_for(shape: &[i32], dtype: Dtype) -> Result<usize> {
         .context("negative tensor dimension or tensor byte size overflow")
 }
 
+const MEMORY_STATS_VALUES: usize = 12;
+
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 pub struct MemoryStats {
     pub mlx_active_bytes: u64,
@@ -324,19 +326,42 @@ pub struct MemoryStats {
     pub mlx_peak_bytes: u64,
     pub process_footprint_bytes: Option<u64>,
     pub process_lifetime_peak_bytes: Option<u64>,
+    pub process_id: u32,
+    pub process_start_abstime: Option<u64>,
+    pub process_compressed_logical_bytes: Option<u64>,
+    pub process_compressed_peak_logical_bytes: Option<u64>,
+    pub process_compressed_lifetime_logical_bytes: Option<u64>,
+    /// Counts pages, saturating at i32::MAX; it does not count disk reads.
+    pub process_decompressions: Option<u64>,
+    /// Logical bytes consumed from swapped-in segments, not SSD bytes or swap-outs.
+    pub process_ledger_swapins_logical_bytes: Option<u64>,
+}
+
+impl MemoryStats {
+    fn from_raw(values: [u64; MEMORY_STATS_VALUES], process_id: u32) -> Self {
+        let field = |index: usize, mask: u64| (values[11] & mask != 0).then_some(values[index]);
+        Self {
+            mlx_active_bytes: values[0],
+            mlx_cache_bytes: values[1],
+            mlx_peak_bytes: values[2],
+            process_footprint_bytes: field(3, 1),
+            process_lifetime_peak_bytes: field(4, 1),
+            process_id,
+            process_start_abstime: field(10, 1),
+            process_compressed_logical_bytes: field(5, 2),
+            process_compressed_peak_logical_bytes: field(6, 2),
+            process_compressed_lifetime_logical_bytes: field(7, 2),
+            process_decompressions: field(8, 4),
+            process_ledger_swapins_logical_bytes: field(9, 8),
+        }
+    }
 }
 
 pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
     initialize()?;
-    let mut values = [0u64; 5];
-    checked(unsafe { mlxl3_memory_stats(values.as_mut_ptr(), reset_peak) })?;
-    Ok(MemoryStats {
-        mlx_active_bytes: values[0],
-        mlx_cache_bytes: values[1],
-        mlx_peak_bytes: values[2],
-        process_footprint_bytes: (values[3] != 0).then_some(values[3]),
-        process_lifetime_peak_bytes: (values[4] != 0).then_some(values[4]),
-    })
+    let mut values = [0u64; MEMORY_STATS_VALUES];
+    checked(unsafe { mlxl3_memory_stats(values.as_mut_ptr(), values.len(), reset_peak) })?;
+    Ok(MemoryStats::from_raw(values, std::process::id()))
 }
 
 /// Release unused allocator buffers; live arrays and their graphs are retained.
@@ -1412,6 +1437,114 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn memory_stats_decode_keeps_zero_valid_and_preserves_all_fields() {
+        for fill in [0, u64::MAX] {
+            for mask in 0..16u64 {
+                let mut values = [fill; MEMORY_STATS_VALUES];
+                values[11] = mask;
+                let stats = MemoryStats::from_raw(values, u32::MAX);
+                assert_eq!(stats.process_id, u32::MAX);
+                assert_eq!(
+                    (
+                        stats.mlx_active_bytes,
+                        stats.mlx_cache_bytes,
+                        stats.mlx_peak_bytes
+                    ),
+                    (fill, fill, fill)
+                );
+                for (field, bit) in [
+                    (stats.process_footprint_bytes, 1),
+                    (stats.process_lifetime_peak_bytes, 1),
+                    (stats.process_start_abstime, 1),
+                    (stats.process_compressed_logical_bytes, 2),
+                    (stats.process_compressed_peak_logical_bytes, 2),
+                    (stats.process_compressed_lifetime_logical_bytes, 2),
+                    (stats.process_decompressions, 4),
+                    (stats.process_ledger_swapins_logical_bytes, 8),
+                ] {
+                    assert_eq!(field, (mask & bit != 0).then_some(fill));
+                }
+                let json = serde_json::to_value(stats).unwrap();
+                assert_eq!(
+                    json["process_compressed_logical_bytes"].is_null(),
+                    mask & 2 == 0
+                );
+                assert_eq!(
+                    json["process_ledger_swapins_logical_bytes"].is_null(),
+                    mask & 8 == 0
+                );
+            }
+        }
+        let stats = MemoryStats::from_raw([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 15], 21);
+        assert_eq!(stats.process_footprint_bytes, Some(13));
+        assert_eq!(stats.process_lifetime_peak_bytes, Some(14));
+        assert_eq!(stats.process_compressed_logical_bytes, Some(15));
+        assert_eq!(stats.process_compressed_peak_logical_bytes, Some(16));
+        assert_eq!(stats.process_compressed_lifetime_logical_bytes, Some(17));
+        assert_eq!(stats.process_decompressions, Some(18));
+        assert_eq!(stats.process_ledger_swapins_logical_bytes, Some(19));
+        assert_eq!(stats.process_start_abstime, Some(20));
+    }
+
+    #[test]
+    fn memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work() {
+        let mut output = [0xabad1dea; MEMORY_STATS_VALUES + 1];
+        for count in [0, 5, MEMORY_STATS_VALUES - 1] {
+            assert_ne!(
+                unsafe { mlxl3_memory_stats(output.as_mut_ptr(), count, true) },
+                0
+            );
+            assert_eq!(output, [0xabad1dea; MEMORY_STATS_VALUES + 1]);
+        }
+        assert_ne!(
+            unsafe { mlxl3_memory_stats(std::ptr::null_mut(), MEMORY_STATS_VALUES, true) },
+            0
+        );
+    }
+
+    #[test]
+    #[ignore = "requires Apple MLX runtime; run explicitly outside concurrent builds"]
+    fn native_process_memory_stats_are_available_and_monotone() -> Result<()> {
+        let first = memory_stats(false)?;
+        ensure!(first.process_id == std::process::id());
+        ensure!(first.process_start_abstime.is_some());
+        ensure!(first.process_compressed_logical_bytes.is_some());
+        ensure!(first.process_compressed_peak_logical_bytes.is_some());
+        ensure!(first.process_compressed_lifetime_logical_bytes.is_some());
+        ensure!(first.process_decompressions.is_some());
+        ensure!(first.process_ledger_swapins_logical_bytes.is_some());
+        let mut previous = first;
+        for reset_peak in [false, true, false, true, false, true, false, true] {
+            let current = memory_stats(reset_peak)?;
+            ensure!(current.process_id == first.process_id);
+            ensure!(current.process_start_abstime == first.process_start_abstime);
+            ensure!(
+                current.process_compressed_peak_logical_bytes
+                    >= current.process_compressed_logical_bytes
+            );
+            ensure!(
+                current.process_compressed_peak_logical_bytes
+                    >= previous.process_compressed_peak_logical_bytes
+            );
+            ensure!(
+                current.process_compressed_lifetime_logical_bytes
+                    >= previous.process_compressed_lifetime_logical_bytes
+            );
+            ensure!(current.process_decompressions >= previous.process_decompressions);
+            ensure!(
+                current.process_ledger_swapins_logical_bytes
+                    >= previous.process_ledger_swapins_logical_bytes
+            );
+            previous = current;
+        }
+        eprintln!(
+            "77T process memory first={} final={}",
+            serde_json::to_string(&first)?,
+            serde_json::to_string(&previous)?
+        );
+        Ok(())
+    }
+    #[test]
     #[ignore = "physical Apple GPU; isolated allocation and direct-read diagnostic"]
     fn uninitialized_storage_is_ready_and_reads_only_filled_ranges() -> Result<()> {
         use std::io::Write;
@@ -2233,4 +2366,84 @@ mod verification {
         assert_eq!(input.to_u32().unwrap(), values);
         assert_eq!(other.to_u32().unwrap(), values);
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(13)]
+fn memory_stats_decoder_preserves_validity_and_values() {
+    let values: [u64; MEMORY_STATS_VALUES] = kani::any();
+    let process_id: u32 = kani::any();
+    let stats = MemoryStats::from_raw(values, process_id);
+    assert_eq!(stats.process_id, process_id);
+    assert_eq!(stats.mlx_active_bytes, values[0]);
+    assert_eq!(stats.mlx_cache_bytes, values[1]);
+    assert_eq!(stats.mlx_peak_bytes, values[2]);
+    assert_eq!(
+        stats.process_footprint_bytes,
+        if values[11] & 1 != 0 {
+            Some(values[3])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_lifetime_peak_bytes,
+        if values[11] & 1 != 0 {
+            Some(values[4])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_start_abstime,
+        if values[11] & 1 != 0 {
+            Some(values[10])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_compressed_logical_bytes,
+        if values[11] & 2 != 0 {
+            Some(values[5])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_compressed_peak_logical_bytes,
+        if values[11] & 2 != 0 {
+            Some(values[6])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_compressed_lifetime_logical_bytes,
+        if values[11] & 2 != 0 {
+            Some(values[7])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_decompressions,
+        if values[11] & 4 != 0 {
+            Some(values[8])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_ledger_swapins_logical_bytes,
+        if values[11] & 8 != 0 {
+            Some(values[9])
+        } else {
+            None
+        }
+    );
+    kani::cover!(values[11] == 0);
+    kani::cover!(values[11] == 15 && values[5] == 0 && values[9] == 0);
+    kani::cover!(values[11] == 15 && values[5] == u64::MAX);
 }
