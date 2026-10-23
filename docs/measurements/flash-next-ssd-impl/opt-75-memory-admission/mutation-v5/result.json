@@ -1,0 +1,62 @@
+{
+  "status": "null_admission_mutation_detected_and_restored",
+  "production_source_before_sha256": "642d90ab04e5f2a58ddd5a351a739bf9f6233d0bec1be7b2958ba14784d681d9",
+  "cases": [
+    {
+      "phase": "normal",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--confcutdir",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw/tests/test_flash_memory_admission.py::test_declared_null_policy_cannot_disable_guard_without_model_env"
+      ],
+      "source_sha256": "642d90ab04e5f2a58ddd5a351a739bf9f6233d0bec1be7b2958ba14784d681d9",
+      "exit_code": 0,
+      "seconds": 0.1841828329997952,
+      "reaped": true
+    },
+    {
+      "phase": "mutant",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--confcutdir",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw/tests/test_flash_memory_admission.py::test_declared_null_policy_cannot_disable_guard_without_model_env"
+      ],
+      "source_sha256": "e1215bb8a5f563bd2f5512c078dbcf62787c80c8c371ae080ab136114f280887",
+      "exit_code": 1,
+      "seconds": 0.18399454199970933,
+      "reaped": true
+    },
+    {
+      "phase": "restored",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--confcutdir",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw/tests/test_flash_memory_admission.py::test_declared_null_policy_cannot_disable_guard_without_model_env"
+      ],
+      "source_sha256": "642d90ab04e5f2a58ddd5a351a739bf9f6233d0bec1be7b2958ba14784d681d9",
+      "exit_code": 0,
+      "seconds": 0.17818474999876344,
+      "reaped": true
+    }
+  ],
+  "production_source_after_sha256": "642d90ab04e5f2a58ddd5a351a739bf9f6233d0bec1be7b2958ba14784d681d9",
+  "scratch_deleted": true
+}

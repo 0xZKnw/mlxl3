@@ -392,7 +392,7 @@ def test_loader_intercepts_actual_monitor_without_mutating_global_runpy(tmp_path
         f"import runpy\ndef main(plan):return runpy.run_path({str(monitor)!r})['monitor'](None,plan,None)\n"
     )
     monitor.write_text(
-        "def monitor(child,record,parse):return record['before']['vm_bytes'].copy()\n"
+        "def monitor(child,record,parse):return record['before']['vm_bytes'].copy()\nLIMIT = 256 << 20\n"
     )
     original = runpy.run_path
     before = {"Swapins": 100, "Swapouts": 20}

@@ -1,0 +1,36 @@
+F..F..                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_declared_null_policy_cannot_disable_guard_without_model_env[False-load_headroom_bytes] _
+
+key = 'load_headroom_bytes', launching = False
+
+    @pytest.mark.parametrize(
+        "key", ["load_headroom_bytes", "minimum_live_free_bytes", "maximum_compressor_bytes"]
+    )
+    @pytest.mark.parametrize("launching", [False, True])
+    def test_declared_null_policy_cannot_disable_guard_without_model_env(key, launching):
+        r = {"command": [sys.executable], "env": {}, key: None}
+>       with pytest.raises(AssertionError, match="positive integer"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw/tests/test_flash_memory_admission.py:93: Failed
+_ test_declared_null_policy_cannot_disable_guard_without_model_env[True-load_headroom_bytes] _
+
+key = 'load_headroom_bytes', launching = True
+
+    @pytest.mark.parametrize(
+        "key", ["load_headroom_bytes", "minimum_live_free_bytes", "maximum_compressor_bytes"]
+    )
+    @pytest.mark.parametrize("launching", [False, True])
+    def test_declared_null_policy_cannot_disable_guard_without_model_env(key, launching):
+        r = {"command": [sys.executable], "env": {}, key: None}
+>       with pytest.raises(AssertionError, match="positive integer"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw/tests/test_flash_memory_admission.py:93: Failed
+=========================== short test summary info ============================
+FAILED ../../../../../../../var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw/tests/test_flash_memory_admission.py::test_declared_null_policy_cannot_disable_guard_without_model_env[False-load_headroom_bytes]
+FAILED ../../../../../../../var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-75-null-l_e47abw/tests/test_flash_memory_admission.py::test_declared_null_policy_cannot_disable_guard_without_model_env[True-load_headroom_bytes]
+2 failed, 4 passed in 0.03s

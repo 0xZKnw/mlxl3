@@ -7,7 +7,9 @@ import json
 import math
 import re
 import runpy
+import subprocess
 import sys
+import time
 from collections import defaultdict
 from pathlib import Path
 from types import SimpleNamespace
@@ -336,9 +338,48 @@ def compress(path):
     path.unlink()
 
 
-def cumulative_monitor(monitor, baseline):
+def memory_headroom(record, current, *, launching=False):
+    budget = record.get("load_headroom_bytes")
+    model = "MLXL3_FLASH_MODEL" in record.get("env", {}) and record["command"][0] != "/bin/sleep"
+    if (
+        "load_headroom_bytes" not in record
+        and not model
+        and "minimum_live_free_bytes" not in record
+        and "maximum_compressor_bytes" not in record
+    ):
+        return
+    guard = {"status": "failed", "stage": "before_launch" if launching else "live"}
+    record["memory_guard"] = guard
+    policy = {
+        key: record.get(key)
+        for key in ("load_headroom_bytes", "minimum_live_free_bytes", "maximum_compressor_bytes")
+    }
+    assert all(type(n) is int and n > 0 for n in policy.values()), (
+        "model admission requires positive integer load_headroom_bytes, minimum_live_free_bytes "
+        "and maximum_compressor_bytes; declare the measured working-set plus reserve in the plan"
+    )
+    guard["policy"] = policy.copy()
+    free = current["Pages free"]
+    compressor = current["Pages occupied by compressor"]
+    assert all(type(n) is int and n >= 0 for n in (free, compressor)), "invalid memory gauges"
+    minimum = budget if launching else policy["minimum_live_free_bytes"]
+    guard.update(
+        free_bytes=free,
+        minimum_free_bytes=minimum,
+        compressor_bytes=compressor,
+        maximum_compressor_bytes=policy["maximum_compressor_bytes"],
+    )
+    assert free >= minimum, (
+        "memory headroom below admission budget" if launching else "live memory headroom exhausted"
+    )
+    assert compressor <= policy["maximum_compressor_bytes"], "compressor pressure limit exceeded"
+    guard["status"] = "passed"
+
+
+def cumulative_monitor(monitor, baseline, limit=None):
     assert set(baseline) == {"Swapins", "Swapouts"}
     assert all(type(n) is int and n >= 0 for n in baseline.values())
+    assert limit is None or (type(limit) is int and limit >= 0), "invalid cumulative swapin limit"
     baseline = baseline.copy()
 
     def guarded(child, record, parse_vm):
@@ -352,6 +393,10 @@ def cumulative_monitor(monitor, baseline):
         def zero_swapout(text):
             current = parse_vm(text)
             record["last_live_vm_bytes"] = current.copy()
+            if "load_headroom_bytes" in record:
+                record.setdefault("live_memory_samples", []).append(
+                    {"epoch": time.time(), **current}
+                )
             value = current["Swapouts"]
             assert type(value) is int and value >= 0, "invalid live Swapouts counter"
             delta = value - baseline["Swapouts"]
@@ -359,10 +404,22 @@ def cumulative_monitor(monitor, baseline):
                 record.get("maximum_live_swapout_bytes", 0), delta
             )
             assert delta == 0, "live Swapouts changed"
+            if limit is not None:
+                incoming = current["Swapins"]
+                assert type(incoming) is int and incoming >= 0, "invalid live Swapins counter"
+                incoming -= baseline["Swapins"]
+                record["maximum_live_swapin_bytes"] = max(
+                    record.get("maximum_live_swapin_bytes", 0), incoming
+                )
+                assert 0 <= incoming <= limit, "cumulative live swapin limit exceeded"
+            memory_headroom(record, current)
             return current
 
         try:
-            return monitor(child, record, zero_swapout)
+            result = monitor(child, record, zero_swapout)
+            if "load_headroom_bytes" in record:
+                zero_swapout(subprocess.check_output(["vm_stat"], text=True, timeout=5))
+            return result
         finally:
             before.update(saved)
 
@@ -389,6 +446,7 @@ def cumulative_preflight(record, baseline, limit):
         guard["deltas"][key] = delta
         maximum = 0 if key == "Swapouts" else limit
         assert 0 <= delta <= maximum, f"campaign {key} limit exceeded before launch"
+    memory_headroom(record, record["before"]["vm_bytes"], launching=True)
     guard["status"] = "passed"
 
 
@@ -397,6 +455,19 @@ def run_sampler(plan, baseline=None):
         ROOT / "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt"
     )
     if baseline is None:
+        items = json.loads(plan.read_text())
+        assert not any(
+            any(
+                key in item
+                for key in (
+                    "load_headroom_bytes",
+                    "minimum_live_free_bytes",
+                    "maximum_compressor_bytes",
+                )
+            )
+            or "MLXL3_FLASH_MODEL" in item.get("env", {})
+            for item in items
+        ), "model memory admission requires an explicit cumulative VM baseline"
         return runpy.run_path(str(sampler_path))["main"](plan)
     # Isolated namespaces keep historical scripts and the global runpy module intact.
     supervisor_path = (
@@ -412,7 +483,9 @@ def run_sampler(plan, baseline=None):
         namespace = runpy.run_path(str(path))
         selected = Path(path).resolve()
         if selected == monitor_path.resolve():
-            namespace["monitor"] = cumulative_monitor(namespace["monitor"], baseline)
+            namespace["monitor"] = cumulative_monitor(
+                namespace["monitor"], baseline, namespace["LIMIT"]
+            )
             namespace["before_launch"] = lambda record: cumulative_preflight(
                 record, baseline, namespace["LIMIT"]
             )

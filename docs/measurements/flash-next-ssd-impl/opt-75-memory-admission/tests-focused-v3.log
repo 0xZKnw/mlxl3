@@ -1,0 +1,44 @@
+........................................................................ [ 49%]
+.....................................................F.................. [ 98%]
+..                                                                       [100%]
+=================================== FAILURES ===================================
+_____ test_loader_intercepts_actual_monitor_without_mutating_global_runpy ______
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-17/test_loader_intercepts_actual_0')
+
+    def test_loader_intercepts_actual_monitor_without_mutating_global_runpy(tmp_path):
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        g = api["run_sampler"].__globals__
+        g["ROOT"] = tmp_path
+        base = tmp_path / "docs/measurements/flash-next-ssd-impl"
+        sample = base / "opt-49-variance-diagnostic/sample-system.txt"
+        supervisor = base / "opt-45-audit-prerequisites/run-supervisor.txt"
+        monitor = base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt"
+        for p in [sample, supervisor, monitor]:
+            p.parent.mkdir(parents=True, exist_ok=True)
+        sample.write_text(
+            f"import runpy\ndef main(plan):return runpy.run_path({str(supervisor)!r})['main'](plan)\n"
+        )
+        supervisor.write_text(
+            f"import runpy\ndef main(plan):return runpy.run_path({str(monitor)!r})['monitor'](None,plan,None)\n"
+        )
+        monitor.write_text(
+            "LIMIT = 256 << 20\ndef monitor(child,record,parse):return record['before']['vm_bytes'].copy()\n"
+        )
+        original = runpy.run_path
+        before = {"Swapins": 100, "Swapouts": 20}
+        r = {"before": {"vm_bytes": before}}
+        out = api["run_sampler"](r, {"Swapins": 10, "Swapouts": 20})
+        assert out == {"Swapins": 10, "Swapouts": 20} and before == {"Swapins": 100, "Swapouts": 20}
+>       assert runpy.run_path is original and monitor.read_text().startswith("def monitor")
+E       assert (<function run_path at 0x102342020> is <function run_path at 0x102342020> and False)
+E        +  where <function run_path at 0x102342020> = runpy.run_path
+E        +  and   False = <built-in method startswith of str object at 0x1084536c0>('def monitor')
+E        +    where <built-in method startswith of str object at 0x1084536c0> = "LIMIT = 256 << 20\ndef monitor(child,record,parse):return record['before']['vm_bytes'].copy()\n".startswith
+E        +      where "LIMIT = 256 << 20\ndef monitor(child,record,parse):return record['before']['vm_bytes'].copy()\n" = read_text()
+E        +        where read_text = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-17/test_loader_intercepts_actual_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt').read_text
+
+tests/test_flash_profile.py:402: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile.py::test_loader_intercepts_actual_monitor_without_mutating_global_runpy
+1 failed, 145 passed in 6.65s
