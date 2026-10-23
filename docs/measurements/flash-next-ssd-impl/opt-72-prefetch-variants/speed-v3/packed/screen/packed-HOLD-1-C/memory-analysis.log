@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/analyze_flash_process_memory.py", line 193, in analyze
+    raise ValueError(
+ValueError: process_compressed_logical_bytes exceeds budget at warmup[0]; process_compressed_peak_logical_bytes exceeds budget at warmup[0]; compressed lifetime delta exceeds budget at warmup[0]; process_compressed_logical_bytes exceeds budget at runs[0]; process_compressed_peak_logical_bytes exceeds budget at runs[0]; compressed lifetime delta exceeds budget at runs[0]
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/analyze_flash_process_memory.py", line 242, in <module>
+    run(args.source, args.destination)
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/analyze_flash_process_memory.py", line 215, in run
+    report = analyze(json.loads(raw))
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/analyze_flash_process_memory.py", line 200, in analyze
+    raise AnalysisError(str(error), report) from error
+AnalysisError: process_compressed_logical_bytes exceeds budget at warmup[0]; process_compressed_peak_logical_bytes exceeds budget at warmup[0]; compressed lifetime delta exceeds budget at warmup[0]; process_compressed_logical_bytes exceeds budget at runs[0]; process_compressed_peak_logical_bytes exceeds budget at runs[0]; compressed lifetime delta exceeds budget at runs[0]

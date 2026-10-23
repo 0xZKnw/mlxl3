@@ -1,0 +1,9 @@
+# 72S : répétitions C-H conditionnelles préparées
+
+Plans de données uniquement, non exécutés : `unused`, `lfu`, `weighted`, sous `speed-v3/{variant}/validation`. Les templates `speed-v2/{variant}/validation/run.json` sont conservés ; seuls les chemins du CLI et des sorties changent. Aucune préparation pour late/bounded/early-shared, ni nouvelle répétition packed.
+
+Chaque lancement doit être choisi séparément par le parent APRÈS un écran H-C exact atteignant au moins +1 % sur MAIN ET HOLD. Cette condition n'est pas évaluée ni contournée par la préparation ; aucun lancement automatique n'est ajouté. Ordre pré20, C MAIN index2, H MAIN index3, C HOLD index2, H HOLD index3, post30. CLI77v1 SHA69b919ae, driver et wrapper observe-stock commun inchangés ; B2 WIDTH1/ADAPTIVE0, pipeline1/lookahead2, 3 Gio, allocateur64 Mio, 128 sorties/127 decode, un warmup128 puis une mesure128. Seule PREFETCH_VARIANT legacy→candidat varie entre les bras. Tous les warmups et mesures sont à comparer aux golden60 texte/hash/tokens nonvides.
+
+Amendement72S/73S de `opti.md` : contrôle de dériveH ≤5 % et étendue des gains ≤3 points ; un candidat prometteur reste soumis à son propre bridge43 avant promotion. Les six plans bridge43v3 candidats restent non exécutés lors de la préparation. Les échecs de compression77B restent failed, les caps restent inchangés ; aucune requalification mémoire, aucun gain livré déduit d'une répétition diagnostique. Le wrapper stock conserve les observations et gardes globales256 Mio/phase, sans attribuer le swap-out global au modèle. Les poids ne sont pas chargés pendant la préparation.
+
+Les SHA complets, sources et différencesCI conservées sont dans `validations-v3-72S-prepared.json` et les trois `identity.json`. Aucun benchmark, modèle, test, build ou proveur lancé par le préparateur.

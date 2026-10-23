@@ -1,0 +1,34 @@
+{
+  "command": "PATH=/Users/justin/.cargo/bin:$PATH CARGO_TARGET_DIR=/Users/justin/Documents/mix-stq1_0/target cargo kani --lib --no-default-features --harness prediction_protection_preserves_the_explicit_cache_policy -Z unstable-options --harness-timeout 180s --export-json docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/kani-policy.json > docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/kani-policy.log 2>&1",
+  "stop": null,
+  "exit_code": 0,
+  "session_id": null,
+  "samples": [
+    {
+      "seconds": 0.053,
+      "rss_bytes": 16875520,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 7.109,
+      "rss_bytes": 324550656,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 14.163,
+      "rss_bytes": 458375168,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 21.217,
+      "rss_bytes": 587350016,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 28.27,
+      "rss_bytes": 1361707008,
+      "swapout_pages": 9592
+    }
+  ],
+  "status": "completed"
+}

@@ -14487,3 +14487,431 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 - **77T clôture documentaire** : revueSDK/XNU etmanifestes/extraits copiés dansopt-77-process-memory/research/, liens primairesépinglésconservés. README/verification-summaryrenvoient àfresh-controls-v1/summary.json duparent : composant77physique1/1 etquatrepointsfraisdébit,8réponsesexactes/post30clos. Lescapscompression77Béchouésrestentéchoués, débitsdescriptifs/pasgaincandidat, aucunseuilmodifié. Kani127+3covers/CBMClimitéSDK/mutationréellequalifiésdistinctement. Plusaucunbuild/proveur/testGPUparagentdepuisannoncefin ; qualitépackedv3activechezparent. Aucuncommit/pushparagent.
 
 - **77 publication préparée séparément** : sources natives77/JSONet analyseur77B inchangés vs preuves, CI77 seule (sans trois harnais72), revue et identités conservéespublication-review.md/publication-identity.json.159Rustpassés/159ignorés,32casSDKASanUBSan,220Python, Kani127obligations+3covers/unwind13, composantphysique1/1 ; CBMCSDKparsefailed/CrossHairabsent explicites. Binaires69b919/12a747 incluent aussi travaux locaux72/73 et ne sont pas annoncés comme builds du futur commit77isolé. Lescompteurs sontobservationnels, aucun gainRAM/TPS ni attributionSwapoutmodèle. Lesplafondscompression77Béchouésrestentfailed. Applicationinchangée,65Pexclu,72/73/78restentlocaux ; CIduSHAàpublier nonencoreexécutée.
+
+
+### FLASHSSD-2026-10-22-72R — recherche approfondie puis matrice de candidats indépendants (avant recherche)
+
+- Nouvelle demande utilisateur : chercher à fond les problèmes locaux et ajouts Splash/Strata, puis tester les pistes trouvées. Tête locale/publiée09113b6f, code exécutable82cbef71 ; préserver65Ppréexistant non inclus. Relire71R/69R2/57–58/65–70 avant toute répétition. Revue ciblée des chemins réels de vérification, snapshots Hot/Cold, prédictions/leases/victimes, codebook/kernels, draft Q4 et frontières de dispatch ; vérifier HEADs amont et lire aussi les couches d'ordonnancement Metal derrière leurs moteurs. Pistes initiales à départager : ordre prédiction/Hot, protection trop large des candidats, priorité d'éviction des prélectures inutilisées, classement pondéré des prédictions, partage EXL3 directement Hot B2 (71P), réutilisation des cartes/dispatchs seulement si les traces rendent leur coût évitable. Ne pas présenter comme nouvelle une technique déjà rejetée, ni porter les kernels GGUF/IQ sur EXL3 sans contrat numérique.
+- Cette entrée autorise seulement la recherche et l'analyse de traces existantes, pas un benchmark ou prototype non enregistré. Après revue, préenregistrer la matrice avec chaque changement indépendant, témoin, oracle et critères ; tester tous les candidats concrets retenus, conserver rejets/erreurs. Gardes inchangées : un modèleGPU, secteur, cache3Gio53slots/allocator64Mio, pic≤12Go, aucune nouvelle sortie de swap depuis157155328B (9592pages×16384), entrées≤256Mio cumulées, pré20/post30 et enfants joints. Observation initiale AC100%, aucun modèle/build/proveur actif, Swapouts9592 inchangés. Qualité avant vitesse, contrôles source séparés du GPU ; push des correctifs/gains validés demandé. Revue en cours, aucun nouveau chiffre de performance.
+
+- **72R recherche close, matrice retenue avant code** : branches principales amont inchangées ; PR ouvertes Splash503/fa3142849e6995d396fe81b0fd35c2596c2469c4 (GEMV selon lignes actives, mode numerics fast) et443/3a4581d77d7dc8a4557745bc73aa03d3437ba80d (shared expert parallèle au routage en prefill) inspectées, pas assimilées àmain ni àunportEXL3exact. Strata mt l_rt::run_graph_seg confirme un seul commandbuffer avec événements aux coupures, buffers persistants et attenteCPU ; Splash HostStepTiming sépare pickup/work/resume. Le maintienGPU nonpublic reste exclu. Six pistes petites et indépendantes72/73 retenues ci-dessous ;71PHotB2 reste le septième chantier réel après ces essais, mécanisme déjàpréenregistré, pasunportdu mode fast. Une carteexpert→slot cachée n'est pas retenue sans taux de réutilisation démontré, ni un graphe natif entier sans profil exclusif hôte : ces deux recherches ne deviennent pas des prototypes silencieux. Pasdenouvellemesure.
+
+### FLASHSSD-2026-10-22-72T — cinq variantes isolées de prélecture, avant prototype
+
+- Même source/binaire final pour les cinq candidats, contrôle strict `MLXL3_SSD_PREFETCH_VARIANT=legacy|late|bounded|unused|lfu|weighted`, défautlegacy, uniquement expérimental. A/late : prédiction soumise après Hot et avant attente des reads Cold sur les cohortes B1..B5 qui tiennent réellement, prédiction bornée àdeuxlignes ; les fenêtres découpées gardent le cheminlegacy exact sans perdre la prélecture. B/bounded : protection limitée au préfixe de taillemin(budget,4), vide si aucun worker libre, au lieu des32candidats ; politiqueLRU conservée. C/unused : après slotslibres/protection/préservationpending, victimes préchargées jamaisconsommées avant les experts confirmés, sans modifier la clé LFU/LRU restante. D/lfu : protéger les candidats sans imposerLRU àla politique demandéeauto ; un overrideexpliciteLRU reste honoré. E/weighted : sommer surGPU les probabilités softmax des deuxlignes de prédiction puis choisir16IDs distincts, àla place de l'interleave de deux top16. Formats et calculs de la cible inchangés ; lecturespool≤4 et capacités53inchangées. Pas de combinaison des variantes avant leurs résultats isolés.
+- Qualité avant débit : parser/limites/invalides, tests CPU de victimes libres/pending/protégées/consommation d'une prélecture, oracles indépendants et mutation ciblée ; Kani sur implémentation réelle des décisions CPU (domaineusize pour bornage, dixslots symboliques pour ordre des victimes, timeout180s/4Gio), tentative vraie voieMLX avec diagnosticsICE conservés. MLXcomposant : B1..8/cap24,53, poisonNaN des régions libres, Hotanticipé conservé, prédictionsréellementadmises et réutilisées, fallback split, classementweighted indépendamment contrôlé avec sommesCPU des probabilitésGPU, étatsprélectureannulation/erreurs/retry. Puis36préfixes/logits248320/captures/états cible etvraibridge43 parvariante, mêmesoracles07/60/64 ; le choix de prédiction peut changer lesmisses mais jamaislesvaleurs de la cible. Tests rapides de config invalide, Kani/Clippy/build/suite livrée/Python pertinents etCI inspectés. Mutation détectée puis restaurée avantgel ; aucunbenchmark avantclôturequalité.
+- Débit parvariante B2DFlash2MAIN/HOLD, H=legacy/pipeline69=1/lookahead2, C=seulevariante ; témoins sansprélecture etMTP1 frais encadrantlamatrice. Cache3Gio/53slots/allocator64Mio, ctx4096,greedy,128sorties127decode, un warmup128+unemesure128 parenfant. ÉcranH-C parprompt, puisC-H si≥1% surlesdeux ; gainstrictHCCHsi toutespaires≥1%, dériveH≤5%, étenduegains≤3points, surplusC≤256Mio, exactitude etzéro nouveauSwapout/contrôlespré20post30. Les candidats négatifs ont quandmêmeleursdeuxécransréels, pasdepêcheauxparams ; comparaison àl'absence de prélecture indispensable pour promotion finale. APIoctets/attente/reuse etphases distinctes conservées, aucune mesureNVMephysique inférée. Tous les cinq essais sontpréparés, nonlancés àcetteentrée.
+
+### FLASHSSD-2026-10-22-73T — shared expert anticipé, avant prototype
+
+- Sixième candidat, inspiré du recouvrement de la PR Splash443 mais adapté au décodage MLX exact, pas sa fusionGGUF/prefill. Contrôle `MLXL3_SSD_EARLY_SHARED=0|1`, défaut0 : construire et soumettre la contributionshared inchangée aprèsHot disponible maisavantreadbackCPU/attenteSSD, puis la réutiliser àl'addition finale. Ne pas activer shared_batch68 ni changerlesarrondis ; encohortesuniques/splits, chaque souscohorte conserve une seule contribution exacte. Poids partagés immuables, pasdenouveauslot/cacheexpert. Vérifier indépendamment f16/f32,strides,B1..8, Hot/Cold etéchecs avantvalidationmodèle/bridge43. Mutationdelaréutilisation détectée. Kani voieMLXréelle tenté, aucunepreuveGPUinventée ; Clippy/buildettestsapplicables.
+- Baseline pipeline69=0/lookahead0/shared65/68/stable67=0,63/HotWide/UNIQUE1. Écran réel OFF puis DFlash2B2, MAIN/HOLD H0/C1 etC-Hconditionnels, mêmeprotocole72T/critères/gardes ; MTP1 frais après etcombinaisonPRECAP seulement aprèsgainisolé. Cettesoumissionasynchrone n'établit pas un recouvrementGPUautomatique : mesurerleTPSfinal, conserver régressions etcontrepied éventuel du readbackretardé. Aucunchangement C++/Metal pourceprototype ; applicableàQwenFlash, aucuncomportementLFM2modifié. Essai préparé, nonlancé.
+
+- **72/73 première implémentation, CPU avant GPU** : Clippystrict livré passe ; première suite157passés/156ignorés. Relecture trouve une seconde activationLRU dans forward_rows àneutraliser pour la varianteLFU, en plus de protect_predictions ; ajout d'un contrôle de politique dans le vrai testMoE pour détecter un branchement incomplet. Sources corrigées après cette première suite, contrôles affectés àrefaire. Première invocationKani sort2 avantcompilation : --harness-timeout exige -Zunstable-options ; diagnosticpréservé kani-protection.log, aucune obligation vérifiée. Relancev2 avec optionrequise, mêmesbornes/domaine ; aucun GPU72/73 lancé.
+
+- **72 contrats CPU passent** : protection14obligations/3covers (usizecomplets), victime sur dixslots999obligations dont13inatteignables std/Kani et3covers, politique650obligations dont7inatteignables std et3covers (deuxIDs u32 arbitraires, booléenspolitique/activation, unwind514). Assertions métier atteignables ; domainesbornés etabsence depreuveGPU explicites. Première tentativeCLI sans-Z resteéchouée. SuiteCPU/livréev2passe157/156ignorés ; tests physiques toujoursnonlancés. AvantpremieressaiGPU, précisionprospective : le classementweighted somme le softmaxcomplet surdeuxlignes (hypothèselocale), pas le classement sparse top10renormalisé exactdeSplash ; usageprélecture requis parvarianteglobalement, sans supposer que chaque prédiction change leshits àchaqueforme. Ajout d'un test de configuration parprocessus et de la cardinalitédeprotectionréellement appliquée pour éviter une variante nonbranchée.
+- **72 mutationcache tentative1 interrompue aupré20** : garde «live power changed» à12,16s, enfant/sleepjoint, aucunharnessCPU ni modèleGPU lancé ; Swapouts9592 inchangés. LeMac est revenuAC100% àl'inspection. Résultat/logspréservés dansmutation-cache. Avant reprise, corriger aussi la fixturejetable : copier physiquement Cargo.toml/Cargo.lock/build.rs au lieu de les symlinker, pour quelemanifesttemporaire pointe sansambiguïté vers le native muté. Aucunfichierdeproduction muté. Relancepré20neuve dansmutation-cache-v2 avecmêmeancre/mêmecontrat, raison explicitealimentationredevenuestable ; pasdevitesse en jeu.
+
+- **72 mutationcachev2 close, oracle crédible** : copieisolée du vraicrate, seule clé depriorité inutilisée remplacéepar0 ; vrai testpublicrégression échoue1/1, exit101 attendu, victimeSome0 aulieudeSome23. Manifesttemporaire effectivement compilé vérifiédanslog ; pré20/post30 secteur/0nouveauSwapout/tousenfantsjoints, scratch supprimé, aucune sourceproduction mutée. Testnormalavaitpassé etsera repassé dansgel final. Améliorerla preuve de victime avantvalidationGPU : premiersrésultats gardés (counts/agesu8 symboliques) ; nouvelle tentative suru32/u64complets, mêmesdixslots/unwind12, budget180s/4Gio, pas de restriction ajoutée pourverdir. AucunbenchmarkGPU exécuté.
+
+- **72 preuve renforcée close** : troisvraisharnaisCPU repassent avec counts:u32/ages:u64 symboliquescomplets surdixslots, et protectionusize/deuxIDsu32tousdomaines. kani-full-width.json/log etmonitor : aucunarrêt/échec, maximumRSSéchantillonné3614736384B<4Gio (pasunpicphysiqueexhaustif), Swapouts9592inchangés. Les domaines10slots/deuxIDsrestentbornés et ne prouvent pas leskernelsGPU/concurrence. La mutationcache0ci-dessusestdétectée, scratchsupprimé. Les PRamont503/443 sontouvertes/nonmergées et basées surbe3b083,260commitsderrièreleHEADmain1482f6bb seloncomparaison ; refs/main vérifiéesdirectementpourSplashetStrata, pasd'ajoutmainnouveau.73adapte seulement l'idée de recouvrement, pasleschangementsGGUFdel'anciennebranche. AucunprototypeGPU encore exécuté.
+
+- **72T ajoutprospectif d'un sixièmecandidat avanttoutGPU** : lecture de mlxl3_array_copy_bytes (correctif56déjàprésent) et du retourpredict montre une vue `[2,16]`/stride de512 aprèsargsort/slice. Le fastpath56éviteContiguousseulementquand row_contiguous ; la matérialisationtardive de cettevue peutse placer derrière output.async_eval danslewrapper69. Hypothèseàreproduire, pasencoreunbugmesuré : variante `packed` fait reshapeen `[rows*16]` avantasync, mêmesIDs/ordre/prédictions, seule la position de copie change. Microdiagnostic contrôlé : prédictiondéjàévaluée, calculGPUretardéindépendant puisreadback ; vérifier32IDsidentiques/nonvides et si le calculretardé est encorepending, legacy vs packed. Reprisehistorique56justifiéeparlaforme stridée2×16nouvelle69, pasparunehypothèsed'attenteglobale nonfondée. Mêmequalité96→112casMoE et36préfixes/bridge43/protocoleHCCH que72T. Le modeweighted `[1,16]` est déjàcontigu : ses éventuelsgains mélangeraient classement etlayout ; packedisolecesecondmécanisme. Septcandidatstotaux avec73, huitavec71P, tousdébitsnonmesurés. Vérificationadditionnelle73 : réutiliser le test56 demanded_reads_start_while_gpu_resident_experts_are_pending avecEARLY_SHARED1 pourdétecter une sérialisation durouteur causéeparl'anticipationdu shared. KaniMLXréel retenteetéchouecompilationICEintrinsics243 ; aucune obligationGPU vérifiée, diagnosticpréservé.
+
+- **72/73 composantsGPUv1 clos** :12testssélectionnés passent,112casMoE surseptmodes/cap24,53/B1..8 (49casdécoupés), chaquevariante admetetconsomme32prélectures sur16cas, sortiescible/next byteexactes ;96formes sharedf16/f32/strides/B1..8 exactesettroisreprisesaprèsI/Oéchouée. Configurationsseptmodes réellement chargées ; masque de protectionbounded≤2 etpolitiqueLFUeffectivementconservée, pas seulement unflagdécoratif. Microreadbackconfirmeleproblème :32IDsidentiques, calculindépendantdéjàterminéaprèslecturelegacy contreencorependingaprèslecturepacked ; vraiefileGPU, pasdeTPSextrapolé. Test56avecEARLY_SHARED1 conserveHotencorependingauxroutes/demandes. Pré20/post30AC/enfantsjoints/0nouveauSwapoutdepuis157155328B ; physiquesetlimites danscomponent-v1/summary.json. Gel159sourcesetdeuxbinairesv1(be4954ddCLI/141d9c8ctests) inchangé ; fmt/Clippystrict/buildet157testsnormaux/158ignorés passent, tentativeKaniMLXfinalev2 ICE243 conservée. Aucune vitesse mesurée : oraclesmodèle36préfixesetbridge43parvariante restentobligatoiresavantdébit.71Pencorepréparé/noncodé.
+
+- 45-Q/R processus pre20 : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/mutation-cache/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/mutation-cache-v2/run-result.json.
+
+- 45-Q/R processus mutant-cache : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/mutation-cache-v2/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/mutation-cache-v2/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus config-legacy : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus config-late : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus config-bounded : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus config-unused : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus config-lfu : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus config-weighted : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus config-packed : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus packed-readback : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus weighted-order : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus prefetch-variants-112 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus early-shared-96 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus early-shared-overlap : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/component-v1/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- 45-Q/R processus prefix-legacy : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- 45-Q/R processus prefix-packed : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- 45-Q/R processus prefix-late : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- 45-Q/R processus prefix-bounded : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- 45-Q/R processus prefix-unused : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- 45-Q/R processus prefix-lfu : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- 45-Q/R processus prefix-weighted : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1/run-result.json.
+
+- **72/73 oracles natifsv1 interrompus sur assertion de couvertureweighted** : six modes (legacy/packed/late/bounded/unused/lfu) passent chacun les36préfixes ; weighted échoue après6,48s : «verification did not issue its own prediction window», avant comparaison des logits. Exit101/enfantjoint/0nouveauSwapout, preuves préservées quality-native-v1. Les essais73/MTP/config etpost30 du plan n’ont pas été exécutés. Diagnostic : la fixture attend32IDs même pour le nouveau mode qui agrège16IDs. Corriger seulement le nombre exact attendu, puis nouveaugel/vérifications affectées. Post30 séparé préenregistré quality-native-v1-settlement, mêmesancre/secteur, aucune remise àzéro desgardes. Nouvelle session reprise23oct : écriture du dossier de settlement refusée EPERM par sandbox avant création ; aucun test supplémentaire lancé, reprise via outil avec portée explicite au worktree déjàautorisé.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v1-settlement/run-result.json.
+
+- **72/73 fixturev2 etsettlementclos** : post30séparéAC/tousenfantsjoints/Swapouts157155328 auxdeuxextrémités etmaximumlive0. Attenteexacte parmodecorrigéeavecgettersouscfgtest etcontrôleconfig indépendantenombrepondéré ; aucunalgorithmedeproduction modifiédepuisv1. fmt/Clippystrict/tests157passés158ignorés/buildmlxchatpassent, KaniMLXretentéICEintrinsics243avantobligations(nonprouvé). Gelv2 CLIc1c68fa8/natif7e6eaadc/archive159sources ; changementslimitésàgetters/testfixture, preuves6×36préfixesv1réutiliséespourcequ’ellescouvrent. Nouvellephasev2 : weighted36,earlyshared36,MTPsession,MTP10paires,configearlyshared ; tousrestants avantbridge43, pré20post30/gardesinchangées.71P préparéuniquementdanscopieisoléeparsousagent, aucunecompilationpendantGPU.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v2/run-result.json.
+
+- 45-Q/R processus prefix-weighted : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v2/run-result.json.
+
+- 45-Q/R processus prefix-early-shared : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v2/run-result.json.
+
+- 45-Q/R processus mtp-session-early-shared : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v2/run-result.json.
+
+- 45-Q/R processus mtp-pairs-early-shared : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v2/run-result.json.
+
+- 45-Q/R processus config-early-shared : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v2/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/quality-native-v2/run-result.json.
+
+- **72/73 oraclesmodèleclosv2** :5testsrestantsréussissent dontweighted36+earlyshared36préfixes/logits/captures/états,sessionMTPet10pairesMTP/config. Avec6×36v1inchangés, touteslesseptvariantesetlegacyontleur36contrôles ; correctiffixturepasunassouplissementdelaparité. Picphysiquev2 8136792760B, pré20/post30secteur/enfantsjoints/Swapouts157155328constants,maxlive0.159sourcesetdeuxbinairesv2rehashésinchangés. Bridge43parvarianteàsuivre ; vitesseencorenonmesurée. Avantbridge,mutation73decontribution anticipée danscopieisoléecompilée séparément,oracle96formesdoitdétectersuppressiondeshared ; productiongeléenonmutée.
+
+- **73 mutationisolée premièrecompilationéchoueavanttest** : fixtureinclude_strdocsabsente etArray::subinexistant, exit101/build.logpréservé ; aucunGPUniassertiontestexécutés, doncpasmutationdétectée. Repriseprospective : docsliélectureseuleetsuppression sharedviazeros_dtype(forme/typeidentiques), productionv2inchangée. Nouvellecompilationseulebuild-v2.logavantpré20/testattenduéchoué/post30.
+
+- **72R révision23oct13h33Paris, sourcesamontévoluées** : nouvellesrefs vérifiéesSplash3135ab45(+29commitsdepuis1482)etStrata5c8dd322(+127depuis011), métadonnées/patches15fichiersdansopt-72/upstream-review. AncienconstatHEADsinchangésrestedaté, pasactualité. PRSplash550/555/556diagnostic/contrôlesadaptatifsouverts, Strata3783conversationsparallèlesdébitagrégénonlatenceunique ; nouveauDFlashCUDA/HIPStratapasaunouv eauMetal. FixmasqueSplash4dd195e/Qwen3.5OrnithGGUFinspecté : notremasquelocalBF16brut248077,2550/2560nonzéros,max0,0169678,aucunnonzéroperdumêmeenFP16hypothétique ; cheminSession→draft_input→normeBF16sanscastFP16, doncpasdeportinutile. Autrespistesnonlancéesidentifiéesdansrapport : prédictionréutilisantgatesrésidentes(49globalnonconcluant),LFUparoccurrence/horlogeséparée,postnormeGDNgroupée(64Rjamaisportée),poidsconvpréconverti,captureselectorEXL3. Cesbacklogsnesontpasdesgainsniunnouveautestdéjàfait ; matrice72/73puis71Pgardéeprioritaire.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/mutation-v1/run-result.json.
+
+- 45-Q/R processus mutant-early-shared : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/mutation-v1/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/mutation-v1/run-result.json.
+
+- **73 mutation partagéedétectée, postflightencours** : vraicrateisolécompilev2, suppressiondeseulecontributionanticipée parzérosforme/typeidentiques ; oracleproductionéchoue1/1 «shared expert differs»,exit101attendu, pasunéchecdumodèlenormal. Premierbuildéchouéconservé. Aprèspost30puisnouveaupré20, refaire96formessurbinairenormalv2avantpremierbridgepacked : run-prepared.jsonconservel’ancienplan, run.jsonajouteexplicitementcecontrôlerestauration, aucunchangementexécutablegelé. BranchesconditionnellesCHnonlancées.
+
+- **73 mutationclose** : oracle détecte suppression shared,pré20/post30AC/3processusjoints/0nouveauSwapout ; patch/sourcehash/binairehash/logsetpremièrecompilationéchouéeconservés, cratescratchsupprimé.159sources/2binairesnormauxv2vérifiésinchangés. Répétition96normaleestlaprochaineétapedupremierbridgepacked ; aucunbuild/proveuractif.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v2/run-result.json.
+
+- 45-Q/R processus early-shared-restored-96 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v2/run-result.json.
+
+- **CI09113lectureexacte23oct** : run39823981330terminéfailure ; FlashKani119982266166/Linux119982266595/macOS119982266494success, globalKani119982266545interrompuparshutdownrunneraprès31harnaisSUCCESSFUL,32ecache_allocation_is_optimal_and_exact_on_two_layers_two_levels sansverdictaprès151,69s. Pasdecontre-exempleobservé,pasd’exit143danscelog091,limitejob3600snonatteinte ; causehostexterne/OOMinconnue. Rapport/logbrutcompressé/statutsexactssauvésci-09113. Aucunrerun/contournementcontinue-on-error, preuveglobaleincomplète ; cetteCIducommitprécédentnevalidepasleschangements72/73locaux.
+
+- 45-Q/R processus bridge : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v2/run-result.json.
+
+- **72/73 bridgepackedv2 interrompu pargardeSwapout** :34/43contrôlesterminés, requête35SIGTERM, checkerfailed/pariténull,enfantjoint ; ancre157155328B→dernier206635008B (+49479680B), aucunequalification43niTPS. Les96formesnormalesrestauréesavaientpassé. Sixautresbridges nonlancés. Aucunmodèle/build/proveur restant àl’inspection. Post30séparé soussettlement-after-swap : observationgénériquesansmodèle, ancrehistoriqueconservéeetphasefailednonrequalifiable ; cecontrôleneconstituepasunnouveaupointdedépartmémoire. Aucunecorrectionsourcegeléeniessaisuivant.
+
+- 45-Q/R processus post30-observation : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v2/settlement-after-swap/run-result.json.
+
+- **72/73 bridgepackedv2 clôturefailed + observationpost30** :34/43requêtescomplètes,26completeevents/5error/2cancelled, requête35interrompue conservée ; pasdeparité43. Maxphysicaldes26complete7935351288B (mesuredelarequête35absente), RSSéchantillonné distinct3658645504B ; prélecturesréelles observées. NouveauxSwapouts49479680B, ancre157155328inchangée, fin206635008B. Observationseulesansmodèle30,028s/16snapshotsstablessecteur, maisprotocolemémoirerestefailed, aucunrebasage niTPS. Checkeretcontrôleurjoints/samplerjoint/aucunprocessusGPU/build/proveurrestant ; champreader_joinedséparéabsentduchecker.159sources/2binairesv2inchangés. Summary/logs/incidentconservés bridge-packed-v2/summary.json ; sixautresbridges72/73nonlancés,bloquéssurcetincident, aucunevitesse.
+
+- **72 packed bridgev3 préparé avant reprise** : mêmes calculs/drapeaux quepackedv2, CLI77v1gel69b919ae, seulement métadonnéesOS/JSON nouvelles. But : terminer les43contrôlesduvraibridge interrompu34/43parancienzéroSwapout. Sourcecommande/driver/SHA gelésdansbridge-packed-v3, pré20/checker840s/post30, superviseurstock256Mioparphase etVMcourbe. Composant77physique1/1déjàpassé, Kani77réel127assertions+3coverspassées, CBMCSDKnonpris encharge, mutationvaliditédétectée/restaurée ; analyseur220testsCPU passe. Touscompilateurs/proveursterminésavantGPU.
+- **72 packedv3 séparationdesstatuts** : la pariténumérique43peutêtrevalidéeindépendammentdesplafondscompressionexpérimentaux77B déjàéchouésaussisurlestémoins. Conserverlaqualité, les proprescompteurs ettempsmêmesicapséchouent ; aucunepromotiondegainmémoire/performance etpasderequalification77B. Un écrande débits packed sera lancé seulementaprès43valides, avecsonprop retémoinlegacy, àtitrediagnostic tantquelesconditionsmémoirenesontpasqualifiées. Aucun autre modèle/build/proveurconcurrent.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v3/run-result.json.
+
+- **72/73 préparationdesplansv3avanttoutlancementparagent** : parentexécuteactuellementpackedbridgev3 ; aucunsecondGPU/build/proveur/test. Prépareruniquementsixbridgesv3depuisrun-v2etécranpackedH-CMAIN/HOLD(legacy/pipeline1/depth2→packedseuledifférence),CLI77v1SHA69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c. Reprise72T/73T+77Bstock256Mio/phase, mêmepré20/post30etcache3Gio53slots/alloc64Mio ; flagsarithmétiquesinchangés. Wrapperobserve-stock.pycommunréutiliséparréférence, sanscopieniéditiondecode. Capscompression77Bdéjàéchouésrestentfailed : qualité43distinctedequalificationmémoire,TPSdiagnosticseulement,aucunegainpromu. Sources/CLI/driverhashvérifiés,manifestetidentitésprospectifs ; lancementsubordonnéàlamainexpliciteduparentetqualité43du mode,pasuneexécutionplanifiéeautomatique.
+
+- **72/73 plansv3préparés, nonlancésparagent** :7plansneufs(sixbridges43+écranpackedB2HCMAIN/HOLD) etidentités/manifestsauvésopt-72-prefetch-variants/plans-v3-prepared.json. Aucuncodeexécutablecréé/modifié ; wrapperobserve-stock77communréférencéavecSHAad28af76. CLI77v1/deuxbinaireset5sources77vérifiés, sourcesarithmétiques72inchangées ; changes75protocole/CIexplicitésdansidentité. ParentencorepropriétaireduGPUpackedv3. Qualiténumérique43etnonqualificationcompression77Bstrictementséparées, TPSdiagnostic/pasgaintantquemémoirenonqualifiée. Aucunlancementautomatique,nouveauseuilouremiseàzéro ; sixautresmodes restentprêtsavantessai, pasencours.
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v3/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-packed-v3/run-result.json.
+
+- **72 packed bridgev3 clos, parité43 valide** :43requêtes terminées,33completeevents, annulations/erreurs/reprises prévues, aucune requête active. Pré20/post30 secteur, troisenfants etsamplerjoints ;0Swapout global parphase, delta ledger_swapins0B. Picphysique7938562528B ; compressed_peak4315840512B. Analyseur vérifié confirme échec des budgetscompression77B (données/cumuls valides, source_errorsvide), sauvegardé sans requalification. Ancienv2failed34/43 reste intact. Aucun gain mémoire/TPS encore ; écranpackedB2HC MAIN/HOLD préparé b11a797a lancéensuitecomme prévu, résultats diagnostiques tant quequalificationmémoireéchouée.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run-result.json.
+
+- 45-Q/R processus packed-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run-result.json.
+
+- 45-Q/R processus packed-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run-result.json.
+
+- 45-Q/R processus packed-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run-result.json.
+
+- 45-Q/R processus packed-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/run-result.json.
+
+- **72 packed écranHC clos** : MAIN legacy9,122354→packed10,305966tok/s (+12,9748%) ; HOLD8,695171→9,626069 (+10,706%). Huitréponses128 exactes (golden60 texte/hash/tokens), enfants/lecteurs/samplerjoints, pré20/post30AC. Sur MAINH :458752B Swapout système (admis parstock256Mio), autresphases0 ; compteurpropreledger sanshausse à vérifier dansrésumé, budgetscompression77Béchoués conservés. Cesgains relèventducheminprélecturelegacy, pasdu meilleur moteur : témoins frais sansprélecture10,222853/9,486926, différencesbienpluspetites. Unepaireparprompt, paspromotion. ConditionCH≥1%lesdeuxprompts satisfaite ; reverse/run.json préenregistré avant lancement, ordreC-HMAIN/C-HHOLD, mêmespoids/options/binaires et données complètes conservées.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/run-result.json.
+
+- 45-Q/R processus packed-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/run-result.json.
+
+- 45-Q/R processus packed-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/run-result.json.
+
+- 45-Q/R processus packed-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/run-result.json.
+
+- 45-Q/R processus packed-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/run-result.json.
+
+### FLASHSSD-2026-10-23-72S/73S — écrans diagnostiques avant répétition des six bridges, amendement prospectif
+
+- Priorité utilisateur réitérée : mesurer réellement les débits maintenant. Les112casMoE B1–B8/cap24,53/HotCold/poison et288préfixes/logits/captures/états exacts sont déjà validés pour les sept configurations ; EarlyShared ajoute96formes et reprisesI/O, plusMTPsession/paires. Le bridge communpackedv3 vient de passer43/43. Revue indépendante des appelants confirme parsing/modes/options inchangés mais ne transfère pas annulation/reprise/memory_saver/lectures en vol à chaque politique.
+- Amendement AVANT lancement : pour les six modes restants, exécuter désormais les écrans réels H-C MAIN/HOLD après cette qualité numérique acquise, au lieu de répéter43contrôlesAPI avant chaque écran. Ces résultats restent diagnostiques, nonpromus ; un candidat prometteur devra passer son propre bridge43 (annulationcontext_usage/delta/reprise/erreurs/cache) avant toute promotion. Un écran lent sera archivé sans consacrer une campagne complète de bridge à un prototype rejeté. Les six plans43v3 antérieurs restent prêts/nonexécutés, pas annoncés valides. Aucun test ni seuil historique effacé ou requalifié.
+- Protocole vitesse72T/73T conservé : même binaire77v1 CLI69b919ae, poids/draft/oracles, 3Gio53slots/allocateur64Mio/greedy/128sorties127decode/unwarmup128+mesure128 ; H-C etCH conditionnel≥1%deuxprompts, Hdrift≤5% etétendue≤3points. Tous les bras contre golden60OFF texte/hash/tokens nonvides. Stock256MioSwapins/Swapoutsparphase, pré20/post30AC, unmodèle, aucunbuild/proveurconcurrent. Lescapscompression77B échoués restentfailed ; pas de nouvellequalificationmémoire ni de gainlivré à partir de ces écrans. Compteursprocessus/gauge/lifetime/pics/ledger seront conservés sans attribuer le swap-out global au modèle.
+- Ordre immédiat :73OFFH-C MAIN/HOLD puis73B2H-C MAIN/HOLD ; seuleEARLY_SHARED0→1, pipeline0/lookahead0. Ensuite72late/bounded/unused/lfu/weighted séparément avec leur témoinlegacy/pipeline1/lookahead2, jamaiscombinaisons. Les autres variantes restent nonlancées tant que leur plan n'est pas gelé. Critères négatifs conservés même si débit faible ; une dérive ne devient pas un gain. Publication77 instrumentationséparée, aucun78T/71P appliqué pendant ces mesures.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/OFF/screen/run-result.json.
+
+- 45-Q/R processus early-shared-OFF-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/OFF/screen/run-result.json.
+
+- 45-Q/R processus early-shared-OFF-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/OFF/screen/run-result.json.
+
+- **72 packedHCCH analyse close, diagnostic nonpromu** :16réponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes,8enfants/lecteurs/samplersjoints,pré20/post30AC,mêmeCLI77v1. GainsHC/CH MAIN[12.974849, 12.567874]%, HOLD[10.705919, 21.558915]% ; dériveHMAIN/HOLD[4.68304, 10.99142]%, étendues[0.406975, 10.852996]points→inconclusive_drift. MoyennePackedvsnofetchfrais MAIN/HOLD[-1.6154, 0.923675]% descriptifs/nonappariés. ScreenHMAIN458752Bglobaloutsconservés,reverse0 ; picphysique7853988128B, ledgerdelta0danstousprocessus, budgetscompression77Bfailedinchangés. QuatreanalysesCHfailed/source_errorsvideconservées,aucunseuilchangé,aucunegainpromu. Preuvesreverse/hcch-analysis.jsonet summary.json. Premièrecommandeéphémèred’analyseSyntaxErroravanttouteexécution(logconservé), corrigéeavantreprise ; aucunGPU/build/proof/testlourd.
+
+- 45-Q/R processus early-shared-OFF-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/OFF/screen/run-result.json.
+
+- 45-Q/R processus early-shared-OFF-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/OFF/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/OFF/screen/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/B2/screen/run-result.json.
+
+- **73 OFF écranHC clos, diagnostic hétérogène nonpromu** : MAIN H8,461713→C8,078142tok/s(−4,5330%), HOLD8,119025→8,466547(+4,2803%) ; conditionCH≥1%deuxpromptsnonatteinte, unpoint/bras/prompt nevalidepasgainglobal. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, OFFconfirmé, quatreenfants/lecteurs etsamplerjoints, sixétapespré20/post30ACcomplètes. Swapoutsglobaux0B, propresledgerdeltas0B ; picphysique7153358752B. Quatreanalyses77Bfailed/source_errorsvide, capscompressioninchangés. Δlifetimecompressionwarm→mesure MAIN H/C228048896/13156352B,HOLD169017344/4423680B descriptifsseulement, aucunerequalificationdeséchecs77B. Rapportsopt-73-early-shared/speed-v3/OFF/screen/{summary.json,report.md,memory-analysisparbras}, sources/CLI77v1planrehashésinchangés. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus early-shared-B2-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/B2/screen/run-result.json.
+
+- **72S plans de cinq écrans préparés, aucun lancement par le préparateur** : late/bounded/unused/lfu/weighted sous `docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/{candidate}/screen`. Manifest `screens-v3-72S-prepared.json` SHA-256 `f2e232afdf08394ab9ee2ff8c7680b89440898323baee8fa2350038c57edcaba`, note `screens-v3-72S-preparation.md`. CLI77v1 `69b919ae`, wrapper observe-stock commun et driver rehashés ;165sources comparées à l'identitév3, seule la CI a changé (delta consigné, référence antérieure conservée). PlansH-C MAIN/HOLD B2/WIDTH1/ADAPTIVE0 : témoinlegacy/pipeline1/lookahead2, seule PREFETCH_VARIANT change ; anciens speed-v2 conservés, aucun reverse ni relance automatique créé. RelectureJSON/hashes/flags et absence des sorties confirmées ; aucun script de benchmark, modèle, test, build ni proveur lancé. Les six bridges43v3 candidats restent préparés/nonexécutés : requis avant promotion d'un candidat prometteur selon l'amendement72S/73S ; budgetscompression77Bfailed inchangés, ces futurs écrans restent diagnostiques.
+
+- 45-Q/R processus early-shared-B2-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/B2/screen/run-result.json.
+
+- 45-Q/R processus early-shared-B2-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/B2/screen/run-result.json.
+
+- 45-Q/R processus early-shared-B2-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/B2/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-73-early-shared/speed-v3/B2/screen/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/late/screen/run-result.json.
+
+- **73 B2 écranHC clos, diagnostic hétérogène nonpromu** : MAIN H9,542746→C10,117880tok/s(+6,0269%), HOLD9,068805→8,683108(−4,2530%) ; conditionCH≥1%deuxpromptsnonatteinte, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactifconfirmés, mêmesacceptations/routesdemandebytesH/C ; prélectureprofil0. Quatreenfants/lecteurs etsamplerjoints, sixétapespré20/post30ACcomplètes. Swapoutsglobaux0B, propresledgerdeltas0B, picphysique7850121528B. Quatreanalyses77Bfailed/source_errorsvide, capscompressioninchangés. Δlifetimecompressionwarm→mesure MAIN H/C19382272/8503296B,HOLD173080576/15613952B descriptifsseulement. Rapportsopt-73-early-shared/speed-v3/B2/screen/{summary.json,report.md,memory-analysisparbras}. CLI77v1driverobserverplanrehashésinchangésaprèscommit89174fcc ;165sourcesrevues,seuleCI changée, pasnouveaubinaireHEAD. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus late-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/late/screen/run-result.json.
+
+- 45-Q/R processus late-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/late/screen/run-result.json.
+
+- 45-Q/R processus late-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/late/screen/run-result.json.
+
+- 45-Q/R processus late-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/late/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/late/screen/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/bounded/screen/run-result.json.
+
+- 45-Q/R processus bounded-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/bounded/screen/run-result.json.
+
+- **72 late écranHC clos, diagnostic nonpromu** : MAIN H8.550513→C8.460787tok/s(-1.0494%), HOLD H8.213443→C8.964298(+9.1418%) ; conditionCH≥1%deuxprompts=False, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7852300552B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v3/late/screen/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus bounded-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/bounded/screen/run-result.json.
+
+- 45-Q/R processus bounded-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/bounded/screen/run-result.json.
+
+- 45-Q/R processus bounded-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/bounded/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/bounded/screen/run-result.json.
+
+- **72 bounded écranHC clos, diagnostic nonpromu** : MAIN H8.671344→C8.409405tok/s(-3.0207%), HOLD H8.619451→C8.467276(-1.7655%) ; conditionCH≥1%deuxprompts=False, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7852661048B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v3/bounded/screen/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/screen/run-result.json.
+
+- 45-Q/R processus unused-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/screen/run-result.json.
+
+- 45-Q/R processus unused-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/screen/run-result.json.
+
+- 45-Q/R processus unused-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/screen/run-result.json.
+
+- 45-Q/R processus unused-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/screen/run-result.json.
+
+- **72S trois répétitions C-H conditionnelles préparées, non lancées** : unused/lfu/weighted sous `docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/{variant}/validation`. Manifest `validations-v3-72S-prepared.json` SHA-256 `783dbe414274c0c85b222c7405528632acef38d265890f23887bc7ff1682b203`, note `validations-v3-72S-preparation.md`. Templatesv2 conservés ; seuls CLI77v1 `69b919ae` et destinations changent, driver/wrapper/165sources rehashés (seul deltaCI déjà consigné). Ordre pré20/C MAIN2/H MAIN3/C HOLD2/H HOLD3/post30, B2WIDTH1/ADAPTIVE0/pipeline1/lookahead2 ; seule PREFETCH_VARIANT varie. Condition de lancement maintenue : écran exact ≥1 % sur MAIN ET HOLD inspecté par le parent ; condition non évaluée par la préparation, aucune autorisation d'exécution automatique. Readback hashes/plans et absence des sorties vérifiés ; six bridges43v3 toujours nonexécutés, requis avant promotion ; capscompression77Bfailed inchangés. Aucun plan ajouté pour late/bounded/early-shared/packed, aucun benchmark/test/build/proveur ni modèle lancé par le préparateur.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/screen/run-result.json.
+
+- **72 unused conditionCH satisfaite avant lancement** : écranMAIN8,854470→9,075448 (+2,4957%), HOLD8,737267→8,882685 (+1,6643%), deuxrapportsvalidesparprompt/lecteursenfantsjoints/post30clos. PlanC-Hpréparévalidation/run.json geléSHAf0a7033c8ad60b87116af9a2ae766697195f4add7ec4e0db4c8f5553999bfad8 ; lancerconfirmationdiagnostiqueimmédiatesansautrecandidatentredeux, critèresHCCHinchangés/caps77Bfailedconservés, pasdepromotionvsnofetch présumée.
+
+- **72 unused écranHC clos, diagnostic nonpromu** : MAIN H8.854470→C9.075448tok/s(+2.4957%), HOLD H8.737267→C8.882685(+1.6643%) ; conditionCH≥1%deuxprompts=True, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7852300600B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v3/unused/screen/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/validation/run-result.json.
+
+- 45-Q/R processus unused-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/validation/run-result.json.
+
+- 45-Q/R processus unused-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/validation/run-result.json.
+
+- 45-Q/R processus unused-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/validation/run-result.json.
+
+- 45-Q/R processus unused-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/validation/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/unused/validation/run-result.json.
+
+- **72 unused confirmationCH close, diagnostic nonpromu** : MAIN H8.770837→C8.614660tok/s(-1.7806%), HOLD H8.389887→C8.412918(+0.2745%) ; pairesCH≥1%deuxprompts=False, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7852595464B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v3/unused/validation/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/screen/run-result.json.
+
+- **72 unusedHCCH clos, gain nonreproduit/inconclusive_drift** : MAIN HC+2.495661%/CH-1.780636%, HOLD+1.664345%/+0.274507%. DériveH MAIN/HOLD0.953535/4.140457%, étendues4.276298/1.389838points→MAIN>3, aucune paireCH≥1%deuxprompts.16réponsesexactesgolden60,8enfants/lecteurs+samplersjoints,pré20/post30AC,globalin-out0/ledgerdelta0,picphysique7852595464B. Caps77Bfailedconservés, sourcevalidenonrequalifiée. MoyenneCvsB2sansprélecturefrais MAIN/HOLD-13.4776/-8.8451% descriptifs/nonappariés. Résumé/rapportvalidation/hcch-analysis.json+hcch-report.md ; aucunseuilmodifié,aucungainpromu,43candidatv3nonexécuté. AucunGPU/build/proof/testlourdparanalyste.
+
+- 45-Q/R processus lfu-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/screen/run-result.json.
+
+- 45-Q/R processus lfu-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/screen/run-result.json.
+
+- **72 unusedHCCH précision des critères, sans nouvelessai** : enumhéritéinconclusive_drift couvre aussiétendue>3 ; iciHdriftMAIN0,9535/HOLD4,1405%passelesdeux≤5. Échec réel=MAINCH−1,7806%etétendue4,2763points>3,HOLDCH0,2745%<1. Champsreason/failed_timing_gatesetrapportprécisés,aucunevaleur/seuilmodifiéniGPUrelancé. Cesdonnéesmontrentgaintroppeureproductible,pasunerégressioncausaleétablie.
+
+- 45-Q/R processus lfu-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/screen/run-result.json.
+
+- 45-Q/R processus lfu-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/screen/run-result.json.
+
+- **72 LFU conditionCH satisfaite avant lancement** : écranMAIN8,810358→9,101783 (+3,3078%), HOLD8,372783→8,714328 (+4,0780%), quatreprocessusvalides/joints/post30clos. ConfirmationC-Hpréparéevalidation/run.json SHA88581cd3b7c2fe7eb439735678b9b209895795dc3e3e14f4fc601ec882fa2112 àlancersansinterposerweighted ; mêmescritèresHCCH/caps77Bfailed, gainvsmeilleurnofetchnonétabli.
+
+- **72 lfu écranHC clos, diagnostic nonpromu** : MAIN H8.810358→C9.101783tok/s(+3.3078%), HOLD H8.372783→C8.714328(+4.0792%) ; conditionCH≥1%deuxprompts=True, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7853807904B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v3/lfu/screen/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/validation/run-result.json.
+
+- 45-Q/R processus lfu-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/validation/run-result.json.
+
+- 45-Q/R processus lfu-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/validation/run-result.json.
+
+- 45-Q/R processus lfu-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/validation/run-result.json.
+
+- 45-Q/R processus lfu-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/validation/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/lfu/validation/run-result.json.
+
+- **72 lfu confirmationCH close, diagnostic nonpromu** : MAIN H8.627161→C8.746216tok/s(+1.3800%), HOLD H8.474025→C8.545200(+0.8399%) ; pairesCH≥1%deuxprompts=False, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7853201720B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v3/lfu/validation/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/weighted/screen/run-result.json.
+
+- 45-Q/R processus weighted-MAIN-0-H : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/weighted/screen/run-result.json.
+
+### FLASHSSD-2026-10-23-72S-W4 — reprise du dernier écran weighted après changement d'alimentation
+
+- Échec préservé72/speed-v3/weighted/screen : pré20 réussi puis premier témoinMAIN-H arrêté34,298912s parAssertionError(live power changed), avant mesurecomplète ; aucun candidatweightedniHOLDmesuré, aucune donnéev3 réutilisée comme débit. Processus etsampler joints, vieuxreport incomplete conservé, erreur et courbeVM présentes. LeMac estrevenuAC100% àl'inspection ; scanPID/PPID/RSS/comm sansarguments ni env ne trouveaucunmoteur/build/proveuractif.
+- Avant relance, settlementpost30 séparé stock45/49 dansspeed-v4/weighted/settlement, puis écranHC neuf speed-v4/weighted/screen : Hlegacy/Cweighted, MAINpuisHOLD, nouvellebaselineparprompt. MêmesCLI77v1SHA69b919ae, drivers, poids65c89531/drafta22a1744Q4/ring, B2WIDTH1/ADAPTIVE0/pipeline1/lookahead2, 3Gio53slots/allocateur64Mio/ctx4096/greedy/128sorties127decode/unwarmup+mesure. Pré20/post30AC, stock256MioSwapins/Swapoutsparphase, goldens60hash/texte/comptes exacts, unseulmodèleetpasbuild/proveur. Aucune demande de fermerdesapplications oupurger.
+- Critères72S inchangés : CHconditionnelsiHC≥1%deuxprompts, chaquegainHCCH≥1%, Hdrift≤5%, étendue≤3points ; surplusphysique≤256Mio, plafondscompression77Bfailedrestentfailed etrésultatsdiagnostiques. Pasrequalificationd'ancienséchecs, aucunepromotionsansbridge43proprecandidat(pondéré36préfixes/composantsdéjàpassés). Le planCH antérieurv3 restepréparé/nonlancé ; s'ilestnécessaire, encréerunv4neuf sansécraser. État : settlementenpréparationavantlancement, aucunGPUv4lancé.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/settlement/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/run-result.json.
+
+- **72 LFUHCCH clos, gain global nonqualifié** : MAIN HC+3,307757%/CH+1,380000%, Hdrift2,123494%/étendue1,927756pointspassent. HOLDHC+4,079236%/CH+0,839914%, Hdrift1,209188%passemaisCH<1%etétendue3,239323points>3échouent. Enumhéritéinconclusive_drift expliquédansreason/failed_timing_gates, pasd’affirmationHdrifthorslimite.16réponsesexactesgolden60/acceptationslargeursidentiques, huitenfants/lecteurs etsamplersjoints, pré20/post30AC. Globalouts0/ledgerdelta0,pic7853807904B ; caps77Bfailedconservés,donnéesvalidesnonrequalifiées. Bilan speed-v3/lfu/validation/{hcch-analysis.json,hcch-report.md}. Aucungainvsnofetch/MTPétabli,aucunseuilchangéniGPU/build/proofparanalyste.
+
+- 45-Q/R processus weighted-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/run-result.json.
+
+- **72/73 provenance etCI77 documentaires préparées** : reconstruction/source-v2-to-77v1.patch+manifest+README copiés depuisROOTavecSHAavant/après, 159→165sources exactes, pasdebuildbinairebitreproductibleaffirmé. Sourcesnative72/73restentlocalesetappinchangée. CI89174preuvesdistantes copiéesdansopt-77-process-memory/ci-89174fcc : NativeLinux/macOS/Flash etRegressionréussis, globalKaniarrêtrunner31succèspuis32esansverdict/causeinconnue/pas143explicit e77. snapshotsfinauxetlogsconservés, aucunerelance/localbuildpendantweighted. Publicationdocumentaireàveniraprèsclôture7,pasannoncegain ;65Petrapportsutilisateur74exclus.
+
+- 45-Q/R processus weighted-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/run-result.json.
+
+- 45-Q/R processus weighted-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/run-result.json.
+
+- 45-Q/R processus weighted-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/run-result.json.
+
+- **72 weighted écranHC clos, diagnostic nonpromu** : MAIN H7.993086→C9.587855tok/s(+19.9518%), HOLD H8.740292→C9.332890(+6.7801%) ; conditionCH≥1%deuxprompts=True, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7853824288B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v4/weighted/screen/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+- **72 weightedv4 conditionCH satisfaite avant lancement** : MAIN7,993086→9,587855tok/s (+19,9518%), HOLD8,740292→9,332890 (+6,7801%), huitréponseswarm+mesurevalidées/paritéàconfirmerindépendammentparanalyste ; quatreprocessusetpost30joints. TémoinMAINbasnécessiterépétition,dérive/étenduepasencorequalifiées. NouveauplanC-Hv4SHA711f1c348d09ad6ba4f999b6fe22c04ae8dd407273d09bada6e1fd86507c06b7 préparéavantlancement, v3CHresteprêt/nonexécuté. Mêmescritères≥1%chaquepaire/Hdrift≤5%/étendue≤3points etsourcesCLI69b919/3Gio53slots/alloc64inchangés ;77Bcapsfailedconservés,toujoursdiagnostiquepasgainpromu.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run-result.json.
+
+- 45-Q/R processus weighted-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run-result.json.
+
+- 45-Q/R processus weighted-MAIN-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run-result.json.
+
+- 45-Q/R processus weighted-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run-result.json.
+
+- 45-Q/R processus weighted-HOLD-3-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run-result.json.
+
+### FLASHSSD-2026-10-23-72S-AFTER — témoins d'encadrement après la matrice, avant lancement
+
+- Terminer l'encadrement déjàpréenregistré72T (B2sansprélecture/MTP1fraisavantetaprèsmatrice). Avant : fresh-controls-v1 B2MAIN10,222853/HOLD9,486926 ; MTP9,833897/8,907714, unpointparprompt. Dernier weightedCHHOLD C10,772262/H9,597053 aprèsHHC8,740292 : dériveH≈9,8%, pasdegainqualifié, comparaisonau vieuxnofetchnonappariée. Aucun nouveaukernel/optihypothèse ; cescontrôlesaprèsétaientprévus, pasunerépétitionpourpêcherungain.
+- Après post30/jointureweighted seulement, nouveauplanopt77/fresh-controls-after-v1, ordreinversedescontrôlesavant : MTPHOLD/B2HOLD/MTPMAIN/B2MAIN, unmodèleparprocessus, pré20/post30secteur, warm128+mesure128,3Gio53slots/allocator64Mio/ctx4096/greedy/CLI69b919, pipeline0/lookahead0/earlyshared0 etautresflagsinchangés. Pasdecomposantmémoire77répété(pasdechangementsource), pasdecompilation/proveur. Golden60texte/hash/128sorties127decode/compteurs de mode exacts, enfants/lecteurs/samplerjoints. Superviseurstock256Mioin-out/phase, proprescompteursmemobservés/capscompression77Bfailedconservés, pasderemiseàzérohistorique. Débitsdescriptifs/référencesrécentes, pasgainnouveaupromu.
+- Étatpréenregistrement : planpréparé, aucuncontrôleaprèslancé, weightedCHpost30encours. Lesseptécrans+confirmationsconditionnelles closenattentedernierpostflight ; aucunevariantepubliéecommeboostniappremplacée.
+
+- **72 weighted confirmationCH close, diagnostic nonpromu** : MAIN H7.995750→C9.316084tok/s(+16.5129%), HOLD H9.597053→C10.772262(+12.2455%) ; pairesCH≥1%deuxprompts=True, aucunCHpréparé/lancéparanalyste. Huitréponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, DFlashfixeB2/MTPinactif, mêmesdrapeauxhorsvariant. Quatreenfants/lecteurs etsamplerjoints,sixétapespré20/post30ACcomplètes. Swapoutsglobauxadditionnels0B, propresledgerdeltas[0, 0, 0, 0]B ; picphysique7853136184B. Quatreanalyses77Bfailed/source_errorsvide,capscompressioninchangés ; compteursprélecture/acceptation etΔmémoirewarm→mesureconservésdansspeed-v4/weighted/validation/{summary.json,report.md}. CLI77v1driverobserverplanrehashésinchangés,165sourcesrevuesseuleCI changée. Bridge43candidatv3préparé/nonexécuté, aucuntransfertde43packedniqualificationglobale7variantes. AucunGPU/build/proof/testlourdparanalyste, aucunseuilmodifié ni gainpromu.
+
+### FLASHSSD-2026-10-23-72W-KEEP — décision utilisateur après résultats, avant validation finale bridge
+
+- Consigne explicite : «si garde ce gain», puis «on s'en fiche que le gain bouge beaucoup tant qu'il est validé». Conserverweightedetneplusl'écarterpourlesseulsseuilsdevariation72S(Hdrift≤5%/étendue≤3points). Lesanciensverdictsstrictsrestentinchangés/failed ; révisiondechoixd'intégrationaprèsrésultatsàlademandeutilisateur, pasnouvellepréinscriptionstatistiqueni preuveuniverselle. LesquatrecomparaisonsweightedvslegacyontunTPSpositif : MAIN+19,951846/+16,512950%, HOLD+6,780078/+12,245518%. Ne paslesadditionner, ni lesattribueràunboostcontrelenofetchsanscomparaisonappariée.
+- Finird'abordtémoinsaprèsdéjàpréenregistrés, puisbridge43weightedv3préparé/nonexécuté jusque-là : entréedeproduction, budgets/caches/annulation/reprise/erreurs/modes, mêmesbinaire/optionsetgoldens. Sansmodificationdescalculsdepuis112MoE/288préfixesexactsetweighted36, nouveaubuildnonnécessaireàcettevalidation. Unefoiscorrectioncomplèteconfirmée,pousserlecheminweightedoptionnelavecsoncode/donnéesdansPR34comme demandé, sansremplacerappniannoncer15tok/s. Lesautresprototypesrestentexpérimentauxetleursverdictsnégatifsconservés ; aucunepromotionsilencieuse.
+- MémoireobservéeweightedHCCH : empreintemax≈7,854Go≤12Go, aucunSwapoutglobaladditionnelobservé/deltaledgerpropre0. La compressionlogiqueetlesplafonds77Béchouésrestentexplicitementéchoués ; aucunerequalificationdeceprotocole, ni «RSSstableprouveaucunswap». La variationdeTPSacceptéeparutilisateurn'estpasunepreuveformelledesAPIOS/Metal. État : contrôlesaprèsencours, bridgeweightedàlancerensuite, pasdegainpubliéavantvérification.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-after-v1/run-result.json.
+
+- **72 weightedHCCH clos, décision72W-KEEP appliquée** : quatrepairespositivesMAIN+19,951846/+16,512950%,HOLD+6,780078/+12,245518%. Verdictstrictantérieurconservé : étendueMAIN3,438896>3,HOLDHdrift9,802431>5/étendue5,465439>3 ; nouvelleconsigneuserretientgainmalgrévariation, choixintégrationpendingbridge43weighted,pasrequalificationstatistique.16réponsesexactes/joints/AC/globalouts0/ledger0,pic7853824288B ; caps77Bfailedconservés. Résumés/rapportsspeed-v4/weighted portent décisiondatéeexplicite,ni15tok/sni victoirevsnofetchappariée. Témoinsaprèsencours ; bridge43àvenir avantpublicationopt-in. AucunGPU/build/proofparanalyste.
+
+- 45-Q/R processus MTP-HOLD-after : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-after-v1/run-result.json.
+
+- 45-Q/R processus B2-HOLD-after : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-after-v1/run-result.json.
+
+- 45-Q/R processus MTP-MAIN-after : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-after-v1/run-result.json.
+
+- 45-Q/R processus B2-MAIN-after : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-after-v1/run-result.json.
+
+### FLASHSSD-2026-10-23-72W-R — nouveau vrai A/B weighted contre B2sansprélecture, avant lancement
+
+- Demande utilisateur «bah retest mtn que c'est fix nan ?» après acceptation explicite de la variabilité. Raison nouvelle : comparer enfin weighted au meilleur modeB2sansprélecture dansune nouvellepaire temporelle, au lieu de comparer auvieuxlegacyprélectureouauxréférencesnonappariées. Même codebinaire69b919 depuis les oracles72/77, pasdenouveaucorrectifarithmétiqueannoncé entrecesmesures. Les anciensHCCHvslegacy etleursverdictsstrictsrestentconservés ; lescompteursmémoireetladécision72W-KEEPrestentvisibles.
+- Ordre : terminercontrôlesaprès47346/post30 ; bridgeweighted43 propre dansbridge-weighted-v4 depuisplanv3nonexécuté, mêmeCLI/optionsADAPTIVE1/poids, pré20/checker840s/post30,gardesstock ;43requêtesréellesOFF/DFlash/erreurs/annulation/reprise/cachesetgoldens. Ne paslancerTPScandidatavant43exacts. PuisABneufH-CMAIN/HOLD, etC-HMAIN/HOLD dans lot distinct, même CLI77v1etGPUHotWide/63/UNIQUE1/draftQ4ring/B2WIDTH1ADAPTIVE0, modèle65c89531/drafta22a1744,3Gio53slots/allocator64Mio/ctx4096/greedy/128sorties127decode, unchauffage128+mesure128 parenfant. H=pipeline0/lookahead0/variantlegacy ; C=pipeline1/lookahead2/variantweighted,autresoptionsidentiques.
+- Qualitégolden60texte/hash/comptes128nonvides pourtouswarmups/mesures, modes/acceptations/largeursvalides, mêmesétatscibleconstatésdans288préfixesdont36weighted ; enfants/lecteurs/samplerjoints, pré20/post30secteur, unmodèle etpascompilation/proveurconcurrent. Empreinteprocess≤12Go, deltalogiqueledgerobservé0, globalin/outstock≤256Mio/phase enregistré sansattributionprivée ; compression77Bfailedrestefailed,sesdonnéesneprétendentpasqu'unpiclogiqueestdel'IOSS D.
+- Conformémentàladernièreconsigneutilisateur, lesseuilsHdrift5%/étendue3points ne serventplusàécarterweighted danscenouvelAB ; toutesvaleursbrutes/plagesmoyennes sontconservéesetcomparaisonparprompt, aucunedérivecachée. Siunpromptperd, le dire etgarder l'option sansrevendiquerungainuniversel. AucunboostcontreMTPni15tok/sprésumé ; nepasadditionnerlesgainsvslegacyetvsnofetch.
+- Étatpréenregistrement : aucunGPUbridgev4niAB72W-Rlancé, contrôlesaprèsencours. Leplanbridgev3originalresteprepared/nonexécuté ; nouveauv4iden tifiéavantlancement. Garderweightedopt-inpourpublicationaprèsqualité etmesure, autresprototypesexpérimentaux,défaultpipeline0/legacyinchangés/appnonremplacée.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-after-v1/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v4/run-result.json.
+
+- **72S/73S bilan des sept candidats mesurés clos, références après/bridge encore en cours** :48rapportsmesurés+48warmups=96réponsesgolden60texte/hash/128sorties127decode exactes revérifiées,12phasespré20/post30AC/jointes, toutesacceptations/largeursH/Cidentiques.48analysesmémoire ethashsource contrôlés,source_errorsvide/3snapshotsvalides,chacune77Bfailed conservée. Picdébits7853988128B,globalouts458752BpackedH(admisstock256Mioparphase),ledgerpropre0 ; pasd’attributionécrituresswap. Bilan opt-72-prefetch-variants/bilan7-72S-73S.{md,json} conserve tousTPS/paires/plagesobservées/critèresstricts nonadditifs,112MoE/288préfixes/96formesShared,43packedseul et sixautresnontransférés,preuvesKani72/77/limitesCBMCSDK/CrossHair etCI89174partielle. Weighted retenu à la demandeutilisateur72W-KEEP malgrévariations,bridge43propre encorepending avantpushopt-in ; verdictsstricts/caps77Binchangés. Huitréponsesréférencesavant séparées, huitaprèsen cours ; nouvelleA/B72W-Rnofetch→weightedpending distincte de l’ancienvslegacy. 71P/78préparésnonappliqués,65préexistant exclu,appinchangée. AucunGPU/build/proof/testlourdparanalyste.
+
+- **72S-AFTER clos, référencesdescriptives séparées** :4contrôles/8réponseswarm+mesuregolden60texte/hash/128sorties127decodeexactes, B2fixe/MTP1confirmés ; B2MAIN11,021136/HOLD10,269771,MTPMAIN10,799178/HOLD9,903073tok/s. Toutesréférencesplushautesqu’avant, variationsnonappariéespasgaind’optimisation. Pré20/post30AC/enfants/lecteurs/samplerjoints,ledgerpropre0,capscompression77Bfailedconservés ; compteursglobalin-out/pics/deltaswarm→mesure dansopt-77-process-memory/fresh-controls-after-v1/{summary.json,report.md}. Weightedreste retenu72W-KEEPenattentebridge43 ; futureA/B72W-Rnofetch→weighted indépendante,pasremplacéeparancienvslegacy. AucunGPU/build/proofparanalyste.
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v4/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v4/run-result.json.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run-result.json.
+
+- 45-Q/R processus weighted-MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run-result.json.
+
+- **72W-KEEP bridgeweightedv4 clos, correction43 validée** :43/43checks/paritétrue,43requêtescomplètes/activeNone,33completeevents/6erreurs/2annulationsattendues ; préfetcheffectifdans19profils,pré20/post30AC/tousprocessusetsamplerjoints. Picphysique7935597000B,ledgerdelta0B,globalouts[0, 0, 0]B ; analyse77Bfailed/capscompressionconservés,34snapshotsvalides/source_errorsvide. CLI69b919/driver/planet165sourcesvérifiés, seuleCIdiffèredugelpréparé. Summary bridge-weighted-v4/summary.json/memory-analysis.json,weighted-retained.mdetbilan7actualisés : weightedretenuuser/correctionclose/publicationopt-inpendingparent. Lescinqautresbridgescandidatsnonexécutésrestentnontransférés. A/B72W-Rcontrelenofetchencoursdistincte,ni15tok/snigainvsnofetchprésumé. AucunGPU/build/proofparanalyste.
+
+- 45-Q/R processus weighted-MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run-result.json.
+
+- 45-Q/R processus weighted-HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run-result.json.
+
+- 45-Q/R processus weighted-HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run-result.json.
+
+### FLASHSSD-2026-10-23-72-CFG — disponibilité des deux accesseurs de test, avant reproduction CI
+
+- Revue indépendante avant publication : predictive_lru_for_test etprediction_count_for_test sontcfg(test) maisleursseulscallers viventdansssd_moeMLX. Risquedead_code sousClippytestLinuxsansfeatureMLX. Aucune autreanomaliedéfauts/callers/flags relevée. AprèsHC72W-Retpost30clos,aucunGPUactif : reproduirecargo clippy --locked --all-targets --features chat -- -D warnings avantsourcefix, puisrestreindreuniquementcesdeuxattributsàcfg(all(test,feature="mlx")), etrelancercontrôlesCPUtouchés. Lesfonctionsdeproductionetla configurationMLX physique restentidentiques ; CLI69b919etoracles/GPU/ABdéjàfaitsrestenttémoinsdesmêmescalculs.
+- Vérificationsprévuesséparéesdesmesures : fmt, ClippysansMLX, suiteCPUchat, tentativeKaniréellehelperprotectiondéjàcouvert(domaineusizecomplet), diagnostic/conservationdeslimites ; aucunepreuveMetal/macOSoucfgcompilateursdéduite. CIrejoueceClippytestmatricecommevraierégression. GelnouveauSHAdufichiertestcfg/documentation,seulécartdepuisgel165àdécrire. PasnouvelorqueGPUrequispourattributtestreductif ; CH72W-Rseulementaprèscompilateurs/proveursjoints.
+
+- **72W-R screen clos, vrai A/Bnofetch→weighted** : MAIN H11.301206→C11.125227tok/s(-1.557172%), HOLD H10.716598→C8.775646(-18.111644%). Huitréponsesgolden60exactes/B2fixe/mêmesacceptationslargeurs, Hprélecture0/Cpréfetcheffectif ; quatreenfants/lecteurs etsamplerjoints/pré20post30AC. Pic7851661600B/globalouts[0, 0, 0, 0, 0, 0]/ledger0=True,caps77Bfailedconservés. Donnéesspeed-72W-R/screen/{summary.json,report.md},volumesmoteurlogiquespasNVMephysique. Weightedresteconservéuser72WKEEP,variationn’annulepasintégration ; pertesvisibles/nonaddition,pas15tok/suniversel. AucunGPU/build/proofparanalyste.
+
+### FLASHSSD-2026-10-23-72W-STOP — retrait du prototype à la demande utilisateur
+
+- Après le nouveauHCnofetch→weighted (MAIN11,301206→11,125227tok/s/−1,5572%, HOLD10,716598→8,775646/−18,1116%), consigne explicite «bah oublie ça alors en fait je voulais que tu le garde comme on pensait ça boostait». AnnulerKEEPcommechoixd'intégration, conserverhistoriquesvariabilitéetgainscontrelegacy ; nepasprésentercesgainscommeboostcontrelemeilleurmode. Le lotHC estclosetjoint, C-H72W-RpréparémaisNONLANCÉ/annuléàlademandeutilisateur. Pasd'autremesure/modèle/kernel lancé.
+- SixfichiersRust deprototypes72/73+les3ajoutsKaniCI ontété archivésdanswithdrawn-runtime/prototype-and-test-cfg.patch puisremisexactementàHEAD89174fcc, avechashavant/aprèsetcontrôleabsencemodificationtierce. Deuxattributsdetestcfgseulementétaientlaseuledifférencehorsgelnumérique ; retirésaveclesprototypes. Codeprod/CIetapplicationinstalléeinchangés,65PpréexistantetP74privépréservés. Aucunweightedruntimepoussé ; conserverdonnéespositives/négativesetpreuves pouréviterunessaisilencieusementrépété.
+- 72-CFG : échecClippydead_codereproduitexit101, correction2cfgtest→test+mlx, Clippypasseexit0 ettestsCPUachevés ; fmtcheckéchecuniquementsur2espacesdecesattributs. Aucunecorrectionexécutableconservéepuisqueprototypeannulé ; Kaniattribnonlancé/pluspertinentaprèsretrait, anciennespreuvesCPU72/77restentbornées. Logs/sourcechangearchivés, aucunefaussenouvellevalidationnumérique.
+- Clôture : septpistesmesurées(96réponses),8témoinsavant+8après, bridgeweighted43valide, puisHC72W-R8réponsesindépendantesdéfavorableaudébitmeilleurnofetch. Unepublicationdocumentairepeutconservercesrésultats sanslivrerleruntimeexpérimental ; aucuneannonce15tok/s/gainpondérépromu.
+
+- **72W-WITHDRAW — clôture à la dernière demande utilisateur** : annulationexplicite de72W-KEEP après vraiecomparaisonnofetch→weightedHC MAIN−1,557172%/HOLD−18,111644%,huitréponsesexactes/globalouts0/ledger0/caps77Bfailedconservés. Weightedretiré,aucungainvsmeilleurréférenceétabli,CHannulé/nonlancé(confirmation/not-run.json),pasuneconclusionderégressionuniversellesurunécran. Anciennespairesvslegacypositivesetanciensverdictsstrictsgardés,décisionKEEPdanshistorique ; ce n’estpas lavariationquimotive leretraitactuel. Bilans7/weighted-retained.mdet72W-Ractualisés,43weightednumériquevalidéconservé. Seuldiffsourcecfgdeuxgettersattesté/archive55d6→4645,aucunprodcalcul/CLI69changé ; parentretire6sourcesprototypes/CIharnaisversHEAD89174aprèsarchive. Publicationdocs/archivesseules,pascodegainniappremplacée,aucunautremesure/test/build/proof/GPUparanalyste.

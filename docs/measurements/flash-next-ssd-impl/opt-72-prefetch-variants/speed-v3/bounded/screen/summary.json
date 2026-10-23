@@ -1,0 +1,499 @@
+{
+  "status": "diagnostic_HC_screen_complete_memory_budget_not_qualified",
+  "candidate": "bounded",
+  "mode": "DFlash2_fixed_B2",
+  "rows": [
+    {
+      "name": "bounded-MAIN-0-H",
+      "prompt": "MAIN",
+      "variant": "H",
+      "tps": 8.671343838182755,
+      "decode_seconds": 14.645942125000001,
+      "peak_bytes": 7838488816,
+      "report_sha256": "6e981e11adf90903f41a6c8111ab7e6546209a3dfa625f2629c5f1e2f65c647a",
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 4002219592,
+        "process_compressed_logical_bytes": 2593849344,
+        "process_lifetime_peak_bytes": 4088677960,
+        "process_compressed_peak_logical_bytes": 2595258368,
+        "process_compressed_lifetime_logical_bytes": 2621767680,
+        "process_decompressions": 209104,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_warmup_to_measure_deltas": {
+        "process_footprint_bytes": 3194880,
+        "process_compressed_logical_bytes": 92717056,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 87769088,
+        "process_compressed_lifetime_logical_bytes": 99106816,
+        "process_decompressions": 30788,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "memory_analysis_status": "failed",
+      "memory_data_valid": true,
+      "golden_exact_responses": 2,
+      "dflash_profile": {
+        "commit_cache_seconds": 0.33161657999999994,
+        "draft_seconds": 0.5738710030000002,
+        "drafted_rows": 138,
+        "drafted_widths": [
+          0,
+          69,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "expert_demand_bytes": 26912130768,
+        "ssd_prefetch": [
+          6453,
+          6453,
+          4803,
+          20,
+          0,
+          6924501,
+          8053421436,
+          20
+        ],
+        "verification_seconds": 13.738244750999998,
+        "verified_rows": 138,
+        "verified_widths": [
+          0,
+          69,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "prefetch_named": {
+        "submitted": 6453,
+        "completed": 6453,
+        "used": 4803,
+        "demand_reused": 20,
+        "demand_timeouts": 0,
+        "demand_wait_ns": 6924501,
+        "bytes": 8053421436,
+        "late_needed": 20
+      },
+      "prefetch_submitted_completed_used_positive": true,
+      "dflash_accepted_tokens": 58,
+      "dflash_proposed_tokens": 69,
+      "dflash_blocks": 69,
+      "verification_ms_per_emitted_token": 108.17515551968502,
+      "expert_demand_bytes_per_emitted_token": 211906541.48031497,
+      "prefetch_bytes_per_emitted_token": 63412767.21259843
+    },
+    {
+      "name": "bounded-MAIN-1-C",
+      "prompt": "MAIN",
+      "variant": "C",
+      "tps": 8.409405204590813,
+      "decode_seconds": 15.10213825,
+      "peak_bytes": 7851039056,
+      "report_sha256": "e16ef0ad1eb9b6e80a96eb0bf8cff1e225b580f89040b51cfd1c99285e157bd3",
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 4010739368,
+        "process_compressed_logical_bytes": 1742274560,
+        "process_lifetime_peak_bytes": 4113155776,
+        "process_compressed_peak_logical_bytes": 1746452480,
+        "process_compressed_lifetime_logical_bytes": 1797226496,
+        "process_decompressions": 123818,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_warmup_to_measure_deltas": {
+        "process_footprint_bytes": 1998848,
+        "process_compressed_logical_bytes": 167100416,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 146718720,
+        "process_compressed_lifetime_logical_bytes": 181321728,
+        "process_decompressions": 31077,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "memory_analysis_status": "failed",
+      "memory_data_valid": true,
+      "golden_exact_responses": 2,
+      "dflash_profile": {
+        "commit_cache_seconds": 0.27547895400000005,
+        "draft_seconds": 0.5748520829999999,
+        "drafted_rows": 138,
+        "drafted_widths": [
+          0,
+          69,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "expert_demand_bytes": 27406343520,
+        "ssd_prefetch": [
+          6455,
+          6455,
+          4746,
+          11,
+          0,
+          3908375,
+          8055917460,
+          11
+        ],
+        "verification_seconds": 14.249497115999997,
+        "verified_rows": 138,
+        "verified_widths": [
+          0,
+          69,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "prefetch_named": {
+        "submitted": 6455,
+        "completed": 6455,
+        "used": 4746,
+        "demand_reused": 11,
+        "demand_timeouts": 0,
+        "demand_wait_ns": 3908375,
+        "bytes": 8055917460,
+        "late_needed": 11
+      },
+      "prefetch_submitted_completed_used_positive": true,
+      "dflash_accepted_tokens": 58,
+      "dflash_proposed_tokens": 69,
+      "dflash_blocks": 69,
+      "verification_ms_per_emitted_token": 112.20076469291337,
+      "expert_demand_bytes_per_emitted_token": 215797980.47244096,
+      "prefetch_bytes_per_emitted_token": 63432420.944881886
+    },
+    {
+      "name": "bounded-HOLD-0-H",
+      "prompt": "HOLD",
+      "variant": "H",
+      "tps": 8.619451472021609,
+      "decode_seconds": 14.73411625,
+      "peak_bytes": 7852333392,
+      "report_sha256": "dc56eb973768fb78ba1a9cf97f42e2858cd330351ab1fb747be0a050408eed88",
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3992618664,
+        "process_compressed_logical_bytes": 2210791424,
+        "process_lifetime_peak_bytes": 4104701608,
+        "process_compressed_peak_logical_bytes": 2231304192,
+        "process_compressed_lifetime_logical_bytes": 2256355328,
+        "process_decompressions": 162039,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_warmup_to_measure_deltas": {
+        "process_footprint_bytes": -933888,
+        "process_compressed_logical_bytes": 2965504,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 0,
+        "process_compressed_lifetime_logical_bytes": 7307264,
+        "process_decompressions": 30657,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "memory_analysis_status": "failed",
+      "memory_data_valid": true,
+      "golden_exact_responses": 2,
+      "dflash_profile": {
+        "commit_cache_seconds": 0.31930021100000006,
+        "draft_seconds": 0.5696322840000002,
+        "drafted_rows": 140,
+        "drafted_widths": [
+          0,
+          70,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "expert_demand_bytes": 28893973824,
+        "ssd_prefetch": [
+          6566,
+          6566,
+          5053,
+          15,
+          2,
+          6759831,
+          8194446792,
+          17
+        ],
+        "verification_seconds": 13.721645291999998,
+        "verified_rows": 140,
+        "verified_widths": [
+          0,
+          70,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "prefetch_named": {
+        "submitted": 6566,
+        "completed": 6566,
+        "used": 5053,
+        "demand_reused": 15,
+        "demand_timeouts": 2,
+        "demand_wait_ns": 6759831,
+        "bytes": 8194446792,
+        "late_needed": 17
+      },
+      "prefetch_submitted_completed_used_positive": true,
+      "dflash_accepted_tokens": 56,
+      "dflash_proposed_tokens": 70,
+      "dflash_blocks": 70,
+      "verification_ms_per_emitted_token": 108.04445111811022,
+      "expert_demand_bytes_per_emitted_token": 227511604.91338584,
+      "prefetch_bytes_per_emitted_token": 64523203.08661418
+    },
+    {
+      "name": "bounded-HOLD-1-C",
+      "prompt": "HOLD",
+      "variant": "C",
+      "tps": 8.467275558048291,
+      "decode_seconds": 14.998921333,
+      "peak_bytes": 7852661048,
+      "report_sha256": "34c86b5c19eac8cfde56cbd876f2736c7fba07ac2c1e82b256cca130daee7bcc",
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3994945168,
+        "process_compressed_logical_bytes": 1625817088,
+        "process_lifetime_peak_bytes": 4106815144,
+        "process_compressed_peak_logical_bytes": 1647820800,
+        "process_compressed_lifetime_logical_bytes": 1673412608,
+        "process_decompressions": 124371,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_warmup_to_measure_deltas": {
+        "process_footprint_bytes": 1736704,
+        "process_compressed_logical_bytes": 2686976,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 0,
+        "process_compressed_lifetime_logical_bytes": 7913472,
+        "process_decompressions": 30332,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "memory_analysis_status": "failed",
+      "memory_data_valid": true,
+      "golden_exact_responses": 2,
+      "dflash_profile": {
+        "commit_cache_seconds": 0.296717126,
+        "draft_seconds": 0.5635943740000002,
+        "drafted_rows": 140,
+        "drafted_widths": [
+          0,
+          70,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "expert_demand_bytes": 29496763620,
+        "ssd_prefetch": [
+          6570,
+          6570,
+          4996,
+          10,
+          1,
+          4172291,
+          8199438840,
+          11
+        ],
+        "verification_seconds": 14.007869547,
+        "verified_rows": 140,
+        "verified_widths": [
+          0,
+          70,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "prefetch_named": {
+        "submitted": 6570,
+        "completed": 6570,
+        "used": 4996,
+        "demand_reused": 10,
+        "demand_timeouts": 1,
+        "demand_wait_ns": 4172291,
+        "bytes": 8199438840,
+        "late_needed": 11
+      },
+      "prefetch_submitted_completed_used_positive": true,
+      "dflash_accepted_tokens": 56,
+      "dflash_proposed_tokens": 70,
+      "dflash_blocks": 70,
+      "verification_ms_per_emitted_token": 110.29818540944882,
+      "expert_demand_bytes_per_emitted_token": 232257981.25984251,
+      "prefetch_bytes_per_emitted_token": 64562510.5511811
+    }
+  ],
+  "pairs": {
+    "MAIN": {
+      "h_tps": 8.671343838182755,
+      "c_tps": 8.409405204590813,
+      "gain_percent": -3.0207386361332023,
+      "physical_peak_extra_c_bytes": 12550240,
+      "verification_h_seconds": 13.738244750999998,
+      "verification_c_seconds": 14.249497115999997,
+      "same_dflash_acceptance_and_width_counters": {
+        "dflash_accepted_tokens": true,
+        "dflash_proposed_tokens": true,
+        "dflash_blocks": true,
+        "drafted_rows": true,
+        "drafted_widths": true,
+        "verified_rows": true,
+        "verified_widths": true
+      },
+      "expert_demand_bytes_h": 26912130768,
+      "expert_demand_bytes_c": 27406343520,
+      "prefetch_delta_c_minus_h": {
+        "submitted": 2,
+        "completed": 2,
+        "used": -57,
+        "demand_reused": -9,
+        "demand_timeouts": 0,
+        "demand_wait_ns": -3016126,
+        "bytes": 2496024,
+        "late_needed": -9
+      },
+      "warm_measure_delta_extra_c": {
+        "process_footprint_bytes": -1196032,
+        "process_compressed_logical_bytes": 74383360,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 58949632,
+        "process_compressed_lifetime_logical_bytes": 82214912,
+        "process_decompressions": 289,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    },
+    "HOLD": {
+      "h_tps": 8.619451472021609,
+      "c_tps": 8.467275558048291,
+      "gain_percent": -1.765494178687299,
+      "physical_peak_extra_c_bytes": 327656,
+      "verification_h_seconds": 13.721645291999998,
+      "verification_c_seconds": 14.007869547,
+      "same_dflash_acceptance_and_width_counters": {
+        "dflash_accepted_tokens": true,
+        "dflash_proposed_tokens": true,
+        "dflash_blocks": true,
+        "drafted_rows": true,
+        "drafted_widths": true,
+        "verified_rows": true,
+        "verified_widths": true
+      },
+      "expert_demand_bytes_h": 28893973824,
+      "expert_demand_bytes_c": 29496763620,
+      "prefetch_delta_c_minus_h": {
+        "submitted": 4,
+        "completed": 4,
+        "used": -57,
+        "demand_reused": -5,
+        "demand_timeouts": -1,
+        "demand_wait_ns": -2587540,
+        "bytes": 4992048,
+        "late_needed": -6
+      },
+      "warm_measure_delta_extra_c": {
+        "process_footprint_bytes": 2670592,
+        "process_compressed_logical_bytes": -278528,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 0,
+        "process_compressed_lifetime_logical_bytes": 606208,
+        "process_decompressions": -325,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    }
+  },
+  "responses_exact": 8,
+  "golden_contract": "full nonempty text + token_hash + generated128/decode127; no raw token ID arrays persisted",
+  "pre20_post30": true,
+  "all_children_and_readers_reaped": true,
+  "sampler_joined": true,
+  "all_commands_on_ac": true,
+  "global_swapout_delta_bytes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "global_swapin_delta_bytes": [
+    0,
+    65536,
+    0,
+    0,
+    0,
+    0
+  ],
+  "global_max_live_swapout_bytes": 0,
+  "physical_peak_bytes": 7852661048,
+  "own_ledger_swapins_delta_since_ready": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "memory_77B_qualified": false,
+  "memory_77B_limits_unchanged": {
+    "process_lifetime_peak_bytes": 12000000000,
+    "process_compressed_logical_bytes": 536870912,
+    "process_compressed_peak_logical_bytes": 536870912,
+    "compressed_lifetime_delta_bytes": 1073741824,
+    "ledger_swapins_delta_logical_bytes": 0
+  },
+  "reverse_eligibility_1pct_both_prompts": false,
+  "gain_promotion": false,
+  "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+  "plan_sha256": "4d29aa4397f42e84dc5279e97eb9c6ce033e6038a552a7c520a7689fea59a8a1",
+  "analyzer_sha256": "2ec7a7f947387356ad568995e8cb57046607b2f80b4349767df8acfc85bfda41",
+  "identity_files_rehashed_unchanged": true,
+  "sources_reference_count": 165,
+  "sources_changes_from_reference": [
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/.github/workflows/rust.yml",
+      "reference_sha256": "f4f1ff34e01a897c253ed73ea0726f5faace16cb8b9b220a0535e62c8e918d22",
+      "current_sha256": "7a9e1c665d6d80d9e30735920fdba4e1dd1e2631ba527139dcb11cc8e0cbbbd8"
+    }
+  ],
+  "source_note": "Arithmetic/driver/CLI unchanged; only publication CI differs from preparation reference.",
+  "analysis_scope": "Light JSON/hash analysis only; no GPU/build/prover/tests launched by reviewer."
+}

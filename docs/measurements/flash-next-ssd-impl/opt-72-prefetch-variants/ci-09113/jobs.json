@@ -1,0 +1,485 @@
+{
+  "total_count": 4,
+  "jobs": [
+    {
+      "id": 119982266166,
+      "run_id": 39823981330,
+      "workflow_name": "Native Rust checks",
+      "head_branch": "codex/flash-next-ssd-205",
+      "run_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/39823981330",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOULGJis8AAAAb74AXNg",
+      "head_sha": "09113b6f2accdd008e8c39d457b45c9a4d95002a",
+      "url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/jobs/119982266166",
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39823981330/job/119982266166",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-22T17:35:03Z",
+      "started_at": "2026-10-22T17:35:05Z",
+      "completed_at": "2026-10-22T17:50:47Z",
+      "name": "kani-flash-contracts",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-22T17:35:06Z",
+          "completed_at": "2026-10-22T17:35:07Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-22T17:35:07Z",
+          "completed_at": "2026-10-22T17:35:20Z"
+        },
+        {
+          "name": "Verify Flash offsets, partition and greedy commits independently",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-22T17:35:20Z",
+          "completed_at": "2026-10-22T17:50:44Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-22T17:50:44Z",
+          "completed_at": "2026-10-22T17:50:44Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-22T17:50:44Z",
+          "completed_at": "2026-10-22T17:50:44Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/0xZKnw/mlxl3/check-runs/119982266166",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000003810,
+      "runner_name": "GitHub Actions 1000003810",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 119982266494,
+      "run_id": 39823981330,
+      "workflow_name": "Native Rust checks",
+      "head_branch": "codex/flash-next-ssd-205",
+      "run_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/39823981330",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOULGJis8AAAAb74AYfg",
+      "head_sha": "09113b6f2accdd008e8c39d457b45c9a4d95002a",
+      "url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/jobs/119982266494",
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39823981330/job/119982266494",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-22T17:35:03Z",
+      "started_at": "2026-10-22T17:35:06Z",
+      "completed_at": "2026-10-22T17:44:19Z",
+      "name": "native (macos-26)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-22T17:35:07Z",
+          "completed_at": "2026-10-22T17:35:08Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-22T17:35:08Z",
+          "completed_at": "2026-10-22T17:35:26Z"
+        },
+        {
+          "name": "Install Rust tooling",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-22T17:35:26Z",
+          "completed_at": "2026-10-22T17:35:33Z"
+        },
+        {
+          "name": "Run cargo fmt --check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-22T17:35:33Z",
+          "completed_at": "2026-10-22T17:35:34Z"
+        },
+        {
+          "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-22T17:35:34Z",
+          "completed_at": "2026-10-22T17:36:09Z"
+        },
+        {
+          "name": "Run cargo test --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-22T17:36:09Z",
+          "completed_at": "2026-10-22T17:37:21Z"
+        },
+        {
+          "name": "Run cargo build --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-22T17:37:21Z",
+          "completed_at": "2026-10-22T17:37:27Z"
+        },
+        {
+          "name": "Check Metal cache key ordering and allocation regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-22T17:37:27Z",
+          "completed_at": "2026-10-22T17:37:31Z"
+        },
+        {
+          "name": "Check SSD ranges, actual I/O bytes and failure draining",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-22T17:37:31Z",
+          "completed_at": "2026-10-22T17:37:38Z"
+        },
+        {
+          "name": "Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-22T17:37:38Z",
+          "completed_at": "2026-10-22T17:37:38Z"
+        },
+        {
+          "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-22T17:37:38Z",
+          "completed_at": "2026-10-22T17:37:43Z"
+        },
+        {
+          "name": "Lint native verification scripts and regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-22T17:37:43Z",
+          "completed_at": "2026-10-22T17:40:24Z"
+        },
+        {
+          "name": "Check bridge and QMM validation tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-22T17:40:24Z",
+          "completed_at": "2026-10-22T17:41:43Z"
+        },
+        {
+          "name": "Check idle-memory benchmark failure and parity gates",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-22T17:41:43Z",
+          "completed_at": "2026-10-22T17:41:46Z"
+        },
+        {
+          "name": "Compile and lint the shipped MLX bridge",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-22T17:41:46Z",
+          "completed_at": "2026-10-22T17:44:15Z"
+        },
+        {
+          "name": "Post Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29,
+          "started_at": "2026-10-22T17:44:15Z",
+          "completed_at": "2026-10-22T17:44:15Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 30,
+          "started_at": "2026-10-22T17:44:15Z",
+          "completed_at": "2026-10-22T17:44:16Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31,
+          "started_at": "2026-10-22T17:44:16Z",
+          "completed_at": "2026-10-22T17:44:17Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/0xZKnw/mlxl3/check-runs/119982266494",
+      "labels": [
+        "macos-26"
+      ],
+      "runner_id": 1000003812,
+      "runner_name": "GitHub Actions 1000003812",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 119982266545,
+      "run_id": 39823981330,
+      "workflow_name": "Native Rust checks",
+      "head_branch": "codex/flash-next-ssd-205",
+      "run_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/39823981330",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOULGJis8AAAAb74AYsQ",
+      "head_sha": "09113b6f2accdd008e8c39d457b45c9a4d95002a",
+      "url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/jobs/119982266545",
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39823981330/job/119982266545",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-22T17:35:03Z",
+      "started_at": "2026-10-22T17:35:05Z",
+      "completed_at": "2026-10-22T17:41:14Z",
+      "name": "kani",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-22T17:35:06Z",
+          "completed_at": "2026-10-22T17:35:07Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-22T17:35:07Z",
+          "completed_at": "2026-10-22T17:35:20Z"
+        },
+        {
+          "name": "Verify Rust safety contracts with Kani",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "number": 3,
+          "started_at": "2026-10-22T17:35:20Z",
+          "completed_at": "2026-10-22T17:41:13Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-10-22T17:41:13Z",
+          "completed_at": "2026-10-22T17:41:13Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-22T17:41:13Z",
+          "completed_at": "2026-10-22T17:41:13Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/0xZKnw/mlxl3/check-runs/119982266545",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000003811,
+      "runner_name": "GitHub Actions 1000003811",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 119982266595,
+      "run_id": 39823981330,
+      "workflow_name": "Native Rust checks",
+      "head_branch": "codex/flash-next-ssd-205",
+      "run_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/39823981330",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOULGJis8AAAAb74AY4w",
+      "head_sha": "09113b6f2accdd008e8c39d457b45c9a4d95002a",
+      "url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/jobs/119982266595",
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39823981330/job/119982266595",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-22T17:35:03Z",
+      "started_at": "2026-10-22T17:35:05Z",
+      "completed_at": "2026-10-22T17:39:19Z",
+      "name": "native (ubuntu-latest)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-22T17:35:06Z",
+          "completed_at": "2026-10-22T17:35:06Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-22T17:35:06Z",
+          "completed_at": "2026-10-22T17:35:20Z"
+        },
+        {
+          "name": "Install Rust tooling",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-22T17:35:20Z",
+          "completed_at": "2026-10-22T17:35:27Z"
+        },
+        {
+          "name": "Run cargo fmt --check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-22T17:35:27Z",
+          "completed_at": "2026-10-22T17:35:27Z"
+        },
+        {
+          "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-22T17:35:27Z",
+          "completed_at": "2026-10-22T17:35:42Z"
+        },
+        {
+          "name": "Run cargo test --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-22T17:35:42Z",
+          "completed_at": "2026-10-22T17:36:20Z"
+        },
+        {
+          "name": "Run cargo build --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-22T17:36:20Z",
+          "completed_at": "2026-10-22T17:36:23Z"
+        },
+        {
+          "name": "Check Metal cache key ordering and allocation regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-22T17:36:23Z",
+          "completed_at": "2026-10-22T17:36:27Z"
+        },
+        {
+          "name": "Check SSD ranges, actual I/O bytes and failure draining",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-10-22T17:36:27Z",
+          "completed_at": "2026-10-22T17:36:27Z"
+        },
+        {
+          "name": "Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-22T17:36:27Z",
+          "completed_at": "2026-10-22T17:36:27Z"
+        },
+        {
+          "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-22T17:36:27Z",
+          "completed_at": "2026-10-22T17:36:32Z"
+        },
+        {
+          "name": "Lint native verification scripts and regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-22T17:36:32Z",
+          "completed_at": "2026-10-22T17:38:23Z"
+        },
+        {
+          "name": "Check bridge and QMM validation tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-22T17:38:23Z",
+          "completed_at": "2026-10-22T17:39:15Z"
+        },
+        {
+          "name": "Check idle-memory benchmark failure and parity gates",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-22T17:39:15Z",
+          "completed_at": "2026-10-22T17:39:17Z"
+        },
+        {
+          "name": "Compile and lint the shipped MLX bridge",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 15,
+          "started_at": "2026-10-22T17:39:17Z",
+          "completed_at": "2026-10-22T17:39:17Z"
+        },
+        {
+          "name": "Post Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29,
+          "started_at": "2026-10-22T17:39:17Z",
+          "completed_at": "2026-10-22T17:39:17Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 30,
+          "started_at": "2026-10-22T17:39:17Z",
+          "completed_at": "2026-10-22T17:39:18Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31,
+          "started_at": "2026-10-22T17:39:18Z",
+          "completed_at": "2026-10-22T17:39:18Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/0xZKnw/mlxl3/check-runs/119982266595",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000003814,
+      "runner_name": "GitHub Actions 1000003814",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "status": "passed_twelve_physical_checks_and_post30",
+  "tests": 12,
+  "moe_cases": 112,
+  "shared_cases": 96,
+  "config_variants": 7,
+  "packed_readback_reproduced": true,
+  "all_reaped": true,
+  "new_swapout_bytes": 0,
+  "peaks": [
+    {
+      "test": "config-legacy",
+      "bytes": 619709352
+    },
+    {
+      "test": "config-late",
+      "bytes": 619692992
+    },
+    {
+      "test": "config-bounded",
+      "bytes": 624837544
+    },
+    {
+      "test": "config-unused",
+      "bytes": 624804776
+    },
+    {
+      "test": "config-lfu",
+      "bytes": 619643816
+    },
+    {
+      "test": "config-weighted",
+      "bytes": 624853952
+    },
+    {
+      "test": "config-packed",
+      "bytes": 619692992
+    },
+    {
+      "test": "packed-readback",
+      "bytes": 814942536
+    },
+    {
+      "test": "weighted-order",
+      "bytes": 813435208
+    },
+    {
+      "test": "prefetch-variants-112",
+      "bytes": 885311192
+    },
+    {
+      "test": "early-shared-96",
+      "bytes": 619643816
+    },
+    {
+      "test": "early-shared-overlap",
+      "bytes": 619709376
+    }
+  ],
+  "source_identity": "../identity-v1.json",
+  "limits": "component oracles; not complete-model or throughput validation; fixture cache may override allocator64MiB"
+}

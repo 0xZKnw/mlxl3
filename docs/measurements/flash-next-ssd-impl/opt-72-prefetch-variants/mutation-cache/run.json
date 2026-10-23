@@ -1,0 +1,50 @@
+[
+  {
+    "name": "pre20",
+    "command": [
+      "/bin/sleep",
+      "20"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 25
+  },
+  {
+    "name": "mutant-cache",
+    "native_test": "flash_support::tests::unused_prefetch_eviction_preserves_demand_and_leases",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--manifest-path",
+      "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-72-cache-mutation-jspyimxu/Cargo.toml",
+      "--release",
+      "--lib",
+      "--no-default-features",
+      "flash_support::tests::unused_prefetch_eviction_preserves_demand_and_leases",
+      "--",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "PATH": "/Users/justin/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+      "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target"
+    },
+    "expected_exit": 101,
+    "timeout_seconds": 180,
+    "required_text": [
+      "0 passed; 1 failed",
+      "assertion `left == right` failed"
+    ]
+  },
+  {
+    "name": "post30",
+    "command": [
+      "/bin/sleep",
+      "30"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 35
+  }
+]

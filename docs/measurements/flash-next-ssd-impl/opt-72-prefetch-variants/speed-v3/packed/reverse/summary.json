@@ -1,0 +1,100 @@
+{
+  "status": "diagnostic_CH_complete_memory_budget_not_qualified",
+  "rows": [
+    {
+      "name": "packed-MAIN-2-C",
+      "prompt": "MAIN",
+      "variant": "C",
+      "tps": 9.80945939389724,
+      "seconds": 12.946686958,
+      "peak_bytes": 7853988128,
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3970254456,
+        "process_compressed_logical_bytes": 1154629632,
+        "process_lifetime_peak_bytes": 4076324496,
+        "process_compressed_peak_logical_bytes": 1156202496,
+        "process_compressed_lifetime_logical_bytes": 1213022208,
+        "process_decompressions": 260868,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ]
+    },
+    {
+      "name": "packed-MAIN-3-H",
+      "prompt": "MAIN",
+      "variant": "H",
+      "tps": 8.714261941210603,
+      "seconds": 14.573810250000001,
+      "peak_bytes": 7850514720,
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 4004185744,
+        "process_compressed_logical_bytes": 2168700928,
+        "process_lifetime_peak_bytes": 4109125264,
+        "process_compressed_peak_logical_bytes": 2171027456,
+        "process_compressed_lifetime_logical_bytes": 2216116224,
+        "process_decompressions": 149672,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ]
+    },
+    {
+      "name": "packed-HOLD-2-C",
+      "prompt": "HOLD",
+      "variant": "C",
+      "tps": 9.523038908217679,
+      "seconds": 13.336079084000001,
+      "peak_bytes": 7852677432,
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3994322552,
+        "process_compressed_logical_bytes": 1840414720,
+        "process_lifetime_peak_bytes": 4105963128,
+        "process_compressed_peak_logical_bytes": 1860829184,
+        "process_compressed_lifetime_logical_bytes": 1882603520,
+        "process_decompressions": 140245,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ]
+    },
+    {
+      "name": "packed-HOLD-3-H",
+      "prompt": "HOLD",
+      "variant": "H",
+      "tps": 7.834093374310459,
+      "seconds": 16.211193041999998,
+      "peak_bytes": 7849662752,
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 4004185648,
+        "process_compressed_logical_bytes": 1808924672,
+        "process_lifetime_peak_bytes": 4114777696,
+        "process_compressed_peak_logical_bytes": 1817657344,
+        "process_compressed_lifetime_logical_bytes": 1871527936,
+        "process_decompressions": 128509,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ]
+    }
+  ],
+  "responses_exact": 8,
+  "pre20_post30": "passed_AC",
+  "all_children_and_readers_reaped": true,
+  "sampler_joined": true,
+  "global_swapout_delta_bytes": 0,
+  "gain_promotion": false,
+  "combined_summary": "hcch-analysis.json"
+}

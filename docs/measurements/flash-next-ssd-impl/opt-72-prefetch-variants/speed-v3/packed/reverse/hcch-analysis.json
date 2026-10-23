@@ -1,0 +1,1353 @@
+{
+  "status": "diagnostic_HCCH_complete_inconclusive_drift_and_memory_not_qualified",
+  "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+  "numeric_output_quality": "16warmup+measured responses equal golden60 full text/hash and128generated/127decode counts",
+  "numeric_responses_exact": 16,
+  "complete_model_children": 8,
+  "phases": {
+    "screen": {
+      "pre20_post30": "passed_AC",
+      "all_children_reaped": true,
+      "all_readers_joined": true,
+      "sampler_joined": true,
+      "plan_sha256": "b11a797ab1496ef4ccb8f42707c606fbeab78ebe575f881fd9427775f81d70f9",
+      "system_swapout_delta_bytes_sum": 458752,
+      "system_swapin_delta_bytes_sum": 524288,
+      "records": [
+        {
+          "name": "pre20",
+          "seconds": 20.048498542000743,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "packed-MAIN-0-H",
+          "seconds": 52.00402870799735,
+          "swapouts_bytes": 458752,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 458752,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "packed-MAIN-1-C",
+          "seconds": 49.07488779199775,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "packed-HOLD-0-H",
+          "seconds": 51.80496804200084,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 131072,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 131072,
+          "reaped": true
+        },
+        {
+          "name": "packed-HOLD-1-C",
+          "seconds": 49.062626667000586,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 262144,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 262144,
+          "reaped": true
+        },
+        {
+          "name": "post30",
+          "seconds": 30.067778291999275,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 131072,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        }
+      ]
+    },
+    "reverse": {
+      "pre20_post30": "passed_AC",
+      "all_children_reaped": true,
+      "all_readers_joined": true,
+      "sampler_joined": true,
+      "plan_sha256": "6179743ea76019a1840d1f7a075646090fc89cfd4c1203182d55f301d516a399",
+      "system_swapout_delta_bytes_sum": 0,
+      "system_swapin_delta_bytes_sum": 0,
+      "records": [
+        {
+          "name": "pre20",
+          "seconds": 20.0975585840024,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "packed-MAIN-2-C",
+          "seconds": 50.98376733300029,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "packed-MAIN-3-H",
+          "seconds": 54.62624212499941,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "packed-HOLD-2-C",
+          "seconds": 51.090738040998986,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "packed-HOLD-3-H",
+          "seconds": 56.52565933400183,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "post30",
+          "seconds": 30.075254209001287,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0,
+          "maximum_live_swapout_bytes": 0,
+          "maximum_live_swapin_bytes": 0,
+          "reaped": true
+        }
+      ]
+    }
+  },
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "order": "HC",
+      "H_tps": 9.122354304600249,
+      "C_tps": 10.305965972560873,
+      "gain_percent": 12.974848689704466,
+      "candidate_extra_physical_peak_bytes": 13516872
+    },
+    {
+      "prompt": "MAIN",
+      "order": "CH",
+      "H_tps": 8.714261941210603,
+      "C_tps": 9.80945939389724,
+      "gain_percent": 12.567873906880633,
+      "candidate_extra_physical_peak_bytes": 3473408
+    },
+    {
+      "prompt": "HOLD",
+      "order": "HC",
+      "H_tps": 8.695171449110033,
+      "C_tps": 9.626069457737925,
+      "gain_percent": 10.705918958310722,
+      "candidate_extra_physical_peak_bytes": -16498688
+    },
+    {
+      "prompt": "HOLD",
+      "order": "CH",
+      "H_tps": 7.834093374310459,
+      "C_tps": 9.523038908217679,
+      "gain_percent": 21.558915029601323,
+      "candidate_extra_physical_peak_bytes": 3014680
+    }
+  ],
+  "comparisons": {
+    "MAIN": {
+      "pairs": [
+        {
+          "order": "HC",
+          "H_tps": 9.122354304600249,
+          "C_tps": 10.305965972560873,
+          "gain_percent": 12.974848689704466,
+          "candidate_extra_physical_peak_bytes": 13516872
+        },
+        {
+          "order": "CH",
+          "H_tps": 8.714261941210603,
+          "C_tps": 9.80945939389724,
+          "gain_percent": 12.567873906880633,
+          "candidate_extra_physical_peak_bytes": 3473408
+        }
+      ],
+      "H_drift_percent": 4.6830398964682995,
+      "gain_spread_points": 0.40697478282383237,
+      "mean_H_tps": 8.918308122905426,
+      "mean_C_tps": 10.057712683229056,
+      "all_pair_gains_at_least1percent": true,
+      "H_drift_at_most5percent": true,
+      "gain_spread_at_most3points": true,
+      "physical_extra_at_most256MiB": true,
+      "fresh_no_prefetch_B2_tps": 10.222852653828905,
+      "C_points_vs_fresh_no_prefetch_percent": [
+        0.8130149337605808,
+        -4.043815106508763
+      ],
+      "mean_C_vs_fresh_no_prefetch_percent": -1.615400086374097,
+      "fresh_comparison_scope": "descriptive one earlier control/prompt; not paired causal gain"
+    },
+    "HOLD": {
+      "pairs": [
+        {
+          "order": "HC",
+          "H_tps": 8.695171449110033,
+          "C_tps": 9.626069457737925,
+          "gain_percent": 10.705918958310722,
+          "candidate_extra_physical_peak_bytes": -16498688
+        },
+        {
+          "order": "CH",
+          "H_tps": 7.834093374310459,
+          "C_tps": 9.523038908217679,
+          "gain_percent": 21.558915029601323,
+          "candidate_extra_physical_peak_bytes": 3014680
+        }
+      ],
+      "H_drift_percent": 10.991419602212282,
+      "gain_spread_points": 10.852996071290601,
+      "mean_H_tps": 8.264632411710245,
+      "mean_C_tps": 9.574554182977803,
+      "all_pair_gains_at_least1percent": true,
+      "H_drift_at_most5percent": false,
+      "gain_spread_at_most3points": false,
+      "physical_extra_at_most256MiB": true,
+      "fresh_no_prefetch_B2_tps": 9.486925853651751,
+      "C_points_vs_fresh_no_prefetch_percent": [
+        1.4666880107702562,
+        0.3806612924251551
+      ],
+      "mean_C_vs_fresh_no_prefetch_percent": 0.9236746515977057,
+      "fresh_comparison_scope": "descriptive one earlier control/prompt; not paired causal gain"
+    }
+  },
+  "timing_gate_status": "inconclusive_drift",
+  "memory77B_qualification": "failed_unchanged_compression_caps",
+  "gain_promotion": false,
+  "maximum_physical_peak_bytes": 7853988128,
+  "maximum_compressed_peak_logical_bytes": 3982131200,
+  "maximum_compressed_lifetime_delta_bytes": 3030024192,
+  "all_ledger_deltas_since_ready_zero": true,
+  "rows": [
+    {
+      "name": "packed-MAIN-0-H",
+      "prompt": "MAIN",
+      "index": 0,
+      "variant": "H",
+      "phase": "screen",
+      "tps": 9.122354304600249,
+      "seconds": 13.921844708,
+      "peak_bytes": 7837882608,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'outils externes. Il faut peut-être mentionner MoE (Mixture of Experts), experts stockés sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fréquemment utilisés, évite chargements SSD. Exemple concret: router sélectionne experts selon tokens, certains experts chaud",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 458752,
+      "swapins_bytes": 0,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-MAIN-0-H/report.json",
+      "report_sha256": "a387eeed9cc354583b20d030d71062d60acbde69c26bff304bdf7b2901812f24",
+      "accepted": 58,
+      "proposed": 69,
+      "blocks": 69,
+      "draft_seconds": 0.552765251,
+      "verification_seconds": 13.112979543,
+      "commit_cache_seconds": 0.25382096,
+      "verified_rows": 138,
+      "drafted_rows": 138,
+      "expert_demand_completed_api_bytes": 26909634744,
+      "ssd_prefetch": [
+        6453,
+        6453,
+        4803,
+        15,
+        1,
+        6249375,
+        8053421436,
+        16
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-MAIN-0-H/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7747574000,
+        "process_compressed_logical_bytes": 3940548608,
+        "process_lifetime_peak_bytes": 7837882608,
+        "process_compressed_peak_logical_bytes": 3942547456,
+        "process_compressed_lifetime_logical_bytes": 3964583936,
+        "process_decompressions": 258950,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3994830384,
+        "process_compressed_logical_bytes": 3006005248,
+        "process_lifetime_peak_bytes": 4085138992,
+        "process_compressed_peak_logical_bytes": 3008004096,
+        "process_compressed_lifetime_logical_bytes": 3030024192,
+        "process_decompressions": 258947,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 83886,
+            "process_start_abstime": 725607558143,
+            "process_footprint_bytes": 3752743616,
+            "process_compressed_logical_bytes": 934543360,
+            "process_lifetime_peak_bytes": 3752743616,
+            "process_compressed_peak_logical_bytes": 934543360,
+            "process_compressed_lifetime_logical_bytes": 934559744,
+            "process_decompressions": 3,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 83886,
+            "process_start_abstime": 725607558143,
+            "process_footprint_bytes": 7745460464,
+            "process_compressed_logical_bytes": 3758915584,
+            "process_lifetime_peak_bytes": 7837882608,
+            "process_compressed_peak_logical_bytes": 3762274304,
+            "process_compressed_lifetime_logical_bytes": 3776200704,
+            "process_decompressions": 228329,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3992716848,
+            "process_compressed_logical_bytes": 2824372224,
+            "process_lifetime_peak_bytes": 4085138992,
+            "process_compressed_peak_logical_bytes": 2827730944,
+            "process_compressed_lifetime_logical_bytes": 2841640960,
+            "process_decompressions": 228326,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 83886,
+            "process_start_abstime": 725607558143,
+            "process_footprint_bytes": 7747574000,
+            "process_compressed_logical_bytes": 3940548608,
+            "process_lifetime_peak_bytes": 7837882608,
+            "process_compressed_peak_logical_bytes": 3942547456,
+            "process_compressed_lifetime_logical_bytes": 3964583936,
+            "process_decompressions": 258950,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3994830384,
+            "process_compressed_logical_bytes": 3006005248,
+            "process_lifetime_peak_bytes": 4085138992,
+            "process_compressed_peak_logical_bytes": 3008004096,
+            "process_compressed_lifetime_logical_bytes": 3030024192,
+            "process_decompressions": 258947,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    },
+    {
+      "name": "packed-MAIN-1-C",
+      "prompt": "MAIN",
+      "index": 1,
+      "variant": "C",
+      "phase": "screen",
+      "tps": 10.305965972560873,
+      "seconds": 12.322959375,
+      "peak_bytes": 7851399480,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'outils externes. Il faut peut-être mentionner MoE (Mixture of Experts), experts stockés sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fréquemment utilisés, évite chargements SSD. Exemple concret: router sélectionne experts selon tokens, certains experts chaud",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-MAIN-1-C/report.json",
+      "report_sha256": "ad07635f05b4ff0b7ff9b597dcc23b789e4944c5ac8bb3e36a73d0a3e60ea8a7",
+      "accepted": 58,
+      "proposed": 69,
+      "blocks": 69,
+      "draft_seconds": 0.5502503289999999,
+      "verification_seconds": 11.497466956999999,
+      "commit_cache_seconds": 0.2731708769999999,
+      "verified_rows": 138,
+      "drafted_rows": 138,
+      "expert_demand_completed_api_bytes": 26909634744,
+      "ssd_prefetch": [
+        6453,
+        6453,
+        4801,
+        4,
+        1,
+        1882208,
+        8053421436,
+        5
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-MAIN-1-C/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7750998280,
+        "process_compressed_logical_bytes": 2192949248,
+        "process_lifetime_peak_bytes": 7851399480,
+        "process_compressed_peak_logical_bytes": 2196701184,
+        "process_compressed_lifetime_logical_bytes": 2244100096,
+        "process_decompressions": 151321,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 4001269368,
+        "process_compressed_logical_bytes": 2167717888,
+        "process_lifetime_peak_bytes": 4105127592,
+        "process_compressed_peak_logical_bytes": 2171469824,
+        "process_compressed_lifetime_logical_bytes": 2218868736,
+        "process_decompressions": 151319,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 84071,
+            "process_start_abstime": 726856446878,
+            "process_footprint_bytes": 3746271888,
+            "process_compressed_logical_bytes": 25231360,
+            "process_lifetime_peak_bytes": 3746271888,
+            "process_compressed_peak_logical_bytes": 25231360,
+            "process_compressed_lifetime_logical_bytes": 25231360,
+            "process_decompressions": 2,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 84071,
+            "process_start_abstime": 726856446878,
+            "process_footprint_bytes": 7750998280,
+            "process_compressed_logical_bytes": 2118402048,
+            "process_lifetime_peak_bytes": 7851399480,
+            "process_compressed_peak_logical_bytes": 2120024064,
+            "process_compressed_lifetime_logical_bytes": 2162049024,
+            "process_decompressions": 120458,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 4004726392,
+            "process_compressed_logical_bytes": 2093170688,
+            "process_lifetime_peak_bytes": 4105127592,
+            "process_compressed_peak_logical_bytes": 2094792704,
+            "process_compressed_lifetime_logical_bytes": 2136817664,
+            "process_decompressions": 120456,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 84071,
+            "process_start_abstime": 726856446878,
+            "process_footprint_bytes": 7747541256,
+            "process_compressed_logical_bytes": 2192949248,
+            "process_lifetime_peak_bytes": 7851399480,
+            "process_compressed_peak_logical_bytes": 2196701184,
+            "process_compressed_lifetime_logical_bytes": 2244100096,
+            "process_decompressions": 151321,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 4001269368,
+            "process_compressed_logical_bytes": 2167717888,
+            "process_lifetime_peak_bytes": 4105127592,
+            "process_compressed_peak_logical_bytes": 2171469824,
+            "process_compressed_lifetime_logical_bytes": 2218868736,
+            "process_decompressions": 151319,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    },
+    {
+      "name": "packed-MAIN-2-C",
+      "prompt": "MAIN",
+      "index": 2,
+      "variant": "C",
+      "phase": "reverse",
+      "tps": 9.80945939389724,
+      "seconds": 12.946686958,
+      "peak_bytes": 7853988128,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'outils externes. Il faut peut-être mentionner MoE (Mixture of Experts), experts stockés sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fréquemment utilisés, évite chargements SSD. Exemple concret: router sélectionne experts selon tokens, certains experts chaud",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-MAIN-2-C/report.json",
+      "report_sha256": "18b093e0c44747511c939076c257363c04e5a4292782152030fb8140d71240a8",
+      "accepted": 58,
+      "proposed": 69,
+      "blocks": 69,
+      "draft_seconds": 0.573862327,
+      "verification_seconds": 12.080492585000002,
+      "commit_cache_seconds": 0.2900895050000001,
+      "verified_rows": 138,
+      "drafted_rows": 138,
+      "expert_demand_completed_api_bytes": 26912130768,
+      "ssd_prefetch": [
+        6454,
+        6454,
+        4799,
+        2,
+        1,
+        2013000,
+        8054669448,
+        3
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-MAIN-2-C/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7748606216,
+        "process_compressed_logical_bytes": 3980410880,
+        "process_lifetime_peak_bytes": 7853988128,
+        "process_compressed_peak_logical_bytes": 3982131200,
+        "process_compressed_lifetime_logical_bytes": 4059267072,
+        "process_decompressions": 262116,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3970254456,
+        "process_compressed_logical_bytes": 1154629632,
+        "process_lifetime_peak_bytes": 4076324496,
+        "process_compressed_peak_logical_bytes": 1156202496,
+        "process_compressed_lifetime_logical_bytes": 1213022208,
+        "process_decompressions": 260868,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 85955,
+            "process_start_abstime": 736670093953,
+            "process_footprint_bytes": 3777663632,
+            "process_compressed_logical_bytes": 2825781248,
+            "process_lifetime_peak_bytes": 3777663632,
+            "process_compressed_peak_logical_bytes": 2825928704,
+            "process_compressed_lifetime_logical_bytes": 2846244864,
+            "process_decompressions": 1248,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 85955,
+            "process_start_abstime": 736670093953,
+            "process_footprint_bytes": 7748606216,
+            "process_compressed_logical_bytes": 3930980352,
+            "process_lifetime_peak_bytes": 7853988128,
+            "process_compressed_peak_logical_bytes": 3954802688,
+            "process_compressed_lifetime_logical_bytes": 4003119104,
+            "process_decompressions": 231249,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3970942584,
+            "process_compressed_logical_bytes": 1105199104,
+            "process_lifetime_peak_bytes": 4076324496,
+            "process_compressed_peak_logical_bytes": 1128873984,
+            "process_compressed_lifetime_logical_bytes": 1156874240,
+            "process_decompressions": 230001,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 85955,
+            "process_start_abstime": 736670093953,
+            "process_footprint_bytes": 7747918088,
+            "process_compressed_logical_bytes": 3980410880,
+            "process_lifetime_peak_bytes": 7853988128,
+            "process_compressed_peak_logical_bytes": 3982131200,
+            "process_compressed_lifetime_logical_bytes": 4059267072,
+            "process_decompressions": 262116,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3970254456,
+            "process_compressed_logical_bytes": 1154629632,
+            "process_lifetime_peak_bytes": 4076324496,
+            "process_compressed_peak_logical_bytes": 1156202496,
+            "process_compressed_lifetime_logical_bytes": 1213022208,
+            "process_decompressions": 260868,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    },
+    {
+      "name": "packed-MAIN-3-H",
+      "prompt": "MAIN",
+      "index": 3,
+      "variant": "H",
+      "phase": "reverse",
+      "tps": 8.714261941210603,
+      "seconds": 14.573810250000001,
+      "peak_bytes": 7850514720,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons répondre en français. L'utilisateur demande: \"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une réponse finale. Pas besoin d'outils externes. Il faut peut-être mentionner MoE (Mixture of Experts), experts stockés sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fréquemment utilisés, évite chargements SSD. Exemple concret: router sélectionne experts selon tokens, certains experts chaud",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-MAIN-3-H/report.json",
+      "report_sha256": "c8866f622a13b8a88bc74542448f0392c76e0f5857b3532a560e25d12efcbaa5",
+      "accepted": 58,
+      "proposed": 69,
+      "blocks": 69,
+      "draft_seconds": 0.5828736270000003,
+      "verification_seconds": 13.707060665000002,
+      "commit_cache_seconds": 0.28157375399999995,
+      "verified_rows": 138,
+      "drafted_rows": 138,
+      "expert_demand_completed_api_bytes": 26907138720,
+      "ssd_prefetch": [
+        6453,
+        6453,
+        4803,
+        19,
+        0,
+        5582333,
+        8053421436,
+        19
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-MAIN-3-H/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7745575200,
+        "process_compressed_logical_bytes": 2168913920,
+        "process_lifetime_peak_bytes": 7850514720,
+        "process_compressed_peak_logical_bytes": 2171240448,
+        "process_compressed_lifetime_logical_bytes": 2216329216,
+        "process_decompressions": 149676,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 4004185744,
+        "process_compressed_logical_bytes": 2168700928,
+        "process_lifetime_peak_bytes": 4109125264,
+        "process_compressed_peak_logical_bytes": 2171027456,
+        "process_compressed_lifetime_logical_bytes": 2216116224,
+        "process_decompressions": 149672,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 86142,
+            "process_start_abstime": 737894516531,
+            "process_footprint_bytes": 3741389456,
+            "process_compressed_logical_bytes": 212992,
+            "process_lifetime_peak_bytes": 3741389456,
+            "process_compressed_peak_logical_bytes": 212992,
+            "process_compressed_lifetime_logical_bytes": 212992,
+            "process_decompressions": 4,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 86142,
+            "process_start_abstime": 737894516531,
+            "process_footprint_bytes": 7745181984,
+            "process_compressed_logical_bytes": 1980956672,
+            "process_lifetime_peak_bytes": 7850514720,
+            "process_compressed_peak_logical_bytes": 2003959808,
+            "process_compressed_lifetime_logical_bytes": 2020868096,
+            "process_decompressions": 118875,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 4003792528,
+            "process_compressed_logical_bytes": 1980743680,
+            "process_lifetime_peak_bytes": 4109125264,
+            "process_compressed_peak_logical_bytes": 2003746816,
+            "process_compressed_lifetime_logical_bytes": 2020655104,
+            "process_decompressions": 118871,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 86142,
+            "process_start_abstime": 737894516531,
+            "process_footprint_bytes": 7745575200,
+            "process_compressed_logical_bytes": 2168913920,
+            "process_lifetime_peak_bytes": 7850514720,
+            "process_compressed_peak_logical_bytes": 2171240448,
+            "process_compressed_lifetime_logical_bytes": 2216329216,
+            "process_decompressions": 149676,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 4004185744,
+            "process_compressed_logical_bytes": 2168700928,
+            "process_lifetime_peak_bytes": 4109125264,
+            "process_compressed_peak_logical_bytes": 2171027456,
+            "process_compressed_lifetime_logical_bytes": 2216116224,
+            "process_decompressions": 149672,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    },
+    {
+      "name": "packed-HOLD-0-H",
+      "prompt": "HOLD",
+      "index": 0,
+      "variant": "H",
+      "phase": "screen",
+      "tps": 8.695171449110033,
+      "seconds": 14.605807458000001,
+      "peak_bytes": 7850645816,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 131072,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-HOLD-0-H/report.json",
+      "report_sha256": "a041b9dc862e5f47cddc4e8cf79253963431d7b2750d4cf96779cf5b3d03f446",
+      "accepted": 56,
+      "proposed": 70,
+      "blocks": 70,
+      "draft_seconds": 0.5763434539999999,
+      "verification_seconds": 13.64217946,
+      "commit_cache_seconds": 0.25961900799999993,
+      "verified_rows": 140,
+      "drafted_rows": 140,
+      "expert_demand_completed_api_bytes": 28900213884,
+      "ssd_prefetch": [
+        6567,
+        6567,
+        5053,
+        12,
+        2,
+        5483917,
+        8195694804,
+        14
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-HOLD-0-H/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7738956064,
+        "process_compressed_logical_bytes": 1948106752,
+        "process_lifetime_peak_bytes": 7850645816,
+        "process_compressed_peak_logical_bytes": 1949466624,
+        "process_compressed_lifetime_logical_bytes": 1996111872,
+        "process_decompressions": 137682,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3989472912,
+        "process_compressed_logical_bytes": 1913667584,
+        "process_lifetime_peak_bytes": 4101211816,
+        "process_compressed_peak_logical_bytes": 1915027456,
+        "process_compressed_lifetime_logical_bytes": 1961672704,
+        "process_decompressions": 137672,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 84758,
+            "process_start_abstime": 728034718820,
+            "process_footprint_bytes": 3749434000,
+            "process_compressed_logical_bytes": 34439168,
+            "process_lifetime_peak_bytes": 3749434000,
+            "process_compressed_peak_logical_bytes": 34439168,
+            "process_compressed_lifetime_logical_bytes": 34439168,
+            "process_decompressions": 10,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 84758,
+            "process_start_abstime": 728034718820,
+            "process_footprint_bytes": 7738956064,
+            "process_compressed_logical_bytes": 1803485184,
+            "process_lifetime_peak_bytes": 7850645816,
+            "process_compressed_peak_logical_bytes": 1827766272,
+            "process_compressed_lifetime_logical_bytes": 1845411840,
+            "process_decompressions": 107046,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3989522064,
+            "process_compressed_logical_bytes": 1769046016,
+            "process_lifetime_peak_bytes": 4101211816,
+            "process_compressed_peak_logical_bytes": 1793327104,
+            "process_compressed_lifetime_logical_bytes": 1810972672,
+            "process_decompressions": 107036,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 84758,
+            "process_start_abstime": 728034718820,
+            "process_footprint_bytes": 7738906912,
+            "process_compressed_logical_bytes": 1948106752,
+            "process_lifetime_peak_bytes": 7850645816,
+            "process_compressed_peak_logical_bytes": 1949466624,
+            "process_compressed_lifetime_logical_bytes": 1996111872,
+            "process_decompressions": 137682,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3989472912,
+            "process_compressed_logical_bytes": 1913667584,
+            "process_lifetime_peak_bytes": 4101211816,
+            "process_compressed_peak_logical_bytes": 1915027456,
+            "process_compressed_lifetime_logical_bytes": 1961672704,
+            "process_decompressions": 137672,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    },
+    {
+      "name": "packed-HOLD-1-C",
+      "prompt": "HOLD",
+      "index": 1,
+      "variant": "C",
+      "phase": "screen",
+      "tps": 9.626069457737925,
+      "seconds": 13.193339250000001,
+      "peak_bytes": 7834147128,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 262144,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-HOLD-1-C/report.json",
+      "report_sha256": "6f9637b494b8466fa144cc10692081d302226cf2c566b84d34456480f9758471",
+      "accepted": 56,
+      "proposed": 70,
+      "blocks": 70,
+      "draft_seconds": 0.580883587,
+      "verification_seconds": 12.206434005000002,
+      "commit_cache_seconds": 0.280433585,
+      "verified_rows": 140,
+      "drafted_rows": 140,
+      "expert_demand_completed_api_bytes": 28898965872,
+      "ssd_prefetch": [
+        6567,
+        6567,
+        5055,
+        4,
+        0,
+        1471958,
+        8195694804,
+        4
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-HOLD-1-C/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7738300704,
+        "process_compressed_logical_bytes": 1965883392,
+        "process_lifetime_peak_bytes": 7834147128,
+        "process_compressed_peak_logical_bytes": 1968242688,
+        "process_compressed_lifetime_logical_bytes": 1996701696,
+        "process_decompressions": 138933,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3994535592,
+        "process_compressed_logical_bytes": 1899053056,
+        "process_lifetime_peak_bytes": 4090382016,
+        "process_compressed_peak_logical_bytes": 1901363200,
+        "process_compressed_lifetime_logical_bytes": 1929822208,
+        "process_decompressions": 138928,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 84958,
+            "process_start_abstime": 729278506765,
+            "process_footprint_bytes": 3743765112,
+            "process_compressed_logical_bytes": 66830336,
+            "process_lifetime_peak_bytes": 3743765112,
+            "process_compressed_peak_logical_bytes": 66879488,
+            "process_compressed_lifetime_logical_bytes": 66879488,
+            "process_decompressions": 5,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 84958,
+            "process_start_abstime": 729278506765,
+            "process_footprint_bytes": 7738038584,
+            "process_compressed_logical_bytes": 1819115520,
+            "process_lifetime_peak_bytes": 7833884984,
+            "process_compressed_peak_logical_bytes": 1822883840,
+            "process_compressed_lifetime_logical_bytes": 1841168384,
+            "process_decompressions": 108090,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3994273472,
+            "process_compressed_logical_bytes": 1752285184,
+            "process_lifetime_peak_bytes": 4090119872,
+            "process_compressed_peak_logical_bytes": 1756004352,
+            "process_compressed_lifetime_logical_bytes": 1774288896,
+            "process_decompressions": 108085,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 84958,
+            "process_start_abstime": 729278506765,
+            "process_footprint_bytes": 7738300704,
+            "process_compressed_logical_bytes": 1965883392,
+            "process_lifetime_peak_bytes": 7834147128,
+            "process_compressed_peak_logical_bytes": 1968242688,
+            "process_compressed_lifetime_logical_bytes": 1996701696,
+            "process_decompressions": 138933,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3994535592,
+            "process_compressed_logical_bytes": 1899053056,
+            "process_lifetime_peak_bytes": 4090382016,
+            "process_compressed_peak_logical_bytes": 1901363200,
+            "process_compressed_lifetime_logical_bytes": 1929822208,
+            "process_decompressions": 138928,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    },
+    {
+      "name": "packed-HOLD-2-C",
+      "prompt": "HOLD",
+      "index": 2,
+      "variant": "C",
+      "phase": "reverse",
+      "tps": 9.523038908217679,
+      "seconds": 13.336079084000001,
+      "peak_bytes": 7852677432,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-HOLD-2-C/report.json",
+      "report_sha256": "0cf414c36ca6efd5b3619a173a304c6f45f3d7758b5e941e2e0d89d5b470346d",
+      "accepted": 56,
+      "proposed": 70,
+      "blocks": 70,
+      "draft_seconds": 0.583459834,
+      "verification_seconds": 12.324077334999997,
+      "commit_cache_seconds": 0.29975291800000003,
+      "verified_rows": 140,
+      "drafted_rows": 140,
+      "expert_demand_completed_api_bytes": 28895221836,
+      "ssd_prefetch": [
+        6567,
+        6567,
+        5058,
+        3,
+        0,
+        554917,
+        8195694804,
+        3
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-HOLD-2-C/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7741069624,
+        "process_compressed_logical_bytes": 1840463872,
+        "process_lifetime_peak_bytes": 7852677432,
+        "process_compressed_peak_logical_bytes": 1860878336,
+        "process_compressed_lifetime_logical_bytes": 1882652672,
+        "process_decompressions": 140247,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 3994322552,
+        "process_compressed_logical_bytes": 1840414720,
+        "process_lifetime_peak_bytes": 4105963128,
+        "process_compressed_peak_logical_bytes": 1860829184,
+        "process_compressed_lifetime_logical_bytes": 1882603520,
+        "process_decompressions": 140245,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 86339,
+            "process_start_abstime": 739205796766,
+            "process_footprint_bytes": 3746714304,
+            "process_compressed_logical_bytes": 49152,
+            "process_lifetime_peak_bytes": 3746714304,
+            "process_compressed_peak_logical_bytes": 49152,
+            "process_compressed_lifetime_logical_bytes": 49152,
+            "process_decompressions": 2,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 86339,
+            "process_start_abstime": 739205796766,
+            "process_footprint_bytes": 7741069624,
+            "process_compressed_logical_bytes": 1837432832,
+            "process_lifetime_peak_bytes": 7852677432,
+            "process_compressed_peak_logical_bytes": 1860878336,
+            "process_compressed_lifetime_logical_bytes": 1874870272,
+            "process_decompressions": 109635,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3994355320,
+            "process_compressed_logical_bytes": 1837383680,
+            "process_lifetime_peak_bytes": 4105963128,
+            "process_compressed_peak_logical_bytes": 1860829184,
+            "process_compressed_lifetime_logical_bytes": 1874821120,
+            "process_decompressions": 109633,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 86339,
+            "process_start_abstime": 739205796766,
+            "process_footprint_bytes": 7741036856,
+            "process_compressed_logical_bytes": 1840463872,
+            "process_lifetime_peak_bytes": 7852677432,
+            "process_compressed_peak_logical_bytes": 1860878336,
+            "process_compressed_lifetime_logical_bytes": 1882652672,
+            "process_decompressions": 140247,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 3994322552,
+            "process_compressed_logical_bytes": 1840414720,
+            "process_lifetime_peak_bytes": 4105963128,
+            "process_compressed_peak_logical_bytes": 1860829184,
+            "process_compressed_lifetime_logical_bytes": 1882603520,
+            "process_decompressions": 140245,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    },
+    {
+      "name": "packed-HOLD-3-H",
+      "prompt": "HOLD",
+      "index": 3,
+      "variant": "H",
+      "phase": "reverse",
+      "tps": 7.834093374310459,
+      "seconds": 16.211193041999998,
+      "peak_bytes": 7849662752,
+      "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "exact_responses": 2,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-HOLD-3-H/report.json",
+      "report_sha256": "79d1e510f89979916450579b661eadc87c934e5f7d45a99de5021ff2c92bbfb2",
+      "accepted": 56,
+      "proposed": 70,
+      "blocks": 70,
+      "draft_seconds": 0.6116052919999999,
+      "verification_seconds": 15.138700749999998,
+      "commit_cache_seconds": 0.3292349179999999,
+      "verified_rows": 140,
+      "drafted_rows": 140,
+      "expert_demand_completed_api_bytes": 28908949968,
+      "ssd_prefetch": [
+        6567,
+        6567,
+        5057,
+        23,
+        1,
+        5623083,
+        8195694804,
+        24
+      ],
+      "own_memory_analysis": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/reverse/packed-HOLD-3-H/memory-analysis.json",
+      "own_counter_data_valid_at_observed_boundaries": true,
+      "own_memory_maxima": {
+        "process_footprint_bytes": 7739070704,
+        "process_compressed_logical_bytes": 1808924672,
+        "process_lifetime_peak_bytes": 7849662752,
+        "process_compressed_peak_logical_bytes": 1817657344,
+        "process_compressed_lifetime_logical_bytes": 1871527936,
+        "process_decompressions": 128511,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_final_deltas_since_ready": {
+        "process_footprint_bytes": 4004185648,
+        "process_compressed_logical_bytes": 1808924672,
+        "process_lifetime_peak_bytes": 4114777696,
+        "process_compressed_peak_logical_bytes": 1817657344,
+        "process_compressed_lifetime_logical_bytes": 1871527936,
+        "process_decompressions": 128509,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "own_budget_violation_metrics": [
+        "compressed_lifetime_delta_bytes",
+        "process_compressed_logical_bytes",
+        "process_compressed_peak_logical_bytes"
+      ],
+      "own_memory_samples": [
+        {
+          "label": "ready",
+          "memory": {
+            "process_id": 86509,
+            "process_start_abstime": 740432620788,
+            "process_footprint_bytes": 3734885056,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 3734885056,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 2,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 0,
+            "process_compressed_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 0,
+            "process_compressed_peak_logical_bytes": 0,
+            "process_compressed_lifetime_logical_bytes": 0,
+            "process_decompressions": 0,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "warmup[0]",
+          "memory": {
+            "process_id": 86509,
+            "process_start_abstime": 740432620788,
+            "process_footprint_bytes": 7738923272,
+            "process_compressed_logical_bytes": 1656307712,
+            "process_lifetime_peak_bytes": 7849662752,
+            "process_compressed_peak_logical_bytes": 1680441344,
+            "process_compressed_lifetime_logical_bytes": 1696972800,
+            "process_decompressions": 96637,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 4004038216,
+            "process_compressed_logical_bytes": 1656307712,
+            "process_lifetime_peak_bytes": 4114777696,
+            "process_compressed_peak_logical_bytes": 1680441344,
+            "process_compressed_lifetime_logical_bytes": 1696972800,
+            "process_decompressions": 96635,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        },
+        {
+          "label": "runs[0]",
+          "memory": {
+            "process_id": 86509,
+            "process_start_abstime": 740432620788,
+            "process_footprint_bytes": 7739070704,
+            "process_compressed_logical_bytes": 1808924672,
+            "process_lifetime_peak_bytes": 7849662752,
+            "process_compressed_peak_logical_bytes": 1817657344,
+            "process_compressed_lifetime_logical_bytes": 1871527936,
+            "process_decompressions": 128511,
+            "process_ledger_swapins_logical_bytes": 0
+          },
+          "deltas_since_ready": {
+            "process_footprint_bytes": 4004185648,
+            "process_compressed_logical_bytes": 1808924672,
+            "process_lifetime_peak_bytes": 4114777696,
+            "process_compressed_peak_logical_bytes": 1817657344,
+            "process_compressed_lifetime_logical_bytes": 1871527936,
+            "process_decompressions": 128509,
+            "process_ledger_swapins_logical_bytes": 0
+          }
+        }
+      ],
+      "own_memory_qualification": null,
+      "startup_ledger_swapins_logical_bytes": 0
+    }
+  ],
+  "limits": [
+    "No threshold/plan/code changed, no GPU/build/proof/heavy test launched.",
+    "Historical qualifier60 requires zero global swap-outs; actual458752B were not erased to call it. Same ratio/drift/spread criteria calculated on real measurements.",
+    "Self counters at boundaries do not attribute per-process swap-outs or physical NVMe reads.",
+    "Raw token ID arrays absent from benchmark reports; full text/hash and token counts checked.",
+    "77Bfailed caps retained; new78 thresholds not applied retroactively."
+  ]
+}
