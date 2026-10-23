@@ -1,0 +1,109 @@
+{
+  "status": "static_review_complete_no_new_runtime_validation",
+  "head": "88cbfd2232ab23a0a7ca1d8dc312792347ca9d31",
+  "runtime": "89174fccc37af8fa6cc37f353ee95d14b584dee7",
+  "findings": 15,
+  "agents_domains": 3,
+  "cross_review": "cross-review.md",
+  "source_hashes_checked_against_worktree_and_HEAD": {
+    "native/src/flash_draft.rs": "9da4ba25da1247b154d8f03aff3e0f701b146c7a4c43f77cc6506683b13d9803",
+    "native/src/flash_draft_runtime.rs": "f62a2b98eb9d9dc61c28b18efc545a9ddc853bfa82a78e8811eed834167cc920",
+    "native/src/qwen4.rs": "13bdb273d77b07041fb64016b2a29c244dad64853567e4648d8a1ab6c5ddd6a0",
+    "native/src/gated_delta.rs": "a99e9198f9cf454caafa8e7e5b974797ad4929109f0a462c93d409e31f5e9347",
+    "native/src/array.rs": "6773c073392cea5b05a439614cdb97c6a8de1b4eb02af1609d8a6858115cacbd",
+    "native/ffi/mlx_bridge.cpp": "d2a01595f45b352173e76e70c56c6b271536f3dd2096971526f422d16dec4c3a",
+    "native/shaders/flash_draft_top16.metal": "ace89bc26dde21d0b733950c4150c6490b530988d38a52b1649db013a8c2936a",
+    "native/src/main.rs": "4cf39e7804554cd93307ae93b0f60fdc6fb3c5beba0a24e9d80b6713c018ab1d",
+    "native/src/ssd_moe.rs": "d4b979de40a54349a8c8126fabd3aa26023737f29a0aaa9214ae2f4f1e6db43c",
+    "native/src/ssd_prefetch.rs": "3f2aa1cf942a8d00c53efa8c42510013491bd5632279abba0b656d653efa82b3",
+    "native/src/flash_support.rs": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+    "native/src/checkpoint.rs": "c884a976729c3d698c0189f5e9de85c0a3f2b527cc4cfd5e12edf9c7093780a1",
+    "native/ffi/disk_reader.h": "c191ee3c887010df2b007f5a0d68c9ae01d7d080cd77cb897518626e2ef355f8",
+    "native/tests/disk_reader.cpp": "5a395637d4ef3eb4f5ed07d9f645bf118942a71e83650e5fb1ef4f2ef72d39f0",
+    "native/src/linear.rs": "35c6f59372b8555ef208729cef26492e5aadd3a93cab6331732a372681068e4b",
+    "native/src/lfm2.rs": "a1586737903bd18e04024f7b5bb4d25939de3c480dc6a6ad0be61880c0799f89",
+    "native/src/qwen35.rs": "e71a30d193019d1d6f3ac8d6a9457862004713bbf54445ede15bb451ef4f4bd7",
+    "native/shaders/flash_draft_ring.h": "80d3fd4bd36d999f6e505f226dba292342292628a9fd3c9e9b432476768379ff"
+  },
+  "new_tests": 0,
+  "new_gpu_benchmarks": 0,
+  "new_builds": 0,
+  "new_formal_proofs": 0,
+  "counter_examples_and_boundaries": "Specified in domain reports, proposed but not executed. Static reading is not a full correctness proof.",
+  "executable_changes": false,
+  "gain_measured": false,
+  "publication_files": [
+    {
+      "path": "README.md",
+      "original_sha256": "bea59c0aa530cdc71f8618efb139af418c4295a9fa2bf4b54a051480b301c716",
+      "published_sha256": "bea59c0aa530cdc71f8618efb139af418c4295a9fa2bf4b54a051480b301c716",
+      "change": "byte exact"
+    },
+    {
+      "path": "verifier.md",
+      "original_sha256": "4022ed370a464ce8128d56d3e8bdb3ca19b576a5e27e8696466d9ab03b8d7738",
+      "published_sha256": "3ed1980b7e56525c8492127e4f6970c2de93e46741120734b6a771d30edb45f0",
+      "change": "Markdown source links converted to pinned GitHub/relative links and EOF normalized only."
+    },
+    {
+      "path": "verifier.json",
+      "original_sha256": "a0de86edacc84e4b411b32cb9652d2bd862db1bd4e3ed5cf80c01c5678efafa2",
+      "published_sha256": "a0de86edacc84e4b411b32cb9652d2bd862db1bd4e3ed5cf80c01c5678efafa2",
+      "change": "byte exact"
+    },
+    {
+      "path": "ssd-memory.md",
+      "original_sha256": "a714bf8fc82e382bbd6c4317580e6e96c69cf5289fc9c72d5258db51093ed812",
+      "published_sha256": "a714bf8fc82e382bbd6c4317580e6e96c69cf5289fc9c72d5258db51093ed812",
+      "change": "byte exact"
+    },
+    {
+      "path": "ssd-memory.json",
+      "original_sha256": "9130aaedb815dea4a9647c99dbe9815ea132feaeee141fb6426cbfb4c9a7cd81",
+      "published_sha256": "9130aaedb815dea4a9647c99dbe9815ea132feaeee141fb6426cbfb4c9a7cd81",
+      "change": "byte exact"
+    },
+    {
+      "path": "kernels.md",
+      "original_sha256": "7217839453d3520ee9bedf1904684e8a10930869ef0af740e16246032bab38a4",
+      "published_sha256": "7217839453d3520ee9bedf1904684e8a10930869ef0af740e16246032bab38a4",
+      "change": "byte exact"
+    },
+    {
+      "path": "kernels.json",
+      "original_sha256": "52a19bdc009b948f07bbb6e29cf2bc184caf4652640883cb434d074ebc531085",
+      "published_sha256": "52a19bdc009b948f07bbb6e29cf2bc184caf4652640883cb434d074ebc531085",
+      "change": "byte exact"
+    },
+    {
+      "path": "cross-review.md",
+      "original_sha256": "d90c1b12128118352d18425c6cf01aee8c22f4ceffd933f960042cf1d71239af",
+      "published_sha256": "d90c1b12128118352d18425c6cf01aee8c22f4ceffd933f960042cf1d71239af",
+      "change": "byte exact"
+    },
+    {
+      "path": "phase-and-compression.json",
+      "original_sha256": "89876e3641e90988a68fb6274deba787ac082caf9a9485a79ab1e1028e0b161d",
+      "published_sha256": "89876e3641e90988a68fb6274deba787ac082caf9a9485a79ab1e1028e0b161d",
+      "change": "byte exact"
+    },
+    {
+      "path": "input-scale-sha.json",
+      "original_sha256": "334d5e8d1acfce93a3bd52d497a485a2d17ee25ddeb12bf5e7342c4e9687cc7d",
+      "published_sha256": "334d5e8d1acfce93a3bd52d497a485a2d17ee25ddeb12bf5e7342c4e9687cc7d",
+      "change": "byte exact"
+    },
+    {
+      "path": "upstream.json",
+      "original_sha256": "de28e63bc0dd53939244dea26e389d2bbecc9063a4be56b57efa6cd865a7888d",
+      "published_sha256": "de28e63bc0dd53939244dea26e389d2bbecc9063a4be56b57efa6cd865a7888d",
+      "change": "byte exact"
+    }
+  ],
+  "preserved_exclusions": [
+    "opt-65-plan-diagnostics",
+    "opt-74-audits",
+    "tests/test_flash_grouped_diagnostics.py"
+  ],
+  "ci_88cbfd22": "Regression run40016234941 success; Native run40016235001 in progress at last check, no global green claim."
+}
