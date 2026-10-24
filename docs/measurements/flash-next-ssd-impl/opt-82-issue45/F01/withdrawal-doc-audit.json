@@ -1,0 +1,55 @@
+{
+  "status": "documentation_updated_effective_withdrawal_statically_confirmed",
+  "reviewed_at_utc": "2026-10-24T23:39:02.110971+00:00",
+  "archive": {
+    "path": "evidence/source-snapshot.tar.gz",
+    "sha256": "963d610bbb99a1a97a5b4e3760c0c702fa1ee58f7ccab4dd24c1408c5c6aaf28",
+    "members": 83,
+    "all83_frozen_sha_equal": true,
+    "bad": []
+  },
+  "withdrawal": {
+    "effective": true,
+    "method_recorded_by_parent": "Exact inverse of verified archived tracked-source.patch; unrelated/private changes preserved.",
+    "tracked_patch_sha256": "ffa4b34b17ba8c41d35d56705aec4e26b697bdbf711a91d9b6fe54dccbfc332e",
+    "full_prototype_patch_sha256": "fa63bb8ef98ad672ecf7d12241aa3e385693a5fc85f96d04bceb73f3135ba79f",
+    "current_F01_tokens_in_production_or_CI": {
+      "native/src/linear.rs": [],
+      "native/src/qwen4.rs": [],
+      "native/src/ssd_moe.rs": [],
+      "native/src/flash_support.rs": [],
+      ".github/workflows/rust.yml": []
+    },
+    "linear_and_qwen4_equal_62cae": {
+      "native/src/linear.rs": true,
+      "native/src/qwen4.rs": true
+    },
+    "later_F06_warning": "Other current files may contain separately preregistered F06 changes; this audit does not call current W globally equal to old HEAD.",
+    "preserved_test_sources": {
+      "native/src/linear_half_output_tests.rs": {
+        "expected_frozen_sha256": "bf0bd6335b17e95630d85c45187e6d15079a02ab7fc8849281ef23c5ea8e0c5e",
+        "actual_sha256": "bf0bd6335b17e95630d85c45187e6d15079a02ab7fc8849281ef23c5ea8e0c5e",
+        "exists": true
+      },
+      "native/src/ssd_moe/half_output_tests.rs": {
+        "expected_frozen_sha256": "1213ba30e5bdc47f4364e005ed3960109ed6cced3efeee1eae1e5d3881b2dcb7",
+        "actual_sha256": "1213ba30e5bdc47f4364e005ed3960109ed6cced3efeee1eae1e5d3881b2dcb7",
+        "exists": true
+      }
+    },
+    "preserved_test_sources_compiled": false
+  },
+  "scope": "Static archive/hash/source and documentation checks only; no source/index/opti edit, build/test/prover/GPU or push by reviewer.",
+  "numerical_status": "passed in tested domain; limits remain",
+  "throughput_status": "inconclusive_no_reproducible_gain",
+  "runtime_status": "withdrawn",
+  "raw_failures_preserved": [
+    "quality-v1",
+    "mutation initial setup failure",
+    "initial auto-review rejection",
+    "bridge global swapout255.75MiB",
+    "initial erroneous zero-swap narrative preserved and corrected",
+    "77Bcompressioncapsfailed"
+  ],
+  "published_82B_proofs": "unchanged"
+}

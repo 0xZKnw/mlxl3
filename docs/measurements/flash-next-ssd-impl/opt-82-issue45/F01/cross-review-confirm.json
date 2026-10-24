@@ -1,0 +1,553 @@
+{
+  "trial": "82F01 CH independent read-only review",
+  "reviewed_at_utc": "2026-10-24T23:28:08.184054+00:00",
+  "status": "CHclosed_no_reproducible_gain_prototype_to_withdraw",
+  "gold60_responses_checked": 8,
+  "gold60_text_hash_and_128_127_exact": true,
+  "HCCH_responses_checked_total": 16,
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "CH_H_tps": 11.084251600382192,
+      "CH_C_tps": 11.355969568151858,
+      "CH_gain_percent": 2.4513875863328094,
+      "HC_gain_percent": -4.536473018541742,
+      "HCCH_geomean_gain_percent": -1.1042427445154823,
+      "H_control_drift_percent": -0.4868586538704922,
+      "paired_ratio_spread_percentage_points": 6.987860604874552,
+      "counter_exact_HC_CH": true
+    },
+    {
+      "prompt": "HOLD",
+      "CH_H_tps": 10.417939322373545,
+      "CH_C_tps": 10.041335116474151,
+      "CH_gain_percent": -3.614958719241146,
+      "HC_gain_percent": 1.4934172951618363,
+      "HCCH_geomean_gain_percent": -1.093745315478356,
+      "H_control_drift_percent": 2.43924872507133,
+      "paired_ratio_spread_percentage_points": 5.108376014402982,
+      "counter_exact_HC_CH": true
+    }
+  ],
+  "records": [
+    {
+      "name": "MAIN-0-C",
+      "prompt": "MAIN",
+      "arm": "C",
+      "flag": "1",
+      "report_sha256": "af8fe67b4c4c25b6d10f5caa1d7e61dd9e6c8868c893eb114bf123d74e6386cc",
+      "samples": {
+        "warmup": {
+          "tps": 11.343089236431892,
+          "decode_seconds": 11.196244457999999,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "verified_rows": 138,
+            "drafted_rows": 138,
+            "widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23664803544,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 10.450134209000003,
+          "memory": {
+            "mlx_active_bytes": 7144346752,
+            "mlx_cache_bytes": 66221426,
+            "mlx_peak_bytes": 7288953876,
+            "process_compressed_lifetime_logical_bytes": 3588161536,
+            "process_compressed_logical_bytes": 3551363072,
+            "process_compressed_peak_logical_bytes": 3574251520,
+            "process_decompressions": 214399,
+            "process_footprint_bytes": 7721130272,
+            "process_id": 84421,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7826905376,
+            "process_start_abstime": 1357138080091
+          }
+        },
+        "runs": {
+          "tps": 11.355969568151858,
+          "decode_seconds": 11.183545292000002,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "verified_rows": 138,
+            "drafted_rows": 138,
+            "widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23930630100,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 10.431408582,
+          "memory": {
+            "mlx_active_bytes": 7144336512,
+            "mlx_cache_bytes": 66797190,
+            "mlx_peak_bytes": 7288200564,
+            "process_compressed_lifetime_logical_bytes": 3767156736,
+            "process_compressed_logical_bytes": 3718594560,
+            "process_compressed_peak_logical_bytes": 3723804672,
+            "process_decompressions": 245486,
+            "process_footprint_bytes": 7732451616,
+            "process_id": 84421,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7826905376,
+            "process_start_abstime": 1357138080091
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": 0.11355223829674355
+    },
+    {
+      "name": "MAIN-1-H",
+      "prompt": "MAIN",
+      "arm": "H",
+      "flag": "0",
+      "report_sha256": "ebef984f914537bc7a6642b5212811742f9c101807cfb647679c9debb16fbab8",
+      "samples": {
+        "warmup": {
+          "tps": 10.88639460792836,
+          "decode_seconds": 11.665937583,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "verified_rows": 138,
+            "drafted_rows": 138,
+            "widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23664803544,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 10.898451673000002,
+          "memory": {
+            "mlx_active_bytes": 7144336512,
+            "mlx_cache_bytes": 66768662,
+            "mlx_peak_bytes": 7288788068,
+            "process_compressed_lifetime_logical_bytes": 2055667712,
+            "process_compressed_logical_bytes": 2017492992,
+            "process_compressed_peak_logical_bytes": 2040201216,
+            "process_decompressions": 120770,
+            "process_footprint_bytes": 7732795728,
+            "process_id": 84632,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7822924136,
+            "process_start_abstime": 1358193027977
+          }
+        },
+        "runs": {
+          "tps": 11.084251600382192,
+          "decode_seconds": 11.457697332999999,
+          "counters": {
+            "proposed": 69,
+            "accepted": 58,
+            "blocks": 69,
+            "verified_rows": 138,
+            "drafted_rows": 138,
+            "widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 23930630100,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 10.693623334000002,
+          "memory": {
+            "mlx_active_bytes": 7144344704,
+            "mlx_cache_bytes": 66143122,
+            "mlx_peak_bytes": 7288579684,
+            "process_compressed_lifetime_logical_bytes": 2237202432,
+            "process_compressed_logical_bytes": 2179497984,
+            "process_compressed_peak_logical_bytes": 2186854400,
+            "process_decompressions": 152284,
+            "process_footprint_bytes": 7716264248,
+            "process_id": 84632,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7822924136,
+            "process_start_abstime": 1358193027977
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": 1.8174703341153675
+    },
+    {
+      "name": "HOLD-0-C",
+      "prompt": "HOLD",
+      "arm": "C",
+      "flag": "1",
+      "report_sha256": "f917c678b4c5da4af8975a79ee9b528d61716626af942acfa6a95b91af5d565c",
+      "samples": {
+        "warmup": {
+          "tps": 10.54337788491621,
+          "decode_seconds": 12.045475499999998,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "verified_rows": 140,
+            "drafted_rows": 140,
+            "widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25765207740,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 11.181539794999999,
+          "memory": {
+            "mlx_active_bytes": 7144217728,
+            "mlx_cache_bytes": 67457262,
+            "mlx_peak_bytes": 7289097344,
+            "process_compressed_lifetime_logical_bytes": 2286092288,
+            "process_compressed_logical_bytes": 2244034560,
+            "process_compressed_peak_logical_bytes": 2268037120,
+            "process_decompressions": 135236,
+            "process_footprint_bytes": 7713429816,
+            "process_id": 85261,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7821498680,
+            "process_start_abstime": 1359265612578
+          }
+        },
+        "runs": {
+          "tps": 10.041335116474151,
+          "decode_seconds": 12.647720499999998,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "verified_rows": 140,
+            "drafted_rows": 140,
+            "widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25474420944,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 11.708561627000002,
+          "memory": {
+            "mlx_active_bytes": 7144215680,
+            "mlx_cache_bytes": 67432174,
+            "mlx_peak_bytes": 7289108096,
+            "process_compressed_lifetime_logical_bytes": 2458288128,
+            "process_compressed_logical_bytes": 2410905600,
+            "process_compressed_peak_logical_bytes": 2412593152,
+            "process_decompressions": 165859,
+            "process_footprint_bytes": 7714281784,
+            "process_id": 85261,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7821498680,
+            "process_start_abstime": 1359265612578
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": -4.7616880844259635
+    },
+    {
+      "name": "HOLD-1-H",
+      "prompt": "HOLD",
+      "arm": "H",
+      "flag": "0",
+      "report_sha256": "8810b54d5cb81d8b7268945744f79a1755ff2810c332c8b4a0a30baaf48880b0",
+      "samples": {
+        "warmup": {
+          "tps": 10.254154121396411,
+          "decode_seconds": 12.385224417,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "verified_rows": 140,
+            "drafted_rows": 140,
+            "widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25765207740,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 11.490962783999999,
+          "memory": {
+            "mlx_active_bytes": 7144230016,
+            "mlx_cache_bytes": 67491302,
+            "mlx_peak_bytes": 7289089112,
+            "process_compressed_lifetime_logical_bytes": 2103197696,
+            "process_compressed_logical_bytes": 2061008896,
+            "process_compressed_peak_logical_bytes": 2084896768,
+            "process_decompressions": 122609,
+            "process_footprint_bytes": 7734974728,
+            "process_id": 85455,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7844829448,
+            "process_start_abstime": 1360344256494
+          }
+        },
+        "runs": {
+          "tps": 10.417939322373545,
+          "decode_seconds": 12.190510625,
+          "counters": {
+            "proposed": 70,
+            "accepted": 56,
+            "blocks": 70,
+            "verified_rows": 140,
+            "drafted_rows": 140,
+            "widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "expert_demand_bytes": 25474420944,
+            "prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "verification_seconds": 11.297989207,
+          "memory": {
+            "mlx_active_bytes": 7144217728,
+            "mlx_cache_bytes": 67558276,
+            "mlx_peak_bytes": 7289132004,
+            "process_compressed_lifetime_logical_bytes": 2274836480,
+            "process_compressed_logical_bytes": 2226257920,
+            "process_compressed_peak_logical_bytes": 2227978240,
+            "process_decompressions": 153260,
+            "process_footprint_bytes": 7735548168,
+            "process_id": 85455,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7844829448,
+            "process_start_abstime": 1360344256494
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": 1.5972570632167393
+    }
+  ],
+  "phases": [
+    {
+      "name": "pre20",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "AC_before": true,
+      "AC_after": true
+    },
+    {
+      "name": "MAIN-0-C",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "AC_before": true,
+      "AC_after": true
+    },
+    {
+      "name": "MAIN-1-H",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "AC_before": true,
+      "AC_after": true
+    },
+    {
+      "name": "HOLD-0-C",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "AC_before": true,
+      "AC_after": true
+    },
+    {
+      "name": "HOLD-1-H",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "AC_before": true,
+      "AC_after": true
+    },
+    {
+      "name": "post30",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "AC_before": true,
+      "AC_after": true
+    }
+  ],
+  "supervisor_status": "completed_expected_outcomes_not_speed",
+  "sampler": {
+    "status": "completed_observations_not_attribution",
+    "joined": true,
+    "samples": 122,
+    "error_samples": 0
+  },
+  "memory": {
+    "snapshots": 12,
+    "peak_process_bytes": 7844829448,
+    "max_own_ledger_swapins_logical_bytes": 0,
+    "max_current_compressed_logical_bytes": 3718594560,
+    "global_swapouts_bytes": 0,
+    "global_swapins_bytes": 0,
+    "compression_77B": "capsfailed retained; ledger0 not proof no private swapout"
+  },
+  "identity": {
+    "native_sources": 83,
+    "mismatches_at_review": [],
+    "note": "Root may withdraw prototype immediately after source archive; a later W restoration does not invalidate frozen measured binary.",
+    "cli_actual_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506",
+    "cli_expected_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506",
+    "driver_sha256": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "driver_expected": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "plan_sha256": "d41dd842bb0049da745a4beffa32c0366b04da6ddd85a926a845f27bba09275f",
+    "gold60_sha256": "a2b691aec70195403f0faef61ca3726869864e9b3d2ecf24196a684750b192c0"
+  },
+  "decision": "No gain confirmed on either prompt across HCCH; no OFF/MTP TPS campaign justified. Preserve negative results, qualityv1 failure, priorbridge255.75MiBswap and compressioncaps; do not attribute order/drift to a cause without measurements.",
+  "no_test_build_prover_or_gpu_run_by_reviewer": true
+}
