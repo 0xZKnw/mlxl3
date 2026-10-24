@@ -133,6 +133,7 @@ def run(
             env=env,
         )
         events = queue.Queue()
+        reader_done = object()
 
         def read():
             try:
@@ -140,8 +141,8 @@ def run(
                     events.put(json.loads(line))
             except (ValueError, OSError) as error:
                 events.put({"type": "error", "message": str(error)})
-            finally:
-                events.put({"type": "error", "message": "bridge exited"})
+            else:
+                events.put(reader_done)
 
         reader = threading.Thread(target=read, daemon=True)
         reader.start()
@@ -156,7 +157,13 @@ def run(
                     event = events.get(timeout=remaining)
                 except queue.Empty as error:
                     raise TimeoutError(f"bridge deadline: {kind}") from error
-                if not isinstance(event, dict) or "type" not in event:
+                if event is reader_done:
+                    raise RuntimeError(f"bridge exited before {kind}")
+                if (
+                    not isinstance(event, dict)
+                    or not isinstance(event.get("type"), str)
+                    or not event["type"]
+                ):
                     raise ValueError("invalid bridge event")
                 if event["type"] == "error":
                     raise RuntimeError(event)
@@ -240,6 +247,28 @@ def run(
             process.stdin.flush()
             if process.wait(timeout=10) != 0:
                 raise RuntimeError("bridge shutdown failed")
+            reader.join(timeout=5)
+            if reader.is_alive():
+                raise RuntimeError("benchmark reader did not stop")
+            finished = False
+            while True:
+                try:
+                    event = events.get_nowait()
+                except queue.Empty:
+                    break
+                if event is reader_done:
+                    finished = True
+                    continue
+                if (
+                    not isinstance(event, dict)
+                    or not isinstance(event.get("type"), str)
+                    or not event["type"]
+                ):
+                    raise ValueError("invalid bridge event after shutdown")
+                if event["type"] == "error":
+                    raise RuntimeError(event)
+            if not finished:
+                raise RuntimeError("bridge reader ended without normal EOF")
             medians = {
                 mode: {
                     label: statistics.median(

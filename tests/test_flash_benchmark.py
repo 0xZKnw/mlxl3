@@ -49,6 +49,24 @@ spec.loader.exec_module(bench)
         "df_counter_range",
         "df_counter_type",
         "df_missing_counter",
+        "late_status",
+        "late_error",
+        "late_invalid",
+        "late_null",
+        "late_missing_type",
+        "late_bad_type",
+        "late_empty_type",
+        "late_array",
+        "late_nonzero",
+        "eof",
+        "error",
+        "malformed",
+        "df_late_error",
+        "df_late_invalid",
+        "df_late_nonzero",
+        "compare_late_error",
+        "compare_late_invalid",
+        "compare_late_nonzero",
     ],
 )
 def test_campaign(tmp_path, fault, monkeypatch):
@@ -60,14 +78,27 @@ def test_campaign(tmp_path, fault, monkeypatch):
         + """
 import json, os, sys, time
 fault = fault.removeprefix('df_')
+if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
 print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
 counter = 0
 for line in sys.stdin:
     r = json.loads(line)
-    if r['type'] == 'shutdown': break
+    if r['type'] == 'shutdown':
+        if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+        if fault == 'late_invalid': print('invalid json', flush=True)
+        if fault == 'late_null': print('null', flush=True)
+        if fault == 'late_missing_type': print('{}', flush=True)
+        if fault == 'late_bad_type': print('{"type":null}', flush=True)
+        if fault == 'late_empty_type': print('{"type":""}', flush=True)
+        if fault == 'late_array': print('[]', flush=True)
+        if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+        sys.exit(7 if fault == 'late_nonzero' else 0)
     counter += 1
     if fault == 'silent': time.sleep(30)
     if fault == 'crash': sys.exit(3)
+    if fault == 'eof': sys.exit(0)
+    if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+    if fault == 'malformed': print('invalid json', flush=True); continue
     if fault == 'invalid': print('null', flush=True); continue
     if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
     tokens = r['max_tokens']
@@ -129,7 +160,7 @@ for line in sys.stdin:
             )
             assert result["reaped"] and result["reader_joined"]
         return
-    if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt"):
+    if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
         if fault == "ok":
             original_validate = bench.validate
 
@@ -248,6 +279,7 @@ for line in sys.stdin:
         result = json.loads((output / "report.json").read_text())
         assert result["status"] == "failed" and result["error"]
         assert "median_decode_tps" not in result
+        assert result["reaped"] and result["reader_joined"]
 
 
 @pytest.mark.parametrize(
