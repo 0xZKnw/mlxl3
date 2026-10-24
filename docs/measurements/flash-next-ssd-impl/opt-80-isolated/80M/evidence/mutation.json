@@ -1,0 +1,17 @@
+{
+  "mutation": "Reference position16 changed to17 in the actual included production header",
+  "mutant_rejected": true,
+  "restored_passed": true,
+  "source_restored_sha256": "f588157e30d595e0b72a5f3e56c6282a6a8610c36210e69a126a05ba688d99a4",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--lib",
+    "--features",
+    "chat",
+    "codec::tests::static_reference_header_preserves_legacy_bytes_and_every_position",
+    "--",
+    "--exact"
+  ]
+}

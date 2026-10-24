@@ -14927,3 +14927,123 @@ L’utilisateur demande d’exécuter la roadmap jointe (copie exacte `docs/meas
 - **79R clôturé — revue statique, aucun gain mesuré** : trois domainesA/B/C et revue croisée indépendants, quinze constats concrets et deux annexes (compression observée et LUTMul1 exploratoire). Sources et SHA vérifiés contre88cbfd22/runtime89174fcc ; aucun exécutable/config/CI modifié, aucun modèleGPU/benchmark/build/test/preuveur lancé. Rapports et protocoles futurs dans docs/measurements/flash-next-ssd-impl/opt-79-deep-audit/{README.md,verifier.md,ssd-memory.md,kernels.md,cross-review.md,verification.json}. Priorités cible : QSA128 utile au lieu640 avant2052 et cacheMTP, métadonnéesRust256positions/CString avant cacheC++, portesGDN48 encore sérialisées, copieurHot/Cold direct (backlog74), conversionFP16 avant duplication. Draft : confiance fixe rapatriée inutilement,16 prédécesseurs singleton identiques, masqueBF16 relu ; contrats d’erreur/Markov/arrondis à préserver. Aucun futur correctif n’est validé par cette lecture.
 - 79R données anciennes seulement : témoinsH72W-R MAIN11,301206/HOLD10,716598tok/s ; draft4,587/4,460%, vérification93,385/92,689% des duréeshôte inclusives. Objectif15 à coûts/acceptationfixes demande21,819/26,647ms/token en moins ; calcul descriptif, pas GPUexclusif. Mémoire logique compressée moteur3,036/1,752Go aprèsmesure ; deltaswarm→mesure30726/30635décompressions incluent préfill+decode, ledgerstable/caps77Bfailedinchangés ; ni fuite ni coût causal démontré. QuatrepointsHC conservésdansphase-and-compression.json, aucunréglageRAMmodifié.
 - 79R amonts relus primaireGitHub : Splash3135ab45inchangé, Strata7ddc17a3quatrecommits packaging/testsdepuis5c8dd322 ; PR569Apple9/GGUF pasM5direct, PR3299Gyro autresformatstrellis, PR3882comparaisonDFlash/MTPretirée/invalide/Metalnontesté. Fenêtres/événements persistants restent architectureconnue, pasimplémentée. RejetsF_NOCACHE12/HC22/GDN25/grouped65-66/shared68/prélecture72-73préservés ;71P/78préparésnonappliqués. Appinchangée,15tok/snonatteints. Bilan72/73déjàpoussé88cbfd22 ; CI88régressionssuccess/nativeencoursàinspection. État79R ANALYSE TERMINÉE, propositions NON MESURÉES/NON IMPLÉMENTÉES.
+
+### FLASHSSD-2026-10-23-80T — essais isolés issus de79R, avant prototype
+
+- Demande utilisateur «bah test ça». Base publiée0a27e504/runtime89174fcc, cache3Gio53slots, allocateur64Mio, M5 10cœurs24Gio, cible65c89531 EXL3 2.05bpw et drafta22a1744 Q4/ring. Ne pas réactiver72/73 ni cacheplusgrand. Lire les rapports79 et historiques avant toute variante ; préserver65P/74privés et tout autre travail existant.
+- Matrice préenregistrée :80M cache du préfixe de réduction immuable construit enRust (pas nouveau cachefactory19) ;80G portesGDN a/b denses48 multi-lignes viahelper existant ;80Q sortieQSA512..640 sans changerstride40/splits niHadamard ;80H copieurHot/Cold conservant snapshot et ordre ;80C conversionFP16 avantduplicationx10 ;80D retourconfianceinutilisée enfixe avecvaliditééquivalente ;80S sélecteurMarkovsingleton sans16prédécesseursdupliqués etréductionsinchangées. Chaque variante aura un patch et une identité propres, mesurée seule avant combinaison. Amonts actuels79 déjàrevérifiés, aucune nouveautématérielle présumée.
+- Qualité AVANT vitesse : vérifier helper/contrats, unitaires frontières/erreurs et mutations pertinentes, formatting/Clippystrict/buildmlx,chat, suitesCPUpertinentes et tentativeKani implémentationréelle. Les limites MLXintrinsics243 restent des non-preuves. Qualité physique : matrices/strides/dtypes contre référence indépendante ou ancienchemin, logits248320 et états/captures nonvides bitàbit, commits/préfixes ; bridge43 réel avecannulation/reprise pour les candidats avant promotion. Agentsséparés préparent patches/tests dansROOT/build, sansmodifierW ni chargerGPU ; parent sérialise applications, compilations/proveurs et toutGPU.
+- Débit : nouveaux témoins du codeactuel sansprélecture, pas ancienbinaire69mélangé aux gains. DFlashB2fixe WIDTH1/ADAPTIVE0 d’abord, MAIN/HOLD128sorties127decode, unwarmup128 etunemesure128/enfant, ordreHC puisCH deconfirmation pour signalpositif, mêmesoptionsactuellesHot1/Wide1/63/UNIQUE1/lookahead0/LES0/shared0/stable0. OFF/MTP1 témoins et effets propres ensuite sur MAIN/HOLD ; adaptatif si le mécanisme le touche. Pour80D uniquementfixe, adaptatifcontrôleinchangé ;80S singletonadaptatifgardeconfiances. Aucunpourcentageadditionné.
+- Gardes et conditions : lire alimentation/VM/processus avantphase ; fixe protocole sur alimentation constatée puis traiter tout changement comme invalidation àdocumenter. UnmodèleGPUàlafois, aucuntest/build/proveurconcurrent ; superviseurs45/49existants bornés/jonction/échecsdurables, pré20/post30. Footprintprocess≤12Go, deltasledger propres et compteursOS reportés sansattributionprivate ; capscompression77Bhistoriqueconservésfailedquanddépassés. Mesurer séparément compressionwarm/prefill/decode si possible sansajout eval ; aucunseuilretouché aprèsrésultat.
+- Décision : paritéobligatoire, rienpromuen cas dedivergence. Écran négatif ouhétérogène conservé/retiré, pas besoinHCCHsanssignal ; signalpositif àconfirmer avecmêmesoracles etplusieursbras/prompt. Préférenceutilisateur tolèredesvariations dedébit : publier toutespairesetdérives, distinguer signal etgainconfirmé, passeuilsdériveutilisés pourcacherunrésultat. Push immédiatdesgainsconfirmés dansPR34aprèsretourdiffvalidé ; aucuneappinstalléeremplacée. AucunGPU/prototype80lancéàcepréenregistrement.
+
+- **80G amendement prospectif avant kernel** : revue de la vraie sélectionMLX0.32.2 pour48×2560 : helperdenseexistant encodeBM4/BN1, alorsqueK≥16N imposeBM1/BN8 etréductioninterSIMD. Le seulbranchementvershelperestdoncrejetéavantGPU, pariténonprésumée. PrépareràlaplaceunkernelFlashprivé48×2560 multi-lignes reproduisantBM1/BN8/partition/arrondisF16actuels, sansmodifierlescallersLFM2/Qwen35existants. Cechangementfaitpartiedumêmemécanisme80G (regroupementdesportes), testsdesmatricesréelles/B×T1etpréfixesavantvitesse ; préserverdiagnosticinitialetnepasannoncesimplehelpervalidé.
+
+- **80G précision avant implémentation** : SMALLM2026-10-06-B2075–2077 avait déjà validé162cas de vecteurscolonnesbatchés stockMLX48×5120, mais coûtproxyfaible etaucunfullmodèlepromu. Raison nouvelle80G : vraieformeFlash48×2560,36couches etvraibridgeB2, aprèsgains63. Tester d’abord cepluspetitmécanisme weight[1,48,2560] @ x[B,2560,1]→[B,48], qui gardeGEMVM1sistridebatchpoids0/vecteur non0 ; kernelprivéseulement si inapplicable, avecrésultatséchoués conservés. Aucuneéquivalenceprésuméeenchangeantforme.
+- **80M précision avant implémentation** : remplacer uniquement le préfixe de réductionconstante parunlittéralMSLbyteexact(256positions), fonctionCPUcodecappeléeréellementparlinear. Deuxbinaires releaseMLXséparéscomparés (baselinefigéefe22f100bcde3e003da871ae66764e7587e3a34a3876dd32bfadd85b9bb0672a/source0a27e504; candidataprèsmodif). Pasdeflag/envnouveau ni cachefactoryC++ ; fonctionsréférencenechangentaucunbyteémis, suffixesgéométrie/CStringactuelsinchangés. Régressionsen-têtepermutation/reusesansallocation etKani boolsurimplémentationCPU, puisnumériqueexistantetbridge43avantTPS.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/quality/run-result.json.
+
+- 45-Q/R processus native-suite : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/quality/run-result.json.
+
+- 45-Q/R processus exl3 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/quality/run-result.json.
+
+- 45-Q/R processus prefix : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/quality/run-result.json.
+
+- 45-Q/R processus bridge : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/quality/run-result.json.
+
+- **80M qualité physiquev1** : suiteMLX129passés/146ignorés ; composantEXL3 144cas byteexacts ;36préfixesDFlash2/logits/états byteexacts. Bridge échoué avant génération : erreur de protocole WIDTH1+ADAPTIVE1,0contrôles et enfantjoint. Pasdivergencenumérique ni swapoutnouveau. Répétitionv2justifiéeavantlancement : enlever WIDTH uniquementpourbridgeadaptatif, conserverbinairee65dd887 etgardes ; pasrerundes144/36inchangés. Bruts opt-80-isolated/80M/quality etbridge-v2 ; TPSencorenonmesuré.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/bridge-v2/run-result.json.
+
+- **80T précision prospective avant application/test draft-confidence** — propositionagentpréparéeenROOT, aucunWexécutablemodifiépourcettevariante :
+
+### 80D complément prospectif proposé — un seul retour des mots, contrat Float32 identique
+
+À intégrer par le parent dans opti avant application/exécution. 79R-A01 et80T autorisent uniquement la suppression du retour Vec<f32> inutilisé en fixe. Approche minimale : conserver les mêmes softmax/gathers des probabilités sélectionnées, faire view(UInt32) (reinterpret sans calcul) et inclure ces mots avec tokens/top16.valid dans le to_u32 déjà existant. Valider ensuite f32::from_bits(word) avec exactement le prédicat historique finite et[0,1]. Même quantité de payload, mais un seul appel/readback au lieu de deux et aucun Vec<f32> en fixe ; aucun nouveau MSL ni changement80S. Les scores−Inf non consultés ne sont pas rejetés arbitrairement.
+
+Flag de comparaison proposé MLXL3_FLASH_DRAFT_CONFIDENCE_READBACK=0|1, défaut1 conservateur, lu dans Options au chargement.0 optimise seulement le mode fixe ; l’adaptatif force toujours1 et doit ignorer cette optimisation. Mode strict même si l’option est sans effet en adaptatif. Identité Options enregistre la valeur effective pour ne pas recharger inutilement une session adaptative. Le choix fixe=count, les caches/commit et les compteurs d’acceptation n’utilisent jamais les valeurs de confiance ; le contrôle de longueur est adapté au Vec vide volontaire uniquement après validation complète des mots.
+
+Préparer testCPU sur tous les motifs flottants utiles et harnais Kani de la validation utilisée en production (oracle IEEE bitwise indépendant), composants sélection ancien/nouveau et résultats erronés NaN/Inf/−Inf, puis session réelle/bridge et états. Mutations : ignorer la confiance incorrecte, ou réactiver le second to_f32, doivent être détectées. Aucun GPU/build/test/proveur lancé par le préparateur ; pas de gain présumé. Le readback compressé conserve les octets des probabilités, il ne supprime ni leur calcul ni leur payload.
+
+
+- **80T précision prospective avant application/test singleton** — propositionagentpréparéeenROOT, aucunWexécutablemodifiépourcettevariante :
+
+# Complément prospectif 80S — diagnostic du singleton Markov, avant copie de test
+
+23 octobre 2026. Suite à la demande parent : préparer seulement un test composant GPU ignoré ; aucun chemin de production, flag ou grand kernel. W, son journal et son index restent inchangés. Entrée80T existante ; le parent doit publier cet amendement avant toute exécution.
+
+Hypothèse : en count=1 (DFlash fixe B2, ou adaptatif ayant réellement calculé un singleton), le sélecteur construit seize prédécesseurs identiques. Seule la ligne0 de ses seize scores successeurs est accessible. Les gathers/multiplications BF16 sont redondants, mais remplacer le produit16×256 par1×256 peut changer la réduction et n’est pas une équivalence numérique établie.
+
+Contrat réel : `select` prend la dernière des deux lignes cachées B2 ; `select_logits` valide BF16/[1,248320] et BF16/[1,2560], calcule top16+validité, projection cachée BF16 (Q4 ou BF16), multiplication prédécesseur×projection avec arrondi BF16, matmul BF16 puis castF32, ajout unaireF32, argmax et softmax_preciseF32, gather de la probabilité sélectionnée et validation0..1. Toutes ces frontières restent dans le diagnostic.
+
+Lecture statique : la copie MLX0.32.2 `build/flash-opt-15/mlx-matmul-0322.cpp` route M16/N16/K256 vers GEMM (wide refuse ses quatre passes), avec NAX/split-K sur M5 lorsqu’il est disponible, etM1/N16/K256 vers GEMV. Les partitions/réductions ne sont donc pas supposées interchangeables. La provenance exacte de cette copie et le dispatch physique restent à confirmer, aucun modèle n’ayant été lancé ici. Les headers NAX actuellement installés exposent des fragments16×16 et un descriptor16×32×16 ; un gros port pour supprimer matériellement quinze lignes n’est pas préparé.
+
+Précision statique importante : `check_transpose` accepte aussi une matrice M16 avec stride de ligne0 si son dernier stride vaut1 (ce n’est pas le cas vecteur). Un **contrôle à forme identique** peut donc calculer un seul latent BF16 et le diffuser en16 lignes sans modifier M/N/K ; cela ne supprime pas la GEMM16, mais isole la possibilité d’économiser le gather et la multiplication redondants. Aucun gain global16× ne sera déduit de ce cas.
+
+Test à préparer : ancien chemin16 lignes, candidat1 ligne utile et contrôle broadcast16, mêmes vrais codebooks/hidden_projection, Q4=0/1 séquentiels. Comparer les16 scores utiles, probabilités, argmax, IDs et confiance, octet par octet ; ancien `select_logits` comme contrôle de câblage, plus oracle scalaire indépendant déjà présent. Entrées déterministes non uniformes, ancres0/7/248319, logits avec égalités et petites marges, fortes annulations et amplitudes BF16 extrêmes finies. Conserver le dtype BF16 du produit, puis F32 des scores ; aucune promotionF32 arbitraire du produit.
+
+Le test doit imprimer un rapport complet explicite : égalité ou rejet pour chaque forme, premier score/probabilité différent, différences de bits, IDs et confiance. S’il existe une divergence de la formeGEMV, l’essai est rejeté comme raccourci exact ; ce n’est pas une divergence du moteur livré. Ne pas lancer de modèle complet ni de TPS après un tel rejet. Le contrôle broadcastM16 reste une observation distincte, pas une promotion.
+
+Limites : aucun kernel ni math de production n’est modifié, donc aucun harnais Kani artificiel ne sera ajouté pour prétendre prouver la GEMM/Metal. Un harnais sur le vrai test MLX peut être préparé pour une tentative explicite, avec la limite intrinsics243 connue ; aucune preuveCPU des sommesGPU n’est revendiquée. Toute adoption ultérieure exigera un autre préenregistrement, les préfixes/logits/états et bridge43, et ne concernera pas80D préparé par l’autre agent.
+
+État au préenregistrement : aucune copie de source de test ni code80S préparé ; aucun build, preuveur, test, modèleGPU ou benchmark lancé.
+
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/bridge-v2/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/bridge-v2/run-result.json.
+
+- **80M qualité terminée** :144casEXL3+36préfixes/captures/logits/états exacts, bridgev2 **43/43** complet paritétrue/annulationreprise ;0swapoutsystèmephasebridge, ledgerpropremax0B, footprintpicvie7937382832B. SuiteMLX129passés/146ignorésinitialement,2ignoréssélectionnésexplicitementensuite. Kani27obligations/2coversCPU, mutationdétectéepuisrestaurée. Sourcesetbinairesfigése65dd887/5c014031 ; baselinefe22f100. **80M vitesseHC prévueàprésent** : plansscreen/confirmdéjàpréparés, aucunevitessefaiteavantparité.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **failed_or_interrupted**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen/run-result.json.
+
+- **80M vitessev1 interrompue** : témoinMAIN-H seulement20,18s, livepowerchanged, aucunbrasmesurécomplet/pair/gain ; enfantjointetsamplerjoint, rapportsincompletsconservésdansscreen. **Répétitionv2préenregistrée24octobre** : MacconstatéAC, nouvellebaselineHCsurMAIN/HOLD puisCHsipositive, sources/binariesfe22/e65SHAinchangésvérifiés ; mêmescache3Gio/flags/oracles/128warm+128mesure. Qualité144/36/43inchangéeconservée, aucunecompilation/proveurpendantGPU. Échecanciennonrequalifié. Plansscreen-v2/confirm-v2.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen-v2/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen-v2/run-result.json.
+
+- 45-Q/R processus MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen-v2/run-result.json.
+
+- 45-Q/R processus HOLD-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen-v2/run-result.json.
+
+- 45-Q/R processus HOLD-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen-v2/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/screen-v2/run-result.json.
+
+- **80M écranHCv2 positif faible, NON CONFIRMÉ** : MAIN11,359882→11,463537tok/s (+0,9125%) ; HOLD10,771303→10,791026 (+0,1831%).4rapportsvalidés/1warm+1mesure, hashtextegold60et128/127tokens exacts, ledgerpropres0B, pics7,85Go. Zéroswapoutdans4phases, post30encoursàcetinstant. **ConfirmationCHv2maintenantjustifiée** mêmebinaire/options/AC/cache3Gio, mesuresprévuesinitialement ; nepasprésentercesécartscommegainconfirmé.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/confirm-v2/run-result.json.
+
+- 45-Q/R processus MAIN-0-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/confirm-v2/run-result.json.
+
+- 45-Q/R processus MAIN-1-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/confirm-v2/run-result.json.
+
+- 45-Q/R processus HOLD-0-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/confirm-v2/run-result.json.
+
+- 45-Q/R processus HOLD-1-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/confirm-v2/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/confirm-v2/run-result.json.
+
+- **80M confirmationCHv2 positive** : MAIN11,310677→11,429120tok/s (+1,0472%) ; HOLD10,743984→10,967550 (+2,0809%).4pairesHC/CHtoutespositives, géométriqueMAIN+0.9798005385749153%/HOLD+1.1275296804166945%. 16réponseswarm/measuregold60exactes,128/127,0nouveauswapoutetledgerpropre0, post30/samplersjoints. Capscompression77BrestentFAILED. **ContrôlesOFF/MTP1avantpublication** prévus80T : nouveaunatifMTPsessionétats/budgets, puis4enfants--compare128warm+128mesure parmode, MAINHC/HOLDCH, mêmesbinaries/options/cache3Gio/AC ; commandesdanscontrols/run.json avantlancement. AucunboostOFF/MTPprésumé.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/controls/run-result.json.
+
+- 45-Q/R processus mtp-states : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/controls/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/controls/run-result.json.
+
+- 45-Q/R processus MAIN-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/controls/run-result.json.
+
+- 45-Q/R processus HOLD-0-C : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/controls/run-result.json.
+
+- 45-Q/R processus HOLD-1-H : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/controls/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; docs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/controls/run-result.json.
+
+- **80M VALIDÉ, code local prêtàpublier** : quatrepairesDFlash2positives, géométriqueMAIN+0,9798%/HOLD+1,1275%, parité144EXL3/36préfixes/43bridge. OFF MAIN10,451473→10,715884 ; MTPMAIN10,889616→11,106460 ; OFFHOLD9,965367→10,237544 ; MTPHOLD9,679507→10,137812tok/s (unepaire/modе/prompt, nonrégressionsobservéespasboostsrépétés). MTPnatif4budgets/5acceptés15proposésétatsexacts.16réponsescontrôlegold60,128/127, lecteurs/enfants/samplersjoints/prépostcomplets ;0swapoutsystèmeetledgerproprebridge0, pics≤12Go, capscompression77BFAILEDconservés. Fmt/ClippyCPU+MLX/buildrelease/suites132CPU+129MLXpassed, ignorés6/146documentésdont3sélectionnésphysiquement ; Kani27obligations2coversCPU/mutationdetectéerestaurée. Autres80G/Q/H/C/D/SpréparésROOTuniquement, NON TESTÉS/NON PROMUS. Rapportdocs/measurements/flash-next-ssd-impl/opt-80-isolated/80M/README.md ; preuves/identités/brutsliés. CI0a27régressions/natifs/FlashKaniOK, globalKaniéchec ; nouveaurunaprèscommitnonencorelancé.
+
+-80M archivesavantpublication :12observationsVM/systèmecompresséessansperteparprofile_flash.compress, roundtripSHA256vérifié ; .json.gzetmanifesteconservés, checks/rapportsnumériques/erreursinchangés. Aucunruntime/protocolemodifié.

@@ -2,7 +2,7 @@
 use crate::{
     array::{self, Array, Dtype},
     checkpoint::Checkpoint,
-    codec::{self, Codebook},
+    codec::{self, Codebook, reference_reduction_header},
 };
 use anyhow::{Context, Result, ensure};
 
@@ -354,7 +354,7 @@ impl Exl3Linear {
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
         let mut header =
-            codebook_header(self.cb) + &reference_reduction_header(self.reference_accumulation);
+            codebook_header(self.cb) + reference_reduction_header(self.reference_accumulation);
         let output = if self.k == 7 {
             let inverse = codec::permutation_inverse()
                 .map(|v| v.to_string())
@@ -514,7 +514,7 @@ impl Exl3Linear {
             nt = 1;
         }
         let header = codebook_header(self.cb)
-            + &reference_reduction_header(self.reference_accumulation)
+            + reference_reduction_header(self.reference_accumulation)
             + &format!(
                 "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
                 u8::from(self.mtp_hidden_batch)
@@ -1398,7 +1398,7 @@ fn expert_mapped_layout(
     ));
     let header = codebook_header(cb)
         + &masked_header
-        + &reference_reduction_header(slot_major)
+        + reference_reduction_header(slot_major)
         + &format!(
             "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n#define MLXL3_SLOT_MAJOR {}\n",
             u8::from(k == 3),
@@ -1531,16 +1531,6 @@ fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {
         splits *= 2;
     }
     splits
-}
-
-fn reference_reduction_header(enabled: bool) -> String {
-    if !enabled {
-        return String::new();
-    }
-    let positions = codec::permutation().map(|p| p.to_string()).join(",");
-    format!(
-        "\n#define MLXL3_REFERENCE_ACCUMULATION 1\nconstant ushort mlxl3_reference_positions[256] = {{{positions}}};\n"
-    )
 }
 
 pub(crate) fn codebook_header(cb: Codebook) -> String {
