@@ -233,7 +233,7 @@ for line in sys.stdin:
         emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
     else:
         answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else (
-            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path')}) if model.startswith('mtp-') or model.startswith('flash') else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
+            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path'), 'temperature': request.get('temperature'), 'top_k': request.get('top_k'), 'repetition_penalty': request.get('repetition_penalty')}) if model.startswith('mtp-') or model.startswith('flash') else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)

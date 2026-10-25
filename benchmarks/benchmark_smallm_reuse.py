@@ -10,37 +10,56 @@ from pathlib import Path
 from benchmark_smallm import CODEBOOKS, ROOT, Checkpoint, assert_exact, paired, qmv
 
 
-def shared_decode(source):
+def shared_decode(source: str) -> str:
+    """Hoist only the unique mapped row loop, preserving other decode branches.
+
+    post: __return__.count("fma(") == source.count("fma(")
+    """
     marker = (
         "                        for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {\n"
         "                            uint j = group * 4u;\n"
     )
     if source.count(marker) != 1:
         raise ValueError("mapped decode loop changed; inspect the source")
+    prefix, body = source.split(marker, 1)
+    end = "                        }\n                    }\n#endif\n"
+    body, closing, suffix = body.partition(end)
+    if not closing or body.count("fma(") != 4 or "{" in body or "}" in body:
+        raise ValueError("mapped decode loop changed; inspect the source")
     for i in range(4):
-        if source.count(f"float(mlxl3_decode_codeword(cw{i}, CB)),") != 1:
+        expression = f"float(mlxl3_decode_codeword(cw{i}, CB)),"
+        if body.count(expression) != 1:
             raise ValueError("missing or duplicate mapped decode")
+        body = body.replace(expression, f"weight{i},")
     weights = "".join(
         f"                        float weight{i} = float(mlxl3_decode_codeword(cw{i}, CB));\n"
         for i in range(4)
     )
-    source = source.replace(
-        marker,
-        "                        uint j = group * 4u;\n"
+    # GROUPED_ROUTES already hoists its own decoded[4]; leave that path untouched.
+    return (
+        prefix
+        + "#if !MLXL3_GROUPED_ROUTES\n"
         + weights
-        + "                        for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {\n",
+        + "#endif\n"
+        + marker
+        + body
+        + closing
+        + suffix
     )
-    for i in range(4):
-        source = source.replace(f"float(mlxl3_decode_codeword(cw{i}, CB)),", f"weight{i},")
-    return source
 
 
-def lookup_decode(source):
+def lookup_decode(source: str) -> str:
+    """Replace the declarations generated here, never an unrelated decode site.
+
+    post: __return__.count("fma(") == source.count("fma(")
+    """
     source = shared_decode(source)
     for i in range(4):
+        declaration = f"float weight{i} = float(mlxl3_decode_codeword(cw{i}, CB));"
+        if source.count(declaration) != 1:
+            raise ValueError("missing or duplicate shared decode declaration")
         source = source.replace(
-            f"float(mlxl3_decode_codeword(cw{i}, CB));",
-            f"float(codebook_table[cw{i} & 0xffffu]);",
+            declaration, f"float weight{i} = float(codebook_table[cw{i} & 0xffffu]);"
         )
     return source
 
