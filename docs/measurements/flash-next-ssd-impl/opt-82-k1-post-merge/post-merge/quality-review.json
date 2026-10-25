@@ -1,0 +1,741 @@
+{
+  "status": "normal_quality_and_six_numeric_mutant_detections_passed_no_speed_claim",
+  "observed_utc": "2026-10-25T22:18:10.338183+00:00",
+  "source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+  "expected_source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+  "all_100_sources_match": true,
+  "binaries": {
+    "candidate": {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/candidate-cli",
+      "expected": "cc9669ad864dd73dadbed0bb503a440fefcec2c736e065d61f7ec0936639e9a4",
+      "actual": "cc9669ad864dd73dadbed0bb503a440fefcec2c736e065d61f7ec0936639e9a4"
+    },
+    "baseline": {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/baseline-cli",
+      "expected": "d8757fa6d9f62648d66f7a2d58617d6d54ff33905fefd408475519edd85105a6",
+      "actual": "d8757fa6d9f62648d66f7a2d58617d6d54ff33905fefd408475519edd85105a6"
+    },
+    "native_tests": {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/candidate-tests",
+      "expected": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+      "actual": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd"
+    }
+  },
+  "drivers": [
+    {
+      "path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+      "expected": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+      "actual": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/scripts/native_json_process.py",
+      "expected": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c",
+      "actual": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/benchmarks/benchmark_flash_memory.py",
+      "expected": "95cba3a5ec5b5d33d7a16f6fa590d42dfbb5313e3d2183869dc469820b0dd35c",
+      "actual": "95cba3a5ec5b5d33d7a16f6fa590d42dfbb5313e3d2183869dc469820b0dd35c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "expected": "ad28af767cec59cbf1a763cf0aeb12b4d0970219bc44da06cda0f1c68e4fb5ac",
+      "actual": "ad28af767cec59cbf1a763cf0aeb12b4d0970219bc44da06cda0f1c68e4fb5ac"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt",
+      "expected": "045eb98d42cb52899a431e996a8e7ff4685882d4921ef199a4916a73f495c112",
+      "actual": "045eb98d42cb52899a431e996a8e7ff4685882d4921ef199a4916a73f495c112"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt",
+      "expected": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+      "actual": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+      "expected": "b5d71993cda1eca3f8b0706a1c419ae1c827d05e1d7b03e3e5d48d3f34bf4ca3",
+      "actual": "b5d71993cda1eca3f8b0706a1c419ae1c827d05e1d7b03e3e5d48d3f34bf4ca3"
+    }
+  ],
+  "plan_hash": "870ab19195408f8fbb54f37da3af40452fdd49f442eb7aae0b85d776afdfc7ac",
+  "result_matrix_hash": "870ab19195408f8fbb54f37da3af40452fdd49f442eb7aae0b85d776afdfc7ac",
+  "steps": [
+    {
+      "name": "pre20",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": null,
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 479608832,
+        "File-backed pages": 8344993792,
+        "Pages occupied by compressor": 2728804352,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 510918656,
+        "File-backed pages": 8345944064,
+        "Pages occupied by compressor": 2728574976,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "h128-quality",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": "linear::hot_transform::tests::hot_h128_matches_native_half_roundings_masks_and_layouts",
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 510869504,
+        "File-backed pages": 8345960448,
+        "Pages occupied by compressor": 2728574976,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 506478592,
+        "File-backed pages": 8364212224,
+        "Pages occupied by compressor": 2728427520,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "activation-quality",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": "ssd_moe::hot_activation::tests::masked_hot_swiglu_matches_real_mlx_nodes_and_cold_positive_zero",
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 506363904,
+        "File-backed pages": 8364212224,
+        "Pages occupied by compressor": 2728427520,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 533659648,
+        "File-backed pages": 8365817856,
+        "Pages occupied by compressor": 2728394752,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "activation-fallback",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": "ssd_moe::hot_activation::tests::hot_swiglu_fallbacks_and_invalid_layouts_keep_contract",
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 533381120,
+        "File-backed pages": 8365899776,
+        "Pages occupied by compressor": 2728394752,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 532676608,
+        "File-backed pages": 8366735360,
+        "Pages occupied by compressor": 2728394752,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "real-slots-528",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 532611072,
+        "File-backed pages": 8366735360,
+        "Pages occupied by compressor": 2728394752,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 471564288,
+        "File-backed pages": 8369258496,
+        "Pages occupied by compressor": 2728230912,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "dflash-prefixes",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 471515136,
+        "File-backed pages": 8369258496,
+        "Pages occupied by compressor": 2728230912,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 8590753792,
+        "File-backed pages": 4265934848,
+        "Pages occupied by compressor": 4984160256,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "mtp-head-cache-only",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": "qwen4::tests::flash_mtp_head_matches_reference_and_cache_only",
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 8589705216,
+        "File-backed pages": 4266147840,
+        "Pages occupied by compressor": 4983373824,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 4935598080,
+        "File-backed pages": 8238120960,
+        "Pages occupied by compressor": 5324570624,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "mtp-session",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 4935467008,
+        "File-backed pages": 8238120960,
+        "Pages occupied by compressor": 5324570624,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 7982759936,
+        "File-backed pages": 5516689408,
+        "Pages occupied by compressor": 5663178752,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    },
+    {
+      "name": "post30",
+      "status": "completed_expected_outcome",
+      "exit": 0,
+      "joined": true,
+      "native_test": null,
+      "required_markers_present": true,
+      "swapins_bytes": 0,
+      "swapouts_bytes": 0,
+      "before_VM": {
+        "Pages free": 7981645824,
+        "File-backed pages": 5516935168,
+        "Pages occupied by compressor": 5662343168,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "after_VM": {
+        "Pages free": 6733905920,
+        "File-backed pages": 5804326912,
+        "Pages occupied by compressor": 5074747392,
+        "Swapins": 68878336,
+        "Swapouts": 642121728
+      },
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n",
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; finishing charge; 0:00 remaining present: true\n"
+    }
+  ],
+  "physical_tests_selected": 7,
+  "physical_tests_each_passed": 1,
+  "native_general_suite": {
+    "passed": 164,
+    "ignored": 160,
+    "failed": 0,
+    "note": "Seven explicitly selected physical tests are separate from the general native-suite log."
+  },
+  "component_counts": {
+    "H128_core": 3144,
+    "H128_edges": 240,
+    "H128_fallbacks": 10,
+    "activation_finite": 960,
+    "activation_nonfinite": 2,
+    "activation_ID_boundary": 1,
+    "activation_fallbacks": 28,
+    "activation_invalid": 10,
+    "real_masked_slots": 528
+  },
+  "dflash_prefix": {
+    "captures": {
+      "byte_equal": true,
+      "count": 64000,
+      "name": "captured",
+      "relative_rmse": 0.0,
+      "tolerance": 0.004
+    },
+    "kind": "Dflash2",
+    "memory": {
+      "mlx_active_bytes": 6460144672,
+      "mlx_cache_bytes": 67114096,
+      "mlx_peak_bytes": 6785509624,
+      "process_compressed_lifetime_logical_bytes": 2770173952,
+      "process_compressed_logical_bytes": 2760294400,
+      "process_compressed_peak_logical_bytes": 2761637888,
+      "process_decompressions": 166290,
+      "process_footprint_bytes": 7332960352,
+      "process_id": 42370,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 7398660240,
+      "process_start_abstime": 1758318036203
+    },
+    "prefix_cases": 36,
+    "status": "passed",
+    "target_logits_and_states": "byte_exact",
+    "widths": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ]
+  },
+  "prefix_scope": "36 prefix commits/continuations against serial candidate target; independent external CPU capture64000 values also checked. This is not a separate full-baseline-CLI0/1 state differential.",
+  "mtp_scope": "Head/cache references passed; sessions budgets1/2/3/17 target/greedy/head states inspected by physical native tests. Not throughput.",
+  "VM": {
+    "endpoint_deltas_all_zero": true,
+    "curve_samples": 45,
+    "swapins_range": [
+      68878336,
+      68878336
+    ],
+    "swapouts_range": [
+      642121728,
+      642121728
+    ],
+    "system_compressor_physical_bytes_range": [
+      2728230912,
+      6317555712
+    ],
+    "system_sampler_samples": 59,
+    "system_sampler_joined": true,
+    "system_sampler_errors": 0,
+    "physical_peak_available": 7398660240,
+    "physical_peak_scope": "DFlash prefix test only; not all native test processes expose lifetime physical memory",
+    "private_ledger_scope": "DFlash prefix snapshot0 only, no proof of no private swap-out in other tests",
+    "RSS_scope": "run-result children_maximum_rss_bytes is RSS/cumulative wrapper observation, not physical footprint; do not use as per-phase peak"
+  },
+  "proof": {
+    "tool": "Kani0.68.0/CBMC6.11.0",
+    "checks_SUCCESS": 804,
+    "checks_UNREACHABLE": 6,
+    "covers_satisfied": 18,
+    "harnesses": [
+      {
+        "harness": "flash_support::flash_hot_swiglu_grid_admits_only_bounded_half_layouts",
+        "SUCCESS": 187,
+        "FAILURE": 0,
+        "UNREACHABLE": 0,
+        "SATISFIED": 7,
+        "UNSATISFIABLE": 0,
+        "summaries": [
+          "** 0 of 187 failed",
+          "** 7 of 7 cover properties satisfied"
+        ]
+      },
+      {
+        "harness": "flash_support::flash_hot_h128_grid_bounds_real_kernel_rows_and_offsets",
+        "SUCCESS": 187,
+        "FAILURE": 0,
+        "UNREACHABLE": 0,
+        "SATISFIED": 6,
+        "UNSATISFIABLE": 0,
+        "summaries": [
+          "** 0 of 187 failed",
+          "** 6 of 6 cover properties satisfied"
+        ]
+      },
+      {
+        "harness": "flash_support::flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids",
+        "SUCCESS": 430,
+        "FAILURE": 0,
+        "UNREACHABLE": 6,
+        "SATISFIED": 5,
+        "UNSATISFIABLE": 0,
+        "summaries": [
+          "** 0 of 436 failed (6 unreachable)",
+          "** 5 of 5 cover properties satisfied"
+        ]
+      }
+    ],
+    "unreachable_details": [
+      {
+        "harness": "flash_support::flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids",
+        "check": "Check 10: std::alloc::Global::grow_impl_runtime.assertion.1",
+        "description": "attempt to subtract with overflow",
+        "location": "../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/alloc.rs:354:58 in function std::alloc::Global::grow_impl_runtime"
+      },
+      {
+        "harness": "flash_support::flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids",
+        "check": "Check 14: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1",
+        "description": "attempt to subtract with overflow",
+        "location": "../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to"
+      },
+      {
+        "harness": "flash_support::flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids",
+        "check": "Check 26: std::fmt::Arguments::<'_>::from_str.assertion.1",
+        "description": "attempt to shift left with overflow",
+        "location": "../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+      },
+      {
+        "harness": "flash_support::flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids",
+        "check": "Check 33: core::num::<impl usize>::abs_diff.assertion.1",
+        "description": "attempt to subtract with overflow",
+        "location": "../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3182:21 in function core::num::<impl usize>::abs_diff"
+      },
+      {
+        "harness": "flash_support::flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids",
+        "check": "Check 34: core::num::<impl usize>::abs_diff.assertion.2",
+        "description": "attempt to subtract with overflow",
+        "location": "../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3184:21 in function core::num::<impl usize>::abs_diff"
+      },
+      {
+        "harness": "flash_support::flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids",
+        "check": "Check 64: alloc::raw_vec::RawVecInner::grow_amortized.assertion.1",
+        "description": "attempt to multiply with overflow",
+        "location": "../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/raw_vec/mod.rs:523:28 in function alloc::raw_vec::RawVecInner::grow_amortized"
+      }
+    ],
+    "boundaries": "H128/SwiGLU ranks<=4,slot ranks<=2, full i32 dimensions/capacity, full bools; H128 repeat full i32+symbolic dispatched offsets, output<409600; lookup symbolicu32ID/allu32map512. Unwinds H12817/SwiGLU5/lookup513.",
+    "MLX_attempt": {
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--tests",
+        "--features",
+        "mlx,chat",
+        "--harness",
+        "linear::hot_transform::tests::actual_hot_h128_preserves_native_half_bits",
+        "--harness",
+        "ssd_moe::hot_activation::tests::actual_masked_activation_preserves_mlx_nodes",
+        "--exact"
+      ],
+      "exit_code": 1,
+      "timeout": false,
+      "reaped": true,
+      "elapsed_seconds": 5.366608999989694
+    },
+    "MLX_result": "Compiler ICE intrinsics.rs243; sourceMLX/MSL not verified, no stub and no GPU proof.",
+    "unreachable_scope": "Six Rust standard-library overflow paths (alloc/ptr/fmt/num/raw_vec), not six business properties, and not calloc-only."
+  },
+  "mutants_v1": {
+    "status": "failed_or_interrupted",
+    "error": "FileExistsError(17, 'File exists')",
+    "first_test_pid": null,
+    "numeric_detection": false,
+    "note": "Log collision before first mutant child; pre20 alone completed. Keep failed v1."
+  },
+  "mutants_v2": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json",
+    "status": "completed_expected_outcomes_not_speed",
+    "phase_count": 11,
+    "steps": [
+      {
+        "name": "pre20",
+        "expected_exit": 0,
+        "actual_exit": 0,
+        "pid": 43363,
+        "joined": true,
+        "native_sha256": null,
+        "required_text": null,
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "h128-wrong-projection-slot",
+        "expected_exit": 101,
+        "actual_exit": 101,
+        "pid": 43428,
+        "joined": true,
+        "native_sha256": "bc4e4668c805acf4e9828022fc71389fc44244cc023bd5cfebe6dea269012bce",
+        "required_text": [
+          "Hot H128 bits changed",
+          "test result: FAILED. 0 passed; 1 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "h128-remove-half-rounding",
+        "expected_exit": 101,
+        "actual_exit": 101,
+        "pid": 43438,
+        "joined": true,
+        "native_sha256": "dbef65705e64e03035b9a27f59f53dafcf5472af8434f9afadfaf7dbd3f8e283",
+        "required_text": [
+          "Hot H128 bits changed",
+          "test result: FAILED. 0 passed; 1 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "activation-wrong-row-mask",
+        "expected_exit": 101,
+        "actual_exit": 101,
+        "pid": 43452,
+        "joined": true,
+        "native_sha256": "f0306db206a086cd791dc2fa99a28c2b9acf117939eb2ae293e28e81bf9b2cda",
+        "required_text": [
+          "Hot activation differs from MLX nodes",
+          "test result: FAILED. 0 passed; 1 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "activation-wrong-up-plane",
+        "expected_exit": 101,
+        "actual_exit": 101,
+        "pid": 43462,
+        "joined": true,
+        "native_sha256": "62e1f63cc9ad8ac33d3294e805690afeaf13ce777a32d842b48e7a5b2c4cefbe",
+        "required_text": [
+          "Hot activation differs from MLX nodes",
+          "test result: FAILED. 0 passed; 1 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "activation-skip-half-multiply-rounding",
+        "expected_exit": 101,
+        "actual_exit": 101,
+        "pid": 43473,
+        "joined": true,
+        "native_sha256": "1d26786503df05f1af81fde8907e5e96853518494f3ff954034b977b8dd54039",
+        "required_text": [
+          "Hot activation differs from MLX nodes",
+          "test result: FAILED. 0 passed; 1 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "activation-read-poison-cold",
+        "expected_exit": 101,
+        "actual_exit": 101,
+        "pid": 43486,
+        "joined": true,
+        "native_sha256": "7f23375a6990b76c02eee21354c6b7f710566c51b71ce84af8491a121f84e067",
+        "required_text": [
+          "Hot activation differs from MLX nodes",
+          "test result: FAILED. 0 passed; 1 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "h128-normal-restored",
+        "expected_exit": 0,
+        "actual_exit": 0,
+        "pid": 43496,
+        "joined": true,
+        "native_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+        "required_text": [
+          "FLASH_HOT_H128 cases=3144 edges=240 fallbacks=10 hot=byte_exact cold=positive_zero readbacks=none layouts=contiguous,transpose,offset",
+          "test result: ok. 1 passed; 0 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "activation-normal-restored",
+        "expected_exit": 0,
+        "actual_exit": 0,
+        "pid": 43508,
+        "joined": true,
+        "native_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+        "required_text": [
+          "FLASH_HOT_ACTIVATION cases=960 nonfinite_cases=2 id_boundary_cases=1 routes=1..80 masks=6 strides=2 hot=byte_exact cold=positive_zero readbacks=unchanged",
+          "test result: ok. 1 passed; 0 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "activation-fallback-normal-restored",
+        "expected_exit": 0,
+        "actual_exit": 0,
+        "pid": 43517,
+        "joined": true,
+        "native_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+        "required_text": [
+          "FLASH_HOT_ACTIVATION_FALLBACK cases=28 invalid=10 parity=byte_exact historical_unmasked_and_nonhalf=true",
+          "test result: ok. 1 passed; 0 failed;"
+        ],
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "post30",
+        "expected_exit": 0,
+        "actual_exit": 0,
+        "pid": 43526,
+        "joined": true,
+        "native_sha256": null,
+        "required_text": null,
+        "all_required_text_found": true,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      }
+    ],
+    "six_numeric_failures_detected": true,
+    "restored_normal_tests_passed": 3,
+    "all_children_joined": true,
+    "sampler_joined": true,
+    "sampler_samples": 37,
+    "sampler_errors": 0,
+    "VM_curve_samples": 23,
+    "swapins_endpoint_deltas_all_zero": true,
+    "swapouts_endpoint_deltas_all_zero": true,
+    "curve_swapins_range": [
+      68878336,
+      68878336
+    ],
+    "curve_swapouts_range": [
+      642121728,
+      642121728
+    ],
+    "system_compressor_physical_peak_bytes": 4397137920,
+    "identity_scope": "Native hashes from frozen build/plan metadata compared; parent preflight rehashed six binaries; no redundant binary hashing during H128 micro. All normal100source hashes independently matched in preceding normal review.",
+    "normal_vs_mutants_profile": "Mutants DEBUG, restored normal tests RELEASE041b3b09; arithmetic detection is not a speed comparison.",
+    "cold_mutant_diagnostic": "The assertion message Hot activation differs also covers masked Cold zero mismatches; source oracle compares full masked output and checks Cold+0. This is numerical refusal, not a Metal compile/setup failure.",
+    "frozen_build_plan_identity_checks": [
+      {
+        "name": "h128-wrong-projection-slot",
+        "frozen_sha256": "bc4e4668c805acf4e9828022fc71389fc44244cc023bd5cfebe6dea269012bce",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "h128-remove-half-rounding",
+        "frozen_sha256": "dbef65705e64e03035b9a27f59f53dafcf5472af8434f9afadfaf7dbd3f8e283",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "activation-wrong-row-mask",
+        "frozen_sha256": "f0306db206a086cd791dc2fa99a28c2b9acf117939eb2ae293e28e81bf9b2cda",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "activation-wrong-up-plane",
+        "frozen_sha256": "62e1f63cc9ad8ac33d3294e805690afeaf13ce777a32d842b48e7a5b2c4cefbe",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "activation-skip-half-multiply-rounding",
+        "frozen_sha256": "1d26786503df05f1af81fde8907e5e96853518494f3ff954034b977b8dd54039",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "activation-read-poison-cold",
+        "frozen_sha256": "7f23375a6990b76c02eee21354c6b7f710566c51b71ce84af8491a121f84e067",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "h128-normal-restored",
+        "frozen_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "activation-normal-restored",
+        "frozen_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+        "path_in_command": true,
+        "metadata_matches": true
+      },
+      {
+        "name": "activation-fallback-normal-restored",
+        "frozen_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+        "path_in_command": true,
+        "metadata_matches": true
+      }
+    ]
+  },
+  "promotion": false,
+  "not_proven": [
+    "MSL/MLX numerics for arbitrary inputs",
+    "GPU/concurrent slot lifetime universal proof",
+    "full matrix physical memory cap and private swap ownership",
+    "end-to-end throughput benefit"
+  ]
+}

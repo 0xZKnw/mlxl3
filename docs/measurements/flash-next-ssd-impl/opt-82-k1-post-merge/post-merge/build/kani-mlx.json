@@ -1,0 +1,19 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "linear::hot_transform::tests::actual_hot_h128_preserves_native_half_bits",
+    "--harness",
+    "ssd_moe::hot_activation::tests::actual_masked_activation_preserves_mlx_nodes",
+    "--exact"
+  ],
+  "exit_code": 1,
+  "timeout": false,
+  "reaped": true,
+  "elapsed_seconds": 5.366608999989694
+}

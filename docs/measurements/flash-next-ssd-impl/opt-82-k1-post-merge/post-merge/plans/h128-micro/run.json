@@ -1,0 +1,97 @@
+[
+  {
+    "name": "pre20",
+    "command": [
+      "/bin/sleep",
+      "20"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 25
+  },
+  {
+    "name": "h128-aa-abba",
+    "native_test": "linear::hot_transform::tests::hot_h128_component_aa_abba_on_pinned_b2_masks",
+    "command": [
+      "/usr/bin/env",
+      "-u",
+      "MLXL3_SSD_QMV_HALF_OUTPUT",
+      "-u",
+      "MLXL3_SSD_TOP10_EARLY_EXIT",
+      "-u",
+      "MLXL3_SSD_BATCH_ROUTES",
+      "-u",
+      "MLXL3_FLASH_QSA_KEY_ONLY",
+      "-u",
+      "MLXL3_FLASH_GDN_DENSE_ROWS",
+      "-u",
+      "MLXL3_SSD_LAYER_SLOTS",
+      "-u",
+      "MLXL3_EXL3_LANE_ORDER",
+      "-u",
+      "MLXL3_EXPERIMENTAL_GROUPED_MB3",
+      "-u",
+      "MLXL3_DENSE_DECODE_NT4",
+      "-u",
+      "MLXL3_DENSE_PREFILL_M64",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/candidate-tests",
+      "linear::hot_transform::tests::hot_h128_component_aa_abba_on_pinned_b2_masks",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_LES": "0",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_SHARED_EXL3": "0",
+      "MLXL3_SSD_STABLE_EXPERT_KERNELS": "0",
+      "MLXL3_SSD_SHARED_BATCH": "0",
+      "MLXL3_SSD_PREFETCH_PIPELINE": "0",
+      "MLXL3_FLASH_DRAFT_PRECAP": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_HOT_TRANSFORM_FIXTURES": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/component-fixtures.json",
+      "MLXL3_HOT_TRANSFORM_OUTPUT": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/component.json"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 840,
+    "native_tests_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+    "required_text": [
+      "FLASH_HOT_H128_MICRO fixtures=8 geometries=4 samples=704 calls_per_sample=32 parity=byte_exact wall_only=true",
+      "test result: ok. 1 passed; 0 failed;"
+    ],
+    "source_identity": "NEW main9c + K1 identity required",
+    "conditional_execution": "After numerical quality, exact new source identity, no concurrent build/prover/model. Component wall only.",
+    "candidate_source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+    "base_commit": "9c8474ca1292e29bae3c7d4d6383bd1820549349"
+  },
+  {
+    "name": "post30",
+    "command": [
+      "/bin/sleep",
+      "30"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 35
+  }
+]

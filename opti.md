@@ -16592,3 +16592,141 @@ Limites : aucun kernel ni math de production n’est modifié, donc aucun harnai
 - Fichiers figés : benchmark_smallm_reuse.py SHA b2713840cb1c3e1ca13ff1512aa0b5409d9d597bb6968f0e5a33d950fc539e20 ; test_smallm_reuse.py SHA f4e1cb870dca79c43cff4800be923cc6145c7f7a22776092650e80da6f9494f3. Diff --check ciblé passé. Patch SHA15ef5cdadc1fd47d21cf91392dc0c75050a80d272d2cd406b4deda41cab2de67 et résumé : ROOT/K1/merge-review/validation/smallm-parser/{source.patch,summary.json}. État : code local seulement, aucun commit/push par cet agent ; parent peut intégrer à la correction de fusion et relancer les trois jobs CI affectés.
 
 - **82MERGE publication des deux correctifs de validation** : fixture sampling expose trois champs effectivement reçus, oracleSwift inchangé (hardening/114idle/965sampling passés). Parseur small-M borné à son unique boucle non-groupée, autres branches shader préservées ;3échecsCIreproduits avantfix,134tests etmutant passent, Ruffstrict/formatpassent. Aucun runtimeRust/Metalmodifié. SuitePythoncomplète etbridge43fusionnéencours ; nouvelleCIàinspecter avant de la qualifier.
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/merge-review/validation/gpu-ac-v3/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/merge-review/validation/gpu-ac-v3/run-result.json.
+
+- **82MERGE Python full v1 NON QUALIFIÉ — mauvais environnement, échecs conservés** : 51 failed/1788 passed/64 skipped, mais PythonROOT editable importait mlxl3_quantizer depuis ROOT/src ancien au lieu de la fusion M/src ; Pony absent du chemin. Ces 1788 succès ne valident donc pas tous la source fusionnée. Pony local épinglé8e7fa6b1 existe mais ses hunks diffèrent du patch fusionné courant (reverse-check échoue sur3fichiers), ne pas assimiler les variantes.
+- **82MERGE Python v2 préenregistrement** : sans réseau/install/source du dépôt modifiée, extraire une copie jetable de gitarchive8e7fa6b1556f59fc669e25087903b279b9b0346f, appliquer le patch M courant, relier le chemin attendu M/references/PonyExl3 (les2testsCLI reconstruisent PYTHONPATH), puis fixer PYTHONPATH=M/src:copiePony:M/scripts:M/benchmarks. Identifier résolutions d'import avant test sans importer MLX ; rejouer d'abord les3fichiers contenant51échecs et leurs voisins après bridge43/post30 joints, un seul processus MLX toy et aucun autre modèle. Si passé, suiteprojetcomplète sur ce même environnement, source et dépendance figées. Aucun nouveau gain de vitesse/mémoire, aucun fauxskip. Logs/env/hashes : ROOT/K1/merge-review/validation/python-correct-env.
+
+- **82MERGE Python v2 préparation corrigée AVANT tests** : vérification byte-à-byte archive/copie a détecté zéro fichier modifié malgré `git apply` exit0 depuis le sous-dossier imbriqué (préfixe Git parent, hunks ignorés). Aucune importation/test lancés, aucun résultat réutilisé. Ancienne identité de préparation conservée ; appliquer maintenant depuis ROOT avec `--directory` explicite de la copie jetable puis exiger les différences attendues et la fonction du patch avant test.
+
+- **82MERGE Python v2 trois fichiers résultat** : codes [0, 0], enfants joints ; imports mlxl3_quantizer M/src et Pony copie14fichiers patchés réellement vérifiés. Logs/commandes ROOT/K1/merge-review/validation/python-correct-env. Suiteprojetcomplète non encore exécutée à cet instant ; échecs v1 conservés, aucune extrapolation des1788succès anciens.
+
+- **82MERGE Python v2 clôturé — VALIDÉ sur source fusionnée réelle** : régression isolée1pass, trois fichiers91/91pass en20,28s, puis suite complète1878pass/0fail/30skip/10warnings en154,86s. Les51échecsinitiaux sont couverts par les91tests repris. PYTHONPATH explicite M/src + Pony copie8e7/patchMdd15eac5 +M/scripts/benchmarks ; imports vérifiés,14fichiers réellement patchés, aucun réseau/install/code du dépôt modifié. 29sautsTorchabsent+1Linglocal ; warningsModal locaux/dépréciation explicités. HEAD42c0958e→9c8474ca lorsdu merge, mais tous octets source et dépendance inchangés durant suite, enfants joints/groupe pytest et helpers absents au snapshot final. Ancienfullv1 invalide1788pass/51fail et préparationgitapplyignorée restentconservés/nonqualifiés, aucune réécriture des échecs. K1futur non validé par cesrésultats. Preuves ROOT/K1/merge-review/validation/python-correct-env/{README.md,summary.json,full-result.json,cleanup.json}. Lien references ignoré et copieROOT jetables à NE PAS STAGER ; agent n’a ni commit ni push. Machine libérée pour la suite coordonnée.
+
+### FLASHSSD-2026-10-25-82K1PM — vérification K1 sur la base fusionnée
+
+- Demande : après merge PR34 (9c8474ca), vérifier K1 plus soigneusement dans une branche distincte codex/flash-next-k1. Répétition justifiée : nouvelle base1.5 fusionnée, ancien écran batterie 82K1H trop variable ; pas réutilisé comme gain. Source W92SHA conservée, seuls10fichiers du patch9782c74 transposés, revue indépendante sans blocage ; aucun journal privé W ni ancien F01/F05/F06 importé.
+- Hypothèse : économiser uniquement les transformations H128/SwiGLU des occurrencesCold dans GPUHot. Deux sites H128 et une activation masqués, aucun changement de routing/SSD/slots/protection/ordonnancement ; API et flags produits inchangés. H128 natif peut donner son buffer alors que CustomKernel alloue : coût à interpréter, aucune économieRAM présumée. Les micros chaînés ne représentent pas à eux seuls quatreH128 intercalés QMV/scales ; le microactivation contient31récurrences communes, effets non attribuables au kernel seul.
+- Baseline :91sources natives fusionnées byte-identiques42c/9c, CLI d8757fa6 et tests ea29cc41 figés dans merge-review/validation/runtime ; metadataCLI e551-dirty car compilation avantcommit, SHA et manifeste sources font foi. Nouveau candidat sera construit/hashé après application. Modèle65c89531 EXL3 2,05bpw/draftQ4 a22a1744, MLX0.32.2/M5 10GPU/24Gio ; cache3Gio/53slots, alloc64MiB,4lecteurs,HotWide+UNIQUE+63=1,LES/prélecture/shared/stable0.
+- Avant mesures : format/ClippyCPU+MLX/suiteCPU/native/builds ; Kani des vrais guards H128/SwiGLU et lookup, tentative API MLX distincte. Rejouer uniquement qualité affectée par la transposition : H1283144+240+10, activation960+2+1 et refus/fallback,slots528,36préfixes et MTP ; sixmutantsMSL et bridgeK1 avant promotion. Les preuves_CPU ne prouvent pas MSL/MLX/concurrence.
+- Mesures préenregistrées : H128seul704samples et activation192samples, fixtures8 figées50bf33e3/main-holdp05/p50/p95 plusallHot/allCold, A/A puis5ABBA/8warmups/32appels chaînés parsample, oracles avantclock. Puis vraiDFlash2B2 MAIN/HOLD128warm128sorties/127decode enH-C puisC-H (nouveauxprocessus), gold60 texte/hash/compteurs/acceptations/SSD inchangés. Comparer temps draft/vérification/commit inclusifs sans les additionner. OFF/MTPfrais uniquement si gainDFlashqualifié à promouvoir, aucuneadditiondeboosts.
+- Conditions : nouveaux témoins sur secteur (déjà autorisé) avec garde stock45/49pré20/post30 et puissance stable ; si batterie, nouvelle campagne séparée sans mélanger. Aucunbuild/prover/autreinférence pendant chronométrage. GardesRSS/temps/drain inchangées, cible footprint≤12Go, swapglobal etledgerprivé distincts, compressioncap77BFAILED historique conservé. Forte dérive interditgain établi.
+- État avant application : transposition statique seule, aucun nouveau kernel exécuté ou débit mesuré, aucun pushK1. Clôture82MERGE :43bridge+septtestsphysiques passent/0sortieswap/131072Bentrée,CPU225/native160/Kani219+17covers,Swiftsubset965+114assertions ; Pythoncorrect1878pass/30skip. CI42cencours, preuveMLXICE/CrossHairabsent, pasdeCIglobalementverte proclamée.
+
+- **82K1PM build/CPU réussis avant GPU** : format/ClippyCPU+MLX/buildreleasepassés,142lib/5ignorés+35bin+16contrats+35transport=228testsCPU. Candidat/transposition10hashesexacts+manifeste sources post-merge/candidate-source-sha256.json ; binaires figés candidate-freeze.json, baselineCLI identiqued875. Aucun nouveau TPS/micro encoreexécuté. LancermaintenantKani3contratsréels puisAPI MLX bornée180s, touscompilateurs/proveurs joints avantmesures.
+
+- **82K1PM preuve/suite native terminées** : Kani3helpers réels804obligationsSUCCESS/6inatteignablesbibliothèquecalloc,18covers,0failure ; H128unwind17/SwiGLU5/lookup513, domaines symboliques inchangés. NativeMLX164passés/160ignorés, sélectionsphysiquesencoreàlancer. TentativeAPI MLX réelle : ICEintrinsics243, exit1 après5,37s, enfantjoint, aucunstub ; MSL/MLX restentNONVÉRIFIÉS formellement. Sources100/binaires figés inchangés ; tousbuilds/proveursjoints, préparation sixmutantsMSL avantqualité/micros.
+
+- **82K1PM-MSL six builds préenregistrés avant exécution** : sources normales100SHA2b4eb648, testsRelease041b3b09 figés. Deux mutations H128 (slot/projection borné ; stockage/casts Half retirés ensemble) et quatre activation (masque ; plan up ; produit gate*sigmoid en float avec operands explicitement float ; suppression Cold) préparées dans ROOT/K1/post-merge/mutants. Les six sources ne changent que le MSL, les oracles restent normaux. Build DEBUG --no-run séquentiel, jobs1, timeout600s parvariant, RSSarbreéchantillonné≤4Gio et gardeVM/puissancestock43, aucunGPU/exécutiondebinaire. Source100empreintesrecontrôlée et restaurationbyteexact en finallyaprèschaquebuild/échec ; refusd’écraseréditioninattendue. VérificationsdupetitrunnerPython(parserCargo/refusvides/mauvaisartefacts/restauration) avantlancement ; CrossHairàtenter, pasdepreuvecomplète. Les échecscompilation/neufslogs neconstituentpasdétectionnumérique ;6binaires/hashessontprérequisàlafuturematriceGPU. Tousautresbuilds/proveursjoints confirméparentavantGO.
+
+- **82K1PM six mutantsMSL construits avant GPU** :6buildsDEBUGcode0/joints,100sources restauréesexactes etnormauxfigésinchangés ; pasdeGPUencore. DiffsMSL réels relus par secondagent, arrondis/indexation/Coldpoison ; six refus numériques attendus ne peuvent être satisfaits par erreurcompile/setup. Sources restaurées/gatesCPU inspectées/AC confirmé, lancement qualité7sélections physiques d’abord, ensuite mutants, puismicros distincts si succès. PostbuildVM nonattribué, paspromessedezéroSwapducompilateur.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- 45-Q/R processus h128-quality : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- 45-Q/R processus activation-quality : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- 45-Q/R processus activation-fallback : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- 45-Q/R processus real-slots-528 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- **82K1PM-MSL builds terminés, GPU NON EXÉCUTÉ** : six DEBUG --no-run/code0/restaurations/join vérifiés, binaires46744192octets chacun, SHA dans ROOT/K1/post-merge/mutants/frozen.json ;100sources normales exactement2b4eb648 etRelease041b3b09 inchangé. RSSarbreéchantillonnémax1016086528B, pasmesurepicinstantané ; absence des6PIDCargo confirméehorssandbox. MonitorVMlive sansendpointfinalparbuild : nepasannoncerzéroSwapbuild. Parser/restauration6tests passent ; Ruffstrict/format passent aprèsI001/SIM117 initiaux corrigés. CrossHair moduleabsent(exit1), sourceformelleNONVÉRIFIÉE. Postcheckoptionnelpssandbox refusé après contrôles/identitéécrite, repriselecturehorssandboxpassée ; aucunbuildrépété. MatrixGPU séparée remplieSHA2c9b6aa6(6échecsnumériquesattendus+3QArestaurés/prépost), paslancée. Les6détectionsMSLrestentNONVÉRIFIÉES, nepasconfondrecompilationRust etMetalruntime. ParentpeutreprendrequalitéGPUseul,sansautrecompilateur/proveur.
+
+- 45-Q/R processus dflash-prefixes : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- 45-Q/R processus mtp-head-cache-only : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- 45-Q/R processus mtp-session : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run-result.json.
+
+- **82K1PM qualité physique normale passée** :9phases attendues/jointes+sampler, H1283144+240+10/activation960+2+1 et28replis10refus, slots528,36préfixeslogits/états etMTPtête/sessions passent. Zéro nouvelle sortie swap système sur cette matrice ; entrer ledger/empreintes séparément à la revue, aucun gain de débit déduit.100sources et6SHA mutants rehashés, lancement sixmutantsnumériques attendus101 puis troisnormauxrestaurés, aucunbuild/prover/autreinférenceconcurrent.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-run-result.json.
+
+- 45-Q/R processus h128-wrong-projection-slot : **failed_or_interrupted**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-run-result.json.
+
+- **82K1PM mutationsGPUv1 BLOQUÉES avant premiermutant** : pré20 clos, puis FileExistsError sur log homonyme du build dans même dossier, pid/exitsmutantabsents. Aucune détectionnumérique revendiquée. Conserver gpu-run-resultfailed et bruts ; reprise mêmes6binaires/matrice dans sous-dossier isolé mutants/gpu-v2, préflight log/outputabsence parphase+SHA exécutés avant lancement. Pasdecodekernelmodifié ni detestnumériquerejoué, seulement pré20 à refaire pour garde.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus h128-wrong-projection-slot : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus h128-remove-half-rounding : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus activation-wrong-row-mask : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus activation-wrong-up-plane : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus activation-skip-half-multiply-rounding : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus activation-read-poison-cold : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus h128-normal-restored : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus activation-normal-restored : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus activation-fallback-normal-restored : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/gpu-v2/run-result.json.
+
+- **82K1PM sixmutantsMSL détectés, normauxrepassés** : mutants/gpu-v2 onzephasesattendues/jointes+sampler ; sixexit101 avec messages de divergence numérique exigés (2H128/4activation), puis troisnormauxexit0/comptesréels. Zéro nouvelle sortie swapendpoint, pasdetempsDEBUGutilisécommedébit. Ancienv1FileExistsrestefailedsansmutantexécuté. LancementduseulmicroH128704/32calls maintenant, exact041b/binaires/source100 ; pasgainTPSdéduit.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/run-result.json.
+
+- 45-Q/R processus h128-aa-abba : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/run-result.json.
+
+- **82K1PM H128micro terminé** :3phasesattendues/jointes+sampler,704samplespositifsfinis/32setups/8masques/32appels, Hot simpleetchaîne32 byteexacts/finis vsMLX,Coldpositif0. AucunrésultatTPSdéduit ; analyseA/A/ABBApargéométrieencours. Lancementactivation192 maintenant, même041b/source100, copiesnormalrestaurées, aucunecompilation/proof concurrente.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro/run-result.json.
+
+- 45-Q/R processus activation-aa-abba : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro/run-result.json.
+
+- **82K1PM activationmicro terminé** :192samples attendus/paritéTrue,3phasesenfants/samplerjoints ; tempscomposantwallavec31récurrencescommunes, pasTPS. H128704 aussi clos ; hétérogénéitétemporelle brutepargéométrie constatée (baselineGU-inputMAINp05≈35us/HOLDp05≈10,7us), aucunecauseexclusiveattribuée ni45%microprésentécommedébit. LancermaintenantvraiDFlashB2MAIN/HOLDH-C sursecteur, processusmodèleabsentsaupréflight,8réponseswarm/mesure prévues ; aucunbuild/proof/autreinférence. Comparaisontémoinsfrais puisC-Havantqualification.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run-result.json.
+
+- 45-Q/R processus MAIN-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run-result.json.
+
+- 45-Q/R processus HOLD-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run-result.json.
+
+- 45-Q/R processus HOLD-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run-result.json.
+
+- **82K1PM réelH-C terminé : aucun gain initial** : MAIN11,399755→11,254234tok/s (−1,2765%), HOLD10,903516→10,896760(−0,0620%). Sixphases/lecteurs/samplerjoints,8réponsesgold60exactes128/127/compteurs etSSDlogiquesidentiques, zéro nouvelle sortie swap. Pasralentissementcausaluniverselaffirmé. Conformémentpréenregistrement etdemandevérifiermieux, lancerordreinverseC-Hneufmêmesoptions/source/binsavantdécision ; pasOFF/MTPni gainpromu àcetinstant.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run-result.json.
+
+- 45-Q/R processus MAIN-0-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run-result.json.
+
+- 45-Q/R processus MAIN-1-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run-result.json.
+
+- 45-Q/R processus HOLD-0-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run-result.json.
+
+- 45-Q/R processus HOLD-1-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run-result.json.
+
+- **82K1PM revue ciblée après question utilisateur (25 octobre)** : contrôler si le résultat sans gain vient d’une erreur concrète ou d’un compromis du prototype. Relecture indépendante des mêmes kernels/source100 figée, de leurs appelants et du Hadamard/CustomKernel MLX0.32.2 déjà épinglé ; propriété recherchée : le chemin Cold saute effectivement charges/butterflies/exp, sans oublier les coûts résiduels de grille, sorties, casts et allocation. Revue de code uniquement, aucun nouvel essai GPU ni variante, donc les contrôles numériques déjà passés ne sont pas répétés. Analyse C-H existante séparée du H-C, avec contre-vérification gold/compteurs/SSD/identités et garde mémoire avant décision ; aucun gain n’est promu.
+
+- **82K1PM C-H terminé et contre-vérifié : rejet de ce prototype pour intégration performance.** MAIN H11,576339606→C11,439044266tok/s (−1,1860%), HOLD H11,128819614→C10,946911587 (−1,6346%). Les quatre comparaisons H-C/C-H ne montrent aucun gain ; deux répétitions ne prouvent pas un ralentissement universel ni sa cause. Les16réponses warm/mesure sont non vides et exactes au gold60,8rapports complets, compteurs/largeurs B2/demande logique SSD identiques,100sources/7drivers/2CLI réhashés. Douzephases et deuxsamplers joints,0nouvelle sortie de swap système ;64Kio d’entrée système seulement pendant le post30H-C,0pendant les8processus et toutC-H. Pic physique événement maximal7 851 071 800B ; compression et ledger séparés dans real-tps-review.md/json, aucune attribution implicite.
+- **82K1PM correction de formulation de preuve.** Les804obligations Kani réussies et18covers portent sur3helpers CPU réels (unwinds17/5/513) ; les6obligations inatteignables sont dans std alloc/ptr/fmt/num/raw_vec, et non seulement calloc. L’ICE de l’API MLX réelle reste un échec de tentative, pas une preuve GPU. Sixmutants MSL numériques détectés et troisnormaux restaurés ne constituent pas une preuve complète. Les43requêtes du bridge K1 et les débits OFF/MTP de promotion restent non exécutés, puisque ce candidat n’est pas promu ; ne pas les confondre avec la validation de main sans K1.
+- **82K1PM décision après les mesures.** Retirer uniquement les hunks K1 des5fichiers suivis, inverse contrôlé face aux95fichiers de base9c ; conserver les5modules nouveaux détachés et la reproduction patch+base/100SHA dans les archives. Aucune nouvelle variante ni mesure. Rétablir ensuite le binaire de développement exact d875 depuis la baseline déjà testée, uniquement si le chemin contient encore cc966 attendu ; ne pas remplacer une app installée. Nouvelle PR documentation/archives uniquement, avec bruts et limites. La piste de masquage reste étudiable mais ce prototype n’apporte aucun gain livré.
+
+- **82K1PM clôture effective du runtime.** Inverse5 appliqué après tous processus et audits terminés,100SHA candidats vérifiés avant retrait ;95fichiers base exactement égaux à9c,5modules nouveaux conservés byteexacts mais détachés/exclus du stage. Les5fichiers runtime/workflow suivis n’ont plus aucun diff, seul opti reste suivi modifié. Binaire de développement rétabli d875 après vérification du candidatcc966 et absence de processus moteur, aucune app installée modifiée. cargo fmt --all -- --check passé. Pas de nouvelle compilation/preuve/GPU : retour exact à la base déjà vérifiée. Preuve withdrawal-result.json ; reconstruction depuis base9c+patch9782 reproduit100/100SHA et sixmutants gelés sur copies. Publication prévue documentation/archives uniquement.
+
+- **82K1PM archive publique, nouvelle PR documentaire.** Rapport et200pièces sélectionnées dans [opt-82-k1-post-merge](docs/measurements/flash-next-ssd-impl/opt-82-k1-post-merge/README.md), inventaire SHA dans archive-manifest.json. Le patch+base9c reconstitue100/100sources et sixmutants exacts ; tar redondant, binaires, modèles, Pony et données privées exclus. Seuls README/rapport curatés pour lien tar local non publié et mise à jour CI ; bruts mesurés byteexacts. K1 reste rejeté pour intégration performance, aucun boost livré.
+- **CI mise à jour après22:38UTC.** PR42c jobKani121301090365 terminé failure ; APIusageKani réussi, safetycontracts échec, annotation GitHub « hosted runner lost communication ». Main121301938901 expose même annotation, statut global encore in_progress avec étape safetycancelled au snapshot. Logs API404 et gh lognotfound, donc ni OOM ni timeout ni contre-exemple établi. Pas de relance aveugle ; autres jobs Linux/macOS/FlashKani/régression/conversion réussis pour le commit inspecté. L’état exact reste dans post-merge/ci-42c0958 ; aucune CI globalement verte annoncée.
+
+- **82K1PM contrôle de publication.** Deuxcents pièces+manifeste etopti seulement, aucun fichier runtime/workflow/scripts/app stagé. Tous SHA et liens locaux des cinq rapports principaux vérifiés. Premier contrôle de stage a refusé les12logs sous build ignorés par la règle existante ; ajout forcé limité à ces12noms contrôlés, puis202fichiers attendus exactement. Format runtime et diffcheckopti passent. Diffcheckglobal signale46espaces/EOF dans quatreJSON CI bruts et deuxCSV CRLF archivés ; octets conservés pour respecter les SHA, aucun code actif concerné. Échec de préflightv1, contrôle final et détail des46messages conservés dans ROOT/K1/post-merge/publication-preflight*.json etpublication-staged-diff-check.log. Aucun benchmark ni proof rejoué pendant la publication.

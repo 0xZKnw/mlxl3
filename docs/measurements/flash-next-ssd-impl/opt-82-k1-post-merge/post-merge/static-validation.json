@@ -1,0 +1,115 @@
+{
+  "status": "static_source_patch_applies_exactly_to_isolated_main_copies",
+  "patch_exit": 0,
+  "patch_fuzz": 0,
+  "files": [
+    {
+      "path": ".github/workflows/rust.yml",
+      "applied_sha256": "05a1c9dfed0534fa790f90938b09dca197289339a6186097fd87ff05b01f26b1",
+      "expected_sha256": "05a1c9dfed0534fa790f90938b09dca197289339a6186097fd87ff05b01f26b1",
+      "exact": true
+    },
+    {
+      "path": "native/src/flash_support.rs",
+      "applied_sha256": "ab0d1b4ab8c3b659be650f7253cdaf8c01e1f21c84c61974b2f6d228d9ffae38",
+      "expected_sha256": "ab0d1b4ab8c3b659be650f7253cdaf8c01e1f21c84c61974b2f6d228d9ffae38",
+      "exact": true
+    },
+    {
+      "path": "native/src/linear.rs",
+      "applied_sha256": "a68e19ebc730995c5ef2d772c10f50a5b930160d67b1998884906faf8fbeee84",
+      "expected_sha256": "a68e19ebc730995c5ef2d772c10f50a5b930160d67b1998884906faf8fbeee84",
+      "exact": true
+    },
+    {
+      "path": "native/src/qwen4/profile.rs",
+      "applied_sha256": "2ecbac048891dd138cd816f832f8de225b9961b7568a52af420bb46df3d7ea7d",
+      "expected_sha256": "2ecbac048891dd138cd816f832f8de225b9961b7568a52af420bb46df3d7ea7d",
+      "exact": true
+    },
+    {
+      "path": "native/src/ssd_moe.rs",
+      "applied_sha256": "ee3395420995de738f778ede6b706441996aa2415ceb3c62a6e9e5cb0e126076",
+      "expected_sha256": "ee3395420995de738f778ede6b706441996aa2415ceb3c62a6e9e5cb0e126076",
+      "exact": true
+    },
+    {
+      "path": "native/src/linear/hot_transform.rs",
+      "applied_sha256": "f05a6b9c53d22c319eb65cd237b3e4316dac3cf8a5e303ad4bc820907a813a6a",
+      "expected_sha256": "f05a6b9c53d22c319eb65cd237b3e4316dac3cf8a5e303ad4bc820907a813a6a",
+      "exact": true
+    },
+    {
+      "path": "native/src/linear/hot_transform_tests.rs",
+      "applied_sha256": "6aa9df42fb96b0edc328d51d2553267430affc1ffbd00a7ec10bec71ec8b6a97",
+      "expected_sha256": "6aa9df42fb96b0edc328d51d2553267430affc1ffbd00a7ec10bec71ec8b6a97",
+      "exact": true
+    },
+    {
+      "path": "native/src/ssd_moe/hot_activation.rs",
+      "applied_sha256": "6921707c4ac2a38e528425400640a4b728fa540e8a9df67b0d2b3946e58a1daf",
+      "expected_sha256": "6921707c4ac2a38e528425400640a4b728fa540e8a9df67b0d2b3946e58a1daf",
+      "exact": true
+    },
+    {
+      "path": "native/src/ssd_moe/hot_activation_bench.rs",
+      "applied_sha256": "5c870b3d440146b61567f4843ea36cae0f1d42979caa02b37503ee08e02ed2cf",
+      "expected_sha256": "5c870b3d440146b61567f4843ea36cae0f1d42979caa02b37503ee08e02ed2cf",
+      "exact": true
+    },
+    {
+      "path": "native/src/ssd_moe/hot_profile_tests.rs",
+      "applied_sha256": "c1dd94d6e8e69597d1004361e1542272d84101a2561b119ec937da7410ed8a73",
+      "expected_sha256": "c1dd94d6e8e69597d1004361e1542272d84101a2561b119ec937da7410ed8a73",
+      "exact": true
+    }
+  ],
+  "all_92_frozen_w_sources_match": true,
+  "lane_specific_lines_byte_identical_to_main": true,
+  "workflow_main_jobs_preserved": true,
+  "tests_build_proof_gpu_run": false,
+  "target_checkout_modified": false,
+  "target_live_recheck": [
+    {
+      "path": ".github/workflows/rust.yml",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/flash_support.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/linear.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/qwen4/profile.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/ssd_moe.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/linear/hot_transform.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/linear/hot_transform_tests.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/ssd_moe/hot_activation.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/ssd_moe/hot_activation_bench.rs",
+      "target_still_base_or_new_absent": true
+    },
+    {
+      "path": "native/src/ssd_moe/hot_profile_tests.rs",
+      "target_still_base_or_new_absent": true
+    }
+  ],
+  "nested_git_apply_stat_note": "First metadata-only git apply --stat from nested ROOT build folder skipped all paths due Git prefix (0 files); re-run at ROOT reported all 10 paths. Exact application validation used patch --fuzz=0 on isolated copies and is unaffected."
+}
