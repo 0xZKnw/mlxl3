@@ -1,0 +1,294 @@
+"""Q27-15 disposable exact-integer QMV screen; no runtime source changes."""
+
+import argparse
+import hashlib
+import json
+import math
+import random
+import sys
+from pathlib import Path
+
+ROOT = Path("/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0")
+sys.path.insert(0, str(ROOT / "benchmarks"))
+from benchmark_smallm import Checkpoint, assert_exact, paired, qmv
+from benchmark_smallm_reuse import speed_gate
+
+OLD = """                        uint window = uint(merged >> shift);"""
+NEW = """#if MLXL3_K_BITS <= 4u
+                        uint low = words[word1[group]];
+                        uint high = words[word0[group]];
+                        uint window = shift == 0u ? low :
+                            (low >> shift) | (high << ((32u - shift) & 31u));
+#else
+                        uint window = uint(merged >> shift);
+#endif"""
+
+
+def transform(source):
+    if source.count(OLD) != 1:
+        raise ValueError("inspect changed or ambiguous QMV window source")
+    return source.replace(OLD, NEW)
+
+
+def funnel(high, low, shift):
+    """pre: 0 <= high < 2**32 and 0 <= low < 2**32 and 0 <= shift <= 31
+    post: __return__ == (((high << 32) | low) >> shift) & 0xffffffff
+    """
+    return low if shift == 0 else (low >> shift | high << ((32 - shift) & 31)) & 0xFFFFFFFF
+
+
+def self_test():
+    rng = random.Random(2715)
+    pairs = [(0, 0), (0xFFFFFFFF, 0xFFFFFFFF), (0xAAAAAAAA, 0x55555555)]
+    pairs += [(1 << bit, 0) for bit in range(32)]
+    pairs += [(0, 1 << bit) for bit in range(32)]
+    pairs += [(rng.getrandbits(32), rng.getrandbits(32)) for _ in range(512)]
+    checks = 0
+    mutants = 0
+    for high, low in pairs:
+        for shift in range(32):
+            expected = (((high << 32) | low) >> shift) & 0xFFFFFFFF
+            assert funnel(high, low, shift) == expected
+            if shift and ((low >> shift | high << ((31 - shift) & 31)) & 0xFFFFFFFF) != expected:
+                mutants += 1
+            checks += 1
+    assert mutants > 100
+    for name in ("_qmv_tile_kernel.metal", "_qmv_mapped_tile_kernel.metal"):
+        source = (ROOT / "native/shaders" / name).read_text()
+        candidate = transform(source)
+        assert candidate.count(NEW) == 1 and candidate != source
+        for bad in ("", source.replace(OLD, ""), source + OLD):
+            try:
+                transform(bad)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("missing or duplicate source accepted")
+    for samples in (([], []), ([1] * 8, [math.nan] * 8)):
+        try:
+            speed_gate(samples)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid timing accepted")
+    assert not speed_gate(([1] * 40, [1] * 40))["passed"]
+    assert speed_gate(([1] * 40, [0.8] * 40))["passed"]
+    print(json.dumps({"self_test": True, "integer_cases": checks, "mutation_cases": mutants}))
+
+
+def stock_nt(shape, rows):
+    cols = sum(shape["widths"])
+    if rows == 1 and (
+        (shape["input"] == 5120 and shape["k"] == 2 and cols in (16384, 34816))
+        or (shape["input"] == 5120 and shape["k"] == 3 and cols == 248320)
+    ):
+        return 4
+    if rows == 1:
+        tiles = cols // 16
+        if tiles >= 1024:
+            return 2 if tiles % 2 == 0 else 1
+        return 4 if tiles % 4 == 0 else 2 if tiles % 2 == 0 else 1
+    return None
+
+
+def run(args, report, save):
+    import mlx.core as mx
+    import numpy as np
+
+    mx.set_cache_limit(256 * 1024**2)
+    sources = {}
+    for mapped, name in [
+        (False, "_qmv_tile_kernel.metal"),
+        (True, "_qmv_mapped_tile_kernel.metal"),
+    ]:
+        stock = (ROOT / "native/shaders" / name).read_text()
+        sources[mapped] = (stock, transform(stock))
+    report["source_sha256"] = {
+        str(mapped): [hashlib.sha256(s.encode()).hexdigest() for s in values]
+        for mapped, values in sources.items()
+    }
+    rng = np.random.default_rng(2715)
+    for k in range(1, 5):
+        for cb in range(3):
+            for mapped in (False, True):
+                for rows in (1, 2):
+                    widths = [128, 256] if mapped else [128]
+                    shape = {"input": 512, "widths": widths, "k": k, "cb": cb}
+                    weights = mx.array(
+                        rng.integers(0, 2**32, (32, sum(widths) // 16, 8 * k), dtype=np.uint32)
+                    )
+                    x = mx.array(rng.normal(0, 0.2, (rows, len(widths), 512)).astype(np.float16))
+                    sub = mx.array(
+                        np.repeat(np.arange(len(widths), dtype=np.uint32), np.array(widths) // 16)
+                    )
+                    outputs = [
+                        qmv(mx, shape, rows, source=src)(x, weights, sub) for src in sources[mapped]
+                    ]
+                    mx.eval(*outputs)
+                    assert_exact(*outputs)
+                    report["checks"].append(
+                        {"scope": "synthetic", **shape, "rows": rows, "values": outputs[0].size}
+                    )
+                    if "mutation" not in report:
+                        bad_source = sources[mapped][1].replace(
+                            "uint cw3 = window &", "window ^= 1u;\n uint cw3 = window &"
+                        )
+                        bad = qmv(mx, shape, rows, source=bad_source)(x, weights, sub)
+                        mx.eval(bad)
+                        different = int(
+                            np.count_nonzero(
+                                np.asarray(outputs[0]).view(np.uint32)
+                                != np.asarray(bad).view(np.uint32)
+                            )
+                        )
+                        assert np.isfinite(np.asarray(bad)).all() and different > 0
+                        try:
+                            assert_exact(outputs[0], bad)
+                        except AssertionError:
+                            report["mutation"] = {
+                                "rejected": True,
+                                "different_fp32_words": different,
+                            }
+                        else:
+                            raise AssertionError("GPU mutation escaped oracle")
+    assert len(report["checks"]) == 48 and report["mutation"]["rejected"]
+    save()
+    checkpoint = Checkpoint(args.checkpoint)
+    shapes = checkpoint.inventory()
+    assert len(shapes) == 16 and all(1 <= s["k"] <= 4 and s["cb"] == 2 for s in shapes)
+    report["checkpoint_headers"] = checkpoint.headers
+    for shape in shapes:
+        dims, widths = shape["input"], shape["widths"]
+        affected = not (dims == 5120 and sum(widths) in (16384, 34816, 248320))
+        if getattr(args, "affected_m1", False) and not affected:
+            continue
+        cols, grouped = sum(widths), len(widths) > 1
+        groups = len(widths)
+        weights = mx.array(
+            np.concatenate(
+                [checkpoint.load(p + ".trellis").view(np.uint32) for p in shape["prefixes"]], axis=1
+            )
+        )
+        suh = mx.array(np.stack([checkpoint.load(p + ".suh") for p in shape["prefixes"]]))
+        svh = mx.array(np.concatenate([checkpoint.load(p + ".svh") for p in shape["prefixes"]]))
+        sub = mx.array(np.repeat(np.arange(len(widths), dtype=np.uint32), np.array(widths) // 16))
+        for rows in (1,) if getattr(args, "affected_m1", False) else (1, 2):
+            x = mx.array(rng.normal(0, 0.2, (rows, dims)).astype(np.float16))
+            kernels = [
+                qmv(mx, shape, rows, nt=stock_nt(shape, rows), source=s) for s in sources[grouped]
+            ]
+
+            def chain(
+                steps,
+                kernel,
+                x=x,
+                dims=dims,
+                rows=rows,
+                weights=weights,
+                suh=suh,
+                svh=svh,
+                sub=sub,
+                cols=cols,
+                groups=groups,
+            ):
+                value = x
+                for _ in range(steps):
+                    scaled = mx.hadamard_transform(
+                        (value[:, None, :] * suh).reshape(rows * groups, dims // 128, 128),
+                        scale=1 / 128**0.5,
+                    )
+                    xhat = scaled.reshape(rows, groups, dims)
+                    y = kernel(xhat, weights, sub).sum(axis=1).astype(mx.float16)
+                    y = (
+                        mx.hadamard_transform(
+                            y.reshape(rows, cols // 128, 128), scale=1 / 128**0.5
+                        ).reshape(rows, cols)
+                        * svh
+                    )
+                    value = (
+                        mx.tanh(mx.tile(y, (1, (dims + cols - 1) // cols))[:, :dims]) * 0.2
+                    ).astype(mx.float16)
+                return value
+
+            xhat = mx.hadamard_transform(
+                (x[:, None, :] * suh).reshape(rows * len(widths), dims // 128, 128),
+                scale=1 / 128**0.5,
+            ).reshape(rows, len(widths), dims)
+            assert_exact(kernels[0](xhat, weights, sub), kernels[1](xhat, weights, sub))
+            assert_exact(chain(8, kernels[0]), chain(8, kernels[1]))
+            entry = {
+                **shape,
+                "rows": rows,
+                "nt_override": stock_nt(shape, rows),
+                "status": "running",
+                "raw_and_chain_bit_exact": True,
+            }
+            report["timings"].append(entry)
+            save()
+            timing = paired(
+                mx,
+                [lambda steps, k=k, chain=chain: chain(steps, k) for k in kernels],
+                args.iterations,
+                8,
+            )
+            entry.update(status="complete", timing=timing, gate=speed_gate(timing["samples_ms"]))
+            save()
+            print(
+                json.dumps(
+                    {"input": dims, "output": cols, "k": shape["k"], "rows": rows, **entry["gate"]}
+                ),
+                flush=True,
+            )
+        mx.synchronize()
+        del weights, suh, svh, sub, x, xhat, kernels
+        mx.clear_cache()
+    assert len(report["timings"]) == (11 if getattr(args, "affected_m1", False) else 32)
+    assert all(
+        x["status"] == "complete" and x["raw_and_chain_bit_exact"] for x in report["timings"]
+    )
+    report.update(
+        status="complete",
+        parity=True,
+        passing_cells=sum(x["gate"]["passed"] for x in report["timings"]),
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--affected-m1", action="store_true")
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--iterations", type=int, default=40)
+    args = parser.parse_args()
+    if args.self_test:
+        self_test()
+        return
+    if not args.checkpoint or not args.output or args.output.exists() or args.iterations != 40:
+        parser.error("requires checkpoint, new output and the preregistered 40 pairs")
+    report = {
+        "status": "running",
+        "parity": False,
+        "checks": [],
+        "timings": [],
+        "iterations": 40,
+        "cache_mib": 256,
+        "affected_m1_only": args.affected_m1,
+        "boundary": "eight dependent projections, host+MLX+GPU sync; no delivered-token speed",
+    }
+
+    def save():
+        args.output.write_text(json.dumps(report, indent=2) + "\n")
+
+    save()
+    try:
+        run(args, report, save)
+    except BaseException as error:
+        report.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

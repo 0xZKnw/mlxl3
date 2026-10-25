@@ -1,0 +1,1045 @@
+{
+  "schema": 1,
+  "status": "published",
+  "observed_at_utc": "2026-10-16T14:01:42.762630+00:00",
+  "source_commit": "be030721c982942b7ed179ac57d9254941f25cbb",
+  "merge": {
+    "headRefOid": "be030721c982942b7ed179ac57d9254941f25cbb",
+    "mergeCommit": {
+      "oid": "d09f51f705c7481130403ae5b5cc35a0baa47ada"
+    },
+    "mergedAt": "2026-10-16T13:58:22Z",
+    "number": 41,
+    "state": "MERGED"
+  },
+  "desktop_version": "1.4.6",
+  "desktop_build": 28,
+  "engine_version": "1.4.6",
+  "runtime_sha256": "9cb167afe77f6660cb1f9744cfc3ec27536e463808a0e311501ac598bbd36863",
+  "assets": [
+    {
+      "name": "MLXL3-Desktop-v1.4.6-b28-Apple-Silicon.dmg",
+      "size": 73400205,
+      "sha256": "802916abc14e50affda4f18ec654e1b01cb7b9fd2db5bad5434a4533c4b287f1"
+    },
+    {
+      "name": "MLXL3-Engine-v1.4.6-arm64.tar.gz",
+      "size": 66957364,
+      "sha256": "0047f7d935129cbfca78f48fca5fe6fdfdd11d975c6d6abe7636881aea2bfc44"
+    },
+    {
+      "name": "MLXL3-Engine-v1.4.6-arm64.json",
+      "size": 13587,
+      "sha256": "5be214e495347e7c199513848e814e90b2ac7cb2f04d2aa4b6dfec5f026fdbd9"
+    }
+  ],
+  "publication_gate": {
+    "status": "passed",
+    "source_commit": "be030721c982942b7ed179ac57d9254941f25cbb",
+    "merge_commit": "d09f51f705c7481130403ae5b5cc35a0baa47ada",
+    "release_tree_identical": true,
+    "required_desktop_ci": {
+      "conclusion": "success",
+      "headSha": "be030721c982942b7ed179ac57d9254941f25cbb",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T13:57:19Z",
+          "conclusion": "success",
+          "databaseId": 117003504662,
+          "name": "desktop-and-protocol",
+          "startedAt": "2026-10-16T13:43:59Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T13:44:01Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T13:44:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:06Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T13:44:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:12Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-10-16T13:44:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:41Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+              "number": 4,
+              "startedAt": "2026-10-16T13:44:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:14Z",
+              "conclusion": "success",
+              "name": "Run scripts/check-e2e.sh",
+              "number": 5,
+              "startedAt": "2026-10-16T13:44:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:14Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T13:57:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:15Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 10,
+              "startedAt": "2026-10-16T13:57:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:17Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-16T13:57:15Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38910111789/job/117003504662"
+        }
+      ],
+      "status": "completed"
+    },
+    "remote_assets_verified": true,
+    "new_numeric_qualification": false,
+    "numeric_limit": "timeout120 with external physical GPU test; retry guard blocked before launch"
+  },
+  "public_downloads": {
+    "status": "complete",
+    "latest_desktop_tag": "v1.4.6",
+    "assets": [
+      {
+        "name": "MLXL3-Engine-v1.4.6-arm64.json",
+        "unauthenticated_public_download": true,
+        "size": 13587,
+        "sha256": "5be214e495347e7c199513848e814e90b2ac7cb2f04d2aa4b6dfec5f026fdbd9"
+      },
+      {
+        "name": "MLXL3-Engine-v1.4.6-arm64.tar.gz",
+        "unauthenticated_public_download": true,
+        "size": 66957364,
+        "sha256": "0047f7d935129cbfca78f48fca5fe6fdfdd11d975c6d6abe7636881aea2bfc44"
+      },
+      {
+        "name": "MLXL3-Desktop-v1.4.6-b28-Apple-Silicon.dmg",
+        "unauthenticated_public_download": true,
+        "size": 73400205,
+        "sha256": "802916abc14e50affda4f18ec654e1b01cb7b9fd2db5bad5434a4533c4b287f1"
+      }
+    ]
+  },
+  "published_releases": {
+    "engine-v1.4.6": {
+      "id": 415010281,
+      "tag_name": "engine-v1.4.6",
+      "target_commitish": "be030721c982942b7ed179ac57d9254941f25cbb",
+      "published_at": "2026-10-16T13:59:18Z",
+      "html_url": "https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.6",
+      "draft": false,
+      "prerelease": false
+    },
+    "v1.4.6": {
+      "id": 415010370,
+      "tag_name": "v1.4.6",
+      "target_commitish": "be030721c982942b7ed179ac57d9254941f25cbb",
+      "published_at": "2026-10-16T13:59:20Z",
+      "html_url": "https://github.com/0xZKnw/mlxl3/releases/tag/v1.4.6",
+      "draft": false,
+      "prerelease": false
+    }
+  },
+  "qualification": {
+    "updater": "passed locally and on hosted LLVM; real signed DMG/TAR checked",
+    "new_runtime_numeric": "not validated: timeout120 and guard-blocked retry; no fresh parity claim",
+    "native_numerical_source_changed": false,
+    "model_weights_changed": false,
+    "speed_or_kl_improvement_claimed": false
+  },
+  "build": {
+    "status": "complete",
+    "source_commit": "be030721c982942b7ed179ac57d9254941f25cbb",
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/bin/zsh",
+      "scripts/build-macos-dmg.sh"
+    ],
+    "exit_code": 0,
+    "elapsed_s": 116.46740916592535
+  },
+  "local_desktop": {
+    "status": "complete",
+    "command": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "/bin/zsh",
+      "scripts/check-desktop.sh"
+    ],
+    "environment": {
+      "MLXL3_TEST_PYTHON": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "MLXL3_SKIP_METAL_CHECK": "1",
+      "MLXL3_MACOS_SDK": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+      "MLXL3_HOME": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/updater-llvm/test-home",
+      "MLXL3_TEST_APP_DMG": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3-Desktop-v1.4.6-b28-Apple-Silicon.dmg",
+      "MLXL3_TEST_APP_VERSION": "1.4.6",
+      "MLXL3_TEST_ENGINE_ARCHIVE": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3-Engine-v1.4.6-arm64.tar.gz",
+      "MLXL3_TEST_ENGINE_VERSION": "1.4.6"
+    },
+    "installed_app_replaced": false,
+    "exit_code": 0,
+    "elapsed_s": 379.2122901249677
+  },
+  "package_checks": {
+    "passed": 41,
+    "checks": [
+      "source-head",
+      "clean-source-metadata",
+      "desktop-version",
+      "runtime-info",
+      "release-runtime-identity",
+      "engine-manifest-contract",
+      "runtime-sha-libjaccl.dylib",
+      "runtime-sha-libmlx.dylib",
+      "runtime-sha-mlx.metallib",
+      "runtime-sha-mlxl3",
+      "engine-archive-members",
+      "archive-identical-engine.json",
+      "archive-identical-mlxl3",
+      "archive-identical-libmlx.dylib",
+      "archive-identical-libjaccl.dylib",
+      "archive-identical-mlx.metallib",
+      "signature-app",
+      "signature-runtime",
+      "signature-libmlx",
+      "signature-libjaccl",
+      "architecture-desktop",
+      "arm64-desktop",
+      "architecture-runtime",
+      "arm64-runtime",
+      "architecture-libmlx",
+      "arm64-libmlx",
+      "architecture-libjaccl",
+      "arm64-libjaccl",
+      "runtime-load-commands",
+      "runtime-min-os",
+      "math-fonts-present",
+      "chat-timeline",
+      "mcp-preferences",
+      "settings-footer-removed",
+      "dmg-checksum",
+      "dmg-attach",
+      "dmg-app-bytes-identical",
+      "dmg-signature",
+      "relocated-runtime-info",
+      "relocated-runtime",
+      "dmg-detach"
+    ],
+    "dmg_detached": true
+  },
+  "legacy_app_preflight": {
+    "status": "complete",
+    "exit_code": 0,
+    "elapsed_s": 3.2492421250790358,
+    "command": [
+      "build/updater-independent/legacy-dmg-check",
+      "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3-Desktop-v1.4.6-b28-Apple-Silicon.dmg",
+      "1.4.6"
+    ],
+    "scope": "exact Desktop1.4.3 preflight source with CLT26.5 lipo; no user installer launched",
+    "installed_app_replaced": false
+  },
+  "targeted": {
+    "swift": "Swift6 -warnings-as-errors",
+    "signed_preflight_cases": 15,
+    "synthetic_installer_boundaries": 2,
+    "packaging_pytest_passed": 45,
+    "packaging_pytest_seconds": 1.05,
+    "syntax_and_yaml": "zsh -n; 3 workflows BaseLoader/PR+push; cargo fmt --check"
+  },
+  "desktop_coverage": {
+    "sampling_assertions": 821,
+    "sampling_states": 180,
+    "memory_oracle_cases": 240,
+    "idle_lifecycle_assertions": 114,
+    "latex_formulas": 9,
+    "latex_styles": 2,
+    "response_parser_cases": 63,
+    "import_boundary_cases": 150,
+    "import_encoding_samples": 256,
+    "incremental_code_fragments": 1194,
+    "incremental_markdown_fragments": 4845,
+    "download_progress_cases": 300,
+    "mtp_tuning_grids": 64
+  },
+  "ci": {
+    "desktop": {
+      "conclusion": "success",
+      "headSha": "be030721c982942b7ed179ac57d9254941f25cbb",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T13:57:19Z",
+          "conclusion": "success",
+          "databaseId": 117003504662,
+          "name": "desktop-and-protocol",
+          "startedAt": "2026-10-16T13:43:59Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T13:44:01Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T13:44:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:06Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T13:44:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:12Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-10-16T13:44:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:41Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+              "number": 4,
+              "startedAt": "2026-10-16T13:44:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:14Z",
+              "conclusion": "success",
+              "name": "Run scripts/check-e2e.sh",
+              "number": 5,
+              "startedAt": "2026-10-16T13:44:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:14Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T13:57:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:15Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 10,
+              "startedAt": "2026-10-16T13:57:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:57:17Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-16T13:57:15Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38910111789/job/117003504662"
+        }
+      ],
+      "status": "completed"
+    },
+    "native": {
+      "conclusion": "",
+      "headSha": "be030721c982942b7ed179ac57d9254941f25cbb",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T13:47:00Z",
+          "conclusion": "success",
+          "databaseId": 117003504607,
+          "name": "native (ubuntu-latest)",
+          "startedAt": "2026-10-16T13:43:54Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T13:43:56Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T13:43:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:43:59Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T13:43:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:10Z",
+              "conclusion": "success",
+              "name": "Install Rust tooling",
+              "number": 3,
+              "startedAt": "2026-10-16T13:43:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:10Z",
+              "conclusion": "success",
+              "name": "Run cargo fmt --check",
+              "number": 4,
+              "startedAt": "2026-10-16T13:44:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:38Z",
+              "conclusion": "success",
+              "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+              "number": 5,
+              "startedAt": "2026-10-16T13:44:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:11Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --features chat",
+              "number": 6,
+              "startedAt": "2026-10-16T13:44:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:14Z",
+              "conclusion": "success",
+              "name": "Run cargo build --locked --features chat",
+              "number": 7,
+              "startedAt": "2026-10-16T13:45:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:22Z",
+              "conclusion": "success",
+              "name": "Check Metal cache key ordering and allocation regressions",
+              "number": 8,
+              "startedAt": "2026-10-16T13:45:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:22Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T13:45:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:29Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+              "number": 10,
+              "startedAt": "2026-10-16T13:45:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:30Z",
+              "conclusion": "success",
+              "name": "Lint native verification scripts and regressions",
+              "number": 11,
+              "startedAt": "2026-10-16T13:45:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:54Z",
+              "conclusion": "success",
+              "name": "Check bridge and QMM validation tools",
+              "number": 12,
+              "startedAt": "2026-10-16T13:45:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:56Z",
+              "conclusion": "success",
+              "name": "Check LFM2.5 quality evaluator and subprocess failures",
+              "number": 13,
+              "startedAt": "2026-10-16T13:46:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:57Z",
+              "conclusion": "success",
+              "name": "Check idle-memory benchmark failure and parity gates",
+              "number": 14,
+              "startedAt": "2026-10-16T13:46:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:57Z",
+              "conclusion": "skipped",
+              "name": "Compile and lint the shipped MLX bridge",
+              "number": 15,
+              "startedAt": "2026-10-16T13:46:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:57Z",
+              "conclusion": "skipped",
+              "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+              "number": 16,
+              "startedAt": "2026-10-16T13:46:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:57Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 31,
+              "startedAt": "2026-10-16T13:46:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:57Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 32,
+              "startedAt": "2026-10-16T13:46:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:57Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 33,
+              "startedAt": "2026-10-16T13:46:57Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38910111797/job/117003504607"
+        },
+        {
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "databaseId": 117003504755,
+          "name": "kani",
+          "startedAt": "2026-10-16T13:43:53Z",
+          "status": "in_progress",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T13:43:55Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T13:43:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:43:57Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T13:43:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:43Z",
+              "conclusion": "success",
+              "name": "Verify validated API token usage with Kani",
+              "number": 3,
+              "startedAt": "2026-10-16T13:43:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Verify Rust safety contracts with Kani",
+              "number": 4,
+              "startedAt": "2026-10-16T13:44:43Z",
+              "status": "in_progress"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38910111797/job/117003504755"
+        },
+        {
+          "completedAt": "2026-10-16T13:52:30Z",
+          "conclusion": "success",
+          "databaseId": 117003505054,
+          "name": "native (macos-26)",
+          "startedAt": "2026-10-16T13:44:01Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T13:44:03Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T13:44:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:07Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T13:44:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:15Z",
+              "conclusion": "success",
+              "name": "Install Rust tooling",
+              "number": 3,
+              "startedAt": "2026-10-16T13:44:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:16Z",
+              "conclusion": "success",
+              "name": "Run cargo fmt --check",
+              "number": 4,
+              "startedAt": "2026-10-16T13:44:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:00Z",
+              "conclusion": "success",
+              "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+              "number": 5,
+              "startedAt": "2026-10-16T13:44:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:49Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --features chat",
+              "number": 6,
+              "startedAt": "2026-10-16T13:45:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:54Z",
+              "conclusion": "success",
+              "name": "Run cargo build --locked --features chat",
+              "number": 7,
+              "startedAt": "2026-10-16T13:45:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:00Z",
+              "conclusion": "success",
+              "name": "Check Metal cache key ordering and allocation regressions",
+              "number": 8,
+              "startedAt": "2026-10-16T13:45:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:01Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T13:46:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:07Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+              "number": 10,
+              "startedAt": "2026-10-16T13:46:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:07Z",
+              "conclusion": "success",
+              "name": "Lint native verification scripts and regressions",
+              "number": 11,
+              "startedAt": "2026-10-16T13:46:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:47:43Z",
+              "conclusion": "success",
+              "name": "Check bridge and QMM validation tools",
+              "number": 12,
+              "startedAt": "2026-10-16T13:46:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:47:46Z",
+              "conclusion": "success",
+              "name": "Check LFM2.5 quality evaluator and subprocess failures",
+              "number": 13,
+              "startedAt": "2026-10-16T13:47:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:47:48Z",
+              "conclusion": "success",
+              "name": "Check idle-memory benchmark failure and parity gates",
+              "number": 14,
+              "startedAt": "2026-10-16T13:47:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:50:37Z",
+              "conclusion": "success",
+              "name": "Compile and lint the shipped MLX bridge",
+              "number": 15,
+              "startedAt": "2026-10-16T13:47:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:52:22Z",
+              "conclusion": "success",
+              "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+              "number": 16,
+              "startedAt": "2026-10-16T13:50:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:52:23Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 31,
+              "startedAt": "2026-10-16T13:52:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:52:24Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 32,
+              "startedAt": "2026-10-16T13:52:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:52:28Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 33,
+              "startedAt": "2026-10-16T13:52:24Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38910111797/job/117003505054"
+        }
+      ],
+      "status": "in_progress"
+    },
+    "conversion": {
+      "conclusion": "success",
+      "headSha": "be030721c982942b7ed179ac57d9254941f25cbb",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T13:44:19Z",
+          "conclusion": "success",
+          "databaseId": 117003504401,
+          "name": "packing-proof",
+          "startedAt": "2026-10-16T13:43:53Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T13:43:54Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T13:43:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:43:56Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T13:43:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:07Z",
+              "conclusion": "success",
+              "name": "Install CBMC 6.11.0 from the checked release asset",
+              "number": 3,
+              "startedAt": "2026-10-16T13:43:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:17Z",
+              "conclusion": "success",
+              "name": "Verify the shared source under the host address-space model",
+              "number": 4,
+              "startedAt": "2026-10-16T13:44:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:18Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "2026-10-16T13:44:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:18Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-16T13:44:18Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38910111662/job/117003504401"
+        },
+        {
+          "completedAt": "2026-10-16T13:49:33Z",
+          "conclusion": "success",
+          "databaseId": 117003504456,
+          "name": "conversion",
+          "startedAt": "2026-10-16T13:43:59Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T13:44:01Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T13:44:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:05Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T13:44:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:13Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-10-16T13:44:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:40Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5 crosshair-tool==0.0.101 z3-solver==5.1.0.0",
+              "number": 4,
+              "startedAt": "2026-10-16T13:44:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:40Z",
+              "conclusion": "success",
+              "name": "Apply the pinned optional converter patch",
+              "number": 5,
+              "startedAt": "2026-10-16T13:44:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:44:46Z",
+              "conclusion": "success",
+              "name": "Check host contracts and benchmark failure gates",
+              "number": 6,
+              "startedAt": "2026-10-16T13:44:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:45:35Z",
+              "conclusion": "success",
+              "name": "Verify routed CUDA calibration on CPU without cloud credentials",
+              "number": 7,
+              "startedAt": "2026-10-16T13:44:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:46:13Z",
+              "conclusion": "success",
+              "name": "Check deployable router recalibration without cloud credentials",
+              "number": 8,
+              "startedAt": "2026-10-16T13:45:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:19Z",
+              "conclusion": "success",
+              "name": "Attempt symbolic expert map isolation (tensor and GPU paths excluded)",
+              "number": 9,
+              "startedAt": "2026-10-16T13:46:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:20Z",
+              "conclusion": "success",
+              "name": "Search for counterexamples to the three profile failure guards",
+              "number": 10,
+              "startedAt": "2026-10-16T13:49:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:20Z",
+              "conclusion": "success",
+              "name": "Search for counterexamples to routed calibration alignment",
+              "number": 11,
+              "startedAt": "2026-10-16T13:49:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:21Z",
+              "conclusion": "success",
+              "name": "Check CUDA launch contracts without allocating cloud resources",
+              "number": 12,
+              "startedAt": "2026-10-16T13:49:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:27Z",
+              "conclusion": "success",
+              "name": "Check the shared packing source with host sanitizers",
+              "number": 13,
+              "startedAt": "2026-10-16T13:49:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:27Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 25,
+              "startedAt": "2026-10-16T13:49:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:28Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 26,
+              "startedAt": "2026-10-16T13:49:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T13:49:31Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 27,
+              "startedAt": "2026-10-16T13:49:28Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38910111662/job/117003504456"
+        }
+      ],
+      "status": "completed"
+    }
+  },
+  "ci_inspected_counts": {
+    "regression_python_passed": 772,
+    "regression_python_skipped": 115,
+    "native_cpu_passed": 118,
+    "native_cpu_ignored": 3,
+    "macos_mlx_feature_cpu_oracles": 7
+  },
+  "proof_limits": {
+    "swift": "No applicable source verifier for Foundation/AppKit; strict compilation and integration tests, not a formal proof",
+    "rust": "Only Cargo version metadata changed; numerical sources byte-identical to499912cd. Targeted Kani usage step succeeded; full Kani suite in progress at snapshot, not a global proof. Historical bounded proofs/timeouts retained in1.4.5 notes",
+    "gpu": "Physical repeated qualification of this new runtime not completed; hosted CPU/build checks do not prove Metal or full generation"
+  },
+  "native_equivalence": {
+    "baseline_commit": "499912cd9d6955d69cfd425032101d112c6c8c75",
+    "head": "be030721c982942b7ed179ac57d9254941f25cbb",
+    "native_files_compared": 60,
+    "changed_native_files": [],
+    "mlxl3_runtime_sha256": "9cb167afe77f6660cb1f9744cfc3ec27536e463808a0e311501ac598bbd36863",
+    "libraries": {
+      "libmlx.dylib": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2",
+      "libjaccl.dylib": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3",
+      "mlx.metallib": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed"
+    },
+    "libraries_identical_to_1_4_5": {
+      "libmlx.dylib": true,
+      "libjaccl.dylib": true,
+      "mlx.metallib": true
+    }
+  },
+  "numeric_attempts": [
+    {
+      "outcome": "timeout",
+      "timeout_s": 120,
+      "process_exit": -9,
+      "joined": true,
+      "parity": false,
+      "partial_output_retained": true,
+      "report": "numeric/report.json"
+    },
+    {
+      "outcome": "blocked before launch",
+      "model_processes_started": 0,
+      "parity": false,
+      "report": "numeric-quiescent/report.json"
+    }
+  ],
+  "numeric_interruption": {
+    "status": "interrupted",
+    "parity": false,
+    "reason": "Concurrent physical GPU Rust tests in another worktree; no numeric qualification inferred from partial output",
+    "other_process": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/deps/mlxl3_native-139c3f42a710aa58",
+    "other_process_stopped": false,
+    "action": "Own attempt timed out after120s and was killed/joined; second attempt stopped before process start by expanded guard",
+    "other_process_command": "qwen35::tests::dense_smallm_dispatch_matches_serial_prefixes --exact --ignored --nocapture --test-threads=1",
+    "other_process_gpu_test_confirmed": true
+  },
+  "installed_app": {
+    "installed_app_replaced_by_tools": false,
+    "hashes_unchanged_since_before": true,
+    "current_version": "1.4.5",
+    "current_build": "27"
+  },
+  "compatibility_limit": "Old clients already using LLVM lipo may require manual DMG installation; legacy1.4.3 preflight validated on CLT26.5, not retroactively repaired on LLVM",
+  "evidence_archive": {
+    "name": "verification-evidence.tar.gz",
+    "size": 548203,
+    "sha256": "668457a6235389b5b140618ee7d8efee0f3c6cbc0b9b3e4d2501efd61c132983",
+    "verified_entries": 83
+  },
+  "tooling_attempts": [
+    "Draft tag REST lookup returned404; release-ID lookup verified every asset digest",
+    "gh log download first refused terminal escapes; re-downloaded to a file with explicit flag, inspected selected sanitized results"
+  ],
+  "historical_ci_failure": {
+    "source": "62b16b751a3173e2abf9e3cf2bf29b7debad9173",
+    "run_id": 38907063506,
+    "outcome": "LLVM lipo architecture argument parsing failed; retained in evidence"
+  }
+}

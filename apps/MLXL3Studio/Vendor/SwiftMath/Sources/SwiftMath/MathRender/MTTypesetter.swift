@@ -609,13 +609,19 @@ class MTTypesetter {
                     if currentLine.length > 0 {
                         self.addDisplayLine()
                     }
-                    self.addInterElementSpace(prevNode, currentType:atom.type)
-                    let inner =  atom as! MTInner?
+                    let inner = atom as! MTInner?
+                    if inner!.hasFrame { atom.type = .ordinary }
+                    self.addInterElementSpace(prevNode, currentType: atom.type)
                     var display : MTDisplay? = nil
                     if inner!.leftBoundary != nil || inner!.rightBoundary != nil {
                         display = self.makeLeftRight(inner)
                     } else {
-                        display = MTTypesetter.createLineForMathList(inner!.innerList, font:font, style:style, cramped:cramped)
+                        let line = MTTypesetter.createLineForMathList(inner!.innerList, font:font, style:style, cramped:cramped)
+                        if inner!.hasFrame {
+                            line?.addFrame(padding: styleFont.fontSize / 6,
+                                           lineWidth: max(0.5, styleFont.fontSize / 30))
+                        }
+                        display = line
                     }
                     display!.position = currentPosition
                     currentPosition.x += display!.width

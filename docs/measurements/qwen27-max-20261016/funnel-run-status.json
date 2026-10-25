@@ -1,0 +1,39 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "/tmp/mlxl3-q27-max-20261016/funnel_screen.py",
+    "--checkpoint",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--output",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/docs/measurements/qwen27-max-20261016/funnel-profile.json"
+  ],
+  "timeout_seconds": 600,
+  "sources": {
+    "/tmp/mlxl3-q27-max-20261016/funnel_screen.py": "e144bd4378eaf4b6e6fec37eb8750c517ea18d547a18d03fe9ad24843de5fa5e",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/benchmark_smallm.py": "da6d837e11cc4223268c948e134ec1ebb2133037137f4672c3e21ac82a8939f0",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/benchmark_smallm_reuse.py": "cdbc26b38fbd18f8a7dcab3565c40ca569c58a7c6532d46406ed5144e2495134"
+  },
+  "processes_before": [],
+  "power": {
+    "exit_code": 0,
+    "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t100%; discharging; 3:43 remaining present: true\n",
+    "stderr": ""
+  },
+  "thermal": {
+    "exit_code": 0,
+    "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+    "stderr": ""
+  },
+  "swap": {
+    "exit_code": 0,
+    "stdout": "vm.swapusage: total = 4096.00M  used = 3252.19M  free = 843.81M  (encrypted)\n",
+    "stderr": ""
+  },
+  "pid": 9093,
+  "passing_cells": 0,
+  "seconds": 32.3130655,
+  "exit_code": 0,
+  "reaped": true
+}

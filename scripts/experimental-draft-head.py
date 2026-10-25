@@ -32,8 +32,10 @@ def chunk_end(start: int, total: int, chunk: int) -> int:
     return min(start + chunk, total)
 
 
-def decode_inner(packed, k, mcg):
+def decode_inner(packed, k, mcg, mul1=False):
     """EXL3 trellis to [input, output], without rotations, FP16 codewords."""
+    if type(mcg) is not bool or type(mul1) is not bool or (mcg and mul1):
+        raise ValueError("invalid or ambiguous EXL3 codebook")
     if (
         type(k) is not int
         or not 1 <= k <= 8
@@ -66,6 +68,12 @@ def decode_inner(packed, k, mcg):
     values = (bits & 65535).astype(np.uint16).view(np.float16).astype(np.float32) + (
         bits >> 16
     ).astype(np.uint16).view(np.float16).astype(np.float32)
+    if mul1:
+        bits = words * np.uint32(0x83DCD12D)
+        sums = 0x6400 + sum((bits >> shift) & 255 for shift in (0, 8, 16, 24))
+        h = sums.astype(np.uint16).view(np.float16).astype(np.float64)
+        inv, bias = np.array([0x1EEE, 0xC931], dtype=np.uint16).view(np.float16).astype(np.float64)
+        values = h * inv + bias  # One final FP16 rounding, matching the Mul1 FMA.
     inverse = np.empty(256, dtype=int)
     for lane in range(32):
         r, c = lane % 4 * 2, lane // 4
@@ -95,8 +103,8 @@ def rotate128(matrix):
     return (result / np.sqrt(np.float32(128))).reshape(shape)
 
 
-def effective_weight(packed, k, mcg, suh, svh):
-    inner = decode_inner(packed, k, mcg)
+def effective_weight(packed, k, mcg, suh, svh, mul1=False):
+    inner = decode_inner(packed, k, mcg, mul1)
     if (
         suh.shape != (inner.shape[0],)
         or svh.shape != (inner.shape[1],)
@@ -255,8 +263,8 @@ def main():
                 entries[name] = (path, size + 8, info)
     if not {"lm_head.trellis", "lm_head.suh", "lm_head.svh"} <= entries.keys():
         raise ValueError("missing EXL3 head tensors")
-    if "lm_head.mul1" in entries or "lm_head.bias" in entries:
-        raise ValueError("prototype supports only unbiased Default/MCG EXL3 heads")
+    if "lm_head.bias" in entries or {"lm_head.mcg", "lm_head.mul1"} <= entries.keys():
+        raise ValueError("prototype requires an unbiased head with an unambiguous codebook")
 
     def tensor(name):
         path, offset, info = entries["lm_head." + name]
@@ -298,6 +306,7 @@ def main():
                 "lm_head.mcg" in entries,
                 suh,
                 svh[start:end],
+                mul1="lm_head.mul1" in entries,
             )
             if not np.isfinite(weight).all():
                 raise ValueError("nonfinite reconstructed head")

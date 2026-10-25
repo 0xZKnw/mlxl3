@@ -1,5 +1,278 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
+    rows > 0
+        && (1..=64).contains(&experts)
+        && top_k > 0
+        && top_k <= experts as usize
+        && rows.checked_mul(experts).is_some()
+}
+
+#[test]
+fn biased_router_domain_covers_both_simd_halves() {
+    for rows in [
+        i32::MIN,
+        -1,
+        0,
+        1,
+        2,
+        3,
+        7,
+        8,
+        23,
+        24,
+        25,
+        63,
+        64,
+        65,
+        128,
+        266,
+        i32::MAX,
+    ] {
+        for experts in -1..=65 {
+            for top_k in 0..=65 {
+                assert_eq!(
+                    biased_router_domain(rows, experts, top_k),
+                    rows > 0
+                        && experts > 0
+                        && experts <= 64
+                        && top_k > 0
+                        && top_k <= experts as usize
+                        && i64::from(rows) * i64::from(experts) <= i64::from(i32::MAX)
+                );
+            }
+        }
+    }
+    assert!(!biased_router_domain(1, i32::MAX, usize::MAX));
+    assert!(!biased_router_domain(i32::MIN, i32::MIN, 1));
+    assert!(biased_router_domain(i32::MAX, 1, 1));
+    assert!(biased_router_domain(i32::MAX / 64, 64, 64));
+    assert!(!biased_router_domain(i32::MAX / 64 + 1, 64, 64));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn biased_router_domain_bounds_dispatch() {
+    let rows: i32 = kani::any();
+    let experts: i32 = kani::any();
+    let top_k: usize = kani::any();
+    let valid = biased_router_domain(rows, experts, top_k);
+    assert_eq!(
+        valid,
+        rows > 0
+            && experts >= 1
+            && experts <= 64
+            && top_k >= 1
+            && top_k <= experts as usize
+            && i64::from(rows) * i64::from(experts) <= i64::from(i32::MAX)
+    );
+    if valid {
+        assert!((1..=64).contains(&(top_k as i32)));
+        assert!(rows.checked_mul(top_k as i32).is_some());
+    }
+    kani::cover!(valid && rows == 266 && experts == 64 && top_k == 4);
+    kani::cover!(valid && rows == 2 && experts == 33 && top_k == 33);
+    kani::cover!(valid && rows == i32::MAX && experts == 1 && top_k == 1);
+    kani::cover!(!valid && rows == 0);
+    kani::cover!(!valid && rows == i32::MAX && experts == 64);
+    kani::cover!(!valid && top_k == usize::MAX);
+}
+
+#[test]
+fn biased_router_offsets_cover_registered_rows_and_all_expert_widths() {
+    for experts in 1..=64 {
+        for rows in [
+            1,
+            2,
+            3,
+            7,
+            8,
+            23,
+            24,
+            25,
+            63,
+            64,
+            65,
+            128,
+            266,
+            i32::MAX / experts,
+        ] {
+            for top_k in [1, 4.min(experts as usize), experts as usize] {
+                assert!(biased_router_domain(rows, experts, top_k));
+                for row in [0, rows / 2, rows - 1] {
+                    let input = row.checked_mul(experts).unwrap();
+                    let output = row.checked_mul(top_k as i32).unwrap();
+                    assert!(
+                        i64::from(input) + i64::from(experts) - 1
+                            < i64::from(rows) * i64::from(experts)
+                    );
+                    assert!(i64::from(output) + top_k as i64 - 1 < i64::from(rows) * top_k as i64);
+                    assert!(input.checked_add(experts - 1).is_some());
+                    assert!(output.checked_add(top_k as i32 - 1).is_some());
+                }
+            }
+        }
+    }
+}
+
+/// Only an explicit opt-in selects the numerically qualified microblocks.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn lfm_moe_prefill_enabled(qualified: bool, flag: Option<&[u8]>) -> bool {
+    qualified && matches!(flag, Some([b'1']))
+}
+
+#[test]
+fn lfm_moe_prefill_selection_preserves_default_and_explicit_fallback() {
+    for qualified in [false, true] {
+        assert!(!lfm_moe_prefill_enabled(qualified, None));
+        for byte in 0..=u8::MAX {
+            assert_eq!(
+                lfm_moe_prefill_enabled(qualified, Some(&[byte])),
+                qualified && byte == b'1'
+            );
+        }
+        for invalid in [vec![], vec![b'1'; 2], vec![b'1'; 1024], vec![0xff; 1024]] {
+            assert!(!lfm_moe_prefill_enabled(qualified, Some(&invalid)));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn lfm_moe_prefill_selection_respects_qualification_and_override() {
+    let qualified: bool = kani::any();
+    let present: bool = kani::any();
+    let bytes: [u8; 4] = kani::any();
+    // Finite string domain 0..4, constructed without a caller precondition.
+    let length = usize::from(kani::any::<u8>()) % 5;
+    let flag = present.then_some(&bytes[..length]);
+    let enabled = lfm_moe_prefill_enabled(qualified, flag);
+    assert_eq!(
+        enabled,
+        qualified && present && length == 1 && bytes[0] == b'1'
+    );
+    kani::cover!(qualified && !present && !enabled);
+    kani::cover!(qualified && present && length == 1 && bytes[0] == b'1' && enabled);
+    kani::cover!(qualified && present && length == 1 && bytes[0] == b'0' && !enabled);
+    kani::cover!(!qualified && !present && !enabled);
+    kani::cover!(qualified && present && length == 2 && !enabled);
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn lfm_moe_exact_prefill_geometry(
+    hidden: i32,
+    expert_hidden: i32,
+    experts: i32,
+    top_k: usize,
+    mapped_k4_mcg: bool,
+) -> bool {
+    hidden == 2048 && expert_hidden == 1536 && experts == 64 && top_k == 4 && mapped_k4_mcg
+}
+
+#[test]
+fn lfm_moe_exact_prefill_geometry_requires_the_qualified_projection_layout() {
+    assert!(lfm_moe_exact_prefill_geometry(2048, 1536, 64, 4, true));
+    for invalid in [i32::MIN, -1, 0, 1, 2047, 2049, i32::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(invalid, 1536, 64, 4, true));
+    }
+    for invalid in [i32::MIN, -1, 0, 1535, 1537, i32::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(2048, invalid, 64, 4, true));
+    }
+    for invalid in [i32::MIN, -1, 0, 32, 63, 65, i32::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(
+            2048, 1536, invalid, 4, true
+        ));
+    }
+    for invalid in [0, 1, 3, 5, 64, usize::MAX] {
+        assert!(!lfm_moe_exact_prefill_geometry(
+            2048, 1536, 64, invalid, true
+        ));
+    }
+    assert!(!lfm_moe_exact_prefill_geometry(2048, 1536, 64, 4, false));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_moe_exact_prefill_accepts_only_the_qualified_geometry() {
+    let hidden: i32 = kani::any();
+    let expert_hidden: i32 = kani::any();
+    let experts: i32 = kani::any();
+    let top_k: usize = kani::any();
+    let mapped: bool = kani::any();
+    let eligible = lfm_moe_exact_prefill_geometry(hidden, expert_hidden, experts, top_k, mapped);
+    if eligible {
+        assert_eq!(hidden, 2048);
+        assert_eq!(expert_hidden, 1536);
+        assert_eq!(experts, 64);
+        assert_eq!(top_k, 4);
+        assert!(mapped);
+    }
+    if hidden == 2048 && expert_hidden == 1536 && experts == 64 && top_k == 4 && mapped {
+        assert!(eligible);
+    }
+    kani::cover!(eligible);
+    kani::cover!(!eligible && !mapped);
+    kani::cover!(!eligible && top_k == usize::MAX);
+}
+
+/// Validate a complete experimental prefill before mutating any recurrent state.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn lfm_prefill_end(tokens: usize, offset: i32, limit: i32) -> Option<i32> {
+    if tokens == 0 || offset < 0 || limit <= 0 {
+        return None;
+    }
+    let end = offset.checked_add(i32::try_from(tokens).ok()?)?;
+    (end <= limit).then_some(end)
+}
+
+#[test]
+fn lfm_prefill_end_rejects_empty_invalid_and_overflowing_ranges() {
+    for (tokens, offset, limit, expected) in [
+        (0, 0, 4096, None),
+        (1, -1, 4096, None),
+        (1, 0, 0, None),
+        (1, 0, 1, Some(1)),
+        (8, 4090, 4098, Some(4098)),
+        (8, 4090, 4097, None),
+        (1, i32::MAX - 1, i32::MAX, Some(i32::MAX)),
+        (1, i32::MAX, i32::MAX, None),
+        (usize::MAX, 0, i32::MAX, None),
+    ] {
+        assert_eq!(lfm_prefill_end(tokens, offset, limit), expected);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_prefill_end_preserves_context_and_all_block_positions() {
+    let tokens: usize = kani::any();
+    let offset: i32 = kani::any();
+    let limit: i32 = kani::any();
+    let expected = if tokens > 0
+        && offset >= 0
+        && limit > 0
+        && tokens as u128 + offset as u128 <= limit as u128
+    {
+        Some((tokens as u128 + offset as u128) as i32)
+    } else {
+        None
+    };
+    let end = lfm_prefill_end(tokens, offset, limit);
+    assert_eq!(end, expected);
+    if let Some(end) = end {
+        let row: usize = kani::any();
+        kani::assume(row < tokens); // A row produced by iteration over these tokens.
+        assert!(offset.checked_add(row as i32).is_some());
+        assert!(offset + (row as i32) < end);
+        kani::cover!(tokens == 266 && offset == 17 && row == 265);
+        kani::cover!(end == i32::MAX);
+    }
+    kani::cover!(tokens == 0 && end.is_none());
+    kani::cover!(tokens == usize::MAX && end.is_none());
+}
+
 /// Distinguishes every opt-in kernel combination in persisted MTP calibrations.
 pub fn smallm_kernel_key(dense_batch: bool, grouped_mb3: bool) -> u8 {
     u8::from(dense_batch) | (u8::from(grouped_mb3) << 1)
@@ -45,7 +318,8 @@ pub(crate) fn dense_mlp_batch(
     m5: bool,
     enabled: bool,
 ) -> bool {
-    enabled && m5 && hidden == 5120 && (2..=4).contains(&rows) && grouped_exl3 && down_exl3
+    // M3 batching regressed alone; only M2/M4 passed the physical cost screen.
+    enabled && m5 && hidden == 5120 && matches!(rows, 2 | 4) && grouped_exl3 && down_exl3
 }
 
 #[test]
@@ -53,7 +327,7 @@ fn dense_mlp_batch_requires_supported_weights_and_rows() {
     for rows in 0..=9 {
         assert_eq!(
             dense_mlp_batch(rows, 5120, true, true, true, true),
-            (2..=4).contains(&rows)
+            matches!(rows, 2 | 4)
         );
     }
     for (hidden, grouped, down, m5, enabled) in [
@@ -63,7 +337,9 @@ fn dense_mlp_batch_requires_supported_weights_and_rows() {
         (5120, true, true, false, true),
         (5120, true, true, true, false),
     ] {
-        assert!(!dense_mlp_batch(3, hidden, grouped, down, m5, enabled));
+        for rows in [2, 4] {
+            assert!(!dense_mlp_batch(rows, hidden, grouped, down, m5, enabled));
+        }
     }
     assert!(!dense_mlp_batch(
         usize::MAX,
@@ -87,7 +363,7 @@ fn dense_mlp_batch_stays_within_supported_domain() {
     let selected = dense_mlp_batch(rows, hidden, grouped, down, m5, enabled);
     assert_eq!(
         selected,
-        enabled && m5 && hidden == 5120 && rows >= 2 && rows <= 4 && grouped && down
+        enabled && m5 && hidden == 5120 && (rows == 2 || rows == 4) && grouped && down
     );
     if selected {
         assert!(rows <= i32::MAX as usize);
@@ -98,10 +374,11 @@ fn dense_mlp_batch_stays_within_supported_domain() {
         }
     }
     kani::cover!(selected && rows == 2);
-    kani::cover!(selected && rows == 3);
+    kani::cover!(!selected && rows == 3 && enabled && m5 && grouped && down && hidden == 5120);
     kani::cover!(selected && rows == 4);
     kani::cover!(!selected && !grouped);
     kani::cover!(!selected && rows == 8);
+    kani::cover!(!selected && rows == 2 && !enabled && m5 && grouped && down && hidden == 5120);
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
@@ -940,4 +1217,561 @@ fn memory_saver_releases_every_unused_buffer() {
     kani::cover!(saver && bytes == 1 && release);
     kani::cover!(!saver && bytes == 536_870_912 && !release);
     kani::cover!(saver && bytes == u64::MAX && release);
+}
+
+/// Logical F16 states retained by batch-one LFM2, excluding backing storage,
+/// allocator caches and temporary activations. Signed totals match Swift Int.
+#[cfg(any(feature = "mlx", test, kani))]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct LfmContextMemory {
+    fixed_bytes: i64,
+    bytes_per_token: i64,
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+impl LfmContextMemory {
+    pub(crate) fn attention(self, kv_heads: i32, head_dim: i32) -> Option<Self> {
+        if kv_heads <= 0 || head_dim <= 0 {
+            return None;
+        }
+        // Two F16 tensors, each [1, kv_heads, tokens, head_dim].
+        let bytes = i64::from(kv_heads)
+            .checked_mul(i64::from(head_dim))?
+            .checked_mul(4)?;
+        Some(Self {
+            bytes_per_token: self.bytes_per_token.checked_add(bytes)?,
+            ..self
+        })
+    }
+
+    pub(crate) fn convolution(self, length: i32, dim: i32) -> Option<Self> {
+        if length <= 0 || dim <= 0 {
+            return None;
+        }
+        // A F16 history view [1, length - 1, dim].
+        let bytes = i64::from(length - 1)
+            .checked_mul(i64::from(dim))?
+            .checked_mul(2)?;
+        Some(Self {
+            fixed_bytes: self.fixed_bytes.checked_add(bytes)?,
+            ..self
+        })
+    }
+
+    #[cfg(any(feature = "mlx", test))]
+    pub(crate) fn into_json(self) -> serde_json::Value {
+        serde_json::json!({
+            "fixed_bytes": self.fixed_bytes,
+            "draft_bytes_per_token": null,
+            "layers": [{"bytes_per_token": self.bytes_per_token, "step": 1, "max_tokens": null}]
+        })
+    }
+}
+
+#[test]
+fn lfm_context_memory_matches_independent_tensor_shapes() {
+    // LFM2.5-24B-A2B: ten attention and thirty convolution layers.
+    let mut profile = LfmContextMemory::default();
+    for layer in 0..40 {
+        profile = if layer % 4 == 3 {
+            profile.attention(8, 64).unwrap()
+        } else {
+            profile.convolution(3, 2048).unwrap()
+        };
+    }
+    assert_eq!(
+        (profile.fixed_bytes, profile.bytes_per_token),
+        (245_760, 20_480)
+    );
+    for tokens in [1, 2, 23, 24, 255, 256, 257, 32_768] {
+        // Independent shapes include batch, both K/V tensors and F16 item size.
+        let kv_shape = [10_i64, 2, 1, 8, tokens, 64, 2];
+        let conv_shape = [30_i64, 1, 2, 2048, 2];
+        let expected = kv_shape.iter().product::<i64>() + conv_shape.iter().product::<i64>();
+        assert_eq!(
+            profile.fixed_bytes + profile.bytes_per_token * tokens,
+            expected
+        );
+    }
+    let json = profile.into_json();
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "fixed_bytes": 245760, "draft_bytes_per_token": null,
+            "layers": [{"bytes_per_token": 20480, "step": 1, "max_tokens": null}]
+        })
+    );
+    let wire =
+        serde_json::to_vec(&serde_json::json!({"type":"ready", "context_memory":json})).unwrap();
+    let decoded: serde_json::Value = serde_json::from_slice(&wire).unwrap();
+    assert_eq!(
+        decoded["context_memory"]["layers"][0]["bytes_per_token"],
+        20480
+    );
+}
+
+#[test]
+fn lfm_context_memory_supports_empty_history_and_mixed_layer_geometry() {
+    let empty = LfmContextMemory::default();
+    assert_eq!(empty.convolution(1, 2048), Some(empty));
+    let profile = empty
+        .attention(1, 2)
+        .unwrap()
+        .attention(2, 4)
+        .unwrap()
+        .convolution(4, 16)
+        .unwrap();
+    assert_eq!((profile.fixed_bytes, profile.bytes_per_token), (96, 40));
+    assert_eq!(empty.into_json()["fixed_bytes"], 0);
+}
+
+#[test]
+fn lfm_context_memory_rejects_invalid_dimensions_without_changing_state() {
+    let valid = LfmContextMemory::default()
+        .attention(8, 64)
+        .unwrap()
+        .convolution(3, 2048)
+        .unwrap();
+    for invalid in [i32::MIN, -1, 0] {
+        assert_eq!(valid.attention(invalid, 64), None);
+        assert_eq!(valid.attention(8, invalid), None);
+        assert_eq!(valid.convolution(invalid, 2048), None);
+        assert_eq!(valid.convolution(3, invalid), None);
+    }
+    assert_eq!((valid.fixed_bytes, valid.bytes_per_token), (8192, 2048));
+}
+
+#[test]
+fn lfm_context_memory_rejects_product_and_sum_overflow() {
+    let empty = LfmContextMemory::default();
+    assert_eq!(empty.attention(i32::MAX, i32::MAX), None);
+    // The largest single convolution fits in i64; a second one must not wrap.
+    let large = empty.convolution(i32::MAX, i32::MAX).unwrap();
+    assert!(large.fixed_bytes > i64::MAX / 2);
+    assert_eq!(large.convolution(i32::MAX, i32::MAX), None);
+    let near_limit = LfmContextMemory {
+        fixed_bytes: i64::MAX - 2,
+        bytes_per_token: i64::MAX - 4,
+    };
+    assert_eq!(near_limit.convolution(2, 1).unwrap().fixed_bytes, i64::MAX);
+    assert_eq!(near_limit.convolution(2, 2), None);
+    assert_eq!(
+        near_limit.attention(1, 1).unwrap().bytes_per_token,
+        i64::MAX
+    );
+    assert_eq!(near_limit.attention(1, 2), None);
+}
+
+#[test]
+fn lfm_context_memory_sampled_dimensions_match_wide_integer_oracle() {
+    for first in [i32::MIN, -1, 0, 1, 2, 8, 64, 2048, i32::MAX] {
+        for second in [i32::MIN, -1, 0, 1, 2, 8, 64, 2048, i32::MAX] {
+            let empty = LfmContextMemory::default();
+            let expected_attention = (first > 0 && second > 0)
+                .then(|| i128::from(first) * i128::from(second) * 4)
+                .and_then(|n| i64::try_from(n).ok());
+            let expected_conv = (first > 0 && second > 0)
+                .then(|| (i128::from(first) - 1) * i128::from(second) * 2)
+                .and_then(|n| i64::try_from(n).ok());
+            assert_eq!(
+                empty.attention(first, second).map(|p| p.bytes_per_token),
+                expected_attention
+            );
+            assert_eq!(
+                empty.convolution(first, second).map(|p| p.fixed_bytes),
+                expected_conv
+            );
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_context_attention_matches_f16_shapes_and_rejects_overflow() {
+    let total: i64 = kani::any();
+    let heads: i32 = kani::any();
+    kani::assume(total >= 0); // Every reachable accumulator starts at zero and only adds.
+    let profile = LfmContextMemory {
+        fixed_bytes: 0,
+        bytes_per_token: total,
+    };
+    // Full i32 head count, actual LFM2.5 head dimension; no loops or stubs.
+    let expected = (heads > 0).then(|| i128::from(total) + i128::from(heads) * 256);
+    let expected = expected.and_then(|n| i64::try_from(n).ok());
+    let actual = profile.attention(heads, 64);
+    assert_eq!(actual.map(|p| p.bytes_per_token), expected);
+    if let Some(result) = actual {
+        assert_eq!(result.fixed_bytes, 0);
+    }
+    kani::cover!(heads == 8 && total == 0 && actual.is_some());
+    kani::cover!(heads == 0 && actual.is_none());
+    kani::cover!(heads == 1 && total == i64::MAX && actual.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_context_conv_matches_f16_history_and_rejects_overflow() {
+    let total: i64 = kani::any();
+    let length: i32 = kani::any();
+    kani::assume(total >= 0);
+    let profile = LfmContextMemory {
+        fixed_bytes: total,
+        bytes_per_token: 0,
+    };
+    // Full i32 history length, actual LFM2.5 hidden dimension.
+    let expected = (length > 0).then(|| i128::from(total) + (i128::from(length) - 1) * 4096);
+    let expected = expected.and_then(|n| i64::try_from(n).ok());
+    let actual = profile.convolution(length, 2048);
+    assert_eq!(actual.map(|p| p.fixed_bytes), expected);
+    if let Some(result) = actual {
+        assert_eq!(result.bytes_per_token, 0);
+    }
+    kani::cover!(length == 3 && total == 0 && actual.is_some());
+    kani::cover!(length == 1 && total == i64::MAX && actual.is_some());
+    kani::cover!(length == 0 && actual.is_none());
+    kani::cover!(length == 2 && total == i64::MAX && actual.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn lfm_context_memory_small_dimensions_match_wide_oracle() {
+    let total: i64 = kani::any();
+    let first: i8 = kani::any();
+    let second: i8 = kani::any();
+    kani::assume(total >= 0);
+    let profile = LfmContextMemory {
+        fixed_bytes: total,
+        bytes_per_token: total,
+    };
+    let positive = first > 0 && second > 0;
+    let attention = positive
+        .then(|| i128::from(total) + i128::from(first) * i128::from(second) * 4)
+        .and_then(|n| i64::try_from(n).ok());
+    let conv = positive
+        .then(|| i128::from(total) + (i128::from(first) - 1) * i128::from(second) * 2)
+        .and_then(|n| i64::try_from(n).ok());
+    let actual_attention = profile.attention(i32::from(first), i32::from(second));
+    let actual_conv = profile.convolution(i32::from(first), i32::from(second));
+    assert_eq!(actual_attention.map(|p| p.bytes_per_token), attention);
+    assert_eq!(actual_conv.map(|p| p.fixed_bytes), conv);
+    if let Some(result) = actual_attention {
+        assert_eq!(result.fixed_bytes, total);
+    }
+    if let Some(result) = actual_conv {
+        assert_eq!(result.bytes_per_token, total);
+    }
+    kani::cover!(first == 1 && second == 1 && total == 0 && actual_attention.is_some());
+    kani::cover!(first == 1 && second == 127 && total == i64::MAX && actual_conv.is_some());
+    kani::cover!(first == 127 && second == 127 && total == i64::MAX && actual_conv.is_none());
+    kani::cover!(first == i8::MIN && actual_attention.is_none() && actual_conv.is_none());
+}
+
+/// The observed terminal event, independent of token-count heuristics in clients.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GenerationStopReason {
+    Eos,
+    MaxTokens,
+    ContextFull,
+}
+
+impl GenerationStopReason {
+    pub fn from_round(eos_observed: bool, context_full: bool) -> Self {
+        if eos_observed {
+            Self::Eos
+        } else if context_full {
+            Self::ContextFull
+        } else {
+            Self::MaxTokens
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "eos" => Some(Self::Eos),
+            "max_tokens" => Some(Self::MaxTokens),
+            "context_full" => Some(Self::ContextFull),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Eos => "eos",
+            Self::MaxTokens => "max_tokens",
+            Self::ContextFull => "context_full",
+        }
+    }
+
+    pub fn openai_finish_reason(self) -> &'static str {
+        match self {
+            Self::Eos => "stop",
+            Self::MaxTokens | Self::ContextFull => "length",
+        }
+    }
+}
+
+#[test]
+fn generation_stop_reason_preserves_cause_and_openai_mapping() {
+    use GenerationStopReason::{ContextFull, Eos, MaxTokens};
+    for (eos, full, expected, finish) in [
+        (true, false, Eos, "stop"),
+        (true, true, Eos, "stop"),
+        (false, false, MaxTokens, "length"),
+        (false, true, ContextFull, "length"),
+    ] {
+        let reason = GenerationStopReason::from_round(eos, full);
+        assert_eq!(reason, expected);
+        assert_eq!(reason.openai_finish_reason(), finish);
+        assert_eq!(GenerationStopReason::parse(reason.as_str()), Some(reason));
+    }
+    for invalid in [
+        "",
+        "stop",
+        "length",
+        "EOS",
+        "max_tokens ",
+        "context_full\n",
+        "cancelled",
+        "error",
+    ] {
+        assert_eq!(GenerationStopReason::parse(invalid), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn generation_stop_reason_matches_observed_terminal_event() {
+    let eos: bool = kani::any();
+    let full: bool = kani::any();
+    let reason = GenerationStopReason::from_round(eos, full);
+    assert_eq!(reason == GenerationStopReason::Eos, eos);
+    assert_eq!(reason == GenerationStopReason::ContextFull, !eos && full);
+    assert_eq!(reason == GenerationStopReason::MaxTokens, !eos && !full);
+    kani::cover!(eos && !full);
+    kani::cover!(!eos && full);
+    kani::cover!(!eos && !full);
+    kani::cover!(eos && full);
+}
+
+/// Enable the qualified layout by default; explicit malformed values stay off.
+pub fn exl3_lane_order_enabled(value: Option<&str>) -> bool {
+    value.is_none_or(|value| value == "1")
+}
+
+/// Keep persisted calibration profiles distinct for both activation layouts.
+pub fn exl3_lane_order_key(enabled: bool) -> u8 {
+    u8::from(enabled)
+}
+
+/// Exact inventory geometries screened in Q27-16, with stock large-M fallback.
+#[cfg(any(feature = "mlx", test, kani))]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn exl3_lane_order(
+    rows: i32,
+    input: i32,
+    output: i32,
+    k: usize,
+    grouped: bool,
+    mul1: bool,
+    m5: bool,
+    enabled: bool,
+) -> bool {
+    enabled
+        && m5
+        && mul1
+        && matches!(rows, 1 | 2)
+        && match (input, output, grouped) {
+            (5120, 16384, true) => k == 2,
+            (5120, 34816, true) => (1..=3).contains(&k),
+            (5120, 248320, false) => k == 3,
+            (5120, 1024, false) => matches!(k, 3 | 4),
+            (5120, 12288, false) => matches!(k, 1 | 2),
+            (5120, 10240, false) => k == 1,
+            (5120, 6144, false) => k == 2,
+            (6144, 5120, false) => matches!(k, 2 | 3),
+            (17408, 5120, false) => (1..=3).contains(&k),
+            _ => false,
+        }
+}
+
+/// Within each tile16, group four values used by the same SIMD lane.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn exl3_lane_source_index(index: u32) -> u32 {
+    let within = index & 15;
+    (index & !15) | ((within & 12) >> 1) | (within & 1) | ((within & 2) << 2)
+}
+
+#[test]
+fn exl3_lane_order_default_is_on_and_explicit_values_are_strict() {
+    for (option, expected) in [
+        (None, true),
+        (Some(""), false),
+        (Some("0"), false),
+        (Some("1"), true),
+        (Some("01"), false),
+        (Some("true"), false),
+        (Some("1 "), false),
+        (Some("１"), false),
+        (Some("1\0"), false),
+    ] {
+        assert_eq!(exl3_lane_order_enabled(option), expected);
+    }
+    assert_eq!(exl3_lane_order_key(false), 0);
+    assert_eq!(exl3_lane_order_key(true), 1);
+}
+
+#[test]
+fn exl3_lane_order_matches_all_sixteen_inventory_shapes_and_fallbacks() {
+    let inventory = [
+        (5120, 16384, 2, true),
+        (5120, 34816, 1, true),
+        (5120, 34816, 2, true),
+        (5120, 34816, 3, true),
+        (5120, 248320, 3, false),
+        (6144, 5120, 2, false),
+        (17408, 5120, 1, false),
+        (17408, 5120, 2, false),
+        (5120, 1024, 3, false),
+        (5120, 12288, 1, false),
+        (5120, 12288, 2, false),
+        (6144, 5120, 3, false),
+        (17408, 5120, 3, false),
+        (5120, 1024, 4, false),
+        (5120, 10240, 1, false),
+        (5120, 6144, 2, false),
+    ];
+    for (input, output, k, grouped) in inventory {
+        for rows in [1, 2] {
+            assert!(exl3_lane_order(
+                rows, input, output, k, grouped, true, true, true
+            ));
+        }
+        for rows in [i32::MIN, -1, 0, 3, 4, 8, 24, i32::MAX] {
+            assert!(!exl3_lane_order(
+                rows, input, output, k, grouped, true, true, true
+            ));
+        }
+        for (mul1, m5, enabled) in [
+            (false, true, true),
+            (true, false, true),
+            (true, true, false),
+        ] {
+            assert!(!exl3_lane_order(
+                1, input, output, k, grouped, mul1, m5, enabled
+            ));
+        }
+    }
+    for (input, output, k, grouped) in [
+        (2048, 5120, 2, false),
+        (5120, 1025, 3, false),
+        (5120, 16384, 2, false),
+        (6144, 5120, 1, false),
+        (5120, 248320, 2, false),
+        (17408, 5120, 4, false),
+        (5120, 34816, 7, true),
+        (5120, 34816, usize::MAX, true),
+        (i32::MAX, i32::MAX, 2, false),
+    ] {
+        assert!(!exl3_lane_order(
+            1, input, output, k, grouped, true, true, true
+        ));
+    }
+}
+
+#[test]
+fn exl3_lane_permutation_matches_independent_table_for_every_inventory_input() {
+    let expected = [0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15];
+    for input in [5120u32, 6144, 17408] {
+        let mut seen = vec![false; input as usize];
+        for index in 0..input {
+            let mapped = exl3_lane_source_index(index);
+            assert_eq!(mapped, (index / 16) * 16 + expected[(index % 16) as usize]);
+            assert!(mapped < input && !seen[mapped as usize]);
+            seen[mapped as usize] = true;
+        }
+        assert!(seen.into_iter().all(|value| value));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn exl3_lane_order_default_and_bounded_explicit_values() {
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let present: bool = kani::any();
+    let decoded = std::str::from_utf8(&bytes[..length]);
+    let value = decoded.unwrap_or("");
+    let enabled = exl3_lane_order_enabled(present.then_some(value));
+    assert_eq!(enabled, !present || (length == 1 && bytes[0] == b'1'));
+    assert_eq!(exl3_lane_order_key(enabled), u8::from(enabled));
+    kani::cover!(!present && enabled);
+    kani::cover!(present && length == 1 && bytes[0] == b'1' && enabled);
+    kani::cover!(present && length == 1 && bytes[0] == b'0' && !enabled);
+    kani::cover!(present && length == 0 && !enabled);
+    kani::cover!(present && decoded.is_err() && !enabled);
+    kani::cover!(present && length > 1 && !enabled);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn exl3_lane_layout_key_distinguishes_options() {
+    let enabled: bool = kani::any();
+    let other: bool = kani::any();
+    let key = exl3_lane_order_key(enabled);
+    assert!(key <= 1);
+    assert_eq!(key == exl3_lane_order_key(other), enabled == other);
+    kani::cover!(key == 0);
+    kani::cover!(key == 1);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn exl3_lane_permutation_is_bijective_and_preserves_tile_bounds() {
+    let index: u32 = kani::any();
+    let other: u32 = kani::any();
+    let mapped = exl3_lane_source_index(index);
+    assert_eq!(mapped / 16, index / 16);
+    assert_eq!(
+        exl3_lane_source_index(exl3_lane_source_index(mapped)),
+        index
+    );
+    assert_eq!(mapped == exl3_lane_source_index(other), index == other);
+    kani::cover!(index == 2 && mapped == 8);
+    kani::cover!(index == u32::MAX && mapped == u32::MAX);
+    kani::cover!(index > 15 && mapped != index);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn exl3_lane_order_preserves_shape_and_large_m_fallback() {
+    let rows: i32 = kani::any();
+    let input: i32 = kani::any();
+    let output: i32 = kani::any();
+    let k: usize = kani::any();
+    let grouped: bool = kani::any();
+    let mul1: bool = kani::any();
+    let m5: bool = kani::any();
+    let enabled: bool = kani::any();
+    let selected = exl3_lane_order(rows, input, output, k, grouped, mul1, m5, enabled);
+    if selected {
+        assert!(enabled && m5 && mul1 && (rows == 1 || rows == 2));
+        assert!(matches!(input, 5120 | 6144 | 17408));
+        assert!(output > 0 && output <= 248320 && output % 128 == 0);
+        assert!((1..=4).contains(&k));
+        assert!(!grouped || (input == 5120 && matches!(output, 16384 | 34816)));
+        let index: u32 = kani::any();
+        if index < input as u32 {
+            assert!(exl3_lane_source_index(index) < input as u32);
+        }
+    }
+    if rows >= 3 || !enabled || !mul1 || !m5 {
+        assert!(!selected);
+    }
+    kani::cover!(selected && rows == 1 && output == 248320);
+    kani::cover!(selected && rows == 2 && grouped && k == 1);
+    kani::cover!(selected && input == 6144);
+    kani::cover!(selected && input == 17408);
+    kani::cover!(rows == 3 && enabled && !selected);
+    kani::cover!(!enabled && rows == 1 && !selected);
 }

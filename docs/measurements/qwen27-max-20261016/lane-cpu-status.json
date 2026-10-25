@@ -1,0 +1,119 @@
+{
+  "status": "cpu_complete_gpu_unexecuted",
+  "gpu_executed": false,
+  "tests": {
+    "passed": 33,
+    "base": 5,
+    "lane": 28,
+    "ignored": 0
+  },
+  "selftest": {
+    "lane_cases": 46880,
+    "mutations_detected": 192,
+    "actual_identity_order_mutation_rejected": true
+  },
+  "properties": [
+    "Single changed MSL activation-load block; exact roundtrip for each stock shader",
+    "Permutation is a bijection at dimensions16,128,512,5120,17408; all32lanes and alltiles",
+    "Independent CPU wrapper oracle: M1/M2,groups1/2/3,8tiles,two calls; one index allocation and two take calls",
+    "Explicit native M1 NT; M2 dispatch unchanged",
+    "Real CLI preserves partial evidence and resets parity=false even after prior parity=true; ValueError,TimeoutError,KeyboardInterrupt",
+    "Real CLI refuses existing output and nonregistered39pairs before report creation",
+    "Base module symbols restored on success,error,interruption,parse rejection"
+  ],
+  "verification_kind": "finite exhaustive index/basis checks and deterministic CPU tests, not a formal proof",
+  "crosshair": {
+    "name": "crosshair",
+    "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m crosshair check /tmp/mlxl3-q27-max-20261016/lane_screen.py --analysis_kind=PEP316 --per_condition_timeout=10",
+    "chunk_id": "142e21",
+    "wall_time_seconds": 0.000005292,
+    "exit_code": 1,
+    "original_token_count": 20,
+    "output": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python: No module named crosshair\n",
+    "status": "unavailable",
+    "verified": false
+  },
+  "initial_failure": "lane-cpu-initial.json retains initial Ruff88-column format/lint refusals; corrected to explicit repository100-column config",
+  "final_results": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "tests",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q /tmp/mlxl3-q27-max-20261016/test_funnel_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "71ecef",
+        "wall_time_seconds": 0.119898167,
+        "exit_code": 0,
+        "original_token_count": 25,
+        "output": ".................................                                        [100%]\n33 passed in 0.13s\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "format",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff format --check --config /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/pyproject.toml /tmp/mlxl3-q27-max-20261016/lane_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "c8997f",
+        "wall_time_seconds": 0.000006125,
+        "exit_code": 0,
+        "original_token_count": 7,
+        "output": "2 files already formatted\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "lint",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff check --config /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/pyproject.toml --select E,F,I,B,SIM,PLW /tmp/mlxl3-q27-max-20261016/lane_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "1e4429",
+        "wall_time_seconds": 0.0000095,
+        "exit_code": 0,
+        "original_token_count": 5,
+        "output": "All checks passed!\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "compile",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m py_compile /tmp/mlxl3-q27-max-20261016/lane_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "7a5c01",
+        "wall_time_seconds": 0.000004541,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    }
+  ],
+  "files": {
+    "/tmp/mlxl3-q27-max-20261016/lane_screen.py": {
+      "sha256": "16196a9b332bff512298709a19c9b47d711d966f6a1f12a287c1f9bf239c62c8",
+      "bytes": 8547
+    },
+    "/tmp/mlxl3-q27-max-20261016/test_lane_screen.py": {
+      "sha256": "c8e59958eaaa45f18e831708a77898fba46c666aa8a4a0fa9d9391e72351a2d2",
+      "bytes": 7064
+    },
+    "/tmp/mlxl3-q27-max-20261016/funnel_screen.py": {
+      "sha256": "e144bd4378eaf4b6e6fec37eb8750c517ea18d547a18d03fe9ad24843de5fa5e",
+      "bytes": 11129
+    },
+    "/tmp/mlxl3-q27-max-20261016/test_funnel_screen.py": {
+      "sha256": "da8480fc1e55517ae1de0cd1ca6e5bc5e23935dbfa76946d46fc3c867e1c4626",
+      "bytes": 1527
+    },
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/benchmark_smallm.py": {
+      "sha256": "da6d837e11cc4223268c948e134ec1ebb2133037137f4672c3e21ac82a8939f0",
+      "bytes": 16856
+    },
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/benchmark_smallm_reuse.py": {
+      "sha256": "cdbc26b38fbd18f8a7dcab3565c40ca569c58a7c6532d46406ed5144e2495134",
+      "bytes": 12214
+    }
+  },
+  "limits": [
+    "No GPU kernel compilation/execution or physical parity measured",
+    "No timing or delivered-token speed measured",
+    "MSL/MLX/allocator/concurrency not formally verified",
+    "Pytest TimeoutError injection tests failure-state handling; outer GPU process watchdog/join remains parent responsibility"
+  ]
+}

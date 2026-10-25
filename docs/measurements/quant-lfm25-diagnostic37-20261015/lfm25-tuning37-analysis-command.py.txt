@@ -1,0 +1,427 @@
+"""Registered CPU-only diagnostic37 analysis. Run only after explicit GPU-stop GO."""
+import hashlib
+import json
+import math
+import os
+import platform
+import struct
+import sys
+import time
+from collections import Counter
+from pathlib import Path
+
+import numpy as np
+from safetensors.numpy import load_file
+from eval_lfm25_quality import losses
+from diagnose_lfm25_routes import LAYERS, SOURCE_REVISION, SOURCE_SHARDS, validate_plan
+
+ROOT = Path.cwd()
+DATA = ROOT / 'build/lfm25-tuning37'
+RECOVERY = ROOT / 'build/lfm25-tuning37-routes-recovery'
+OUTPUT = ROOT / 'build/lfm25-tuning37-comparison.json'
+if OUTPUT.exists():
+    raise FileExistsError('Preserve previous diagnostic37 analysis')
+started = time.monotonic()
+report = {
+    'status': 'running', 'publication': False, 'causal_interpretation': False,
+    'historical23_causal_interpretation': False, 'capture_mode': 'composite_recovery',
+    'original_attempt_status': 'failed', 'stage': 'provenance', 'windows': {},
+    'protocol': '1024 frozen imposed inputs/labels per window; all positions; no added BOS; full128000 vocabulary; production losses scorer/F64; segments128; strict warm-cache bytes and registered repeatability gates',
+    'provenance': {'command': [sys.executable, str(Path(__file__).resolve())], 'working_directory': str(ROOT),
+                   'python': sys.version, 'platform': platform.platform(), 'numpy': np.__version__,
+                   'environment': {k: os.environ.get(k) for k in ('PYTHONPATH','OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','VECLIB_MAXIMUM_THREADS')}}}
+
+
+def sha(path):
+    with Path(path).open('rb') as handle:
+        return hashlib.file_digest(handle,'sha256').hexdigest()
+
+
+def save():
+    report['elapsed_seconds'] = time.monotonic()-started
+    temporary = OUTPUT.with_suffix('.tmp')
+    temporary.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+    temporary.replace(OUTPUT)
+
+
+def load_report(path, allowed_statuses=('complete',)):
+    path = ROOT / path
+    item = json.loads(path.read_text())
+    if not isinstance(item,dict) or item.get('status') not in allowed_statuses:
+        raise ValueError('Incomplete provenance: '+str(path))
+    report['provenance'].setdefault('reports',{})[str(path)]=sha(path)
+    return item
+
+
+# Functions checked_array, checked_routes, bitexact and score below are copied verbatim
+# from the archived diagnostic36 CPU command, whose SHA is recorded in provenance.
+
+
+def checked_array(path, expected):
+    if sha(path) != expected['sha256'] or path.stat().st_size != expected['bytes']:
+        raise ValueError('Array SHA/bytes mismatch: ' + str(path))
+    values = np.load(path, mmap_mode='r', allow_pickle=False)
+    if values.shape != (1024, 128000) or str(values.dtype) != expected['dtype']:
+        raise ValueError('Array shape/dtype mismatch: ' + str(path))
+    for first in range(0, 1024, 32):
+        if not np.isfinite(values[first:first+32]).all():
+            raise ValueError('Nonfinite array: ' + str(path))
+    return values, {'path': str(path), 'sha256': expected['sha256'], 'bytes': expected['bytes'],
+                    'shape': [1024, 128000], 'dtype': str(values.dtype), 'finite_values_checked': values.size, 'sha_verified': True}
+
+
+def checked_routes(path, expected):
+    if sha(path) != expected['sha256'] or path.stat().st_size != expected['bytes']:
+        raise ValueError('Route SHA/bytes mismatch: ' + str(path))
+    values = load_file(path)
+    if set(values) != {f'{key}.{kind}' for key in LAYERS for kind in ('ids','weights')}:
+        raise ValueError('Missing route tensor or unexpected layer')
+    result = {}
+    for key in LAYERS:
+        ids, weights = values[key+'.ids'], values[key+'.weights']
+        if ids.shape != (1024,4) or weights.shape != (1024,4) or ids.dtype != np.int64 or weights.dtype != np.float16:
+            raise ValueError('Wrong route shape/dtype')
+        if not np.isfinite(weights).all() or not ((ids >= 0) & (ids < 64)).all() or not (weights > 0).all():
+            raise ValueError('Nonfinite/out-of-range route')
+        if not (np.diff(np.sort(ids, axis=1), axis=1) > 0).all() or not (np.abs(weights.astype(np.float64).sum(1)-1) <= 0.002).all():
+            raise ValueError('Repeated experts or invalid affinity mass')
+        result[key] = (ids, weights)
+    return result, {'path':str(path), 'sha256':expected['sha256'], 'bytes':expected['bytes'], 'layers':38, 'tokens_per_layer':1024, 'top_k':4, 'values_checked':38*1024*4*2, 'sha_verified':True}
+
+
+def bitexact(a,b):
+    if a.shape != b.shape or a.dtype != b.dtype:
+        return False
+    return all(np.array_equal(a[first:first+32].view(np.uint16), b[first:first+32].view(np.uint16)) for first in range(0,len(a),32))
+
+
+def score(reference, actual, labels):
+    total, segment = np.zeros(3,dtype=np.float64), np.zeros(3,dtype=np.float64)
+    matches, segment_matches, segments = 0,0,[]
+    for index,label in enumerate(labels):
+        item = np.asarray(losses(actual[index], reference[index], label),dtype=np.float64)
+        if item.shape != (3,) or not np.isfinite(item).all() or item[2] < -1e-9:
+            raise ValueError('Invalid F64 scorer output')
+        total += item; segment += item
+        same = int(np.argmax(actual[index]) == np.argmax(reference[index]))
+        matches += same; segment_matches += same
+        if (index+1)%128 == 0:
+            mean=segment/128
+            segments.append({'first':index-127,'last':index,'positions':128,'actual_nll':float(mean[0]),'reference_nll':float(mean[1]),'mean_kl_reference_to_actual':float(mean[2]),'top1_matches':segment_matches})
+            segment.fill(0);segment_matches=0
+    mean=total/1024
+    return {'positions':1024,'vocabulary':128000,'actual_nll':float(mean[0]),'reference_nll':float(mean[1]),'actual_ppl':math.exp(mean[0]),'reference_ppl':math.exp(mean[1]),'mean_kl_reference_to_actual':float(mean[2]),'top1_matches':matches,'top1_fraction':matches/1024,'segments':segments}
+
+
+def raw_cache(data):
+    if len(data)<48 or data[:8]!=b'EX3ATUNE' or struct.unpack_from('<II',data,8)!=(1,32) or (len(data)-16)%32:
+        raise ValueError('Invalid/incomplete raw tuning cache')
+    rows=[]; maps={}; occurrences={}; conflicts=[]
+    for number,values in enumerate(struct.iter_unpack('<QiiiiII',data[16:])):
+        key,tag,block,sms,concurrency,reserved0,reserved1=values
+        key=f'{key:016x}'
+        geometry={'tag':tag,'block_dim':block,'num_sms':sms,'concurrency':concurrency}
+        if min(block,sms,concurrency)<=0:
+            raise ValueError('Invalid raw cache geometry')
+        if key in maps and maps[key]!=geometry:
+            conflicts.append({'key':key,'previous':maps[key],'new':geometry,'record':number})
+        rows.append({'record':number,'offset':16+32*number,'key':key,**geometry,
+                     'reserved0':reserved0,'reserved1':reserved1,
+                     'record_bytes_sha256':hashlib.sha256(data[16+32*number:48+32*number]).hexdigest()})
+        maps[key]=geometry
+        occurrences.setdefault(key,[]).append(number)
+    duplicates={key:positions for key,positions in occurrences.items() if len(positions)>1}
+    return {'header_format':1,'record_size':32,'raw_record_count':len(rows),'unique_keys':len(maps),
+            'raw_records':rows,'duplicates':duplicates,'conflicting_geometries':conflicts,'geometry_map':maps}
+
+
+def cache_prefix(final_data, snapshot, expected_map):
+    if not snapshot['exists']:
+        if snapshot['bytes']!=0 or snapshot['sha256'] is not None or expected_map:
+            raise ValueError('Invalid absent-cache manifest')
+        return {'exists':False,'bytes':0,'sha256':None,'geometry_map':{},'raw_records':[],
+                'raw_record_count':0,'unique_keys':0,'duplicates':{},'conflicting_geometries':[]}
+    count=snapshot['bytes']
+    if not isinstance(count,int) or not 0<count<=len(final_data):
+        raise ValueError('Invalid historical cache length')
+    prefix=final_data[:count]
+    if hashlib.sha256(prefix).hexdigest()!=snapshot['sha256']:
+        raise ValueError('Final cache does not preserve the claimed historical prefix SHA')
+    result=raw_cache(prefix)
+    if result['geometry_map']!=expected_map:
+        raise ValueError('Raw cache geometry does not reproduce stage metadata')
+    return {'exists':True,'bytes':count,'sha256':snapshot['sha256'],
+            'historical_prefix_sha_verified':True,**result}
+
+
+def geometry_difference(a,b):
+    shared=set(a)&set(b)
+    return {'keys_a':len(a),'keys_b':len(b),'shared_keys':len(shared),
+            'only_a':sorted(set(a)-set(b)),'only_b':sorted(set(b)-set(a)),
+            'changed':{key:{'a':a[key],'b':b[key]} for key in sorted(shared) if a[key]!=b[key]}}
+
+
+def normalized_runtime(runtime):
+    result=json.loads(json.dumps(runtime))
+    for phase in ('flags_before','flags_after'):
+        if phase in result:
+            result[phase].get('environment',{}).pop('EXLLAMAV3_TUNE_CACHE',None)
+    return result
+
+
+save()
+try:
+    source36=ROOT/'docs/measurements/quant-lfm25-diagnostics35-36-20261015/lfm25-routes36-analysis-command.py.txt'
+    report['provenance'].update(analysis_script_sha256=sha(__file__),
+        scorer_file=str(ROOT/'benchmarks/eval_lfm25_quality.py'),
+        scorer_sha256=sha(ROOT/'benchmarks/eval_lfm25_quality.py'),
+        reused_function_source=str(source36),reused_function_source_sha256=sha(source36))
+    cloud=load_report('build/lfm25-tuning37-fourth-cloud.json', ('failed',))
+    recovery=load_report('build/lfm25-tuning37-routes-recovery-cloud.json')
+    recovery_file=load_report(RECOVERY/'report.json')
+    if recovery_file!=recovery:
+        raise ValueError('Downloaded recovery report differs from the recovery response')
+    original_routes=load_report(DATA/'routes-a/capture/report.json', ('running','failed'))
+    report['capture_provenance']={
+        'original_failed_report':'build/lfm25-tuning37-fourth-cloud.json',
+        'original_failed_status':cloud['status'],
+        'original_launcher_error':cloud.get('launcher_error'),
+        'original_active_command':cloud.get('active_command'),
+        'original_elapsed_seconds':cloud.get('elapsed_seconds'),
+        'original_incomplete_routes_report':str(DATA/'routes-a/capture/report.json'),
+        'original_incomplete_routes_status':original_routes['status'],
+        'recovery_report':'build/lfm25-tuning37-routes-recovery-cloud.json',
+        'recovery_status':recovery['status'],
+        'note':'Three complete legacy stages retained from the failed fourth attempt; all six route arms come from a distinct recovery capture. No run envelope or unmeasured runtime metadata is fabricated.'}
+    original_normal=original_routes.get('arms',{}).get('normal',{})
+    if set(original_normal)!={'window1','window5'}:
+        raise ValueError('Original failed attempt lacks the two completed normal route windows')
+    prior35=load_report('build/lfm25-reference35-comparison.json')
+    prior36=load_report('build/lfm25-routes36-comparison.json')
+    baseline=load_report('docs/measurements/quant-lfm25-v2-20261015/v2-quality.json')['cases']['main-8192']
+    plan_path=ROOT/'build/diagnostic23-input.json'
+    plan=validate_plan(json.loads(plan_path.read_text()))
+    labels_path=ROOT/'build/lfm25-v3-quality-ids/main-8192.json'
+    ids=json.loads(labels_path.read_text())
+    if len(ids)!=8193 or hashlib.sha256(np.asarray(ids,dtype='<u4').tobytes()).hexdigest()!=baseline['token_sha256']:
+        raise ValueError('Frozen labels changed')
+    report['provenance']['plan']={'path':str(plan_path),'sha256':sha(plan_path)}
+    report['provenance']['labels']={'path':str(labels_path),'sha256':sha(labels_path),'u32le_sha256':baseline['token_sha256']}
+    stages=('cold-a','warm-a','cold-b')
+    arms=('source','normal','own_routes','own_ids','source_ids','source_routes')
+    if set(cloud.get('stages',{}))!=set(stages):
+        raise ValueError('Missing fresh-process tuning stage')
+    run_reports={};captures={};report['stage_provenance']={}
+    for stage in stages:
+        envelope=load_report(DATA/stage/'run.json')
+        capture_path=DATA/stage/'capture/report.json'
+        capture=load_report(capture_path)
+        if envelope!=cloud['stages'][stage]['run'] or capture!=cloud['stages'][stage]['capture']:
+            raise ValueError('Downloaded stage JSON differs from cloud response')
+        if sha(capture_path)!=envelope['capture_report_sha256'] or envelope['stage']!=stage or capture.get('shards')!=plan['shards']:
+            raise ValueError('Stage capture SHA/identity mismatch')
+        run_reports[stage]=envelope;captures[stage]=capture
+        report['stage_provenance'][stage]={'run_file':str(DATA/stage/'run.json'),'run_sha256':sha(DATA/stage/'run.json'),
+             'capture_file':str(capture_path),'capture_sha256':sha(capture_path),'runtime':envelope['runtime'],
+             'script_sha256':envelope['script_sha256'],'legacy_sha256':envelope['legacy_sha256'],
+             'elapsed_seconds':envelope['elapsed_seconds']}
+    if recovery.get('ids_only')!='approved' or set(recovery.get('arms',{}))!=set(arms):
+        raise ValueError('Missing actual own-ID or source-route intervention')
+    final_caches={
+        'cache-a.bin':(ROOT/'build/lfm25-tuning37-cache-a-before-recovery.bin').read_bytes(),
+        'cache-b.bin':(ROOT/'build/lfm25-tuning37-cache-b-before-recovery.bin').read_bytes()}
+    recovery_before_path=ROOT/'build/lfm25-tuning37-cache-a-recovery-before.bin'
+    recovery_after_path=ROOT/'build/lfm25-tuning37-cache-a-recovery-after.bin'
+    recovery_before_data=recovery_before_path.read_bytes()
+    recovery_after_data=recovery_after_path.read_bytes()
+    if hashlib.sha256(final_caches['cache-a.bin']).hexdigest()!=run_reports['warm-a']['cache_after']['sha256'] or hashlib.sha256(final_caches['cache-b.bin']).hexdigest()!=run_reports['cold-b']['cache_after']['sha256']:
+        raise ValueError('Original cache binary SHA mismatch')
+    cache_manifest=recovery['recovery_cache']
+    for phase,data,path in (('before',recovery_before_data,recovery_before_path),('after',recovery_after_data,recovery_after_path)):
+        snapshot=cache_manifest[phase]
+        if not snapshot['exists'] or len(data)!=snapshot['bytes'] or hashlib.sha256(data).hexdigest()!=snapshot['sha256']:
+            raise ValueError('Recovery cache snapshot SHA/bytes mismatch: '+phase)
+        report['provenance'].setdefault('cache_files',{})[str(path)]={'bytes':len(data),'sha256':snapshot['sha256']}
+    if cache_manifest['expected_bytes']!=176 or cache_manifest['expected_sha256']!='1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65':
+        raise ValueError('Recovery cache precondition was changed')
+    report['caches']={}
+    for stage in stages:
+        envelope=run_reports[stage]
+        cache_name='cache-b.bin' if stage=='cold-b' else 'cache-a.bin'
+        if Path(envelope['cache_path']).name!=cache_name:
+            raise ValueError('Registered stage cache changed')
+        report['caches'][stage]={phase:cache_prefix(final_caches[cache_name],envelope['cache_'+phase],envelope['cache_records_'+phase]) for phase in ('before','after')}
+    recovery_after_raw=raw_cache(recovery_after_data)
+    report['caches']['routes-recovery']={
+        'before':cache_prefix(recovery_after_data,cache_manifest['before'],run_reports['warm-a']['cache_records_after']),
+        'after':{'exists':True,'bytes':len(recovery_after_data),'sha256':hashlib.sha256(recovery_after_data).hexdigest(),**recovery_after_raw}}
+    for stage,snapshots in report['caches'].items():
+        before=snapshots['before'];after=snapshots['after']
+        if len(after['raw_records'])<len(before['raw_records']) or after['raw_records'][:len(before['raw_records'])]!=before['raw_records']:
+            raise ValueError('Raw cache record prefix was rewritten')
+        appended=after['raw_records'][len(before['raw_records']):]
+        seen=set(before['geometry_map'])
+        appended_duplicates=[]
+        for row in appended:
+            if row['key'] in seen:
+                appended_duplicates.append(row)
+            seen.add(row['key'])
+        snapshots['appended_raw_records']=appended
+        snapshots['appended_duplicate_keys']=appended_duplicates
+        snapshots['existing_geometries_preserved']=all(after['geometry_map'].get(key)==value for key,value in before['geometry_map'].items())
+    cold=run_reports['cold-a']['cache_after'];warm=run_reports['warm-a']
+    warm_cache_exact=(warm['cache_before']==cold and warm['cache_after']==cold)
+    route_cache_before_exact=(recovery_before_data==final_caches['cache-a.bin'] and
+        cache_manifest['before']['bytes']==warm['cache_after']['bytes'] and
+        cache_manifest['before']['sha256']==warm['cache_after']['sha256'])
+    route_cache_preserved=(cache_manifest['prefix_preserved'] and
+        report['caches']['routes-recovery']['existing_geometries_preserved'] and
+        not report['caches']['routes-recovery']['appended_duplicate_keys'])
+    report['cache_gates']={'warm_a_cache_sha_bytes_exact':warm_cache_exact,
+        'recovery_starts_from_exact_warm_a_cache':route_cache_before_exact,
+        'recovery_existing_geometries_and_raw_records_preserved_without_duplicate_append':route_cache_preserved}
+    geometry_ab=geometry_difference(report['caches']['cold-a']['after']['geometry_map'],report['caches']['cold-b']['after']['geometry_map'])
+    report['cold_a_vs_cold_b_geometries']=geometry_ab
+    runtimes={stage:normalized_runtime(run_reports[stage]['runtime']) for stage in stages}
+    legacy_runtime_consistent=all(value==runtimes['cold-a'] for value in runtimes.values())
+    worker_sha='8d4bd7c390e25aacc1d95385184f17b1d947f9b5bf9ea0aea15c6dbb651986d1'
+    worker_path=ROOT/'scripts/diagnose_lfm25_routes.py'
+    worker_text=worker_path.read_text()
+    recovery_worker_exact=(recovery['script']['sha256']==worker_sha==sha(worker_path))
+    tf32_contract=(recovery_worker_exact and 'torch.backends.cuda.matmul.allow_tf32 = False' in worker_text)
+    measured_overlap={
+        'versions':all(recovery['versions'].get(key)==value for key,value in runtimes['cold-a']['versions'].items() if key!='modal'),
+        'gpu_name':recovery['gpu']==runtimes['cold-a']['gpu']['name'],
+        'converter_sources':all(recovery['converter_sources']==captures[stage]['converter_sources'] for stage in stages),
+        'v2_shards':{name:item['sha256'] for name,item in recovery['v2_shards'].items()}==plan['shards'],
+        'source_shards':{name:item['sha256'] for name,item in recovery['source_shards'].items()}==SOURCE_SHARDS,
+        'source_revision':recovery['source_revision']==SOURCE_REVISION,
+        'numeric_worker_byteexact':recovery_worker_exact,
+        'matmul_tf32_false_code_contract':tf32_contract}
+    runtime_consistent=legacy_runtime_consistent and all(measured_overlap.values())
+    report['runtime_consistency']={
+        'legacy_three_full_runtimes_equal_excluding_registered_cache_path':legacy_runtime_consistent,
+        'legacy_normalized_full_runtimes':runtimes,
+        'recovery_available_overlap_checks':measured_overlap,
+        'recovery_measured':{key:recovery[key] for key in ('versions','gpu','script','source_revision','source_config','converter_sources','v2_shards','source_shards')},
+        'recovery_matmul_tf32':{'measured_runtime_flag':False,'enforced_false_by_pinned_worker_source':tf32_contract,'worker_sha256':worker_sha},
+        'recovery_unmeasured':['driver','CUDA version independently queried at runtime','GPU serial/UUID and detailed device properties','runtime flags before/after','V2 config-file SHA independently captured in recovery'],
+        'passed_available_checks':runtime_consistent}
+    report['stage_provenance']['routes-recovery']={
+        'capture_file':str(RECOVERY/'report.json'),'capture_sha256':sha(RECOVERY/'report.json'),
+        'script':recovery['script'],'elapsed_seconds':recovery['elapsed_seconds'],
+        'run_envelope':'not collected: direct numerical worker36 capture, not helper37',
+        'runtime_metadata_scope':'Only fields actually present in the direct worker report; missing driver/config/flags are not imputed.'}
+    save()
+    arrays_by_window={};traces_by_window={};labels_by_window={}
+    for name,start in (('window1',0),('window5',4096)):
+        if plan['windows'][name]!=ids[start:start+1024]:
+            raise ValueError('Frozen input/label mismatch')
+        labels=ids[start+1:start+1025]
+        labels_by_window[name]=labels
+        record={'positions':1024,'vocabulary':128000,'source_token_offset':start,
+                'input_u32le_sha256':hashlib.sha256(np.asarray(plan['windows'][name],dtype='<u4').tobytes()).hexdigest(),
+                'label_u32le_sha256':hashlib.sha256(np.asarray(labels,dtype='<u4').tobytes()).hexdigest(),
+                'arrays':{},'route_files':{},'controls':{},'comparisons':{},'repeatability_gates':{}}
+        report['windows'][name]=record
+        arrays={};traces={};arrays_by_window[name]=arrays;traces_by_window[name]=traces
+        for stage in ('cold-a','warm-a','cold-b'):
+            expected=captures[stage]['windows'][name]
+            if expected['token_sha256']!=record['input_u32le_sha256']:
+                raise ValueError('Legacy imposed token identity mismatch')
+            key=stage.replace('-','_')
+            arrays[key],record['arrays'][key]=checked_array(DATA/stage/'capture'/f'{name}.npy',expected)
+        for arm in arms:
+            expected=recovery['arms'][arm][name]
+            if expected['token_sha256']!=record['input_u32le_sha256']:
+                raise ValueError('Route imposed token identity mismatch')
+            path=RECOVERY/f'{arm}-{name}.npy'
+            arrays[arm],record['arrays'][arm]=checked_array(path,expected)
+            traces[arm],record['route_files'][arm]=checked_routes(path.with_suffix('.routes.safetensors'),expected['routes'])
+        expected=original_normal[name]
+        if expected['token_sha256']!=record['input_u32le_sha256']:
+            raise ValueError('Original normal token identity mismatch')
+        arrays['original_normal'],record['arrays']['original_normal']=checked_array(DATA/'routes-a/capture'/f'normal-{name}.npy',expected)
+        for kind in ('mlx','tf_prefill','tf_decode','v2_cuda'):
+            expected=prior35['windows'][name]['arrays'][kind]
+            arrays[kind],record['arrays'][kind]=checked_array(Path(expected['path']),expected)
+        expected=prior36['windows'][name]['arrays']['normal']
+        arrays['normal36'],record['arrays']['normal36']=checked_array(Path(expected['path']),expected)
+        source_exact=record['arrays']['source']['sha256']==prior35['windows'][name]['arrays']['source_f16']['sha256']
+        record['controls']['source_matches23_bitexact']=source_exact
+        own_passed=True
+        for arm in ('own_routes','own_ids'):
+            logits_equal=bitexact(arrays['normal'],arrays[arm])
+            routes_equal=all(np.array_equal(traces['normal'][key][0],traces[arm][key][0]) and np.array_equal(traces['normal'][key][1].view(np.uint16),traces[arm][key][1].view(np.uint16)) for key in LAYERS)
+            record['controls'][arm]={'logits_bitexact':logits_equal,'routes_and_weights_bitexact':routes_equal,'logit_values':131072000}
+            own_passed &= logits_equal and routes_equal
+        source=traces['source']
+        for arm in ('source_ids','source_routes'):
+            ids_equal=all(np.array_equal(source[key][0],traces[arm][key][0]) for key in LAYERS)
+            weights_equal=all(np.array_equal(source[key][1].view(np.uint16),traces[arm][key][1].view(np.uint16)) for key in LAYERS)
+            record['controls'][arm]={'source_ids_actually_imposed':ids_equal,'source_affinities_bitexact':weights_equal}
+            own_passed &= ids_equal and (arm!='source_routes' or weights_equal)
+        record['controls']['passed']=bool(own_passed and source_exact)
+        gate_pairs=(('cold_a','warm_a'),('cold_a','original_normal'),('cold_a','normal'))
+        for reference,actual in gate_pairs:
+            key=f'{reference}_to_{actual}'
+            report['stage']=f'repeatability/{name}/{key}'
+            result=score(arrays[reference],arrays[actual],labels)
+            record['comparisons'][key]=result
+            numerical=result['mean_kl_reference_to_actual']<=1e-6 and abs(result['actual_nll']-result['reference_nll'])<=1e-6
+            record['repeatability_gates'][key]={'tolerance_absolute':1e-6,'kl':result['mean_kl_reference_to_actual'],
+                'absolute_nll_difference':abs(result['actual_nll']-result['reference_nll']),
+                'logits_bitexact':bitexact(arrays[reference],arrays[actual]),'passed':bool(numerical)}
+            print(json.dumps({'stage':'repeatability','window':name,'comparison':key,**record['repeatability_gates'][key]}),flush=True)
+            save()
+    gates_passed=all(report['cache_gates'].values()) and runtime_consistent and all(w['controls']['passed'] and all(g['passed'] for g in w['repeatability_gates'].values()) for w in report['windows'].values())
+    report['registered_repeatability_passed']=bool(gates_passed)
+    report['causal_interpretation']=bool(gates_passed)
+    report['historical23_causal_interpretation']=False
+    report['causal_scope']='Only the composite fixed-cache protocol37 after separate recovery; the fourth capture remains failed, and absent original23/36 caches prevent historical reconstruction. Recovery runtime limitations are preserved separately.'
+    save()
+    pairs=[('cold_a','cold_b'),('v2_cuda','cold_a'),('normal36','normal')]
+    pairs += [('source',arm) for arm in ('normal','own_routes','own_ids','source_ids','source_routes')]
+    pairs += [(reference,arm) for reference in ('mlx','tf_prefill','tf_decode') for arm in ('normal','source_ids','source_routes')]
+    for name in plan['windows']:
+        arrays=arrays_by_window[name];record=report['windows'][name];labels=labels_by_window[name]
+        for reference,actual in pairs:
+            key=f'{reference}_to_{actual}';report['stage']=f'{name}/{key}'
+            result=score(arrays[reference],arrays[actual],labels)
+            record['comparisons'][key]=result
+            print(json.dumps({'window':name,'comparison':key,'kl':result['mean_kl_reference_to_actual'],'nll':result['actual_nll'],'top1':result['top1_matches']}),flush=True)
+            save()
+        record['cold_a_vs_cold_b']={'logits_bitexact':bitexact(arrays['cold_a'],arrays['cold_b']),
+            'same_legacy_runtime_configs':runtimes['cold-a']==runtimes['cold-b'],
+            'different_common_geometries':len(geometry_ab['changed'])}
+        changed=0;layer_changes={}
+        for layer in LAYERS:
+            a=traces_by_window[name]['source'][layer][0]
+            b=traces_by_window[name]['normal'][layer][0]
+            count=int(np.any(np.sort(a,axis=1)!=np.sort(b,axis=1),axis=1).sum())
+            changed+=count
+            layer_changes[layer]={'changed_top4_sets':count,'fraction':count/1024}
+        record['source_vs_normal_route_changes']={'layer_tokens':38912,'changed_top4_sets':changed,
+            'changed_top4_fraction':changed/38912,'by_layer':layer_changes}
+        save()
+    if len(report['windows'])!=2 or any(len(w['comparisons'])!=20 for w in report['windows'].values()):
+        raise ValueError('Incomplete registered fixed-tune comparison matrix')
+    all_own=all(w['controls']['passed'] for w in report['windows'].values())
+    different_logits=any(not w['cold_a_vs_cold_b']['logits_bitexact'] for w in report['windows'].values())
+    geometry_sets_comparable=not geometry_ab['only_a'] and not geometry_ab['only_b']
+    autotune_effect=bool(gates_passed and geometry_sets_comparable and geometry_ab['changed'] and different_logits)
+    report.update(status='complete_capture_recovery',stage='done',total_comparisons=40,compared_positions=40960,
+        new_logit_arrays_verified=20,new_route_files_verified=12,reference_arrays_verified=10,
+        own_controls_passed=all_own,autotune_effect_demonstrated_in_protocol37=autotune_effect,
+        decision=('Fixed-cache gates passed; changed cold-cache geometries and logits support autotuning effect in protocol37.' if autotune_effect else
+                  'Fixed-cache gates passed; no demonstrated autotuning effect between coldA/B.' if gates_passed else
+                  'Fixed-cache gate failed; intervention and cache observations are descriptive, no validated attribution.'))
+except BaseException as error:
+    report.update(status='failed',error=f'{type(error).__name__}: {error}',causal_interpretation=False)
+    raise
+finally:
+    save()
+    # Preserve exactly the command that ran, including failures; no production module is changed.
+    Path(str(Path(__file__))+'.txt').write_bytes(Path(__file__).read_bytes())
+print(json.dumps({'status':report['status'],'registered_repeatability_passed':report.get('registered_repeatability_passed'),
+                 'causal_interpretation':report['causal_interpretation'],'elapsed_seconds':report['elapsed_seconds'],'output':str(OUTPUT)}),flush=True)

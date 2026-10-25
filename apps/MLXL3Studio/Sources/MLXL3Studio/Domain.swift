@@ -153,8 +153,10 @@ struct BridgeEvent: Decodable {
     var bestDepth: Int? = nil
     var tuningKey: String? = nil
     var rows: [MTPTuningRow]? = nil
+    var workspaceFeatures: Bool? = nil
     var bridgeProtocol: Int? = nil
     var memorySaverSupported: Bool? = nil
+    var mcpToolCatalog: [MCPToolDescriptor]? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, model, modules, phase, text, stats, message
@@ -197,7 +199,9 @@ struct BridgeEvent: Decodable {
         case mtpMaxDepth = "mtp_max_depth", mtpTuneSupported = "mtp_tune_supported", mtpTuningKey = "mtp_tuning_key"
         case depth, completed, total, rows
         case bestDepth = "best_depth", tuningKey = "tuning_key"
+        case workspaceFeatures = "workspace_features"
         case bridgeProtocol = "bridge_protocol"
+        case mcpToolCatalog = "mcp_tool_catalog"
     }
 }
 
@@ -263,6 +267,8 @@ struct GenerationRequest: Encodable {
     var mtpHeadPath: String = ""
     var mtpDepth: Int = 1
     var memorySaver: Bool = false
+    var allowedTools: [String]? = nil
+    var responseSchema: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -279,6 +285,8 @@ struct GenerationRequest: Encodable {
         case mtpHeadPath = "mtp_head_path"
         case mtpDepth = "mtp_depth"
         case memorySaver = "memory_saver"
+        case allowedTools = "allowed_tools"
+        case responseSchema = "response_schema"
     }
 }
 
@@ -291,6 +299,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     let id: UUID
     let role: Role
     let attachments: [ChatAttachment]
+    var sources: [DocumentExcerpt] = []
     private(set) var content: String
     private(set) var thinking: String
     private(set) var isStreaming: Bool
@@ -414,7 +423,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     }
 
     var promptContent: String {
-        role == .user ? ChatAttachment.promptContent(content, attachments: attachments) : content
+        role == .user ? ChatAttachment.promptContent(content, attachments: attachments) + DocumentSearch.context(sources) : content
     }
 
     var snapshot: ChatMessageSnapshot {
@@ -437,7 +446,8 @@ final class ChatMessage: ObservableObject, Identifiable {
                 return saved
             },
             turnContext: turnContext,
-            attachments: attachments.isEmpty ? nil : attachments
+            attachments: attachments.isEmpty ? nil : attachments,
+            sources: sources.isEmpty ? nil : sources
         )
     }
 
@@ -458,6 +468,7 @@ final class ChatMessage: ObservableObject, Identifiable {
         )
         endProcessing(interrupted: snapshot.wasStreaming)
         turnContext = snapshot.turnContext
+        sources = snapshot.sources ?? []
         for index in toolActivities.indices where toolActivities[index].state == .running {
             toolActivities[index].state = .failed
         }
@@ -493,6 +504,8 @@ struct Conversation: Identifiable {
     var messages: [ChatMessage]
     let createdAt: Date
     var contextUsage: ContextUsage?
+    var projectID: UUID?
+    var parentConversationID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -514,7 +527,9 @@ struct Conversation: Identifiable {
             title: title,
             messages: messages.map(\.snapshot),
             createdAt: createdAt,
-            contextUsage: contextUsage
+            contextUsage: contextUsage,
+            projectID: projectID,
+            parentConversationID: parentConversationID
         )
     }
 
@@ -526,6 +541,8 @@ struct Conversation: Identifiable {
             createdAt: snapshot.createdAt,
             contextUsage: snapshot.contextUsage
         )
+        projectID = snapshot.projectID
+        parentConversationID = snapshot.parentConversationID
     }
 }
 

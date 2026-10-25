@@ -1,0 +1,158 @@
+F
+=================================== FAILURES ===================================
+__ test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights __
+
+source = (PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-139/test_cli_converts_com...fm2_moe', 'tie_word_embeddings': True, 'layer_types': ['conv', 'full_attention', 'conv'], 'num_hidden_layers': 3, ...})
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-139/test_cli_converts_complete_che0')
+
+    @PHYSICAL
+    def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(source, tmp_path):
+        from safetensors import safe_open
+    
+        from mlxl3_quantizer import list_exl3_modules, validate_checkpoint_files
+    
+        root, corpus, model, cfg = source
+        output, work = tmp_path / "output", tmp_path / "work"
+        command = [
+            sys.executable,
+            str(ROOT / "scripts/quantize_lfm25_moe.py"),
+            "--in-dir",
+            str(root),
+            "--out-dir",
+            str(output),
+            "--work-dir",
+            str(work),
+            "--bits",
+            "4",
+            "--calibration-text",
+            str(corpus),
+            "--calibration-rows",
+            "16",
+            "--calibration-seq-len",
+            "16",
+            "--max-workers",
+            "1",
+            "--search-backend",
+            "metal",
+        ]
+        env = {
+            **os.environ,
+            "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'references/PonyExl3'}:{ROOT / 'scripts'}",
+            "PONYEXL3_FIXED_EXPERT_SCALE": "0.908",
+        }
+        result = subprocess.run(
+            command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        validate_checkpoint_files(output)
+        assert set(list_exl3_modules(output)) == expected_projections(cfg)
+        measurements = json.loads((work / "measurements.json").read_text())
+        assert measurements["mode"] == "fixed_uniform" and measurements["candidate_count"] == 0
+        contents = {}
+        for shard in output.glob("model*.safetensors"):
+            with safe_open(shard, framework="numpy") as handle:
+                contents.update({key: handle.get_tensor(key) for key in handle.keys()})  # noqa: SIM118
+        for key in expected_projections(cfg):
+            assert key + ".mcg" in contents
+            assert contents[key + ".trellis"].size > 0
+            assert (
+                np.isfinite(contents[key + ".suh"]).all() and np.isfinite(contents[key + ".svh"]).all()
+            )
+        for layer in (1, 2):
+            bias = contents[f"model.layers.{layer}.feed_forward.expert_bias"]
+            assert bias.dtype == np.float32
+            np.testing.assert_array_equal(bias, np.array([0.10001, -0.050003], dtype=np.float32))
+        reference = tmp_path / "measured"
+        reference_command = [
+            sys.executable,
+            "-c",
+            (
+                "import runpy,sys; from ponyexl3.cli import convert; "
+                "convert._fixed_uniform_bits=lambda *a,**kw: None; "
+                "sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name='__main__')"
+            ),
+            *command[1:],
+        ]
+        reference_command[reference_command.index(str(output))] = str(reference)
+        reference_command[reference_command.index(str(work))] = str(tmp_path / "measured-work")
+        result = subprocess.run(
+            reference_command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        reference_contents = {}
+        for shard in reference.glob("model*.safetensors"):
+            with safe_open(shard, framework="numpy") as handle:
+                reference_contents.update({key: handle.get_tensor(key) for key in handle.keys()})  # noqa: SIM118
+        assert set(reference_contents) == set(contents)
+        for key, value in contents.items():
+            np.testing.assert_array_equal(reference_contents[key], value, err_msg=key)
+        hashes = {
+            p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in output.glob("model*.safetensors")
+        }
+        result = subprocess.run(
+            command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert hashes == {
+            p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in output.glob("model*.safetensors")
+        }
+        engine = os.environ.get("MLXL3_QUANT_TEST_ENGINE")
+        if engine:
+            import mlx.core as mx
+            from native_json_process import JsonProcess
+    
+            model.model = None
+            mx.clear_cache()
+            deadline = time.monotonic() + 60
+            with (
+                (tmp_path / "bridge.stderr").open("w") as stderr,
+                JsonProcess(
+                    [engine, "bridge", str(output), "--context-length", "1024"], stderr=stderr
+                ) as bridge,
+            ):
+>               while (event := bridge.receive(deadline))["type"] != "ready":
+                                ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_lfm25_moe_conversion.py:361: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <native_json_process.JsonProcess object at 0x1185ab110>
+deadline = 471020.387443041
+
+    def receive(self, deadline):
+        descriptor = self.process.stdout.fileno()
+        with selectors.DefaultSelector() as selector:
+            selector.register(descriptor, selectors.EVENT_READ)
+            while True:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("native process timed out waiting for JSON")
+                end = self.buffer.find(b"\n")
+                if end > MAX_JSON_LINE or (end < 0 and len(self.buffer) > MAX_JSON_LINE):
+                    raise RuntimeError("native JSON response exceeds the line size limit")
+                if end >= 0:
+                    line = bytes(self.buffer[:end])
+                    del self.buffer[: end + 1]
+                    try:
+                        value = json.loads(line)
+                    except (ValueError, UnicodeDecodeError) as error:
+                        raise RuntimeError("native process returned invalid JSON") from error
+                    if not isinstance(value, dict):
+                        raise RuntimeError("native JSON response must be an object")
+                    return value
+                wait_for_pipe(selector, deadline, "waiting for JSON")
+                try:
+                    chunk = os.read(descriptor, 65536)
+                except BlockingIOError:
+                    continue
+                if not chunk:
+>                   raise RuntimeError(
+                        f"native process exited before a complete JSON response ({self.process.poll()})"
+                    )
+E                   RuntimeError: native process exited before a complete JSON response (2)
+
+scripts/native_json_process.py:104: RuntimeError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_moe_conversion.py::test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights
+1 failed, 23 deselected in 5.52s

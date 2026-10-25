@@ -1,0 +1,37 @@
+   Compiling onig_sys v69.9.3
+   Compiling esaxx-rs v0.1.10
+   Compiling mlxl3-native v1.3.0 (/private/tmp/mlxl3-features-20261018)
+   Compiling onig v6.5.3
+   Compiling tokenizers v0.23.2
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.84s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 88 filtered out; finished in 0.00s
+
+     Running unittests native/src/main.rs (target/debug/deps/mlxl3_rs-602bb3be6ef054c8)
+
+running 5 tests
+test openai::tests::http_routes_enforce_session_key_and_validate_before_inference ... ok
+test openai::tests::malformed_and_silently_ignored_options_are_rejected ... ok
+test openai::tests::structured_http_never_publishes_invalid_bridge_output ... ok
+test openai::tests::structured_requests_validate_schema_before_inference ... ok
+test openai::tests::text_request_maps_to_bridge_and_unsupported_inputs_fail ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.19s
+
+     Running native/tests/contracts.rs (target/debug/deps/contracts-80f69c835979f0b3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running native/tests/runtime_gpu.rs (target/debug/deps/runtime_gpu-8b9216a65bfa703c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+

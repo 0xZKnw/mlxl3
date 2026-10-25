@@ -1,0 +1,11 @@
+import torch,numpy as np,json
+from exllamav3 import Config,Model,Cache
+p='/data/probe-1792051884227185003/output'
+config=Config.from_directory(p);model=Model.from_config(config);cache=Cache(model,max_num_tokens=256,max_batch_size=1);model.load(device='cuda:0',max_output_size=32)
+params={'attn_mode':'flash_attn','cache':cache,'past_len':0,'batch_shape':(1,256)}
+values=[]
+with torch.inference_mode():
+ for t in range(4,36):
+  v=model.forward(torch.tensor([[t]]),params);values.append(v.float().cpu().numpy().reshape(-1).tolist());params['past_len']+=1
+print('PROBE_LOGITS:'+json.dumps(values),flush=True)
+model.unload()

@@ -1,0 +1,62 @@
+[
+  {
+    "name": "kani-dense",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "dense_mlp_batch_stays_within_supported_domain",
+      "--output-format",
+      "terse"
+    ],
+    "returncode": 0,
+    "seconds": 9.339499415946193
+  },
+  {
+    "name": "kani-mb3",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "grouped_mb3_preserves_rows_and_all_fallbacks",
+      "--output-format",
+      "terse"
+    ],
+    "returncode": 0,
+    "seconds": 1.5704196670558304
+  },
+  {
+    "name": "kani-key",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "smallm_kernel_key_is_injective",
+      "--output-format",
+      "terse"
+    ],
+    "returncode": 0,
+    "seconds": 1.2000676660099998
+  },
+  {
+    "name": "kani-all",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--jobs",
+      "2",
+      "--output-format",
+      "terse"
+    ],
+    "returncode": -15,
+    "seconds": 433.140838042018
+  }
+]

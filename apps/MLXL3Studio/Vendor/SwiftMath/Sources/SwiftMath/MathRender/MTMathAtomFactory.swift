@@ -13,6 +13,7 @@ public class MTMathAtomFactory {
     
     public static let aliases = [
         "lnot" : "neg",
+        "dots" : "ldots",
         "land" : "wedge",
         "lor" : "vee",
         "ne" : "neq",

@@ -1,0 +1,28 @@
+   Compiling onig_sys v69.9.3
+   Compiling esaxx-rs v0.1.10
+   Compiling mlxl3-native v1.3.0 (/private/tmp/mlxl3-features-20261018)
+   Compiling onig v6.5.3
+   Compiling tokenizers v0.23.2
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.46s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-9d193a6fba503d4a)
+
+running 1 test
+test structured::tests::project_permissions_are_exact_and_default_deny ... FAILED
+
+failures:
+
+---- structured::tests::project_permissions_are_exact_and_default_deny stdout ----
+
+thread 'structured::tests::project_permissions_are_exact_and_default_deny' (812747) panicked at native/src/structured.rs:406:9:
+assertion failed: !tool_allowed("server.read", Some(&[]))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    structured::tests::project_permissions_are_exact_and_default_deny
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

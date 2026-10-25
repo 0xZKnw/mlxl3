@@ -59,6 +59,20 @@ def event(process, deadline):
     return value
 
 
+def bounded_deadline(timeout: float, campaign_deadline: float | None) -> float:
+    """Keep each blocking exchange inside the optional campaign budget.
+
+    pre: math.isfinite(timeout) and timeout >= 0
+    pre: campaign_deadline is None or math.isfinite(campaign_deadline)
+    raises: TimeoutError
+    post: campaign_deadline is None or __return__ <= campaign_deadline
+    """
+    now = time.monotonic()
+    if campaign_deadline is not None and now >= campaign_deadline:
+        raise TimeoutError("native campaign timed out")
+    return min(now + timeout, campaign_deadline) if campaign_deadline is not None else now + timeout
+
+
 def generate(
     process,
     prompt,
@@ -69,8 +83,9 @@ def generate(
     mtp_head=None,
     dflash_mode=0,
     dflash_draft=None,
+    campaign_deadline=None,
 ):
-    deadline = time.monotonic() + timeout
+    deadline = bounded_deadline(timeout, campaign_deadline)
     process.send(
         {
             "type": "generate",
@@ -147,16 +162,18 @@ def main():
     parser.add_argument("--warmup-tokens", type=int)
     parser.add_argument("--mtp-depth", type=int, choices=range(4), default=0)
     parser.add_argument("--mtp-head", type=Path)
+    parser.add_argument("--candidate-mtp-head", type=Path)
     parser.add_argument("--dflash-mode", type=int, choices=range(4), default=0)
     parser.add_argument("--dflash-draft", type=Path)
     parser.add_argument(
         "--compare-mtp-dflash", action="store_true", help="A uses MTP; B uses DFlash"
     )
     parser.add_argument("--repeats", type=int, default=2)
-    parser.add_argument("--order", choices=["ABBA", "BAAB"], default="ABBA")
+    parser.add_argument("--order", choices=["ABBA", "BAAB", "ABBAAB", "BAABBA"], default="ABBA")
     parser.add_argument("--settle-seconds", type=float, default=0.0)
     parser.add_argument("--load-timeout", type=positive_seconds, default=600.0)
     parser.add_argument("--request-timeout", type=positive_seconds, default=600.0)
+    parser.add_argument("--campaign-timeout", type=positive_seconds)
     parser.add_argument("--baseline-env", action="append", default=[], metavar="NAME=VALUE")
     parser.add_argument("--candidate-env", action="append", default=[], metavar="NAME=VALUE")
     args = parser.parse_args()
@@ -173,6 +190,8 @@ def main():
         )
     if args.mtp_depth > 0 and args.mtp_head is None:
         parser.error("--mtp-head is required when --mtp-depth > 0")
+    if args.candidate_mtp_head is not None and (args.mtp_depth == 0 or args.compare_mtp_dflash):
+        parser.error("--candidate-mtp-head requires MTP in both arms")
     if args.dflash_mode > 0 and args.dflash_draft is None:
         parser.error("--dflash-draft is required when --dflash-mode > 0")
     if args.mtp_depth > 0 and args.dflash_mode > 0 and not args.compare_mtp_dflash:
@@ -188,6 +207,7 @@ def main():
     if args.prompt_file:
         prompts["document"] = args.prompt_file.read_text()
     args.output.mkdir(parents=True, exist_ok=True)
+    campaign_deadline = time.monotonic() + args.campaign_timeout if args.campaign_timeout else None
     report = {
         "protocol": {
             "order": args.order,
@@ -197,6 +217,9 @@ def main():
             "warmup_tokens": warmup_tokens,
             "mtp_depth": args.mtp_depth,
             "mtp_head": str(args.mtp_head.resolve()) if args.mtp_head else None,
+            "candidate_mtp_head": str((args.candidate_mtp_head or args.mtp_head).resolve())
+            if args.mtp_head
+            else None,
             "dflash_mode": args.dflash_mode,
             "dflash_draft": str(args.dflash_draft.resolve()) if args.dflash_draft else None,
             "compare_mtp_dflash": args.compare_mtp_dflash,
@@ -207,6 +230,7 @@ def main():
             "settle_seconds": args.settle_seconds,
             "load_timeout": args.load_timeout,
             "request_timeout": args.request_timeout,
+            "campaign_timeout": args.campaign_timeout,
             "context": 4096,
             "cache": False,
         },
@@ -228,11 +252,17 @@ def main():
     try:
         for pass_index, label in enumerate(args.order):
             mtp_depth = args.mtp_depth if not args.compare_mtp_dflash or label == "A" else 0
+            mtp_head = (
+                args.candidate_mtp_head
+                if label == "B" and args.candidate_mtp_head
+                else args.mtp_head
+            )
             dflash_mode = args.dflash_mode if not args.compare_mtp_dflash or label == "B" else 0
             current = {
                 "label": label,
                 "index": pass_index,
                 "mtp_depth": mtp_depth,
+                "mtp_head": str(mtp_head.resolve()) if mtp_depth else None,
                 "dflash_mode": dflash_mode,
                 "status": "running",
                 "conditions": {"recorded_at_unix": time.time()},
@@ -240,7 +270,9 @@ def main():
             }
             report["passes"].append(current)
             save_report(args.output, report)
-            time.sleep(args.settle_seconds)
+            settle_deadline = bounded_deadline(args.settle_seconds, campaign_deadline)
+            time.sleep(max(0.0, settle_deadline - time.monotonic()))
+            bounded_deadline(0, campaign_deadline)
             binary = args.baseline if label == "A" else args.candidate
             for name, command in [
                 ("power", ["pmset", "-g", "batt"]),
@@ -249,7 +281,11 @@ def main():
             ]:
                 try:
                     probe = subprocess.run(
-                        command, capture_output=True, text=True, check=False, timeout=5
+                        command,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        timeout=bounded_deadline(5, campaign_deadline) - time.monotonic(),
                     )
                     current["conditions"][name] = {
                         "returncode": probe.returncode,
@@ -262,10 +298,11 @@ def main():
                         "stdout": "",
                         "stderr": str(error),
                     }
+                bounded_deadline(0, campaign_deadline)
             stderr_path = args.output / f"{pass_index}-{label}.stderr"
             with stderr_path.open("w") as stderr:
                 started = time.perf_counter()
-                deadline = time.monotonic() + args.load_timeout
+                deadline = bounded_deadline(args.load_timeout, campaign_deadline)
                 with JsonProcess(
                     [
                         str(binary.resolve()),
@@ -296,9 +333,10 @@ def main():
                                 request_id,
                                 args.request_timeout,
                                 mtp_depth,
-                                args.mtp_head if mtp_depth else None,
+                                mtp_head if mtp_depth else None,
                                 dflash_mode,
                                 args.dflash_draft if dflash_mode else None,
+                                campaign_deadline,
                             )
                             if index:
                                 measured["runs"].append(run)
@@ -340,6 +378,12 @@ def main():
                             ),
                             flush=True,
                         )
+            current["exit_code"] = process.process.returncode
+            if current["exit_code"] != 0:
+                raise RuntimeError(
+                    f"native bridge exited abnormally after generation ({current['exit_code']})"
+                )
+            bounded_deadline(0, campaign_deadline)
             current["status"] = "complete"
             save_report(args.output, report)
         summary = {}

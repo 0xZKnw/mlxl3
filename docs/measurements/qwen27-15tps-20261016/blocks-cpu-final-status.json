@@ -1,0 +1,16 @@
+{
+  "status": "failed",
+  "checks": [
+    {
+      "name": "fmt-final",
+      "command": [
+        "cargo",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 1,
+      "seconds": 0.25381837494205683
+    }
+  ],
+  "error": "AssertionError('Diff in /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/native/src/linear.rs:1425:\\n         let x = input(0)?;\\n         let expected = full.forward(&x)?.take(&blocks.ids, -1)?.to_f16_bits()?;\\n         let bad = full.forward_output_blocks(&x, &corrupted)?.to_f16_bits()?;\\n-        assert!(bad.iter().all(|&bits| half::f16::from_bits(bits).is_finite()));\\n+        assert!(\\n+            bad.iter()\\n+                .all(|&bits| half::f16::from_bits(bits).is_finite())\\n+        );\\n         let differences = bad.iter().zip(&expected).filter(|(a, b)| a != b).count();\\n         assert!(\\n             differences > 0,\\n')"
+}

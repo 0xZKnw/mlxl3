@@ -1,0 +1,65 @@
+[e2e] work_dir=/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-quant-bench-wlyq4cby/-1-measured-work bits=4.000 candidate_bits=[4] shrinkages=[0.0] backend=metal
+[lfm:calib] layer 1/3 complete
+[lfm:calib] layer 2/3 complete
+[lfm:calib] layer 3/3 complete
+[e2e:measure] 001/023 done model.layers.0.conv.in_proj K=4 output_rel_rms=0.026580
+[e2e:measure] 002/023 done model.layers.0.conv.out_proj K=4 output_rel_rms=0.026618
+[e2e:measure] 003/023 done model.layers.0.feed_forward.w1 K=4 output_rel_rms=0.023767
+[e2e:measure] 004/023 done model.layers.0.feed_forward.w2 K=4 output_rel_rms=0.022659
+[e2e:measure] 005/023 done model.layers.0.feed_forward.w3 K=4 output_rel_rms=0.025471
+[e2e:measure] 006/023 done model.layers.1.feed_forward.experts.0.w1 K=4 output_rel_rms=0.024931
+[e2e:measure] 007/023 done model.layers.1.feed_forward.experts.0.w2 K=4 output_rel_rms=0.019863
+[e2e:measure] 008/023 done model.layers.1.feed_forward.experts.0.w3 K=4 output_rel_rms=0.022434
+[e2e:measure] 009/023 done model.layers.1.feed_forward.experts.1.w1 K=4 output_rel_rms=0.022026
+[e2e:measure] 010/023 done model.layers.1.feed_forward.experts.1.w2 K=4 output_rel_rms=0.020194
+[e2e:measure] 011/023 done model.layers.1.feed_forward.experts.1.w3 K=4 output_rel_rms=0.025864
+[e2e:measure] 012/023 done model.layers.1.self_attn.k_proj K=4 output_rel_rms=0.023760
+[e2e:measure] 013/023 done model.layers.1.self_attn.out_proj K=4 output_rel_rms=0.022691
+[e2e:measure] 014/023 done model.layers.1.self_attn.q_proj K=4 output_rel_rms=0.024585
+[e2e:measure] 015/023 done model.layers.1.self_attn.v_proj K=4 output_rel_rms=0.023317
+[e2e:measure] 016/023 done model.layers.2.conv.in_proj K=4 output_rel_rms=0.021003
+[e2e:measure] 017/023 done model.layers.2.conv.out_proj K=4 output_rel_rms=0.025157
+[e2e:measure] 018/023 done model.layers.2.feed_forward.experts.0.w1 K=4 output_rel_rms=0.021107
+[e2e:measure] 019/023 done model.layers.2.feed_forward.experts.0.w2 K=4 output_rel_rms=0.027348
+[e2e:measure] 020/023 done model.layers.2.feed_forward.experts.0.w3 K=4 output_rel_rms=0.021987
+[e2e:measure] 021/023 done model.layers.2.feed_forward.experts.1.w1 K=4 output_rel_rms=0.022770
+[e2e:measure] 022/023 done model.layers.2.feed_forward.experts.1.w2 K=4 output_rel_rms=0.022442
+[e2e:measure] 023/023 done model.layers.2.feed_forward.experts.1.w3 K=4 output_rel_rms=0.023459
+[e2e:convert] 001/023 start model.layers.0.conv.in_proj K=4
+[e2e:convert] 001/023 done model.layers.0.conv.in_proj k=4
+[e2e:convert] 002/023 start model.layers.0.conv.out_proj K=4
+[e2e:convert] 002/023 done model.layers.0.conv.out_proj k=4
+[e2e:convert] 003/023 start model.layers.0.feed_forward.w1 K=4
+[e2e:convert] 003/023 done model.layers.0.feed_forward.w1 k=4
+[e2e:convert] 005/023 done model.layers.0.feed_forward.w3 k=4
+[e2e:convert] 004/023 start model.layers.0.feed_forward.w2 K=4
+[e2e:convert] 004/023 done model.layers.0.feed_forward.w2 k=4
+[e2e:convert] 006/023 start model.layers.1.feed_forward.experts.0.w1 K=4
+[e2e:convert] 006/023 done model.layers.1.feed_forward.experts.0.w1 k=4
+[e2e:convert] 008/023 done model.layers.1.feed_forward.experts.0.w3 k=4
+[e2e:convert] 009/023 done model.layers.1.feed_forward.experts.1.w1 k=4
+[e2e:convert] 011/023 done model.layers.1.feed_forward.experts.1.w3 k=4
+[e2e:convert] 007/023 start model.layers.1.feed_forward.experts.0.w2 K=4
+[e2e:convert] 007/023 done model.layers.1.feed_forward.experts.0.w2 k=4
+[e2e:convert] 010/023 done model.layers.1.feed_forward.experts.1.w2 k=4
+[e2e:convert] 012/023 start model.layers.1.self_attn.k_proj K=4
+[e2e:convert] 012/023 done model.layers.1.self_attn.k_proj k=4
+[e2e:convert] 014/023 done model.layers.1.self_attn.q_proj k=4
+[e2e:convert] 015/023 done model.layers.1.self_attn.v_proj k=4
+[e2e:convert] 013/023 start model.layers.1.self_attn.out_proj K=4
+[e2e:convert] 013/023 done model.layers.1.self_attn.out_proj k=4
+[e2e:convert] 016/023 start model.layers.2.conv.in_proj K=4
+[e2e:convert] 016/023 done model.layers.2.conv.in_proj k=4
+[e2e:convert] 017/023 start model.layers.2.conv.out_proj K=4
+[e2e:convert] 017/023 done model.layers.2.conv.out_proj k=4
+[e2e:convert] 018/023 start model.layers.2.feed_forward.experts.0.w1 K=4
+[e2e:convert] 018/023 done model.layers.2.feed_forward.experts.0.w1 k=4
+[e2e:convert] 020/023 done model.layers.2.feed_forward.experts.0.w3 k=4
+[e2e:convert] 021/023 done model.layers.2.feed_forward.experts.1.w1 k=4
+[e2e:convert] 023/023 done model.layers.2.feed_forward.experts.1.w3 k=4
+[e2e:convert] 019/023 start model.layers.2.feed_forward.experts.0.w2 K=4
+[e2e:convert] 019/023 done model.layers.2.feed_forward.experts.0.w2 k=4
+[e2e:convert] 022/023 done model.layers.2.feed_forward.experts.1.w2 k=4
+[e2e:convert] done completed=23 skipped=0
+[e2e] repacked into 1 HF-standard shard(s)
+e2e conversion complete: out=/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-quant-bench-wlyq4cby/-1-measured-out modules=23 plan_avg_bits=4.000000 layer_reuse=23/46

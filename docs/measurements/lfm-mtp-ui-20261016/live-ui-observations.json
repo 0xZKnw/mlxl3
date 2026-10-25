@@ -1,0 +1,29 @@
+{
+  "status": "passed_live_native_ui",
+  "test_bundle": "io.mlxl3.lfm-mtp-qa",
+  "data_source": "Real loaded-model ready event from physical-ready.json, injected into production StudioModel with disposable preferences/workspace, no loaded GPU model in UI process.",
+  "observations_source": "Cua tool AX snapshots and screenshot, summarized here; this is not a raw AX export.",
+  "observations": {
+    "sliders_settable": [
+      "temperature",
+      "top_k",
+      "repetition"
+    ],
+    "temperature_before": 0.73,
+    "temperature_after_native_set_value": 0.85,
+    "top_k": 37,
+    "repetition": 1.12,
+    "stored_mtp_preference_before": true,
+    "mtp_label": "MTP preference (inactive for this model)",
+    "off_native_click": "checkbox clicked; MTP card removed, temperature remains0.85",
+    "memory_label": "Model + context15.33GB; Model12.64GB+cache2.68GB",
+    "model_maximum": 131072,
+    "recommended_context_button_enabled": true,
+    "live_screenshot_inspected": true
+  },
+  "limits": [
+    "Manual finite UI check, not a proof of SwiftUI or all OS event interleavings.",
+    "Temporary process used production inspector/model code; it did not read user history or preferences.",
+    "Screenshot shown in tool output; no local PNG was exported."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "experiment": "QUANT-2026-10-14-LFM25-09",
+  "baseline_commit": "be143a9b33ff2204c2d266c681ec7c51e9ff3eaa",
+  "candidate_limit_bytes": 1073741824,
+  "baseline_limit_bytes": 536870912,
+  "files": {
+    "src/mlxl3_quantizer/memory.py": "3bda7abf34f619622163f0a677dd6a6d3ae783bb63ad3c726f45262775032ef4",
+    "src/mlxl3_quantizer/metal.py": "346aedbe61e1ff7542947840fb5dc1f46b77b092d9f219624d85886804394b50",
+    "references/PonyExl3/ponyexl3/convert/hessian.py": "d57ad9bed05f2be5fb59874deaca9879e01e6505808de7986531f8b0626f996e",
+    "build/lfm25-cache-baseline/hessian.py": "60838fa50342266d04ca318232e888c0ac4e7a7342f258d11e5556a09a4cc822",
+    "docs/measurements/quant-lfm25-research-20261013/profile-baseline.py": "050e9e8bded4790e368b26465ea80c57952bff3c28e7b4d48fab595377d66784"
+  },
+  "battery": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t62%; discharging; 4:30 remaining present: true\n",
+  "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+  "protocol": "1 warmup per shape/variant, 3 alternating pairs, gate/up8 down4, seed139 BF16 K4MCG, 2048 rows, no other GPU/build/prover launched by this chat",
+  "scope": "synthetic, no 24B quality/end-to-end claim"
+}

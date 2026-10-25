@@ -1,0 +1,72 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "format",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "format",
+        "--check",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen_v2.py",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen_v2.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.008474625000000001,
+      "reaped": true
+    },
+    {
+      "name": "lint",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "check",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen_v2.py",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen_v2.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.008678709,
+      "reaped": true
+    },
+    {
+      "name": "compile",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen_v2.py",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen_v2.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.022233457999999998,
+      "reaped": true
+    },
+    {
+      "name": "tests",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen_v2.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.191013875,
+      "reaped": true
+    },
+    {
+      "name": "crosshair",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "crosshair",
+        "check",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen_v2.py",
+        "--per_condition_timeout=5"
+      ],
+      "exit_code": 1,
+      "seconds": 0.01592191599999998,
+      "reaped": true
+    }
+  ],
+  "tests_passed": 6,
+  "scope": "11 affected M1 only; explicit16M1NTtable; no M2 retiming"
+}

@@ -495,8 +495,10 @@ final class UpdateManager: ObservableObject {
               let installedOS = SemanticVersion(EngineRuntimeStore.osVersion), installedOS >= required,
               incoming > current || (incoming == current && (Int(info["CFBundleVersion"] as? String ?? "0") ?? 0) > currentBuild)
         else { throw UpdateError.invalidApplication }
-        _ = try runProcess("/usr/bin/lipo", arguments: ["-verify_arch", "arm64", app.appending(path: "Contents/MacOS/MLXL3Studio").path])
-        try EngineRuntimeStore.verify(app.appending(path: "Contents/Resources/runtime"), appVersion: version, expectedVersion: version)
+        _ = try runProcess("/usr/bin/lipo", arguments: [app.appending(path: "Contents/MacOS/MLXL3Studio").path, "-verify_arch", "arm64"])
+        let runtime = app.appending(path: "Contents/Resources/runtime")
+        let engineVersion = try EngineRuntimeStore.readManifest(runtime).version
+        try EngineRuntimeStore.verify(runtime, appVersion: version, expectedVersion: engineVersion)
     }
 
     nonisolated private static func verifyFile(source: URL, asset: AppUpdateAsset) throws -> Bool {
@@ -624,7 +626,7 @@ fi
 # signature/version check leaves both the installed app and its backup intact.
 /usr/bin/ditto "$source_app" "$staged_app" || exit 21
 /usr/bin/codesign --verify --deep --strict "$staged_app" || exit 24
-/usr/bin/lipo -verify_arch arm64 "$staged_app/Contents/MacOS/MLXL3Studio" || exit 24
+/usr/bin/lipo "$staged_app/Contents/MacOS/MLXL3Studio" -verify_arch arm64 || exit 24
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$staged_app/Contents/Info.plist")" == "$expected_version" ]] || exit 24
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$staged_app/Contents/Info.plist")" == "$expected_build" ]] || exit 24
 "$staged_app/Contents/Resources/runtime/mlxl3" runtime-info || exit 24

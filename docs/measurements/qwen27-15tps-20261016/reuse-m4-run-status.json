@@ -1,0 +1,35 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "benchmarks/benchmark_smallm_reuse.py",
+    "--checkpoint",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--output",
+    "docs/measurements/qwen27-15tps-20261016/reuse-m4-profile.json",
+    "--iterations",
+    "40",
+    "--rows",
+    "4"
+  ],
+  "timeout_seconds": 600,
+  "conditions": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "swap": "vm.swapusage: total = 5120.00M  used = 3784.62M  free = 1335.38M  (encrypted)"
+  },
+  "sources": {
+    "benchmarks/benchmark_smallm.py": "94815fdea35ff93679c00efb61c0426b25ee1edf5eb6b66b2496a6e3c00f341f",
+    "benchmarks/benchmark_smallm_reuse.py": "f63c2b1fc875a9c6dacebdf2c01cbf6bda199d051d7d0a9bc6bf1817f0842275",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "5a4e911376902e4e3e6f8209fce62f393a18f3a22f86afc203689b3ae69041a6",
+    "tests/test_smallm_reuse.py": "8d2be09a1406183ecac094ba5bb388f24412a326ada1fef74a15107123ff9545"
+  },
+  "reaped": true,
+  "exit_code": 0,
+  "checks": 20,
+  "comparisons": 16,
+  "passed_comparisons": 0,
+  "seconds": 30.533513374975882,
+  "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t100%; charged; 0:00 remaining present: true"
+}

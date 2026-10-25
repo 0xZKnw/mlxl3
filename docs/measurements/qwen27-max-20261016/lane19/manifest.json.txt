@@ -1,0 +1,101 @@
+{
+  "status": "prepared_only_uncompiled_untested",
+  "runtime_applied": false,
+  "gpu_executed": false,
+  "compilation_or_tests_executed": false,
+  "source_baseline": "7ce611c1 modified; contracts snapshot contains API18 guard at file start",
+  "apply_policy": "After withdrawing18, apply without-contracts.patch and append contracts-addition.rs exactly once; never replace entire contracts.rs. This does not reintroduce18.",
+  "default": "MLXL3_EXL3_LANE_ORDER absent/0/invalid off;1 opt-in",
+  "inventory_shapes": 16,
+  "screen_cells": 32,
+  "promoted_screen_cells": 20,
+  "new_gpu_tests": [
+    "linear::tests::lane_order_real_projections_match_stock_and_reject_mutated_index",
+    "qwen35::tests::dense_lane_order_matches_stock_prefixes"
+  ],
+  "affected_gpu_test": "qwen35::tests::dense_mlp_batch_matches_serial_layers now forces stock0 vs lane1 after loading indices under TLStrue",
+  "new_cpu_tests": [
+    "contracts::exl3_lane_order_option_is_explicit_and_key_is_distinct",
+    "contracts::exl3_lane_order_matches_all_sixteen_inventory_shapes_and_fallbacks",
+    "contracts::exl3_lane_permutation_matches_independent_table_for_every_inventory_input",
+    "linear::tests::lane_order_override_restores_and_stays_thread_local"
+  ],
+  "kani_harnesses": [
+    "exl3_lane_layout_key_distinguishes_options",
+    "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+    "exl3_lane_order_preserves_shape_and_large_m_fallback",
+    "linear::tests::lane_order_real_array_api"
+  ],
+  "files": {
+    "native/src/contracts.rs": {
+      "before_sha256": "8dcb8979ac615a439f9c6296216a5c8874ae3fd465f8bf562e22c65f03b80d7d",
+      "candidate_sha256": "c554c9e17bfad18db05bcaa406875e420be4d5aa35fdf78dc6da5e3333d323b3",
+      "before_bytes": 53252,
+      "candidate_bytes": 59616,
+      "added": 170,
+      "removed": 0
+    },
+    "native/src/linear.rs": {
+      "before_sha256": "d36d372fd3a24626bd07b15ed2dc5b4a38af401cb3581f742a16bc092595236c",
+      "candidate_sha256": "2eef7b1c7ce53f6753089d7ab94878a5ee88a4d15387f11b507383a18b3de51e",
+      "before_bytes": 55696,
+      "candidate_bytes": 64680,
+      "added": 185,
+      "removed": 1
+    },
+    "native/src/lib.rs": {
+      "before_sha256": "daac6d7d3c572d980378cda6933d84de40bfe4caa8cc127598d2b1502907036e",
+      "candidate_sha256": "422e2a889eb68db0f1faa4a73f65e4b946cb964c2b3626822218f2f6a4556187",
+      "before_bytes": 930,
+      "candidate_bytes": 976,
+      "added": 1,
+      "removed": 1
+    },
+    "native/src/mtp_tune.rs": {
+      "before_sha256": "af3b681e238fc161820fd633bcdaa2821070fa8532213010c1fda4e22eb2c3d4",
+      "candidate_sha256": "217141f7ceb1477282f97146c65f8d5fa75276570ae4f80454c4101b88994c9c",
+      "before_bytes": 15983,
+      "candidate_bytes": 16508,
+      "added": 26,
+      "removed": 14
+    },
+    "native/src/qwen35.rs": {
+      "before_sha256": "2f369b44aae622d08ab306e55e24b33b62373f473fa4ff68b76b73cb8881ebcf",
+      "candidate_sha256": "382d2c5a4a6b9a96f67e73ff9460c2111c207787465816d8143e3cbe239d85a0",
+      "before_bytes": 177442,
+      "candidate_bytes": 178495,
+      "added": 46,
+      "removed": 25
+    },
+    "native/shaders/_qmv_tile_kernel.metal": {
+      "before_sha256": "594c573571ef6be4e8276299f05c7ebc264eb39f95a6edb9a3fe30c0b998d2cd",
+      "candidate_sha256": "fb7c934cb24d7c84e6a0cb87c4bd85a59ce5c3e329ef7cf4c767f27f277db959",
+      "before_bytes": 9012,
+      "candidate_bytes": 9866,
+      "added": 17,
+      "removed": 0
+    },
+    "native/shaders/_qmv_mapped_tile_kernel.metal": {
+      "before_sha256": "5a4e911376902e4e3e6f8209fce62f393a18f3a22f86afc203689b3ae69041a6",
+      "candidate_sha256": "b8c3fedc2fc1b3eda85ce901e1f5be4e7dbb44700605030cac545dbd5e79e3ef",
+      "before_bytes": 10632,
+      "candidate_bytes": 11558,
+      "added": 23,
+      "removed": 0
+    }
+  },
+  "patches": {
+    "prototype.patch": {
+      "bytes": 35334,
+      "sha256": "f5e4b977e97dd48931d5a09ee123c7eda878a0806abac4c420fc14cf979b4c45"
+    },
+    "without-contracts.patch": {
+      "bytes": 28647,
+      "sha256": "34091622388769c2bb1a44e9c4f1af4c19cdcd4c8e30d1edbb62948b5f477f53"
+    },
+    "contracts-addition.rs": {
+      "bytes": 6364,
+      "sha256": "1629f104b6ef22fc40c9001e024464983c08b758a39a218a100da2a942fe42e3"
+    }
+  }
+}

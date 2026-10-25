@@ -1,0 +1,1813 @@
+{
+  "repository": "atveit/tensorfold",
+  "url": "https://github.com/atveit/tensorfold",
+  "default_branch": "main",
+  "fork": true,
+  "parent": "ashhart/TensorFold",
+  "sha": "2f8e514b0b7d615df7c971627ce3c0fb7e55d93a",
+  "date": "2026-09-26T22:47:22Z",
+  "message": "feat: TensorFold 0.3.4, every model on the lanes (work-in-progress snapshot) (#15)\n\n- Nemotron and Flash Next run on the lane engine (family rounds); the serial\n  engine is gone. Every drafted round verifies 2+ rows; replies report\n  min_rows and token_sha.\n- Nemotron: row-exact kernels on Macs without tensor units (it now drafts on\n  M1 to M4), TensorFold's own verify matmuls on the M5, MTP drafts over a\n  32,768-id list built from recorded public text.\n- Flash Next: MTP drafts over its 79,592-id list, chained drafts on the GPU.\n- Nemotron and Flash Next prompts go through the row-exact decode kernels, so\n  resumed prompts equal fresh ones.\n- Qwen3.8-27B on M1 to M4: a lane decoder without tensor units\n  (kernels/qwen/dense/v1/row_forward.py) and a row-exact simdgroup matmul\n  (simd_qmm.py). M3 Ultra 141.3 / 73.9 / 158.4 / 74.2 tok/s against MLX\n  serial 38-39. Prompts resume from a 2,048-token grid (exact, MLX's speed).\n  Tool requests draft as many tokens as pay.\n- CUDA: no default path decodes one token a round. The 27B needs DFlash2 and\n  Flash Next its MTP head (or --no-drafts); GLM drafts with DFlash2 when MTP\n  is off or missing.\n- Version 0.3.4.",
+  "truncated_tree": false,
+  "tree": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "21abbe31fedc6832a0137e5e85ec00497e355fda",
+      "size": 124,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/21abbe31fedc6832a0137e5e85ec00497e355fda"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a8e21673dd7b84698ff4a30cd5b8015771f2f367",
+      "size": 1080,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a8e21673dd7b84698ff4a30cd5b8015771f2f367"
+    },
+    {
+      "path": "LICENSES",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5f029f0c7b37171c445161c0f4e5431ceda83644",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/5f029f0c7b37171c445161c0f4e5431ceda83644"
+    },
+    {
+      "path": "LICENSES/Apache-2.0.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "size": 11358,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d645695673349e3947e8e5ae42332d0ac3164cd7"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "deb625d4abae4e0030b1f5286b3e239dd331f26f",
+      "size": 16942,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/deb625d4abae4e0030b1f5286b3e239dd331f26f"
+    },
+    {
+      "path": "RUNBOOK.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1634ea63fbf72ee7c476d43e44e36cfde41a74c1",
+      "size": 9825,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/1634ea63fbf72ee7c476d43e44e36cfde41a74c1"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "80291ccda97385c46dbbb24bb666288d0b9af961",
+      "size": 5017,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/80291ccda97385c46dbbb24bb666288d0b9af961"
+    },
+    {
+      "path": "assets",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "dca8b757223b5ddc2411c3d49846731fc11e804b",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/dca8b757223b5ddc2411c3d49846731fc11e804b"
+    },
+    {
+      "path": "assets/tensorfold-cuda-banner.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d0fb8f0c0295049241fbc59bc35d295bd4dfd255",
+      "size": 1701744,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d0fb8f0c0295049241fbc59bc35d295bd4dfd255"
+    },
+    {
+      "path": "assets/tensorfold-hero-speeds.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d241500cad3d0dee9ed726dd136264684cabce47",
+      "size": 1972092,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d241500cad3d0dee9ed726dd136264684cabce47"
+    },
+    {
+      "path": "assets/tensorfold-hero.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "350e791ca650f1cea35827ac2357206d34cd26da",
+      "size": 1893187,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/350e791ca650f1cea35827ac2357206d34cd26da"
+    },
+    {
+      "path": "assets/tensorfold-logo.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d753f4999c5eb4e18bac2045fa8c80291e53dc42",
+      "size": 1031112,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d753f4999c5eb4e18bac2045fa8c80291e53dc42"
+    },
+    {
+      "path": "docs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "35ad9d876cf69354c96476ab5b80e8631f450854",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/35ad9d876cf69354c96476ab5b80e8631f450854"
+    },
+    {
+      "path": "docs/api.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aba8d248de6c353400b09da10670edf1aa8c8649",
+      "size": 3031,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/aba8d248de6c353400b09da10670edf1aa8c8649"
+    },
+    {
+      "path": "docs/recipes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5b14d35993f6668ccbdbbade893d52ed0f74916b",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/5b14d35993f6668ccbdbbade893d52ed0f74916b"
+    },
+    {
+      "path": "docs/recipes/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad1afebcaf44768ff4eeab06e108795284aa292e",
+      "size": 11137,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/ad1afebcaf44768ff4eeab06e108795284aa292e"
+    },
+    {
+      "path": "docs/recipes/adding-a-cuda-family.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3cda1e17bf84eb0b35660e32fff28f6165cebfc8",
+      "size": 5954,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/3cda1e17bf84eb0b35660e32fff28f6165cebfc8"
+    },
+    {
+      "path": "docs/recipes/adding-a-family.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d23f3188647e4924fb37f1f0ea12ee8041f755b",
+      "size": 7904,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/1d23f3188647e4924fb37f1f0ea12ee8041f755b"
+    },
+    {
+      "path": "docs/recipes/cuda.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6e6af2cd9df7cdee20e99ef4db95c9100558b327",
+      "size": 8032,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/6e6af2cd9df7cdee20e99ef4db95c9100558b327"
+    },
+    {
+      "path": "docs/recipes/glm-5.3-flash.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b3c52628494a127290074c874335b485a4701464",
+      "size": 23001,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/b3c52628494a127290074c874335b485a4701464"
+    },
+    {
+      "path": "docs/recipes/nemotron-3.5.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3c26a1dae36941a26dfe9fdcf353c2ffef54afa8",
+      "size": 6720,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/3c26a1dae36941a26dfe9fdcf353c2ffef54afa8"
+    },
+    {
+      "path": "docs/recipes/qwen3.8-27b.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "41a9b9ac3a5868bcd35c6fa43a71198c7aace147",
+      "size": 18931,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/41a9b9ac3a5868bcd35c6fa43a71198c7aace147"
+    },
+    {
+      "path": "docs/recipes/qwen3.8-flash-next.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "71e489fab32965d0abfd3bdbea4787f346afa9e9",
+      "size": 25944,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/71e489fab32965d0abfd3bdbea4787f346afa9e9"
+    },
+    {
+      "path": "pyproject.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2c78cbc653ed6bf61ecf17d9d9de7058ac1b57c3",
+      "size": 2319,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2c78cbc653ed6bf61ecf17d9d9de7058ac1b57c3"
+    },
+    {
+      "path": "src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "edf02c92bcc4e73cf1bfa567e502030cff323e0f",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/edf02c92bcc4e73cf1bfa567e502030cff323e0f"
+    },
+    {
+      "path": "src/tensorfold",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "26b394c74e5b86efc166b1aeb6add4984edaa5b4",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/26b394c74e5b86efc166b1aeb6add4984edaa5b4"
+    },
+    {
+      "path": "src/tensorfold/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ce1df869cfc4f04b22ba558b82f803a4371836f7",
+      "size": 137,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/ce1df869cfc4f04b22ba558b82f803a4371836f7"
+    },
+    {
+      "path": "src/tensorfold/__main__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2bac4f53050f423132ecc46e001f3adc6718766b",
+      "size": 58,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2bac4f53050f423132ecc46e001f3adc6718766b"
+    },
+    {
+      "path": "src/tensorfold/cli.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a6e3ec1df367e77ed5ad9a74604908e38b1c2b58",
+      "size": 24012,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a6e3ec1df367e77ed5ad9a74604908e38b1c2b58"
+    },
+    {
+      "path": "src/tensorfold/cuda",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "74ee7018dd323101a98d7704774ead22d1ede571",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/74ee7018dd323101a98d7704774ead22d1ede571"
+    },
+    {
+      "path": "src/tensorfold/cuda/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4eb9b7170ed6c3fadffdc2e088b6ccd22ca0347",
+      "size": 117,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f4eb9b7170ed6c3fadffdc2e088b6ccd22ca0347"
+    },
+    {
+      "path": "src/tensorfold/cuda/server.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "057c121cdef6b35d07e07c98bfd3acb6643dea48",
+      "size": 20094,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/057c121cdef6b35d07e07c98bfd3acb6643dea48"
+    },
+    {
+      "path": "src/tensorfold/drafters",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "100d7341d2b72190f3c23b8bd93e3cede001603b",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/100d7341d2b72190f3c23b8bd93e3cede001603b"
+    },
+    {
+      "path": "src/tensorfold/drafters/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "46325f8b90b74209dbcd36ef836e6283b021613c",
+      "size": 95,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/46325f8b90b74209dbcd36ef836e6283b021613c"
+    },
+    {
+      "path": "src/tensorfold/drafters/dflash_drafter.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a9a0e809c27aeb6152312a97e27c8086acb524fd",
+      "size": 50816,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a9a0e809c27aeb6152312a97e27c8086acb524fd"
+    },
+    {
+      "path": "src/tensorfold/drafters/draft_ngram.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "64404ffd7472e2ab66adf5a5abffee6608d30145",
+      "size": 11187,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/64404ffd7472e2ab66adf5a5abffee6608d30145"
+    },
+    {
+      "path": "src/tensorfold/drafters/vendor",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d507427403f2db8a8f26375ae9af48a931a88e53",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/d507427403f2db8a8f26375ae9af48a931a88e53"
+    },
+    {
+      "path": "src/tensorfold/drafters/vendor/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "src/tensorfold/drafters/vendor/z_lab_dflash",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e5997023f1f8e547107c5b6aaf7810b6807de7d2",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/e5997023f1f8e547107c5b6aaf7810b6807de7d2"
+    },
+    {
+      "path": "src/tensorfold/drafters/vendor/z_lab_dflash/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "064a60d4714b6f0535c0705132308ce9afcc8555",
+      "size": 304,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/064a60d4714b6f0535c0705132308ce9afcc8555"
+    },
+    {
+      "path": "src/tensorfold/drafters/vendor/z_lab_dflash/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "src/tensorfold/drafters/vendor/z_lab_dflash/model_mlx.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8983c4d3aafa8f6e1667e355a92d3f0a25e506ff",
+      "size": 35272,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/8983c4d3aafa8f6e1667e355a92d3f0a25e506ff"
+    },
+    {
+      "path": "src/tensorfold/engine",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c4d3102e08654dc7d4bae29e3b171e1f39b6d4a7",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/c4d3102e08654dc7d4bae29e3b171e1f39b6d4a7"
+    },
+    {
+      "path": "src/tensorfold/engine/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f8ce3de861f2057fdb95adcce80c12e874b27451",
+      "size": 126,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f8ce3de861f2057fdb95adcce80c12e874b27451"
+    },
+    {
+      "path": "src/tensorfold/engine/alternating_kv.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b3fbe92ca1aa16051c0d99070a2d2abec64cee6b",
+      "size": 5243,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/b3fbe92ca1aa16051c0d99070a2d2abec64cee6b"
+    },
+    {
+      "path": "src/tensorfold/engine/exact_sampling.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3ba936514a536966b3f1bbed4ceb1b0a16b8044",
+      "size": 9092,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d3ba936514a536966b3f1bbed4ceb1b0a16b8044"
+    },
+    {
+      "path": "src/tensorfold/engine/gpu_sampling.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2175d3a695155001d2d83028114f36d2d29b060a",
+      "size": 15509,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2175d3a695155001d2d83028114f36d2d29b060a"
+    },
+    {
+      "path": "src/tensorfold/engine/lane_engine.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fc1dacf9c8ab7de88033a8d803609b7af447acf0",
+      "size": 77887,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/fc1dacf9c8ab7de88033a8d803609b7af447acf0"
+    },
+    {
+      "path": "src/tensorfold/engine/lane_family.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4d416f0ead9d02365abc9e89edccbf1cabb64bf",
+      "size": 27965,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f4d416f0ead9d02365abc9e89edccbf1cabb64bf"
+    },
+    {
+      "path": "src/tensorfold/engine/prefix_snapshots.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3e54e2d5f8e1ec1f8ced8911f7ed45857d321b78",
+      "size": 12358,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/3e54e2d5f8e1ec1f8ced8911f7ed45857d321b78"
+    },
+    {
+      "path": "src/tensorfold/engine/shared_prefix.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4cd3f47e9fecd0bda5403cac276dc3d636278ef5",
+      "size": 9322,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/4cd3f47e9fecd0bda5403cac276dc3d636278ef5"
+    },
+    {
+      "path": "src/tensorfold/engine/tool_draft.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bd67aab4c2cef219027b279d0440ccc242858e40",
+      "size": 16842,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/bd67aab4c2cef219027b279d0440ccc242858e40"
+    },
+    {
+      "path": "src/tensorfold/engine/topk.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8f8970edf0372d4c90e1ea338f0faf60ebee27be",
+      "size": 6104,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/8f8970edf0372d4c90e1ea338f0faf60ebee27be"
+    },
+    {
+      "path": "src/tensorfold/families",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "629b5bcc3f8ae04202f22b881abc1cd90793d481",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/629b5bcc3f8ae04202f22b881abc1cd90793d481"
+    },
+    {
+      "path": "src/tensorfold/families/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b7d93198aef3406abd7b56865024889575611cb7",
+      "size": 1538,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/b7d93198aef3406abd7b56865024889575611cb7"
+    },
+    {
+      "path": "src/tensorfold/families/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2fd2a5f6b08446fa3c0aa8568afb0de9471b3d78",
+      "size": 9670,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2fd2a5f6b08446fa3c0aa8568afb0de9471b3d78"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "88eee1bff490a8ee548a89f2cccca689a2db0a4e",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/88eee1bff490a8ee548a89f2cccca689a2db0a4e"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9d41ffb278a733896c64f97585906ae42b4067d7",
+      "size": 5800,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/9d41ffb278a733896c64f97585906ae42b4067d7"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cc905a07b5826f142d9e9c16a335d3ba4a80dc38",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/cc905a07b5826f142d9e9c16a335d3ba4a80dc38"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83871aac6ee26136451fe19e59f98cb0d28697af",
+      "size": 605,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/83871aac6ee26136451fe19e59f98cb0d28697af"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/app.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4e682134c59db5d595e024d3fe8a5f8512078c1e",
+      "size": 3566,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/4e682134c59db5d595e024d3fe8a5f8512078c1e"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "76b26e21bcd19ea01ecaf61b098a5a2ad821ba5b",
+      "size": 6289,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/76b26e21bcd19ea01ecaf61b098a5a2ad821ba5b"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/comm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "47339a1b98a6f6d3422482d9f121d2b605a381eb",
+      "size": 3722,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/47339a1b98a6f6d3422482d9f121d2b605a381eb"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/decode.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "77053d5a9082f2e3b8f6c3109ecea6dfe4bb5817",
+      "size": 28002,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/77053d5a9082f2e3b8f6c3109ecea6dfe4bb5817"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/dflash2.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fd88e17ea0d2c2626c09b98956b95ed6b5cfa522",
+      "size": 24452,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/fd88e17ea0d2c2626c09b98956b95ed6b5cfa522"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/engine.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7581378d40884a1cc5b6ba20fc94d283fcd8e0bf",
+      "size": 22156,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/7581378d40884a1cc5b6ba20fc94d283fcd8e0bf"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/exl3.cpp",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f33057f3cb3b8dba24739ee0875ba2adfbc1fb61",
+      "size": 4076,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f33057f3cb3b8dba24739ee0875ba2adfbc1fb61"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/exl3.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "66e3a3525b8c96ddfe0e2045b9bcd831b3452fb4",
+      "size": 15482,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/66e3a3525b8c96ddfe0e2045b9bcd831b3452fb4"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/exl3.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a6e3f2160a342983f688af30cdd1e8c3d44cc4ab",
+      "size": 6274,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a6e3f2160a342983f688af30cdd1e8c3d44cc4ab"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/exl3_mm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "229267cd6dcca94665d7c0c81532df6835aae448",
+      "size": 4430,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/229267cd6dcca94665d7c0c81532df6835aae448"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/forward.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "52e33f8037aabce5000e70d1f848f9e8397023e2",
+      "size": 22133,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/52e33f8037aabce5000e70d1f848f9e8397023e2"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/glue.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "17c7524c5e4136a9e5ef344125a47c89e5b55674",
+      "size": 21277,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/17c7524c5e4136a9e5ef344125a47c89e5b55674"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/graphs.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "63a513477e0a8206551fd0c5a38401419b003eb6",
+      "size": 1919,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/63a513477e0a8206551fd0c5a38401419b003eb6"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/kda.cpp",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a0d338b0efc52c56a0628377ca5828296781321e",
+      "size": 4016,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a0d338b0efc52c56a0628377ca5828296781321e"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/kda.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bd9093822c5ed4eff1bf2086c1d4e69cec48a8fa",
+      "size": 12546,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/bd9093822c5ed4eff1bf2086c1d4e69cec48a8fa"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/kda.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "60eb8cda6ed88c89bd1196cd334164da5954b7cd",
+      "size": 4212,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/60eb8cda6ed88c89bd1196cd334164da5954b7cd"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/mtp.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d8710d7f792e028e586c2ba2b7c2a8c7a6c59d36",
+      "size": 3702,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d8710d7f792e028e586c2ba2b7c2a8c7a6c59d36"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "429c9e8cc048523e3766e189be3200ad54dcf300",
+      "size": 24803,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/429c9e8cc048523e3766e189be3200ad54dcf300"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/sparse.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a5d04034779f362e1f8c57efb1d1df6e7032542c",
+      "size": 10533,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a5d04034779f362e1f8c57efb1d1df6e7032542c"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/split.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9ca299a2eac93cc56d914e966094022850d0fda",
+      "size": 11037,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d9ca299a2eac93cc56d914e966094022850d0fda"
+    },
+    {
+      "path": "src/tensorfold/families/glm5_next/cuda/weights.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "686f8fa5127affb287ded3bd40a37f60d835a3f1",
+      "size": 16239,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/686f8fa5127affb287ded3bd40a37f60d835a3f1"
+    },
+    {
+      "path": "src/tensorfold/families/nemotron_h",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5d24db53eec0f1612ae1f2c614342ac6b4fff0a8",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/5d24db53eec0f1612ae1f2c614342ac6b4fff0a8"
+    },
+    {
+      "path": "src/tensorfold/families/nemotron_h/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a07878668e89692d29bda593f15d4aeaab9515d7",
+      "size": 1796,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a07878668e89692d29bda593f15d4aeaab9515d7"
+    },
+    {
+      "path": "src/tensorfold/families/nemotron_h/draft_ids.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5f11b69a0f32cd1f3ad2c5c3cf1834ed2b5fefe3",
+      "size": 191325,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/5f11b69a0f32cd1f3ad2c5c3cf1834ed2b5fefe3"
+    },
+    {
+      "path": "src/tensorfold/families/nemotron_h/model.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5c3bc439a8fafc61e5c9c559b03349aa31a07d7c",
+      "size": 21813,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/5c3bc439a8fafc61e5c9c559b03349aa31a07d7c"
+    },
+    {
+      "path": "src/tensorfold/families/nemotron_h/mtp.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e31bf45e08f7b570a1cb1e1a0f7f85750aa19951",
+      "size": 5510,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e31bf45e08f7b570a1cb1e1a0f7f85750aa19951"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8947a6fe9e1aa50d4b94164b2ea7d56f7282ad3b",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/8947a6fe9e1aa50d4b94164b2ea7d56f7282ad3b"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f22a5f5f623005417987847ce014566bf4b5695b",
+      "size": 19773,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f22a5f5f623005417987847ce014566bf4b5695b"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a9749845a638e79d3245a4da6bb581c0bb5bd91d",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/a9749845a638e79d3245a4da6bb581c0bb5bd91d"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cd995b7bb57a032682c544bbb4330098d203d27c",
+      "size": 4556,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/cd995b7bb57a032682c544bbb4330098d203d27c"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "22ab8187ecfe3ec84e79f880ce7961b53d8c6367",
+      "size": 433,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/22ab8187ecfe3ec84e79f880ce7961b53d8c6367"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "71967b4bb7caed86e07c782232dd32fa8aba117f",
+      "size": 8743,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/71967b4bb7caed86e07c782232dd32fa8aba117f"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/decode.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a4df01c86e0285ffc931fe47ec9903bcb898de26",
+      "size": 12155,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a4df01c86e0285ffc931fe47ec9903bcb898de26"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/decode_tp.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8523c4a7aeb78d9b3fd313efed6892fb800026de",
+      "size": 11985,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/8523c4a7aeb78d9b3fd313efed6892fb800026de"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/dflash2.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dfa491da2665491480a56fb8f8c0d4aeb013cc29",
+      "size": 27990,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/dfa491da2665491480a56fb8f8c0d4aeb013cc29"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/distributed.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fc657089cac9197ed1da6cc1f254417bb0d5bdfd",
+      "size": 13095,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/fc657089cac9197ed1da6cc1f254417bb0d5bdfd"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/engine.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5929b63560cf26e05cf9ca30c0bf61400c41269c",
+      "size": 10017,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/5929b63560cf26e05cf9ca30c0bf61400c41269c"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/forward.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c1140c66f647eedd49cdda5376c5aff9b5d343e2",
+      "size": 11201,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/c1140c66f647eedd49cdda5376c5aff9b5d343e2"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/gdn_tree.cpp",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "109816e7b21537a83a24dcc5388ac543d7046d7f",
+      "size": 6431,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/109816e7b21537a83a24dcc5388ac543d7046d7f"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/gdn_tree.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "328c20a306952d449780836552a2d050d6453fec",
+      "size": 10074,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/328c20a306952d449780836552a2d050d6453fec"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/gdn_tree.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bf2691fece07f7f2f30305623e6151a1653b5e50",
+      "size": 2104,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/bf2691fece07f7f2f30305623e6151a1653b5e50"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/glue.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0ca7d901b2181d7e5f932377fd5e2c6509209055",
+      "size": 11050,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/0ca7d901b2181d7e5f932377fd5e2c6509209055"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "377773da97fb4a5491df413b94838d0e705aaa0a",
+      "size": 6376,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/377773da97fb4a5491df413b94838d0e705aaa0a"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/qmm_fast.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8aa4dab10e980d5971262e9064adc67633c2d6ea",
+      "size": 9336,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/8aa4dab10e980d5971262e9064adc67633c2d6ea"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/reference.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "86e30e4a61f0d4de4cb6b18ec1e5cd7e69e4b512",
+      "size": 7287,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/86e30e4a61f0d4de4cb6b18ec1e5cd7e69e4b512"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/sampling.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d332f2a36c52012f0ba90ead620e8adc2b15db32",
+      "size": 1506,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d332f2a36c52012f0ba90ead620e8adc2b15db32"
+    },
+    {
+      "path": "src/tensorfold/families/qwen3_5/cuda/weights.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3e43b570be764d981b3efdd6357bf206a1da716a",
+      "size": 7810,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/3e43b570be764d981b3efdd6357bf206a1da716a"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6292999e1f955bbc87d67f5616096cf62fe3baaa",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/6292999e1f955bbc87d67f5616096cf62fe3baaa"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "61824cf0ae9d511ad83915c6accc30ecc10aa97c",
+      "size": 5028,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/61824cf0ae9d511ad83915c6accc30ecc10aa97c"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "eab6408650ce99727dfb0bafb10ea92a8a6205d9",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/eab6408650ce99727dfb0bafb10ea92a8a6205d9"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "20123c10de2432bab474499e5d49c95b4d81904e",
+      "size": 902,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/20123c10de2432bab474499e5d49c95b4d81904e"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "32f9e5dafa677838c7401e9b7edd09153dca5013",
+      "size": 12908,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/32f9e5dafa677838c7401e9b7edd09153dca5013"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/comm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "765b3cbeb878b7f12a2eb5e2957199d0b9958865",
+      "size": 3709,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/765b3cbeb878b7f12a2eb5e2957199d0b9958865"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/decode.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8019411098e0fee0549c09cc030a778818306b4a",
+      "size": 20293,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/8019411098e0fee0549c09cc030a778818306b4a"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/draft_vocab.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6da34cd87cf24d427bd05362c9f09727b16628d8",
+      "size": 469671,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/6da34cd87cf24d427bd05362c9f09727b16628d8"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/engine.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9dcd981ee48dbcb6d1abce177583c42ca3c1389f",
+      "size": 14263,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/9dcd981ee48dbcb6d1abce177583c42ca3c1389f"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/forward.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8edeff3e0f339d13d4781afa30811afba8e50400",
+      "size": 28329,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/8edeff3e0f339d13d4781afa30811afba8e50400"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/gdn.cpp",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7ff1687849ff0c3f0867aac116943cc5c55c0fa6",
+      "size": 2478,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/7ff1687849ff0c3f0867aac116943cc5c55c0fa6"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/gdn.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "120aa45bb29bc3c57ac534b323e4f286315d4b8d",
+      "size": 10380,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/120aa45bb29bc3c57ac534b323e4f286315d4b8d"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/gdn.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "52599cffbbd11376ffccfb70652cc121c3e86a0e",
+      "size": 2602,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/52599cffbbd11376ffccfb70652cc121c3e86a0e"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/glue.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea2f8646214e3943dbb677f6ef5d0ae2981ca748",
+      "size": 25307,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/ea2f8646214e3943dbb677f6ef5d0ae2981ca748"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/graphs.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "abec985ab003d1e87aa64c13d0cbf3470ba1243b",
+      "size": 4129,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/abec985ab003d1e87aa64c13d0cbf3470ba1243b"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/moe.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d998b94f93f9fc4c30e3fe82801164a1dd9d76b7",
+      "size": 7813,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d998b94f93f9fc4c30e3fe82801164a1dd9d76b7"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/mtp.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "146c9c6e57622c29288e49222e68a86402efec96",
+      "size": 3210,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/146c9c6e57622c29288e49222e68a86402efec96"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/ngram.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "90558f9067cd8ece0eab2c4575fafe4c3b25caa4",
+      "size": 4711,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/90558f9067cd8ece0eab2c4575fafe4c3b25caa4"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "167a3ce4277f337bb2ded6c2706a755c38b8c331",
+      "size": 27890,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/167a3ce4277f337bb2ded6c2706a755c38b8c331"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/cuda/weights.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2082c8b3df20048c6295966e9fedc26c4e298ef9",
+      "size": 25343,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2082c8b3df20048c6295966e9fedc26c4e298ef9"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/decode.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4b5001b47b65666e734219293b9dc68bc609fb34",
+      "size": 18075,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/4b5001b47b65666e734219293b9dc68bc609fb34"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/draft_head.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c43f6522a237e2bc6c2694e75e68cd0aeda75695",
+      "size": 2743,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/c43f6522a237e2bc6c2694e75e68cd0aeda75695"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/model.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a40d1bcfdf6ba98392d055acd54a061160e6378a",
+      "size": 36727,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a40d1bcfdf6ba98392d055acd54a061160e6378a"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/mtp.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a69cdb64c4d3b7dc7be26519afa7078dcd5fbb2",
+      "size": 4284,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/5a69cdb64c4d3b7dc7be26519afa7078dcd5fbb2"
+    },
+    {
+      "path": "src/tensorfold/families/qwen4_exp/runtime.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e0661439cdbb52143d0ebbe2986ffe68e3f981f2",
+      "size": 18820,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e0661439cdbb52143d0ebbe2986ffe68e3f981f2"
+    },
+    {
+      "path": "src/tensorfold/hub.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a03c53a3dce8427878203713c0ed67d1a1875fe9",
+      "size": 4998,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a03c53a3dce8427878203713c0ed67d1a1875fe9"
+    },
+    {
+      "path": "src/tensorfold/kernels",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9336f8fd5db855ba553d50a1c7839945605695f9",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/9336f8fd5db855ba553d50a1c7839945605695f9"
+    },
+    {
+      "path": "src/tensorfold/kernels/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2eac5ce7929cb088e8dfefab20a1b44d6db1bdb4",
+      "size": 773,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2eac5ce7929cb088e8dfefab20a1b44d6db1bdb4"
+    },
+    {
+      "path": "src/tensorfold/kernels/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "edb0d33a77c6caf0a34d1c8f3c539ff5da3e2665",
+      "size": 75,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/edb0d33a77c6caf0a34d1c8f3c539ff5da3e2665"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "217372cc2c0504cca3dd413e2fb14c70390513c7",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/217372cc2c0504cca3dd413e2fb14c70390513c7"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9d63456b8d4cb62a236c4ab4c0034fbbfdee20b7",
+      "size": 31,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/9d63456b8d4cb62a236c4ab4c0034fbbfdee20b7"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron/lightning",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5310709dad3c9310ccbe11d191e7f8e0d6902ba3",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/5310709dad3c9310ccbe11d191e7f8e0d6902ba3"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron/lightning/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b5f4ea0bd737ed5d0ab5ed395ecaefc0545a108",
+      "size": 38,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/1b5f4ea0bd737ed5d0ab5ed395ecaefc0545a108"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron/lightning/v1",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7b0e38e66c5a61b150768ef061541a710525f28c",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/7b0e38e66c5a61b150768ef061541a710525f28c"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron/lightning/v1/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0f010e81e8a360a5a00de1143fe1a7c8c6e03a3c",
+      "size": 77,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/0f010e81e8a360a5a00de1143fe1a7c8c6e03a3c"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron/lightning/v1/kernels.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d8e9d130ca7820761baf7588add46cda427473e",
+      "size": 32410,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/1d8e9d130ca7820761baf7588add46cda427473e"
+    },
+    {
+      "path": "src/tensorfold/kernels/nemotron/lightning/v1/rows.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "05db84c33330b1b9107a70be3f2010f6e68fc80c",
+      "size": 15987,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/05db84c33330b1b9107a70be3f2010f6e68fc80c"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8f327420636a0ee7fec95166b7952dd46ffea2b7",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/8f327420636a0ee7fec95166b7952dd46ffea2b7"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "92182db17d59ef1aa74c818e38ae4f5a9c9fedf5",
+      "size": 20,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/92182db17d59ef1aa74c818e38ae4f5a9c9fedf5"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "43e05e5635191aa70e57598ce8c531cdbf01578f",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/43e05e5635191aa70e57598ce8c531cdbf01578f"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3f68fbce5229b84c3d15ae19fb3f1dfc047bb3e",
+      "size": 34,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e3f68fbce5229b84c3d15ae19fb3f1dfc047bb3e"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c8641112b9a9aaba0ba31a50955147476f9cbcb2",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/c8641112b9a9aaba0ba31a50955147476f9cbcb2"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3f902f8d314c44c37c91061f9279c255c25746b",
+      "size": 67,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e3f902f8d314c44c37c91061f9279c255c25746b"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/exact_attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c3ab8ab242cdefcedd6041ab9218ccc55c89e58a",
+      "size": 3907,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/c3ab8ab242cdefcedd6041ab9218ccc55c89e58a"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/gdn_capture.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "833af95e47e948ba5885eb173ab529c2f2afa9e9",
+      "size": 5351,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/833af95e47e948ba5885eb173ab529c2f2afa9e9"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/lane_attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f7c0e09ae36f301e668b3c2f2111eea37f49ef0f",
+      "size": 30881,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f7c0e09ae36f301e668b3c2f2111eea37f49ef0f"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/lane_fuse.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23c6a37290d1f1fdcf5cdeee92c4b5b862b3570c",
+      "size": 18981,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/23c6a37290d1f1fdcf5cdeee92c4b5b862b3570c"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/lane_gdn.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7c3a8188f691134cbb9a98aa863267441cf7227f",
+      "size": 21477,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/7c3a8188f691134cbb9a98aa863267441cf7227f"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/lane_glue.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c4aa6695b171d53be9d775df0c9f951fe851d170",
+      "size": 13672,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/c4aa6695b171d53be9d775df0c9f951fe851d170"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/lane_qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "92e1042acd973af311f787bbc79777f3c7186507",
+      "size": 22432,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/92e1042acd973af311f787bbc79777f3c7186507"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/lane_tree.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83480c0f3c98abe6c3e7d0cb934d75d060676af0",
+      "size": 19084,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/83480c0f3c98abe6c3e7d0cb934d75d060676af0"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/row_attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9fc3b4879f5cd2f010ee6a1702b33a696512826c",
+      "size": 9464,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/9fc3b4879f5cd2f010ee6a1702b33a696512826c"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/row_forward.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6bdd57ed3447099395f719bc96f2465d4debe5fc",
+      "size": 45858,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/6bdd57ed3447099395f719bc96f2465d4debe5fc"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/row_qmv.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "51774499637edeffca4649b2a6576eb34f32e736",
+      "size": 7784,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/51774499637edeffca4649b2a6576eb34f32e736"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/dense/v1/simd_qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "49a3a7fb4a929200825d09baed2fefc795cf0ff2",
+      "size": 21304,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/49a3a7fb4a929200825d09baed2fefc795cf0ff2"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/flash_next",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7b30f58a1aa3ed3bf19b224436c60fb7d13a3d2c",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/7b30f58a1aa3ed3bf19b224436c60fb7d13a3d2c"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/flash_next/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5d225c397dac935efd2e2452f67635bed870b605",
+      "size": 34,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/5d225c397dac935efd2e2452f67635bed870b605"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/flash_next/v1",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6eb94f6a18d5ad492e60560484de02e005a899c2",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/6eb94f6a18d5ad492e60560484de02e005a899c2"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/flash_next/v1/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "48b848f2ff7feea2032fe8f9467d206433c1167e",
+      "size": 73,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/48b848f2ff7feea2032fe8f9467d206433c1167e"
+    },
+    {
+      "path": "src/tensorfold/kernels/qwen/flash_next/v1/kernels.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "362eab757667c6a6b295cbf552868d58c5494f08",
+      "size": 83756,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/362eab757667c6a6b295cbf552868d58c5494f08"
+    },
+    {
+      "path": "src/tensorfold/server",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f379a5a7c6e15d9f59c80cc445b2d87c114d36d3",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/f379a5a7c6e15d9f59c80cc445b2d87c114d36d3"
+    },
+    {
+      "path": "src/tensorfold/server/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e775c8024201caa392aa24ca92b591875f54bcc2",
+      "size": 110,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e775c8024201caa392aa24ca92b591875f54bcc2"
+    },
+    {
+      "path": "src/tensorfold/server/app.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "48fee91c7a357145c92499f78dba12432d0e7ec1",
+      "size": 57703,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/48fee91c7a357145c92499f78dba12432d0e7ec1"
+    },
+    {
+      "path": "src/tensorfold/server/http.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "21fde2d12a817261050248a177e74cb912c752a9",
+      "size": 32827,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/21fde2d12a817261050248a177e74cb912c752a9"
+    },
+    {
+      "path": "src/tensorfold/update.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7faff764c5cf885d91b6a6342e1db975a1bd3693",
+      "size": 6303,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/7faff764c5cf885d91b6a6342e1db975a1bd3693"
+    },
+    {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9a1a2e6efb131bb712117d0f3c995e76fe4ffc60",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/9a1a2e6efb131bb712117d0f3c995e76fe4ffc60"
+    },
+    {
+      "path": "tests/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "tests/conftest.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "635daf0f04c696607dc27df78eb740a92e96da5b",
+      "size": 891,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/635daf0f04c696607dc27df78eb740a92e96da5b"
+    },
+    {
+      "path": "tests/cuda",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "78c15a84ac16bf7c24b62df6dbda64cbb583becb",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/78c15a84ac16bf7c24b62df6dbda64cbb583becb"
+    },
+    {
+      "path": "tests/cuda/conftest.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4869882d3940bf24795802e334b34ef5e5b9f824",
+      "size": 344,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/4869882d3940bf24795802e334b34ef5e5b9f824"
+    },
+    {
+      "path": "tests/cuda/test_flashnext_forward.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "04b5f32e23d8448f5b51d4968bda8ffb2860c03d",
+      "size": 14358,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/04b5f32e23d8448f5b51d4968bda8ffb2860c03d"
+    },
+    {
+      "path": "tests/cuda/test_flashnext_kernels.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a979c5a50882ebbfb308e2f589f483b9d71b030",
+      "size": 21157,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/5a979c5a50882ebbfb308e2f589f483b9d71b030"
+    },
+    {
+      "path": "tests/cuda/test_flashnext_tp.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8fe72c66daaeb8ac62085f2dc7f6e917ecc5308a",
+      "size": 19232,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/8fe72c66daaeb8ac62085f2dc7f6e917ecc5308a"
+    },
+    {
+      "path": "tests/cuda/test_glm_engine.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "052e0d4dbb30330c686dfbf0ffcf660551354849",
+      "size": 19077,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/052e0d4dbb30330c686dfbf0ffcf660551354849"
+    },
+    {
+      "path": "tests/cuda/test_glm_exl3.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9a8e43c726dd0502fc1a0766425d489826a6f4e6",
+      "size": 8963,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/9a8e43c726dd0502fc1a0766425d489826a6f4e6"
+    },
+    {
+      "path": "tests/cuda/test_glm_kernels.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9e10af3e0928082d9b03e04705b6faa504eddc7e",
+      "size": 16012,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/9e10af3e0928082d9b03e04705b6faa504eddc7e"
+    },
+    {
+      "path": "tests/cuda/test_glm_split_and_policy.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb76779d122939fd5e14e63b7ba875dbe15d7a6e",
+      "size": 10062,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/cb76779d122939fd5e14e63b7ba875dbe15d7a6e"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "45c014b76525d2747b70cc27fb17574614b56b68",
+      "size": 3498,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/45c014b76525d2747b70cc27fb17574614b56b68"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_copy_index.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "77a4100dabe6b70d499557c8cc88bcae3799d238",
+      "size": 808,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/77a4100dabe6b70d499557c8cc88bcae3799d238"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_distributed.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "51d89a679d9e1277b299d98918670f0da684ca69",
+      "size": 8923,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/51d89a679d9e1277b299d98918670f0da684ca69"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_forward.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a9e89e27083e8999c7cb9bb75720c848c42c949c",
+      "size": 6806,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a9e89e27083e8999c7cb9bb75720c848c42c949c"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_gdn_tree.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "46c2312b47a852348a3c7d27a498ccae3f43f07f",
+      "size": 6730,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/46c2312b47a852348a3c7d27a498ccae3f43f07f"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_glue.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d19debda672b18d27e626104f1d341fe99c4a474",
+      "size": 3123,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d19debda672b18d27e626104f1d341fe99c4a474"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eb08ad8eb1aa3d97d2e745ad004890992bbd1f24",
+      "size": 3024,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/eb08ad8eb1aa3d97d2e745ad004890992bbd1f24"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_sampling.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ef17e250cd447f7170f40851e388753da6344a6a",
+      "size": 849,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/ef17e250cd447f7170f40851e388753da6344a6a"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_share.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aed737dddb7b4e7991f8e83d2a091967833f2401",
+      "size": 966,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/aed737dddb7b4e7991f8e83d2a091967833f2401"
+    },
+    {
+      "path": "tests/cuda/test_qwen27_split_sampling.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "32252ec0abbdc479beedff07fd833f11abeece42",
+      "size": 1424,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/32252ec0abbdc479beedff07fd833f11abeece42"
+    },
+    {
+      "path": "tests/lane_fakes.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "03dbf3bfe637df260b9367ed4ae2a352555b47f1",
+      "size": 6598,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/03dbf3bfe637df260b9367ed4ae2a352555b47f1"
+    },
+    {
+      "path": "tests/test_alternating_kv.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1ae91714d7c0f410a484def29b91aa87131f0b35",
+      "size": 1998,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/1ae91714d7c0f410a484def29b91aa87131f0b35"
+    },
+    {
+      "path": "tests/test_cuda_cli.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2b8b9aba8ecee35b8fba965f2b60188cacd399f2",
+      "size": 4224,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2b8b9aba8ecee35b8fba965f2b60188cacd399f2"
+    },
+    {
+      "path": "tests/test_cuda_server_stream.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2c80f649dedfa28bec7b7d41e8e535adf0cbfb67",
+      "size": 1617,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2c80f649dedfa28bec7b7d41e8e535adf0cbfb67"
+    },
+    {
+      "path": "tests/test_dflash_draft_vocab.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ef5bc92444947a1961bfe0fbd4365435fec61c85",
+      "size": 2704,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/ef5bc92444947a1961bfe0fbd4365435fec61c85"
+    },
+    {
+      "path": "tests/test_dflash_tree_search.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c4b52f36d67c964376b27b2f4025cee1a87e3d98",
+      "size": 16728,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/c4b52f36d67c964376b27b2f4025cee1a87e3d98"
+    },
+    {
+      "path": "tests/test_draft_ngram.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1523406318d5862cee85972404a651cb89bf2e1a",
+      "size": 4990,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/1523406318d5862cee85972404a651cb89bf2e1a"
+    },
+    {
+      "path": "tests/test_exact_sampling.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3a8bedfd09377dfe09f0c5db50445281b045c886",
+      "size": 4813,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/3a8bedfd09377dfe09f0c5db50445281b045c886"
+    },
+    {
+      "path": "tests/test_hub_and_checks.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5dbfa7c84744b8619179b3244a6df4d2795a3ffa",
+      "size": 11552,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/5dbfa7c84744b8619179b3244a6df4d2795a3ffa"
+    },
+    {
+      "path": "tests/test_lane_attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "24703f46b35381ce8b59c8160822627353208a66",
+      "size": 1879,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/24703f46b35381ce8b59c8160822627353208a66"
+    },
+    {
+      "path": "tests/test_lane_engine.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b29103c954fd7c4ca116187e8d77306f7eb5f13f",
+      "size": 23172,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/b29103c954fd7c4ca116187e8d77306f7eb5f13f"
+    },
+    {
+      "path": "tests/test_lane_fuse.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f0279a3d829122d5fbe31c45d8598b8efaad18dd",
+      "size": 13540,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f0279a3d829122d5fbe31c45d8598b8efaad18dd"
+    },
+    {
+      "path": "tests/test_lane_gdn.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "43fdea3c613020872dbdabe8a349aaaf06f6fb0f",
+      "size": 2547,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/43fdea3c613020872dbdabe8a349aaaf06f6fb0f"
+    },
+    {
+      "path": "tests/test_lane_glue_norm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d4bdca328c9251639d8f4329d38c1fb1b012bf3e",
+      "size": 1840,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/d4bdca328c9251639d8f4329d38c1fb1b012bf3e"
+    },
+    {
+      "path": "tests/test_lane_qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f5a6e959f4c60fbe3dedf266655b905597ecb214",
+      "size": 4895,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/f5a6e959f4c60fbe3dedf266655b905597ecb214"
+    },
+    {
+      "path": "tests/test_lane_server.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9e2513c14eca8d61211210aee545425af95853b0",
+      "size": 24320,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/9e2513c14eca8d61211210aee545425af95853b0"
+    },
+    {
+      "path": "tests/test_lane_stream_text.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "30a87df1ea8c0864061f836bc0fc3b97a824f749",
+      "size": 2115,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/30a87df1ea8c0864061f836bc0fc3b97a824f749"
+    },
+    {
+      "path": "tests/test_lane_tree.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2c51654b31d48905a0114fc1a71fc0ff4950cf6",
+      "size": 7092,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/e2c51654b31d48905a0114fc1a71fc0ff4950cf6"
+    },
+    {
+      "path": "tests/test_mlx_lanes.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0a5e6834305f925bd8628069bdbde155b06cf28c",
+      "size": 4493,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/0a5e6834305f925bd8628069bdbde155b06cf28c"
+    },
+    {
+      "path": "tests/test_nemotron_rows.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "685ae4e80690b872027b4fbe246a4af2675db28b",
+      "size": 8974,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/685ae4e80690b872027b4fbe246a4af2675db28b"
+    },
+    {
+      "path": "tests/test_prefix_snapshots.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "021934c182cd2ae5c96832d7ac68cc2cab255bd8",
+      "size": 1733,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/021934c182cd2ae5c96832d7ac68cc2cab255bd8"
+    },
+    {
+      "path": "tests/test_qwen4_exp_family.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "27267cec315bb294b5f81d0dd65272a1137866b5",
+      "size": 8279,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/27267cec315bb294b5f81d0dd65272a1137866b5"
+    },
+    {
+      "path": "tests/test_row_attention.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cca2eb466fd9ee3d9a85ffce2353483851ce29c3",
+      "size": 2080,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/cca2eb466fd9ee3d9a85ffce2353483851ce29c3"
+    },
+    {
+      "path": "tests/test_row_forward.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "27a98ef91142eb77d7695658cd96d129c603a5da",
+      "size": 15459,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/27a98ef91142eb77d7695658cd96d129c603a5da"
+    },
+    {
+      "path": "tests/test_server_openai_compat.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "014b704281d44fd6bafc0d18bbdf21cb4cfdd129",
+      "size": 9186,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/014b704281d44fd6bafc0d18bbdf21cb4cfdd129"
+    },
+    {
+      "path": "tests/test_simd_qmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4d7fed0cceb6386f750c2285c0f84236a3fe1747",
+      "size": 3493,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/4d7fed0cceb6386f750c2285c0f84236a3fe1747"
+    },
+    {
+      "path": "tests/test_thinking_budget.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a5cbe6f3f18c1eec1a84a58c10417eebb3c67626",
+      "size": 9466,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/a5cbe6f3f18c1eec1a84a58c10417eebb3c67626"
+    },
+    {
+      "path": "tests/test_tool_call_normalization.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0b188f7b212da1ae244a5b4378c6e8788b93578d",
+      "size": 3170,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/0b188f7b212da1ae244a5b4378c6e8788b93578d"
+    },
+    {
+      "path": "tests/test_tool_draft.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2abaa4983aebcccf398451f87b28843ff939fab5",
+      "size": 9021,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/2abaa4983aebcccf398451f87b28843ff939fab5"
+    },
+    {
+      "path": "tests/test_topk.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "58703480f6ac0f0d047ac2bf32387167cc2fd857",
+      "size": 1587,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/58703480f6ac0f0d047ac2bf32387167cc2fd857"
+    },
+    {
+      "path": "tests/test_unsupported_checkpoints.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa13a034d55024b3c00f1cd9973e4694fa506720",
+      "size": 4526,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/aa13a034d55024b3c00f1cd9973e4694fa506720"
+    },
+    {
+      "path": "tests/test_update.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6a94d03b0353feb4e5b664717d95eb8a54594925",
+      "size": 4442,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/6a94d03b0353feb4e5b664717d95eb8a54594925"
+    },
+    {
+      "path": "tools",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "13ccf6db673f1c9891255a86163beab1ce79bfbc",
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/trees/13ccf6db673f1c9891255a86163beab1ce79bfbc"
+    },
+    {
+      "path": "tools/bench_openai.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b6140769afeb4bd64f3584d1b7800580c6772c2",
+      "size": 4500,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/1b6140769afeb4bd64f3584d1b7800580c6772c2"
+    },
+    {
+      "path": "tools/draft_vocab.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7673c1b119e51e54a5116b53ed75a9f7c48b8b57",
+      "size": 2717,
+      "url": "https://api.github.com/repos/atveit/tensorfold/git/blobs/7673c1b119e51e54a5116b53ed75a9f7c48b8b57"
+    }
+  ]
+}

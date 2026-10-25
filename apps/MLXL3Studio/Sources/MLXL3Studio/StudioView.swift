@@ -54,6 +54,11 @@ struct StudioView: View {
         .sheet(isPresented: $studio.showModelManager) {
             ModelManagerView().environmentObject(studio)
         }
+        .sheet(isPresented: $studio.showWorkspace) { WorkspaceManagerView().environmentObject(studio) }
+        .sheet(isPresented: $studio.showMCPManager) { MCPManagerView().environmentObject(studio) }
+        .alert(L("MLXL3", "MLXL3"), isPresented: Binding(get: { studio.featureError != nil }, set: { if !$0 { studio.featureError = nil } })) {
+            Button("OK") { studio.featureError = nil }
+        } message: { Text(studio.featureError ?? "") }
         .sheet(isPresented: $studio.showAppSettings) {
             AppSettingsView().environmentObject(studio)
         }
@@ -74,8 +79,8 @@ private struct SidebarView: View {
     private var filteredConversations: [Conversation] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
         return studio.conversations.filter {
-            query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
-                || $0.messages.contains { $0.content.localizedCaseInsensitiveContains(query) }
+            $0.projectID == studio.selectedProjectID && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+                || $0.messages.contains { $0.content.localizedCaseInsensitiveContains(query) })
         }
     }
 
@@ -107,6 +112,11 @@ private struct SidebarView: View {
             .buttonStyle(StudioControlStyle(emphasized: true))
             .padding(.horizontal, 12)
             .help(L("Nouvelle conversation · ⌘N", "New conversation · ⌘N"))
+
+            Picker(L("Projet", "Project"), selection: Binding(get: { studio.selectedProjectID }, set: { studio.chooseProject($0) })) {
+                Text(L("Sans projet", "No project")).tag(UUID?.none)
+                ForEach(studio.projects) { Text($0.name).tag(Optional($0.id)) }
+            }.labelsHidden().padding(.horizontal, 16).padding(.top, 10).disabled(studio.isGenerating)
 
             HStack(spacing: 9) {
                 Image(systemName: "magnifyingglass").font(.system(size: 12))
@@ -148,6 +158,7 @@ private struct SidebarView: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
+                            Button(L("Exporter en Markdown", "Export Markdown")) { studio.selectConversation(conversation.id); studio.exportMarkdown() }
                             Button(L("Supprimer", "Delete"), role: .destructive) {
                                 studio.deleteConversation(conversation.id)
                             }
@@ -168,6 +179,8 @@ private struct SidebarView: View {
             VStack(spacing: 2) {
                 Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
                     .padding(.horizontal, 10).padding(.bottom, 12)
+                utilityButton(L("Projets et profils", "Projects and profiles"), icon: "folder", action: { studio.showWorkspace = true })
+                utilityButton("MCP", icon: "shippingbox", action: { studio.showMCPManager = true })
                 utilityButton(L("Modèles", "Models"), icon: "square.stack", action: studio.openModelManager)
                 HStack(spacing: 0) {
                     utilityButton(L("Réglages", "Settings"), icon: "gearshape", action: studio.openAppSettings)

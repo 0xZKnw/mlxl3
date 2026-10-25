@@ -1,0 +1,66 @@
+import sys
+from pathlib import Path
+import modal
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+from quantize_lfm25_modal import image, SOURCE_HASHES
+image = image.add_local_python_source('quantize_lfm25_modal')
+app = modal.App('mlxl3-lfm25-diagnostic23', image=image)
+volume = modal.Volume.from_name('mlxl3-lfm25-v2-20261015', create_if_missing=False)
+
+@app.function(gpu='H100!', cpu=8, memory=98304, timeout=480, retries=0, max_containers=1, scaledown_window=2, volumes={'/data':volume})
+def diagnose(windows, expected_shards):
+    import json, hashlib, time, importlib.metadata
+    import numpy as np
+    import torch
+    from exllamav3 import Cache, Config, Model
+    root=Path('/data/diagnostic23'); root.mkdir(exist_ok=False)
+    r={'status':'running','windows':{},'publication':False}; started=time.monotonic(); model=None
+    def save(): (root/'report.json').write_text(json.dumps(r,indent=2,allow_nan=False)+'\n')
+    save()
+    try:
+        package=Path(importlib.metadata.distribution('exllamav3').locate_file('exllamav3'))
+        actual={k:hashlib.sha256((package/k).read_bytes()).hexdigest() for k in SOURCE_HASHES}
+        if actual!=SOURCE_HASHES: raise ValueError('CUDA source mismatch')
+        r['converter_sources']=actual
+        folder=Path('/data/v2/output');r['shards']={}
+        for name,digest in expected_shards.items():
+            with (folder/name).open('rb') as f: actual=hashlib.file_digest(f,'sha256').hexdigest()
+            if actual!=digest: raise ValueError('weight SHA mismatch '+name)
+            r['shards'][name]=actual
+        config=Config.from_directory(str(folder));model=Model.from_config(config)
+        # One fresh cache for each imposed sequence; no earlier conversation state.
+        caches=[Cache(model,max_num_tokens=1024,max_batch_size=1) for _ in range(2)]
+        model.load(device='cuda:0',max_output_size=1)
+        for number,(name,tokens) in enumerate(windows.items()):
+            if len(tokens)!=1024 or any(type(t) is not int or not 0<=t<128000 for t in tokens): raise ValueError('invalid IDs')
+            cache=caches[number]
+            params={'attn_mode':'flash_attn','cache':cache,'past_len':0,'batch_shape':(1,1024)}
+            values=np.lib.format.open_memmap(root/(name+'.npy'),mode='w+',dtype=np.float16,shape=(1024,128000))
+            with torch.inference_mode():
+                for index,token in enumerate(tokens):
+                    logits=model.forward(torch.tensor([[token]]),params)
+                    row=logits.half().cpu().numpy().reshape(-1)
+                    if row.shape!=(128000,) or not np.isfinite(row).all(): raise ValueError('invalid logits')
+                    values[index]=row;params['past_len']+=1
+                    if (index+1)%128==0: print(json.dumps({'case':name,'tokens':index+1}),flush=True)
+            values.flush(); del values
+            path=root/(name+'.npy')
+            with path.open('rb') as f: digest=hashlib.file_digest(f,'sha256').hexdigest()
+            r['windows'][name]={'shape':[1024,128000],'dtype':'float16','sha256':digest,'bytes':path.stat().st_size,'token_sha256':hashlib.sha256(np.asarray(tokens,dtype='<u4').tobytes()).hexdigest()};save()
+        model.unload();model=None
+        r.update(status='complete',elapsed_seconds=time.monotonic()-started,gpu=torch.cuda.get_device_name());save()
+        return r
+    except BaseException as error:
+        r.update(status='failed',error=repr(error),elapsed_seconds=time.monotonic()-started);save();raise
+    finally:
+        if model is not None: model.unload()
+        volume.commit()
+
+@app.local_entrypoint()
+def main():
+    import json
+    root=Path(__file__).resolve().parents[1]
+    plan=json.loads((root/'build/diagnostic23-input.json').read_text())
+    result=diagnose.remote(plan['windows'],plan['shards'])
+    (root/'docs/measurements/quant-lfm25-v2-20261015/diagnostic23-cloud.json').write_text(json.dumps(result,indent=2)+'\n')
+    print(json.dumps(result),flush=True)

@@ -1,0 +1,63 @@
+{
+  "status": "trace_retry_cpu_verified",
+  "focused": {
+    "helper": 51,
+    "runner": 36
+  },
+  "previous_suite": {
+    "passed": 951,
+    "skipped": 1,
+    "reused_for_unchanged_paths": true
+  },
+  "properties": "trace timer started and cancelled on success/error; cancellation-removal mutation detected; unchanged4stage/cache symbolic contracts",
+  "log_archive": "trace-retry-cpu-and-timeout-logs.tar.gz",
+  "archive_sha256": "e69519108c2cfc77b58c024a22cbccb99dd56d4c1c8a1254df7b3e412713d0cc",
+  "files": {
+    "lfm25-tuning37-third-cold-a-timeout.log": {
+      "bytes": 21194,
+      "sha256": "43515a1447d4b46946085fcc43a7ff95a5cfd11a39099b2a999e89997700ffcf"
+    },
+    "lfm25-tuning37-trace-compile.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lfm25-tuning37-trace-crosshair.log": {
+      "bytes": 256,
+      "sha256": "2afb4743e8fc19d41dfd0f25d3044ffdbb0d4794d5336f946df79404c1dcce1f"
+    },
+    "lfm25-tuning37-trace-format.log": {
+      "bytes": 26,
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+    },
+    "lfm25-tuning37-trace-lint.log": {
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "lfm25-tuning37-trace-mutation.log": {
+      "bytes": 12226,
+      "sha256": "5ad1112a27e5971ebcf626a628e9bfa516b37d2cf23bf860b91515bffdf54aa2"
+    },
+    "lfm25-tuning37-trace-runner-cli-help.log": {
+      "bytes": 202,
+      "sha256": "d4974fd148d1cb3504484f48adc9ce771bf971c6618033fa27fe2dd9a9329f90"
+    },
+    "lfm25-tuning37-trace-runner-tests.log": {
+      "bytes": 1022,
+      "sha256": "cff759d4a0d0eb64e0f647ea930d29509ae171152b907926286ed046e5f14f8e"
+    },
+    "lfm25-tuning37-trace-tests-restored.log": {
+      "bytes": 634,
+      "sha256": "86a62ceaa7a6643c436950f27b514f952b9c9011693e7a24e96d83180a5736f2"
+    },
+    "lfm25-tuning37-trace-tests.log": {
+      "bytes": 634,
+      "sha256": "4a26ef36093363020c139c90333ea70f0195755cfc84464d934a03a14f70fbec"
+    }
+  },
+  "legacy_sha256": "99c650616348c59a2d5a2c28f5b4519051a3a6295c305329f2aa0b2e5a617910",
+  "unverified": [
+    "GPUcache repeatability",
+    "CUDA/tensor/source IO numerical proof",
+    "cause of slower third execution"
+  ]
+}

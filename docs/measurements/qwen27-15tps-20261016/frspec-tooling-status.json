@@ -1,0 +1,84 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "format",
+      "--check",
+      "benchmarks/benchmark_smallm.py",
+      "benchmarks/benchmark_smallm_reuse.py",
+      "benchmarks/analyze_smallm_profile.py",
+      "scripts/experimental-draft-head.py",
+      "tests/test_experimental_draft_head.py",
+      "tests/test_smallm_reuse.py",
+      "tests/test_smallm_profile.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.012407417059876025
+  },
+  {
+    "name": "lint",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "check",
+      "benchmarks/benchmark_smallm.py",
+      "benchmarks/benchmark_smallm_reuse.py",
+      "benchmarks/analyze_smallm_profile.py",
+      "scripts/experimental-draft-head.py",
+      "tests/test_experimental_draft_head.py",
+      "tests/test_smallm_reuse.py",
+      "tests/test_smallm_profile.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.011165417032316327
+  },
+  {
+    "name": "compile",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "py_compile",
+      "benchmarks/benchmark_smallm.py",
+      "benchmarks/benchmark_smallm_reuse.py",
+      "benchmarks/analyze_smallm_profile.py",
+      "scripts/experimental-draft-head.py",
+      "tests/test_experimental_draft_head.py",
+      "tests/test_smallm_reuse.py",
+      "tests/test_smallm_profile.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.033134334022179246
+  },
+  {
+    "name": "crosshair",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "scripts/experimental-draft-head.py",
+      "--analysis_kind=PEP316"
+    ],
+    "exit_code": 1,
+    "seconds": 0.017364332918077707
+  },
+  {
+    "name": "tests",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_smallm_reuse.py",
+      "tests/test_smallm_benchmark.py",
+      "tests/test_smallm_profile.py",
+      "tests/test_compare_native.py",
+      "tests/test_native_json_process.py",
+      "tests/test_qmm_tiles.py",
+      "tests/test_decode_microbenchmarks.py",
+      "tests/test_experimental_draft_head.py"
+    ],
+    "exit_code": 0,
+    "seconds": 69.1927552500274
+  }
+]

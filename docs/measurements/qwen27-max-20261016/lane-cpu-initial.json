@@ -1,0 +1,66 @@
+{
+  "status": "failed",
+  "gpu_executed": false,
+  "results": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "tests",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q /tmp/mlxl3-q27-max-20261016/test_funnel_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "03f0b4",
+        "wall_time_seconds": 0.131628583,
+        "exit_code": 0,
+        "original_token_count": 25,
+        "output": "...............................                                          [100%]\n31 passed in 0.13s\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "format",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff format --check /tmp/mlxl3-q27-max-20261016/lane_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "95d600",
+        "wall_time_seconds": 0.000004167,
+        "exit_code": 1,
+        "original_token_count": 1064,
+        "output": "unformatted: File would be reformatted\n   --> /tmp/mlxl3-q27-max-20261016/lane_screen.py:106:18\n    |\n105 |         raise ValueError(\"activation dimensions must be a positive multiple of 16\")\n    -     return tuple(start + offset for start in range(0, dims, 16) for offset in LANE_ORDER)\n106 +     return tuple(\n107 +         start + offset for start in range(0, dims, 16) for offset in LANE_ORDER\n108 +     )\n109 |\n--------------------------------------------------------------------------------\n150 |                 expected = [begin + 2 * (lane % 4) + offset for offset in (0, 1, 8, 9)]\n    -                 actual = list(order[begin + 4 * (lane % 4) : begin + 4 * (lane % 4) + 4])\n151 +                 actual = list(\n152 +                     order[begin + 4 * (lane % 4) : begin + 4 * (lane % 4) + 4]\n153 +                 )\n154 |                 assert actual == expected\n--------------------------------------------------------------------------------\n168 |         candidate = transform(stock)\n    -         assert candidate.count(MARKER) == 1 and candidate.count(base.OLD) == stock.count(base.OLD)\n    -         old, new = (OLD_MAPPED, NEW_MAPPED) if \"mapped\" in name else (OLD_TILE, NEW_TILE)\n169 +         assert candidate.count(MARKER) == 1 and candidate.count(\n170 +             base.OLD\n171 +         ) == stock.count(base.OLD)\n172 +         old, new = (\n173 +             (OLD_MAPPED, NEW_MAPPED) if \"mapped\" in name else (OLD_TILE, NEW_TILE)\n174 +         )\n175 |         assert candidate.replace(new, old) == stock\n--------------------------------------------------------------------------------\n182 |                 raise AssertionError(\"missing or duplicate source accepted\")\n    -     print(json.dumps({\"self_test\": True, \"lane_cases\": checks, \"mutation_cases\": mutations}))\n183 +     print(\n184 +         json.dumps(\n185 +             {\"self_test\": True, \"lane_cases\": checks, \"mutation_cases\": mutations}\n186 +         )\n187 +     )\n188 |\n    |\n\nunformatted: File would be reformatted\n   --> /tmp/mlxl3-q27-max-20261016/test_lane_screen.py:47:79\n    |\n46  |             shape = {\"input\": 128, \"widths\": [128] * groups}\n    -             original = np.arange(rows * groups * 128, dtype=np.int32).reshape(rows, groups, 128)\n47  +             original = np.arange(rows * groups * 128, dtype=np.int32).reshape(\n48  +                 rows, groups, 128\n49  +             )\n50  |             candidate = screen.qmv(mx, shape, rows, source=screen.MARKER)\n--------------------------------------------------------------------------------\n60  |                                 expected = [\n    -                                     original[row, group, begin + 2 * (lane % 4) + offset]\n61  +                                     original[\n62  +                                         row, group, begin + 2 * (lane % 4) + offset\n63  +                                     ]\n64  |                                     for offset in (0, 1, 8, 9)\n--------------------------------------------------------------------------------\n69  |                                         group,\n    -                                         begin + 4 * (lane % 4) : begin + 4 * (lane % 4) + 4,\n70  +                                         begin + 4 * (lane % 4) : begin\n71  +                                         + 4 * (lane % 4)\n72  +                                         + 4,\n73  |                                     ],\n--------------------------------------------------------------------------------\n116 |     def fail(args, report, save):\n    -         assert screen.base.transform is screen.transform and screen.base.qmv is screen.qmv\n117 +         assert (\n118 +             screen.base.transform is screen.transform and screen.base.qmv is screen.qmv\n119 +         )\n120 |         report[\"checks\"].append({\"fixture\": \"observed\"})\n--------------------------------------------------------------------------------\n175 |\n    - @pytest.mark.parametrize(\"arguments\", [[], [\"--checkpoint\", \"/tmp\"], [\"--iterations\", \"39\"]])\n176 + @pytest.mark.parametrize(\n177 +     \"arguments\", [[], [\"--checkpoint\", \"/tmp\"], [\"--iterations\", \"39\"]]\n178 + )\n179 | def test_real_cli_rejects_invalid_arguments(monkeypatch, arguments):\n    |\n\n2 files would be reformatted\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "lint",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff check --select E,F,I,B,SIM,PLW /tmp/mlxl3-q27-max-20261016/lane_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "b4ba1c",
+        "wall_time_seconds": 0.00000525,
+        "exit_code": 1,
+        "original_token_count": 1344,
+        "output": "E501 Line too long (89 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/lane_screen.py:106:89\n    |\n104 |     if isinstance(dims, bool) or not isinstance(dims, int) or dims <= 0 or dims % 16:\n105 |         raise ValueError(\"activation dimensions must be a positive multiple of 16\")\n106 |     return tuple(start + offset for start in range(0, dims, 16) for offset in LANE_ORDER)\n    |                                                                                         ^\n\nE501 Line too long (89 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/lane_screen.py:149:89\n    |\n147 |                 begin = tile * 16\n148 |                 expected = [begin + 2 * (lane % 4) + offset for offset in (0, 1, 8, 9)]\n149 |                 actual = list(order[begin + 4 * (lane % 4) : begin + 4 * (lane % 4) + 4])\n    |                                                                                         ^\n150 |                 assert actual == expected\n151 |                 checks += 1\n    |\n\nE501 Line too long (98 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/lane_screen.py:165:89\n    |\n163 |         stock = (base.ROOT / \"native/shaders\" / name).read_text()\n164 |         candidate = transform(stock)\n165 |         assert candidate.count(MARKER) == 1 and candidate.count(base.OLD) == stock.count(base.OLD)\n    |                                                                                         ^^^^^^^^^^\n166 |         old, new = (OLD_MAPPED, NEW_MAPPED) if \"mapped\" in name else (OLD_TILE, NEW_TILE)\n167 |         assert candidate.replace(new, old) == stock\n    |\n\nE501 Line too long (89 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/lane_screen.py:166:89\n    |\n164 |         candidate = transform(stock)\n165 |         assert candidate.count(MARKER) == 1 and candidate.count(base.OLD) == stock.count(base.OLD)\n166 |         old, new = (OLD_MAPPED, NEW_MAPPED) if \"mapped\" in name else (OLD_TILE, NEW_TILE)\n    |                                                                                         ^\n167 |         assert candidate.replace(new, old) == stock\n168 |         for invalid in (\"\", stock.replace(old, \"\"), stock + old, candidate):\n    |\n\nE501 Line too long (93 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/lane_screen.py:175:89\n    |\n173 |             else:\n174 |                 raise AssertionError(\"missing or duplicate source accepted\")\n175 |     print(json.dumps({\"self_test\": True, \"lane_cases\": checks, \"mutation_cases\": mutations}))\n    |                                                                                         ^^^^^\n\nE501 Line too long (93 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/lane_screen.py:182:89\n    |\n180 |         candidate=\"half4_lane_order\",\n181 |         lane_order=list(LANE_ORDER),\n182 |         permutation_cost=\"mx.take inside every candidate projection, including timed chains\",\n    |                                                                                         ^^^^^\n183 |         metadata=\"one immutable GPU index array per candidate kernel\",\n184 |         nt_protocol=\"explicit native M1 NT; unchanged M2 dispatch\",\n    |\n\nE501 Line too long (96 > 88)\n  --> /tmp/mlxl3-q27-max-20261016/test_lane_screen.py:47:89\n   |\n45 |             mx = CpuArray()\n46 |             shape = {\"input\": 128, \"widths\": [128] * groups}\n47 |             original = np.arange(rows * groups * 128, dtype=np.int32).reshape(rows, groups, 128)\n   |                                                                                         ^^^^^^^^\n48 |             candidate = screen.qmv(mx, shape, rows, source=screen.MARKER)\n49 |             stock = screen.qmv(mx, shape, rows, source=\"stock\")\n   |\n\nE501 Line too long (89 > 88)\n  --> /tmp/mlxl3-q27-max-20261016/test_lane_screen.py:59:89\n   |\n57 | …                     begin = tile * 16\n58 | …                     expected = [\n59 | …                         original[row, group, begin + 2 * (lane % 4) + offset]\n   |                                                                               ^\n60 | …                         for offset in (0, 1, 8, 9)\n61 | …                     ]\n   |\n\nE501 Line too long (92 > 88)\n  --> /tmp/mlxl3-q27-max-20261016/test_lane_screen.py:66:89\n   |\n64 | …                         row,\n65 | …                         group,\n66 | …                         begin + 4 * (lane % 4) : begin + 4 * (lane % 4) + 4,\n   |                                                                           ^^^^\n67 | …                     ],\n68 | …                     expected,\n   |\n\nE501 Line too long (90 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/test_lane_screen.py:111:89\n    |\n110 |     def fail(args, report, save):\n111 |         assert screen.base.transform is screen.transform and screen.base.qmv is screen.qmv\n    |                                                                                         ^^\n112 |         report[\"checks\"].append({\"fixture\": \"observed\"})\n113 |         save()\n    |\n\nE501 Line too long (93 > 88)\n   --> /tmp/mlxl3-q27-max-20261016/test_lane_screen.py:168:89\n    |\n168 | @pytest.mark.parametrize(\"arguments\", [[], [\"--checkpoint\", \"/tmp\"], [\"--iterations\", \"39\"]])\n    |                                                                                         ^^^^^\n169 | def test_real_cli_rejects_invalid_arguments(monkeypatch, arguments):\n170 |     monkeypatch.setattr(sys, \"argv\", [\"lane\", *arguments])\n    |\n\nFound 11 errors.\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "compile",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m py_compile /tmp/mlxl3-q27-max-20261016/lane_screen.py /tmp/mlxl3-q27-max-20261016/test_lane_screen.py",
+        "chunk_id": "441e7e",
+        "wall_time_seconds": 0.000005375,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "name": "crosshair",
+        "cmd": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m crosshair check /tmp/mlxl3-q27-max-20261016/lane_screen.py --analysis_kind=PEP316 --per_condition_timeout=10",
+        "chunk_id": "142e21",
+        "wall_time_seconds": 0.000005292,
+        "exit_code": 1,
+        "original_token_count": 20,
+        "output": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python: No module named crosshair\n"
+      }
+    }
+  ]
+}

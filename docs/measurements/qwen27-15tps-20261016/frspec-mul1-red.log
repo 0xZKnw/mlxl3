@@ -1,0 +1,87 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_exporter_real_artifact_chunks_and_no_overwrite[mul1] ___________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-330/test_exporter_real_artifact_ch0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107573200>
+codebook = 'mul1'
+
+    @pytest.mark.parametrize("codebook", ["mcg", "mul1"])
+    def test_exporter_real_artifact_chunks_and_no_overwrite(tmp_path, monkeypatch, codebook):
+        mx = pytest.importorskip("mlx.core")
+        from safetensors import SafetensorError
+    
+        model, output = tmp_path / "model", tmp_path / "draft"
+        model.mkdir()
+        packed = (
+            ((np.arange(8 * 16 * 96, dtype=np.uint32) * 1729 + 391) % 65536)
+            .astype(np.int16)
+            .reshape(8, 16, 96)
+        )
+        su = np.linspace(-1.2, 0.9, 128, dtype=np.float16)
+        sv = np.linspace(0.2, 1.1, 256, dtype=np.float16)
+        data, header = bytearray(), {}
+        for name, array, dtype in [
+            ("trellis", packed, "I16"),
+            ("suh", su, "F16"),
+            ("svh", sv, "F16"),
+            (codebook, np.array(1, np.int32), "I32"),
+        ]:
+            start = len(data)
+            data.extend(array.tobytes())
+            header["lm_head." + name] = {
+                "dtype": dtype,
+                "shape": list(array.shape),
+                "data_offsets": [start, len(data)],
+            }
+        encoded = json.dumps(header).encode()
+        (model / "head.safetensors").write_bytes(struct.pack("<Q", len(encoded)) + encoded + data)
+        previous = mx.default_device()
+        mx.set_default_device(mx.cpu)
+        try:
+            monkeypatch.setattr("sys.argv", ["converter", str(model), str(output), "--chunk", "128"])
+>           draft.main()
+
+tests/test_experimental_draft_head.py:289: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main():
+    
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument("model", type=Path)
+        parser.add_argument("output", type=Path)
+        parser.add_argument("--chunk", type=int, default=4096)
+        parser.add_argument(
+            "--draft-vocab", type=Path, help="prune an existing paired Q4 head using this token-ID list"
+        )
+        args = parser.parse_args()
+        if args.draft_vocab is not None:
+            prune_projection(args.model, args.output, args.draft_vocab)
+            return
+        import mlx.core as mx
+        from safetensors import safe_open
+    
+        started = time.perf_counter()
+        entries = {}
+        for path in sorted(args.model.glob("*.safetensors")):
+            # Reuse safetensors' header/range validation without reading weights.
+            with safe_open(path, framework="numpy"):
+                pass
+            with path.open("rb") as stream:
+                size = struct.unpack("<Q", stream.read(8))[0]
+                header = json.loads(stream.read(size))
+            for name, info in header.items():
+                if name.startswith("lm_head."):
+                    if name in entries:
+                        raise ValueError(f"duplicate head tensor: {name}")
+                    entries[name] = (path, size + 8, info)
+        if not {"lm_head.trellis", "lm_head.suh", "lm_head.svh"} <= entries.keys():
+            raise ValueError("missing EXL3 head tensors")
+        if "lm_head.mul1" in entries or "lm_head.bias" in entries:
+>           raise ValueError("prototype supports only unbiased Default/MCG EXL3 heads")
+E           ValueError: prototype supports only unbiased Default/MCG EXL3 heads
+
+scripts/experimental-draft-head.py:259: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_experimental_draft_head.py::test_exporter_real_artifact_chunks_and_no_overwrite[mul1]
+1 failed in 0.10s

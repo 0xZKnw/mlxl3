@@ -1,0 +1,33 @@
+{
+  "status": "complete",
+  "revision": "f25c0c4acdc44289a9cc6dab7f0eb788d1125ded",
+  "source": "https://huggingface.co/beamster/Qwen3.8-Flash-Next-Sushi-4bpw/resolve/f25c0c4acdc44289a9cc6dab7f0eb788d1125ded/model-exl3-L00-down.safetensors",
+  "bytes_read": 65536,
+  "header_sha256": "089059b791a7a6dd8ce6473579edb09e5af94c69611ea8f069291c5f6d3fe1d1",
+  "metadata": {
+    "format": "exl3",
+    "k": "4",
+    "codebook": "mcg",
+    "window": "15",
+    "quantizer": "ldlq-rotated",
+    "g_scale": "gss",
+    "imatrix_sha256": "0ccd556feb976a22c335ff4b2db7cf93bb1af99422b6f8ef8c01342aa71d070e",
+    "converter": "qwen4-exl3-2-upstream-skew"
+  },
+  "example_trellis": {
+    "language_model.model.layers.0.mlp.switch_mlp.down_proj.trellis": {
+      "dtype": "U16",
+      "shape": [
+        512,
+        40,
+        160,
+        64
+      ],
+      "data_offsets": [
+        0,
+        419430400
+      ]
+    }
+  },
+  "tensors": 3
+}

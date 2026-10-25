@@ -1,0 +1,44 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_distinct_heads_reach_every_warmup_and_measured_request __________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-334/test_distinct_heads_reach_ever0')
+
+    def test_distinct_heads_reach_every_warmup_and_measured_request(tmp_path):
+        run, _, report = run_campaign(
+            tmp_path,
+            extra_args=[
+                "--mtp-depth",
+                "1",
+                "--mtp-head",
+                str(tmp_path / "head"),
+                "--candidate-mtp-head",
+                str(tmp_path / "head-B"),
+            ],
+            expected_mtp=1,
+            candidate_head="head-B",
+        )
+>       assert run.returncode == 0, run.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/compare_native.py", line 411, in <module>
+E             main()
+E           File "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/compare_native.py", line 325, in main
+E             run = generate(
+E                   ^^^^^^^^^
+E           File "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/compare_native.py", line 111, in generate
+E             value = event(process, deadline)
+E                     ^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/benchmarks/compare_native.py", line 54, in event
+E             value = process.receive(deadline)
+E                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/scripts/native_json_process.py", line 104, in receive
+E             raise RuntimeError(
+E         RuntimeError: native process exited before a complete JSON response (1)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python', '/Users/justin/.codex/worktrees/qwen27-s...e 104, in receive\n    raise RuntimeError(\nRuntimeError: native process exited before a complete JSON response (1)\n').returncode
+
+tests/test_compare_native.py:191: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_compare_native.py::test_distinct_heads_reach_every_warmup_and_measured_request
+1 failed in 0.99s

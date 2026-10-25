@@ -1,0 +1,123 @@
+{
+  "base_commit": "c9aa43a312c63246eeb4b5a680ada26092c65a1c",
+  "source_state": "uncommitted isolated worktree; parent Rust/opti/docs changes excluded from owned source list",
+  "owned_sources": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "11ea223cafe6d16332aec4881c976e5faca8419166a40499e771ee24186978ad",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift": "79253e9e5c3856c59bcf4dafe350ae34f4c1be2175e03a8a4ee656c1c1a69eee",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift": "3d339855cde10a5050e77a5733eafa910b3397806f1e6095aade3c4b66dde4f3",
+    "scripts/check-desktop.sh": "7c955187a49c6d43a5bd6b8cc54662cc819d1e54cae178ee3008e4d2b87c6476",
+    "tests/speculative-sampling-check.swift": "d497db6553d2d561497062988858a51c0e1e6a346515f45e5fad918423afec51",
+    "tests/studio-hardening-check.swift": "92676b5776a480beeb6f2761746c89fec2392c1641bc7af201ba04bf33d581e9",
+    "tests/fake-desktop-engine.py": "dc713a6b2b5ed9518b1a4fe61d750628e03f3743e7e1b21854cc19538d9b5034"
+  },
+  "swift": "Apple Swift 6.4 (swiftlang-6.4.0.34.1)",
+  "sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+  "commands": {
+    "desktop": "MLXL3_SKIP_METAL_CHECK=1 MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk MLXL3_TEST_PYTHON=/Users/justin/Documents/mix-stq1_0/.venv/bin/python scripts/check-desktop.sh",
+    "focused": "zsh build/lfm-mtp-ui-state/focused-command.zsh",
+    "build": "MLXL3_SKIP_METAL_CHECK=1 swift build --package-path apps/MLXL3Studio --sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+    "format": "xcrun swift-format lint --strict tests/speculative-sampling-check.swift",
+    "whitespace": "git diff --check"
+  },
+  "results": {
+    "before_fix": {
+      "status": "expected_failure",
+      "exit": 133,
+      "log": "focused-before.log",
+      "property": "saved ON on LFM relaunch must preserve snapshot 0.73/37/1.12"
+    },
+    "desktop": {
+      "status": "passed",
+      "exit": 0,
+      "log": "check-desktop.log",
+      "sampling_assertions": 815,
+      "idle_assertions": 114,
+      "context_oracle_cases": 240,
+      "scope": "Complete Desktop suite before final inactive labels/tuning availability guards; affected harness and package rebuilt afterward"
+    },
+    "final_focused": {
+      "status": "passed",
+      "log": "focused-final.log",
+      "assertions": 821,
+      "finite_states": 180,
+      "domain": "5 metadata families x 2 MTP intents x 2 DFlash intents x 3 MTP capabilities x 3 DFlash capabilities; capability states absent/false/true",
+      "production_paths": "StudioModel init/private handle, per-model reload, send via fake CLI subprocess and JSON requests, snapshot persistence, OFF before ready and unsupported, preparation failure and return, DFlash ON/return/OFF; native inspector layout/bitmap and explicit source wiring guards"
+    },
+    "ui_wiring_mutation": {
+      "status": "expected_failure",
+      "exit": 133,
+      "log": "ui-wiring-mutation.log",
+      "scope": "Disposable source copy with old raw-preference lock; static source wiring guard rejects it; not an AX click proof"
+    },
+    "final_build": {
+      "status": "passed",
+      "exit": 0,
+      "log": "swift-build-final.log",
+      "seconds": 16.85,
+      "warnings": "Existing missing CLT linker search directories"
+    },
+    "format_new_harness": {
+      "status": "passed",
+      "exit": 0,
+      "log": "swift-format-final.log",
+      "initial_failure_log": "swift-format-lint.log"
+    },
+    "ui_AX": {
+      "status": "unavailable",
+      "log": "focused-ui.log",
+      "observed": "Zero native AX sliders after bounded NSWindow hosting; replaced with native render plus explicit source wiring checks. No automated AX click claimed."
+    }
+  },
+  "limits": {
+    "formal_verification": "No applicable source-level Swift verifier configured/available for this AppKit/SwiftUI class; compiler strict checks and finite exhaustive tests are not a formal proof. Python diagnostic logging is procedural filesystem I/O, not a pure CrossHair target. No translated proof claimed.",
+    "metal": "Explicitly skipped via MLXL3_SKIP_METAL_CHECK=1. No model/GPU/inference launched.",
+    "CI": "Existing push/PR workflow check.yml -> check-e2e -> check-desktop includes the new harness; no run for this uncommitted tree.",
+    "migration": "Existing snapshots already overwritten by prior versions remain as stored; lost sampling values are not reconstructed."
+  },
+  "logs": {
+    "check-desktop.log": {
+      "bytes": 3728,
+      "sha256": "3e37c2eb75618f57f34e19d9cde8981d422a84ca54c7b766af02571695bce02d"
+    },
+    "focused-after.log": {
+      "bytes": 176,
+      "sha256": "208d36612fe7c82093c65263055405a98b3c58ea3f6c08f9db9bf76a3a7e3fdd"
+    },
+    "focused-before.log": {
+      "bytes": 123,
+      "sha256": "8d4d2f24ed8900fdc061fda72921a920f06e4b43a943c0531e127aadcb194131"
+    },
+    "focused-final.log": {
+      "bytes": 176,
+      "sha256": "925126fa8f74ddf4746205e377262038483b12a89faa0ca66fcfb34789e1867f"
+    },
+    "focused-native-after.log": {
+      "bytes": 176,
+      "sha256": "db46458a9051913ed54fabcfd300636045cf24743ad9da35b2000a7aef8bf81b"
+    },
+    "focused-ui.log": {
+      "bytes": 276,
+      "sha256": "6951209a02a5b6b800e05374e853b139bee32b29c6a9977dc964a176eec1f195"
+    },
+    "swift-build-before.log": {
+      "bytes": 3356,
+      "sha256": "383094ad0b88541b1cef41e35429168957b9c7df7d88186d35419d2256657933"
+    },
+    "swift-build-final.log": {
+      "bytes": 787,
+      "sha256": "7d47f314429e5f2fca38e76705cbf2f8fd99886469220f2a0eea7f492f0a822c"
+    },
+    "swift-format-final.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "swift-format-lint.log": {
+      "bytes": 24876,
+      "sha256": "f95578052b91d395b22e9317b772f564e211f5331bfbe56693cd72652c881c13"
+    },
+    "ui-wiring-mutation.log": {
+      "bytes": 308,
+      "sha256": "d9e387061f7241db172bb5865cfeb0baacbbbfb488789d76eeb9e0eefc49566e"
+    }
+  }
+}

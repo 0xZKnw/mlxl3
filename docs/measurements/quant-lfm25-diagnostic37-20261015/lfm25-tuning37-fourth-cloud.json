@@ -1,0 +1,592 @@
+{
+  "status": "failed",
+  "publication": false,
+  "causal_interpretation": false,
+  "stages": {
+    "cold-a": {
+      "run": {
+        "status": "complete",
+        "stage": "cold-a",
+        "publication": false,
+        "causal_interpretation": false,
+        "cache_path": "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+        "capture_report": "/data/diagnostic37-fixed-tune-trace/cold-a/capture/report.json",
+        "legacy_sha256": "99c650616348c59a2d5a2c28f5b4519051a3a6295c305329f2aa0b2e5a617910",
+        "elapsed_seconds": 44.734029269,
+        "cache_before": {
+          "path": "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+          "exists": false,
+          "bytes": 0,
+          "sha256": null
+        },
+        "cache_records_before": {},
+        "runtime": {
+          "versions": {
+            "torch": "2.10.0+cu128",
+            "exllamav3": "1.5.4+cu128.torch2.10.0",
+            "numpy": "2.5.2",
+            "safetensors": "0.8.0",
+            "modal": "1.5.5"
+          },
+          "python": "3.12.10 (main, May 21 2025, 23:34:56) [GCC 12.2.0]",
+          "gpu": {
+            "name": "NVIDIA H100 80GB HBM3",
+            "total_memory": 85017624576,
+            "multi_processor_count": 132,
+            "compute_capability": [
+              9,
+              0
+            ]
+          },
+          "cuda": "12.8",
+          "driver": "580.95.05",
+          "flags_before": {
+            "matmul_allow_tf32": false,
+            "cudnn_allow_tf32": true,
+            "float32_matmul_precision": "highest",
+            "deterministic_algorithms": false,
+            "environment": {
+              "EXLLAMAV3_TUNE_CACHE": "/data/diagnostic37-fixed-tune-trace/cache-a.bin"
+            }
+          },
+          "config_files": {
+            "config.json": {
+              "path": "/data/v2/output/config.json",
+              "bytes": 1962,
+              "sha256": "d6cb556687ddd8382a90cbb957b4fbbdf95ed607bbc4800dc85fd5e5510edade",
+              "metadata": {
+                "architectures": [
+                  "Lfm2MoeForCausalLM"
+                ],
+                "model_type": "lfm2_moe",
+                "dtype": "bfloat16",
+                "hidden_size": 2048,
+                "num_hidden_layers": 40,
+                "num_experts": 64,
+                "num_experts_per_tok": 4,
+                "rope_parameters": {
+                  "rope_theta": 10000000.0,
+                  "rope_type": "default"
+                },
+                "tie_word_embeddings": true
+              }
+            },
+            "quantization_config.json": {
+              "path": "/data/v2/output/quantization_config.json",
+              "bytes": 9186213,
+              "sha256": "71908578d6be39abe2e2839ae2adfa087f9ea74aaaa51a6812ff5950d48ae61f",
+              "metadata": {
+                "quant_method": "exl3"
+              },
+              "tensor_storage_entries": 7543
+            }
+          },
+          "flags_after": {
+            "matmul_allow_tf32": false,
+            "cudnn_allow_tf32": true,
+            "float32_matmul_precision": "highest",
+            "deterministic_algorithms": false,
+            "environment": {
+              "EXLLAMAV3_TUNE_CACHE": "/data/diagnostic37-fixed-tune-trace/cache-a.bin"
+            }
+          }
+        },
+        "script_sha256": "f21d4bdd85831b66e6b1629dd613794969b07a2d046e334d6ae2eae86ab099cb",
+        "cache_after": {
+          "path": "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+          "exists": true,
+          "bytes": 176,
+          "sha256": "1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65"
+        },
+        "cache_records_after": {
+          "d104cf09a0c41648": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "9e89a622d6375b61": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 80,
+            "concurrency": 1
+          },
+          "80b19f9604b919d7": {
+            "tag": 4,
+            "block_dim": 256,
+            "num_sms": 66,
+            "concurrency": 2
+          },
+          "e56c31831b47bdf0": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "5b575c27644bb1d9": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 20,
+            "concurrency": 6
+          }
+        },
+        "cache_reuse": {
+          "existing_records_preserved": true,
+          "new_records": [
+            "5b575c27644bb1d9",
+            "80b19f9604b919d7",
+            "9e89a622d6375b61",
+            "d104cf09a0c41648",
+            "e56c31831b47bdf0"
+          ],
+          "bytes_unchanged": false
+        },
+        "capture_report_sha256": "dd891e69a9dad6be71c065607c00f62ca1b514d45b83eeb956da51168f2d33d6"
+      },
+      "capture": {
+        "status": "complete",
+        "windows": {
+          "window1": {
+            "shape": [
+              1024,
+              128000
+            ],
+            "dtype": "float16",
+            "sha256": "158bc45c3c2f2e503eceda5597c56c1525cbb1edb9252d534028cc70d48415cb",
+            "bytes": 262144128,
+            "token_sha256": "bdafc8c2a7c8ef0322c186013d1b99f7bff96c45fc91f47e9125e9c98fd62061"
+          },
+          "window5": {
+            "shape": [
+              1024,
+              128000
+            ],
+            "dtype": "float16",
+            "sha256": "d2c475318d35c6db1d38309781420b92c2359dd0ba32697e370280c88817fa93",
+            "bytes": 262144128,
+            "token_sha256": "23b146a0a8b43a1b0495f9fc9bd6882e7ed628be7cd7c7aa4751082dade7f7a4"
+          }
+        },
+        "publication": false,
+        "converter_sources": {
+          "architecture/lfm2_moe.py": "7a2672ec64de9e00d13d535c636a874e8f9fc632f42b7ecc16cb6c130fac9a29",
+          "conversion/convert_model.py": "c35bdf05bbc13db12b7016427c730092870909c798b75c55eb63a41c760693fb",
+          "modules/quant/exl3_lib/quantize.py": "a951e6707361c592cb1d1d17790e098e1a304b410b7c9225dcaaa1f26117562e",
+          "modules/block_sparse_mlp_routing.py": "b878646d14cc4b7cb340de2c6e5e8d14c23c9307fc609b457b53e4b6956b5fa4",
+          "modules/block_sparse_mlp.py": "ec05c84fc6213221797256568a0f05d43b07737ef1c36a320f1926b254e3ecd7"
+        },
+        "shards": {
+          "model-00001-of-00004.safetensors": "cce3f431c4a79319bfa10952baaa6db6179971631f5e2a8d60da04bb981c7f8e",
+          "model-00002-of-00004.safetensors": "3e87ad7f40ee617dce5d699bb70faaa1d78ea3cac11fd616185ca2a0ab773c77",
+          "model-00003-of-00004.safetensors": "b06ea4d40f096d9bedcdc2de00e2c60685feb6da1ca89164824d937bc53576ef",
+          "model-00004-of-00004.safetensors": "887707fe6f3c4df422727396f590140ade34b8594b970f1e740e299f8ae0b16e"
+        },
+        "elapsed_seconds": 40.847728061,
+        "gpu": "NVIDIA H100 80GB HBM3"
+      }
+    },
+    "warm-a": {
+      "run": {
+        "status": "complete",
+        "stage": "warm-a",
+        "publication": false,
+        "causal_interpretation": false,
+        "cache_path": "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+        "capture_report": "/data/diagnostic37-fixed-tune-trace/warm-a/capture/report.json",
+        "legacy_sha256": "99c650616348c59a2d5a2c28f5b4519051a3a6295c305329f2aa0b2e5a617910",
+        "elapsed_seconds": 30.261132075,
+        "cache_before": {
+          "path": "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+          "exists": true,
+          "bytes": 176,
+          "sha256": "1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65"
+        },
+        "cache_records_before": {
+          "d104cf09a0c41648": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "9e89a622d6375b61": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 80,
+            "concurrency": 1
+          },
+          "80b19f9604b919d7": {
+            "tag": 4,
+            "block_dim": 256,
+            "num_sms": 66,
+            "concurrency": 2
+          },
+          "e56c31831b47bdf0": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "5b575c27644bb1d9": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 20,
+            "concurrency": 6
+          }
+        },
+        "runtime": {
+          "versions": {
+            "torch": "2.10.0+cu128",
+            "exllamav3": "1.5.4+cu128.torch2.10.0",
+            "numpy": "2.5.2",
+            "safetensors": "0.8.0",
+            "modal": "1.5.5"
+          },
+          "python": "3.12.10 (main, May 21 2025, 23:34:56) [GCC 12.2.0]",
+          "gpu": {
+            "name": "NVIDIA H100 80GB HBM3",
+            "total_memory": 85017624576,
+            "multi_processor_count": 132,
+            "compute_capability": [
+              9,
+              0
+            ]
+          },
+          "cuda": "12.8",
+          "driver": "580.95.05",
+          "flags_before": {
+            "matmul_allow_tf32": false,
+            "cudnn_allow_tf32": true,
+            "float32_matmul_precision": "highest",
+            "deterministic_algorithms": false,
+            "environment": {
+              "EXLLAMAV3_TUNE_CACHE": "/data/diagnostic37-fixed-tune-trace/cache-a.bin"
+            }
+          },
+          "config_files": {
+            "config.json": {
+              "path": "/data/v2/output/config.json",
+              "bytes": 1962,
+              "sha256": "d6cb556687ddd8382a90cbb957b4fbbdf95ed607bbc4800dc85fd5e5510edade",
+              "metadata": {
+                "architectures": [
+                  "Lfm2MoeForCausalLM"
+                ],
+                "model_type": "lfm2_moe",
+                "dtype": "bfloat16",
+                "hidden_size": 2048,
+                "num_hidden_layers": 40,
+                "num_experts": 64,
+                "num_experts_per_tok": 4,
+                "rope_parameters": {
+                  "rope_theta": 10000000.0,
+                  "rope_type": "default"
+                },
+                "tie_word_embeddings": true
+              }
+            },
+            "quantization_config.json": {
+              "path": "/data/v2/output/quantization_config.json",
+              "bytes": 9186213,
+              "sha256": "71908578d6be39abe2e2839ae2adfa087f9ea74aaaa51a6812ff5950d48ae61f",
+              "metadata": {
+                "quant_method": "exl3"
+              },
+              "tensor_storage_entries": 7543
+            }
+          },
+          "flags_after": {
+            "matmul_allow_tf32": false,
+            "cudnn_allow_tf32": true,
+            "float32_matmul_precision": "highest",
+            "deterministic_algorithms": false,
+            "environment": {
+              "EXLLAMAV3_TUNE_CACHE": "/data/diagnostic37-fixed-tune-trace/cache-a.bin"
+            }
+          }
+        },
+        "script_sha256": "f21d4bdd85831b66e6b1629dd613794969b07a2d046e334d6ae2eae86ab099cb",
+        "cache_after": {
+          "path": "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+          "exists": true,
+          "bytes": 176,
+          "sha256": "1cd9c092bd749dc10fdc017a936477ed9ef0d6072d4af401711d5a7ce5bb0f65"
+        },
+        "cache_records_after": {
+          "d104cf09a0c41648": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "9e89a622d6375b61": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 80,
+            "concurrency": 1
+          },
+          "80b19f9604b919d7": {
+            "tag": 4,
+            "block_dim": 256,
+            "num_sms": 66,
+            "concurrency": 2
+          },
+          "e56c31831b47bdf0": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "5b575c27644bb1d9": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 20,
+            "concurrency": 6
+          }
+        },
+        "cache_reuse": {
+          "existing_records_preserved": true,
+          "new_records": [],
+          "bytes_unchanged": true
+        },
+        "capture_report_sha256": "b1dafbc6b913f2728ccf19389ca5db0858d4eae891606b7f0f4d44e75c1b9213"
+      },
+      "capture": {
+        "status": "complete",
+        "windows": {
+          "window1": {
+            "shape": [
+              1024,
+              128000
+            ],
+            "dtype": "float16",
+            "sha256": "158bc45c3c2f2e503eceda5597c56c1525cbb1edb9252d534028cc70d48415cb",
+            "bytes": 262144128,
+            "token_sha256": "bdafc8c2a7c8ef0322c186013d1b99f7bff96c45fc91f47e9125e9c98fd62061"
+          },
+          "window5": {
+            "shape": [
+              1024,
+              128000
+            ],
+            "dtype": "float16",
+            "sha256": "d2c475318d35c6db1d38309781420b92c2359dd0ba32697e370280c88817fa93",
+            "bytes": 262144128,
+            "token_sha256": "23b146a0a8b43a1b0495f9fc9bd6882e7ed628be7cd7c7aa4751082dade7f7a4"
+          }
+        },
+        "publication": false,
+        "converter_sources": {
+          "architecture/lfm2_moe.py": "7a2672ec64de9e00d13d535c636a874e8f9fc632f42b7ecc16cb6c130fac9a29",
+          "conversion/convert_model.py": "c35bdf05bbc13db12b7016427c730092870909c798b75c55eb63a41c760693fb",
+          "modules/quant/exl3_lib/quantize.py": "a951e6707361c592cb1d1d17790e098e1a304b410b7c9225dcaaa1f26117562e",
+          "modules/block_sparse_mlp_routing.py": "b878646d14cc4b7cb340de2c6e5e8d14c23c9307fc609b457b53e4b6956b5fa4",
+          "modules/block_sparse_mlp.py": "ec05c84fc6213221797256568a0f05d43b07737ef1c36a320f1926b254e3ecd7"
+        },
+        "shards": {
+          "model-00001-of-00004.safetensors": "cce3f431c4a79319bfa10952baaa6db6179971631f5e2a8d60da04bb981c7f8e",
+          "model-00002-of-00004.safetensors": "3e87ad7f40ee617dce5d699bb70faaa1d78ea3cac11fd616185ca2a0ab773c77",
+          "model-00003-of-00004.safetensors": "b06ea4d40f096d9bedcdc2de00e2c60685feb6da1ca89164824d937bc53576ef",
+          "model-00004-of-00004.safetensors": "887707fe6f3c4df422727396f590140ade34b8594b970f1e740e299f8ae0b16e"
+        },
+        "elapsed_seconds": 28.172657128000004,
+        "gpu": "NVIDIA H100 80GB HBM3"
+      }
+    },
+    "cold-b": {
+      "run": {
+        "status": "complete",
+        "stage": "cold-b",
+        "publication": false,
+        "causal_interpretation": false,
+        "cache_path": "/data/diagnostic37-fixed-tune-trace/cache-b.bin",
+        "capture_report": "/data/diagnostic37-fixed-tune-trace/cold-b/capture/report.json",
+        "legacy_sha256": "99c650616348c59a2d5a2c28f5b4519051a3a6295c305329f2aa0b2e5a617910",
+        "elapsed_seconds": 30.2751143,
+        "cache_before": {
+          "path": "/data/diagnostic37-fixed-tune-trace/cache-b.bin",
+          "exists": false,
+          "bytes": 0,
+          "sha256": null
+        },
+        "cache_records_before": {},
+        "runtime": {
+          "versions": {
+            "torch": "2.10.0+cu128",
+            "exllamav3": "1.5.4+cu128.torch2.10.0",
+            "numpy": "2.5.2",
+            "safetensors": "0.8.0",
+            "modal": "1.5.5"
+          },
+          "python": "3.12.10 (main, May 21 2025, 23:34:56) [GCC 12.2.0]",
+          "gpu": {
+            "name": "NVIDIA H100 80GB HBM3",
+            "total_memory": 85017624576,
+            "multi_processor_count": 132,
+            "compute_capability": [
+              9,
+              0
+            ]
+          },
+          "cuda": "12.8",
+          "driver": "580.95.05",
+          "flags_before": {
+            "matmul_allow_tf32": false,
+            "cudnn_allow_tf32": true,
+            "float32_matmul_precision": "highest",
+            "deterministic_algorithms": false,
+            "environment": {
+              "EXLLAMAV3_TUNE_CACHE": "/data/diagnostic37-fixed-tune-trace/cache-b.bin"
+            }
+          },
+          "config_files": {
+            "config.json": {
+              "path": "/data/v2/output/config.json",
+              "bytes": 1962,
+              "sha256": "d6cb556687ddd8382a90cbb957b4fbbdf95ed607bbc4800dc85fd5e5510edade",
+              "metadata": {
+                "architectures": [
+                  "Lfm2MoeForCausalLM"
+                ],
+                "model_type": "lfm2_moe",
+                "dtype": "bfloat16",
+                "hidden_size": 2048,
+                "num_hidden_layers": 40,
+                "num_experts": 64,
+                "num_experts_per_tok": 4,
+                "rope_parameters": {
+                  "rope_theta": 10000000.0,
+                  "rope_type": "default"
+                },
+                "tie_word_embeddings": true
+              }
+            },
+            "quantization_config.json": {
+              "path": "/data/v2/output/quantization_config.json",
+              "bytes": 9186213,
+              "sha256": "71908578d6be39abe2e2839ae2adfa087f9ea74aaaa51a6812ff5950d48ae61f",
+              "metadata": {
+                "quant_method": "exl3"
+              },
+              "tensor_storage_entries": 7543
+            }
+          },
+          "flags_after": {
+            "matmul_allow_tf32": false,
+            "cudnn_allow_tf32": true,
+            "float32_matmul_precision": "highest",
+            "deterministic_algorithms": false,
+            "environment": {
+              "EXLLAMAV3_TUNE_CACHE": "/data/diagnostic37-fixed-tune-trace/cache-b.bin"
+            }
+          }
+        },
+        "script_sha256": "f21d4bdd85831b66e6b1629dd613794969b07a2d046e334d6ae2eae86ab099cb",
+        "cache_after": {
+          "path": "/data/diagnostic37-fixed-tune-trace/cache-b.bin",
+          "exists": true,
+          "bytes": 176,
+          "sha256": "abcbacd301784a5c0a7ca39bc506cdb6b223b8124a9c70f6ec90a661d4f0416a"
+        },
+        "cache_records_after": {
+          "d104cf09a0c41648": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "9e89a622d6375b61": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 80,
+            "concurrency": 1
+          },
+          "80b19f9604b919d7": {
+            "tag": 4,
+            "block_dim": 256,
+            "num_sms": 66,
+            "concurrency": 2
+          },
+          "e56c31831b47bdf0": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 132,
+            "concurrency": 1
+          },
+          "5b575c27644bb1d9": {
+            "tag": 2,
+            "block_dim": 512,
+            "num_sms": 16,
+            "concurrency": 6
+          }
+        },
+        "cache_reuse": {
+          "existing_records_preserved": true,
+          "new_records": [
+            "5b575c27644bb1d9",
+            "80b19f9604b919d7",
+            "9e89a622d6375b61",
+            "d104cf09a0c41648",
+            "e56c31831b47bdf0"
+          ],
+          "bytes_unchanged": false
+        },
+        "capture_report_sha256": "a6076c02d9596748a7c555ce31660b72d40521afd74ea1e4750bf7cf01e18fae"
+      },
+      "capture": {
+        "status": "complete",
+        "windows": {
+          "window1": {
+            "shape": [
+              1024,
+              128000
+            ],
+            "dtype": "float16",
+            "sha256": "d4c667ec6a41a5afb336235c6fd4d1912dc36ac599fd13daee41daa13a9301a2",
+            "bytes": 262144128,
+            "token_sha256": "bdafc8c2a7c8ef0322c186013d1b99f7bff96c45fc91f47e9125e9c98fd62061"
+          },
+          "window5": {
+            "shape": [
+              1024,
+              128000
+            ],
+            "dtype": "float16",
+            "sha256": "71d258db615c0c8e136b820724a15b39bfe8f59fea31a699f753ec8f20e43fb6",
+            "bytes": 262144128,
+            "token_sha256": "23b146a0a8b43a1b0495f9fc9bd6882e7ed628be7cd7c7aa4751082dade7f7a4"
+          }
+        },
+        "publication": false,
+        "converter_sources": {
+          "architecture/lfm2_moe.py": "7a2672ec64de9e00d13d535c636a874e8f9fc632f42b7ecc16cb6c130fac9a29",
+          "conversion/convert_model.py": "c35bdf05bbc13db12b7016427c730092870909c798b75c55eb63a41c760693fb",
+          "modules/quant/exl3_lib/quantize.py": "a951e6707361c592cb1d1d17790e098e1a304b410b7c9225dcaaa1f26117562e",
+          "modules/block_sparse_mlp_routing.py": "b878646d14cc4b7cb340de2c6e5e8d14c23c9307fc609b457b53e4b6956b5fa4",
+          "modules/block_sparse_mlp.py": "ec05c84fc6213221797256568a0f05d43b07737ef1c36a320f1926b254e3ecd7"
+        },
+        "shards": {
+          "model-00001-of-00004.safetensors": "cce3f431c4a79319bfa10952baaa6db6179971631f5e2a8d60da04bb981c7f8e",
+          "model-00002-of-00004.safetensors": "3e87ad7f40ee617dce5d699bb70faaa1d78ea3cac11fd616185ca2a0ab773c77",
+          "model-00003-of-00004.safetensors": "b06ea4d40f096d9bedcdc2de00e2c60685feb6da1ca89164824d937bc53576ef",
+          "model-00004-of-00004.safetensors": "887707fe6f3c4df422727396f590140ade34b8594b970f1e740e299f8ae0b16e"
+        },
+        "elapsed_seconds": 28.178850867999998,
+        "gpu": "NVIDIA H100 80GB HBM3"
+      }
+    }
+  },
+  "plan_file": "/data/diagnostic37-fixed-tune-trace/input.json",
+  "elapsed_seconds": 290.365313953,
+  "stage": "routes-a",
+  "active_command": [
+    "/usr/local/bin/python",
+    "-u",
+    "/opt/mlxl3/diagnose_lfm25_tuning.py",
+    "routes-a",
+    "/data/diagnostic37-fixed-tune-trace/input.json",
+    "/data/diagnostic37-fixed-tune-trace/routes-a",
+    "/data/diagnostic37-fixed-tune-trace/cache-a.bin",
+    "/opt/mlxl3/diagnostic23-original.py"
+  ],
+  "launcher_error": "CalledProcessError(139, ['/usr/local/bin/python', '-u', '/opt/mlxl3/diagnose_lfm25_tuning.py', 'routes-a', '/data/diagnostic37-fixed-tune-trace/input.json', '/data/diagnostic37-fixed-tune-trace/routes-a', '/data/diagnostic37-fixed-tune-trace/cache-a.bin', '/opt/mlxl3/diagnostic23-original.py'])"
+}

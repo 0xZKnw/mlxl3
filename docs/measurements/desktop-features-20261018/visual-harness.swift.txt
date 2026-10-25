@@ -1,0 +1,47 @@
+import AppKit
+import SwiftUI
+
+@main struct VisualCheck {
+    @MainActor static func main() async throws {
+        _ = NSApplication.shared
+        NSApp.setActivationPolicy(.prohibited)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-visual-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        setenv("MLXL3_HOME", root.path, 1)
+        let suite = "mlxl3.visual.\(UUID())"
+        let preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite) }
+        let studio = StudioModel(conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true, preferences: preferences)
+        studio.addProject("Documentation MLXL3")
+        studio.systemPrompt = "Répondre en français avec des sources."
+        studio.saveProfile("Recherche locale")
+        let id = studio.selectedConversationID!
+        let index = studio.conversations.firstIndex(where: { $0.id == id })!
+        let source = DocumentExcerpt(id: "sample-0", documentID: UUID(), fileName: "Architecture.pdf", originalPath: "/missing/Architecture.pdf", page: 7, text: "Le moteur utilise Rust, MLX et Metal sur Apple Silicon.")
+        let answer = ChatMessage(role: .assistant, content: "Le moteur utilise **Rust, MLX et Metal**. [Source](mlxl3-source://sample-0)")
+        answer.sources = [source]
+        studio.conversations[index].messages = [ChatMessage(role: .user, content: "Comment fonctionne le moteur ?"), answer]
+        let destination = URL(fileURLWithPath: CommandLine.arguments[1])
+        func render<V: View>(_ view: V, name: String, size: NSSize) async throws {
+            let host = NSHostingView(rootView: view.environmentObject(studio).preferredColorScheme(.dark).background(StudioTheme.canvas))
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.contentView = host
+            host.frame = NSRect(origin: .zero, size: size)
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(200))
+            guard let image = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { fatalError("No UI bitmap") }
+            host.cacheDisplay(in: host.bounds, to: image)
+            guard let png = image.representation(using: .png, properties: [:]) else { fatalError("No PNG") }
+            try png.write(to: destination.appendingPathComponent(name + ".png"))
+            window.close()
+        }
+        try await render(StudioView(), name: "chat", size: NSSize(width: 1280, height: 820))
+        try await render(WorkspaceManagerView(), name: "projects", size: NSSize(width: 740, height: 590))
+        try await render(MCPManagerView(), name: "mcp", size: NSSize(width: 850, height: 620))
+        try await render(DocumentSourceView(source: source), name: "source", size: NSSize(width: 720, height: 560))
+        print("Rendered 4 isolated UI views")
+    }
+}

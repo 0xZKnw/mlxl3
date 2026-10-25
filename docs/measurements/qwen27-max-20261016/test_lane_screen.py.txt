@@ -1,0 +1,199 @@
+import json
+import sys
+
+import numpy as np
+import pytest
+
+import lane_screen as screen
+
+
+def test_source_guards_independent_lanes_basis_and_mutation():
+    screen.self_test()
+    with pytest.raises(ValueError, match="ambiguous"):
+        screen.transform(screen.OLD_TILE + screen.OLD_MAPPED)
+
+
+def test_real_permutation_mutation_is_detected(monkeypatch):
+    monkeypatch.setattr(screen, "LANE_ORDER", tuple(range(16)))
+    with pytest.raises(AssertionError):
+        screen.self_test()
+
+
+@pytest.mark.parametrize("dims", [0, -16, 15, 17, True, 16.0])
+def test_invalid_dimensions(dims):
+    with pytest.raises(ValueError, match="positive multiple"):
+        screen.permutation(dims)
+
+
+def test_candidate_wrapper_permutates_only_candidates_and_reuses_metadata(monkeypatch):
+    class CpuArray:
+        int32 = np.int32
+
+        def __init__(self):
+            self.allocations = 0
+            self.takes = 0
+
+        def array(self, values, dtype):
+            self.allocations += 1
+            return np.asarray(values, dtype=dtype)
+
+        def take(self, value, indices, axis):
+            self.takes += 1
+            assert axis == -1
+            return np.take(value, indices, axis=axis)
+
+    def factory(mx, shape, rows, **options):
+        return lambda xhat, weights, tile_sub: xhat
+
+    monkeypatch.setattr(screen, "BASE_QMV", factory)
+    for rows in (1, 2):
+        for groups in (1, 2, 3):
+            mx = CpuArray()
+            shape = {"input": 128, "widths": [128] * groups}
+            original = np.arange(rows * groups * 128, dtype=np.int32).reshape(rows, groups, 128)
+            candidate = screen.qmv(mx, shape, rows, source=screen.MARKER)
+            stock = screen.qmv(mx, shape, rows, source="stock")
+            assert mx.allocations == 1 and mx.takes == 0
+            for _ in range(2):
+                actual = candidate(original, None, None)
+                for row in range(rows):
+                    for group in range(groups):
+                        for tile in range(8):
+                            for lane in range(32):
+                                begin = tile * 16
+                                expected = [
+                                    original[row, group, begin + 2 * (lane % 4) + offset]
+                                    for offset in (0, 1, 8, 9)
+                                ]
+                                np.testing.assert_array_equal(
+                                    actual[
+                                        row,
+                                        group,
+                                        begin + 4 * (lane % 4) : begin + 4 * (lane % 4) + 4,
+                                    ],
+                                    expected,
+                                )
+                np.testing.assert_array_equal(stock(original, None, None), original)
+            assert mx.allocations == 1 and mx.takes == 2
+    with pytest.raises(ValueError, match="ambiguous"):
+        screen.qmv(mx, shape, rows, source=screen.MARKER * 2)
+
+
+@pytest.mark.parametrize(
+    ("dims", "widths", "k", "expected"),
+    [
+        (5120, [17408, 17408], 2, 4),
+        (5120, [10240, 6144], 2, 4),
+        (5120, [248320], 3, 4),
+        (5120, [17408, 17408], 1, 2),
+        (5120, [17408, 17408], 3, 2),
+        (17408, [5120], 2, 4),
+        (512, [128], 2, 4),
+        (512, [160], 2, 2),
+        (512, [144], 2, 1),
+        (512, [16400], 2, 1),
+    ],
+)
+def test_explicit_native_single_row_nt(dims, widths, k, expected):
+    shape = {"input": dims, "widths": widths, "k": k}
+    assert screen.stock_nt(shape, 1) == expected
+    assert screen.stock_nt(shape, 2) is None
+
+
+@pytest.mark.parametrize(
+    "error", [ValueError("divergent"), TimeoutError("silent"), KeyboardInterrupt()]
+)
+def test_real_cli_preserves_failures_and_restores_base(tmp_path, monkeypatch, error):
+    output = tmp_path / "failed.json"
+    originals = (
+        screen.base.run,
+        screen.base.self_test,
+        screen.base.transform,
+        screen.base.qmv,
+        screen.base.stock_nt,
+    )
+
+    def fail(args, report, save):
+        assert screen.base.transform is screen.transform and screen.base.qmv is screen.qmv
+        report["checks"].append({"fixture": "observed"})
+        report.update(status="complete", parity=True)
+        save()
+        raise error
+
+    monkeypatch.setattr(screen, "BASE_RUN", fail)
+    monkeypatch.setattr(
+        sys, "argv", ["lane", "--checkpoint", str(tmp_path), "--output", str(output)]
+    )
+    with pytest.raises(type(error)):
+        screen.main()
+    report = json.loads(output.read_text())
+    assert report["status"] == "failed" and report["parity"] is False
+    assert report["checks"] == [{"fixture": "observed"}] and report["error"]
+    assert report["candidate"] == "half4_lane_order"
+    assert (
+        screen.base.run,
+        screen.base.self_test,
+        screen.base.transform,
+        screen.base.qmv,
+        screen.base.stock_nt,
+    ) == originals
+
+
+def test_real_cli_success_and_source_wiring(tmp_path, monkeypatch):
+    output = tmp_path / "complete.json"
+
+    def complete(args, report, save):
+        for name in ("_qmv_tile_kernel.metal", "_qmv_mapped_tile_kernel.metal"):
+            source = (screen.base.ROOT / "native/shaders" / name).read_text()
+            candidate = screen.base.transform(source)
+            assert screen.MARKER in candidate and screen.base.NEW not in candidate
+        assert screen.base.qmv is screen.qmv
+        assert screen.base.stock_nt is screen.stock_nt
+        report.update(status="complete", parity=True)
+
+    monkeypatch.setattr(screen, "BASE_RUN", complete)
+    monkeypatch.setattr(
+        sys, "argv", ["lane", "--checkpoint", str(tmp_path), "--output", str(output)]
+    )
+    screen.main()
+    report = json.loads(output.read_text())
+    assert report["status"] == "complete" and report["parity"] is True
+    assert report["lane_order"] == list(screen.LANE_ORDER)
+
+
+def test_existing_evidence_cannot_be_overwritten(tmp_path, monkeypatch):
+    output = tmp_path / "existing.json"
+    output.write_bytes(b"preserve")
+    monkeypatch.setattr(
+        sys, "argv", ["lane", "--checkpoint", str(tmp_path), "--output", str(output)]
+    )
+    with pytest.raises(SystemExit, match="2"):
+        screen.main()
+    assert output.read_bytes() == b"preserve"
+
+
+def test_real_cli_rejects_nonregistered_pair_count(tmp_path, monkeypatch):
+    output = tmp_path / "not-created.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lane",
+            "--checkpoint",
+            str(tmp_path),
+            "--output",
+            str(output),
+            "--iterations",
+            "39",
+        ],
+    )
+    with pytest.raises(SystemExit, match="2"):
+        screen.main()
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("arguments", [[], ["--checkpoint", "/tmp"], ["--iterations", "39"]])
+def test_real_cli_rejects_invalid_arguments(monkeypatch, arguments):
+    monkeypatch.setattr(sys, "argv", ["lane", *arguments])
+    with pytest.raises(SystemExit, match="2"):
+        screen.main()

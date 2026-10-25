@@ -16,6 +16,18 @@ final class StudioModel: ObservableObject {
     @Published var selectedModelName: String?
     @Published var conversations: [Conversation] = [Conversation()]
     @Published var selectedConversationID: UUID?
+    @Published var projects: [WorkspaceProject] = []
+    @Published var profiles: [GenerationProfile] = []
+    @Published var documents: [LibraryDocument] = []
+    @Published var selectedProjectID: UUID?
+    @Published var showWorkspace = false
+    @Published var showMCPManager = false
+    @Published var responseSchema = ""
+    @Published var featureError: String?
+    @Published var libraryImporting = false
+    @Published var mcpTools: [MCPToolDescriptor] = []
+    @Published private(set) var workspaceFeaturesAvailable = false
+    let voice = VoiceController()
     @Published var draft = ""
     @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:]
     @Published private(set) var attachmentImportErrors: [UUID: String] = [:]
@@ -167,6 +179,11 @@ final class StudioModel: ObservableObject {
             topK = snapshot.topK
             repetitionPenalty = snapshot.repetitionPenalty
             systemPrompt = snapshot.systemPrompt
+            projects = snapshot.projects ?? []
+            profiles = snapshot.profiles ?? []
+            documents = snapshot.documents ?? []
+            responseSchema = snapshot.responseSchema ?? ""
+            selectedProjectID = conversations.first(where: { $0.id == selectedConversationID })?.projectID
         } else {
             selectedConversationID = conversations.first?.id
         }
@@ -178,17 +195,10 @@ final class StudioModel: ObservableObject {
         if dflash2Enabled && mtpEnabled {
             mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
         }
-        if mtpEnabled {
-            temperature = 0; topK = 1; repetitionPenalty = 1
-        }
         if dflash2Enabled {
             if dflashDraftPath.isEmpty {
                 dflash2Enabled = false
                 preferences.set(false, forKey: "studio.dflash2Enabled")
-            } else {
-                temperature = 0
-                topK = 1
-                repetitionPenalty = 1
             }
         }
         mtpLegacyModelName = selectedModelName
@@ -240,6 +250,14 @@ final class StudioModel: ObservableObject {
     }
     var mtpBuiltIn: Bool { selectedModel?.modelType == "qwen4_exp" }
     var mtpEffectiveHeadPath: String { mtpBuiltIn ? selectedModel?.path ?? "" : mtpHeadPath }
+    // Saved intent can survive an incompatible model; applicability is not engine activity.
+    var mtpApplicable: Bool { mtpEnabled && mtpAvailable }
+    var dflash2Applicable: Bool { dflash2Enabled && dflash2Available }
+    var samplingLocked: Bool { mtpApplicable || dflash2Applicable }
+    var samplingTemperature: Double { samplingLocked ? 0 : temperature }
+    var samplingTopK: Int { samplingLocked ? 1 : topK }
+    var samplingRepetitionPenalty: Double { samplingLocked ? 1 : repetitionPenalty }
+
     var mtpAutomaticDownloadAvailable: Bool {
         mtpAutoDownloadSupported ?? false
     }
@@ -625,8 +643,10 @@ final class StudioModel: ObservableObject {
     }
 
     func newConversation() {
+        voice.stop()
         if let id = selectedConversationID { drafts[id] = draft }
-        let conversation = Conversation()
+        var conversation = Conversation()
+        conversation.projectID = selectedProjectID
         conversations.insert(conversation, at: 0)
         selectedConversationID = conversation.id
         draft = ""
@@ -645,20 +665,32 @@ final class StudioModel: ObservableObject {
         guard conversations.count > 1 else {
             if let index = conversations.firstIndex(where: { $0.id == id }) {
                 conversations[index] = Conversation(id: id)
+                conversations[index].projectID = removed.projectID
             }
+            voice.stop(); draft = ""
             schedulePersistence()
             return
         }
         conversations.removeAll { $0.id == id }
-        if selectedConversationID == id {
-            selectedConversationID = conversations.first?.id
-            draft = selectedConversationID.flatMap { drafts[$0] } ?? ""
+        if selectedConversationID == id, let next = conversations.first {
+            selectConversation(next.id)
+            drafts[id] = nil
         }
         schedulePersistence()
     }
 
     func send() {
         guard canSend, let conversationIndex else { return }
+        if !responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            guard workspaceFeaturesAvailable else { featureError = L("Ce moteur ne prend pas en charge le JSON validé. Mettez le moteur à jour.", "This engine does not support validated JSON. Update the engine."); return }
+            do {
+                guard try JSONSerialization.jsonObject(with: Data(responseSchema.utf8)) is [String: Any] else { throw MCPSettingsError.invalid }
+            } catch { featureError = L("Le schéma doit être un objet JSON valide.", "The schema must be a valid JSON object."); return }
+        }
+        if mcpEnabled && currentProject != nil && !workspaceFeaturesAvailable {
+            featureError = L("Ce moteur ne prend pas en charge les permissions par projet. Mettez le moteur à jour.", "This engine does not support per-project permissions. Update the engine."); return
+        }
+        voice.stop()
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         let text = trimmed.isEmpty ? L("Analyse les fichiers joints.", "Analyze the attached files.") : trimmed
         let attachments = pendingAttachments
@@ -669,10 +701,13 @@ final class StudioModel: ObservableObject {
         if conversations[conversationIndex].messages.isEmpty {
             conversations[conversationIndex].title = title(for: trimmed.isEmpty ? attachments.first?.fileName ?? text : text)
         }
-        conversations[conversationIndex].messages.append(
-            ChatMessage(role: .user, content: text, attachments: attachments)
-        )
+        let projectDocuments = documents.filter { $0.projectID == conversations[conversationIndex].projectID }
+        let sources = DocumentSearch.search(text, documents: projectDocuments)
+        let user = ChatMessage(role: .user, content: text, attachments: attachments)
+        user.sources = sources
+        conversations[conversationIndex].messages.append(user)
         let assistant = ChatMessage(role: .assistant, content: "", isStreaming: true)
+        assistant.sources = sources
         conversations[conversationIndex].messages.append(assistant)
         schedulePersistence()
 
@@ -683,7 +718,8 @@ final class StudioModel: ObservableObject {
         engineState = .generating
 
         var messages: [PromptMessage] = []
-        let system = systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
         }
@@ -702,17 +738,19 @@ final class StudioModel: ObservableObject {
                     conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
                     maxTokens: -1,
-                    temperature: temperature,
-                    topK: topK,
-                    repetitionPenalty: repetitionPenalty,
-                    mcpEnabled: mcpEnabled,
-                    dflash2: dflash2Enabled && dflash2Available,
+                    temperature: samplingTemperature,
+                    topK: samplingTopK,
+                    repetitionPenalty: samplingRepetitionPenalty,
+                    mcpEnabled: mcpEnabled && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    dflash2: dflash2Applicable,
                     dflashDraftPath: dflashDraftPath,
                     dflashMode: dflashMode,
-                    mtp: mtpEnabled && mtpAvailable,
+                    mtp: mtpApplicable,
                     mtpHeadPath: mtpEffectiveHeadPath,
                     mtpDepth: mtpDepth,
-                    memorySaver: memorySaverEnabled && memorySaverSupported
+                    memorySaver: memorySaverEnabled && memorySaverSupported,
+                    allowedTools: currentProject?.allowedTools,
+                    responseSchema: responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema
                 )
             )
         } catch {
@@ -1008,7 +1046,7 @@ final class StudioModel: ObservableObject {
     private func activateMTP() {
         dflash2Enabled = false
         mtpEnabled = true
-        temperature = 0; topK = 1; repetitionPenalty = 1
+        // Greedy request values are derived without changing saved ordinary sampling.
         preferences.set(true, forKey: "studio.mtpEnabled")
         saveMTPSelection()
         schedulePersistence()
@@ -1057,7 +1095,6 @@ final class StudioModel: ObservableObject {
         // Integrated heads retain their per-model choice; external heads use the global switch.
         if mtpBuiltIn { mtpEnabled = saved.depth > 0 }
         mtpTuneRows = saved.rows; mtpTunedAt = saved.tunedAt
-        if mtpEnabled { temperature = 0; topK = 1; repetitionPenalty = 1 }
     }
 
     func tuneMTP() {
@@ -1117,8 +1154,7 @@ final class StudioModel: ObservableObject {
                 preferences.set(mtpEnabled, forKey: "studio.mtpEnabled"); saveMTPSelection()
             }
             mtpTuneProgress = 1
-            // Baseline is also measured in greedy mode, keeping the comparison valid.
-            temperature = 0; topK = 1; repetitionPenalty = 1
+            // Tuning uses greedy internally; retain the user's ordinary sampling settings.
             schedulePersistence(); finishMTPTuning(error: nil)
         case "cancelled":
             finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
@@ -1143,9 +1179,6 @@ final class StudioModel: ObservableObject {
 
     func enableDFlashGreedy() {
         mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
-        temperature = 0
-        topK = 1
-        repetitionPenalty = 1
         dflash2Enabled = true
         preferences.set(true, forKey: "studio.dflash2Enabled")
         settingsDidChange()
@@ -1154,7 +1187,9 @@ final class StudioModel: ObservableObject {
     func selectConversation(_ id: UUID) {
         guard conversations.contains(where: { $0.id == id }) else { return }
         if let previous = selectedConversationID { drafts[previous] = draft }
+        voice.stop()
         selectedConversationID = id
+        selectedProjectID = currentConversation?.projectID
         draft = drafts[id] ?? ""
         schedulePersistence()
     }
@@ -1186,6 +1221,11 @@ final class StudioModel: ObservableObject {
             if let backup = try? ConversationStore.load(from: backupURL) {
                 conversations = backup.conversations.map(Conversation.init(snapshot:))
                 selectedConversationID = conversations.first?.id
+                projects = backup.projects ?? []
+                profiles = backup.profiles ?? []
+                documents = backup.documents ?? []
+                responseSchema = backup.responseSchema ?? ""
+                selectedProjectID = currentConversation?.projectID
             } else if FileManager.default.fileExists(atPath: backupURL.path) {
                 try FileManager.default.moveItem(at: backupURL, to: backupURL.appendingPathExtension("unreadable-" + UUID().uuidString))
             }
@@ -1199,7 +1239,7 @@ final class StudioModel: ObservableObject {
         guard let restored = deletedConversation else { return }
         conversations.removeAll { $0.id == restored.id }
         conversations.insert(restored, at: 0)
-        selectedConversationID = restored.id
+        selectConversation(restored.id)
         deletedConversation = nil
         schedulePersistence()
     }
@@ -1221,9 +1261,25 @@ final class StudioModel: ObservableObject {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        importWorkspace(from: url)
+    }
+
+    func importWorkspace(from url: URL) {
+        guard !isGenerating else { return }
         do {
             guard let snapshot = try ConversationStore.load(from: url) else { return }
             let known = Set(conversations.map(\.id))
+            var merged = workspaceSnapshot
+            let knownProjects = Set(projects.map(\.id))
+            merged.projects = projects + (snapshot.projects ?? []).filter { !knownProjects.contains($0.id) }
+            let knownProfiles = Set(profiles.map(\.id))
+            merged.profiles = profiles + (snapshot.profiles ?? []).filter { !knownProfiles.contains($0.id) }
+            let knownDocuments = Set(documents.map(\.id))
+            merged.documents = documents + (snapshot.documents ?? []).filter { !knownDocuments.contains($0.id) }
+            try ConversationStore.validate(merged)
+            projects = merged.projects ?? []
+            profiles = merged.profiles ?? []
+            documents = merged.documents ?? []
             conversations.insert(contentsOf: snapshot.conversations.filter { !known.contains($0.id) }.map(Conversation.init(snapshot:)), at: 0)
             persistNow()
         } catch { storageError = error.localizedDescription }
@@ -1356,6 +1412,8 @@ final class StudioModel: ObservableObject {
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
+            workspaceFeaturesAvailable = event.workspaceFeatures == true
+            if let tools = event.mcpToolCatalog { mcpTools = tools }
             dflashSupported = event.dflashSupported
             dflashTuneSupported = event.dflashTuneSupported == true
             dflashConfigureSupported = event.dflashConfigureSupported == true
@@ -1393,6 +1451,7 @@ final class StudioModel: ObservableObject {
             if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
             else if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
         case "mcp_status":
+            if let tools = event.mcpToolCatalog { mcpTools = tools }
             mcpUpdating = false
             mcpServerCount = event.mcpServers ?? 0
             mcpToolCount = event.mcpTools ?? 0
@@ -1536,7 +1595,11 @@ final class StudioModel: ObservableObject {
             temperature: temperature,
             topK: topK,
             repetitionPenalty: repetitionPenalty,
-            systemPrompt: systemPrompt
+            systemPrompt: systemPrompt,
+            projects: projects,
+            profiles: profiles,
+            documents: documents,
+            responseSchema: responseSchema
         )
     }
 
@@ -1553,6 +1616,193 @@ final class StudioModel: ObservableObject {
             do {
                 try await Task.detached(priority: .utility) { try store.save(snapshot, revision: revision) }.value
             } catch { storageError = L("Échec de sauvegarde : ", "Save failed: ") + error.localizedDescription }
+        }
+    }
+}
+
+extension StudioModel {
+    var currentProject: WorkspaceProject? { projects.first { $0.id == selectedProjectID } }
+    var voiceLocale: String { language == .fr ? "fr-FR" : "en-US" }
+
+    func chooseProject(_ id: UUID?) {
+        guard !isGenerating else { return }
+        voice.stop()
+        selectedProjectID = id
+        if let conversation = conversations.first(where: { $0.projectID == id }) { selectConversation(conversation.id) }
+        else { newConversation() }
+        if let profileID = currentProject?.profileID, let profile = profiles.first(where: { $0.id == profileID }) { applyProfile(profile) }
+    }
+
+    func addProject(_ name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.count <= 100, projects.count < 256, !isGenerating else { return }
+        let project = WorkspaceProject(name: name)
+        projects.append(project)
+        chooseProject(project.id)
+        schedulePersistence()
+    }
+
+    func deleteProject(_ id: UUID) {
+        guard !isGenerating else { return }
+        projects.removeAll { $0.id == id }
+        documents.removeAll { $0.projectID == id }
+        for index in conversations.indices where conversations[index].projectID == id { conversations[index].projectID = nil }
+        if selectedProjectID == id { chooseProject(nil) }
+        schedulePersistence()
+    }
+
+    func updateProject(_ project: WorkspaceProject) {
+        guard !isGenerating, let index = projects.firstIndex(where: { $0.id == project.id }),
+            !project.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, project.name.count <= 100 else { return }
+        projects[index] = project
+        schedulePersistence()
+    }
+
+    func saveProfile(_ name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isGenerating, !name.isEmpty, name.count <= 100, profiles.count < 128 else { return }
+        profiles.append(GenerationProfile(name: name, model: selectedModelName, systemPrompt: systemPrompt,
+            temperature: temperature, topK: topK, repetitionPenalty: repetitionPenalty,
+            contextLength: savedContextLength, responseSchema: responseSchema))
+        schedulePersistence()
+    }
+
+    func applyProfile(_ profile: GenerationProfile) {
+        guard !isGenerating, profile.temperature.isFinite, (0...2).contains(profile.temperature),
+            (0...10000).contains(profile.topK), profile.repetitionPenalty.isFinite, (0.1...4).contains(profile.repetitionPenalty), profile.contextLength >= 0 else {
+            featureError = L("Profil invalide ou génération en cours.", "Invalid profile or generation in progress."); return
+        }
+        systemPrompt = profile.systemPrompt
+        responseSchema = profile.responseSchema
+        temperature = profile.temperature; topK = profile.topK; repetitionPenalty = profile.repetitionPenalty
+        if let name = profile.model, models.contains(where: { $0.name == name }) {
+            let previousContext = savedContextLength
+            var lengths = preferences.dictionary(forKey: "studio.contextLengths") ?? [:]
+            lengths[name] = profile.contextLength
+            preferences.set(lengths, forKey: "studio.contextLengths")
+            if name != selectedModelName { selectModel(name) }
+            else if previousContext != profile.contextLength { contextLengthDraft = profile.contextLength; loadSelectedModel() }
+        }
+        if mtpEnabled { setMTPEnabled(false) }
+        schedulePersistence()
+    }
+
+    func deleteProfile(_ id: UUID) {
+        guard !isGenerating else { return }
+        profiles.removeAll { $0.id == id }
+        for index in projects.indices where projects[index].profileID == id { projects[index].profileID = nil }
+        schedulePersistence()
+    }
+
+    @discardableResult
+    func branchConversation(at messageID: UUID, includeMessage: Bool = true) -> Bool {
+        guard !isGenerating, let original = currentConversation,
+            let index = original.messages.firstIndex(where: { $0.id == messageID }) else { return false }
+        var branch = Conversation(title: original.title + L(" · branche", " · branch"))
+        branch.projectID = original.projectID
+        branch.parentConversationID = original.id
+        branch.messages = original.messages.prefix(index + (includeMessage ? 1 : 0)).compactMap { ChatMessage(snapshot: $0.snapshot) }
+        conversations.insert(branch, at: 0)
+        selectConversation(branch.id)
+        schedulePersistence()
+        return true
+    }
+
+    func editMessage(_ id: UUID) {
+        guard let message = currentConversation?.messages.first(where: { $0.id == id }), message.role == .user,
+            branchConversation(at: id, includeMessage: false), let conversation = selectedConversationID else { return }
+        draft = message.content
+        attachmentDrafts[conversation] = message.attachments
+        drafts[conversation] = draft
+    }
+
+    func regenerate(_ id: UUID) {
+        guard !isGenerating, engineState.isReady, let messages = currentConversation?.messages,
+            let index = messages.firstIndex(where: { $0.id == id }), messages[index].role == .assistant,
+            let user = messages[..<index].last(where: { $0.role == .user }) else { return }
+        editMessage(user.id)
+        send()
+    }
+
+    func exportMarkdown() {
+        guard let conversation = currentConversation else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "MLXL3-conversation.md"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try Data(MarkdownExport.render(conversation.snapshot).utf8).write(to: url, options: .atomic) }
+        catch { featureError = error.localizedDescription }
+    }
+
+    func chooseLibraryFiles(folder: Bool) {
+        guard currentProject != nil, !libraryImporting else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = folder; panel.canChooseFiles = !folder
+        panel.allowsMultipleSelection = !folder
+        if !folder { panel.allowedContentTypes = ChatAttachmentImporter.contentTypes }
+        guard panel.runModal() == .OK else { return }
+        Task { await importLibraryFiles(panel.urls) }
+    }
+
+    func importLibraryFiles(_ urls: [URL]) async {
+        guard let projectID = selectedProjectID, !libraryImporting else { return }
+        libraryImporting = true
+        defer { libraryImporting = false }
+        let existing = documents
+        let result = await Task.detached(priority: .userInitiated) {
+            var imported: [LibraryDocument] = []
+            var failures: [String] = []
+            var paths: [URL] = []
+            for url in urls {
+                let accessed = url.startAccessingSecurityScopedResource()
+                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+                if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                    let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey], options: [.skipsHiddenFiles, .skipsPackageDescendants])
+                    guard enumerator != nil else { failures.append(url.lastPathComponent + L(" : dossier illisible.", ": folder could not be read.")); continue }
+                    var visited = 0
+                    while let file = enumerator?.nextObject() as? URL {
+                        visited += 1
+                        if visited > 4000 { failures.append(L("Dossier limité à 4000 entrées.", "Folder limited to 4000 entries.")); break }
+                        let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+                        if values?.isSymbolicLink == true { enumerator?.skipDescendants(); continue }
+                        if values?.isRegularFile == true { paths.append(file) }
+                    }
+                } else { paths.append(url) }
+                var total = existing.reduce(0) { $0 + $1.text.utf8.count } + imported.reduce(0) { $0 + $1.text.utf8.count }
+                for file in paths.sorted(by: { $0.path < $1.path }) {
+                    guard existing.count + imported.count < DocumentSearch.maximumDocuments else { failures.append(L("Limite de 128 documents atteinte.", "128 document limit reached.")); break }
+                    let result = ChatAttachmentImporter.load([file], existing: [])
+                    if let attachment = result.attachments.first {
+                        if existing.contains(where: { $0.projectID == projectID && $0.originalPath == file.path && $0.text == attachment.text }) || imported.contains(where: { $0.originalPath == file.path }) { continue }
+                        guard attachment.text.utf8.count <= DocumentSearch.maximumLibraryBytes - total else { failures.append(L("Bibliothèque limitée à 16 Mio de texte.", "Library limited to 16 MiB of text.")); break }
+                        imported.append(LibraryDocument(projectID: projectID, fileName: attachment.fileName, originalPath: file.path, text: attachment.text))
+                        total += attachment.text.utf8.count
+                    } else { failures += result.errors }
+                }
+                paths.removeAll()
+            }
+            return (imported, Array(failures.prefix(10)))
+        }.value
+        guard projects.contains(where: { $0.id == projectID }) else { return }
+        documents += result.0
+        if !result.1.isEmpty { featureError = result.1.joined(separator: "\n") }
+        persistNow()
+    }
+
+    func removeLibraryDocument(_ id: UUID) {
+        documents.removeAll { $0.id == id }
+        schedulePersistence()
+    }
+
+    func startDictation() {
+        guard !isGenerating else { return }
+        let conversation = selectedConversationID
+        let prefix = draft
+        Task { [weak self] in
+            guard let self else { return }
+            await voice.start(locale: voiceLocale) { [weak self] text in
+                guard let self, self.selectedConversationID == conversation, !self.isGenerating else { return }
+                self.draft = prefix + (prefix.isEmpty ? "" : " ") + text
+            }
         }
     }
 }

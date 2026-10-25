@@ -1,0 +1,870 @@
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -1,4 +1,81 @@
+ //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn fused_gdn_prepare_recurrence(
++    time: i32,
++    key_heads: i32,
++    value_heads: i32,
++    key_dim: i32,
++    value_dim: i32,
++    conv_length: i32,
++) -> bool {
++    (1..=4).contains(&time)
++        && (key_heads, key_dim, value_dim, conv_length) == (16, 128, 128, 4)
++        && matches!(value_heads, 32 | 48)
++}
++
++#[test]
++fn fused_gdn_rejects_unqualified_geometry() {
++    for value_heads in [32, 48] {
++        for time in 1..=4 {
++            assert!(fused_gdn_prepare_recurrence(
++                time,
++                16,
++                value_heads,
++                128,
++                128,
++                4
++            ));
++        }
++    }
++    for dimensions in [
++        [0, 16, 32, 128, 128, 4],
++        [5, 16, 32, 128, 128, 4],
++        [1, 8, 32, 128, 128, 4],
++        [1, 16, 64, 128, 128, 4],
++        [1, 16, 32, 64, 128, 4],
++        [1, 16, 32, 128, 64, 4],
++        [1, 16, 32, 128, 128, 3],
++        [i32::MAX; 6],
++        [i32::MIN; 6],
++    ] {
++        let [t, kh, vh, kd, vd, c] = dimensions;
++        assert!(!fused_gdn_prepare_recurrence(t, kh, vh, kd, vd, c));
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn fused_gdn_prepare_recurrence_has_bounded_launch_and_storage() {
++    let time: i32 = kani::any();
++    let kh: i32 = kani::any();
++    let vh: i32 = kani::any();
++    let kd: i32 = kani::any();
++    let vd: i32 = kani::any();
++    let conv: i32 = kani::any();
++    let eligible = fused_gdn_prepare_recurrence(time, kh, vh, kd, vd, conv);
++    assert_eq!(
++        eligible,
++        time >= 1
++            && time <= 4
++            && kh == 16
++            && (vh == 32 || vh == 48)
++            && kd == 128
++            && vd == 128
++            && conv == 4
++    );
++    if eligible {
++        assert!(32 * (vd / 8) == 512);
++        assert!((2 * kh * kd + vh * vd == 8192) || (2 * kh * kd + vh * vd == 10240));
++        assert!(time * kh * kd <= 8192);
++        assert!((vh * vd * kd == 524288) || (vh * vd * kd == 786432));
++    }
++    kani::cover!(eligible && time == 1 && vh == 32);
++    kani::cover!(eligible && time == 1 && vh == 48);
++    kani::cover!(eligible && time == 3);
++    kani::cover!(eligible && time == 4 && vh == 48);
++    kani::cover!(!eligible && time == 5 && kh == 16);
++}
+ 
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
+--- a/native/src/gated_delta.rs
++++ b/native/src/gated_delta.rs
+@@ -49,49 +49,15 @@
+             && k_scale.shape().is_empty(),
+         "invalid fused Gated DeltaNet preparation tensors"
+     );
+-    let header = format!(
+-        r#"
+-#define TIME {time}
+-#define KEY_HEADS {key_heads}
+-#define VALUE_HEADS {value_heads}
+-#define KEY_DIM {key_dim}
+-#define VALUE_DIM {value_dim}
+-#define KEYS {keys}
+-#define CONV_LENGTH {conv_length}
+-#define CONV_HISTORY {history}
+-#define CONV_DIMS {conv_dims}
+-
+-inline half mlxl3_gdn_input(
+-    const device half* qkv,
+-    const device half* conv_state,
+-    uint position,
+-    uint channel
+-) {{
+-    if (position < uint(CONV_HISTORY)) {{
+-        return conv_state[position * uint(CONV_DIMS) + channel];
+-    }}
+-    return qkv[(position - uint(CONV_HISTORY)) * uint(CONV_DIMS) + channel];
+-}}
+-
+-inline half mlxl3_gdn_conv_silu(
+-    const device half* qkv,
+-    const device half* conv_state,
+-    const device half* conv_weight,
+-    uint time,
+-    uint channel
+-) {{
+-    float acc = 0.0f;
+-    for (uint index = 0u; index < uint(CONV_LENGTH); ++index) {{
+-        acc += float(mlxl3_gdn_input(qkv, conv_state, time + index, channel))
+-            * conv_weight[channel * uint(CONV_LENGTH) + index];
+-    }}
+-    half value = half(acc);
+-    half tail = half(1.0h) / (half(1.0h) + metal::exp(metal::abs(value)));
+-    half sigmoid = value < half(0.0h) ? tail : half(1.0h) - tail;
+-    return value * sigmoid;
+-}}
+-"#,
+-        history = conv_length - 1,
++    let header = prepare_header(
++        time,
++        key_heads,
++        value_heads,
++        key_dim,
++        value_dim,
++        conv_length,
++        keys,
++        conv_dims,
+     );
+     let mut outputs = array::metal_kernel(
+         &format!(
+@@ -128,6 +94,192 @@
+     let k = outputs.pop().context("missing Gated DeltaNet K")?;
+     let q = outputs.pop().context("missing Gated DeltaNet Q")?;
+     Ok((q, k, v, state))
++}
++
++#[allow(clippy::too_many_arguments)]
++fn prepare_header(
++    time: i32,
++    key_heads: i32,
++    value_heads: i32,
++    key_dim: i32,
++    value_dim: i32,
++    conv_length: i32,
++    keys: i32,
++    conv_dims: i32,
++) -> String {
++    format!(
++        r#"
++#define TIME {time}
++#define KEY_HEADS {key_heads}
++#define VALUE_HEADS {value_heads}
++#define KEY_DIM {key_dim}
++#define VALUE_DIM {value_dim}
++#define KEYS {keys}
++#define CONV_LENGTH {conv_length}
++#define CONV_HISTORY {history}
++#define CONV_DIMS {conv_dims}
++
++inline half mlxl3_gdn_input(
++    const device half* qkv,
++    const device half* conv_state,
++    uint position,
++    uint channel
++) {{
++    if (position < uint(CONV_HISTORY)) {{
++        return conv_state[position * uint(CONV_DIMS) + channel];
++    }}
++    return qkv[(position - uint(CONV_HISTORY)) * uint(CONV_DIMS) + channel];
++}}
++
++inline half mlxl3_gdn_conv_silu(
++    const device half* qkv,
++    const device half* conv_state,
++    const device half* conv_weight,
++    uint time,
++    uint channel
++) {{
++    float acc = 0.0f;
++    for (uint index = 0u; index < uint(CONV_LENGTH); ++index) {{
++        acc += float(mlxl3_gdn_input(qkv, conv_state, time + index, channel))
++            * conv_weight[channel * uint(CONV_LENGTH) + index];
++    }}
++    half value = half(acc);
++    half tail = half(1.0h) / (half(1.0h) + metal::exp(metal::abs(value)));
++    half sigmoid = value < half(0.0h) ? tail : half(1.0h) - tail;
++    return value * sigmoid;
++}}
++"#,
++        history = conv_length - 1,
++    )
++}
++
++#[allow(clippy::too_many_arguments)]
++pub fn prepare_and_step_with_gates(
++    qkv: &Array,
++    conv: &Array,
++    weight: &Array,
++    q_scale: &Array,
++    k_scale: &Array,
++    a: &Array,
++    b: &Array,
++    a_log: &Array,
++    bias: &Array,
++    state: &Array,
++    retain: bool,
++) -> Result<(Array, Array, Array, Option<RecurrentTape>)> {
++    let time = qkv.shape().get(1).copied().unwrap_or(0);
++    let value_heads = state.shape().get(1).copied().unwrap_or(0);
++    ensure!(
++        crate::contracts::fused_gdn_prepare_recurrence(time, 16, value_heads, 128, 128, 4),
++        "unqualified fused GDN time"
++    );
++    let conv_dims = 4096 + value_heads * 128;
++    ensure!(
++        qkv.shape() == [1, time, conv_dims]
++            && conv.shape() == [1, 3, conv_dims]
++            && weight.shape() == [conv_dims, 4, 1]
++            && q_scale.shape().is_empty()
++            && k_scale.shape().is_empty()
++            && a.shape() == [1, time, value_heads]
++            && b.shape() == a.shape()
++            && a_log.shape() == [value_heads]
++            && bias.shape() == [value_heads]
++            && state.shape() == [1, value_heads, 128, 128],
++        "invalid fused GDN shapes"
++    );
++    ensure!(
++        [qkv, conv, weight, q_scale, k_scale, a, b, bias]
++            .iter()
++            .all(|x| x.dtype() == Dtype::Float16)
++            && a_log.dtype() == Dtype::Float32
++            && state.dtype() == Dtype::Float32,
++        "invalid fused GDN dtypes"
++    );
++    let header = format!(
++        "{}\n#define MLXL3_GDN_FUSED_PREP 1\n#define MLXL3_GDN_FUSED_GATES 1\n#define MLXL3_GDN_SAVE_HISTORY 0\n#define MLXL3_GDN_SAVE_TAPE {}\n#define InT half\n#define StT float\n#define B 1\n#define T {time}\n#define Dk 128\n#define Dv 128\n#define Hk 16\n#define Hv {value_heads}\n",
++        prepare_header(time, 16, value_heads, 128, 128, 4, 2048, conv_dims),
++        u8::from(retain)
++    );
++    let names: &[&str] = if retain {
++        &[
++            "y",
++            "state_out",
++            "conv_out",
++            "keys_out",
++            "delta_tape",
++            "decay_tape",
++        ]
++    } else {
++        &["y", "state_out", "conv_out", "keys_out"]
++    };
++    let mut shapes = vec![
++        vec![1, time, value_heads, 128],
++        state.shape().to_vec(),
++        conv.shape().to_vec(),
++        vec![1, time, 16, 128],
++    ];
++    let mut dtypes = vec![
++        Dtype::Float16,
++        Dtype::Float32,
++        Dtype::Float16,
++        Dtype::Float16,
++    ];
++    if retain {
++        shapes.extend([vec![1, time, value_heads, 128], vec![1, time, value_heads]]);
++        dtypes.extend([Dtype::Float32, Dtype::Float32]);
++    }
++    let mut outputs = array::metal_kernel(
++        &format!(
++            "mlxl3_rs_gdn_prepare_recurrence_hv{value_heads}_t{time}_tape{}",
++            u8::from(retain)
++        ),
++        &[
++            "qkv",
++            "conv_state",
++            "conv_weight",
++            "q_scale",
++            "k_scale",
++            "a",
++            "b",
++            "a_log",
++            "dt_bias",
++            "state_in",
++        ],
++        names,
++        &header,
++        include_str!("../shaders/gated_delta_packed.metal"),
++        &[
++            qkv, conv, weight, q_scale, k_scale, a, b, a_log, bias, state,
++        ],
++        &shapes,
++        &dtypes,
++        [32, 16, value_heads],
++        [32, 16, 1],
++    )?;
++    ensure!(
++        outputs.len() == names.len(),
++        "fused GDN returned wrong output count"
++    );
++    let tape_parts = outputs.split_off(4);
++    let keys = outputs.pop().context("missing fused GDN keys")?;
++    let conv = outputs.pop().context("missing fused GDN conv")?;
++    let next = outputs.pop().context("missing fused GDN state")?;
++    let out = outputs.pop().context("missing fused GDN output")?;
++    let tape = if retain {
++        let mut parts = tape_parts;
++        let decay = parts.pop().context("missing fused GDN decay")?;
++        let delta = parts.pop().context("missing fused GDN delta")?;
++        Some(RecurrentTape {
++            initial: state.try_clone()?,
++            keys,
++            delta,
++            decay,
++            time,
++        })
++    } else {
++        None
++    };
++    Ok((out, next, conv, tape))
+ }
+ 
+ pub fn step(
+@@ -589,6 +741,409 @@
+ mod tests {
+     use super::*;
+ 
++    struct GdnPreparationFixture {
++        value_heads: i32,
++        qkv: Array,
++        conv: Array,
++        weights: Array,
++        qs: Array,
++        ks: Array,
++        a: Array,
++        b: Array,
++        a_log: Array,
++        bias: Array,
++        state: Array,
++    }
++
++    impl GdnPreparationFixture {
++        fn split(&self, retain: bool) -> Result<(Array, Array, Array, Option<RecurrentTape>)> {
++            let (q, k, v, conv) = prepare_qkv(
++                &self.qkv,
++                &self.conv,
++                &self.weights,
++                &self.qs,
++                &self.ks,
++                16,
++                self.value_heads,
++                128,
++                128,
++                4,
++            )?;
++            let (out, next, tape) = if retain {
++                let (out, next, tape) = step_with_gates_tape(
++                    &q,
++                    &k,
++                    &v,
++                    &self.a,
++                    &self.b,
++                    &self.a_log,
++                    &self.bias,
++                    &self.state,
++                )?;
++                (out, next, Some(tape))
++            } else {
++                let (out, next) = step_with_gates(
++                    &q,
++                    &k,
++                    &v,
++                    &self.a,
++                    &self.b,
++                    &self.a_log,
++                    &self.bias,
++                    &self.state,
++                )?;
++                (out, next, None)
++            };
++            Ok((out, next, conv, tape))
++        }
++
++        fn fused(&self, retain: bool) -> Result<(Array, Array, Array, Option<RecurrentTape>)> {
++            prepare_and_step_with_gates(
++                &self.qkv,
++                &self.conv,
++                &self.weights,
++                &self.qs,
++                &self.ks,
++                &self.a,
++                &self.b,
++                &self.a_log,
++                &self.bias,
++                &self.state,
++                retain,
++            )
++        }
++
++        fn evaluate(&self, fused: bool, retain: bool) -> Result<()> {
++            let (out, next, conv, tape) = if fused {
++                self.fused(retain)?
++            } else {
++                self.split(retain)?
++            };
++            out.eval()?;
++            next.eval()?;
++            conv.eval()?;
++            if let Some(tape) = tape {
++                tape.keys.eval()?;
++                tape.delta.eval()?;
++                tape.decay.eval()?;
++            }
++            array::synchronize()
++        }
++    }
++
++    fn gdn_preparation_fixture(shape: &[i32], seed: usize) -> Result<Array> {
++        let count = shape.iter().map(|&d| d as usize).product();
++        Array::from_f16_bits(
++            &(0..count)
++                .map(|i| {
++                    half::f16::from_f32(if seed == 0 {
++                        0.
++                    } else {
++                        ((i * 7 + seed) % 61) as f32 / 64. - 0.5
++                    })
++                    .to_bits()
++                })
++                .collect::<Vec<_>>(),
++            shape,
++        )
++    }
++
++    fn check_gdn_preparation_arrays(actual: &Array, expected: &Array, name: &str) -> Result<()> {
++        assert_eq!(actual.shape(), expected.shape(), "{name} shape");
++        assert_eq!(actual.dtype(), expected.dtype(), "{name} dtype");
++        let count = expected
++            .shape()
++            .iter()
++            .map(|&d| d as usize)
++            .product::<usize>();
++        assert!(count > 0, "{name} empty");
++        for array in [actual, expected] {
++            let values = array.to_f32()?;
++            assert_eq!(values.len(), count, "{name} size");
++            assert!(
++                values.iter().all(|value| value.is_finite()),
++                "{name} non-finite"
++            );
++        }
++        let actual = actual.to_bytes()?;
++        let expected = expected.to_bytes()?;
++        assert!(
++            actual == expected,
++            "{name} bits differ at byte {:?}",
++            actual.iter().zip(&expected).position(|(a, b)| a != b),
++        );
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "requires local Qwen27B checkpoint and physical Apple GPU; run alone"]
++    fn fused_preparation_recurrence_matches_split_and_all_prefixes() -> Result<()> {
++        let model_path = std::env::var("MLXL3_MTP_TEST_MODEL")
++            .context("set MLXL3_MTP_TEST_MODEL to the Qwen27B checkpoint")?;
++        let checkpoint = crate::checkpoint::inspect(std::path::Path::new(&model_path))?;
++        let prefix = "model.language_model.layers.0.linear_attn";
++        let mut comparisons = 0;
++        let mut replay_comparisons = 0;
++        let mut micro_cases = Vec::new();
++        for value_heads in [32, 48] {
++            let conv_dims = 4096 + value_heads * 128;
++            let (weights, a_log, bias) = if value_heads == 48 {
++                (
++                    crate::lfm2::half_weight(
++                        &checkpoint,
++                        &format!("{prefix}.conv1d.weight"),
++                        Some(&[conv_dims, 1, 4]),
++                    )?
++                    .transpose(&[0, 2, 1])?,
++                    crate::linear::checkpoint_array(&checkpoint, &format!("{prefix}.A_log"))?
++                        .astype(Dtype::Float32)?,
++                    crate::lfm2::half_weight(
++                        &checkpoint,
++                        &format!("{prefix}.dt_bias"),
++                        Some(&[value_heads]),
++                    )?,
++                )
++            } else {
++                (
++                    gdn_preparation_fixture(&[conv_dims, 4, 1], 11)?,
++                    Array::from_f32(
++                        &(0..value_heads)
++                            .map(|i| -4. + i as f32 / 32.)
++                            .collect::<Vec<_>>(),
++                        &[value_heads],
++                    )?,
++                    gdn_preparation_fixture(&[value_heads], 5)?,
++                )
++            };
++            assert_eq!(a_log.shape(), [value_heads]);
++            for seed in [0, 7] {
++                for time in 0..=5 {
++                    let fixture = GdnPreparationFixture {
++                        value_heads,
++                        qkv: gdn_preparation_fixture(&[1, time, conv_dims], seed)?,
++                        conv: gdn_preparation_fixture(&[1, 3, conv_dims], seed)?,
++                        weights: weights.try_clone()?,
++                        qs: Array::from_f16_bits(&[half::f16::from_f32(1. / 128.).to_bits()], &[])?,
++                        ks: Array::from_f16_bits(
++                            &[half::f16::from_f32(1. / 128_f32.sqrt()).to_bits()],
++                            &[],
++                        )?,
++                        a: gdn_preparation_fixture(&[1, time, value_heads], seed)?,
++                        b: gdn_preparation_fixture(&[1, time, value_heads], seed + 1)?,
++                        a_log: a_log.try_clone()?,
++                        bias: bias.try_clone()?,
++                        state: gdn_preparation_fixture(&[1, value_heads, 128, 128], seed)?
++                            .astype(Dtype::Float32)?,
++                    };
++                    if time == 0 || time == 5 {
++                        assert!(fixture.fused(true).is_err());
++                        continue;
++                    }
++                    let (q, k, v, _) = prepare_qkv(
++                        &fixture.qkv,
++                        &fixture.conv,
++                        &fixture.weights,
++                        &fixture.qs,
++                        &fixture.ks,
++                        16,
++                        value_heads,
++                        128,
++                        128,
++                        4,
++                    )?;
++                    let (expected, state, next_conv, expected_tape) = fixture.split(true)?;
++                    let expected_tape = expected_tape.context("missing reference tape")?;
++                    let mut serial_state = fixture.state.try_clone()?;
++                    let mut serial_rows = Vec::new();
++                    let mut prefixes = Vec::new();
++                    for row in 0..time {
++                        let (out, next) = step_with_gates(
++                            &q.slice(1, row, row + 1)?,
++                            &k.slice(1, row, row + 1)?,
++                            &v.slice(1, row, row + 1)?,
++                            &fixture.a.slice(1, row, row + 1)?,
++                            &fixture.b.slice(1, row, row + 1)?,
++                            &fixture.a_log,
++                            &fixture.bias,
++                            &serial_state,
++                        )?;
++                        serial_rows.push(out);
++                        serial_state = next;
++                        prefixes.push(serial_state.try_clone()?);
++                    }
++                    check_gdn_preparation_arrays(
++                        &expected,
++                        &Array::concatenate(&serial_rows.iter().collect::<Vec<_>>(), 1)?,
++                        "split vs serial output",
++                    )?;
++                    check_gdn_preparation_arrays(&state, &serial_state, "split vs serial state")?;
++                    for retain in [false, true] {
++                        let (out, next, conv, tape) = fixture.fused(retain)?;
++                        check_gdn_preparation_arrays(&out, &expected, "output")?;
++                        check_gdn_preparation_arrays(&next, &state, "state")?;
++                        check_gdn_preparation_arrays(&conv, &next_conv, "conv")?;
++                        if let Some(tape) = tape {
++                            assert!(retain);
++                            check_gdn_preparation_arrays(&tape.keys, &k, "keys")?;
++                            check_gdn_preparation_arrays(
++                                &tape.delta,
++                                &expected_tape.delta,
++                                "delta",
++                            )?;
++                            check_gdn_preparation_arrays(
++                                &tape.decay,
++                                &expected_tape.decay,
++                                "decay",
++                            )?;
++                            for invalid in [i32::MIN, 0, time + 1, i32::MAX] {
++                                assert!(tape.replay(invalid).is_err());
++                            }
++                            for retained in 1..=time {
++                                check_gdn_preparation_arrays(
++                                    &tape.replay(retained)?,
++                                    &prefixes[(retained - 1) as usize],
++                                    "replay vs serial prefix",
++                                )?;
++                                let (_, _, _, serial_conv) = prepare_qkv(
++                                    &fixture.qkv.slice(1, 0, retained)?,
++                                    &fixture.conv,
++                                    &fixture.weights,
++                                    &fixture.qs,
++                                    &fixture.ks,
++                                    16,
++                                    value_heads,
++                                    128,
++                                    128,
++                                    4,
++                                )?;
++                                let committed_conv =
++                                    Array::concatenate(&[&fixture.conv, &fixture.qkv], 1)?.slice(
++                                        1,
++                                        retained,
++                                        retained + 3,
++                                    )?;
++                                check_gdn_preparation_arrays(
++                                    &committed_conv,
++                                    &serial_conv,
++                                    "committed conv prefix",
++                                )?;
++                                replay_comparisons += 1;
++                            }
++                        } else {
++                            assert!(!retain);
++                        }
++                        comparisons += 1;
++                    }
++                    for (bad_qkv, bad_conv, bad_qs, bad_state) in [
++                        (
++                            fixture.qkv.astype(Dtype::Float32)?,
++                            fixture.conv.try_clone()?,
++                            fixture.qs.try_clone()?,
++                            fixture.state.try_clone()?,
++                        ),
++                        (
++                            fixture.qkv.try_clone()?,
++                            fixture.conv.slice(1, 0, 2)?,
++                            fixture.qs.try_clone()?,
++                            fixture.state.try_clone()?,
++                        ),
++                        (
++                            fixture.qkv.try_clone()?,
++                            fixture.conv.try_clone()?,
++                            fixture.qs.reshape(&[1])?,
++                            fixture.state.try_clone()?,
++                        ),
++                        (
++                            fixture.qkv.try_clone()?,
++                            fixture.conv.try_clone()?,
++                            fixture.qs.try_clone()?,
++                            fixture.state.astype(Dtype::Float16)?,
++                        ),
++                    ] {
++                        assert!(
++                            prepare_and_step_with_gates(
++                                &bad_qkv,
++                                &bad_conv,
++                                &fixture.weights,
++                                &bad_qs,
++                                &fixture.ks,
++                                &fixture.a,
++                                &fixture.b,
++                                &fixture.a_log,
++                                &fixture.bias,
++                                &bad_state,
++                                true,
++                            )
++                            .is_err()
++                        );
++                    }
++                    let short_log = fixture.a_log.slice(0, 0, value_heads - 1)?;
++                    assert!(
++                        prepare_and_step_with_gates(
++                            &fixture.qkv,
++                            &fixture.conv,
++                            &fixture.weights,
++                            &fixture.qs,
++                            &fixture.ks,
++                            &fixture.a,
++                            &fixture.b,
++                            &short_log,
++                            &fixture.bias,
++                            &fixture.state,
++                            true,
++                        )
++                        .is_err()
++                    );
++                    if seed == 7 && time <= 2 {
++                        micro_cases.push(fixture);
++                    }
++                }
++            }
++        }
++        assert_eq!(comparisons, 32);
++        assert_eq!(replay_comparisons, 40);
++        eprintln!(
++            "GDN18 quality: 32 split comparisons, 40 serial rollback prefixes; Hv32 synthetic/Hv48 checkpoint; finite bitexact output/state/conv/keys/tapes"
++        );
++        if std::env::var("MLXL3_GDN_FUSED_MICRO").as_deref() == Ok("1") {
++            assert_eq!(micro_cases.len(), 4);
++            for fixture in micro_cases {
++                let time = fixture.qkv.shape()[1];
++                let retain = time > 1;
++                for _ in 0..3 {
++                    fixture.evaluate(false, retain)?;
++                    fixture.evaluate(true, retain)?;
++                }
++                let mut samples = [Vec::with_capacity(40), Vec::with_capacity(40)];
++                for repeat in 0..40 {
++                    for fused in if repeat % 2 == 0 {
++                        [false, true]
++                    } else {
++                        [true, false]
++                    } {
++                        let start = std::time::Instant::now();
++                        fixture.evaluate(fused, retain)?;
++                        let millis = start.elapsed().as_secs_f64() * 1000.;
++                        assert!(millis.is_finite() && millis > 0.);
++                        samples[usize::from(fused)].push(millis);
++                    }
++                }
++                println!(
++                    "{}",
++                    serde_json::json!({
++                        "gdn18_micro": {
++                            "value_heads": fixture.value_heads, "time": time, "retain": retain,
++                            "quality_complete": true, "warmups": 3, "pairs": 40,
++                            "boundary": "prepare+recurrence+outputs host/MLX/GPU sync; no generation speed",
++                            "samples_ms": samples,
++                        }
++                    })
++                );
++            }
++        }
++        Ok(())
++    }
++
+     #[test]
+     #[ignore = "requires Apple GPU"]
+     fn tape_replay_matches_every_serial_prefix() -> Result<()> {
+@@ -823,3 +1378,29 @@
+         Ok(())
+     }
+ }
++
++#[cfg(kani)]
++#[kani::proof]
++fn fused_gdn_real_array_api_preserves_output_shapes() {
++    let time = 1 + i32::from(kani::any::<u8>() % 4);
++    let value_heads = if kani::any::<bool>() { 48 } else { 32 };
++    let conv_dims = 4096 + value_heads * 128;
++    let qkv = Array::zeros_dtype(&[1, time, conv_dims], Dtype::Float16).unwrap();
++    let conv = Array::zeros_dtype(&[1, 3, conv_dims], Dtype::Float16).unwrap();
++    let weights = Array::zeros_dtype(&[conv_dims, 4, 1], Dtype::Float16).unwrap();
++    let qs = Array::from_f16_bits(&[half::f16::from_f32(1. / 128.).to_bits()], &[]).unwrap();
++    let ks =
++        Array::from_f16_bits(&[half::f16::from_f32(1. / 128_f32.sqrt()).to_bits()], &[]).unwrap();
++    let gates = Array::zeros_dtype(&[1, time, value_heads], Dtype::Float16).unwrap();
++    let a_log = Array::zeros_dtype(&[value_heads], Dtype::Float32).unwrap();
++    let bias = Array::zeros_dtype(&[value_heads], Dtype::Float16).unwrap();
++    let state = Array::zeros_dtype(&[1, value_heads, 128, 128], Dtype::Float32).unwrap();
++    let (out, next, conv_out, tape) = prepare_and_step_with_gates(
++        &qkv, &conv, &weights, &qs, &ks, &gates, &gates, &a_log, &bias, &state, true,
++    )
++    .unwrap();
++    assert_eq!(out.shape(), [1, time, value_heads, 128]);
++    assert_eq!(next.shape(), state.shape());
++    assert_eq!(conv_out.shape(), conv.shape());
++    assert!(tape.is_some());
++}
+--- a/native/shaders/gated_delta_packed.metal
++++ b/native/shaders/gated_delta_packed.metal
+@@ -18,11 +18,19 @@
+         auto dv_idx = row_group * rows_per_simdgroup + row_in_simdgroup;
+ 
+         // q, k: [B, T, Hk, Dk]
++#if MLXL3_GDN_FUSED_PREP
++        threadgroup half prepared_q[Dk];
++        threadgroup half prepared_k[Dk];
++        threadgroup half prepared_v[Dv];
++        auto q_ = prepared_q + lane_in_row * values_per_lane;
++        auto k_ = prepared_k + lane_in_row * values_per_lane;
++        auto v_ = prepared_v;
++#else
+         auto q_ = q + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
+         auto k_ = k + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
+-
++        auto v_ = v + (b_idx * T * Hv + hv_idx) * Dv;
++#endif
+         // v, y: [B, T, Hv, Dv]
+-        auto v_ = v + (b_idx * T * Hv + hv_idx) * Dv;
+         y += (b_idx * T * Hv + hv_idx) * Dv;
+ 
+         // state_in, state_out: [B, Hv, Dv, Dk]
+@@ -44,6 +52,53 @@
+ #endif
+ 
+         for (int t = 0; t < T; ++t) {
++#if MLXL3_GDN_FUSED_PREP
++          // The first SIMD group preserves prepare_qkv's canonical reduction.
++          if (simdgroup_index_in_threadgroup == 0u) {
++            half qv[4], kv[4];
++            float qs = 0.0f, ks = 0.0f;
++            for (uint i = 0u; i < 4u; ++i) {
++              uint d = lane * 4u + i;
++              uint c = hk_idx * uint(Dk) + d;
++              qv[i] = mlxl3_gdn_conv_silu(qkv, conv_state, conv_weight, t, c);
++              kv[i] = mlxl3_gdn_conv_silu(qkv, conv_state, conv_weight, t, uint(KEYS) + c);
++              qs += float(qv[i]) * float(qv[i]);
++              ks += float(kv[i]) * float(kv[i]);
++            }
++            qs = simd_sum(qs);
++            ks = simd_sum(ks);
++            float qi = metal::precise::rsqrt(qs / float(Dk) + 1.0e-6f);
++            float ki = metal::precise::rsqrt(ks / float(Dk) + 1.0e-6f);
++            for (uint i = 0u; i < 4u; ++i) {
++              uint d = lane * 4u + i;
++              prepared_q[d] = half(float(qv[i]) * qi) * q_scale;
++              prepared_k[d] = half(float(kv[i]) * ki) * k_scale;
++              if (hv_idx % (Hv / Hk) == 0u) {
++                keys_out[(t * Hk + hk_idx) * Dk + d] = prepared_k[d];
++              }
++            }
++          }
++          uint tid = thread_index_in_threadgroup;
++          if (tid < uint(Dv)) {
++            uint channel = uint(2 * KEYS) + hv_idx * uint(Dv) + tid;
++            prepared_v[tid] = mlxl3_gdn_conv_silu(qkv, conv_state, conv_weight, t, channel);
++            if (t == T - 1) {
++              for (uint p = 0u; p < uint(CONV_HISTORY); ++p) {
++                conv_out[p * uint(CONV_DIMS) + channel] = mlxl3_gdn_input(qkv, conv_state, uint(T) + p, channel);
++              }
++            }
++          }
++          if (t == T - 1 && simdgroup_index_in_threadgroup == 0u && hv_idx % (Hv / Hk) == 0u) {
++            for (uint i = 0u; i < 4u; ++i) {
++              uint c = hk_idx * uint(Dk) + lane * 4u + i;
++              for (uint p = 0u; p < uint(CONV_HISTORY); ++p) {
++                conv_out[p * uint(CONV_DIMS) + c] = mlxl3_gdn_input(qkv, conv_state, uint(T) + p, c);
++                conv_out[p * uint(CONV_DIMS) + uint(KEYS) + c] = mlxl3_gdn_input(qkv, conv_state, uint(T) + p, uint(KEYS) + c);
++              }
++            }
++          }
++          threadgroup_barrier(mem_flags::mem_threadgroup);
++#endif
+ #if MLXL3_GDN_FUSED_GATES
+           half bh = b_[hv_idx];
+           half sigmoid_tail = half(1.0h) /
+@@ -131,9 +186,13 @@
+           }
+ #endif
+ 
++#if MLXL3_GDN_FUSED_PREP
++          threadgroup_barrier(mem_flags::mem_threadgroup);
++#else
+           q_ += Hk * Dk;
+           k_ += Hk * Dk;
+           v_ += Hv * Dv;
++#endif
+           y += Hv * Dv;
+ #if MLXL3_GDN_FUSED_GATES
+           a_ += Hv;

@@ -59,6 +59,86 @@ pub(crate) fn with_dense_decode_nt4_test<T>(enabled: bool, run: impl FnOnce() ->
     run()
 }
 
+fn lane_order_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(enabled) = LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get) {
+        return enabled;
+    }
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        crate::contracts::exl3_lane_order_enabled(
+            std::env::var_os("MLXL3_EXL3_LANE_ORDER")
+                .as_deref()
+                .map(|value| value.to_str().unwrap_or("")),
+        )
+    })
+}
+
+#[cfg(test)]
+thread_local! {
+    static LANE_ORDER_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Load under true to prepare indices; this override can then select stock on the same weights.
+#[cfg(test)]
+pub(crate) fn with_lane_order_test<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            LANE_ORDER_TEST_OVERRIDE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(LANE_ORDER_TEST_OVERRIDE.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
+fn lane_order_indices(
+    input: i32,
+    output: i32,
+    k: usize,
+    cb: Codebook,
+    grouped: bool,
+) -> Result<Option<Array>> {
+    if !crate::contracts::exl3_lane_order(
+        1,
+        input,
+        output,
+        k,
+        grouped,
+        cb == Codebook::Mul1,
+        array::is_m5_gpu()?,
+        lane_order_enabled(),
+    ) {
+        return Ok(None);
+    }
+    let values = (0..input)
+        .map(|index| i32::try_from(crate::contracts::exl3_lane_source_index(index as u32)))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let indices = Array::from_i32(&values, &[input])?;
+    indices.eval()?;
+    Ok(Some(indices))
+}
+
+fn lane_order_input(
+    xhat: Array,
+    indices: Option<&Array>,
+    matrix_rows: i32,
+    groups: i32,
+    input: i32,
+) -> Result<(Array, bool)> {
+    if let Some(indices) = indices.filter(|_| lane_order_enabled() && matches!(matrix_rows, 1 | 2))
+    {
+        let shape = xhat.shape().to_vec();
+        let value = xhat
+            .reshape(&[matrix_rows, groups, input])?
+            .take(indices, 2)?
+            .reshape(&shape)?;
+        Ok((value, true))
+    } else {
+        Ok((xhat, false))
+    }
+}
+
 fn checkpoint_dtype(dtype: &str, name: &str) -> Result<Dtype> {
     Ok(match dtype {
         "F16" => Dtype::Float16,
@@ -150,6 +230,7 @@ pub struct Exl3Linear {
     reference_accumulation: bool,
     mtp_hidden_batch: bool,
     flash_batch: bool,
+    lane_indices: Option<Array>,
 }
 
 impl Exl3Linear {
@@ -195,6 +276,8 @@ impl Exl3Linear {
         if checkpoint.model_type == "qwen4_exp" {
             linear.simdgroups = 4;
             linear.reference_accumulation = true;
+            // Flash keeps its reference layout; lane order was qualified on other models.
+            linear.lane_indices = None;
             linear.flash_batch = crate::flash_support::multi_token_verifier()?;
             linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
             if linear.mtp_hidden_batch {
@@ -263,6 +346,7 @@ impl Exl3Linear {
             reference_accumulation: false,
             mtp_hidden_batch: false,
             flash_batch: false,
+            lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
         })
     }
 
@@ -351,10 +435,13 @@ impl Exl3Linear {
             .reshape(&[1, self.rows / 128, 128])?
             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
             .reshape(&[self.rows])?;
+        let (xhat, lane_order) =
+            lane_order_input(xhat, self.lane_indices.as_ref(), 1, 1, self.rows)?;
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
-        let mut header =
-            codebook_header(self.cb) + reference_reduction_header(self.reference_accumulation);
+        let mut header = codebook_header(self.cb)
+            + reference_reduction_header(self.reference_accumulation)
+            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order));
         let output = if self.k == 7 {
             let inverse = codec::permutation_inverse()
                 .map(|v| v.to_string())
@@ -472,6 +559,8 @@ impl Exl3Linear {
             .reshape(&[matrix_rows, self.rows / 128, 128])?
             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
             .reshape(&[matrix_rows, self.rows])?;
+        let (xhat, lane_order) =
+            lane_order_input(xhat, self.lane_indices.as_ref(), matrix_rows, 1, self.rows)?;
         let input_tiles = self.rows / 16;
         let output_tiles = self.cols / 16;
         // The released MTP FC uses Pony's four-row GEMM: two groups and two splits.
@@ -519,6 +608,7 @@ impl Exl3Linear {
                 "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
                 u8::from(self.mtp_hidden_batch)
             )
+            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order))
             + &format!(
                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_MATRIX_ROWS {matrix_rows}u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {output}\n",
                 self.simdgroups,
@@ -721,6 +811,7 @@ pub struct Exl3Group {
     k: usize,
     cb: Codebook,
     simdgroups: i32,
+    lane_indices: Option<Array>,
 }
 
 impl Exl3Group {
@@ -773,6 +864,12 @@ impl Exl3Group {
             array.eval()?;
         }
         let biases = linears.into_iter().map(|l| l.bias).collect();
+        let lane_indices =
+            if widths.as_slice() == [10240, 6144] || widths.as_slice() == [17408, 17408] {
+                lane_order_indices(rows, cols, k, cb, true)?
+            } else {
+                None
+            };
         Ok(Self {
             trellis,
             suh,
@@ -786,6 +883,7 @@ impl Exl3Group {
             k,
             cb,
             simdgroups,
+            lane_indices,
         })
     }
 
@@ -863,6 +961,8 @@ impl Exl3Group {
             .reshape(&[groups, self.rows / 128, 128])?
             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
             .reshape(&[-1])?;
+        let (xhat, lane_order) =
+            lane_order_input(xhat, self.lane_indices.as_ref(), 1, groups, self.rows)?;
         let tiles = self.cols / 16;
         let splits = split_count(self.rows / 16, tiles);
         let nt = if dense_decode_nt4_enabled()
@@ -884,6 +984,7 @@ impl Exl3Group {
             1
         };
         let header = codebook_header(self.cb)
+            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order))
             + &format!(
                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
                 sg = self.simdgroups,
@@ -959,6 +1060,13 @@ impl Exl3Group {
             .reshape(&[matrix_rows * groups, self.rows / 128, 128])?
             .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
             .reshape(&[-1])?;
+        let (xhat, lane_order) = lane_order_input(
+            xhat,
+            self.lane_indices.as_ref(),
+            matrix_rows,
+            groups,
+            self.rows,
+        )?;
         let tiles = self.cols / 16;
         let splits = split_count(self.rows / 16, tiles);
         let mut nt = if tiles >= 1024 {
@@ -987,6 +1095,7 @@ impl Exl3Group {
             nt = 1;
         }
         let header = codebook_header(self.cb)
+            + &format!("\n#define MLXL3_QMV_LANE_ORDER {}\n", u8::from(lane_order))
             + &format!(
                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB {mb}u\n#define MLXL3_MATRIX_ROWS {matrix_rows}u\n#define MLXL3_QMV_SG {sg}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 1\n#define GROUPS {groups}\n#define K {k}\n#define CB {cb}\n#define PACKED_U32 {words}\n#define INPUT_DIMS {rows}\n#define TILES_K {kt}\n#define TILES_N {tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {cols}\n#define IDENTITY_MAP 1\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
                 sg = self.simdgroups,
@@ -1550,6 +1659,12 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(kani)]
+    #[kani::proof]
+    fn q4_projection_reference_entry() {
+        assert!(q4_draft_matches_exl3_rotation_reference().is_ok());
+    }
+
     #[test]
     #[ignore = "physical Apple GPU and Flash checkpoint; run alone"]
     fn flash_reference_batches_match_independent_single_rows() -> anyhow::Result<()> {
@@ -2127,12 +2242,17 @@ mod tests {
     fn q4_draft_matches_exl3_rotation_reference() -> anyhow::Result<()> {
         use crate::{affine::AffineLinear, checkpoint::Checkpoint};
         use std::path::Path;
-        let root = Path::new("build/mtp-followup/q4-head");
+        let root = std::env::var("MLXL3_MTP_TEST_FULL_HEAD")
+            .unwrap_or_else(|_| "build/mtp-followup/q4-head".into());
+        let root = Path::new(&root);
         let reference: serde_json::Value =
             serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
-        let original =
-            crate::checkpoint::inspect(Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw"))?;
+        let model = std::env::var("MLXL3_MTP_TEST_MODEL")
+            .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-EXL3-2.49bpw".into());
+        let original = crate::checkpoint::inspect(Path::new(&model))?;
         let exl3 = super::Exl3Linear::from_checkpoint(&original, "lm_head")?;
+        let (hidden, vocab) = (exl3.input_dims(), exl3.output_dims());
+        assert!(hidden > 0 && vocab >= 4096);
         let checkpoint = Checkpoint {
             path: root.to_owned(),
             model_type: "draft_head_q4".into(),
@@ -2141,7 +2261,7 @@ mod tests {
             modules: Vec::new(),
             tensors: crate::checkpoint::read_header(&root.join("draft_head_q4.safetensors"))?,
         };
-        let q4 = AffineLinear::load(&checkpoint, "lm_head", 2048, 248320, None)?;
+        let q4 = AffineLinear::load(&checkpoint, "lm_head", hidden, vocab, None)?;
         let mut compact = None;
         if let Some(path) = std::env::var_os("MLXL3_MTP_TEST_COMPACT_HEAD") {
             let path = std::path::PathBuf::from(path);
@@ -2153,9 +2273,10 @@ mod tests {
                 .iter()
                 .map(|id| u32::try_from(id.as_u64().unwrap()).unwrap())
                 .collect::<Vec<_>>();
-            assert!(!ids.is_empty() && ids.len() < 248320);
+            assert!(!ids.is_empty() && ids.len() < vocab as usize);
             assert!(
-                ids.iter().all(|&id| id < 248320) && ids.windows(2).all(|pair| pair[0] < pair[1])
+                ids.iter().all(|&id| id < vocab as u32)
+                    && ids.windows(2).all(|pair| pair[0] < pair[1])
             );
             let checkpoint = Checkpoint {
                 path: path.clone(),
@@ -2166,7 +2287,13 @@ mod tests {
                 tensors: crate::checkpoint::read_header(&path.join("draft_head_q4.safetensors"))?,
             };
             compact = Some((
-                AffineLinear::load(&checkpoint, "lm_head", 2048, ids.len() as i32, None)?,
+                AffineLinear::load(
+                    &checkpoint,
+                    "lm_head",
+                    hidden,
+                    i32::try_from(ids.len())?,
+                    None,
+                )?,
                 ids,
             ));
         }
@@ -2187,13 +2314,13 @@ mod tests {
                 .iter()
                 .map(|v| v.as_f64().unwrap())
                 .collect::<Vec<_>>();
-            assert_eq!(input.len(), 2048);
+            assert_eq!(input.len(), hidden as usize);
             assert_eq!(expected.len(), 4096);
             assert!(expected.iter().all(|v| v.is_finite()));
-            let input = crate::array::Array::from_f16_bits(&input, &[1, 2048])?;
+            let input = crate::array::Array::from_f16_bits(&input, &[1, hidden])?;
             let actual = exl3.forward(&input)?.to_f16_bits()?;
             let quantized = q4.forward(&input)?.to_f16_bits()?;
-            assert_eq!(actual.len(), 248320);
+            assert_eq!(actual.len(), vocab as usize);
             assert_eq!(quantized.len(), actual.len());
             assert!(
                 actual
@@ -2241,6 +2368,165 @@ mod tests {
         Ok(())
     }
     use super::*;
+
+    #[test]
+    fn lane_order_override_restores_and_stays_thread_local() {
+        assert_eq!(LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+        with_lane_order_test(false, || {
+            assert!(!lane_order_enabled());
+            with_lane_order_test(true, || assert!(lane_order_enabled()));
+            assert!(!lane_order_enabled());
+            std::thread::spawn(|| {
+                assert_eq!(LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+            })
+            .join()
+            .unwrap();
+            assert!(
+                std::panic::catch_unwind(|| {
+                    with_lane_order_test(true, || panic!("temporary test failure"));
+                })
+                .is_err()
+            );
+            assert!(!lane_order_enabled());
+        });
+        assert_eq!(LANE_ORDER_TEST_OVERRIDE.with(std::cell::Cell::get), None);
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn lane_order_real_array_api() {
+        let bits: u16 = kani::any();
+        let x = Array::from_f16_bits(&[bits; 16], &[16]).unwrap();
+        let ids = Array::from_i32(
+            &[0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15],
+            &[16],
+        )
+        .unwrap();
+        let result = with_lane_order_test(true, || lane_order_input(x, Some(&ids), 1, 1, 16));
+        assert_eq!(result.unwrap().0.shape(), [16]);
+    }
+
+    #[test]
+    #[ignore = "physical M5, MLXL3_QWEN_TEST_MODEL; run alone"]
+    fn lane_order_real_projections_match_stock_and_reject_mutated_index() -> Result<()> {
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QWEN_TEST_MODEL")?))?;
+        let mut cases = 0;
+        for prefix in [
+            "lm_head",
+            "model.language_model.layers.0.mlp.down_proj",
+            "model.language_model.layers.0.linear_attn.in_proj_z",
+        ] {
+            let mut linear =
+                with_lane_order_test(true, || Exl3Linear::from_checkpoint(&checkpoint, prefix))?;
+            ensure!(
+                linear.lane_indices.is_some(),
+                "fixture missing prepared lane indices"
+            );
+            for rows in [1, 2, 3, 4] {
+                let bits = (0..rows * linear.rows)
+                    .map(|i| f16::from_f32(((i * 37 % 251) as f32 - 125.0) / 256.0).to_bits())
+                    .collect::<Vec<_>>();
+                let x = Array::from_f16_bits(&bits, &[rows, linear.rows])?;
+                let expected = with_lane_order_test(false, || linear.forward(&x))?.to_f16_bits()?;
+                let actual = with_lane_order_test(true, || linear.forward(&x))?.to_f16_bits()?;
+                ensure!(
+                    expected.len() == (rows * linear.cols) as usize
+                        && !expected.is_empty()
+                        && expected
+                            .iter()
+                            .chain(&actual)
+                            .all(|&v| f16::from_bits(v).is_finite()),
+                    "invalid lane projection values"
+                );
+                ensure!(
+                    expected == actual,
+                    "lane projection differs for {prefix} M={rows}"
+                );
+                if prefix == "lm_head" && rows == 1 {
+                    let correct = linear.lane_indices.take().context("missing lane indices")?;
+                    let mut ids = (0..linear.rows)
+                        .map(|i| crate::contracts::exl3_lane_source_index(i as u32) as i32)
+                        .collect::<Vec<_>>();
+                    ids.swap(0, 2);
+                    linear.lane_indices = Some(Array::from_i32(&ids, &[linear.rows])?);
+                    let corrupted =
+                        with_lane_order_test(true, || linear.forward(&x))?.to_f16_bits()?;
+                    ensure!(
+                        corrupted.len() == expected.len()
+                            && corrupted.iter().all(|&v| f16::from_bits(v).is_finite())
+                            && corrupted != expected,
+                        "mutation escaped lane oracle"
+                    );
+                    let differing = corrupted
+                        .iter()
+                        .zip(&expected)
+                        .filter(|(a, b)| a != b)
+                        .count();
+                    eprintln!("lane mutation detected: {differing} finite FP16 values");
+                    linear.lane_indices = Some(correct);
+                    ensure!(
+                        with_lane_order_test(true, || linear.forward(&x))?.to_f16_bits()?
+                            == expected,
+                        "restored index differs"
+                    );
+                }
+                cases += 1;
+            }
+        }
+        for (left, right) in [("in_proj_qkv", "in_proj_z"), ("gate_proj", "up_proj")] {
+            let branch = if left == "in_proj_qkv" {
+                "linear_attn"
+            } else {
+                "mlp"
+            };
+            let group = with_lane_order_test(true, || {
+                Exl3Group::new(vec![
+                    Exl3Linear::from_checkpoint(
+                        &checkpoint,
+                        &format!("model.language_model.layers.0.{branch}.{left}"),
+                    )?,
+                    Exl3Linear::from_checkpoint(
+                        &checkpoint,
+                        &format!("model.language_model.layers.0.{branch}.{right}"),
+                    )?,
+                ])
+            })?;
+            ensure!(
+                group.lane_indices.is_some(),
+                "fixture missing grouped lane indices"
+            );
+            for rows in [1, 2, 3, 4] {
+                let bits = (0..rows * group.rows)
+                    .map(|i| f16::from_f32(((i * 53 % 251) as f32 - 125.0) / 256.0).to_bits())
+                    .collect::<Vec<_>>();
+                let x = Array::from_f16_bits(&bits, &[rows, group.rows])?;
+                let expected = with_lane_order_test(false, || group.forward(&x))?;
+                let actual = with_lane_order_test(true, || group.forward(&x))?;
+                ensure!(
+                    expected.len() == 2 && actual.len() == 2,
+                    "missing grouped outputs"
+                );
+                for ((left, right), &width) in expected.iter().zip(&actual).zip(&group.widths) {
+                    let a = left.to_f16_bits()?;
+                    let b = right.to_f16_bits()?;
+                    ensure!(
+                        a.len() == (rows * width) as usize
+                            && !a.is_empty()
+                            && a.iter().chain(&b).all(|&v| f16::from_bits(v).is_finite()),
+                        "invalid grouped lane values"
+                    );
+                    ensure!(
+                        a == b,
+                        "grouped lane projection differs for {branch} M={rows}"
+                    );
+                }
+                cases += 1;
+            }
+        }
+        ensure!(cases == 20, "missing lane projection comparisons");
+        Ok(())
+    }
 
     #[test]
     fn grouped_mb3_override_restores_and_stays_thread_local() {

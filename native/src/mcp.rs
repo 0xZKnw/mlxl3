@@ -150,16 +150,17 @@ fn valid_server_name(name: &[u8]) -> bool {
 }
 
 fn validate_url(url: &str) -> Result<()> {
-    if url.starts_with("https://") {
-        ensure!(url.len() > 8, "MCP HTTPS URL has no host");
-        return Ok(());
-    }
-    let host = url
-        .strip_prefix("http://")
-        .and_then(|rest| rest.split(['/', ':']).next())
-        .unwrap_or_default();
+    let uri: hyper::Uri = url.parse().context("invalid MCP URL")?;
+    let host = uri.host().context("MCP URL has no host")?;
     ensure!(
-        matches!(host, "localhost" | "127.0.0.1" | "[::1]"),
+        uri.authority()
+            .is_some_and(|authority| !authority.as_str().contains('@')),
+        "MCP URLs must not contain credentials"
+    );
+    ensure!(
+        uri.scheme_str() == Some("https")
+            || (uri.scheme_str() == Some("http")
+                && matches!(host, "localhost" | "127.0.0.1" | "[::1]" | "::1")),
         "MCP endpoints require HTTPS (HTTP is allowed for loopback)"
     );
     Ok(())
@@ -734,6 +735,26 @@ fn tool_result(result: &Value) -> ToolResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mcp_url_validation_matches_the_desktop_transports() {
+        for url in [
+            "https://example.com/mcp",
+            "http://127.0.0.1:9000/mcp",
+            "http://localhost/mcp",
+            "http://[::1]:9000/mcp",
+        ] {
+            assert!(super::validate_url(url).is_ok(), "rejected {url}");
+        }
+        for url in [
+            "http://example.com/mcp",
+            "https://",
+            "file:///tmp/mcp",
+            "https://user:password@example.com/mcp",
+        ] {
+            assert!(super::validate_url(url).is_err(), "accepted {url}");
+        }
+    }
 
     #[test]
     fn parses_json_and_sse_responses() {

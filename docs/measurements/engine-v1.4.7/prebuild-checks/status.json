@@ -1,0 +1,216 @@
+{
+  "status": "complete",
+  "stages": [
+    {
+      "name": "fmt",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--check"
+        ],
+        "timeout_seconds": 600,
+        "pid": 19710,
+        "seconds": 0.4014052910497412,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "clippy",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--all-targets",
+          "--features",
+          "mlx,chat",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "timeout_seconds": 600,
+        "pid": 19713,
+        "seconds": 5.950849750079215,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "rust",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--release",
+          "--features",
+          "mlx,chat"
+        ],
+        "timeout_seconds": 600,
+        "pid": 20066,
+        "seconds": 55.50199008407071,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "python-format",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+          "format",
+          "--check",
+          "benchmarks/benchmark_smallm.py",
+          "benchmarks/compare_native.py",
+          "benchmarks/analyze_smallm_profile.py",
+          "benchmarks/benchmark_smallm_reuse.py",
+          "scripts/experimental-draft-head.py",
+          "tests/test_compare_native.py",
+          "tests/test_experimental_draft_head.py",
+          "tests/test_smallm_profile.py",
+          "tests/test_smallm_reuse.py"
+        ],
+        "timeout_seconds": 600,
+        "pid": 20799,
+        "seconds": 0.03993537509813905,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "python-lint",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+          "check",
+          "benchmarks/benchmark_smallm.py",
+          "benchmarks/compare_native.py",
+          "benchmarks/analyze_smallm_profile.py",
+          "benchmarks/benchmark_smallm_reuse.py",
+          "scripts/experimental-draft-head.py",
+          "tests/test_compare_native.py",
+          "tests/test_experimental_draft_head.py",
+          "tests/test_smallm_profile.py",
+          "tests/test_smallm_reuse.py"
+        ],
+        "timeout_seconds": 600,
+        "pid": 20802,
+        "seconds": 0.019702125107869506,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "python-tests",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "-m",
+          "pytest",
+          "-q",
+          "tests/test_bridge_benchmark.py",
+          "tests/test_package_engine.py",
+          "tests/test_qmm_tiles.py",
+          "tests/test_compare_native.py",
+          "tests/test_native_json_process.py",
+          "tests/test_mtp_model_switch.py",
+          "tests/test_smallm_benchmark.py",
+          "tests/test_decode_microbenchmarks.py",
+          "tests/test_experimental_draft_head.py",
+          "tests/test_dflash2_check.py",
+          "tests/test_smallm_profile.py",
+          "tests/test_smallm_reuse.py"
+        ],
+        "timeout_seconds": 600,
+        "pid": 20803,
+        "seconds": 107.28029741696082,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "exl3_lane_layout_key_distinguishes_options",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_layout_key_distinguishes_options"
+        ],
+        "timeout_seconds": 600,
+        "pid": 21665,
+        "seconds": 2.0767616250086576,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds"
+        ],
+        "timeout_seconds": 600,
+        "pid": 21735,
+        "seconds": 1.0004657920217142,
+        "exit_code": 0,
+        "reaped": true
+      }
+    },
+    {
+      "name": "exl3_lane_order_preserves_shape_and_large_m_fallback",
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "--harness",
+          "exl3_lane_order_preserves_shape_and_large_m_fallback"
+        ],
+        "timeout_seconds": 600,
+        "pid": 21760,
+        "seconds": 1.0998367089778185,
+        "exit_code": 0,
+        "reaped": true
+      }
+    }
+  ],
+  "environment": {
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+  },
+  "rust_totals": {
+    "passed": 179,
+    "ignored": 85
+  },
+  "python_result": "442 passed in 107.04s (0:01:47)"
+}

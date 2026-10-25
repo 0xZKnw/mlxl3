@@ -1,0 +1,17 @@
+*** Terminating app due to uncaught exception 'NSInternalInconsistencyException', reason: 'Invalid message sent to event "NSEvent: type=NullEvent loc=(0,0) time=0.0 flags=0 win=0x0 winNum=0 ctxt=0x0"'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x000000019a6237b0 __exceptionPreprocess + 176
+	1   libobjc.A.dylib                     0x000000019629060c objc_exception_throw + 88
+	2   Foundation                          0x0000000196b424d8 -[NSCalendarDate initWithCoder:] + 0
+	3   AppKit                              0x000000019c9f778c -[NSEvent scrollingDeltaX] + 260
+	4   AppKit                              0x000000019d2ed90c -[NSScrollingBehaviorSingleThreadedVBL scrollView:scrollWheelWithEvent:] + 208
+	5   SwiftUI                             0x00000001b0e7f88c $s7SwiftUI16AppKitScrollViewC11scrollWheel4withySo7NSEventC_tFTo + 80
+	6   SwiftUI                             0x00000001b10a71b0 $s7SwiftUI17HostingScrollViewC11scrollWheel4withySo7NSEventC_tF + 100
+	7   SwiftUI                             0x00000001b10a7374 $s7SwiftUI17HostingScrollViewC11scrollWheel4withySo7NSEventC_tFTo + 56
+	8   scroll-only                         0x0000000102eac6d8 $s4main5CheckV11checkScroll33_4EE29103B4E4E323A727056880B200A4LLyyYaKFZTf4d_nTY6_ + 1148
+	9   scroll-only                         0x0000000102ea9f21 async_MainTQ1_ + 1
+	10  scroll-only                         0x0000000102eaa11d $sIetH_yts5Error_pIegHrzo_TR10async_MainTf3npf_nTQ0_ + 1
+	11  libswift_Concurrency.dylib          0x000000019a4b2e69 _ZL22completeTaskAndReleasePN5swift12AsyncContextEPNS_10SwiftErrorE + 1
+)
+libc++abi: terminating due to uncaught exception of type NSException

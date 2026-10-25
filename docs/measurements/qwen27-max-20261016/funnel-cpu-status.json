@@ -1,0 +1,78 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "format",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "format",
+        "--check",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen.py",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.011810541,
+      "reaped": true
+    },
+    {
+      "name": "lint",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "check",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen.py",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.012188374999999998,
+      "reaped": true
+    },
+    {
+      "name": "compile",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen.py",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.029878125,
+      "reaped": true
+    },
+    {
+      "name": "tests",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "/tmp/mlxl3-q27-max-20261016/test_funnel_screen.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.185467,
+      "reaped": true
+    },
+    {
+      "name": "crosshair",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "crosshair",
+        "check",
+        "/tmp/mlxl3-q27-max-20261016/funnel_screen.py",
+        "--per_condition_timeout=5"
+      ],
+      "exit_code": 1,
+      "seconds": 0.019304166999999983,
+      "reaped": true
+    }
+  ],
+  "initial_failures": [
+    "Ruff F401 unusedstatistics and B008 len indefault; fixed beforeGPU",
+    "Ruff I001 testimportorder; fixed beforeGPU"
+  ],
+  "source_proof": "CrossHair attempted on actualPython, module absent; Metal not proved",
+  "tests_passed": 5,
+  "integer_sampled_checks": 18528,
+  "mutation_detected_cases": 16053
+}

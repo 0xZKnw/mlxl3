@@ -1,0 +1,132 @@
+"""Supervise preregistered Q27 microfilters; never certify partial GPU output."""
+
+import hashlib
+import json
+import math
+import os
+import subprocess
+from pathlib import Path
+
+from bounded_stage import execute
+
+ROOT = Path("/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0")
+BASE = Path("/tmp/mlxl3-q27-max-20261016")
+EVIDENCE = ROOT / "docs/measurements/qwen27-max-20261016"
+
+
+def validate(data, expected):
+    if data.get("status") != "complete" or data.get("parity") is not True:
+        raise ValueError("incomplete or divergent profile")
+    cells = data.get("timings", [])
+    checks = data.get("checks", [])
+    if len(cells) != expected or len(checks) != 48:
+        raise ValueError("wrong physical check/cell counts")
+    if (
+        not data.get("mutation", {}).get("rejected")
+        or data["mutation"]["different_fp32_words"] <= 0
+    ):
+        raise ValueError("missing positive GPU mutation")
+    if not all(type(x.get("values")) is int and x["values"] > 0 for x in checks):
+        raise ValueError("empty numerical checks")
+    import funnel_screen_v2 as screen
+
+    seen = set()
+    for cell in cells:
+        key = (cell["input"], tuple(cell["widths"]), cell["k"], cell["cb"], cell["rows"])
+        if (
+            key in seen
+            or cell.get("status") != "complete"
+            or cell.get("raw_and_chain_bit_exact") is not True
+        ):
+            raise ValueError("duplicate, incomplete or divergent cell")
+        seen.add(key)
+        if cell["nt_override"] != screen.stock_nt(cell, cell["rows"]):
+            raise ValueError("incorrect native NT dispatch")
+        samples = cell["timing"]["samples_ms"]
+        if len(samples) != 2 or any(len(arm) != 40 for arm in samples):
+            raise ValueError("missing paired samples")
+        if any(not math.isfinite(v) or v <= 0 for arm in samples for v in arm):
+            raise ValueError("invalid paired samples")
+        if cell["gate"] != screen.speed_gate(samples):
+            raise ValueError("stale speed gate")
+    passing = sum(cell["gate"]["passed"] for cell in cells)
+    if data.get("passing_cells") != passing:
+        raise ValueError("incorrect promotion count")
+    return passing
+
+
+def run(name, filename, expected, extra=()):
+    profile = EVIDENCE / (name + "-profile.json")
+    status_path = EVIDENCE / (name + "-run-status.json")
+    if status_path.exists() or profile.exists():
+        raise FileExistsError("preserve earlier results")
+    cmd = [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        str(BASE / filename),
+        "--checkpoint",
+        "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+        "--output",
+        str(profile),
+        *extra,
+    ]
+    status = {
+        "status": "running",
+        "parity": False,
+        "command": cmd,
+        "expected_cells": expected,
+        "sources": {
+            p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in [
+                BASE / filename,
+                BASE / "bounded_stage.py",
+                BASE / "run_filters.py",
+                BASE / "funnel_screen.py",
+            ]
+        },
+    }
+
+    def save():
+        status_path.write_text(json.dumps(status, indent=2) + "\n")
+
+    for name_probe, command in [
+        ("power", ["pmset", "-g", "batt"]),
+        ("swap", ["sysctl", "vm.swapusage"]),
+    ]:
+        result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=5)
+        status[name_probe] = {"exit_code": result.returncode, "stdout": result.stdout}
+    save()
+    try:
+        child = execute(cmd, EVIDENCE / (name + "-profile.log"), 600)
+        status["child"] = child
+        data = json.loads(profile.read_text())
+        passing = validate(data, expected)
+        status.update(status="complete", parity=True, passing_cells=passing)
+    except BaseException as error:
+        status.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        save()
+        journal = ROOT / "opti.md"
+        text = journal.read_text()
+        heading = "### Q27-2026-10-16-15" if name == "funnel-v2" else "### Q27-2026-10-16-16"
+        start = text.index(heading)
+        end = text.index("\n### ", start + 5)
+        note = f"\n- ÉtapeGPU {name} : statut {status['status']}, parité {status['parity']}, {status.get('passing_cells', 'non mesuré')}/{expected} filtres ; commandes/processus/preuves dans docs/measurements/qwen27-max-20261016/{status_path.name}. Données et source conservées ; décision globale après inspection, pas de tok/s extrapolé.\n"
+        journal.write_text(text[:end] + note + text[end:])
+    print(json.dumps(status, indent=2), flush=True)
+
+
+if __name__ == "__main__":
+    processes = subprocess.run(
+        ["ps", "-axo", "comm"], capture_output=True, text=True, check=True
+    ).stdout
+    assert not any(
+        line.strip().endswith(("/mlxl3-rs", "/rustc", "/cargo", "/cbmc", "/kani-compiler"))
+        for line in processes.splitlines()
+    )
+    for key in list(os.environ):
+        if key.startswith("MLXL3_"):
+            del os.environ[key]
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    run("funnel-v2", "funnel_screen_v2.py", 11, ("--affected-m1",))
+    run("lane", "lane_screen.py", 32)

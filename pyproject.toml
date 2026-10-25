@@ -22,6 +22,7 @@ dependencies = [
 dev = [
   "pytest>=8.3",
   "ruff>=0.12",
+  "modal==1.5.5",
 ]
 bundle = [
   "pyinstaller>=6.16,<7",
@@ -30,6 +31,9 @@ bundle = [
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["mlxl3_quantizer*"]
+
+[tool.setuptools.package-data]
+mlxl3_quantizer = ["*.metal"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

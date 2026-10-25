@@ -1,0 +1,7 @@
+build/app-fluidite/ScrollOnly.swift:99:86: error: cannot convert value of type 'any KeyPath<EnvironmentValues, Bool> & Sendable' to expected argument type 'WritableKeyPath<EnvironmentValues, Bool>'
+ 97 |         repeating: "A paragraph with enough words to wrap onto another line.\n\n", count: 40),
+ 98 |       isStreaming: true)
+ 99 |     let host = NSHostingView(rootView: MessagesView(messages: [message]).environment(\.accessibilityReduceMotion, false))
+    |                                                                                      `- error: cannot convert value of type 'any KeyPath<EnvironmentValues, Bool> & Sendable' to expected argument type 'WritableKeyPath<EnvironmentValues, Bool>'
+100 |     let window = NSWindow(
+101 |       contentRect: NSRect(x: 80, y: 80, width: 700, height: 400),

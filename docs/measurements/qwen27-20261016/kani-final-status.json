@@ -1,0 +1,32 @@
+[
+  {
+    "name": "kani-final-dense",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "dense_mlp_batch_stays_within_supported_domain",
+      "--output-format",
+      "terse"
+    ],
+    "returncode": 0,
+    "seconds": 0.7698440419044346
+  },
+  {
+    "name": "kani-final-key",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "smallm_kernel_key_is_injective",
+      "--output-format",
+      "terse"
+    ],
+    "returncode": 0,
+    "seconds": 1.0869844170520082
+  }
+]

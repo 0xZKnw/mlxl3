@@ -191,7 +191,7 @@ extension UpdateManager {
         flash.setDFlash2Enabled(true)
         for _ in 0..<200 where flash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(flash.dflash2Enabled && flash.dflashActive == true && flash.canTuneDFlash, "One click must install and activate the matching draft")
-        precondition(flash.temperature == 0 && flash.topK == 1 && flash.repetitionPenalty == 1)
+        precondition(flash.samplingTemperature == 0 && flash.samplingTopK == 1 && flash.samplingRepetitionPenalty == 1)
         let history = flash.conversations[0].messages.count
         try await renderTuneToolbar(flash, "dflash-idle", dflash: true)
         precondition(!flash.showInspector)
@@ -580,7 +580,7 @@ extension UpdateManager {
         renamed.setMTPEnabled(true)
         for _ in 0..<200 where renamed.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(renamed.mtpEnabled && renamed.mtpHeadPath == "/tmp/mlxl3-fixture-mtp")
-        precondition(renamed.temperature == 0 && renamed.topK == 1 && renamed.repetitionPenalty == 1)
+        precondition(renamed.samplingTemperature == 0 && renamed.samplingTopK == 1 && renamed.samplingRepetitionPenalty == 1)
         precondition(renamed.dflash2Available, "Engine capability must override the directory name")
         precondition(renamed.runtimeIdentity == "fixture · release · MLX 0.32.2")
         renamed.ejectModel()
@@ -596,17 +596,26 @@ extension UpdateManager {
         flashNext.setMTPEnabled(true)
         precondition(!flashNext.mtpEnabled && !flashNext.mtpDownloading, "Built-in MTP activated before the runtime was ready")
         flashNext.engineState = flashReady
+        flashNext.temperature = 0.73; flashNext.topK = 47; flashNext.repetitionPenalty = 1.17
         flashNext.setMTPEnabled(true)
         precondition(flashNext.mtpEnabled && !flashNext.mtpDownloading && flashNext.mtpHeadPath.isEmpty)
         precondition(prefs.string(forKey: "studio.mtpHeadPath") == legacyHead, "Built-in MTP replaced the other model's head")
         precondition(prefs.string(forKey: "studio.mtpHead.\(root.path)") == legacyHead, "Built-in MTP replaced the saved per-model head")
-        precondition(flashNext.temperature == 0 && flashNext.topK == 1 && flashNext.repetitionPenalty == 1)
+        precondition(flashNext.samplingTemperature == 0 && flashNext.samplingTopK == 1 && flashNext.samplingRepetitionPenalty == 1)
+        precondition(flashNext.temperature == 0.73 && flashNext.topK == 47 && flashNext.repetitionPenalty == 1.17,
+            "Built-in MTP must preserve ordinary sampling settings")
         flashNext.setMTPDepth(3); precondition(flashNext.mtpDepth == 1)
         flashNext.draft = "salut"; flashNext.send()
         for _ in 0..<200 where flashNext.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
         let request = try JSONSerialization.jsonObject(with: Data(flashNext.conversations[0].messages.last!.content.utf8)) as! [String: Any]
         precondition(request["mtp"] as? Bool == true && request["mtp_depth"] as? Int == 1)
         precondition(request["mtp_head_path"] as? String == flashModel.path, "Built-in head path did not reach the bridge")
+        precondition(request["temperature"] as? Double == 0 && request["top_k"] as? Int == 1
+            && request["repetition_penalty"] as? Double == 1, "Built-in MTP must send greedy sampling")
+        flashNext.setMTPEnabled(false)
+        precondition(flashNext.samplingTemperature == 0.73 && flashNext.samplingTopK == 47
+            && flashNext.samplingRepetitionPenalty == 1.17, "MTP OFF must restore ordinary sampling")
+        flashNext.setMTPEnabled(true)
         flashNext.ejectModel()
         prefs.removeObject(forKey: "studio.mtpHeadPath")
         let flashRestored = try await make("flash", type: "qwen4_exp")

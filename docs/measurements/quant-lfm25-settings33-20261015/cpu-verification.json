@@ -1,0 +1,30 @@
+{
+  "status": "tests_passed_proofs_unconfirmed",
+  "full_passed": 774,
+  "full_skipped": 1,
+  "skip_reason": "Ling absent",
+  "focused_final_passed": 97,
+  "scope": "full suite before CLI parameter rename; affected 97 tests repeated after it",
+  "source_verification": {
+    "projection_scaled": {
+      "confirmed": 0,
+      "unconfirmed": 4,
+      "seconds_per_condition": 20
+    },
+    "settings_args": "2 unchanged postconditions confirmed previously",
+    "excluded": [
+      "Torch/CUDA quantization",
+      "Modal I/O",
+      "runtime model quality"
+    ]
+  },
+  "mutation": "enabling scaled Hessian on protected expert down projection is detected; actual source restored",
+  "initial_lint_failure": "PLW1510 missing explicit subprocess check corrected to check=False",
+  "sha256": {
+    "scripts/pilot_lfm25_settings.py": "3a90ec53eacb74a00752cca92afa19d3158d8c8a8dd97b329649c427c2b866ea",
+    "scripts/convert_lfm25_settings.py": "c4639baad1ccfae5cb4714020ab03960f42f2b2bc31d9dc777baab293463057b",
+    "scripts/quantize_lfm25_settings_modal.py": "fbdfaaaeec5c44970fb5333439f3f2a7eac077618948974527d692b3217f0aa7",
+    "tests/test_lfm25_settings.py": "bb45c88cc7d2142ba66becbe4d0805ad7e896e1ece921613d50dfbb974e1878a",
+    ".github/workflows/quantization.yml": "fc80a75d6f211bf0c74748f011b88a5cd89bb9df5b96ce73b6b2de2d6cc793b2"
+  }
+}

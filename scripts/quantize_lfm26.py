@@ -42,7 +42,7 @@ def patch_converter():
     discovery._is_exl3_linear_key = lambda key: is_lfm_projection(key) or original_filter(key)
 
     def sibling(key):
-        if re.fullmatch(r"model\.layers\.\d+\.feed_forward\.w[13]", key):
+        if re.fullmatch(r"model\.layers\.\d+\.feed_forward(?:\.experts\.\d+)?\.w[13]", key):
             return key.rsplit(".", 1)[0] + "._w1w3"
         return original_group(key)
 

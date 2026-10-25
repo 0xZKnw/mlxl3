@@ -1,0 +1,541 @@
+{
+  "engine_source_and_binary_unchanged": true,
+  "verified_files": 48,
+  "fingerprints": {
+    "native/tests/runtime_gpu.rs": "06e0ecf28054412ea7c0caead7f306d3fc328dcd61767db3709804e113d2155e",
+    "native/tests/contracts.rs": "1b8d5ff4665e1e392c9927e84b9d5dd6c4f7b4f9d57455734ecc1df7437089d0",
+    "native/src/affine.rs": "da45734149699d1fa5ec17823e830b79e2e6231a4432878d4f1c45180ffcbfb5",
+    "native/src/qwen35.rs": "5e18789f0b8a1f2b9fd626ddd27bafacedc93bace85a02ca0ee6ec87f2d4d4a3",
+    "native/src/mtp_tune.rs": "9f212ee26f4e433cfcf9cffd45f730967774efbaee3f7653d2bf532836826b6c",
+    "native/src/hub.rs": "de723bdc421d8a38317f06f250e0c2f3a2de026e162ba8cb60905e9cdf106be8",
+    "native/src/linear.rs": "e86eb9827eb9715c3ccd141ce1986ee29ef52167da6a7055fc7f468ce16aff9c",
+    "native/src/registry.rs": "4733f2d5b636ceb4d7f0a6f0cf6621aa2734ef3d101fec0ef28afa507d3ba2df",
+    "native/src/gemma4.rs": "c549e2d5c10553c60f1b32dfc9f0d23e6b3a4ed8a5b9189d3b9cc101e863aa28",
+    "native/src/checkpoint.rs": "bc1c95b154287921f2d35f5938b8cb6a2001fc3defcafc9c47253f3701f0237e",
+    "native/src/qwen4.rs": "c82832037bcbfe9a73688dea36752f85b061fbb71e01f72221c018473322e4f6",
+    "native/src/lib.rs": "d29a4bfe81794f805bdc6011cf99d4cf06d813b48a44bfe5eb6ca62fc42b2473",
+    "native/src/speculative.rs": "ff66c5ebb9e850cafe967eb610cd3e0e1ee372ae74ff27a785ae26b790620449",
+    "native/src/gated_delta.rs": "f618e91cbc8d479598377d8207e5a72867bd3e639280bd837ed3cc3193ba4730",
+    "native/src/tool_call.rs": "4219778e4324174f4cd8abf778c4bd91501b35e243202b5b155563d10dc3d25d",
+    "native/src/router.rs": "24d4249ae815e8e177af1ab8b3734a1b70acded3e84e999a5bd35e83fa612654",
+    "native/src/gpu.rs": "43fcfdb0aff418934b7c4844a967d72fd28fb3e598f9f00d96261e93dbb56782",
+    "native/src/array.rs": "63dade4f428b408e060749513385f4b01b13e9a7145ac52fc53ce6eb7f1dbd7f",
+    "native/src/main.rs": "f0b472ddb110a5a16442b65ea5564a245f4345b86ad84e6e7d24c7221b68b03b",
+    "native/src/streaming.rs": "a7d4b1c80172ac2d5d4def4f9375b8c376961bebfabb6e2a7cf6840d694732a3",
+    "native/src/codec.rs": "f985538e3e35a11c693fa413ed4dbf71d1cd0996386e65bb8d2a5fd4086242b1",
+    "native/src/moe.rs": "28c3190470047295870238667ccb2510ee852244f7faa8a2538825ad302b0b63",
+    "native/src/dflash.rs": "8684e15c79ce50f4406f399f042c19f67e26177de3d6d3a113fced0f93762bbc",
+    "native/src/lfm2.rs": "75363cefbf674b349934dd490b35e16db72a8d59f0f129e56c2daeef05c7cbf7",
+    "native/src/flash_support.rs": "74cb2ae888682af4a4214a735ab64189e0ab2f514ed87315076fef7ae39c3bc0",
+    "native/src/contracts.rs": "3882ff04c928dad18303bab2f12d45ce0e8e9fdddac162c5acddcc539257c860",
+    "native/src/tokenizer.rs": "0efe59d31159f9cfbd73c4ec241aae3924c662c75a70a10b8d794241d72a5569",
+    "native/src/ling.rs": "02c1632a61faffe4689ce2b61d662c00412945ff308196e739b9ebe9862b68df",
+    "native/src/ssd_moe.rs": "3a19cc665c83f035206ca174d4a1b2e0f463600e7cd1e0af0187cd769e9fb30b",
+    "native/src/mcp.rs": "ddb123eb216ee8e6da114735de348f965eaef30a53df4505b51be8be74640935",
+    "native/src/mtp.rs": "24b0b144aba63b79783d5639636822983ea8602b4c363773caf9abb30a089b0c",
+    "native/src/openai.rs": "6c6eb80f113062182e4603883feeb9a81c6f80956dcf0fb55630ca5f5ec3a3c3",
+    "native/ffi/mlx_bridge.cpp": "d7907e5aa3ac386db5de70b3d881255c52c9a3ec8f2555d37d1ead1903206ca2",
+    "native/shaders/dflash_q4_mpp.h": "7983faeeca8f66daf3f3a0e8edbe7e93a40dc4df9c2fb05f88fbe739a757da52",
+    "native/shaders/dflash_select.h": "7ae0ee396675928f323efae72c5b7b7cc188280b61f68be8408f87872276f71a",
+    "native/shaders/_qmv_tile_kernel.metal": "594c573571ef6be4e8276299f05c7ebc264eb39f95a6edb9a3fe30c0b998d2cd",
+    "native/shaders/_expert_qmm_tensor_kernel.metal": "73b2133c69cb90e309f3a4abbad52c21d2840206a742ff31932448eb4672761e",
+    "native/shaders/dflash_q4.metal": "50a14c3d4f038123740042f8efea0e52497f5b421730f577abeea6e4dc8e4d7f",
+    "native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+    "native/shaders/dflash_select.metal": "6cf00d4210878dd641d8668c57be4a3a8e889377f775fc879ead7cb3b3057c00",
+    "native/shaders/gated_delta_prepare.metal": "44aa2c25f8f17b133b56879c815f505c4298383b64b50788a400f8abe19a2f23",
+    "native/shaders/_qmv_inner_kernel.metal": "32363169d5f378502afc09501963a1db13b6d779be9fc6cc0a4b3776e40b62bf",
+    "native/shaders/gated_delta_packed.metal": "199e0dfe67e7b4821e124c8dd67d451b3d8523e9c46bb1076a34d9e426804894",
+    "native/shaders/gated_delta_replay.metal": "d9a617b14a15e7f7d9a36812b9cd5e88501d458e029b2794e527c09585a93bc7",
+    "native/shaders/exl3.metal": "0ca420f8ec7c997421c9a01300e6cf2a72d99ceb44d658125a398f2cda6d0f31",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "c67ce8c54aba44141de203cd9eb9163ec967a0776ad3afec805d18f139408baa",
+    "native/shaders/dflash_conv.metal": "b1f3eb20449dab0bf7668eb433db2b81cb35e3688f8487ccb441541ff7126c14",
+    "target/release/mlxl3-rs": "248a35c3f2e668a4e157b527769b2103ce390d8d93731f6a6f62f5a19c17b2aa"
+  },
+  "models": {
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw": [
+      {
+        "name": ".DS_Store",
+        "bytes": 6148,
+        "mtime_ns": 1789368294009513813,
+        "sha256": "ee595ff244f788d1ca07c7d8f98fbe8bc7969f14f04079e3a690d93eb78efff4"
+      },
+      {
+        "name": ".cache/huggingface/.gitignore",
+        "bytes": 1,
+        "mtime_ns": 1788502793364216987,
+        "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1"
+      },
+      {
+        "name": ".cache/huggingface/CACHEDIR.TAG",
+        "bytes": 191,
+        "mtime_ns": 1788502793252761016,
+        "sha256": "f6572428f6d5e1575e73a1502895a8731f10757dfbb634909c6e154b849af91d"
+      },
+      {
+        "name": ".cache/huggingface/download/.gitattributes.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798255964485,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/.gitattributes.metadata",
+        "bytes": 101,
+        "mtime_ns": 1788502798256136443,
+        "sha256": "204c7a099fe76268b548b3e2de0ea37ac9726cc71aa50322948c32e96ad6daf6"
+      },
+      {
+        "name": ".cache/huggingface/download/Qwen_Qwen3.6-35B-A3BMeasured.csv.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798258048859,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/Qwen_Qwen3.6-35B-A3BMeasured.csv.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798258210317,
+        "sha256": "7a137b1de05bbfde112d8760511c273dccabbf2fcbb7190c917161ed5cb892e8"
+      },
+      {
+        "name": ".cache/huggingface/download/README.md.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798253288694,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/README.md.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798253503985,
+        "sha256": "77b1aff633ae217a96c089feaa428e8f26f6f2b0603d9fd54387bb595600a225"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw.svg.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798247218320,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw.svg.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798247601737,
+        "sha256": "f281d39c723cab65a8c2b382b68c7fc83e292aa52e35b3e8a1c6057de9a016c7"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw.txt.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798584234690,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw.txt.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798584413690,
+        "sha256": "6581d06316bb6863d11f5ed0a962f46a1a5fb782a448322d308b97b87e8cd8bb"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw_1.svg.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798580127149,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw_1.svg.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798580514065,
+        "sha256": "321e693c453027e147ca8f64e5f9cef69160eafbe55ed377fad7a917c5d5ef79"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw_1.txt.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798564298362,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw_1.txt.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798564722236,
+        "sha256": "ad3561bae98f46ad5fb2be14ea841196a2dc69d77fa480574b38897021e9904f"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw_2.txt.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798593564562,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/catbench/2.47bpw_2.txt.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798593761895,
+        "sha256": "43d3a6a5e253e1b86710f2cc6a5818b68489bbed175a59b1b501e90263ac2661"
+      },
+      {
+        "name": ".cache/huggingface/download/chat_template.jinja.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798866391115,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/chat_template.jinja.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798866911448,
+        "sha256": "7300b25b54a84fe478aed8c6bda8587055c2b3b82cf50cd0e30c4f618494a537"
+      },
+      {
+        "name": ".cache/huggingface/download/config.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798872403113,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/config.json.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798872594488,
+        "sha256": "e05d73afb5901c85fa0ef12c1fba11557ee43afbd7aa4d6d9458a505cddb0c84"
+      },
+      {
+        "name": ".cache/huggingface/download/configuration.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798919254143,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/configuration.json.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798919348309,
+        "sha256": "b0121ab705345e3380a3277d4a82c99d4493701fdfb5defbca5de771a8e2247b"
+      },
+      {
+        "name": ".cache/huggingface/download/generation_config.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502798899201439,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/generation_config.json.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502798899359690,
+        "sha256": "246ade686eeadb128a1b127f33ce44ef109a27c159016028a0fc7d522c1cb415"
+      },
+      {
+        "name": ".cache/huggingface/download/merges.txt.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502799311125581,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/merges.txt.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502799311400497,
+        "sha256": "456adb15f14786a67d85dc6d879cb9d6bd3977f24a6e15282d1ba446ffb48297"
+      },
+      {
+        "name": ".cache/huggingface/download/model-00001-of-00002.safetensors.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502890732122690,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/model-00001-of-00002.safetensors.metadata",
+        "bytes": 124,
+        "mtime_ns": 1788502890732229440,
+        "sha256": "7edb3385d6d279aa7b11d1a3e2a205aa912f28404d45d129f286a76bc5d90671"
+      },
+      {
+        "name": ".cache/huggingface/download/model-00002-of-00002.safetensors.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502865589975507,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/model-00002-of-00002.safetensors.metadata",
+        "bytes": 124,
+        "mtime_ns": 1788502865590087674,
+        "sha256": "6b7813ee1fbb3c7edfaf4e11759bd7dcdd29d3bf44f3dcf1b0a4e508b29e4172"
+      },
+      {
+        "name": ".cache/huggingface/download/model.safetensors.index.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502800106485662,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/model.safetensors.index.json.metadata",
+        "bytes": 124,
+        "mtime_ns": 1788502800106583745,
+        "sha256": "b8e032ff188310de5d01899c6c04cfc47fdc08b83af4b9287c4498aefea8b42a"
+      },
+      {
+        "name": ".cache/huggingface/download/preprocessor_config.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502799737947301,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/preprocessor_config.json.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502799738281343,
+        "sha256": "3ecdee5c319583b0530d805dd6d7f67bd1f374e26815fd7ea0939899cf817986"
+      },
+      {
+        "name": ".cache/huggingface/download/quantization_config.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502810181255830,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/quantization_config.json.metadata",
+        "bytes": 125,
+        "mtime_ns": 1788502810181405788,
+        "sha256": "891515a8574aa226f05430a34145cb6a694a49c7cd6ae8b5e1dc59c60402a09e"
+      },
+      {
+        "name": ".cache/huggingface/download/qwen_qwen3.6-35b-a3b.svg.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502800430957868,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/qwen_qwen3.6-35b-a3b.svg.metadata",
+        "bytes": 100,
+        "mtime_ns": 1788502800431311076,
+        "sha256": "6e7a71adda91c968f7bf7f16d36b6831d61289599cf09cc2c943777ef2e3f20c"
+      },
+      {
+        "name": ".cache/huggingface/download/tokenizer.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502819770846502,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/tokenizer.json.metadata",
+        "bytes": 124,
+        "mtime_ns": 1788502819771123169,
+        "sha256": "727d6bedc5ed096b4700d1ba7bc974ff1c3ce439ff95541270c32f29c991079a"
+      },
+      {
+        "name": ".cache/huggingface/download/tokenizer_config.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502811059417723,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/tokenizer_config.json.metadata",
+        "bytes": 101,
+        "mtime_ns": 1788502811059750681,
+        "sha256": "1ddedaa29d59697383cf76f4b9df4c2347c0e848f4affa8db1ed3ae37394e67b"
+      },
+      {
+        "name": ".cache/huggingface/download/video_preprocessor_config.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502811593309332,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/video_preprocessor_config.json.metadata",
+        "bytes": 101,
+        "mtime_ns": 1788502811593876873,
+        "sha256": "c8be3b9334b60bfe3a63610352925ed5585206cac22b42a8b133baea9552fa3d"
+      },
+      {
+        "name": ".cache/huggingface/download/vocab.json.lock",
+        "bytes": 0,
+        "mtime_ns": 1788502812615627436,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": ".cache/huggingface/download/vocab.json.metadata",
+        "bytes": 101,
+        "mtime_ns": 1788502812615898853,
+        "sha256": "6fe642474e9c7074ce6ca8cd9887446336d3eb3123bc47ad26750c1744a99610"
+      },
+      {
+        "name": ".cache/huggingface/trees/91a4efc46c1fece6426ece167f127d29d075f392.json",
+        "bytes": 3517,
+        "mtime_ns": 1788502797931493945,
+        "sha256": "580bc5553acc293560c5494161edc633069f07ec5844bcc7c9bab0d737ee9730"
+      },
+      {
+        "name": ".gitattributes",
+        "bytes": 1696,
+        "mtime_ns": 1788502798255143693,
+        "sha256": "90abd7d97c0f88c544c13124f0182b0530bda845c1a975b6a3b89b7f2f972a05"
+      },
+      {
+        "name": "Qwen_Qwen3.6-35B-A3BMeasured.csv",
+        "bytes": 344,
+        "mtime_ns": 1788502798257127234,
+        "sha256": "0deea4091ca6121d70ae5cca33bdf575c23acac0462cc84dbc51a2b260690a41"
+      },
+      {
+        "name": "README.md",
+        "bytes": 6548,
+        "mtime_ns": 1788502798252203777,
+        "sha256": "afd1b2e86ca0e6346554452bc23150232b644ce587a492dbca77516c9ac9d258"
+      },
+      {
+        "name": "catbench/2.47bpw.svg",
+        "bytes": 13501,
+        "mtime_ns": 1788502798245075113,
+        "sha256": "7205dc7ff7217bf120f4aa3a5268f39ab2975f6ff027b57ede2e11dbcfe29f9e"
+      },
+      {
+        "name": "catbench/2.47bpw.txt",
+        "bytes": 3437,
+        "mtime_ns": 1788502798583451981,
+        "sha256": "7e54fd1482ebb54f2758f2af98bccd3794826419f1325879efd8c33c32c8a00a"
+      },
+      {
+        "name": "catbench/2.47bpw_1.svg",
+        "bytes": 13919,
+        "mtime_ns": 1788502798578417274,
+        "sha256": "0df99058a5d418d913914bb5c472b1ee9212568849c7f382164c5331d599eef5"
+      },
+      {
+        "name": "catbench/2.47bpw_1.txt",
+        "bytes": 4729,
+        "mtime_ns": 1788502798562263362,
+        "sha256": "0d35fc3140518c2699322502bb1b402b69efcc352c05e70a33eded1e64521d0e"
+      },
+      {
+        "name": "catbench/2.47bpw_2.txt",
+        "bytes": 4701,
+        "mtime_ns": 1788502798592635187,
+        "sha256": "7fe010e2c233889d676c46cae9f2c6508e773f5828845a9b2b44e30897d73ddc"
+      },
+      {
+        "name": "chat_template.jinja",
+        "bytes": 7764,
+        "mtime_ns": 1788502798864236699,
+        "sha256": "e84f32a23fdda27689f868aa4a1a5621f41133e51a48d7f3efcbea2839574259"
+      },
+      {
+        "name": "config.json",
+        "bytes": 3973,
+        "mtime_ns": 1788502798871439530,
+        "sha256": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51"
+      },
+      {
+        "name": "configuration.json",
+        "bytes": 58,
+        "mtime_ns": 1788502798918776018,
+        "sha256": "c1b09db419119513247e9b8b912c4b9897106c9b20c6cada7e107d993c5435eb"
+      },
+      {
+        "name": "generation_config.json",
+        "bytes": 202,
+        "mtime_ns": 1788502798898262940,
+        "sha256": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e"
+      },
+      {
+        "name": "merges.txt",
+        "bytes": 3353259,
+        "mtime_ns": 1788502799309539289
+      },
+      {
+        "name": "model-00001-of-00002.safetensors",
+        "bytes": 8569839471,
+        "mtime_ns": 1788502890729923316
+      },
+      {
+        "name": "model-00002-of-00002.safetensors",
+        "bytes": 4417810748,
+        "mtime_ns": 1788502865589195424
+      },
+      {
+        "name": "model.safetensors.index.json",
+        "bytes": 13401028,
+        "mtime_ns": 1788502800103614413
+      },
+      {
+        "name": "preprocessor_config.json",
+        "bytes": 390,
+        "mtime_ns": 1788502799736174635,
+        "sha256": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516"
+      },
+      {
+        "name": "quantization_config.json",
+        "bytes": 40315341,
+        "mtime_ns": 1788502810180221456
+      },
+      {
+        "name": "qwen_qwen3.6-35b-a3b.svg",
+        "bytes": 77093,
+        "mtime_ns": 1788502800429052743,
+        "sha256": "d03e2e05bea7d0cd3eafcebf2d0d8f98b1ca1923e9418862bd8c070425aa1ac9"
+      },
+      {
+        "name": "tokenizer.json",
+        "bytes": 12807982,
+        "mtime_ns": 1788502819766608795
+      },
+      {
+        "name": "tokenizer_config.json",
+        "bytes": 16718,
+        "mtime_ns": 1788502811057221890,
+        "sha256": "5186f0defcd7f232382c7f0aebcd2252d073bb921ab240e407b7ae8745d2b29b"
+      },
+      {
+        "name": "video_preprocessor_config.json",
+        "bytes": 385,
+        "mtime_ns": 1788502811590733541,
+        "sha256": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13"
+      },
+      {
+        "name": "vocab.json",
+        "bytes": 6722759,
+        "mtime_ns": 1788502812613329520
+      }
+    ],
+    "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-MTP-4bit": [
+      {
+        "name": "config.json",
+        "bytes": 3180,
+        "mtime_ns": 1791144838802082795,
+        "sha256": "7b38a336fa246a285ee23cc990351989bf2ee6c040506a2b793ee24e463f35a7"
+      },
+      {
+        "name": "model.safetensors",
+        "bytes": 475130833,
+        "mtime_ns": 1791144845645995079
+      }
+    ]
+  },
+  "large_weight_files": "Recorded by path/size/mtime; not rehashed.",
+  "environment": {},
+  "performance_binaries": {
+    "build/app-fluidite/performance-a": "fefab0bc65e51b3cad10d63f872721b9088ab2e6443a6090e0514734d38e3446",
+    "build/app-fluidite/performance-b": "ae1bc37aaf0cef222e7758a4cf5a34669784d41074db77417b091f31a791400a"
+  },
+  "fixture_sha256": "8aa5f171eb682df62af213092807cf2dabbe580f5e454108a6a45e96ae1f16fd",
+  "current_app_sources": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/SidebarUpdateBadge.swift": "9651b5f29cbaee0d35e0d36ad6a6b315b41b70632c658c49a906ffe4c2857973",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift": "da7ebdfafbfa72f20d1d7da8173086ac218743eb877843ee553e4e3ff6c57178",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ChatAttachment.swift": "8b22e3730e283ad9676e2e7a0009078c25889536782c003b81cbf98ea7a0d54e",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/CLICommand.swift": "fcaa2a7c7a1e7ab2e3c164093485682474f1d3b15d46a92353723e781e71bd03",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPPreferenceCheck.swift": "4064f466fdb1473177570d0177b04222fedc8d27a3786354da58f1b0dd2d4207",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift": "f82cb6c630013a192169e1a80fddca60679a4e53e56ad36618bfa7f1c5c69cbd",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift": "fbd12e6cfd3f9a11bc490f37e4e15d696b21a86fde7f3c1ddd879a93c9924f1d",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MessageCopyButton.swift": "395b04f5d34d5994b831489ea0bf819449c1774cd91adf7b2e0915bb410ad686",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift": "96b533ad7e20bbf4fe454aac1356cd471f794efa2ac5be3f61cb75355735da9a",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3StudioApp.swift": "7ece8c220211d021eb8076217d734949d06ab649f3d12b5c92f560f362c0e0be",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift": "6c756ee9c308adb75dc46e0565a089a811962aced5094362226d4e36c7847681",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift": "f9d41c4b323a450b75b6746a853ea6f223c602768b8c44c0389df2602e6ee498",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/UIPreview.swift": "3942489ca6f8c3339fae0bf4cb5da722c8f193b4531c66bfeaaba975ecf30a5b",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MenuBarPanel.swift": "445cd8a1fad9726fea4169524f616294fa6fffee33fd51d53a3c560a7c83351a",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift": "021d6eb6dc4fa2bd07e061d54806bbeffe490d1ae4e738294e4eec2c775d5211",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "9d4e8a511683b8f413512767a7b318015d753825600d2afb64f54ee910139f6a",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ConversationStore.swift": "35e5de0f2a2256ab3fc686d98b969a349e55aace95f234fa61a3ea7e72449a6e",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift": "69e40fc3b87ffb876e2d4c5740822eb5be72985122ac3befb4e646a9d3c8ac63",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/DownloadProgressCard.swift": "bcdf8e525d3e8c3eec31b9bc8445bf0d74944fa52ebf7d1770913d23025b9bbf",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Domain.swift": "a64efc7196cce3ca39434b9cdae9b108b976bf516e5bc081adf4e4793bd8eb60",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppDelegate.swift": "961708be4ff661a3cd2bb0985c184173eb284deed32196356fad0de5f0bb2708",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift": "280daac798233e07b578fdcb178dd70a56c4201da21be8de37f99f1f130f297f",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelLibrary.swift": "ecacabcd61e571c0b0a43ed24ff02f739267c1548bd11e513742329299582e11",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfiguration.swift": "2caaaaa33e763a4276d1de956b60f9c0d896fcc8354b3f3417f0630df92f6052",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelManager.swift": "39cf874ba69e574a9d3807717250f315cfa51b1e2179a61e9db6919fc89f3508",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift": "657949273ad4eeded977cafdb25c1ea249557e44f7d0f049b144789faeeaae82",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": "92c32903e0ec0d999db0b6ef852f02dfb0b8f5f3b98f83e23f8730da448c7340",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ChatComponents.swift": "035642fdd421efea151b02f9fba1eebc707f6a5eb0ab0dd712811bcb175f9081",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ChatTimelineCheck.swift": "629cb8c4477a16695ab449a73f45cc1cd965888e0af1ecff9fdda9fa26c2bedc",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuning.swift": "904462a745af842c4e62661af04dbf99b3fa6c3e52417a293ffc9a7653b60c1f"
+  }
+}

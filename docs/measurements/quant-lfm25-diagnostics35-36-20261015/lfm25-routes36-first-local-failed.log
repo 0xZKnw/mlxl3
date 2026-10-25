@@ -1,0 +1,23 @@
+✓ Initialized. View run at 
+https://modal.com/apps/xzknw/main/ap-mRaTOZeLdIbqYokV34Q1E4
+Stopping app - uncaught exception raised locally: InvalidError('An image tried to run a build step after using `image.add_local_*` to include local files.\n\nRun `image.add_local_*` commands last in your image build to avoid rebuilding images with every local file change. Modal will then add these files to containers on startup instead, saving build time.\nIf you need to run other build steps after adding local files, set `copy=True` to copy the files directly into the image, at the expense of some added build time.\n\nExample:\n\nmy_image = (\n    Image.debian_slim()\n    .add_local_file("data.json", copy=True)\n    .run_commands("python -m mypak")  # this now works!\n)\n').
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ An image tried to run a build step after using `image.add_local_*` to        │
+│ include local files.                                                         │
+│                                                                              │
+│ Run `image.add_local_*` commands last in your image build to avoid           │
+│ rebuilding images with every local file change. Modal will then add these    │
+│ files to containers on startup instead, saving build time.                   │
+│ If you need to run other build steps after adding local files, set           │
+│ `copy=True` to copy the files directly into the image, at the expense of     │
+│ some added build time.                                                       │
+│                                                                              │
+│ Example:                                                                     │
+│                                                                              │
+│ my_image = (                                                                 │
+│     Image.debian_slim()                                                      │
+│     .add_local_file("data.json", copy=True)                                  │
+│     .run_commands("python -m mypak")  # this now works!                      │
+│ )                                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯

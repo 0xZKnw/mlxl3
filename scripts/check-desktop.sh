@@ -11,7 +11,7 @@ trap 'rm -rf "${test_dir}"' EXIT
 # CI normally selects the active Xcode toolchain. A local Command Line Tools
 # install can opt into an installed SDK explicitly (for example 26.5).
 swift_args=(--package-path apps/MLXL3Studio)
-swiftc_args=(-swift-version 6 -parse-as-library -module-cache-path "${test_dir}/modules")
+swiftc_args=(-warnings-as-errors -swift-version 6 -parse-as-library -module-cache-path "${test_dir}/modules")
 if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
     swift_args+=(--sdk "${MLXL3_MACOS_SDK}")
     swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
@@ -51,16 +51,38 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
 "${test_dir}/idle-unload-check" "$PWD/tests/fake-desktop-engine.py"
 
+# Keep global speculative preferences independent of current-model sampling.
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/speculative-sampling-check.swift > "${test_dir}/SpeculativeSamplingCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/SpeculativeSamplingCombined.swift" -o "${test_dir}/sampling-check"
+"${test_dir}/sampling-check" "$PWD/tests/fake-desktop-engine.py" \
+    "$PWD/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift"
+
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/updater-check.swift -o "${test_dir}/updater-check"
 "${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"} ${MLXL3_TEST_ENGINE_VERSION:+"${MLXL3_TEST_ENGINE_VERSION}"}
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/updater-application-check.swift > "${test_dir}/UpdaterApplicationCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+    "${test_dir}/UpdaterApplicationCombined.swift" -o "${test_dir}/updater-application-check"
+"${test_dir}/updater-application-check" "${test_dir}/archives" ${MLXL3_TEST_APP_DMG:+"${MLXL3_TEST_APP_DMG}"} ${MLXL3_TEST_APP_VERSION:+"${MLXL3_TEST_APP_VERSION}"}
+
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/file-import-check.swift -o "${test_dir}/file-import-check"
 "${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
+
+swiftc "${swiftc_args[@]}" \
+    "${sources[@]}" "${math_objects[@]}" \
+    tests/workspace-features-check.swift -o "${test_dir}/workspace-features-check"
+"${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
 
 "${binary_dir}/MLXL3Studio" --check-chat-timeline
 "${binary_dir}/MLXL3Studio" --check-mcp-preferences

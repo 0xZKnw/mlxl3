@@ -1,0 +1,678 @@
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -1,4 +1,65 @@
+ //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn valid_output_blocks(blocks: &[u32], vocab: i32) -> bool {
++    vocab > 128
++        && vocab % 128 == 0
++        && !blocks.is_empty()
++        && blocks.len() < (vocab / 128) as usize
++        && blocks.iter().all(|&block| block < (vocab / 128) as u32)
++        && blocks.windows(2).all(|pair| pair[0] < pair[1])
++}
++
++#[test]
++fn output_blocks_require_complete_ordered_strict_subset() {
++    assert!(valid_output_blocks(&[0, 2], 512));
++    assert!(valid_output_blocks(&[0], 256));
++    assert!(valid_output_blocks(&[16_777_214], 2_147_483_520));
++    for (blocks, vocab) in [
++        (&[][..], 512),
++        (&[0, 1][..], 256),
++        (&[1, 0][..], 512),
++        (&[0, 0][..], 512),
++        (&[4][..], 512),
++        (&[u32::MAX][..], 512),
++        (&[0][..], 0),
++        (&[0][..], -128),
++        (&[0][..], 128),
++        (&[0][..], i32::MAX),
++        (&[0][..], 511),
++    ] {
++        assert!(!valid_output_blocks(blocks, vocab));
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(10)]
++fn output_blocks_keep_every_tile_and_token_inside_vocabulary() {
++    let blocks: [u32; 8] = kani::any();
++    let length: usize = kani::any();
++    if length > blocks.len() {
++        return;
++    }
++    let blocks = &blocks[..length];
++    let vocab: i32 = kani::any();
++    let valid = valid_output_blocks(blocks, vocab);
++    if valid {
++        assert!(vocab > 128 && vocab % 128 == 0 && !blocks.is_empty());
++        assert!(length * 128 < vocab as usize);
++        for (index, &block) in blocks.iter().enumerate() {
++            assert!(block * 128 + 127 < vocab as u32);
++            assert!(block * 8 + 7 < (vocab / 16) as u32);
++            if index > 0 {
++                assert!(blocks[index - 1] < block);
++            }
++        }
++    }
++    kani::cover!(valid && length == 1);
++    kani::cover!(valid && length == 8);
++    kani::cover!(!valid && length == 0);
++    kani::cover!(!valid && length > 0 && blocks[0] == u32::MAX);
++}
+ 
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -149,6 +149,16 @@
+     simdgroups: i32,
+ }
+ 
++pub(crate) struct Exl3OutputBlocks {
++    tiles: Array,
++    zeros: Array,
++    pub(crate) ids: Array,
++    scales: Array,
++    output: i32,
++    input: i32,
++    source_output: i32,
++}
++
+ impl Exl3Linear {
+     pub fn from_checkpoint(checkpoint: &Checkpoint, prefix: &str) -> Result<Self> {
+         let trellis = checkpoint_array(checkpoint, &format!("{prefix}.trellis"))?;
+@@ -251,6 +261,117 @@
+     }
+     pub fn output_dims(&self) -> i32 {
+         self.cols
++    }
++
++    pub(crate) fn prepare_output_blocks(&self, blocks: &[u32]) -> Result<Exl3OutputBlocks> {
++        ensure!(
++            crate::contracts::valid_output_blocks(blocks, self.cols)
++                && self.k != 7
++                && self.bias.is_none(),
++            "invalid EXL3 output blocks"
++        );
++        let output = i32::try_from(blocks.len())?
++            .checked_mul(128)
++            .context("block output overflow")?;
++        let tiles = blocks
++            .iter()
++            .flat_map(|&block| (0..8).map(move |tile| block * 8 + tile))
++            .collect::<Vec<_>>();
++        let ids = blocks
++            .iter()
++            .flat_map(|&block| (0..128).map(move |offset| block * 128 + offset))
++            .collect::<Vec<_>>();
++        let ids = Array::from_u32(&ids, &[output])?;
++        let scales = self.svh.take(&ids, 0)?;
++        scales.eval()?;
++        Ok(Exl3OutputBlocks {
++            tiles: Array::from_u32(&tiles, &[output / 16])?,
++            zeros: Array::from_u32(&vec![0; tiles.len()], &[output / 16])?,
++            ids,
++            scales,
++            output,
++            input: self.rows,
++            source_output: self.cols,
++        })
++    }
++
++    pub(crate) fn forward_output_blocks(
++        &self,
++        x: &Array,
++        blocks: &Exl3OutputBlocks,
++    ) -> Result<Array> {
++        ensure!(
++            self.k != 7
++                && self.bias.is_none()
++                && x.shape().last() == Some(&self.rows)
++                && x.shape()[..x.shape().len() - 1].iter().all(|&n| n == 1)
++                && blocks.input == self.rows
++                && blocks.source_output == self.cols,
++            "EXL3 block head requires one matching input row"
++        );
++        let input_tiles = self.rows / 16;
++        let source_tiles = self.cols / 16;
++        ensure!(
++            i64::from(input_tiles) * i64::from(source_tiles) * (self.k * 8) as i64
++                <= i64::from(u32::MAX),
++            "EXL3 block head offsets exceed the shader domain"
++        );
++        let splits = split_count(input_tiles, source_tiles);
++        let output = blocks.output;
++        let xhat = x
++            .astype(Dtype::Float16)?
++            .reshape(&[1, self.rows])?
++            .mul(&self.suh.astype(Dtype::Float16)?)?
++            .reshape(&[1, self.rows / 128, 128])?
++            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++            .reshape(&[self.rows])?;
++        let header = codebook_header(self.cb)
++            + &format!(
++                "\n#define MLXL3_QMV_NT 2u\n#define MLXL3_QMV_MB 1u\n#define MLXL3_MATRIX_ROWS 1u\n#define GROUPS 1u\n#define MLXL3_FUSE_OUTPUT 0\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_K3_WINDOW_DECODE 0\n#define MLXL3_BATCH_ROWS 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {}\n#define TILES_K {input_tiles}\n#define TILES_N {source_tiles}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {output}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 0\n#define OUTPUT_TILES {source_tiles}\n#define ROUTING_REPEAT 1\n#define PROJECTION_STRIDE_TILES 0\n",
++                self.simdgroups,
++                self.k,
++                self.k,
++                self.cb as u32,
++                self.k * 8,
++                self.rows
++            );
++        let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
++        let partials = array::metal_kernel(
++            &format!(
++                "mlxl3_rs_block_head_{}_{}_{}_{}_{}_{}_{}",
++                self.rows, self.cols, output, self.k, self.cb as u32, self.simdgroups, splits
++            ),
++            &["xhat", "trellis", "tile_map", "tile_sub"],
++            &["yhat"],
++            &header,
++            include_str!("../shaders/_qmv_mapped_tile_kernel.metal"),
++            &[&xhat, &words, &blocks.tiles, &blocks.zeros],
++            &[vec![splits, output]],
++            &[Dtype::Float32],
++            [
++                (output / 32)
++                    .checked_mul(self.simdgroups * 32)
++                    .context("block head grid overflow")?,
++                1,
++                splits,
++            ],
++            [self.simdgroups * 32, 1, 1],
++        )?
++        .remove(0);
++        let raw = if splits == 1 {
++            partials.reshape(&[output])?
++        } else {
++            partials.sum(0, false)?
++        };
++        let result = raw
++            .astype(Dtype::Float16)?
++            .reshape(&[output / 128, 128])?
++            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++            .reshape(&[output])?
++            .mul(&blocks.scales.astype(Dtype::Float16)?)?;
++        let mut shape = x.shape().to_vec();
++        *shape.last_mut().context("empty block head input")? = output;
++        result.astype(x.dtype())?.reshape(&shape)
+     }
+ 
+     pub fn forward(&self, x: &Array) -> Result<Array> {
+@@ -1128,6 +1249,28 @@
+     splits
+ }
+ 
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(10)]
++fn output_blocks_real_array_api() {
++    let value: u32 = kani::any();
++    let input = Array::from_f32(&[value as f32; 128], &[1, 128]).unwrap();
++    let full = Exl3Linear::new(
++        Array::zeros_dtype(&[8, 16, 96], Dtype::UInt16).unwrap(),
++        Array::from_f32(&[1.; 128], &[128]).unwrap(),
++        Array::from_f32(&[1.; 256], &[256]).unwrap(),
++        None,
++        6,
++        Codebook::Mcg,
++    )
++    .unwrap();
++    let blocks = full.prepare_output_blocks(&[1]).unwrap();
++    assert_eq!(
++        full.forward_output_blocks(&input, &blocks).unwrap().shape(),
++        [1, 128]
++    );
++}
++
+ pub(crate) fn codebook_header(cb: Codebook) -> String {
+     let body = match cb {
+         Codebook::Default => {
+@@ -1145,6 +1288,186 @@
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    #[ignore = "requires physical Apple GPU"]
++    fn output_blocks_match_selected_full_logits() -> anyhow::Result<()> {
++        use super::*;
++        for k in [1, 2, 3, 4, 5, 6, 8] {
++            for cb in [Codebook::Default, Codebook::Mcg, Codebook::Mul1] {
++                let words = (0..8 * 32 * 16 * k)
++                    .flat_map(|i| ((i * 73 + 127) as u16).to_ne_bytes())
++                    .collect::<Vec<_>>();
++                let full = Exl3Linear::new(
++                    Array::from_bytes(&words, &[8, 32, (16 * k) as i32], Dtype::UInt16)?,
++                    Array::from_f32(&vec![1.; 128], &[128])?,
++                    Array::from_f32(
++                        &(0..512)
++                            .map(|i| (i % 5 + 1) as f32 / 5.)
++                            .collect::<Vec<_>>(),
++                        &[512],
++                    )?,
++                    None,
++                    k,
++                    cb,
++                )?;
++                let blocks = full.prepare_output_blocks(&[1, 3])?;
++                for rank in [vec![128], vec![1, 128], vec![1, 1, 128]] {
++                    let x = Array::from_f32(
++                        &(0..128)
++                            .map(|i| ((i * 19) as f32).sin())
++                            .collect::<Vec<_>>(),
++                        &rank,
++                    )?
++                    .astype(Dtype::Float16)?;
++                    let expected = full.forward(&x)?.take(&blocks.ids, -1)?;
++                    let actual = full.forward_output_blocks(&x, &blocks)?;
++                    let mut shape = rank;
++                    *shape.last_mut().unwrap() = 256;
++                    assert_eq!(actual.shape(), shape);
++                    assert_eq!(actual.to_f32()?.len(), 256);
++                    assert!(actual.to_f32()?.iter().all(|v| v.is_finite()));
++                    assert_eq!(
++                        actual.to_f16_bits()?,
++                        expected.to_f16_bits()?,
++                        "K{k}/{cb:?}"
++                    );
++                }
++                for invalid in [&[][..], &[0, 0], &[1, 0], &[4], &[u32::MAX], &[0, 1, 2, 3]] {
++                    assert!(full.prepare_output_blocks(invalid).is_err());
++                }
++                let two = Array::zeros_dtype(&[2, 128], Dtype::Float16)?;
++                assert!(full.forward_output_blocks(&two, &blocks).is_err());
++                let empty = Array::zeros_dtype(&[0, 128], Dtype::Float16)?;
++                assert!(full.forward_output_blocks(&empty, &blocks).is_err());
++                let scalar = Array::from_f32(&[0.], &[])?;
++                assert!(full.forward_output_blocks(&scalar, &blocks).is_err());
++                let wrong = Array::zeros_dtype(&[1, 64], Dtype::Float16)?;
++                assert!(full.forward_output_blocks(&wrong, &blocks).is_err());
++            }
++        }
++        for (k, bias) in [
++            (7, None),
++            (6, Some(Array::zeros_dtype(&[512], Dtype::Float16)?)),
++        ] {
++            let full = Exl3Linear::new(
++                Array::zeros_dtype(&[8, 32, (16 * k) as i32], Dtype::UInt16)?,
++                Array::from_f32(&[1.; 128], &[128])?,
++                Array::from_f32(&[1.; 512], &[512])?,
++                bias,
++                k,
++                Codebook::Mcg,
++            )?;
++            assert!(full.prepare_output_blocks(&[1]).is_err());
++        }
++        println!(
++            "21 K/codebook fixtures, 63 projections, 16128 finite bitexact values; invalid maps and rows rejected"
++        );
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "requires local Qwen head, block map and physical Apple GPU"]
++    fn output_blocks_real_head_and_micro() -> anyhow::Result<()> {
++        use super::*;
++        use std::{fs::File, path::Path, time::Instant};
++        let model = std::env::var("MLXL3_BLOCK_TEST_MODEL")?;
++        let map = std::env::var("MLXL3_BLOCK_TEST_MAP")?;
++        let metadata: serde_json::Value = serde_json::from_reader(File::open(map)?)?;
++        let selected = metadata["blocks"]
++            .as_array()
++            .context("missing block list")?
++            .iter()
++            .map(|b| {
++                b.as_u64()
++                    .context("invalid block")
++                    .and_then(|b| Ok(u32::try_from(b)?))
++            })
++            .collect::<Result<Vec<_>>>()?;
++        assert_eq!(selected.len(), 512);
++        let checkpoint = crate::checkpoint::inspect(Path::new(&model))?;
++        let full = Exl3Linear::from_checkpoint(&checkpoint, "lm_head")?;
++        assert_eq!(
++            (full.rows, full.cols, full.k, full.cb),
++            (5120, 248320, 3, Codebook::Mul1)
++        );
++        let memory_before = array::memory_stats(false)?;
++        let blocks = full.prepare_output_blocks(&selected)?;
++        println!(
++            "{}",
++            serde_json::json!({"memory_before":memory_before,"memory_after_prepare":array::memory_stats(false)?})
++        );
++        assert_eq!(blocks.output, 65536);
++        let input = |salt| {
++            Array::from_f32(
++                &(0..full.rows)
++                    .map(|i| (((i + salt) * 17) as f32).sin() / 4.)
++                    .collect::<Vec<_>>(),
++                &[1, 1, full.rows],
++            )?
++            .astype(Dtype::Float16)
++        };
++        for salt in [0, 37, 193] {
++            let x = input(salt)?;
++            let expected = full.forward(&x)?.take(&blocks.ids, -1)?;
++            let actual = full.forward_output_blocks(&x, &blocks)?;
++            assert_eq!(actual.shape(), [1, 1, 65536]);
++            let values = actual.to_f32()?;
++            assert_eq!(values.len(), 65536);
++            assert!(values.iter().all(|v| v.is_finite()));
++            assert_eq!(actual.to_f16_bits()?, expected.to_f16_bits()?, "salt{salt}");
++        }
++        let mut corrupted = full.prepare_output_blocks(&selected)?;
++        let rotated = selected
++            .iter()
++            .flat_map(|&block| (0..8).map(move |tile| block * 8 + (tile + 1) % 8))
++            .collect::<Vec<_>>();
++        corrupted.tiles = Array::from_u32(&rotated, &[blocks.output / 16])?;
++        let x = input(0)?;
++        let expected = full.forward(&x)?.take(&blocks.ids, -1)?.to_f16_bits()?;
++        let bad = full.forward_output_blocks(&x, &corrupted)?.to_f16_bits()?;
++        let differences = bad.iter().zip(&expected).filter(|(a, b)| a != b).count();
++        assert!(
++            differences > 0,
++            "corrupted tile map escaped the full-head oracle"
++        );
++        println!("tile-map mutation rejected: {differences} different FP16 values");
++        println!(
++            "real head: 196608 finite selected logits bitexact; maps and scales share full trellis, no weight copy"
++        );
++        if std::env::var("MLXL3_BLOCK_MICRO").as_deref() != Ok("1") {
++            return Ok(());
++        }
++        let x = input(0)?;
++        let run = |compact| -> Result<()> {
++            if compact {
++                full.forward_output_blocks(&x, &blocks)?.eval()?;
++            } else {
++                full.forward(&x)?.eval()?;
++            }
++            Ok(())
++        };
++        for _ in 0..8 {
++            run(false)?;
++            run(true)?;
++        }
++        for order in [[false, true, true, false], [true, false, false, true]] {
++            let mut samples = Vec::new();
++            for compact in order {
++                let mut times = Vec::new();
++                for _ in 0..40 {
++                    let start = Instant::now();
++                    for _ in 0..16 {
++                        run(compact)?;
++                    }
++                    times.push(start.elapsed().as_secs_f64() * 1e6 / 16.);
++                }
++                samples.push(serde_json::json!({"compact":compact,"microseconds":times,"memory":array::memory_stats(false)?}));
++            }
++            println!("{}", serde_json::json!({"order":order,"samples":samples}));
++        }
++        Ok(())
++    }
++
+     #[cfg(kani)]
+     #[kani::proof]
+     fn q4_projection_reference_entry() {
+--- a/native/src/lfm2.rs
++++ b/native/src/lfm2.rs
+@@ -222,6 +222,19 @@
+             logical_input: input,
+             logical_output: output,
+         })
++    }
++
++    pub(crate) fn exl3_exact(&self) -> Result<&Exl3Linear> {
++        let ProjectionWeights::Exl3(linear) = &self.weights else {
++            anyhow::bail!("EXL3 draft blocks require EXL3 target weights");
++        };
++        ensure!(
++            self.bias.is_none()
++                && linear.input_dims() == self.logical_input
++                && linear.output_dims() == self.logical_output,
++            "EXL3 draft blocks require an exact, unbiased projection"
++        );
++        Ok(linear)
+     }
+ 
+     pub(crate) fn forward(&self, x: &Array) -> Result<Array> {
+@@ -1218,3 +1231,37 @@
+ #[cfg(test)]
+ #[path = "lfm2_prefill_tests.rs"]
+ mod prefill_tests;
++
++#[cfg(test)]
++mod block_tests {
++    use super::*;
++    #[test]
++    #[ignore = "physical GPU, MLXL3_BLOCK_TEST_MODEL; run alone"]
++    fn output_blocks_reject_padded_biased_and_dense_projections() -> Result<()> {
++        let model = std::env::var("MLXL3_BLOCK_TEST_MODEL")?;
++        let checkpoint = checkpoint::inspect(Path::new(&model))?;
++        let layout = crate::mtp::target_layout(Path::new(&model))?.0;
++        let mut projection = Projection::load(
++            &checkpoint,
++            "lm_head",
++            layout.hidden_size,
++            layout.vocab_size,
++            false,
++        )?;
++        assert!(projection.exl3_exact().is_ok());
++        projection.logical_input -= 1;
++        assert!(projection.exl3_exact().is_err());
++        projection.logical_input += 1;
++        projection.logical_output -= 1;
++        assert!(projection.exl3_exact().is_err());
++        projection.logical_output += 1;
++        projection.bias = Some(Array::from_f32(&[0.], &[1])?);
++        assert!(projection.exl3_exact().is_err());
++        projection.weights = ProjectionWeights::Dense(Array::from_f32(&[1.], &[1, 1])?);
++        projection.bias = None;
++        projection.logical_input = 1;
++        projection.logical_output = 1;
++        assert!(projection.exl3_exact().is_err());
++        Ok(())
++    }
++}
+--- a/native/src/mtp.rs
++++ b/native/src/mtp.rs
+@@ -359,6 +359,43 @@
+     Ok((checkpoint, config.text_config))
+ }
+ 
++#[cfg(any(feature = "mlx", test))]
++fn read_output_blocks(
++    path: &Path,
++    input: i32,
++    vocab: i32,
++    has_q4: bool,
++) -> Result<Option<Vec<u32>>> {
++    use std::io::Read;
++    let file = match File::open(path) {
++        Ok(file) => file,
++        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
++        Err(error) => return Err(error.into()),
++    };
++    ensure!(!has_q4, "conflicting Q4 and EXL3 draft projections");
++    let mut bytes = Vec::new();
++    file.take(2 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
++    ensure!(
++        bytes.len() <= 2 * 1024 * 1024,
++        "EXL3 draft map exceeds 2 MiB"
++    );
++    #[derive(Deserialize)]
++    #[serde(deny_unknown_fields)]
++    struct Metadata {
++        input: i32,
++        vocab: i32,
++        blocks: Vec<u32>,
++    }
++    let metadata: Metadata = serde_json::from_slice(&bytes)?;
++    ensure!(
++        metadata.input == input
++            && metadata.vocab == vocab
++            && crate::contracts::valid_output_blocks(&metadata.blocks, vocab),
++        "EXL3 draft map does not match the target"
++    );
++    Ok(Some(metadata.blocks))
++}
++
+ #[cfg(feature = "mlx")]
+ mod native {
+     use super::*;
+@@ -366,6 +403,7 @@
+         affine::AffineLinear,
+         array::Array,
+         lfm2::half_weight,
++        linear::Exl3OutputBlocks,
+         qwen35::{Attention, Qwen35Moe},
+         router,
+     };
+@@ -382,6 +420,7 @@
+         attention: Attention,
+         mlp: Mlp,
+         draft_head: Option<AffineLinear>,
++        draft_blocks: Option<Exl3OutputBlocks>,
+         draft_ids: Option<Array>,
+     }
+ 
+@@ -435,6 +474,12 @@
+             // Optional, explicitly generated experiment. The target projection
+             // remains untouched and validates every proposed token.
+             let draft_metadata = path.join("draft_head_q4.json");
++            let output_blocks = read_output_blocks(
++                &path.join("draft_head_exl3.json"),
++                h,
++                layout.vocab_size,
++                draft_metadata.exists(),
++            )?;
+             let mut draft_ids = None;
+             let draft_head = if draft_metadata.exists() {
+                 #[derive(Deserialize)]
+@@ -499,6 +544,13 @@
+             } else {
+                 None
+             };
++            let draft_blocks = output_blocks
++                .as_deref()
++                .map(|blocks| target.mtp_output_blocks(blocks))
++                .transpose()?;
++            if let Some(blocks) = &draft_blocks {
++                draft_ids = Some(blocks.ids.try_clone()?);
++            }
+             let norm = |name: &str, n| half_weight(&checkpoint, name, Some(&[n]));
+             let linear = |name: &str, input: i32, output: i32, experts: Option<i32>| {
+                 AffineLinear::load(&checkpoint, name, input, output, experts)
+@@ -578,6 +630,7 @@
+                 layout,
+                 mlp,
+                 draft_head,
++                draft_blocks,
+                 draft_ids,
+             })
+         }
+@@ -780,6 +833,8 @@
+         fn draft_logits(&self, target: &Qwen35Moe, hidden: &Array) -> Result<Array> {
+             if let Some(head) = &self.draft_head {
+                 head.forward(hidden)
++            } else if let Some(blocks) = &self.draft_blocks {
++                target.mtp_block_logits(hidden, blocks)
+             } else {
+                 target.mtp_logits(hidden)
+             }
+@@ -1183,6 +1238,64 @@
+ mod tests {
+     use super::*;
+     #[test]
++    fn exl3_output_map_loader_is_bounded_and_rejects_incompatible_metadata() -> Result<()> {
++        let dir = tempfile::tempdir()?;
++        let path = dir.path().join("draft_head_exl3.json");
++        assert!(read_output_blocks(&path, 128, 512, false)?.is_none());
++        let valid = serde_json::json!({"input":128,"vocab":512,"blocks":[0,2]});
++        std::fs::write(&path, serde_json::to_vec(&valid)?)?;
++        assert_eq!(
++            read_output_blocks(&path, 128, 512, false)?,
++            Some(vec![0, 2])
++        );
++        assert!(read_output_blocks(&path, 256, 512, false).is_err());
++        assert!(read_output_blocks(&path, 128, 1024, false).is_err());
++        assert!(read_output_blocks(&path, 128, 512, true).is_err());
++        for (field, value) in [
++            ("input", serde_json::json!(0)),
++            ("input", serde_json::json!(true)),
++            ("vocab", serde_json::json!(i32::MAX)),
++            ("blocks", serde_json::json!([])),
++            ("blocks", serde_json::json!([0, 1, 2, 3])),
++            ("blocks", serde_json::json!([2, 0])),
++            ("blocks", serde_json::json!([2, 2])),
++            ("blocks", serde_json::json!([4])),
++            ("blocks", serde_json::json!([u32::MAX])),
++            ("blocks", serde_json::json!([-1])),
++            ("blocks", serde_json::json!([false])),
++            ("blocks", serde_json::json!([0.5])),
++            ("blocks", serde_json::json!(null)),
++            ("extra", serde_json::json!(0)),
++        ] {
++            let mut bad = valid.clone();
++            bad[field] = value;
++            std::fs::write(&path, serde_json::to_vec(&bad)?)?;
++            assert!(
++                read_output_blocks(&path, 128, 512, false).is_err(),
++                "{field}: {bad}"
++            );
++        }
++        for bytes in [b"{".as_slice(), b"null", b"[]", b"{}"] {
++            std::fs::write(&path, bytes)?;
++            assert!(read_output_blocks(&path, 128, 512, false).is_err());
++        }
++        let mut bytes = serde_json::to_vec(&valid)?;
++        bytes.resize(2 * 1024 * 1024, b' ');
++        std::fs::write(&path, &bytes)?;
++        assert_eq!(
++            read_output_blocks(&path, 128, 512, false)?,
++            Some(vec![0, 2])
++        );
++        bytes.push(b' ');
++        std::fs::write(&path, &bytes)?;
++        assert!(read_output_blocks(&path, 128, 512, false).is_err());
++        std::fs::remove_file(&path)?;
++        std::fs::create_dir(&path)?;
++        assert!(read_output_blocks(&path, 128, 512, false).is_err());
++        Ok(())
++    }
++
++    #[test]
+     fn managed_head_uses_target_geometry_and_rejects_unknown_variants() -> Result<()> {
+         let dense = serde_json::json!({"hidden_size":5120,"num_attention_heads":24,
+             "num_key_value_heads":4,"head_dim":256,"vocab_size":248320,"intermediate_size":17408,
+--- a/native/src/qwen35.rs
++++ b/native/src/qwen35.rs
+@@ -1532,6 +1532,23 @@
+     }
+     pub fn mtp_logits(&self, normalized: &Array) -> Result<Array> {
+         self.head.forward(normalized)
++    }
++
++    pub(crate) fn mtp_output_blocks(
++        &self,
++        blocks: &[u32],
++    ) -> Result<crate::linear::Exl3OutputBlocks> {
++        self.head.exl3_exact()?.prepare_output_blocks(blocks)
++    }
++
++    pub(crate) fn mtp_block_logits(
++        &self,
++        normalized: &Array,
++        blocks: &crate::linear::Exl3OutputBlocks,
++    ) -> Result<Array> {
++        self.head
++            .exl3_exact()?
++            .forward_output_blocks(normalized, blocks)
+     }
+ 
+     /// Internal draft IDs come from an argmax over this target's vocabulary.

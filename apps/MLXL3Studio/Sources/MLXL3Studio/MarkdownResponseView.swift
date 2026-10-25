@@ -1431,53 +1431,119 @@ private struct LatexBlockView: View {
     }
 }
 
-struct SmoothTokenText: View {
-    let content: Text
-    let source: String
-    let streaming: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var tail = 0
-    @State private var previousCount = 0
-    @State private var progress: Double = 1
+private struct TokenFadeState {
+  struct Batch {
+    var count: Int
+    let started: Double
 
-    var body: some View {
-        content
-            .textRenderer(TokenFadeRenderer(count: streaming && !reduceMotion ? tail : 0, progress: progress))
-            .task(id: source) {
-                let count = source.count
-                tail = min(64, max(0, count - previousCount))
-                previousCount = count
-                guard streaming, !reduceMotion, tail > 0 else { progress = 1; return }
-                progress = 0.15
-                await Task.yield()
-                guard !Task.isCancelled else { return }
-                withAnimation(.linear(duration: 0.12)) { progress = 1 }
-            }
+    func opacity(at time: Double) -> Double {
+      if time >= started + TokenFadeState.duration { return 1 }
+      return 0.15 + 0.85 * max(0, (time - started) / TokenFadeState.duration)
     }
+  }
+
+  static let duration = 0.12
+  private(set) var batches: [Batch] = []
+  private var previousSource = ""
+  private var previousCount = 0
+
+  mutating func update(_ source: String, at time: Double, animated: Bool) {
+    let count = source.count
+    defer {
+      previousSource = source
+      previousCount = count
+    }
+    guard animated, source.utf8.starts(with: previousSource.utf8) else {
+      batches.removeAll(keepingCapacity: true)
+      return
+    }
+    batches.removeAll { time >= $0.started + Self.duration }
+    let added = min(64, max(0, count - previousCount))
+    if added > 0 { batches.append(Batch(count: added, started: time)) }
+    var excess = batches.reduce(0) { $0 + $1.count } - 64
+    while excess > 0 {
+      let removed = min(excess, batches[0].count)
+      batches[0].count -= removed
+      excess -= removed
+      if batches[0].count == 0 { batches.removeFirst() }
+    }
+  }
+}
+
+struct SmoothTokenText: View {
+  let content: Text
+  let source: String
+  let streaming: Bool
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var fade = TokenFadeState()
+  @State private var time: Double = 0
+
+  var body: some View {
+    content
+      .textRenderer(
+        TokenFadeRenderer(batches: streaming && !reduceMotion ? fade.batches : [], time: time)
+      )
+      .task(id: source) {
+        let now = ProcessInfo.processInfo.systemUptime
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+          fade.update(source, at: now, animated: streaming && !reduceMotion)
+          time = now
+        }
+        guard !fade.batches.isEmpty else { return }
+        await Task.yield()
+        guard !Task.isCancelled else { return }
+        // Advancing one clock preserves the age of earlier fragments.
+        withAnimation(.linear(duration: TokenFadeState.duration)) {
+          time = now + TokenFadeState.duration
+        }
+      }
+  }
 }
 
 private struct TokenFadeRenderer: TextRenderer {
-    var count: Int
-    var progress: Double
-    var animatableData: Double {
-        get { progress }
-        set { progress = newValue }
+  let batches: [TokenFadeState.Batch]
+  var time: Double
+  var animatableData: Double {
+    get { time }
+    set { time = newValue }
+  }
+  func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+    guard batches.contains(where: { $0.opacity(at: time) < 1 }) else {
+      for line in layout { context.draw(line) }
+      return
     }
-    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
-        let runs = layout.flatMap { $0 }
-        var remaining = runs.reduce(0) { $0 + $1.count }
-        for run in runs {
-            if remaining - run.count >= count || count == 0 {
-                context.draw(run)
-                remaining -= run.count
-            } else {
-                for glyph in run {
-                    var copy = context
-                    if remaining <= count { copy.opacity *= progress }
-                    copy.draw(glyph)
-                    remaining -= 1
-                }
-            }
+    let total = layout.reduce(0) { $0 + $1.reduce(0) { $0 + $1.count } }
+    let fading = batches.reduce(0) { $0 + $1.count }
+    var opaque = max(0, total - fading)
+    var skipped = max(0, fading - total)
+    var batch = 0
+    while batch < batches.count, skipped >= batches[batch].count {
+      skipped -= batches[batch].count
+      batch += 1
+    }
+    var remaining = batch < batches.count ? batches[batch].count - skipped : 0
+    for line in layout {
+      for run in line {
+        var start = run.startIndex
+        while start < run.endIndex {
+          let count = min(run.endIndex - start, opaque > 0 ? opaque : remaining)
+          var copy = context
+          if opaque > 0 {
+            opaque -= count
+          } else {
+            copy.opacity *= batches[batch].opacity(at: time)
+            remaining -= count
+          }
+          copy.draw(run[start..<start + count])
+          start += count
+          if opaque == 0, remaining == 0, batch < batches.count - 1 {
+            batch += 1
+            remaining = batches[batch].count
+          }
         }
+      }
     }
+  }
 }

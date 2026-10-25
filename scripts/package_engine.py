@@ -4,9 +4,9 @@ import argparse
 import gzip
 import hashlib
 import json
-import plistlib
 import re
 import tarfile
+import tomllib
 from pathlib import Path
 
 FILES = ("mlxl3", "libmlx.dylib", "libjaccl.dylib", "mlx.metallib")
@@ -97,8 +97,11 @@ def main() -> None:
     parser.add_argument("output", type=Path)
     parser.add_argument("--version")
     args = parser.parse_args()
-    info = Path(__file__).resolve().parents[1] / "apps/MLXL3Studio/Resources/Info.plist"
-    version = args.version or plistlib.loads(info.read_bytes())["CFBundleShortVersionString"]
+    version = args.version
+    if version is None:
+        cargo = Path(__file__).resolve().parents[1] / "Cargo.toml"
+        with cargo.open("rb") as stream:
+            version = tomllib.load(stream)["package"]["version"]
     print(package(args.runtime, args.output, version))
 
 

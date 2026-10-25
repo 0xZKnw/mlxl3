@@ -1,0 +1,88 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/candidate/mlxl3_native-139c3f42a710aa58",
+    "linear::tests::output_blocks_real_head_and_micro",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "timeout_seconds": 300,
+  "test_sha256": "870f153c51e0bc7e17d84cc91fcc4f34b0fa0568b7297be2cbf98906057bdd1a",
+  "environment": {
+    "MLXL3_BLOCK_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_BLOCK_TEST_MAP": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/head/draft_head_exl3.json",
+    "MLXL3_BLOCK_MICRO": "1",
+    "MLXL3_MTP_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_QWEN_TEST_MODEL": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "MLXL3_MTP_TEST_HEAD": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/head",
+    "MLXL3_ALLOCATOR_CACHE_MIB": "256",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "exit_code": 0,
+  "reaped": true,
+  "orders": [
+    {
+      "order": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "medians_us": {
+        "full": 5340.974609375,
+        "blocks": 1699.85484375
+      },
+      "pass_medians_us": {
+        "full": [
+          5344.41796875,
+          5337.53125
+        ],
+        "blocks": [
+          1700.2031562500001,
+          1699.50653125
+        ]
+      },
+      "drift_percent": {
+        "full": 0.129024420231727,
+        "blocks": 0.04098983953229052
+      },
+      "time_reduction_percent": 68.17332101211923,
+      "passed": true
+    },
+    {
+      "order": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "medians_us": {
+        "full": 5343.831359375,
+        "blocks": 1696.581359375
+      },
+      "pass_medians_us": {
+        "full": [
+          5342.90625,
+          5344.75646875
+        ],
+        "blocks": [
+          1698.138,
+          1695.02471875
+        ]
+      },
+      "drift_percent": {
+        "full": 0.03462944441519067,
+        "blocks": 0.18367173148341465
+      },
+      "time_reduction_percent": 68.25159243847419,
+      "passed": true
+    }
+  ],
+  "speed_gate_passed": true,
+  "seconds": 18.643298665992916
+}

@@ -1,0 +1,90 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_real_modal_sdk_resolves_copy_before_lazy_mount_without_rpc ________
+
+    def test_real_modal_sdk_resolves_copy_before_lazy_mount_without_rpc():
+        import asyncio
+    
+        import diagnose_lfm25_routes_modal as target
+        from modal._image import _Image
+        from modal._utils.async_utils import synchronizer
+    
+        image = synchronizer._translate_in(target.image)
+        snapshots = {}
+    
+        class OfflineResolver:
+            async def load(self, obj, context):
+                assert not isinstance(obj, _Image)
+    
+        async def visit(node):
+            if node in snapshots:
+                return
+            snapshots[node] = dict(node.__dict__)
+            for dependency in node._deps_():
+                if isinstance(dependency, _Image):
+                    await visit(dependency)
+            if node._rep == "Image(local files)":
+                await node._load(node, OfflineResolver(), SimpleNamespace(app_id=None), None)
+            else:
+                # The real SDK validates mount ordering before requiring an app/RPC.
+                with pytest.raises(AssertionError):
+                    await node._load(node, OfflineResolver(), SimpleNamespace(app_id=None), None)
+                node._hydrate("im-offline-test", SimpleNamespace(), None)
+    
+        try:
+>           asyncio.run(visit(image))
+
+tests/test_lfm25_routes.py:695: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_lfm25_routes.py:691: in visit
+    await node._load(node, OfflineResolver(), SimpleNamespace(app_id=None), None)
+../../../../Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/modal/_image.py:647: in _load
+    image._assert_no_mount_layers()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Image(local files)
+
+    def _assert_no_mount_layers(self):
+        if self._mount_layers:
+>           raise InvalidError(
+                "An image tried to run a build step after using `image.add_local_*` to include local files.\n"
+                "\n"
+                "Run `image.add_local_*` commands last in your image build to avoid rebuilding images with every local "
+                "file change. Modal will then add these files to containers on startup instead, saving build time.\n"
+                "If you need to run other build steps after adding local files, set `copy=True` to copy the files "
+                "directly into the image, at the expense of some added build time.\n"
+                "\n"
+                "Example:\n"
+                "\n"
+                "my_image = (\n"
+                "    Image.debian_slim()\n"
+                '    .add_local_file("data.json", copy=True)\n'
+                '    .run_commands("python -m mypak")  # this now works!\n'
+                ")\n"
+            )
+E           modal.exception.InvalidError: An image tried to run a build step after using `image.add_local_*` to include local files.
+E           
+E           Run `image.add_local_*` commands last in your image build to avoid rebuilding images with every local file change. Modal will then add these files to containers on startup instead, saving build time.
+E           If you need to run other build steps after adding local files, set `copy=True` to copy the files directly into the image, at the expense of some added build time.
+E           
+E           Example:
+E           
+E           my_image = (
+E               Image.debian_slim()
+E               .add_local_file("data.json", copy=True)
+E               .run_commands("python -m mypak")  # this now works!
+E           )
+
+../../../../Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/modal/_image.py:574: InvalidError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_routes.py::test_real_modal_sdk_resolves_copy_before_lazy_mount_without_rpc
+1 failed, 1 passed in 1.75s

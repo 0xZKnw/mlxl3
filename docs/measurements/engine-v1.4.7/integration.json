@@ -1,0 +1,38 @@
+{
+  "status": "complete",
+  "version": "1.4.7",
+  "upstream_main": "c9a19a85ada113bef7f2ff61e3078ecd6b6ac68a",
+  "rust": {
+    "passed": 179,
+    "ignored": 85
+  },
+  "python": "442 passed in 107.04s (0:01:47)",
+  "kani": {
+    "exl3_lane_order_preserves_shape_and_large_m_fallback.log": {
+      "obligations": 68,
+      "covers": 6,
+      "unreachable": 0
+    },
+    "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds.log": {
+      "obligations": 9,
+      "covers": 3,
+      "unreachable": 0
+    },
+    "exl3_lane_layout_key_distinguishes_options.log": {
+      "obligations": 2,
+      "covers": 2,
+      "unreachable": 0
+    }
+  },
+  "native_source_unchanged": {
+    "native/src/contracts.rs": "1383bf08bfa339e71bc3e051febb1fee7dd6a20ae4ade01c1e07c14d3c5377f9",
+    "native/src/linear.rs": "dfbf9a0f5e0aec2cb109dbbb380a351ff1a7c4d6f64645957741976d00002fe7",
+    "native/src/lib.rs": "0f14cad9235c92feeb45e814cdafa90c8aa25e8350354d86dd909f7bcc82136c",
+    "native/src/mtp_tune.rs": "0f95daaacbf47f30a127f5de1250ee7c02085a90961ae537df2e780ede725d6e",
+    "native/src/qwen35.rs": "5b440a0be31009f2ad53e102c20531f12cb6587b7fcb7945446d05300662ff3c",
+    "native/shaders/_qmv_tile_kernel.metal": "fb7c934cb24d7c84e6a0cb87c4bd85a59ce5c3e329ef7cf4c767f27f277db959",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "b8c3fedc2fc1b3eda85ce901e1f5be4e7dbb44700605030cac545dbd5e79e3ef"
+  },
+  "scope": "CPU integration before final source commit; archive and physical package checks pending",
+  "raw_artifacts_whitespace": "preserved byte-for-byte; source-only diff check excludes measurement folders"
+}

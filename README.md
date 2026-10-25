@@ -30,6 +30,56 @@ runtime and Metal assets. It deliberately contains no model weights.
 > first launch, macOS may require **Open Anyway** in **System Settings → Privacy
 > & Security**. Do not disable Gatekeeper globally.
 
+## Desktop 1.5.0
+
+Desktop **1.5.0, build 30** adds conversation editing, regeneration and branches;
+projects and saved profiles; local text/PDF retrieval with citations; a graphical
+MCP manager with project permissions; validated JSON output; on-device dictation,
+reply speech and Markdown export. The new panels have opaque dark backgrounds.
+OCR is excluded. The bundle includes **engine 1.5.0**; the independent engine
+release channel remains at 1.4.8.
+
+Apple Silicon and **macOS 26.2+** are required. Existing history migrates to
+format 2, which older Desktop versions cannot read: keep a separate copy of
+format 1 before updating if you need to roll back. No new speed or memory gain
+is claimed. See the [release notes](docs/release-v1.5.0.md) and
+[verification, test counts and limits](docs/desktop-v1.5.0-verification.md).
+
+## Desktop 1.4.8
+
+Desktop **1.4.8, build 29** adds a continuous 120 ms token fade and smooth
+scroll following that pauses while reading earlier messages. Reduce Motion is
+respected. Equal-opacity text is drawn in groups, and fully opaque lines use
+the direct drawing path.
+
+The bundle reuses the published **engine 1.4.8 byte for byte**. No engine code
+or model weights change in this Desktop release. The app version also matches
+the runtime so older updaters accept the bundle. Measurements, CPU/memory costs
+and validation limits are in the [Desktop changelog](docs/release-v1.4.8.md);
+the independent [engine release](docs/release-engine-v1.4.8.md) is unchanged.
+
+## Desktop 1.4.6 and engine 1.4.6
+
+Desktop **1.4.6, build 28** bundles engine **1.4.6**. It fixes arm64 verification
+with LLVM lipo in recent Xcode versions and removes the MTPLX settings footer.
+The app updater supports independent app and engine versions. Version 1.4.4 was withdrawn
+from the stable channel because Desktop 1.4.3 rejected its bundled engine version.
+LFM models without MTP no
+longer inherit a sampling lock, and their context-memory estimate is available.
+The local HTTP API now reports explicit stop causes, rejects concurrent work,
+recovers disconnected requests and bounds transport waits. It also exposes
+readiness and capabilities. Standard `\dots` and `\boxed{…}` math commands
+also render correctly instead of falling back to raw LaTeX.
+
+The numerically qualified LFM V2 microblock path remains an explicit experimental
+opt-in (`MLXL3_LFM_MOE_PREFILL=1`). The timing studies do not meet the stability criteria for a
+release speedup; the default remains canonical. The unsuccessful capacity-cache
+prototype was removed. Model weights are unchanged.
+
+[Desktop changelog](docs/release-v1.4.6.md) ·
+[Engine changelog](docs/release-engine-v1.4.6.md) ·
+[Audit decisions and verification](docs/measurements/audit-api-lfm-20261016/lfm-final.md).
+
 ## DFlash2 in v1.4.3
 
 In **Generation → DFlash2**, one switch downloads, verifies and loads the
@@ -179,8 +229,18 @@ unsupported; ordinary dense K=7 projections remain supported.
 These are physical-engine measurements, not estimates. Results from different
 rows use different workloads and must not be combined.
 
+The current source build batches dense Qwen27B MLP verification at widths
+**2 and 4** on supported M5/EXL3 shapes. Width 3 uses the serial MLP after its
+isolated batching regression. `MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH=0` restores
+the previous dispatch; grouped MB3 remains opt-in. Tune uses a new calibration
+key for this policy. See the [October 16 protocol and limits](docs/qwen27-optimization-20261016.md).
+
+The local source build also provides MLXL3_EXL3_LANE_ORDER=1 for the measured dense Qwen27B path. This opt-in setting is off by default and separates Tune profiles. It is validated on the M5 standard with the original EXL3 checkpoint and MTP head; the installed desktop app is unchanged.
+
 | Model and workload | Decode | Prefill / TTFT | Notes |
 | --- | ---: | ---: | --- |
+| Qwen3.8-27B EXL3, MTP1, French 130 tokens / code 256 tokens | **11.08 / 10.94 tok/s** ABBA medians | See October 16 report | MacBook Pro (M5), 24 GB, AC; +20.7% / +21.4% versus serial MLP; local source build |
+| Qwen3.8-27B EXL3, MTP1, optional activation layout | **13.65 / 13.38 tok/s** combined ABBA/BAAB medians | [October 16 research and validation](docs/qwen27-max-optimisations-20261016.md) | M5 standard,24GB,battery; +24.4% / +24.3% versus paired layout-off controls; local source build, opt-in |
 | Qwen3.6-35B-A3B EXL3 2.49 bpw, greedy, 48 generated tokens | **47.545 tok/s** latest median | Captured prefill 0.153–0.154 s | Apple M5, three alternating runs |
 | Same target with experimental lossless DFlash2 | **74.645 tok/s** steady-state confirmation | Draft-context setup 0.006–0.007 s | **+43.8%** paired after the shared MoE route-preparation gain, five useful head rows/proposals per block, 86.7% accepted, exact sequences |
 | Ling 3.0 Tiny EXL3 4 bpw, 84-token prompt / 128-token generation | **102.873 tok/s** best control median | **105.524 tok/s**, 796.23 ms TTFT | M5, battery-powered diagnostic campaign |
@@ -540,6 +600,7 @@ These kernels accelerate conversion without changing the calibration recipe or
 float32 error metric.
 
 - [LFM local conversion guide](docs/lfm26-local-quantization.md)
+- [LFM2.5-24B-A2B MoE conversion, kernels and validation](docs/lfm25-moe-quantization.md)
 - [Ling local conversion guide](docs/ling-local-quantization.md)
 - [Metal quantization measurements](docs/metal-quantization-optimization.md)
 - [CUDA-to-Metal kernel inventory](docs/kernel-port.md)

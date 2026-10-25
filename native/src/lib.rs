@@ -6,7 +6,10 @@ pub mod array;
 pub mod checkpoint;
 pub mod codec;
 mod contracts;
-pub use contracts::{reusable_prefix_len, smallm_kernel_key};
+pub use contracts::{
+    GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, reusable_prefix_len,
+    smallm_kernel_key,
+};
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
@@ -48,6 +51,7 @@ pub mod ssd_moe;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod ssd_prefetch;
 pub mod streaming;
+pub mod structured;
 #[cfg(feature = "chat")]
 pub mod tokenizer;
 pub mod tool_call;

@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "full_suite": {
+    "passed": 723,
+    "skipped": 1,
+    "skip_reason": "local Ling model not installed"
+  },
+  "focused_final": {
+    "passed": 48
+  },
+  "mutation": "disabling per-domain/per-projection selection guard fails regression; production source restored byteexact",
+  "source_verification": {
+    "tool": "CrossHair",
+    "target": "pilot_lfm25_settings.settings_args",
+    "confirmed_postconditions": 2,
+    "seconds_per_condition": 20,
+    "excluded": [
+      "Torch tensors",
+      "CUDA",
+      "Modal I/O",
+      "actual model KL"
+    ]
+  },
+  "sha256": {
+    "scripts/pilot_lfm25_settings.py": "f2b1fc8c21e3ddd05758e1bbb3a5bd4528156d0e271fd53799f7d760960760f3",
+    "scripts/quantize_lfm25_settings_modal.py": "4d65496242e6ee8eff8a3384bbe89cbf4e1181776bf1573ab423200188708e21",
+    "tests/test_lfm25_settings.py": "d5540f9b25262e8add1deabb125e1ef1aedb36c35a2f3dd9db4b80357104386a",
+    ".github/workflows/quantization.yml": "76630a25e9a2fd6d5a13d39e7ae958bb78a03b2c993f9115713934e35730ee4e"
+  }
+}

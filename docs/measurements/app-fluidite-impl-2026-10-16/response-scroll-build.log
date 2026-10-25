@@ -1,0 +1,15 @@
+build/app-fluidite/ResponseUICombined.swift:1617:14: error: 'scrollWheel' has been renamed to 'scrollWheel(with:)'
+1615 |       event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+1616 |       event.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(phase.rawValue))
+1617 |       scroll.scrollWheel(NSEvent(cgEvent: event)!)
+     |              `- error: 'scrollWheel' has been renamed to 'scrollWheel(with:)'
+1618 |       try await Task.sleep(for: .milliseconds(30))
+1619 |     }
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSScrollView.h:68:1: note: 'scrollWheel' was obsoleted in Swift 3
+ 66 | - (void)tile;
+ 67 | - (void)reflectScrolledClipView:(NSClipView *)cView;
+ 68 | - (void)scrollWheel:(NSEvent *)event;
+    | `- note: 'scrollWheel' was obsoleted in Swift 3
+ 69 | 
+ 70 | /* An NSScrollView's scrollerStyle determines the style of scrollers that it will use.  AppKit sets this property automatically at runtime, based on the user's "Show scroll bars" setting and (if relevant) the set of connected pointing devices and their configured scroll capabilities, as determined by [NSScroller preferredScrollerStyle].  Setting an NSScrollView's scrollerStyle sets the scrollerStyle of its horizontalScroller and verticalScroller to match the new value.  If the NSScrollView subsequently creates or is assigned a new horizontalScroller or verticalScroller, they will at that time be assigned the same scrollerStyle that was given to the NSScrollView.

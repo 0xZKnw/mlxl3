@@ -226,7 +226,7 @@ enum EngineRuntimeStore {
     for name in ["mlxl3", "libmlx.dylib", "libjaccl.dylib"] {
       let file = stageURL.appendingPathComponent(name)
       _ = try UpdateManager.runProcess(
-        "/usr/bin/lipo", arguments: ["-verify_arch", "arm64", file.path])
+        "/usr/bin/lipo", arguments: [file.path, "-verify_arch", "arm64"])
       _ = try UpdateManager.runProcess(
         "/usr/bin/codesign", arguments: ["--verify", "--strict", file.path])
     }

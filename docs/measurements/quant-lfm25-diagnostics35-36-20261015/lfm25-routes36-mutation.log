@@ -1,0 +1,54 @@
+.F.F                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_actual_buffers_are_recorded_or_forced_and_hooks_always_restore[False-True] _
+
+replay = True, fail = False
+
+    @pytest.mark.parametrize("replay", [False, True])
+    @pytest.mark.parametrize("fail", [False, True])
+    def test_actual_buffers_are_recorded_or_forced_and_hooks_always_restore(replay, fail):
+        layer = module()
+        original = layer.routing_fn
+        data = routes(offset=4) if replay else None
+        capture = RouteCapture({"layer": layer}, 3, data)
+        try:
+            with capture:
+                for n in range(3):
+                    capture.begin(n)
+                    ids, weights = layer.routing_fn(1, None, torch.tensor(n), {})
+                    assert ids.data_ptr() == layer.ids.data_ptr()
+                    assert weights.data_ptr() == layer.weights.data_ptr()
+>                   assert ids[0, 0].item() == n + (4 if replay else 0)
+E                   assert 0 == (0 + 4)
+E                    +  where 0 = <built-in method item of Tensor object at 0x10b861d60>()
+E                    +    where <built-in method item of Tensor object at 0x10b861d60> = tensor(0).item
+
+tests/test_lfm25_routes.py:182: AssertionError
+_ test_actual_buffers_are_recorded_or_forced_and_hooks_always_restore[True-True] _
+
+replay = True, fail = True
+
+    @pytest.mark.parametrize("replay", [False, True])
+    @pytest.mark.parametrize("fail", [False, True])
+    def test_actual_buffers_are_recorded_or_forced_and_hooks_always_restore(replay, fail):
+        layer = module()
+        original = layer.routing_fn
+        data = routes(offset=4) if replay else None
+        capture = RouteCapture({"layer": layer}, 3, data)
+        try:
+            with capture:
+                for n in range(3):
+                    capture.begin(n)
+                    ids, weights = layer.routing_fn(1, None, torch.tensor(n), {})
+                    assert ids.data_ptr() == layer.ids.data_ptr()
+                    assert weights.data_ptr() == layer.weights.data_ptr()
+>                   assert ids[0, 0].item() == n + (4 if replay else 0)
+E                   assert 0 == (0 + 4)
+E                    +  where 0 = <built-in method item of Tensor object at 0x10b8636b0>()
+E                    +    where <built-in method item of Tensor object at 0x10b8636b0> = tensor(0).item
+
+tests/test_lfm25_routes.py:182: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_routes.py::test_actual_buffers_are_recorded_or_forced_and_hooks_always_restore[False-True]
+FAILED tests/test_lfm25_routes.py::test_actual_buffers_are_recorded_or_forced_and_hooks_always_restore[True-True]
+2 failed, 2 passed in 0.71s

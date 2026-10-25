@@ -1,0 +1,33 @@
+{
+  "status": "fixed_verified_cpu_no_retry_yet",
+  "focused_passed": 27,
+  "seconds": 1.06,
+  "before_fix": "remote import reproduced ModuleNotFoundError from real copied module without scripts path",
+  "fix": "one image PYTHONPATH environment line; numerical workers unchanged",
+  "full_suite_previous": {
+    "passed": 951,
+    "skipped": 1,
+    "reuse": "unaffected code; new regression plus all27 runner tests rerun"
+  },
+  "crosshair": "two cache_name postconditions reused; function byteexact unchanged",
+  "logs": {
+    "lfm25-tuning37-first-container-import-failed.log": {
+      "bytes": 18825,
+      "sha256": "ad553e27410fc3efe3adb89d31c8db02b72d1e7afe1e84cd555da4214c52121d"
+    },
+    "lfm25-tuning37-remote-import-before-fix.log": {
+      "bytes": 4654,
+      "sha256": "fb0383d1ab8b412d580906f46bf2cca38eddbe136e99ae1562aae293cb0c4b60"
+    },
+    "lfm25-tuning37-remote-import-cli-help.log": {
+      "bytes": 202,
+      "sha256": "d4974fd148d1cb3504484f48adc9ce771bf971c6618033fa27fe2dd9a9329f90"
+    },
+    "lfm25-tuning37-remote-import-tests.log": {
+      "bytes": 99,
+      "sha256": "099f7c5d8c1d172918113dae48f9fb749469fcd885411fd79cd6aee6560f3dfd"
+    }
+  },
+  "archive": "container-import-fix-logs.tar.gz",
+  "archive_sha256": "59f2dab57507fc871f74fe6a9d62a352632003ecb7e9cabd1b54ac186376f52e"
+}
